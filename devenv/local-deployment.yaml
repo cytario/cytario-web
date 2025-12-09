@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgres-pod
+spec:
+  containers:
+    - name: postgres
+      image: docker.io/postgres:16
+      env:
+        - name: POSTGRES_DB
+          value: "keycloak"
+        - name: POSTGRES_USER
+          value: "keycloak"
+        - name: POSTGRES_PASSWORD
+          value: "password"
+      ports:
+        - containerPort: 5432
+      volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumes:
+    - name: postgres-data
+      hostPath:
+        path: ./postgres-data
+        type: DirectoryOrCreate
+  network: cytario
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keycloak-pod
+spec:
+  containers:
+    - name: keycloak
+      image: ghcr.io/cytario/cytario-keycloak:1.4.3
+      env:
+        - name: KC_DB
+          value: "postgres"
+        - name: KC_DB_URL_HOST
+          value: "postgres-pod"
+        - name: KC_DB_URL_PORT
+          value: "5432"
+        - name: KC_DB_URL_DATABASE
+          value: "keycloak"
+        - name: KC_DB_USERNAME
+          value: "keycloak"
+        - name: KC_DB_PASSWORD
+          value: "password"
+        - name: KC_BOOTSTRAP_ADMIN_USERNAME
+          value: "admin"
+        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+          value: "admin"
+        - name: KC_HOSTNAME_STRICT
+          value: "false"
+        - name: KC_HTTP_ENABLED
+          value: "true"
+      ports:
+        - containerPort: 8080
+          hostPort: 8080
+      args:
+        - "start-dev"
+  network: cytario
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: minio-pod
+spec:
+  initContainers:
+    - name: wait-for-keycloak
+      image: curlimages/curl:latest
+      command:
+        - "sh"
+        - "-c"
+        - >
+          until curl -sf http://keycloak:8080/realms/master/.well-known/openid-configuration; do
+            echo "Waiting for Keycloak to be ready...";
+            sleep 5;
+          done;
+          echo "Keycloak is ready.";
+  containers:
+    - name: minio
+      image: minio/minio:latest
+      env:
+        - name: MINIO_ROOT_USER
+          value: "minioadmin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "minioadmin"
+        - name: MINIO_IDENTITY_OPENID_CONFIG_URL
+          value: "http://keycloak:8080/realms/master/.well-known/openid-configuration"
+        - name: MINIO_IDENTITY_OPENID_CLIENT_ID
+          value: "minio"
+        - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
+          value: "1234567"
+        - name: MINIO_IDENTITY_OPENID_REDIRECT_URI
+          value: "http://localhost:9000"
+        - name: MINIO_IDENTITY_OPENID_SCOPES
+          value: "groups"
+      ports:
+        - containerPort: 9000
+        - containerPort: 9001
+        - hostPort: 9000
+        - hostPort: 9001
+      args:
+        - server
+        - /data
+        - "--console-address=:9001"
+        - "--address=:9000"
+
+      volumeMounts:
+        - name: minio-data
+          mountPath: /data
+        - name: minio-config
+          mountPath: /root/.minio
+  volumes:
+    - name: minio-data
+      hostPath:
+        path: ./minio-data
+        type: DirectoryOrCreate
+    - name: minio-config
+      hostPath:
+        path: ./minio-config
+        type: DirectoryOrCreate
+  network: cytario
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cytario-db-pod
+spec:
+  containers:
+    - name: postgres
+      image: docker.io/postgres:16
+      env:
+        - name: POSTGRES_DB
+          value: "cytario"
+        - name: POSTGRES_USER
+          value: "cytario"
+        - name: POSTGRES_PASSWORD
+          value: "cytario"
+      ports:
+        - containerPort: 5432
+          hostPort: 5433
+      volumeMounts:
+        - name: cytario-db-data
+          mountPath: /var/lib/postgresql/data
+  volumes:
+    - name: cytario-db-data
+      hostPath:
+        path: ./cytario-db-data
+        type: DirectoryOrCreate
+  network: cytario
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valkey-pod
+spec:
+  containers:
+    - name: valkey
+      image: valkey/valkey:9
+      ports:
+        - containerPort: 6379
+          hostPort: 6379
+      volumeMounts:
+        - name: valkey-data
+          mountPath: /data
+  volumes:
+    - name: valkey-data
+      hostPath:
+        path: ./valkey-data
+        type: DirectoryOrCreate
+  network: cytario
+
+---
+apiVersion: v1
+kind: Network
+metadata:
+  name: cytario
