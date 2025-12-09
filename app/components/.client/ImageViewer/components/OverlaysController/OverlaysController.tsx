@@ -3,7 +3,6 @@ import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { FeatureItem } from "../FeatureBar/FeatureItem";
-import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
 import { ButtonLink } from "~/components/Controls/Button";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
@@ -15,8 +14,8 @@ export const OverlaysController = () => {
   const overlaysStates = useViewerStore(select.overlaysStates);
   const fillOpacity = useViewerStore(select.overlaysFillOpacity);
   const setFillOpacity = useViewerStore(select.setOverlaysFillOpacity);
-  const showCellOutline = useFeatureBarStore((s) => s.showCellOutline);
-  const setShowCellOutline = useFeatureBarStore((s) => s.setShowCellOutline);
+  const showCellOutline = useViewerStore(select.showCellOutline);
+  const setShowCellOutline = useViewerStore(select.setShowCellOutline);
   const currentZoom = useViewerStore(select.currentZoom);
 
   // Hide outline toggle when zoomed out (point mode doesn't have outlines)

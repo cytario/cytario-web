@@ -57,6 +57,7 @@ describe("selectors", () => {
         overlays: {},
         channelsOpacity: 1,
         overlaysFillOpacity: 0.8,
+        showCellOutline: true,
         isChannelsLoading: 0,
         isOverlaysLoading: 0,
       },
@@ -89,6 +90,7 @@ describe("selectors", () => {
     removeOverlaysState: vi.fn(),
     setOverlaysFillOpacity: vi.fn(),
     setChannelsOpacity: vi.fn(),
+    setShowCellOutline: vi.fn(),
     ...overrides,
   });
 
@@ -134,6 +136,7 @@ describe("selectors", () => {
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
+            showCellOutline: true,
             isChannelsLoading: 0,
             isOverlaysLoading: 0,
           },
@@ -163,6 +166,7 @@ describe("selectors", () => {
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
+            showCellOutline: true,
             isChannelsLoading: 0,
             isOverlaysLoading: 0,
           },
@@ -200,6 +204,7 @@ describe("selectors", () => {
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
+            showCellOutline: true,
             isChannelsLoading: 0,
             isOverlaysLoading: 0,
           },
@@ -251,6 +256,7 @@ describe("selectors", () => {
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
+            showCellOutline: true,
             isChannelsLoading: 0,
             isOverlaysLoading: 0,
           },
@@ -266,6 +272,53 @@ describe("selectors", () => {
         layersStates: [],
       });
       expect(select.visibleChannelCount(state)).toBe(0);
+    });
+  });
+
+  describe("showCellOutline", () => {
+    test("returns showCellOutline from current layer state", () => {
+      const state = createMockState();
+      expect(select.showCellOutline(state)).toBe(true);
+    });
+
+    test("returns true (default) when no layer state exists", () => {
+      const state = createMockState({
+        imagePanelIndex: -1,
+        imagePanels: [],
+        layersStates: [],
+      });
+      expect(select.showCellOutline(state)).toBe(true);
+    });
+
+    test("returns correct value for specific panel", () => {
+      const state = createMockState({
+        imagePanelIndex: 1,
+        imagePanels: [0, 1],
+        layersStates: [
+          {
+            channels: {},
+            channelIds: [],
+            overlays: {},
+            channelsOpacity: 1,
+            overlaysFillOpacity: 0.8,
+            showCellOutline: true,
+            isChannelsLoading: 0,
+            isOverlaysLoading: 0,
+          },
+          {
+            channels: {},
+            channelIds: [],
+            overlays: {},
+            channelsOpacity: 1,
+            overlaysFillOpacity: 0.8,
+            showCellOutline: false,
+            isChannelsLoading: 0,
+            isOverlaysLoading: 0,
+          },
+        ],
+      });
+      // Panel 1 has showCellOutline = false
+      expect(select.showCellOutline(state)).toBe(false);
     });
   });
 });

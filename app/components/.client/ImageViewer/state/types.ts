@@ -85,6 +85,7 @@ export interface ViewerStoreState {
     overlays: OverlaysState;
     channelsOpacity: number;
     overlaysFillOpacity: number;
+    showCellOutline: boolean;
     isChannelsLoading: number;
     isOverlaysLoading: number;
   }[];
@@ -139,6 +140,7 @@ interface ViewerStoreActions {
 
   setOverlaysFillOpacity: (fillOpacity: number) => void;
   setChannelsOpacity: (opacity: number) => void;
+  setShowCellOutline: (show: boolean) => void;
 }
 
 export type ViewerStore = ViewerStoreState & ViewerStoreActions;
