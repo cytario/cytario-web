@@ -57,16 +57,27 @@ export const markerUniforms = {
 } as const satisfies ShaderModule<MarkerProps>;
 
 /**
- * Create MarkerProps from fileMarkers record
+ * Create MarkerProps from fileMarkers record.
+ * The shader supports 32 marker bits but only 8 color slots (cycling with i % 8).
+ * For each color slot, we use the last marker that maps to it (indices: slot, slot+8, slot+16, slot+24).
  */
 export function createMarkerProps(
   fileMarkers: Record<string, { color: RGBA }>,
   opacity: number
 ): MarkerProps {
   const keys = Object.keys(fileMarkers);
-  const getColor = (i: number): RGBA => {
-    const c = fileMarkers[keys[i]]?.color ?? [0, 0, 0, 0];
-    return [c[0], c[1], c[2], 1.0];
+
+  // For each color slot, find the marker(s) that map to it (i % 8 === slot)
+  // Use the last one that exists to ensure colors for markers 8+ are respected
+  const getColor = (slot: number): RGBA => {
+    let color: RGBA = [0, 0, 0, 0];
+    for (let i = slot; i < keys.length; i += 8) {
+      const c = fileMarkers[keys[i]]?.color;
+      if (c) {
+        color = [c[0], c[1], c[2], 1.0];
+      }
+    }
+    return color;
   };
 
   return {
