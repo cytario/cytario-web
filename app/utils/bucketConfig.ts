@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { BucketConfig, PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
+
+import { BucketConfig, PrismaClient } from "~/.generated/client";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -10,7 +11,7 @@ const prisma = new PrismaClient({ adapter });
 
 // Get all bucket configs for a user
 export async function getBucketConfigsForUser(
-  userId: string
+  userId: string,
 ): Promise<BucketConfig[]> {
   return prisma.bucketConfig.findMany({ where: { userId } });
 }
@@ -19,7 +20,7 @@ export async function getBucketConfigsForUser(
 export async function getBucketConfigByName(
   userId: string,
   provider: string,
-  name: string
+  name: string,
 ): Promise<BucketConfig | null> {
   return prisma.bucketConfig.findUnique({
     where: { userId_provider_name: { userId, provider, name } },
@@ -35,7 +36,7 @@ export async function upsertBucketConfig(
     roleArn: string | null;
     region: string | null;
     endpoint: string;
-  }
+  },
 ) {
   return prisma.bucketConfig.upsert({
     where: {
@@ -57,7 +58,7 @@ export async function upsertBucketConfig(
 export async function deleteBucketConfig(
   userId: string,
   provider: string,
-  name: string
+  name: string,
 ) {
   return prisma.bucketConfig.delete({
     where: { userId_provider_name: { userId, provider, name } },

@@ -1,5 +1,4 @@
-import { BucketConfig } from "@prisma/client";
-
+import { BucketConfig } from "~/.generated/client";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 
 export type TreeNode = {

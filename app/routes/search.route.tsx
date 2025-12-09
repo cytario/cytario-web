@@ -1,8 +1,8 @@
 import { _Object } from "@aws-sdk/client-s3";
-import { BucketConfig } from "@prisma/client";
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { ObjectPresignedUrl } from "./objects.route";
+import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { UserProfile } from "~/.server/auth/getUserInfo";

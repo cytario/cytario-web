@@ -1,8 +1,9 @@
 import { _Object, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
-import { BucketConfig } from "@prisma/client";
+
 
 import { filterObjects } from "./filterObjects";
 import { TreeNode } from "../components/DirectoryView/buildDirectoryTree";
+import { BucketConfig } from "~/.generated/client";
 
 export interface GetFilesResponse {
   searchQuery: string | null;

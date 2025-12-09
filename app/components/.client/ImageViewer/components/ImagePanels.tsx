@@ -1,7 +1,7 @@
+import { Magnifier } from "./Magnifier";
 import { select } from "../state/selectors";
 import { useViewerStore } from "../state/ViewerStoreContext";
 import { ImagePanel } from "./Image/ImagePanel";
-import { Magnifier } from "./Magnifier";
 
 export const ImagePanels = () => {
   const imagePanels = useViewerStore((state) => state.imagePanels);

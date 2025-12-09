@@ -1,6 +1,5 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { BucketConfig } from "@prisma/client";
 import { addDecoder } from "geotiff";
 import { lazy, Suspense, useEffect } from "react";
 import {
@@ -10,6 +9,7 @@ import {
   useNavigate,
 } from "react-router";
 
+import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";

@@ -3,9 +3,9 @@ import {
   Credentials,
   STSClient,
 } from "@aws-sdk/client-sts";
-import { BucketConfig } from "@prisma/client";
 
 import { type SessionData, type SessionCredentials } from "./sessionStorage";
+import { BucketConfig } from "~/.generated/client";
 import { getBucketConfigByName } from "~/utils/bucketConfig";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
