@@ -1,0 +1,52 @@
+name: Release
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "New version"
+        value: ${{ jobs.release.outputs.new_release_version }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # publish GitHub release
+      issues: write # comment on released issues
+      pull-requests: write # comment on released PRs
+      packages: write # npm
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-json
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 7
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.semantic.outputs.new_release_published }}" == "true" ]; then
+            echo "- **Release Published**: ✓ Yes" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: ${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Release URL**: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Release Published**: ✗ No (no changes warranting release)" >> $GITHUB_STEP_SUMMARY
+          fi

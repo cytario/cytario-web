@@ -1,0 +1,19 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model BucketConfig {
+  id       Int     @id @default(autoincrement())
+  userId   String
+  name     String
+  provider String  // "aws" for AWS S3, user-defined for others (e.g., "minio")
+  roleArn  String? // Optional - only needed for AWS
+  region   String? // Optional - only needed for AWS
+  endpoint String  // Required - AWS endpoint or custom (MinIO)
+
+  @@unique([userId, provider, name])
+}

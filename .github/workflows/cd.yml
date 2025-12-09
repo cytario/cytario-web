@@ -1,0 +1,28 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qa-checks:
+    name: QA Checks
+    uses: ./.github/workflows/qa-checks.yml
+
+  release:
+    name: Release
+    uses: ./.github/workflows/release.yml
+    needs: qa-checks
+
+  build:
+    name: Build
+    uses: ./.github/workflows/container.yml
+    needs: release
+    if: ${{ needs.release.outputs.version != '' }}
+    with:
+      version: ${{ needs.release.outputs.version }}

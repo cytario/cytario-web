@@ -1,0 +1,49 @@
+import OverlayInfoModal from "./OverlayInfoModal";
+import { OverlaysControllerItem } from "./OverlaysController.Item";
+import { select } from "../../state/selectors";
+import { useViewerStore } from "../../state/ViewerStoreContext";
+import { FeatureItem } from "../FeatureBar/FeatureItem";
+import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
+import { ButtonLink } from "~/components/Controls/Button";
+import { isPointMode } from "~/utils/db/getGeomQuery";
+
+/**
+ * OverlaysController component manages the display and interaction of overlays in the image viewer.
+ * It allows users to toggle the visibility of different overlays and provides options to add new overlays.
+ */
+export const OverlaysController = () => {
+  const overlaysStates = useViewerStore(select.overlaysStates);
+  const fillOpacity = useViewerStore(select.overlaysFillOpacity);
+  const setFillOpacity = useViewerStore(select.setOverlaysFillOpacity);
+  const showCellOutline = useFeatureBarStore((s) => s.showCellOutline);
+  const setShowCellOutline = useFeatureBarStore((s) => s.setShowCellOutline);
+  const currentZoom = useViewerStore(select.currentZoom);
+
+  // Hide outline toggle when zoomed out (point mode doesn't have outlines)
+  const isInPointMode = isPointMode(currentZoom);
+
+  const entries = Object.entries(overlaysStates);
+
+  return (
+    <FeatureItem
+      title="Overlays"
+      sliderValue={fillOpacity}
+      onSliderChange={setFillOpacity}
+      toggleValue={showCellOutline}
+      onToggleChange={setShowCellOutline}
+      toggleHidden={isInPointMode}
+    >
+      {entries.map(([resourceId, overlayState]) => (
+        <OverlaysControllerItem key={resourceId} resourceId={resourceId} overlayState={overlayState} />
+      ))}
+
+      <footer className="p-2">
+        <ButtonLink to="?action=load-overlay" className="w-full">
+          Load Overlay
+        </ButtonLink>
+      </footer>
+
+      <OverlayInfoModal />
+    </FeatureItem>
+  );
+};
