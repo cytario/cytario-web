@@ -1,6 +1,6 @@
 {
   "name": "cytario-web",
-  "version": "1.3.0",
+  "version": "1.29.0",
   "description": "Cytario Web",
   "private": true,
   "sideEffects": false,
