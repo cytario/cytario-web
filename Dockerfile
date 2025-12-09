@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
