@@ -1,0 +1,79 @@
+name: QA Checks
+
+on:
+  workflow_call:
+
+env:
+  TZ: "Europe/Berlin"
+  HUSKY: 0
+
+jobs:
+  test:
+    name: "Lint & Test"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+      - name: Run linter
+        id: lint_step
+        run: npm run lint
+
+      - name: Run type checker
+        id: typecheck_step
+        run: npm run typecheck
+
+      - name: Run tests with coverage
+        id: coverage
+        run: npm run coverage
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## QA Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Checks Completed**:" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.lint_step.outcome }}" == "success" ]; then
+            echo "  - ESLint: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - ESLint: ✗" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.typecheck_step.outcome }}" == "success" ]; then
+            echo "  - TypeScript: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - TypeScript: ✗" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            node -e "
+              const fs = require('fs');
+              const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+              const total = coverage.total;
+              console.log('| Metric | Coverage |');
+              console.log('|--------|----------|');
+              console.log('| Statements | ' + total.statements.pct + '% |');
+              console.log('| Branches | ' + total.branches.pct + '% |');
+              console.log('| Functions | ' + total.functions.pct + '% |');
+              console.log('| Lines | ' + total.lines.pct + '% |');
+            " >> $GITHUB_STEP_SUMMARY
+          fi
