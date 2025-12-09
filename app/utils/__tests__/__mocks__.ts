@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import { BucketConfig } from "@prisma/client";
 
+import { BucketConfig } from "~/.generated/client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import {

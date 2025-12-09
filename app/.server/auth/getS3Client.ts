@@ -1,9 +1,9 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { BucketConfig } from "@prisma/client";
 import crypto from "crypto";
 import { LRUCache } from "lru-cache";
 
+import { BucketConfig } from "~/.generated/client";
 import { isAwsS3Endpoint } from "~/utils/s3Provider";
 
 interface CacheEntry {

@@ -17,6 +17,9 @@ venv
 # React Router
 .react-router/
 
+# Prisma generated client
+app/.generated/
+
 # LLM Support
 .claude/
 

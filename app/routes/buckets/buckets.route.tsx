@@ -1,4 +1,3 @@
-import { BucketConfig } from "@prisma/client";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -8,6 +7,7 @@ import {
 } from "react-router";
 import { useLoaderData } from "react-router";
 
+import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";

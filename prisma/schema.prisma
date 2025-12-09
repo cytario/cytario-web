@@ -3,7 +3,9 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../app/.generated/"
+  moduleFormat = "esm"
 }
 
 model BucketConfig {
