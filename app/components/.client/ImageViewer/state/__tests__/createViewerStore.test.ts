@@ -41,6 +41,7 @@ const createMockLayersState = () => ({
   overlays: {} as OverlaysState,
   channelsOpacity: 1,
   overlaysFillOpacity: 0.8,
+  showCellOutline: true,
   isChannelsLoading: 0,
   isOverlaysLoading: 0,
 });
@@ -92,6 +93,7 @@ describe("createViewerStore", () => {
       updateOverlaysState: expect.any(Function),
       setOverlaysFillOpacity: expect.any(Function),
       setChannelsOpacity: expect.any(Function),
+      setShowCellOutline: expect.any(Function),
     });
   });
 
@@ -742,6 +744,55 @@ describe("createViewerStore", () => {
 
     store.getState().setChannelsOpacity(0.3);
     expect(store.getState().layersStates[0].channelsOpacity).toBe(0.3);
+  });
+
+  test("setShowCellOutline()", () => {
+    const store = createViewerStore("test-viewer-28b");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [createMockLayersState()],
+    });
+
+    expect(store.getState().layersStates[0].showCellOutline).toBe(true);
+
+    store.getState().setShowCellOutline(false);
+    expect(store.getState().layersStates[0].showCellOutline).toBe(false);
+
+    store.getState().setShowCellOutline(true);
+    expect(store.getState().layersStates[0].showCellOutline).toBe(true);
+  });
+
+  test("setShowCellOutline() only affects active panel", () => {
+    const store = createViewerStore("test-viewer-28c");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0, 1],
+      layersStates: [createMockLayersState(), createMockLayersState()],
+    });
+
+    // Both panels start with showCellOutline = true
+    expect(store.getState().layersStates[0].showCellOutline).toBe(true);
+    expect(store.getState().layersStates[1].showCellOutline).toBe(true);
+
+    // Toggle panel 0's outline off
+    store.getState().setShowCellOutline(false);
+    expect(store.getState().layersStates[0].showCellOutline).toBe(false);
+    expect(store.getState().layersStates[1].showCellOutline).toBe(true);
+
+    // Switch to panel 1 and toggle its outline off
+    store.setState({ imagePanelIndex: 1 });
+    store.getState().setShowCellOutline(false);
+    expect(store.getState().layersStates[0].showCellOutline).toBe(false);
+    expect(store.getState().layersStates[1].showCellOutline).toBe(false);
+
+    // Switch back to panel 0 and toggle it on - panel 1 should stay off
+    store.setState({ imagePanelIndex: 0 });
+    store.getState().setShowCellOutline(true);
+    expect(store.getState().layersStates[0].showCellOutline).toBe(true);
+    expect(store.getState().layersStates[1].showCellOutline).toBe(false);
   });
 
   describe("addChannelsState()", () => {

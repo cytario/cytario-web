@@ -119,5 +119,11 @@ export const select = {
   },
   setChannelsOpacity: (state: ViewerStore) => state.setChannelsOpacity,
 
+  showCellOutline: (state: ViewerStore) => {
+    const layerState = select.layersState(state);
+    return layerState?.showCellOutline ?? true;
+  },
+  setShowCellOutline: (state: ViewerStore) => state.setShowCellOutline,
+
   currentZoom: (state: ViewerStore) => state.viewStateActive?.zoom ?? 0,
 };

@@ -203,6 +203,7 @@ export const createViewerStore = (id: string) =>
                           overlays: {},
                           channelsOpacity: 1,
                           overlaysFillOpacity: 0.8,
+                          showCellOutline: true,
                           isChannelsLoading: 0,
                           isOverlaysLoading: 0,
                         },
@@ -559,6 +560,21 @@ export const createViewerStore = (id: string) =>
                 },
                 false,
                 "setChannelsOpacity"
+              ),
+
+            setShowCellOutline: (showCellOutline: boolean) =>
+              set(
+                (state) => {
+                  const activeImagePanelIndex =
+                    state.imagePanels[state.imagePanelIndex];
+                  const layerState = state.layersStates[activeImagePanelIndex];
+
+                  if (layerState) {
+                    layerState.showCellOutline = showCellOutline;
+                  }
+                },
+                false,
+                "setShowCellOutline"
               ),
           }),
           {

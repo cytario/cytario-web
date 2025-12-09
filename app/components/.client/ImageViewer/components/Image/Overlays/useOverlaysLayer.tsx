@@ -5,7 +5,6 @@ import { OverlaysLayer } from "./OverlaysLayer";
 import { select } from "../../../state/selectors";
 import { useViewerStore } from "../../../state/ViewerStoreContext";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
-import { useFeatureBarStore } from "../../FeatureBar/useFeatureBar";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
 
 type SetTooltip = (
@@ -37,7 +36,8 @@ export const useOverlaysLayers = (
 
   const fillOpacity =
     layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? 0.8;
-  const showCellOutline = useFeatureBarStore((s) => s.showCellOutline);
+  const showCellOutline =
+    layersStates[panelLayersStateIndex]?.showCellOutline ?? true;
 
   const addNotification = useNotificationStore(
     (state) => state.addNotification
