@@ -33,6 +33,23 @@ import { getObjects } from "~/utils/getObjects";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { createResourceId, matchesExtension } from "~/utils/resourceId";
 
+/**
+ * Construct an S3 URL from bucket config and path.
+ * Used for zarr files that need direct S3 access with credentials.
+ */
+function constructS3Url(bucketConfig: BucketConfig, pathName: string): string {
+  const bucket = bucketConfig.name;
+
+  // Handle custom endpoints (MinIO, R2, etc.)
+  if (bucketConfig.endpoint) {
+    const endpoint = bucketConfig.endpoint.replace(/\/$/, "");
+    return `${endpoint}/${bucket}/${pathName}`;
+  }
+
+  // Default to AWS S3 virtual-hosted style URL
+  const region = bucketConfig.region || "us-east-1";
+  return `https://${bucket}.s3.${region}.amazonaws.com/${pathName}`;
+}
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -74,6 +91,7 @@ export interface BucketRouteLoaderResponse {
   notification?: NotificationInput;
   credentials: Credentials;
   bucketConfig: BucketConfig;
+  isZarr?: boolean;
 }
 
 export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
@@ -95,7 +113,11 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const bucketConfig = await getBucketConfigByName(userId, provider, bucketName);
+  const bucketConfig = await getBucketConfigByName(
+    userId,
+    provider,
+    bucketName
+  );
 
   if (!bucketConfig) {
     throw new Error("Bucket configuration not found");
@@ -112,6 +134,24 @@ export const loader = async ({
     );
 
     if (objects.length > 0) {
+      // Check if this is a zarr directory by .zarr extension
+      const isZarr = pathName.includes(".zarr");
+
+      if (isZarr) {
+        // Treat as a zarr image - return empty nodes to trigger viewer
+        const zarrUrl = constructS3Url(bucketConfig, pathName);
+        return {
+          credentials,
+          bucketConfig,
+          name,
+          nodes: [],
+          bucketName,
+          pathName,
+          url: zarrUrl,
+          isZarr: true,
+        };
+      }
+
       const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
         objects.map(async (obj) => ({
           ...obj,
@@ -161,8 +201,16 @@ export const loader = async ({
 };
 
 export default function ObjectsRoute() {
-  const { name, url, nodes, pathName, bucketName, credentials, bucketConfig } =
-    useLoaderData<BucketRouteLoaderResponse>();
+  const {
+    name,
+    url,
+    nodes,
+    pathName,
+    bucketName,
+    credentials,
+    bucketConfig,
+    isZarr,
+  } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const navigate = useNavigate();
   const { setCredentials } = useCredentialsStore();
@@ -225,11 +273,34 @@ export default function ObjectsRoute() {
       );
     }
 
+    // Check for OME-TIFF files
     if (matchesExtension(resourceId, /\.(tif|tiff)$/i)) {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer resourceId={resourceId} url={url} />
+            <Viewer
+              resourceId={resourceId}
+              url={url}
+              credentials={credentials}
+              bucketConfig={bucketConfig}
+            />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    // Check for bioformats2raw zarr images
+    // isZarr flag is set by loader when it detects .zattrs/.zgroup files
+    if (isZarr) {
+      return (
+        <ClientOnly>
+          <Suspense fallback={<div>Loading viewer...</div>}>
+            <Viewer
+              resourceId={resourceId}
+              url={url}
+              credentials={credentials}
+              bucketConfig={bucketConfig}
+            />
           </Suspense>
         </ClientOnly>
       );
