@@ -39,6 +39,23 @@ import { usePinnedPathsStore, selectIsPinned } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 import { createResourceId } from "~/utils/resourceId";
 
+/**
+ * Construct an S3 URL from bucket config and path.
+ * Used for zarr files that need direct S3 access with credentials.
+ */
+function constructS3Url(bucketConfig: BucketConfig, pathName: string): string {
+  const bucket = bucketConfig.name;
+
+  // Handle custom endpoints (MinIO, R2, etc.)
+  if (bucketConfig.endpoint) {
+    const endpoint = bucketConfig.endpoint.replace(/\/$/, "");
+    return `${endpoint}/${bucket}/${pathName}`;
+  }
+
+  // Default to AWS S3 virtual-hosted style URL
+  const region = bucketConfig.region || "us-east-1";
+  return `https://${bucket}.s3.${region}.amazonaws.com/${pathName}`;
+}
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -112,6 +129,7 @@ export interface BucketRouteLoaderResponse {
   notification?: NotificationInput;
   credentials: Credentials;
   bucketConfig: BucketConfig;
+  isZarr?: boolean;
 }
 
 export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
@@ -155,6 +173,24 @@ export const loader = async ({
     );
 
     if (objects.length > 0) {
+      // Check if this is a zarr directory by .zarr extension
+      const isZarr = pathName.includes(".zarr");
+
+      if (isZarr) {
+        // Treat as a zarr image - return empty nodes to trigger viewer
+        const zarrUrl = constructS3Url(bucketConfig, pathName);
+        return {
+          credentials,
+          bucketConfig,
+          name,
+          nodes: [],
+          bucketName,
+          pathName,
+          url: zarrUrl,
+          isZarr: true,
+        };
+      }
+
       const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
         objects.map(async (obj) => ({
           ...obj,
@@ -233,6 +269,7 @@ export default function ObjectsRoute() {
     bucketName,
     credentials,
     bucketConfig,
+    isZarr,
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const viewMode = useLayoutStore((state) => state.viewMode);
@@ -372,6 +409,22 @@ export default function ObjectsRoute() {
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
             <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    // Check for bioformats2raw zarr images — use direct S3 access with credentials
+    if (isZarr) {
+      return (
+        <ClientOnly>
+          <Suspense fallback={<div>Loading viewer...</div>}>
+            <Viewer
+              resourceId={resourceId}
+              url={url}
+              credentials={credentials}
+              bucketConfig={bucketConfig}
+            />
           </Suspense>
         </ClientOnly>
       );

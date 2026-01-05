@@ -1,3 +1,4 @@
+import type { Credentials } from "@aws-sdk/client-sts";
 import { addDecoder } from "geotiff";
 
 import { FeatureBar } from "./FeatureBar/FeatureBar";
@@ -7,6 +8,7 @@ import { ViewerHeader } from "./ViewerHeader";
 import { JP2KDecoder } from "../state/jp2k-decoder";
 import { LZWDecoder } from "../state/lzwDecoder";
 import { ViewerStoreProvider } from "../state/ViewerStoreContext";
+import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
 
 /**
  * Register decoders for GeoTIFF files.
@@ -25,11 +27,25 @@ interface ViewerProps {
   resourceId: string;
   url: string;
   offsetsUrl?: string;
+  credentials?: Credentials;
+  bucketConfig?: ClientBucketConfig;
 }
 
-export const Viewer = ({ resourceId, url, offsetsUrl }: ViewerProps) => {
+export const Viewer = ({
+  resourceId,
+  url,
+  offsetsUrl,
+  credentials,
+  bucketConfig,
+}: ViewerProps) => {
   return (
-    <ViewerStoreProvider resourceId={resourceId} url={url} offsetsUrl={offsetsUrl}>
+    <ViewerStoreProvider
+      resourceId={resourceId}
+      url={url}
+      offsetsUrl={offsetsUrl}
+      credentials={credentials}
+      bucketConfig={bucketConfig}
+    >
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
