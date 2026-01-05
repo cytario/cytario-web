@@ -1,11 +1,32 @@
 import { loadOmeTiff } from "@vivjs/loaders";
+import type { PixelData, SupportedDtype } from "@vivjs/types";
 
 import { RGBA } from "./types";
 
 type OmeTiffImage = Awaited<ReturnType<typeof loadOmeTiff>>;
 
+// Metadata type - same for both OME-TIFF and bioformats2raw zarr
 export type Image = OmeTiffImage["metadata"];
-export type Loader = OmeTiffImage["data"];
+
+/**
+ * Generic pixel source that works for both TIFF and Zarr loaders.
+ * Both TiffPixelSource and ZarrPixelSource implement this interface.
+ */
+export interface GenericPixelSource {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getRaster(sel: any): Promise<PixelData>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getTile(sel: any): Promise<PixelData>;
+  onTileError(err: Error): void;
+  shape: number[];
+  dtype: SupportedDtype;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  labels: any;
+  tileSize: number;
+}
+
+// Loader type - array of pixel sources (works for both TIFF and Zarr)
+export type Loader = GenericPixelSource[];
 
 export interface Channel {
   ID: string;
