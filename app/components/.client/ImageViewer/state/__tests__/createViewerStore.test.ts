@@ -710,8 +710,23 @@ describe("createViewerStore", () => {
     ).toBeDefined();
   });
 
-  test("setOverlaysFillOpacity()", () => {
-    const store = createViewerStore("test-viewer-27");
+  test.each([
+    {
+      name: "setOverlaysFillOpacity",
+      setter: "setOverlaysFillOpacity" as const,
+      property: "overlaysFillOpacity" as const,
+      initial: 0.8,
+      values: [0.5, 1],
+    },
+    {
+      name: "setChannelsOpacity",
+      setter: "setChannelsOpacity" as const,
+      property: "channelsOpacity" as const,
+      initial: 1,
+      values: [0.7, 0.3],
+    },
+  ])("$name()", ({ setter, property, initial, values }) => {
+    const store = createViewerStore(`test-opacity-${setter}`);
 
     store.setState({
       imagePanelIndex: 0,
@@ -719,31 +734,13 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    expect(store.getState().layersStates[0].overlaysFillOpacity).toBe(0.8);
+    expect(store.getState().layersStates[0][property]).toBe(initial);
 
-    store.getState().setOverlaysFillOpacity(0.5);
-    expect(store.getState().layersStates[0].overlaysFillOpacity).toBe(0.5);
+    store.getState()[setter](values[0]);
+    expect(store.getState().layersStates[0][property]).toBe(values[0]);
 
-    store.getState().setOverlaysFillOpacity(1);
-    expect(store.getState().layersStates[0].overlaysFillOpacity).toBe(1);
-  });
-
-  test("setChannelsOpacity()", () => {
-    const store = createViewerStore("test-viewer-28");
-
-    store.setState({
-      imagePanelIndex: 0,
-      imagePanels: [0],
-      layersStates: [createMockLayersState()],
-    });
-
-    expect(store.getState().layersStates[0].channelsOpacity).toBe(1);
-
-    store.getState().setChannelsOpacity(0.7);
-    expect(store.getState().layersStates[0].channelsOpacity).toBe(0.7);
-
-    store.getState().setChannelsOpacity(0.3);
-    expect(store.getState().layersStates[0].channelsOpacity).toBe(0.3);
+    store.getState()[setter](values[1]);
+    expect(store.getState().layersStates[0][property]).toBe(values[1]);
   });
 
   test("setShowCellOutline()", () => {

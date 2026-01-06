@@ -13,6 +13,7 @@ import {
   Image,
 } from "~/components/.client/ImageViewer/state/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
 
 const mock = {
   bucketConfig: (data: Partial<BucketConfig> = {}): BucketConfig => ({
@@ -21,6 +22,13 @@ const mock = {
     userId: "mock-user-id",
     provider: "aws",
     roleArn: "arn:aws:iam::123456789012:role/mock-role",
+    region: "us-east-1",
+    endpoint: "https://s3.amazonaws.com",
+    ...data,
+  }),
+  clientBucketConfig: (
+    data: Partial<ClientBucketConfig> = {}
+  ): ClientBucketConfig => ({
     region: "us-east-1",
     endpoint: "https://s3.amazonaws.com",
     ...data,

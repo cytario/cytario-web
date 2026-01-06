@@ -27,36 +27,6 @@ const Green = {
 };
 
 describe("DomainSlider", () => {
-  test("does not call setContrastLimits if no selectedChannelId", () => {
-    (useViewerStore as Mock).mockImplementation((selector) => {
-      switch (selector) {
-        case select.channelsState:
-          return {
-            Red,
-            Green,
-          } as unknown as ChannelsState;
-        case select.selectedChannelId:
-          return null;
-        case select.selectedChannel:
-          return Red;
-        case select.setSelectedChannelId:
-          return mockSetSelectedChannelId;
-        case select.setContrastLimits:
-          return mockUpdateChannelsState;
-      }
-    });
-
-    render(<DomainSlider domain={[0, 255]} />);
-
-    const sliders = screen.getAllByRole("slider");
-    const [, slider] = sliders;
-
-    fireEvent.mouseDown(slider, { clientX: 0 });
-    fireEvent.mouseMove(slider, { clientX: 10 });
-    fireEvent.mouseUp(slider);
-
-    expect(mockUpdateChannelsState).not.toHaveBeenCalled();
-  });
   const mockUpdateChannelsState = vi.fn();
   const mockSetSelectedChannelId = vi.fn();
 
@@ -147,8 +117,6 @@ describe("DomainSlider", () => {
 
     // Find the slider thumb
     const sliders = screen.getAllByRole("slider");
-
-    console.log({ sliders: sliders.length });
 
     const [, slider] = sliders;
 

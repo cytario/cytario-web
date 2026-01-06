@@ -45,7 +45,6 @@ const createDatabaseInternal = async (
   // Use experimental HTTPFS for S3 access
   // see https://github.com/duckdb/duckdb-wasm/discussions/2107
   await connection.query("SET builtin_httpfs = false;");
-  //   await connection.query("INSTALL httpfs;");
   await connection.query("LOAD httpfs;");
 
   // Install and load spatial extension for geometry operations
