@@ -22,6 +22,7 @@ export default defineConfig({
       include: ["app/**"], // Include only the app directory
       exclude: [
         "**/__tests__/**", // Exclude test files themselves
+        "**/.generated/**", // Exclude generated code (Prisma, etc.)
         "**/*.d.ts", // Exclude type declarations
         "**/types.ts", // Exclude general types
         "**/*.types.ts", // Exclude general types
