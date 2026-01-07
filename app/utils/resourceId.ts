@@ -4,6 +4,17 @@ export interface ResourceIdParts {
   pathName: string;
 }
 
+/**
+ * Ensures a path ends with a trailing slash for use as an S3 prefix.
+ * @param path - The path to convert to a prefix
+ * @returns The path with a trailing slash, or undefined if path is empty
+ */
+export function getPrefix(path: string): string | undefined {
+  if (!path) return undefined;
+  if (path.endsWith("/")) return path;
+  return path + "/";
+}
+
 export function createResourceId(
   provider: string,
   bucketName: string,
@@ -93,13 +104,15 @@ export function isValidResourceId(value: string): boolean {
 }
 
 /**
- * Gets the file name from a resourceId
+ * Gets the file/folder name from a resourceId (last segment of path)
  * @param resourceId - The composite identifier
- * @returns The file name (last segment of path)
+ * @returns The name (last segment), or empty string if path is empty
  */
 export function getFileName(resourceId: string): string {
   const { pathName } = parseResourceId(resourceId);
-  return pathName.split("/").pop() || pathName;
+  // Strip trailing slashes to handle directory paths correctly
+  const normalized = pathName.replace(/\/+$/, "");
+  return normalized.split("/").pop() || "";
 }
 
 /**

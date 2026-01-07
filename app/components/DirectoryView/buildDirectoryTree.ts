@@ -1,6 +1,7 @@
+import { _Object } from "@aws-sdk/client-s3";
+
 import { BucketConfig } from "~/.generated/client";
 import { IndexEntry } from "~/components/DirectoryView/queryIndex";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 
 export type TreeNode = {
   type: "bucket" | "directory" | "file";
@@ -8,7 +9,7 @@ export type TreeNode = {
   bucketName: string;
   pathName?: string;
   children: TreeNode[];
-  _Object?: ObjectPresignedUrl;
+  _Object?: _Object;
   _Bucket?: BucketConfig;
 };
 
@@ -38,7 +39,7 @@ function buildTreeRecursive(
   let pathName = parentPath + name;
   if (keyParts.length > 1) pathName += "/";
 
-  const objectData: ObjectPresignedUrl = {
+  const objectData: _Object = {
     Key: source.key,
     Size: source.size,
     LastModified: source.lastModified,
@@ -123,7 +124,7 @@ function buildTreeFromSources<T>(
  */
 export function buildDirectoryTree(
   bucketName: string,
-  objects: ObjectPresignedUrl[],
+  objects: _Object[],
   prefix?: string,
   bucketConfig?: BucketConfig
 ): TreeNode[] {

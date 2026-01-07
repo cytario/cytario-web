@@ -1,7 +1,6 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { LoaderFunction, useLoaderData } from "react-router";
 
-import { ObjectPresignedUrl } from "./objects.route";
 import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
@@ -91,7 +90,7 @@ export default function SearchRoute() {
       _Bucket: { provider } as BucketConfig,
       children: buildDirectoryTree(
         bucketName,
-        results.files[key] as ObjectPresignedUrl[],
+        results.files[key] as _Object[],
         ""
       ),
     };

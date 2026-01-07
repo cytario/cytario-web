@@ -10,7 +10,7 @@ import {
   isValidResourceId,
   getFileName,
   matchesExtension,
-} from "./resourceId";
+} from "../resourceId";
 
 describe("resourceId utilities", () => {
   describe("createResourceId", () => {

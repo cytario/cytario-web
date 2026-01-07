@@ -35,8 +35,12 @@ import { Placeholder } from "~/components/Placeholder";
 import { getBucketConfigByName } from "~/utils/bucketConfig";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { getObjects } from "~/utils/getObjects";
-import { getName, getPrefix } from "~/utils/pathUtils";
-import { createResourceId, matchesExtension } from "~/utils/resourceId";
+import {
+  createResourceId,
+  getFileName,
+  getPrefix,
+  matchesExtension,
+} from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -81,8 +85,6 @@ export interface BucketRouteLoaderResponse {
   bucketConfig: BucketConfig;
 }
 
-export type ObjectPresignedUrl = Readonly<_Object>;
-
 export const loader = async ({
   params,
   context,
@@ -98,7 +100,8 @@ export const loader = async ({
 
   const pathName = params["*"] as string;
   const prefix = getPrefix(pathName);
-  const name = getName(pathName, bucketName);
+  const resourceId = createResourceId(provider, bucketName, pathName);
+  const name = getFileName(resourceId) || bucketName;
 
   const bucketConfig = await getBucketConfigByName(
     userId,
@@ -205,7 +208,8 @@ export async function clientLoader({
   }
 
   const nodes = buildDirectoryTreeFromIndex(bucketName!, entries, prefix);
-  const name = getName(pathName, bucketName!);
+  const resourceId = createResourceId(provider!, bucketName!, pathName);
+  const name = getFileName(resourceId) || bucketName!;
 
   // Build full bucket config from stored client config
   const bucketConfig: BucketConfig = {

@@ -1,28 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useFetcher } from "react-router";
-import { Mock, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
+
+vi.mock("react-router", () => ({
+  useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
+}));
+
+vi.mock("~/components/DirectoryView/queryIndex", () => ({
+  searchIndex: vi.fn().mockResolvedValue([]),
+  getIndexedBuckets: vi.fn().mockReturnValue([]),
+}));
 
 import { GlobalSearch } from "../GlobalSearch";
 
-const mockSetSearchParams = vi.fn();
-const mockSearchParams = new URLSearchParams();
-
-vi.mock("react-router", () => ({
-  useFetcher: vi.fn(),
-  useSearchParams: vi.fn(() => [mockSearchParams, mockSetSearchParams]),
-}));
-
 describe("GlobalSearch", () => {
-  const mockSubmit = vi.fn();
-  const mockFetcher = {
-    submit: mockSubmit,
-    data: null,
-  };
-
-  beforeEach(() => {
-    (useFetcher as Mock).mockReturnValue(mockFetcher);
-  });
-
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -40,20 +30,6 @@ describe("GlobalSearch", () => {
     expect(input).toHaveValue("test");
   });
 
-  test("submits the query after debounce duration", async () => {
-    render(<GlobalSearch />);
-    const input = screen.getByRole("searchbox");
-
-    fireEvent.change(input, { target: { value: "test" } });
-
-    await waitFor(() => {
-      expect(mockSubmit).toHaveBeenCalledWith(
-        { query: "test" },
-        { method: "get", action: "/search" }
-      );
-    });
-  });
-
   test("clears the results when input is cleared", () => {
     render(<GlobalSearch />);
     const input = screen.getByRole("searchbox");
@@ -63,6 +39,5 @@ describe("GlobalSearch", () => {
     fireEvent.click(clearButton);
 
     expect(input).toHaveValue("");
-    expect(mockFetcher.data).toBeNull();
   });
 });

@@ -1,13 +1,30 @@
+import { _Object } from "@aws-sdk/client-s3";
+
 import { buildDirectoryTree } from "../buildDirectoryTree";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 
 describe("buildDirectoryTree", () => {
   test("should correctly build a directory tree from a flat list of objects", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "folder1/file1.txt", Size: 100, LastModified: new Date("2024-01-01") },
-      { Key: "folder1/file2.txt", Size: 200, LastModified: new Date("2024-01-02") },
-      { Key: "folder2/file3.txt", Size: 300, LastModified: new Date("2024-01-03") },
-      { Key: "folder2/subfolder1/file4.txt", Size: 400, LastModified: new Date("2024-01-04") },
+    const objects: _Object[] = [
+      {
+        Key: "folder1/file1.txt",
+        Size: 100,
+        LastModified: new Date("2024-01-01"),
+      },
+      {
+        Key: "folder1/file2.txt",
+        Size: 200,
+        LastModified: new Date("2024-01-02"),
+      },
+      {
+        Key: "folder2/file3.txt",
+        Size: 300,
+        LastModified: new Date("2024-01-03"),
+      },
+      {
+        Key: "folder2/subfolder1/file4.txt",
+        Size: 400,
+        LastModified: new Date("2024-01-04"),
+      },
     ];
 
     const tree = buildDirectoryTree("test-bucket", objects);
@@ -39,21 +56,19 @@ describe("buildDirectoryTree", () => {
   });
 
   test("should set correct pathNames with trailing slash for directories", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "parent/child/file.txt" },
-    ];
+    const objects: _Object[] = [{ Key: "parent/child/file.txt" }];
 
     const tree = buildDirectoryTree("test-bucket", objects);
 
     expect(tree[0].pathName).toBe("parent/");
     expect(tree[0].children[0].pathName).toBe("parent/child/");
-    expect(tree[0].children[0].children[0].pathName).toBe("parent/child/file.txt");
+    expect(tree[0].children[0].children[0].pathName).toBe(
+      "parent/child/file.txt"
+    );
   });
 
   test("should handle prefix correctly", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "prefix/folder/file.txt" },
-    ];
+    const objects: _Object[] = [{ Key: "prefix/folder/file.txt" }];
 
     const tree = buildDirectoryTree("test-bucket", objects, "prefix/");
 

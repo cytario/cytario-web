@@ -1,3 +1,4 @@
+import { _Object } from "@aws-sdk/client-s3";
 import { Transition } from "@headlessui/react";
 
 import {
@@ -8,7 +9,6 @@ import DirectoryTree from "../DirectoryView/DirectoryViewTree";
 import { H2 } from "../Fonts";
 import { Placeholder } from "../Placeholder";
 import { GlobalSearchResults } from "./GlobalSearch";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 
 interface SuggestionsProps {
   results: GlobalSearchResults;
@@ -25,10 +25,7 @@ export const Suggestions = ({
       bucketName,
       name: bucketName,
       type: "bucket",
-      children: buildDirectoryTree(
-        bucketName,
-        files[bucketKey] as ObjectPresignedUrl[]
-      ),
+      children: buildDirectoryTree(bucketName, files[bucketKey] as _Object[]),
       _Bucket: { provider } as TreeNode["_Bucket"],
     };
   });

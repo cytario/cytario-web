@@ -1,3 +1,4 @@
+import { _Object } from "@aws-sdk/client-s3";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
@@ -11,7 +12,6 @@ import {
 import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
 import { DEFAULT_RESULTS } from "~/components/GlobalSearch/GlobalSearch";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useCredentialsStore } from "~/utils/credentialsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
@@ -53,14 +53,19 @@ export const AddOverlay = ({
   // Nodes across buckets - keys are in format provider/bucketName
   const nodes: TreeNode[] = Object.keys(results.files).map((key) => {
     const [provider, bucketName] = key.split("/");
-    const objects = results.files[key] as ObjectPresignedUrl[];
+    const objects = results.files[key] as _Object[];
     const bucketConfig = { provider } as TreeNode["_Bucket"];
     return {
       bucketName,
       name: bucketName,
       type: "bucket",
       _Bucket: bucketConfig,
-      children: buildDirectoryTree(bucketName, objects, undefined, bucketConfig),
+      children: buildDirectoryTree(
+        bucketName,
+        objects,
+        undefined,
+        bucketConfig
+      ),
     };
   });
 
@@ -92,9 +97,7 @@ export const AddOverlay = ({
               .getCredentials(storeKey);
 
             if (!credentials) {
-              throw new Error(
-                `No credentials found for bucket: ${storeKey}`
-              );
+              throw new Error(`No credentials found for bucket: ${storeKey}`);
             }
 
             if (extension === "csv") {

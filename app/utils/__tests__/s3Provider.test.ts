@@ -6,7 +6,7 @@ import {
   getDuckDbUrlStyle,
   shouldUseSSL,
   getEndpointHostname,
-} from "./s3Provider";
+} from "../s3Provider";
 
 describe("s3Provider utilities", () => {
   describe("isAwsS3Endpoint", () => {
@@ -110,7 +110,9 @@ describe("s3Provider utilities", () => {
 
     it("extracts hostname from custom endpoint", () => {
       expect(getEndpointHostname("https://s3.cytar.io")).toBe("s3.cytar.io");
-      expect(getEndpointHostname("http://localhost:9000")).toBe("localhost:9000");
+      expect(getEndpointHostname("http://localhost:9000")).toBe(
+        "localhost:9000"
+      );
       expect(getEndpointHostname("https://s3.eu-central-1.amazonaws.com")).toBe(
         "s3.eu-central-1.amazonaws.com"
       );
