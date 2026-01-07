@@ -42,7 +42,7 @@ describe("pathUtils", () => {
     });
 
     test("should handle path with trailing slash", () => {
-      expect(getName("folder/subfolder/")).toBe("");
+      expect(getName("folder/subfolder/")).toBe("subfolder");
     });
 
     test("should handle single segment path", () => {

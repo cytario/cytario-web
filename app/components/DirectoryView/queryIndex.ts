@@ -13,6 +13,18 @@ export interface SearchResult {
 }
 
 /**
+ * Map a DuckDB row to an IndexEntry
+ */
+function mapRowToIndexEntry(row: Record<string, unknown>): IndexEntry {
+  return {
+    key: row.key as string,
+    size: Number(row.size),
+    lastModified: new Date(row.last_modified as string),
+    etag: row.etag as string | null,
+  };
+}
+
+/**
  * Search for objects across multiple indexed buckets
  *
  * @param query - Search query (matches against object keys)
@@ -54,12 +66,7 @@ export async function searchIndex(
       for (let i = 0; i < result.numRows; i++) {
         const row = result.get(i);
         if (row) {
-          entries.push({
-            key: row.key as string,
-            size: Number(row.size),
-            lastModified: new Date(row.last_modified as string),
-            etag: row.etag as string | null,
-          });
+          entries.push(mapRowToIndexEntry(row));
         }
       }
 
@@ -110,12 +117,7 @@ export async function listPrefix(
     for (let i = 0; i < result.numRows; i++) {
       const row = result.get(i);
       if (row) {
-        entries.push({
-          key: row.key as string,
-          size: Number(row.size),
-          lastModified: new Date(row.last_modified as string),
-          etag: row.etag as string | null,
-        });
+        entries.push(mapRowToIndexEntry(row));
       }
     }
 

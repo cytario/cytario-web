@@ -28,10 +28,15 @@ beforeEach(() => {
 });
 
 describe("DirectoryView Component", () => {
-  const mockNodes = [
-    { name: "File1.txt", type: "file" },
-    { name: "Folder1", type: "directory" },
-  ] as unknown as TreeNode[];
+  const mockNodes: TreeNode[] = [
+    { name: "File1.txt", type: "file", bucketName: "test-bucket", children: [] },
+    {
+      name: "Folder1",
+      type: "directory",
+      bucketName: "test-bucket",
+      children: [],
+    },
+  ];
 
   test("renders the component with the correct name", () => {
     const RemixStub = createRoutesStub([

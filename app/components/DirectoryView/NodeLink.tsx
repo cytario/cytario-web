@@ -9,6 +9,7 @@ import { Icon, IconButton, LucideIconsType } from "../Controls/IconButton";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { createResourceId } from "~/utils/resourceId";
+import { usePresignedUrl } from "~/utils/usePresignedUrl";
 
 const icons: Record<string, LucideIconsType> = {
   directory: "Folder",
@@ -53,38 +54,55 @@ function NodeThumbnail({ node }: { node: TreeNode }) {
     key && provider && bucketName
       ? createResourceId(provider, bucketName, key)
       : "";
-  const url = node._Object?.presignedUrl;
 
-  if (url) {
-    if (node.type === "directory") {
-      return (
-        <div className="relative w-full h-full">
-          <Sheet offset={4} />
-          <Sheet offset={2} />
-          <Sheet offset={0}>
-            {key?.endsWith("ome.tif") && (
-              <ViewerStoreProvider resourceId={resourceId} url={url}>
-                <ImagePreview />
-              </ViewerStoreProvider>
-            )}
-          </Sheet>
+  // Lazy-load presigned URL for image files that need preview
+  const needsPresignedUrl =
+    key?.endsWith("ome.tif") || key?.endsWith(".tif") || key?.endsWith(".tiff");
+  const { url, isLoading } = usePresignedUrl(
+    needsPresignedUrl ? resourceId : ""
+  );
 
-          <div
-            className={`
-              absolute top-2 right-6
-              flex items-center justify-center
-              px-1 h-4 min-w-4
-              text-sm font-bold
-            text-slate-700 bg-white
-          `}
-          >
-            {node.children.length}
-          </div>
+  // Directories: show folder structure with image preview if available
+  if (node.type === "directory") {
+    return (
+      <div className="relative w-full h-full">
+        <Sheet offset={4} />
+        <Sheet offset={2} />
+        <Sheet offset={0}>
+          {url && key?.endsWith("ome.tif") && (
+            <ViewerStoreProvider resourceId={resourceId} url={url}>
+              <ImagePreview />
+            </ViewerStoreProvider>
+          )}
+        </Sheet>
+
+        <div
+          className={`
+            absolute top-2 right-6
+            flex items-center justify-center
+            px-1 h-4 min-w-4
+            text-sm font-bold
+          text-slate-700 bg-white
+        `}
+        >
+          {node.children.length}
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (key?.endsWith("ome.tif")) {
+  // CSV files: show table icon
+  if (key?.endsWith("csv")) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-slate-100">
+        <Icon icon="Table2" size={96} />
+      </div>
+    );
+  }
+
+  // Image files: show preview if URL available, loading state, or icon fallback
+  if (needsPresignedUrl) {
+    if (url) {
       return (
         <ViewerStoreProvider resourceId={resourceId} url={url}>
           <ImagePreview />
@@ -92,18 +110,25 @@ function NodeThumbnail({ node }: { node: TreeNode }) {
       );
     }
 
-    if (key?.endsWith("csv")) {
+    if (isLoading) {
       return (
-        <div className="w-full h-full flex items-center justify-center bg-slate-100">
-          <Icon icon="Table2" size={96} />
+        <div className="w-full h-full flex items-center justify-center bg-slate-100 animate-pulse">
+          <Icon icon="Image" size={96} className="opacity-50" />
         </div>
       );
     }
+
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-slate-100">
+        <Icon icon="Image" size={96} />
+      </div>
+    );
   }
 
+  // Default fallback
   return (
     <div className="w-full h-full flex items-center justify-center bg-slate-100">
-      <Icon icon="Cloud" size={96} />
+      <Icon icon="File" size={96} />
     </div>
   );
 }
@@ -131,11 +156,7 @@ export default function NodeLink({
   // Use provider from node._Bucket for bucket nodes, or from store for files/directories
   const provider = node._Bucket?.provider ?? storeProvider;
 
-  const resourceId = createResourceId(
-    provider!,
-    bucketName,
-    pathName
-  );
+  const resourceId = createResourceId(provider!, bucketName, pathName);
 
   const to = `/buckets/${resourceId}`;
 

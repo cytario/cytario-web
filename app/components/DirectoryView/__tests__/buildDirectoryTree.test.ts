@@ -1,154 +1,69 @@
-import { buildDirectoryTree, TreeNode } from "../buildDirectoryTree";
+import { buildDirectoryTree } from "../buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 
-const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
-  [
-    [
-      {
-        Key: "folder1/file1.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-      {
-        Key: "folder1/file2.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-      {
-        Key: "folder2/file3.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-      {
-        Key: "folder2/subfolder1/file4.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-    ],
-    [
-      {
-        type: "directory",
-        name: "folder1",
-        bucketName: "test-bucket",
-        pathName: "folder1/",
-        children: [
-          {
-            type: "file",
-            name: "file1.txt",
-            pathName: "folder1/file1.txt",
-            bucketName: "test-bucket",
-            children: [],
-            _Object: {
-              Key: "folder1/file1.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
-          },
-          {
-            type: "file",
-            name: "file2.txt",
-            bucketName: "test-bucket",
-            pathName: "folder1/file2.txt",
-            children: [],
-            _Object: {
-              Key: "folder1/file2.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
-          },
-        ],
-        _Object: {
-          Key: "folder1/file1.txt",
-          presignedUrl: "http://example.com/file1.txt",
-        },
-      },
-      {
-        type: "directory",
-        name: "folder2",
-        bucketName: "test-bucket",
-        pathName: "folder2/",
-        children: [
-          {
-            type: "file",
-            name: "file3.txt",
-            bucketName: "test-bucket",
-            pathName: "folder2/file3.txt",
-            children: [],
-            _Object: {
-              Key: "folder2/file3.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
-          },
-          {
-            type: "directory",
-            name: "subfolder1",
-            pathName: "folder2/subfolder1/",
-            bucketName: "test-bucket",
-            children: [
-              {
-                type: "file",
-                name: "file4.txt",
-                bucketName: "test-bucket",
-                pathName: "folder2/subfolder1/file4.txt",
-                children: [],
-                _Object: {
-                  Key: "folder2/subfolder1/file4.txt",
-                  presignedUrl: "http://example.com/file1.txt",
-                },
-              },
-            ],
-            _Object: {
-              Key: "folder2/subfolder1/file4.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
-          },
-        ],
-        _Object: {
-          Key: "folder2/file3.txt",
-          presignedUrl: "http://example.com/file1.txt",
-        },
-      },
-    ],
-  ],
-  // // no directories
-  // [
-  //   [
-  //     {
-  //       Key: "file1.txt",
-  //       presignedUrl: "http://example.com/file1.txt",
-  //     } as ObjectPresignedUrl,
-  //     {
-  //       Key: "file2.txt",
-  //       presignedUrl: "http://example.com/file1.txt",
-  //     } as ObjectPresignedUrl,
-  //   ],
-  //   [
-  //     {
-  //       type: "file",
-  //       name: "file1.txt",
-  //       bucketName: "test-bucket",
-  //       children: [],
-  //       _Object: {
-  //         Key: "file1.txt",
-  //         presignedUrl: "http://example.com/file1.txt",
-  //       },
-  //     },
-  //     {
-  //       type: "file",
-  //       name: "file2.txt",
-  //       bucketName: "test-bucket",
-  //       children: [],
-  //       _Object: {
-  //         Key: "file2.txt",
-  //         presignedUrl: "http://example.com/file1.txt",
-  //       },
-  //     },
-  //   ],
-  // ],
-  // // no data
-  // [[], []],
-];
-
 describe("buildDirectoryTree", () => {
-  test.each(testCases)(
-    "should correctly build a directory tree from a flat list of objects",
-    (objects, expectedTree) => {
-      const tree = buildDirectoryTree("test-bucket", objects);
-      expect(tree).toEqual(expectedTree);
-    }
-  );
+  test("should correctly build a directory tree from a flat list of objects", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "folder1/file1.txt", Size: 100, LastModified: new Date("2024-01-01") },
+      { Key: "folder1/file2.txt", Size: 200, LastModified: new Date("2024-01-02") },
+      { Key: "folder2/file3.txt", Size: 300, LastModified: new Date("2024-01-03") },
+      { Key: "folder2/subfolder1/file4.txt", Size: 400, LastModified: new Date("2024-01-04") },
+    ];
+
+    const tree = buildDirectoryTree("test-bucket", objects);
+
+    // Check top-level structure
+    expect(tree).toHaveLength(2);
+
+    // Check folder1
+    const folder1 = tree.find((n) => n.name === "folder1");
+    expect(folder1).toBeDefined();
+    expect(folder1?.type).toBe("directory");
+    expect(folder1?.children).toHaveLength(2);
+    expect(folder1?.children.map((c) => c.name)).toContain("file1.txt");
+    expect(folder1?.children.map((c) => c.name)).toContain("file2.txt");
+
+    // Check folder2
+    const folder2 = tree.find((n) => n.name === "folder2");
+    expect(folder2).toBeDefined();
+    expect(folder2?.type).toBe("directory");
+    expect(folder2?.children).toHaveLength(2);
+
+    // Check subfolder1 inside folder2
+    const subfolder1 = folder2?.children.find((n) => n.name === "subfolder1");
+    expect(subfolder1).toBeDefined();
+    expect(subfolder1?.type).toBe("directory");
+    expect(subfolder1?.children).toHaveLength(1);
+    expect(subfolder1?.children[0].name).toBe("file4.txt");
+    expect(subfolder1?.children[0].type).toBe("file");
+  });
+
+  test("should set correct pathNames with trailing slash for directories", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "parent/child/file.txt" },
+    ];
+
+    const tree = buildDirectoryTree("test-bucket", objects);
+
+    expect(tree[0].pathName).toBe("parent/");
+    expect(tree[0].children[0].pathName).toBe("parent/child/");
+    expect(tree[0].children[0].children[0].pathName).toBe("parent/child/file.txt");
+  });
+
+  test("should handle prefix correctly", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "prefix/folder/file.txt" },
+    ];
+
+    const tree = buildDirectoryTree("test-bucket", objects, "prefix/");
+
+    // Should strip prefix, so folder is at root level
+    expect(tree[0].name).toBe("folder");
+    expect(tree[0].pathName).toBe("prefix/folder/");
+  });
+
+  test("should return empty array for empty input", () => {
+    const tree = buildDirectoryTree("test-bucket", []);
+    expect(tree).toEqual([]);
+  });
 });

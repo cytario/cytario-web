@@ -21,12 +21,14 @@ import { Button } from "~/components/Controls/Button";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
+  buildDirectoryTreeFromIndex,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
+import { buildIndex } from "~/components/DirectoryView/buildIndex";
 import DirectoryView from "~/components/DirectoryView/DirectoryView";
-import { buildIndex } from "~/components/IndexStatus/buildIndex";
-import { IndexStatus } from "~/components/IndexStatus/IndexStatus";
-import { useIndexStore } from "~/components/IndexStatus/useIndexStore";
+import { IndexStatus } from "~/components/DirectoryView/IndexStatus";
+import { listPrefix } from "~/components/DirectoryView/queryIndex";
+import { useIndexStore } from "~/components/DirectoryView/useIndexStore";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
@@ -79,7 +81,7 @@ export interface BucketRouteLoaderResponse {
   bucketConfig: BucketConfig;
 }
 
-export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
+export type ObjectPresignedUrl = Readonly<_Object>;
 
 export const loader = async ({
   params,
@@ -119,14 +121,8 @@ export const loader = async ({
     );
 
     if (objects.length > 0) {
-      const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
-        objects.map(async (obj) => ({
-          ...obj,
-          presignedUrl: await getPresignedUrl(bucketConfig, s3Client, obj.Key!),
-        }))
-      );
-
-      const nodes = buildDirectoryTree(bucketName, objectsWithUrls, prefix);
+      // Pass objects directly - presigned URLs are lazy-loaded by thumbnails
+      const nodes = buildDirectoryTree(bucketName, objects, prefix);
 
       return {
         credentials,
@@ -166,6 +162,71 @@ export const loader = async ({
     };
   }
 };
+
+/**
+ * Client loader for instant navigation when DuckDB index is available.
+ * Falls back to server loader when index is not ready.
+ */
+export async function clientLoader({
+  params,
+  serverLoader,
+}: {
+  params: Record<string, string | undefined>;
+  serverLoader: () => Promise<BucketRouteLoaderResponse>;
+}): Promise<BucketRouteLoaderResponse> {
+  const { provider, bucketName } = params;
+  const pathName = params["*"] ?? "";
+  const bucketKey = `${provider}/${bucketName}`;
+
+  // Check if index is ready for this bucket
+  const store = useIndexStore.getState();
+  if (!store.hasIndex(bucketKey)) {
+    // Fall back to server loader (SSR)
+    return serverLoader();
+  }
+
+  // Get credentials and bucket config from Zustand store
+  const credentialsStore = useCredentialsStore.getState();
+  const credentials = credentialsStore.getCredentials(bucketKey);
+  const clientBucketConfig = credentialsStore.getBucketConfig(bucketKey);
+
+  if (!credentials || !clientBucketConfig) {
+    // No stored credentials, fall back to server loader
+    return serverLoader();
+  }
+
+  // Query index for instant navigation
+  const prefix = getPrefix(pathName);
+  const entries = await listPrefix(bucketKey, prefix ?? "");
+
+  // If no entries found, fall back to server loader (might be a file)
+  if (entries.length === 0) {
+    return serverLoader();
+  }
+
+  const nodes = buildDirectoryTreeFromIndex(bucketName!, entries, prefix);
+  const name = getName(pathName, bucketName!);
+
+  // Build full bucket config from stored client config
+  const bucketConfig: BucketConfig = {
+    id: 0, // Not used for client-side navigation
+    name: bucketName!,
+    userId: "", // Not used for client-side navigation
+    provider: provider!,
+    roleArn: null,
+    endpoint: clientBucketConfig.endpoint ?? "",
+    region: clientBucketConfig.region ?? null,
+  };
+
+  return {
+    nodes,
+    bucketName: bucketName!,
+    pathName,
+    name,
+    credentials,
+    bucketConfig,
+  };
+}
 
 export default function ObjectsRoute() {
   const { name, url, nodes, pathName, bucketName, credentials, bucketConfig } =

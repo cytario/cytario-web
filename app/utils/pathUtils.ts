@@ -6,5 +6,7 @@ export function getPrefix(path?: string) {
 
 export function getName(path?: string, bucketName?: string): string {
   if (!path) return bucketName ?? "";
-  return path.split("/").pop() ?? "";
+  // Strip trailing slashes to handle directory paths correctly
+  const normalized = path.replace(/\/+$/, "");
+  return normalized.split("/").pop() ?? "";
 }

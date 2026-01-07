@@ -5,7 +5,7 @@ import { Suggestions } from "./Suggestions";
 import {
   searchIndex,
   getIndexedBuckets,
-} from "~/components/IndexStatus/queryIndex";
+} from "~/components/DirectoryView/queryIndex";
 import { useSearchParam } from "~/hooks/useSearchParam";
 import { BucketFiles } from "~/routes/search.route";
 

@@ -18,15 +18,18 @@ export const Suggestions = ({
   results: { files },
   showResults,
 }: SuggestionsProps) => {
-  const nodes: TreeNode[] = Object.keys(files).map((bucketName) => {
+  // Keys are in format "provider/bucketName", need to split for proper TreeNode structure
+  const nodes: TreeNode[] = Object.keys(files).map((bucketKey) => {
+    const [provider, bucketName] = bucketKey.split("/");
     return {
       bucketName,
       name: bucketName,
       type: "bucket",
       children: buildDirectoryTree(
         bucketName,
-        files[bucketName] as ObjectPresignedUrl[]
+        files[bucketKey] as ObjectPresignedUrl[]
       ),
+      _Bucket: { provider } as TreeNode["_Bucket"],
     };
   });
 
