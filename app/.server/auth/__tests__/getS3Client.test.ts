@@ -9,12 +9,13 @@ vi.mock("@aws-sdk/client-s3", () => ({
   })),
 }));
 
-vi.mock("~/utils/s3Provider", () => ({
-  isAwsS3Endpoint: vi.fn((endpoint) => {
-    if (!endpoint) return true;
-    return endpoint.includes("amazonaws.com");
-  }),
-}));
+vi.mock("~/utils/s3Provider", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/utils/s3Provider")>();
+  return {
+    ...actual,
+    // Keep actual implementation - no need to mock
+  };
+});
 
 describe("getS3Client", () => {
   const mockBucketConfig = mock.bucketConfig({
@@ -169,7 +170,7 @@ describe("getS3Client", () => {
 
       await expect(
         getS3Client(mockBucketConfig, invalidCreds, "error-user")
-      ).rejects.toThrow("No Credentials");
+      ).rejects.toThrow("Missing required credentials");
     });
 
     test("throws when SecretAccessKey is missing", async () => {
@@ -179,7 +180,7 @@ describe("getS3Client", () => {
 
       await expect(
         getS3Client(mockBucketConfig, invalidCreds, "error-user")
-      ).rejects.toThrow("No Credentials");
+      ).rejects.toThrow("Missing required credentials");
     });
 
     test("throws when userId is empty", async () => {
