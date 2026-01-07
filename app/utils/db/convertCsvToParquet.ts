@@ -46,6 +46,7 @@ export async function convertCsvToParquet(
     const createTableSQL = buildCreateTableQuery(resourceId, "polygon");
     await conn.query(createTableSQL);
 
+    // TODO: Use prepared statements or proper escaping for credential/config values
     await conn.query(`SET s3_access_key_id='${credentials.AccessKeyId}'`);
 
     await conn.query(

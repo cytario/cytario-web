@@ -21,6 +21,7 @@ export interface DirectoryViewBaseProps {
 
 interface DirectoryViewProps extends DirectoryViewBaseProps {
   name: string;
+  headerActions?: ReactNode;
 }
 
 interface TabProps {
@@ -52,6 +53,7 @@ export default function DirectoryView({
   provider,
   bucketName,
   pathName,
+  headerActions,
 }: DirectoryViewProps) {
   const { activeTab, setActiveTab, setProvider, setBucketName, setPathName } =
     useDirectoryStore();
@@ -75,7 +77,10 @@ export default function DirectoryView({
       {/* List vs Grid */}
       <TabGroup selectedIndex={activeTab} onChange={setActiveTab}>
         <header className="flex justify-between mb-4">
-          {name && <H1>{name}</H1>}
+          <div className="flex items-center gap-4">
+            {name && <H1>{name}</H1>}
+            {headerActions}
+          </div>
           <div className="flex items-center gap-2">
             {/* Render button only on root */}
             {!bucketName && (

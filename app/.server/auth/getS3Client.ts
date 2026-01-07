@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { LRUCache } from "lru-cache";
 
 import { BucketConfig } from "~/.generated/client";
-import { isAwsS3Endpoint } from "~/utils/s3Provider";
+import { createS3ClientOptions } from "~/utils/s3Provider";
 
 interface CacheEntry {
   client: S3Client;
@@ -47,9 +47,7 @@ export const getS3Client = async (
   userId: string
 ): Promise<S3Client> => {
   const { name: bucketName, region, endpoint } = bucketConfig;
-  const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
 
-  if (!AccessKeyId || !SecretAccessKey) throw Error("No Credentials");
   if (!userId) throw Error("User ID is required for S3Client cache");
 
   // Check cache first
@@ -59,24 +57,9 @@ export const getS3Client = async (
     return cachedEntry.client;
   }
 
-  // Use default region if null
-  const actualRegion = region ?? "eu-central-1";
-
-  // Detect if this is AWS S3 or a compatible service (MinIO, etc.)
-  const isAwsS3 = isAwsS3Endpoint(endpoint);
-
-  const s3Client = new S3Client({
-    region: actualRegion,
-    // Only set endpoint for non-AWS S3 services
-    ...(endpoint && !isAwsS3 ? { endpoint } : {}),
-    credentials: {
-      accessKeyId: AccessKeyId,
-      secretAccessKey: SecretAccessKey,
-      sessionToken: SessionToken,
-    },
-    // Only use path style for non-AWS S3 services (MinIO, etc.)
-    forcePathStyle: !isAwsS3,
-  });
+  // Create S3 client using shared configuration
+  const options = createS3ClientOptions(credentials, region, endpoint);
+  const s3Client = new S3Client(options);
 
   // Cache the client
   s3ClientCache.set(key, {

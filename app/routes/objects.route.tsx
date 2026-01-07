@@ -24,6 +24,9 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import DirectoryView from "~/components/DirectoryView/DirectoryView";
+import { buildIndex } from "~/components/IndexStatus/buildIndex";
+import { IndexStatus } from "~/components/IndexStatus/IndexStatus";
+import { useIndexStore } from "~/components/IndexStatus/useIndexStore";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
@@ -95,7 +98,11 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const bucketConfig = await getBucketConfigByName(userId, provider, bucketName);
+  const bucketConfig = await getBucketConfigByName(
+    userId,
+    provider,
+    bucketName
+  );
 
   if (!bucketConfig) {
     throw new Error("Bucket configuration not found");
@@ -166,7 +173,9 @@ export default function ObjectsRoute() {
   useBackendNotification();
   const navigate = useNavigate();
   const { setCredentials } = useCredentialsStore();
+  const { hasIndex, isBuilding } = useIndexStore();
 
+  const bucketKey = `${bucketConfig.provider}/${bucketName}`;
   const resourceId = createResourceId(
     bucketConfig.provider,
     bucketConfig.name,
@@ -178,10 +187,23 @@ export default function ObjectsRoute() {
   // Key format: provider/bucketName to avoid collisions across providers
   useEffect(() => {
     if (credentials && bucketName && bucketConfig) {
-      const storeKey = `${bucketConfig.provider}/${bucketName}`;
-      setCredentials(storeKey, credentials, bucketConfig);
+      setCredentials(bucketKey, credentials, bucketConfig);
     }
-  }, [bucketName, credentials, bucketConfig, setCredentials]);
+  }, [bucketName, credentials, bucketConfig, bucketKey, setCredentials]);
+
+  // Build index for bucket on first navigation
+  useEffect(() => {
+    if (credentials && bucketName && bucketConfig) {
+      // Only build if not already building or ready
+      if (!hasIndex(bucketKey) && !isBuilding(bucketKey)) {
+        buildIndex(bucketKey, bucketName, credentials, bucketConfig).catch(
+          (error) => {
+            console.error(`[ObjectsRoute] Failed to build index:`, error);
+          }
+        );
+      }
+    }
+  }, [bucketKey, bucketName, credentials, bucketConfig, hasIndex, isBuilding]);
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
@@ -192,6 +214,7 @@ export default function ObjectsRoute() {
         provider={bucketConfig.provider}
         bucketName={bucketName}
         pathName={pathName}
+        headerActions={<IndexStatus bucketKey={bucketKey} />}
       />
     );
   }

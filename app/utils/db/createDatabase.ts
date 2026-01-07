@@ -56,6 +56,7 @@ const createDatabaseInternal = async (
   await connection.query("SET http_keep_alive = true;");
 
   // Configure S3 credentials
+  // TODO: Use prepared statements or proper escaping for credential values
   const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
   await connection.query(`SET s3_access_key_id='${AccessKeyId}'`);
   await connection.query(`SET s3_secret_access_key='${SecretAccessKey}'`);
@@ -68,6 +69,7 @@ const createDatabaseInternal = async (
   const useSSL = shouldUseSSL(endpoint);
   const hostname = getEndpointHostname(endpoint);
 
+  // TODO: Use prepared statements or proper escaping for config values
   await connection.query(`SET s3_region='${region}'`);
   await connection.query(`SET s3_endpoint='${hostname}'`);
   await connection.query(`SET s3_url_style='${urlStyle}'`);

@@ -80,3 +80,57 @@ export function getEndpointHostname(endpoint?: string | null): string {
   const actualEndpoint = endpoint ?? DEFAULT_ENDPOINT;
   return new URL(actualEndpoint).host;
 }
+
+/**
+ * S3 Client configuration options (compatible with @aws-sdk/client-s3)
+ */
+export interface S3ClientOptions {
+  region: string;
+  endpoint?: string;
+  forcePathStyle: boolean;
+  credentials: {
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken?: string;
+  };
+}
+
+/**
+ * Creates S3 client configuration options.
+ * Works in both server and client environments.
+ *
+ * @param credentials - AWS credentials (AccessKeyId, SecretAccessKey, SessionToken)
+ * @param region - AWS region (defaults to 'eu-central-1')
+ * @param endpoint - S3 endpoint URL (optional, for S3-compatible services)
+ * @returns Configuration object for S3Client constructor
+ */
+export function createS3ClientOptions(
+  credentials: {
+    AccessKeyId?: string;
+    SecretAccessKey?: string;
+    SessionToken?: string;
+  },
+  region?: string | null,
+  endpoint?: string | null
+): S3ClientOptions {
+  const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
+
+  if (!AccessKeyId || !SecretAccessKey) {
+    throw new Error("Missing required credentials (AccessKeyId, SecretAccessKey)");
+  }
+
+  const actualRegion = region ?? DEFAULT_REGION;
+  const isAwsS3 = isAwsS3Endpoint(endpoint);
+
+  return {
+    region: actualRegion,
+    // Only set endpoint for non-AWS S3 services
+    ...(endpoint && !isAwsS3 ? { endpoint } : {}),
+    forcePathStyle: !isAwsS3,
+    credentials: {
+      accessKeyId: AccessKeyId,
+      secretAccessKey: SecretAccessKey,
+      sessionToken: SessionToken,
+    },
+  };
+}
