@@ -1,34 +1,25 @@
-import { _Object } from "@aws-sdk/client-s3";
 import { Transition } from "@headlessui/react";
 
+import { H2 } from "../Fonts";
+import { Placeholder } from "../Placeholder";
+import { GlobalSearchResults } from "./GlobalSearch";
 import {
   buildDirectoryTree,
   TreeNode,
 } from "../DirectoryView/buildDirectoryTree";
 import DirectoryTree from "../DirectoryView/DirectoryViewTree";
-import { H2 } from "../Fonts";
-import { Placeholder } from "../Placeholder";
-import { GlobalSearchResults } from "./GlobalSearch";
 
 interface SuggestionsProps {
   results: GlobalSearchResults;
   showResults: boolean;
 }
-export const Suggestions = ({
-  results: { files },
-  showResults,
-}: SuggestionsProps) => {
-  // Keys are in format "provider/bucketName", need to split for proper TreeNode structure
-  const nodes: TreeNode[] = Object.keys(files).map((bucketKey) => {
-    const [provider, bucketName] = bucketKey.split("/");
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      children: buildDirectoryTree(bucketName, files[bucketKey] as _Object[]),
-      _Bucket: { provider } as TreeNode["_Bucket"],
-    };
-  });
+export const Suggestions = ({ results, showResults }: SuggestionsProps) => {
+  const nodes: TreeNode[] = Object.keys(results.files).map((bucketKey) => ({
+    id: bucketKey,
+    name: bucketKey,
+    type: "bucket",
+    children: buildDirectoryTree(bucketKey, results.files[bucketKey]),
+  }));
 
   return (
     <Transition show={showResults}>
@@ -47,19 +38,15 @@ export const Suggestions = ({
           data-[closed]:-translate-y-1
         `}
       >
-        {nodes.length > 0 ? (
+        {Object.keys(results).length > 0 ? (
           <>
             <header className="flex-shrink-0 p-4 border-b">
               <H2>All Results</H2>
             </header>
+
             <div className="overflow-y-auto flex-1">
               <DirectoryTree nodes={nodes} />
             </div>
-            {/* {
-              <footer className="flex-shrink-0 p-4 border-t">
-                <ButtonLink to={`/search?query=${searchString}`}>All</ButtonLink>
-              </footer>
-            } */}
           </>
         ) : (
           <Placeholder

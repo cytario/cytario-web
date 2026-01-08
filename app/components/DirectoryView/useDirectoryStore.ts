@@ -4,14 +4,17 @@ import { devtools, persist } from "zustand/middleware";
 interface DirectoryStore {
   activeTab: number;
   setActiveTab: (tabIndex: number) => void;
-  provider?: string;
-  setProvider: (provider: string) => void;
-  bucketName?: string;
-  setBucketName: (bucketName: string) => void;
-  pathName?: string;
-  setPathName: (pathName?: string) => void;
   headerSlot: React.ReactNode;
   setHeaderSlot: (slot: React.ReactNode) => void;
+  // @deprecated
+  provider?: string;
+  setProvider: (provider: string) => void;
+  // @deprecated
+  bucketName?: string;
+  setBucketName: (bucketName: string) => void;
+  // @deprecated
+  pathName?: string;
+  setPathName: (pathName?: string) => void;
 }
 
 const name = "LayoutStore";

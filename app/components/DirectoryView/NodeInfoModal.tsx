@@ -4,10 +4,7 @@ import { Button, ButtonLink } from "../Controls/Button";
 import { RouteModal } from "../RouteModal";
 import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";
-import {
-  getBucketFromResourceId,
-  getProviderFromResourceId,
-} from "~/utils/resourceId";
+import { parseResourceId } from "~/utils/resourceId";
 
 const PATTERN = /bucket|directory|file|action/;
 
@@ -55,8 +52,7 @@ export function NodeInfoModal() {
         </RouteModal>
       );
     case "bucket": {
-      const provider = getProviderFromResourceId(infoModal.name);
-      const bucketName = getBucketFromResourceId(infoModal.name);
+      const { provider, bucketName } = parseResourceId(infoModal.name);
       return (
         <RouteModal title={bucketName} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">

@@ -5,17 +5,14 @@ import { useFetcher } from "react-router";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import Input from "~/components/Controls/Input";
-import {
-  TreeNode,
-  buildDirectoryTree,
-} from "~/components/DirectoryView/buildDirectoryTree";
+import { buildDirectoryTree } from "~/components/DirectoryView/buildDirectoryTree";
 import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
 import { DEFAULT_RESULTS } from "~/components/GlobalSearch/GlobalSearch";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useCredentialsStore } from "~/utils/credentialsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
-import { createResourceId } from "~/utils/resourceId";
+import { getBucketKeyFromResourceId } from "~/utils/resourceId";
 
 export const AddOverlay = ({
   callback,
@@ -50,84 +47,77 @@ export const AddOverlay = ({
   // Derive results from fetcher data
   const results = objectsFetcher.data?.results ?? DEFAULT_RESULTS;
 
-  // Nodes across buckets - keys are in format provider/bucketName
-  const nodes: TreeNode[] = Object.keys(results.files).map((key) => {
-    const [provider, bucketName] = key.split("/");
-    const objects = results.files[key] as _Object[];
-    const bucketConfig = { provider } as TreeNode["_Bucket"];
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      _Bucket: bucketConfig,
-      children: buildDirectoryTree(
-        bucketName,
-        objects,
-        undefined,
-        bucketConfig
-      ),
-    };
-  });
-
   return (
     <div className="relative flex flex-col gap-2">
       <Input value={extension} readOnly />
 
-      <DirectoryTree
-        nodes={nodes}
-        action={async (node) => {
-          try {
-            if (!node.pathName || !node.bucketName || !node._Bucket?.provider) {
-              throw new Error("Invalid node selected");
-            }
+      {/* <Results files={results.files} /> */}
 
-            const provider = node._Bucket.provider;
-            const resourceId = createResourceId(
-              provider,
-              node.bucketName,
-              node.pathName
-            );
+      {Object.keys(results.files).map((key) => {
+        const objects = results.files[key] as _Object[];
 
-            // Get credentials from the store using provider/bucketName key
-            // Credentials are per-bucket, not per-file
-            // Use getState() to access store outside of React component render
-            const storeKey = `${provider}/${node.bucketName}`;
-            const credentials = useCredentialsStore
-              .getState()
-              .getCredentials(storeKey);
+        const nodes = buildDirectoryTree(key, objects, undefined);
 
-            if (!credentials) {
-              throw new Error(`No credentials found for bucket: ${storeKey}`);
-            }
+        return (
+          <>
+            <div>{key}</div>
+            <DirectoryTree
+              key={key}
+              nodes={nodes}
+              action={async (node) => {
+                try {
+                  if (!node.id) {
+                    throw new Error("Invalid node selected");
+                  }
 
-            if (extension === "csv") {
-              convertCsvToParquet(resourceId, credentials);
-              addNotification({
-                status: "success",
-                message: `Started conversion: ${node.name}`,
-              });
-            } else {
-              addOverlaysState({ [resourceId]: {} });
+                  const resourceId = node.id;
+                  // Get bucket key (provider/bucketName) for credentials lookup
+                  const storeKey = getBucketKeyFromResourceId(resourceId);
 
-              addNotification({
-                status: "success",
-                message: `Overlay added: ${node.name}`,
-              });
-            }
+                  // Get credentials from the store using provider/bucketName key
+                  // Credentials are per-bucket, not per-file
+                  // Use getState() to access store outside of React component render
+                  const credentials = useCredentialsStore
+                    .getState()
+                    .getCredentials(storeKey);
 
-            // Close the modal/callback
-            if (callback) {
-              callback();
-            }
-          } catch (error) {
-            console.error("Error processing overlay:", error);
-            addNotification({
-              status: "error",
-              message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
-            });
-          }
-        }}
-      />
+                  if (!credentials) {
+                    throw new Error(
+                      `No credentials found for bucket: ${storeKey}`
+                    );
+                  }
+
+                  if (extension === "csv") {
+                    convertCsvToParquet(resourceId, credentials);
+                    addNotification({
+                      status: "success",
+                      message: `Started conversion: ${node.name}`,
+                    });
+                  } else {
+                    addOverlaysState({ [resourceId]: {} });
+
+                    addNotification({
+                      status: "success",
+                      message: `Overlay added: ${node.name}`,
+                    });
+                  }
+
+                  // Close the modal/callback
+                  if (callback) {
+                    callback();
+                  }
+                } catch (error) {
+                  console.error("Error processing overlay:", error);
+                  addNotification({
+                    status: "error",
+                    message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
+                  });
+                }
+              }}
+            />
+          </>
+        );
+      })}
     </div>
   );
 };

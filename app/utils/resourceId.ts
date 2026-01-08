@@ -24,61 +24,32 @@ export function createResourceId(
 }
 
 /**
- * Parses a resourceId into its constituent parts
- * @param resourceId - The composite identifier (format: provider/bucketName/pathName)
- * @returns Object with provider, bucketName and pathName
- * @throws Error if resourceId is malformed
+ *
  */
-export function parseResourceId(resourceId: string): ResourceIdParts {
-  const firstSlashIndex = resourceId.indexOf("/");
-  const secondSlashIndex = resourceId.indexOf("/", firstSlashIndex + 1);
+type ResourceId = string;
 
-  if (firstSlashIndex === -1 || secondSlashIndex === -1) {
-    throw new Error(
-      `Invalid resourceId: "${resourceId}" - expected format provider/bucketName/pathName`
-    );
-  }
+function getExtension(resourceId: ResourceId) {
+  if (resourceId.endsWith(".ome.tif")) return "ome.tif";
+  if (resourceId.endsWith(".zarr")) return "zarr";
+  if (resourceId.endsWith(".parquet")) return "parquet";
+  if (resourceId.endsWith(".csv")) return "csv";
+  return undefined;
+}
 
-  const provider = resourceId.slice(0, firstSlashIndex);
-  const bucketName = resourceId.slice(firstSlashIndex + 1, secondSlashIndex);
-  const pathName = resourceId.slice(secondSlashIndex + 1);
-
-  if (!provider) {
-    throw new Error(`Invalid resourceId: "${resourceId}" - empty provider`);
-  }
-
-  if (!bucketName) {
-    throw new Error(`Invalid resourceId: "${resourceId}" - empty bucket name`);
-  }
-
+export function parseResourceId(resourceId: ResourceId): ResourceIdParts {
+  const [provider, bucketName, ...pathSegments] = resourceId.split("/");
+  const pathName = pathSegments.join("/");
   return { provider, bucketName, pathName };
 }
 
 /**
- * Extracts just the bucket name from a resourceId
+ * Extracts the bucket key (provider/bucketName) from a resourceId
  * @param resourceId - The composite identifier
- * @returns The bucket name portion
+ * @returns The bucket key portion (provider/bucketName)
  */
-export function getBucketFromResourceId(resourceId: string): string {
-  return parseResourceId(resourceId).bucketName;
-}
-
-/**
- * Extracts just the path from a resourceId
- * @param resourceId - The composite identifier
- * @returns The path portion
- */
-export function getPathFromResourceId(resourceId: string): string {
-  return parseResourceId(resourceId).pathName;
-}
-
-/**
- * Extracts just the provider from a resourceId
- * @param resourceId - The composite identifier
- * @returns The provider portion
- */
-export function getProviderFromResourceId(resourceId: string): string {
-  return parseResourceId(resourceId).provider;
+export function getBucketKeyFromResourceId(resourceId: string): string {
+  const { provider, bucketName } = parseResourceId(resourceId);
+  return `${provider}/${bucketName}`;
 }
 
 /**

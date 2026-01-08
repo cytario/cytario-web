@@ -125,7 +125,8 @@ export const loader = async ({
 
     if (objects.length > 0) {
       // Pass objects directly - presigned URLs are lazy-loaded by thumbnails
-      const nodes = buildDirectoryTree(bucketName, objects, prefix);
+      const resourceId = `${provider}/${bucketName}`;
+      const nodes = buildDirectoryTree(resourceId, objects, prefix);
 
       return {
         credentials,
@@ -207,7 +208,8 @@ export async function clientLoader({
     return serverLoader();
   }
 
-  const nodes = buildDirectoryTreeFromIndex(bucketName!, entries, prefix);
+  const nodes = buildDirectoryTreeFromIndex(bucketKey, entries, prefix);
+  console.log(nodes);
   const resourceId = createResourceId(provider!, bucketName!, pathName);
   const name = getFileName(resourceId) || bucketName!;
 

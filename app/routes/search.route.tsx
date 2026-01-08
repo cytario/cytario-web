@@ -80,17 +80,15 @@ export const loader: LoaderFunction = async ({
 export default function SearchRoute() {
   const { searchQuery, results } = useLoaderData<SearchRouteLoaderResponse>();
 
-  // Keys are in format provider/bucketName
-  const children: TreeNode[] = Object.keys(results.files).map((key) => {
-    const [provider, bucketName] = key.split("/");
+  // Keys are in format provider/bucketName (bucketKey)
+  const nodes: TreeNode[] = Object.keys(results.files).map((bucketKey) => {
     return {
-      bucketName,
-      name: bucketName,
+      id: bucketKey,
+      name: bucketKey,
       type: "bucket",
-      _Bucket: { provider } as BucketConfig,
       children: buildDirectoryTree(
-        bucketName,
-        results.files[key] as _Object[],
+        bucketKey,
+        results.files[bucketKey] as _Object[],
         ""
       ),
     };
@@ -101,7 +99,7 @@ export default function SearchRoute() {
       <H1>{`Search: ${searchQuery}`}</H1>
 
       <div className="bg-slate-100">
-        <DirectoryTree nodes={children} />
+        <DirectoryTree nodes={nodes} />
       </div>
 
       {/* <code>{JSON.stringify(results)}</code> */}

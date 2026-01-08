@@ -10,7 +10,7 @@ describe("DirectoryViewTable", () => {
       {
         type: "bucket",
         name: "my-aws-bucket",
-        bucketName: "my-aws-bucket",
+        id: "aws/my-aws-bucket",
         children: [],
         _Bucket: {
           id: 1,
@@ -25,7 +25,7 @@ describe("DirectoryViewTable", () => {
       {
         type: "bucket",
         name: "minio-bucket",
-        bucketName: "minio-bucket",
+        id: "minio/minio-bucket",
         children: [],
         _Bucket: {
           id: 2,
@@ -87,8 +87,7 @@ describe("DirectoryViewTable", () => {
       {
         type: "file",
         name: "data.parquet",
-        bucketName: "test-bucket",
-        pathName: "folder/data.parquet",
+        id: "test-bucket/folder/data.parquet",
         children: [],
         _Object: {
           Key: "folder/data.parquet",
@@ -99,8 +98,7 @@ describe("DirectoryViewTable", () => {
       {
         type: "file",
         name: "results.csv",
-        bucketName: "test-bucket",
-        pathName: "folder/results.csv",
+        id: "test-bucket/folder/results.csv",
         children: [],
         _Object: {
           Key: "folder/results.csv",
@@ -149,15 +147,13 @@ describe("DirectoryViewTable", () => {
       {
         type: "directory",
         name: "images",
-        bucketName: "test-bucket",
-        pathName: "images/",
+        id: "test-bucket/images",
         children: [],
       },
       {
         type: "directory",
         name: "data",
-        bucketName: "test-bucket",
-        pathName: "data/",
+        id: "test-bucket/data",
         children: [],
       },
     ];

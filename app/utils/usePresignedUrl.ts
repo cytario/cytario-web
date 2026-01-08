@@ -26,10 +26,6 @@ export function usePresignedUrl(resourceId: string): UsePresignedUrlResult {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!resourceId) {
-      return;
-    }
-
     // Check cache first
     const cached = urlCache.get(resourceId);
     if (cached) {
@@ -42,13 +38,13 @@ export function usePresignedUrl(resourceId: string): UsePresignedUrlResult {
 
     async function fetchUrl() {
       try {
-        const { provider, bucketName, pathName } = parseResourceId(resourceId);
-        const response = await fetch(
-          `/presign/${provider}/${bucketName}/${pathName}`
-        );
+        // const { provider, bucketName, pathName } = parseResourceId(resourceId);
+        const response = await fetch(`/presign/${resourceId}`);
 
         if (!response.ok) {
-          throw new Error(`Failed to get presigned URL: ${response.statusText}`);
+          throw new Error(
+            `Failed to get presigned URL: ${response.statusText}`
+          );
         }
 
         const data = await response.json();

@@ -21,7 +21,7 @@ import {
   deleteBucketConfig,
 } from "~/utils/bucketConfig";
 
-const title = "Configured Buckets";
+const title = "Your Connected Buckets";
 
 export const meta: MetaFunction = () => {
   return [
@@ -78,12 +78,11 @@ export const action: ActionFunction = async ({ request, context }) => {
 export default function BucketsRoute() {
   const { bucketConfigs } = useLoaderData<{ bucketConfigs: BucketConfig[] }>();
 
-  const nodes: TreeNode[] = bucketConfigs.map((bucketConfig) => ({
-    bucketName: bucketConfig.name,
-    name: bucketConfig.name,
+  const nodes: TreeNode[] = bucketConfigs.map(({ provider, name }) => ({
+    id: `${provider}/${name}`,
+    name: name,
     type: "bucket",
     children: [],
-    _Bucket: bucketConfig,
   }));
 
   return (

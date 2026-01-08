@@ -55,15 +55,16 @@ describe("buildDirectoryTree", () => {
     expect(subfolder1?.children[0].type).toBe("file");
   });
 
-  test("should set correct pathNames with trailing slash for directories", () => {
+  test("should set correct id as full resourceId (no trailing slash)", () => {
     const objects: _Object[] = [{ Key: "parent/child/file.txt" }];
 
     const tree = buildDirectoryTree("test-bucket", objects);
 
-    expect(tree[0].pathName).toBe("parent/");
-    expect(tree[0].children[0].pathName).toBe("parent/child/");
-    expect(tree[0].children[0].children[0].pathName).toBe(
-      "parent/child/file.txt"
+    // id includes bucketKey prefix, no trailing slashes
+    expect(tree[0].id).toBe("test-bucket/parent");
+    expect(tree[0].children[0].id).toBe("test-bucket/parent/child");
+    expect(tree[0].children[0].children[0].id).toBe(
+      "test-bucket/parent/child/file.txt"
     );
   });
 
@@ -74,11 +75,30 @@ describe("buildDirectoryTree", () => {
 
     // Should strip prefix, so folder is at root level
     expect(tree[0].name).toBe("folder");
-    expect(tree[0].pathName).toBe("prefix/folder/");
+    // id includes full path with prefix
+    expect(tree[0].id).toBe("test-bucket/prefix/folder");
   });
 
   test("should return empty array for empty input", () => {
     const tree = buildDirectoryTree("test-bucket", []);
     expect(tree).toEqual([]);
+  });
+
+  test("should correctly identify S3 directory markers (keys ending with /)", () => {
+    const objects: _Object[] = [
+      { Key: "Empty Folder/" }, // Directory marker with space
+      { Key: "file.txt", Size: 100 },
+    ];
+
+    const tree = buildDirectoryTree("test-bucket", objects);
+
+    const emptyFolder = tree.find((n) => n.name === "Empty Folder");
+    const file = tree.find((n) => n.name === "file.txt");
+
+    expect(emptyFolder?.type).toBe("directory");
+    expect(emptyFolder?.id).toBe("test-bucket/Empty Folder");
+
+    expect(file?.type).toBe("file");
+    expect(file?.id).toBe("test-bucket/file.txt");
   });
 });

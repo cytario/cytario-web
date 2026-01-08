@@ -29,11 +29,11 @@ beforeEach(() => {
 
 describe("DirectoryView Component", () => {
   const mockNodes: TreeNode[] = [
-    { name: "File1.txt", type: "file", bucketName: "test-bucket", children: [] },
+    { name: "File1.txt", type: "file", id: "test-bucket/File1.txt", children: [] },
     {
       name: "Folder1",
       type: "directory",
-      bucketName: "test-bucket",
+      id: "test-bucket/Folder1",
       children: [],
     },
   ];

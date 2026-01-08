@@ -2,7 +2,7 @@ import { filesize } from "filesize";
 import { ReactNode } from "react";
 
 import { TreeNode } from "./buildDirectoryTree";
-import NodeLink from "./NodeLink";
+import NodeLink from "./NodeLink/NodeLink";
 import Table from "~/components/Table";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
@@ -24,6 +24,7 @@ const getData = (nodes: TreeNode[]): ReactNode[][] => {
       return nodes.map((node) => {
         return [
           <NodeLink key={node.name} node={node} listStyle="list" />,
+          // TODO: Get data from CredentialsStore
           node._Bucket?.provider,
           node._Bucket?.endpoint,
           node._Bucket?.region,
