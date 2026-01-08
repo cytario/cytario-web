@@ -191,9 +191,9 @@ export async function clientLoader({
   // Get credentials and bucket config from Zustand store
   const credentialsStore = useCredentialsStore.getState();
   const credentials = credentialsStore.getCredentials(bucketKey);
-  const clientBucketConfig = credentialsStore.getBucketConfig(bucketKey);
+  const bucketConfig = credentialsStore.getBucketConfig(bucketKey);
 
-  if (!credentials || !clientBucketConfig) {
+  if (!credentials || !bucketConfig) {
     // No stored credentials, fall back to server loader
     return serverLoader();
   }
@@ -211,9 +211,6 @@ export async function clientLoader({
 
   const resourceId = createResourceId(provider!, bucketName!, pathName);
   const name = getFileName(resourceId) || bucketName!;
-
-  // Use the stored bucket config directly (has full data from server)
-  const bucketConfig = clientBucketConfig;
 
   return {
     nodes,

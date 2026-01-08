@@ -1,6 +1,8 @@
 import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
+import { ThumbnailLabel } from "./ThumbnailLabel";
+
 const Sheet = ({
   children,
   offset,
@@ -31,20 +33,10 @@ export const ThumbnailSheets = ({
 }) => {
   return (
     <div className="relative w-full h-full">
-      <Sheet offset={4} />
+      <Sheet offset={0} />
       <Sheet offset={2} />
-      <Sheet offset={0}>{children}</Sheet>
-      <div
-        className={`
-             absolute top-2 right-6
-             flex items-center justify-center
-             px-1 h-4 min-w-4
-             text-sm font-bold
-           text-slate-700 bg-white
-         `}
-      >
-        {count}
-      </div>
+      <Sheet offset={4}>{children}</Sheet>
+      <ThumbnailLabel>{count}</ThumbnailLabel>
     </div>
   );
 };
