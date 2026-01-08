@@ -1,4 +1,5 @@
 import {
+  _Object,
   ListObjectsV2Command,
   ListObjectsV2CommandOutput,
   S3Client,
@@ -18,11 +19,11 @@ import { createS3ClientOptions } from "../../utils/s3Provider";
 
 const MAX_KEYS = 1000;
 
-export interface IndexObject {
-  key: string;
-  size: number;
-  lastModified: Date;
-  etag: string | null;
+/**
+ * Check if an S3 object is a directory marker (empty object ending with /)
+ */
+function isDirectoryMarker(obj: _Object): boolean {
+  return Boolean(obj.Key?.endsWith("/") && obj.Size === 0);
 }
 
 /**
@@ -41,14 +42,15 @@ function createS3Client(
 }
 
 /**
- * List all objects in a bucket with pagination, reporting progress
+ * List all objects in a bucket with pagination, reporting progress.
+ * Filters out S3 directory markers (empty objects ending with /).
  */
 async function listAllObjects(
   s3Client: S3Client,
   bucketName: string,
   onProgress: (loaded: number) => void
-): Promise<IndexObject[]> {
-  const objects: IndexObject[] = [];
+): Promise<_Object[]> {
+  const objects: _Object[] = [];
   let continuationToken: string | undefined;
 
   do {
@@ -62,13 +64,9 @@ async function listAllObjects(
 
     if (response.Contents) {
       for (const obj of response.Contents) {
-        if (obj.Key) {
-          objects.push({
-            key: obj.Key,
-            size: obj.Size ?? 0,
-            lastModified: obj.LastModified ?? new Date(),
-            etag: obj.ETag ?? null,
-          });
+        // Filter out directory markers and objects without keys
+        if (obj.Key && !isDirectoryMarker(obj)) {
+          objects.push(obj);
         }
       }
     }
@@ -85,7 +83,7 @@ async function listAllObjects(
  */
 async function createIndexDatabase(
   bucketKey: string,
-  objects: IndexObject[]
+  objects: _Object[]
 ): Promise<void> {
   const store = useIndexStore.getState();
 
@@ -120,10 +118,10 @@ async function createIndexDatabase(
 
   for (const obj of objects) {
     await stmt.query(
-      obj.key,
-      obj.size,
-      obj.lastModified.toISOString(),
-      obj.etag
+      obj.Key,
+      obj.Size ?? 0,
+      (obj.LastModified ?? new Date()).toISOString(),
+      obj.ETag ?? null
     );
   }
 

@@ -61,11 +61,7 @@ export default function NodeLink({
     <div>
       {/* Grid view thumbnail */}
       {listStyle === "grid" && (
-        <Link
-          to={to}
-          className="flex items-center justify-center w-full h-40"
-          onPointerEnter={() => console.log(node)}
-        >
+        <Link to={to} className="flex items-center justify-center w-full h-40">
           <NodeThumbnail node={node} />
         </Link>
       )}

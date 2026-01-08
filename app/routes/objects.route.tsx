@@ -21,7 +21,6 @@ import { Button } from "~/components/Controls/Button";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
-  buildDirectoryTreeFromIndex,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { buildIndex } from "~/components/DirectoryView/buildIndex";
@@ -208,8 +207,8 @@ export async function clientLoader({
     return serverLoader();
   }
 
-  const nodes = buildDirectoryTreeFromIndex(bucketKey, entries, prefix);
-  console.log(nodes);
+  const nodes = buildDirectoryTree(bucketKey, entries, prefix);
+
   const resourceId = createResourceId(provider!, bucketName!, pathName);
   const name = getFileName(resourceId) || bucketName!;
 

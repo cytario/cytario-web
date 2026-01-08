@@ -1,7 +1,6 @@
 import { _Object } from "@aws-sdk/client-s3";
 
 import { BucketConfig } from "~/.generated/client";
-import { IndexEntry } from "~/components/DirectoryView/queryIndex";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 export type TreeNode = {
@@ -14,25 +13,14 @@ export type TreeNode = {
 };
 
 /**
- * Source data for building tree nodes.
- * Used to normalize ObjectPresignedUrl and IndexEntry into a common format.
- */
-interface TreeNodeSource {
-  key: string;
-  size: number;
-  lastModified: Date;
-  etag?: string | null;
-}
-
-/**
- * Generic recursive tree builder that works with any source type.
+ * Recursive tree builder that processes S3 objects into a tree structure.
  * @param bucketKey - The bucket key in format "provider/bucketName"
  * @param parentPath - The accumulated path within the bucket (with trailing slash if non-empty)
  */
 function buildTreeRecursive(
   currentDir: TreeNode[],
   keyParts: string[],
-  source: TreeNodeSource,
+  obj: _Object,
   bucketKey: string,
   parentPath: string = "",
   isDirectory?: boolean
@@ -43,20 +31,13 @@ function buildTreeRecursive(
   // Build full resourceId
   const id = `${bucketKey}/${pathWithinBucket}`;
 
-  const objectData: _Object = {
-    Key: source.key,
-    Size: source.size,
-    LastModified: source.lastModified,
-    ETag: source.etag ?? undefined,
-  };
-
   if (keyParts.length === 1) {
     currentDir.push({
       id,
       type: isDirectory ? "directory" : "file",
       name,
       children: [],
-      _Object: objectData,
+      _Object: obj,
     });
   } else {
     let existingDir = currentDir.find((child) => child.name === name);
@@ -66,7 +47,7 @@ function buildTreeRecursive(
         type: "directory",
         name,
         children: [],
-        _Object: objectData,
+        _Object: obj,
       };
       currentDir.push(existingDir);
     }
@@ -74,7 +55,7 @@ function buildTreeRecursive(
     buildTreeRecursive(
       existingDir.children,
       keyParts.slice(1),
-      source,
+      obj,
       bucketKey,
       `${pathWithinBucket}/`, // Add trailing slash for next level's parentPath
       isDirectory
@@ -83,25 +64,23 @@ function buildTreeRecursive(
 }
 
 /**
- * Generic tree builder that accepts any source type with a mapper function.
+ * Build tree from S3 objects.
  * @param bucketKey - The bucket key in format "provider/bucketName"
  */
-function buildTreeFromSources<T>(
+function buildTree(
   bucketKey: string,
-  sources: T[],
-  prefix: string | undefined,
-  getSource: (item: T) => TreeNodeSource
+  objects: _Object[],
+  prefix: string | undefined
 ): TreeNode[] {
   const root: TreeNode[] = [];
 
-  sources.forEach((item) => {
-    const source = getSource(item);
-    if (!source.key) return;
+  objects.forEach((obj) => {
+    if (!obj.Key) return;
 
     // S3 directory markers end with "/", preserve this info before filtering
-    const isDirectory = source.key.endsWith("/");
+    const isDirectory = obj.Key.endsWith("/");
 
-    const pathName = source.key.replace(prefix || "", "");
+    const pathName = obj.Key.replace(prefix || "", "");
     // Skip if this is the prefix itself (empty after removal)
     if (!pathName) return;
 
@@ -109,21 +88,15 @@ function buildTreeFromSources<T>(
     const pathSegments = pathName.split("/").filter(Boolean);
     if (pathSegments.length === 0) return;
 
-    buildTreeRecursive(
-      root,
-      pathSegments,
-      source,
-      bucketKey,
-      prefix,
-      isDirectory
-    );
+    buildTreeRecursive(root, pathSegments, obj, bucketKey, prefix, isDirectory);
   });
 
   return root;
 }
 
 /**
- * Build directory tree from S3 objects (SSR path)
+ * Build directory tree from S3 objects.
+ * Works with both SSR path (_Object[] from S3) and client path (_Object[] from DuckDB index).
  * @param bucketKey - The bucket key in format "provider/bucketName"
  */
 export function buildDirectoryTree(
@@ -135,28 +108,5 @@ export function buildDirectoryTree(
   const files = objects.filter(
     (obj) => !(obj.Key?.endsWith("/") && obj.Size === 0)
   );
-  return buildTreeFromSources(bucketKey, files, prefix, (obj) => ({
-    key: obj.Key ?? "",
-    size: obj.Size ?? 0,
-    lastModified: obj.LastModified ?? new Date(),
-    etag: obj.ETag,
-  }));
-}
-
-/**
- * Build directory tree from DuckDB index entries
- * Used by clientLoader for instant navigation when index is available
- * @param bucketKey - The bucket key in format "provider/bucketName"
- */
-export function buildDirectoryTreeFromIndex(
-  bucketKey: string,
-  entries: IndexEntry[],
-  prefix?: string
-): TreeNode[] {
-  return buildTreeFromSources(bucketKey, entries, prefix, (entry) => ({
-    key: entry.key,
-    size: entry.size,
-    lastModified: entry.lastModified,
-    etag: entry.etag,
-  }));
+  return buildTree(bucketKey, files, prefix);
 }

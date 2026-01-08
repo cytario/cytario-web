@@ -1,26 +1,21 @@
-import { useIndexStore } from "./useIndexStore";
+import { _Object } from "@aws-sdk/client-s3";
 
-export interface IndexEntry {
-  key: string;
-  size: number;
-  lastModified: Date;
-  etag: string | null;
-}
+import { useIndexStore } from "./useIndexStore";
 
 export interface SearchResult {
   bucketKey: string;
-  entries: IndexEntry[];
+  entries: _Object[];
 }
 
 /**
- * Map a DuckDB row to an IndexEntry
+ * Map a DuckDB row to an _Object
  */
-function mapRowToIndexEntry(row: Record<string, unknown>): IndexEntry {
+function mapRowToObject(row: Record<string, unknown>): _Object {
   return {
-    key: row.key as string,
-    size: Number(row.size),
-    lastModified: new Date(row.last_modified as string),
-    etag: row.etag as string | null,
+    Key: row.key as string,
+    Size: Number(row.size),
+    LastModified: new Date(row.last_modified as string),
+    ETag: (row.etag as string) ?? undefined,
   };
 }
 
@@ -62,11 +57,11 @@ export async function searchIndex(
       const result = await stmt.query(searchPattern, limit);
       await stmt.close();
 
-      const entries: IndexEntry[] = [];
+      const entries: _Object[] = [];
       for (let i = 0; i < result.numRows; i++) {
         const row = result.get(i);
         if (row) {
-          entries.push(mapRowToIndexEntry(row));
+          entries.push(mapRowToObject(row));
         }
       }
 
@@ -92,7 +87,7 @@ export async function listPrefix(
   bucketKey: string,
   prefix: string,
   limit = 1000
-): Promise<IndexEntry[]> {
+): Promise<_Object[]> {
   const store = useIndexStore.getState();
   const indexState = store.getIndex(bucketKey);
 
@@ -113,11 +108,11 @@ export async function listPrefix(
     const result = await stmt.query(prefixPattern, limit);
     await stmt.close();
 
-    const entries: IndexEntry[] = [];
+    const entries: _Object[] = [];
     for (let i = 0; i < result.numRows; i++) {
       const row = result.get(i);
       if (row) {
-        entries.push(mapRowToIndexEntry(row));
+        entries.push(mapRowToObject(row));
       }
     }
 

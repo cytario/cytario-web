@@ -52,12 +52,7 @@ export const GlobalSearch = () => {
         // Convert search results to BucketFiles format
         const files: BucketFiles = {};
         for (const result of searchResults) {
-          files[result.bucketKey] = result.entries.map((entry) => ({
-            Key: entry.key,
-            Size: entry.size,
-            LastModified: entry.lastModified,
-            ETag: entry.etag ?? undefined,
-          }));
+          files[result.bucketKey] = result.entries;
         }
 
         setResults({ files });

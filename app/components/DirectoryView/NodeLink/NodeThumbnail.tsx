@@ -46,10 +46,7 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
   const { provider, bucketName } = parseResourceId(node.id);
   const pathName = node._Object?.Key;
   const nodeId = [provider, bucketName, pathName].join("/");
-
-  console.log({ nodeId, _Object: node._Object });
-
-  const { url, isLoading } = usePresignedUrl(nodeId);
+  const { url } = usePresignedUrl(nodeId);
 
   switch (node.type) {
     case "bucket":
