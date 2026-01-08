@@ -2,23 +2,23 @@ import { Transition } from "@headlessui/react";
 
 import { H2 } from "../Fonts";
 import { Placeholder } from "../Placeholder";
-import { GlobalSearchResults } from "./GlobalSearch";
 import {
   buildDirectoryTree,
   TreeNode,
 } from "../DirectoryView/buildDirectoryTree";
 import DirectoryTree from "../DirectoryView/DirectoryViewTree";
+import { BucketFiles } from "~/routes/search.route";
 
 interface SuggestionsProps {
-  results: GlobalSearchResults;
+  results: BucketFiles;
   showResults: boolean;
 }
 export const Suggestions = ({ results, showResults }: SuggestionsProps) => {
-  const nodes: TreeNode[] = Object.keys(results.files).map((bucketKey) => ({
+  const nodes: TreeNode[] = Object.keys(results).map((bucketKey) => ({
     id: bucketKey,
     name: bucketKey,
     type: "bucket",
-    children: buildDirectoryTree(bucketKey, results.files[bucketKey]),
+    children: buildDirectoryTree(bucketKey, results[bucketKey]),
   }));
 
   return (

@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { TreeNode } from "./buildDirectoryTree";
 import NodeLink from "./NodeLink/NodeLink";
 import Table from "~/components/Table";
+import { useCredentialsStore } from "~/utils/credentialsStore";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
 const getColumns = (nodes: TreeNode[]): string[] => {
@@ -22,13 +23,16 @@ const getData = (nodes: TreeNode[]): ReactNode[][] => {
   switch (nodes[0].type) {
     case "bucket":
       return nodes.map((node) => {
+        const bucketConfig = useCredentialsStore
+          .getState()
+          .getBucketConfig(node.id);
+
         return [
           <NodeLink key={node.name} node={node} listStyle="list" />,
-          // TODO: Get data from CredentialsStore
-          node._Bucket?.provider,
-          node._Bucket?.endpoint,
-          node._Bucket?.region,
-          node._Bucket?.roleArn,
+          bucketConfig?.provider,
+          bucketConfig?.endpoint,
+          bucketConfig?.region,
+          bucketConfig?.roleArn,
         ];
       });
     case "directory":

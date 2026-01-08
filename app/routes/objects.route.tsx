@@ -212,16 +212,8 @@ export async function clientLoader({
   const resourceId = createResourceId(provider!, bucketName!, pathName);
   const name = getFileName(resourceId) || bucketName!;
 
-  // Build full bucket config from stored client config
-  const bucketConfig: BucketConfig = {
-    id: 0, // Not used for client-side navigation
-    name: bucketName!,
-    userId: "", // Not used for client-side navigation
-    provider: provider!,
-    roleArn: null,
-    endpoint: clientBucketConfig.endpoint ?? "",
-    region: clientBucketConfig.region ?? null,
-  };
+  // Use the stored bucket config directly (has full data from server)
+  const bucketConfig = clientBucketConfig;
 
   return {
     nodes,

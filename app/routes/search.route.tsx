@@ -13,7 +13,6 @@ import {
 } from "~/components/DirectoryView/buildDirectoryTree";
 import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
 import { H1 } from "~/components/Fonts";
-import { GlobalSearchResults } from "~/components/GlobalSearch/GlobalSearch";
 import { getBucketConfigsForUser } from "~/utils/bucketConfig";
 import { getObjects } from "~/utils/getObjects";
 
@@ -22,7 +21,7 @@ export type BucketFiles = Record<string, _Object[]>;
 export interface SearchRouteLoaderResponse {
   searchQuery: string;
   user?: UserProfile;
-  results: GlobalSearchResults;
+  results: BucketFiles;
 }
 
 export const middleware = [authMiddleware];
@@ -71,26 +70,19 @@ export const loader: LoaderFunction = async ({
     return { ...(await acc), [key]: _files };
   }, {} as Promise<BucketFiles>);
 
-  // TODO:Refactor global search
-  const results = { files };
-
-  return { searchQuery, results };
+  return { searchQuery, results: files };
 };
 
 export default function SearchRoute() {
   const { searchQuery, results } = useLoaderData<SearchRouteLoaderResponse>();
 
   // Keys are in format provider/bucketName (bucketKey)
-  const nodes: TreeNode[] = Object.keys(results.files).map((bucketKey) => {
+  const nodes: TreeNode[] = Object.keys(results).map((bucketKey) => {
     return {
       id: bucketKey,
       name: bucketKey,
       type: "bucket",
-      children: buildDirectoryTree(
-        bucketKey,
-        results.files[bucketKey] as _Object[],
-        ""
-      ),
+      children: buildDirectoryTree(bucketKey, results[bucketKey], ""),
     };
   });
 

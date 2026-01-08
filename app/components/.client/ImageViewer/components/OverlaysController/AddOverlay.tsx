@@ -7,9 +7,8 @@ import { useViewerStore } from "../../state/ViewerStoreContext";
 import Input from "~/components/Controls/Input";
 import { buildDirectoryTree } from "~/components/DirectoryView/buildDirectoryTree";
 import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
-import { DEFAULT_RESULTS } from "~/components/GlobalSearch/GlobalSearch";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
-import { SearchRouteLoaderResponse } from "~/routes/search.route";
+import { BucketFiles, SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useCredentialsStore } from "~/utils/credentialsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 import { getBucketKeyFromResourceId } from "~/utils/resourceId";
@@ -45,16 +44,14 @@ export const AddOverlay = ({
   }, [objectsFetcher, objectsFetcher.state, searchString]);
 
   // Derive results from fetcher data
-  const results = objectsFetcher.data?.results ?? DEFAULT_RESULTS;
+  const results: BucketFiles = objectsFetcher.data?.results ?? {};
 
   return (
     <div className="relative flex flex-col gap-2">
       <Input value={extension} readOnly />
 
-      {/* <Results files={results.files} /> */}
-
-      {Object.keys(results.files).map((key) => {
-        const objects = results.files[key] as _Object[];
+      {Object.keys(results).map((key) => {
+        const objects = results[key];
 
         const nodes = buildDirectoryTree(key, objects, undefined);
 

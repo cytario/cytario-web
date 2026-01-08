@@ -9,13 +9,7 @@ import {
 import { useSearchParam } from "~/hooks/useSearchParam";
 import { BucketFiles } from "~/routes/search.route";
 
-export interface GlobalSearchResults {
-  files: BucketFiles;
-}
-
-export const DEFAULT_RESULTS: GlobalSearchResults = {
-  files: {},
-};
+const DEFAULT_RESULTS: BucketFiles = {};
 
 const DEBOUNCE_DURATION = 300;
 
@@ -26,7 +20,7 @@ export const GlobalSearch = () => {
   const parentRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState(searchQuery);
   const [showResults, setShowResults] = useState(false);
-  const [results, setResults] = useState<GlobalSearchResults>(DEFAULT_RESULTS);
+  const [results, setResults] = useState<BucketFiles>(DEFAULT_RESULTS);
 
   const handleSearch = useCallback(
     async (value: string) => {
@@ -55,7 +49,7 @@ export const GlobalSearch = () => {
           files[result.bucketKey] = result.entries;
         }
 
-        setResults({ files });
+        setResults(files);
         setShowResults(true);
       } catch (error) {
         console.error("[GlobalSearch] Search failed:", error);
