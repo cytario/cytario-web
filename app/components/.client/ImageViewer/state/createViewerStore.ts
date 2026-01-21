@@ -17,6 +17,25 @@ import {
 } from "./types";
 import { getSelectionStats } from "../utils/getSelectionStats";
 
+/**
+ * Creates a Zustand store for managing the state of an image viewer instance.
+ *
+ * The store handles:
+ * - Image loading and metadata management
+ * - Multi-panel views with independent layer states
+ * - Channel visibility, colors, and contrast limits
+ * - Overlay management for cell segmentation data
+ * - View state (zoom, pan) with persistence
+ *
+ * Uses Zustand middlewares:
+ * - `persist`: Persists selected state to localStorage
+ * - `immer`: Enables immutable state updates with mutable syntax
+ * - `devtools`: Enables Redux DevTools integration for debugging
+ *
+ * @param id - Unique identifier for the viewer instance, used for persistence key and devtools name
+ * @returns A Zustand store instance with the complete ViewerStore interface
+ *
+ */
 export const createViewerStore = (id: string) =>
   createStore<ViewerStore>()(
     persist(
