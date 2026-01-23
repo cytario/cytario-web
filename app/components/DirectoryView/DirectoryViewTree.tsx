@@ -1,5 +1,5 @@
 import { TreeNode } from "./buildDirectoryTree";
-import NodeLink from "./NodeLink";
+import { NodeLink } from "./NodeLink/NodeLink";
 
 export default function DirectoryTree({
   nodes,
