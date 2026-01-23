@@ -2,8 +2,8 @@ import { filesize } from "filesize";
 import { ReactNode } from "react";
 
 import { TreeNode } from "./buildDirectoryTree";
-import NodeLink from "./NodeLink";
-import Table from "~/components/Table";
+import { NodeLink } from "./NodeLink/NodeLink";
+import { Table } from "~/components/Table";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
 const getColumns = (nodes: TreeNode[]): string[] => {

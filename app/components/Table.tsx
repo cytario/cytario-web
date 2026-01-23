@@ -30,7 +30,7 @@ const TR = ({
   </tr>
 );
 
-export default function Table({ columns, data }: TableProps) {
+export function Table({ columns, data }: TableProps) {
   return (
     <table className="w-full border-collapse ">
       <thead className="bg-gray-100">
