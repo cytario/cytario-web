@@ -4,8 +4,39 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ColumnConfig } from "./types";
 import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
 
+/**
+ * Manages column width state for a table with persistence to the directory store.
+ *
+ * Initializes column widths from persisted values (if available) or falls back
+ * to the default sizes defined in column config. Width changes are automatically
+ * synced to the store for persistence across sessions.
+ *
+ * The index column always has a fixed width of 48px and is not persisted.
+ *
+ * @param columns - Array of column configurations defining default sizes
+ * @param tableId - Unique identifier for the table (used as key in store)
+ * @returns Object containing:
+ *   - `columnSizing` - Current column sizing state object
+ *   - `setColumnSizing` - Function to update widths (compatible with TanStack Table)
+ *   - `resetWidths` - Function to reset all columns to their default sizes
+ *
+ * @example
+ * ```tsx
+ * const columns: ColumnConfig[] = [
+ *   { id: "name", header: "Name", size: 200 },
+ *   { id: "date", header: "Date", size: 150 },
+ * ];
+ *
+ * const { columnSizing, setColumnSizing, resetWidths } = useColumnWidths(columns, "files-table");
+ *
+ * const table = useReactTable({
+ *   state: { columnSizing },
+ *   onColumnSizingChange: setColumnSizing,
+ * });
+ * ```
+ */
 export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
-  const { tableColumns, setColumnWidth, resetColumnWidths } = useDirectoryStore();
+  const { tableColumns, setColumnWidth, resetTableConfig } = useDirectoryStore();
 
   // Initialize columnSizing state from store or defaults
   const initialColumnSizing = useMemo(() => {
@@ -49,7 +80,7 @@ export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
 
   // Reset widths to defaults
   const resetWidths = useCallback(() => {
-    resetColumnWidths(tableId);
+    resetTableConfig(tableId);
 
     // Reset local state to defaults
     const defaultSizing: ColumnSizingState = {};
@@ -59,7 +90,7 @@ export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
     defaultSizing.index = 48;
 
     setColumnSizingState(defaultSizing);
-  }, [tableId, columns, resetColumnWidths]);
+  }, [tableId, columns, resetTableConfig]);
 
   // Update state when persisted widths change (e.g., from another tab)
   useEffect(() => {

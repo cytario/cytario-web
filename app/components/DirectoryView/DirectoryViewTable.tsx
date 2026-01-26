@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 import { TreeNode } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
-import { ColumnConfig, Table } from "~/components/Table";
+import { ColumnConfig, Table } from "~/components/Table/Table";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
 const columns: Record<string, ColumnConfig> = {

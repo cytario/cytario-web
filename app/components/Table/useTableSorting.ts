@@ -3,6 +3,28 @@ import { useCallback } from "react";
 
 import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
 
+/**
+ * Manages sorting state for a table with persistence to the directory store.
+ *
+ * The store acts as the single source of truth for sorting state, enabling
+ * sorting preferences to persist across page navigation and browser sessions.
+ *
+ * @param tableId - Unique identifier for the table (used as key in store)
+ * @returns Object containing:
+ *   - `sorting` - Current sorting state array
+ *   - `setSorting` - Function to update sorting (compatible with TanStack Table)
+ *   - `resetSorting` - Function to clear all sorting for this table
+ *
+ * @example
+ * ```tsx
+ * const { sorting, setSorting } = useTableSorting("files-table");
+ *
+ * const table = useReactTable({
+ *   state: { sorting },
+ *   onSortingChange: setSorting,
+ * });
+ * ```
+ */
 export function useTableSorting(tableId: string) {
   const { tableSorting, setTableSorting } = useDirectoryStore();
 

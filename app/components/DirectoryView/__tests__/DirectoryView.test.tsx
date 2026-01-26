@@ -17,14 +17,22 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
 
 const mockSetActiveTab = vi.fn();
 
+const mockStoreDefaults = {
+  activeTab: 0,
+  setActiveTab: mockSetActiveTab,
+  setBucketName: vi.fn(),
+  setPathName: vi.fn(),
+  setProvider: vi.fn(),
+  tableColumns: {},
+  setColumnWidth: vi.fn(),
+  resetTableConfig: vi.fn(),
+  tableSorting: {},
+  setTableSorting: vi.fn(),
+};
+
 beforeEach(() => {
   // Reset Zustand store mock before each test
-  (useDirectoryStore as unknown as Mock).mockReturnValue({
-    activeTab: 0,
-    setActiveTab: mockSetActiveTab,
-    setBucketName: vi.fn(),
-    setPathName: vi.fn(),
-  });
+  (useDirectoryStore as unknown as Mock).mockReturnValue(mockStoreDefaults);
 });
 
 describe("DirectoryView Component", () => {
@@ -142,10 +150,8 @@ describe("DirectoryView Component", () => {
     ]);
 
     (useDirectoryStore as unknown as Mock).mockReturnValue({
+      ...mockStoreDefaults,
       activeTab: 1, // Simulate the Grid tab being active
-      setActiveTab: mockSetActiveTab,
-      setBucketName: vi.fn(),
-      setPathName: vi.fn(),
     });
 
     render(<RemixStub initialEntries={["/"]} />);

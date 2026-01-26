@@ -15,7 +15,7 @@ interface DirectoryStore {
   tableColumns: Record<string, Record<string, { width: number }>>;
   setColumnWidth: (tableId: string, columnName: string, width: number) => void;
   getColumnWidth: (tableId: string, columnName: string, defaultWidth?: number) => number | undefined;
-  resetColumnWidths: (tableId: string) => void;
+  resetTableConfig: (tableId: string) => void;
   tableSorting: Record<string, { id: string; desc: boolean }[]>;
   setTableSorting: (tableId: string, sorting: { id: string; desc: boolean }[]) => void;
   getTableSorting: (tableId: string) => { id: string; desc: boolean }[] | undefined;
@@ -62,7 +62,7 @@ export const useDirectoryStore = create<DirectoryStore>()(
           const column = get().tableColumns[tableId]?.[columnName];
           return column?.width ?? defaultWidth;
         },
-        resetColumnWidths: (tableId: string) =>
+        resetTableConfig: (tableId: string) =>
           set(
             (state) => ({
               tableColumns: {
@@ -71,7 +71,7 @@ export const useDirectoryStore = create<DirectoryStore>()(
               },
             }),
             false,
-            "resetColumnWidths",
+            "resetTableConfig",
           ),
         tableSorting: {},
         setTableSorting: (tableId: string, sorting: { id: string; desc: boolean }[]) =>
