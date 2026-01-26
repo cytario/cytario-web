@@ -92,7 +92,7 @@ export default function SearchRoute() {
       children: buildDirectoryTree(
         bucketName,
         results.files[key] as ObjectPresignedUrl[],
-        ""
+        "",
       ),
     };
   });

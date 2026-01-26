@@ -131,6 +131,8 @@ export function DirectoryTable({ nodes }: { nodes: TreeNode[] }) {
   const data = getData(nodes);
 
   return (
-    <Table columns={columns} data={data} tableId={`directory-${tableType}`} />
+    <div className="overflow-x-auto">
+      <Table columns={columns} data={data} tableId={`directory-${tableType}`} />
+    </div>
   );
 }

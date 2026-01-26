@@ -70,7 +70,7 @@ export function DirectoryView({
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <>
       {/* List vs Grid */}
       <TabGroup selectedIndex={activeTab} onChange={setActiveTab}>
         <Container>
@@ -127,6 +127,7 @@ export function DirectoryView({
 
       {/* Modal */}
       <NodeInfoModal />
-    </div>
+    </>
   );
 }
+

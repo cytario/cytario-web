@@ -36,8 +36,8 @@ import { createResourceId, matchesExtension } from "~/utils/resourceId";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
-    (module) => ({ default: module.Viewer })
-  )
+    (module) => ({ default: module.Viewer }),
+  ),
 );
 
 /**
@@ -95,7 +95,11 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const bucketConfig = await getBucketConfigByName(userId, provider, bucketName);
+  const bucketConfig = await getBucketConfigByName(
+    userId,
+    provider,
+    bucketName,
+  );
 
   if (!bucketConfig) {
     throw new Error("Bucket configuration not found");
@@ -108,7 +112,7 @@ export const loader = async ({
       bucketConfig,
       s3Client,
       undefined,
-      prefix
+      prefix,
     );
 
     if (objects.length > 0) {
@@ -116,7 +120,7 @@ export const loader = async ({
         objects.map(async (obj) => ({
           ...obj,
           presignedUrl: await getPresignedUrl(bucketConfig, s3Client, obj.Key!),
-        }))
+        })),
       );
 
       const nodes = buildDirectoryTree(bucketName, objectsWithUrls, prefix);
@@ -170,7 +174,7 @@ export default function ObjectsRoute() {
   const resourceId = createResourceId(
     bucketConfig.provider,
     bucketConfig.name,
-    pathName
+    pathName,
   );
 
   // Store credentials and bucket config in Zustand store when they're available
@@ -186,13 +190,15 @@ export default function ObjectsRoute() {
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
-      <DirectoryView
-        name={name}
-        nodes={nodes}
-        provider={bucketConfig.provider}
-        bucketName={bucketName}
-        pathName={pathName}
-      />
+      <div className="max-h-full overflow-x-hidden overflow-y-auto">
+        <DirectoryView
+          name={name}
+          nodes={nodes}
+          provider={bucketConfig.provider}
+          bucketName={bucketName}
+          pathName={pathName}
+        />
+      </div>
     );
   }
 
@@ -201,7 +207,7 @@ export default function ObjectsRoute() {
     const isCsv = matchesExtension(resourceId, /\.csv$/i);
     const isTabularFile = matchesExtension(
       resourceId,
-      /\.(csv|parquet|json|ndjson)$/i
+      /\.(csv|parquet|json|ndjson)$/i,
     );
 
     if (isTabularFile) {

@@ -10,9 +10,11 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useDirectoryStore } from "~/components/DirectoryView/useDirectoryStore";
 import { createResourceId } from "~/utils/resourceId";
 
+export type NodeLinkListStyle = "list" | "grid";
+
 export interface NodeLinkProps {
   node: TreeNode;
-  listStyle?: "list" | "grid";
+  listStyle?: NodeLinkListStyle;
   className?: string;
   onClick?: (node: TreeNode) => void;
   showInfoButton?: boolean;
