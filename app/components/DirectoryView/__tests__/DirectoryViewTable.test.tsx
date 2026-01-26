@@ -164,7 +164,7 @@ describe("DirectoryViewTable", () => {
       },
     ];
 
-    test("renders only Name column for directories", () => {
+    test("renders file columns for directories: Name, Last Modified, Size", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
@@ -174,11 +174,11 @@ describe("DirectoryViewTable", () => {
 
       render(<RemixStub initialEntries={["/"]} />);
 
-      // Check column header - only Name for directories
+      // Directory views use the same columns as file views
       expect(screen.getByText("Name")).toBeInTheDocument();
-      // These should NOT be present for directory type
-      expect(screen.queryByText("Last Modified")).not.toBeInTheDocument();
-      expect(screen.queryByText("Size")).not.toBeInTheDocument();
+      expect(screen.getByText("Last Modified")).toBeInTheDocument();
+      expect(screen.getByText("Size")).toBeInTheDocument();
+      // Bucket columns should NOT be present
       expect(screen.queryByText("Provider")).not.toBeInTheDocument();
     });
 

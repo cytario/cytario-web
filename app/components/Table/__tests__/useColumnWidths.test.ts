@@ -10,7 +10,8 @@ vi.mock("../../DirectoryView/useDirectoryStore");
 
 describe("useColumnWidths", () => {
   const mockSetColumnWidth = vi.fn();
-  const mockResetColumnWidths = vi.fn();
+  const mockResetTableConfig = vi.fn();
+  let mockTableColumns: Record<string, Record<string, { width: number }>>;
 
   const testColumns: ColumnConfig[] = [
     { id: "name", header: "Name", size: 200 },
@@ -18,13 +19,18 @@ describe("useColumnWidths", () => {
     { id: "size", header: "Size", size: 100 },
   ];
 
+  const setupMock = (tableColumns = {}) => {
+    mockTableColumns = tableColumns;
+    vi.mocked(useDirectoryStore).mockReturnValue({
+      tableColumns: mockTableColumns,
+      setColumnWidth: mockSetColumnWidth,
+      resetTableConfig: mockResetTableConfig,
+    } as ReturnType<typeof useDirectoryStore>);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useDirectoryStore).mockReturnValue({
-      tableColumns: {},
-      setColumnWidth: mockSetColumnWidth,
-      resetTableConfig: mockResetColumnWidths,
-    } as ReturnType<typeof useDirectoryStore>);
+    setupMock({});
   });
 
   it("initializes with default column sizes when no persisted widths", () => {
@@ -41,16 +47,12 @@ describe("useColumnWidths", () => {
   });
 
   it("uses persisted widths from store when available", () => {
-    vi.mocked(useDirectoryStore).mockReturnValue({
-      tableColumns: {
-        "test-table": {
-          name: { width: 300 },
-          date: { width: 180 },
-        },
+    setupMock({
+      "test-table": {
+        name: { width: 300 },
+        date: { width: 180 },
       },
-      setColumnWidth: mockSetColumnWidth,
-      resetTableConfig: mockResetColumnWidths,
-    } as ReturnType<typeof useDirectoryStore>);
+    });
 
     const { result } = renderHook(() =>
       useColumnWidths(testColumns, "test-table"),
@@ -62,23 +64,6 @@ describe("useColumnWidths", () => {
       size: 100, // falls back to default
       index: 48,
     });
-  });
-
-  it("setColumnSizing updates local state", () => {
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
-
-    act(() => {
-      result.current.setColumnSizing({
-        name: 250,
-        date: 150,
-        size: 100,
-        index: 48,
-      });
-    });
-
-    expect(result.current.columnSizing.name).toBe(250);
   });
 
   it("setColumnSizing persists changed widths to store", () => {
@@ -116,7 +101,6 @@ describe("useColumnWidths", () => {
       }));
     });
 
-    expect(result.current.columnSizing.name).toBe(250);
     expect(mockSetColumnWidth).toHaveBeenCalledWith("test-table", "name", 250);
   });
 
@@ -141,17 +125,13 @@ describe("useColumnWidths", () => {
     );
   });
 
-  it("resetWidths resets to default sizes", () => {
-    vi.mocked(useDirectoryStore).mockReturnValue({
-      tableColumns: {
-        "test-table": {
-          name: { width: 300 },
-          date: { width: 180 },
-        },
+  it("resetWidths calls resetTableConfig", () => {
+    setupMock({
+      "test-table": {
+        name: { width: 300 },
+        date: { width: 180 },
       },
-      setColumnWidth: mockSetColumnWidth,
-      resetTableConfig: mockResetColumnWidths,
-    } as ReturnType<typeof useDirectoryStore>);
+    });
 
     const { result } = renderHook(() =>
       useColumnWidths(testColumns, "test-table"),
@@ -164,13 +144,7 @@ describe("useColumnWidths", () => {
       result.current.resetWidths();
     });
 
-    expect(mockResetColumnWidths).toHaveBeenCalledWith("test-table");
-    expect(result.current.columnSizing).toEqual({
-      name: 200,
-      date: 150,
-      size: 100,
-      index: 48,
-    });
+    expect(mockResetTableConfig).toHaveBeenCalledWith("test-table");
   });
 
   it("always includes index column with fixed width of 48", () => {

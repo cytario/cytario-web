@@ -1,5 +1,5 @@
 import type { ColumnSizingState, OnChangeFn } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import { ColumnConfig } from "./types";
 import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
@@ -7,113 +7,47 @@ import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
 /**
  * Manages column width state for a table with persistence to the directory store.
  *
- * Initializes column widths from persisted values (if available) or falls back
+ * Column widths are derived from persisted values (if available) or fall back
  * to the default sizes defined in column config. Width changes are automatically
  * synced to the store for persistence across sessions.
  *
  * The index column always has a fixed width of 48px and is not persisted.
- *
- * @param columns - Array of column configurations defining default sizes
- * @param tableId - Unique identifier for the table (used as key in store)
- * @returns Object containing:
- *   - `columnSizing` - Current column sizing state object
- *   - `setColumnSizing` - Function to update widths (compatible with TanStack Table)
- *   - `resetWidths` - Function to reset all columns to their default sizes
- *
- * @example
- * ```tsx
- * const columns: ColumnConfig[] = [
- *   { id: "name", header: "Name", size: 200 },
- *   { id: "date", header: "Date", size: 150 },
- * ];
- *
- * const { columnSizing, setColumnSizing, resetWidths } = useColumnWidths(columns, "files-table");
- *
- * const table = useReactTable({
- *   state: { columnSizing },
- *   onColumnSizingChange: setColumnSizing,
- * });
- * ```
  */
 export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
   const { tableColumns, setColumnWidth, resetTableConfig } = useDirectoryStore();
 
-  // Initialize columnSizing state from store or defaults
-  const initialColumnSizing = useMemo(() => {
-    const sizing: ColumnSizingState = {};
+  // Derive columnSizing from store or defaults
+  const columnSizing = useMemo(() => {
+    const sizing: ColumnSizingState = { index: 48 };
+    const tableConfig = tableColumns[tableId];
 
     columns.forEach((col) => {
-      const persistedWidth = tableColumns[tableId]?.[col.id]?.width;
-      sizing[col.id] = persistedWidth ?? col.size;
+      sizing[col.id] = tableConfig?.[col.id]?.width ?? col.size;
     });
-
-    // Add index column with fixed width
-    sizing.index = 48;
 
     return sizing;
   }, [columns, tableId, tableColumns]);
 
-  const [columnSizing, setColumnSizingState] =
-    useState<ColumnSizingState>(initialColumnSizing);
-
-  // Sync to store when columnSizing changes
+  // Persist width changes to store
   const setColumnSizing: OnChangeFn<ColumnSizingState> = useCallback(
     (updaterOrValue) => {
-      setColumnSizingState((prev) => {
-        const next =
-          typeof updaterOrValue === "function"
-            ? updaterOrValue(prev)
-            : updaterOrValue;
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(columnSizing)
+          : updaterOrValue;
 
-        // Persist each changed column width to store
-        Object.entries(next).forEach(([columnId, width]) => {
-          if (columnId !== "index" && prev[columnId] !== width) {
-            setColumnWidth(tableId, columnId, width);
-          }
-        });
-
-        return next;
-      });
-    },
-    [tableId, setColumnWidth],
-  );
-
-  // Reset widths to defaults
-  const resetWidths = useCallback(() => {
-    resetTableConfig(tableId);
-
-    // Reset local state to defaults
-    const defaultSizing: ColumnSizingState = {};
-    columns.forEach((col) => {
-      defaultSizing[col.id] = col.size;
-    });
-    defaultSizing.index = 48;
-
-    setColumnSizingState(defaultSizing);
-  }, [tableId, columns, resetTableConfig]);
-
-  // Update state when persisted widths change (e.g., from another tab)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setColumnSizingState((prev) => {
-      const updated = { ...prev };
-      let hasChanges = false;
-
-      columns.forEach((col) => {
-        const persistedWidth = tableColumns[tableId]?.[col.id]?.width;
-        if (persistedWidth !== undefined && prev[col.id] !== persistedWidth) {
-          updated[col.id] = persistedWidth;
-          hasChanges = true;
+      Object.entries(next).forEach(([columnId, width]) => {
+        if (columnId !== "index" && columnSizing[columnId] !== width) {
+          setColumnWidth(tableId, columnId, width);
         }
       });
+    },
+    [tableId, columnSizing, setColumnWidth],
+  );
 
-      return hasChanges ? updated : prev;
-    });
-  }, [tableColumns, tableId, columns]);
+  const resetWidths = useCallback(() => {
+    resetTableConfig(tableId);
+  }, [tableId, resetTableConfig]);
 
-  return {
-    columnSizing,
-    setColumnSizing,
-    resetWidths,
-  };
+  return { columnSizing, setColumnSizing, resetWidths };
 }

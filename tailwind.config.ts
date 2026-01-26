@@ -20,7 +20,9 @@ export default {
     extend: {
       colors: {
         cytario: {
-          purple: "#5C2483",
+          purple: {
+            500: "#5c2483",
+          },
           turquoise: {
             50: "#F0FAFA",
             100: "#CCEDED",

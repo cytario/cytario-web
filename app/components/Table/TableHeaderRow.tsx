@@ -26,7 +26,7 @@ export function TableHeaderRow({
         const isIndexColumn = header.id === "index";
 
         const cx = twMerge(
-          "relative p-2",
+          "relative p-2 pr-4",
           isIndexColumn ? "text-right" : `text-${columnConfig?.align}`,
           columnConfig?.monospace && "font-mono font-bold",
           isIndexColumn && "font-mono font-bold",

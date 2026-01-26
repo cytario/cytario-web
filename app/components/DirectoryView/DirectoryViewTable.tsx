@@ -1,7 +1,7 @@
 import { filesize } from "filesize";
 import { ReactNode } from "react";
 
-import { TreeNode } from "./buildDirectoryTree";
+import { TreeNode, TreeNodeType } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
 import { ColumnConfig, Table } from "~/components/Table/Table";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
@@ -13,7 +13,8 @@ const columns: Record<string, ColumnConfig> = {
     size: 420,
     align: "left",
     enableSorting: true,
-    sortingFn: "alphanumeric", // Will be overridden with function in getColumns
+    // Will be overridden with function in getColumns
+    sortingFn: "alphanumeric",
   },
   last_modified: {
     id: "last_modified",
@@ -85,7 +86,6 @@ const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
         columns.rolearn,
       ];
     case "directory":
-      return [nameColumn];
     case "file":
     default:
       return [nameColumn, columns.last_modified, columns.size];
@@ -104,27 +104,33 @@ const getData = (nodes: TreeNode[]): ReactNode[][] => {
           node._Bucket?.roleArn,
         ];
       });
+
     case "directory":
-      return nodes.map((node) => {
-        return [<NodeLink key={node.name} node={node} listStyle="list" />];
-      });
     case "file":
     default:
       return nodes.map((node) => {
+        // Directories show null values for now (TODO: aggregate children values)
+        const isFile = node.type === "file";
         return [
           <NodeLink key={node.name} node={node} listStyle="list" />,
-          node._Object?.LastModified &&
+          isFile &&
+            node._Object?.LastModified &&
             formatHumanReadableDate(node._Object.LastModified),
-          node._Object && filesize(node._Object.Size ?? 0).toString(),
+          isFile && node._Object && filesize(node._Object.Size ?? 0).toString(),
         ];
       });
   }
 };
 
-export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
+export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
+
+export function DirectoryTable({ nodes }: { nodes: TreeNode[] }) {
+  const tableType: TableType =
+    nodes[0].type === "bucket" ? "bucket" : "directory";
   const columns = getColumns(nodes);
   const data = getData(nodes);
-  const tableId = `directory-${nodes[0].type}`;
 
-  return <Table columns={columns} data={data} tableId={tableId} />;
+  return (
+    <Table columns={columns} data={data} tableId={`directory-${tableType}`} />
+  );
 }

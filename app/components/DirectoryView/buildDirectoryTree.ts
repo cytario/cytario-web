@@ -1,8 +1,10 @@
 import { BucketConfig } from "~/.generated/client";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 
+export type TreeNodeType = "bucket" | "directory" | "file";
+
 export type TreeNode = {
-  type: "bucket" | "directory" | "file";
+  type: TreeNodeType;
   name: string;
   bucketName: string;
   pathName?: string;
@@ -17,7 +19,7 @@ function buildDirectoryTreeRecursive(
   obj: ObjectPresignedUrl,
   bucketName: string,
   parentPath: string = "",
-  bucketConfig?: BucketConfig
+  bucketConfig?: BucketConfig,
 ) {
   const name = keyParts[0];
   let pathName = parentPath + name;
@@ -54,7 +56,7 @@ function buildDirectoryTreeRecursive(
       obj,
       bucketName,
       pathName,
-      bucketConfig
+      bucketConfig,
     );
   }
 }
@@ -63,7 +65,7 @@ export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],
   prefix?: string,
-  bucketConfig?: BucketConfig
+  bucketConfig?: BucketConfig,
 ): TreeNode[] {
   const root: TreeNode[] = [];
 
@@ -79,7 +81,7 @@ export function buildDirectoryTree(
       obj,
       bucketName,
       prefix,
-      bucketConfig
+      bucketConfig,
     );
   });
 
