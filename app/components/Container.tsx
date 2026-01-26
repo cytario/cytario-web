@@ -6,9 +6,9 @@ interface ContainerProps {
 
 export function Container({ children }: ContainerProps) {
   return (
-    <main className="flex flex-grow overflow-auto">
-      <div className="container flex-grow mx-auto my-12 px-6">{children}</div>
-    </main>
+    <section className="container flex-grow mx-auto my-12 px-6">
+      <div className="">{children}</div>
+    </section>
   );
 }
 

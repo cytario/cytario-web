@@ -21,7 +21,7 @@ import {
   deleteBucketConfig,
 } from "~/utils/bucketConfig";
 
-const title = "Configured Buckets";
+const title = "Your Connected Buckets";
 
 export const meta: MetaFunction = () => {
   return [

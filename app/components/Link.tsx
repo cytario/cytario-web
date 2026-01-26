@@ -6,7 +6,7 @@ export const Link = ({ children, ...props }: LinkProps) => {
       {...props}
       className={`
         underline focus:underline
-      text-blue-700 hover:text-blue-500
+      text-cytario-turquoise-700 hover:text-cytario-turquoise-900
       `}
     >
       {children}

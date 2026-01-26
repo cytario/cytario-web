@@ -26,7 +26,7 @@ const pathVariants = {
 
 export const Logo = ({
   color = "white",
-  highlightColor = cytario["turquoise-500"],
+  highlightColor = cytario.turquoise[500],
   scale = 1,
   className,
 }: {

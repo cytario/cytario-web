@@ -21,10 +21,19 @@ export default {
       colors: {
         cytario: {
           purple: "#5C2483",
-          "turquoise-900": "#21797A",
-          "turquoise-700": "#28999A",
-          "turquoise-500": "#35B7B8",
-          "turquoise-300": "#A6F3F3",
+          turquoise: {
+            50: "#F0FAFA",
+            100: "#CCEDED",
+            200: "#99DBDB",
+            300: "#66C9C9",
+            400: "#4DC3C3",
+            500: "#35B7B8", // Logo color - exact
+            600: "#2A9293",
+            700: "#1F7172", // Text color - accessible
+            800: "#165859",
+            900: "#0D3F40", // Hover/emphasis - high contrast
+            950: "#072425",
+          },
         },
       },
       fontFamily: {

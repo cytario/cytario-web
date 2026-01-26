@@ -1,12 +1,12 @@
-import { Slash } from "lucide-react";
 import { ReactNode } from "react";
 import { Link } from "react-router";
 import { twMerge } from "tailwind-merge";
 
+import { Icon } from "../Controls/IconButton";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 const style = `
-  flex items-center h-full px-1 
+  flex items-center h-full px-1 gap-1
   text-slate-500 hover:text-slate-300
   text-nowrap text-sm
 
@@ -30,9 +30,7 @@ export function BreadcrumbLink({
   return (
     <li className={listItemStyle}>
       <Link to={to} className={linkStyle}>
-        {!isRoot && (
-          <Slash className="mr-1 size-3 stroke-lime" size={5} strokeWidth={2} />
-        )}
+        {!isRoot && <Icon icon="Slash" strokeWidth={1} />}
         <TooltipSpan>{children}</TooltipSpan>
       </Link>
     </li>
