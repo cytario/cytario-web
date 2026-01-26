@@ -8,7 +8,6 @@ import { ButtonLink } from "../Controls/Button";
 import { Icon } from "../Controls/IconButton";
 import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
-import { InputGroup } from "../Controls/InputGroup";
 import { Container } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
@@ -33,8 +32,8 @@ function IconTab({ children, label }: TabProps) {
     <Tab
       aria-label={label}
       className={`
-        flex items-center 
-        p-2
+        flex items-center justify-center
+        w-8 h-8
         bg-white
         data-[hover]:bg-slate-300 
         data-[selected]:bg-slate-700 data-[selected]:text-white 
@@ -71,42 +70,47 @@ export function DirectoryView({
   }
 
   return (
-    <Container>
+    <div className="h-full overflow-auto">
       {/* List vs Grid */}
       <TabGroup selectedIndex={activeTab} onChange={setActiveTab}>
-        <header className="flex justify-between mb-4">
-          {name && <H1>{name}</H1>}
-          <div className="flex items-center gap-2">
-            {/* Render button only on root */}
-            {!bucketName && (
-              <ButtonLink to="/connect-bucket" theme="white">
-                Connect Bucket
-              </ButtonLink>
-            )}
-            {/* Cyberduck button - only show when viewing a bucket */}
-            {bucketName && (
-              <ButtonLink
-                to="?action=cyberduck"
-                theme="white"
-                className="gap-2"
-              >
-                <Icon icon="Download" size={16} />
-                Access with Cyberduck
-              </ButtonLink>
-            )}
-            {/* Tabs */}
-            <TabList className="flex">
-              <InputGroup>
+        <Container>
+          <header className="flex flex-col justify-between mt-24 gap-2">
+            {/* Actions */}
+            <div className="flex gap-2">
+              {name && <H1 className="flex-grow">{name}</H1>}
+
+              {/* Tabs */}
+              <TabList className="flex gap-1">
                 <IconTab label="List View">
                   <Icon icon="List" size={16} />
                 </IconTab>
                 <IconTab label="Grid View">
-                  <Icon icon="Grid2x2" size={16} />
+                  <Icon icon="Grid2x2" />
                 </IconTab>
-              </InputGroup>
-            </TabList>
-          </div>
-        </header>
+              </TabList>
+            </div>
+            <div>
+              {/* Render button only on root */}
+              {!bucketName && (
+                <ButtonLink to="/connect-bucket" theme="white">
+                  <Icon icon="Plug" size={16} /> Connect Bucket
+                </ButtonLink>
+              )}
+
+              {/* Cyberduck button - only show when viewing a bucket */}
+              {bucketName && (
+                <ButtonLink
+                  to="?action=cyberduck"
+                  theme="white"
+                  className="gap-2"
+                >
+                  <Icon icon="Download" size={16} />
+                  Access with Cyberduck
+                </ButtonLink>
+              )}
+            </div>
+          </header>
+        </Container>
 
         {/* Tab Panels */}
         <TabPanels>
@@ -114,13 +118,15 @@ export function DirectoryView({
             <DirectoryViewTable nodes={nodes} />
           </TabPanel>
           <TabPanel>
-            <DirectoryViewGrid nodes={nodes} />
+            <Container>
+              <DirectoryViewGrid nodes={nodes} />
+            </Container>
           </TabPanel>
         </TabPanels>
       </TabGroup>
 
       {/* Modal */}
       <NodeInfoModal />
-    </Container>
+    </div>
   );
 }

@@ -15,12 +15,14 @@ export interface NodeLinkProps {
   listStyle?: "list" | "grid";
   className?: string;
   onClick?: (node: TreeNode) => void;
+  showInfoButton?: boolean;
 }
 
 const style = `
   flex flex-row flex-grow items-center
-  h-full min-w-0 gap-2
-  text-blue-700 hover:text-blue-500
+  h-full min-w-0 gap-1
+  text-cytario-turquoise-700 hover:text-cytario-turquoise-900
+  group-hover:underline
 `;
 
 export function NodeLink({
@@ -28,6 +30,7 @@ export function NodeLink({
   listStyle = "list",
   className,
   onClick,
+  showInfoButton = true,
 }: NodeLinkProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -63,7 +66,7 @@ export function NodeLink({
   const cx = twMerge(style, className);
 
   return (
-    <div>
+    <div className="group">
       {/* Grid view thumbnail */}
       {listStyle === "grid" && (
         <Link to={to} className="flex items-center justify-center w-full h-40">
@@ -89,13 +92,15 @@ export function NodeLink({
         </Link>
 
         {/* Context menu */}
-        <IconButton
-          icon="Info"
-          label="Show Info"
-          onClick={openNodeInfoModal}
-          theme="transparent"
-          className="border-none stroke-slate-300"
-        />
+        {showInfoButton && (
+          <IconButton
+            icon="Info"
+            label="Show Info"
+            onClick={openNodeInfoModal}
+            theme="transparent"
+            className="border-none text-slate-500"
+          />
+        )}
       </div>
     </div>
   );

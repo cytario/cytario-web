@@ -10,7 +10,7 @@ export const ThumbnailLabel = ({
         flex items-center justify-center
         px-1 h-4 min-w-4
         text-sm font-bold
-      text-slate-700 bg-white
+      text-slate-700 bg-white font-mono
       `}
     >
       {children}

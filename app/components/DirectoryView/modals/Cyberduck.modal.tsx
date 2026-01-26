@@ -1,8 +1,9 @@
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import { ButtonLink } from "~/components/Controls/Button";
 import { Icon } from "~/components/Controls/IconButton";
 import { H3 } from "~/components/Fonts";
+import { Link } from "~/components/Link";
 import { RouteModal } from "~/components/RouteModal";
 
 /**
@@ -34,7 +35,6 @@ export function CyberduckModal() {
               to="https://cyberduck.io/download/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-cytario-turquoise-500 hover:underline"
             >
               Cyberduck
             </Link>{" "}

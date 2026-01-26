@@ -14,7 +14,12 @@ export function DirectoryTree({
     <ul className="pl-4">
       {nodes.map((node) => (
         <li key={node.name}>
-          <NodeLink node={node} onClick={action} className={className} />
+          <NodeLink
+            node={node}
+            onClick={action}
+            className={className}
+            showInfoButton={false}
+          />
 
           {node.children && node.children.length > 0 && (
             <DirectoryTree
