@@ -9,7 +9,7 @@ import { ReactNode, useMemo } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { IconButton } from "./Controls/IconButton";
-import { TableProps as TablePropsType } from "./Table/types";
+import { SortingAccessor, TableProps as TablePropsType } from "./Table/types";
 import { useColumnWidths } from "./Table/useColumnWidths";
 import { useTableSorting } from "./Table/useTableSorting";
 import { TooltipSpan } from "./Tooltip/TooltipSpan";
@@ -67,13 +67,11 @@ export function Table({ columns, data, tableId = "default" }: TablePropsType) {
         accessorKey: `col_${i}`,
         cell: (info) => info.getValue() as ReactNode,
         enableResizing: columnConfig.enableResizing !== false,
-        enableSorting: columnConfig.sortable ?? false,
+        enableSorting: columnConfig.enableSorting ?? false,
         sortingFn:
-          typeof columnConfig.sortType === "function"
+          typeof columnConfig.sortingFn === "function"
             ? (rowA, rowB) => {
-                const accessor = columnConfig.sortType as (
-                  rowIndex: number,
-                ) => string | number | Date | null;
+                const accessor = columnConfig.sortingFn as SortingAccessor;
                 const valueA = accessor(rowA.original.index - 1);
                 const valueB = accessor(rowB.original.index - 1);
 
@@ -94,10 +92,10 @@ export function Table({ columns, data, tableId = "default" }: TablePropsType) {
                 // Default to string comparison
                 return String(valueA).localeCompare(String(valueB));
               }
-            : (columnConfig.sortType ?? "alphanumeric"),
-        size: columnSizing[columnConfig.id] ?? columnConfig.defaultWidth ?? 150,
-        minSize: columnConfig.minWidth ?? 48,
-        maxSize: columnConfig.maxWidth ?? Number.MAX_SAFE_INTEGER,
+            : (columnConfig.sortingFn ?? "alphanumeric"),
+        size: columnSizing[columnConfig.id] ?? columnConfig.size ?? 150,
+        minSize: columnConfig.minSize ?? 48,
+        maxSize: columnConfig.maxSize ?? Number.MAX_SAFE_INTEGER,
       }),
     );
 

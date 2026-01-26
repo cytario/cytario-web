@@ -10,69 +10,69 @@ const columns: Record<string, ColumnConfig> = {
   name: {
     id: "name",
     header: "Name",
-    defaultWidth: 420,
+    size: 420,
     align: "left",
-    sortable: true,
-    sortType: "alphanumeric", // Will be overridden with function in getColumns
+    enableSorting: true,
+    sortingFn: "alphanumeric", // Will be overridden with function in getColumns
   },
   last_modified: {
     id: "last_modified",
     header: "Last Modified",
-    defaultWidth: 420,
+    size: 420,
     align: "right",
     monospace: true,
-    sortable: true,
-    sortType: "datetime",
+    enableSorting: true,
+    sortingFn: "datetime",
   },
   size: {
     id: "size",
     header: "Size",
-    defaultWidth: 120,
+    size: 120,
     align: "right",
     monospace: true,
-    sortable: true,
-    sortType: "alphanumeric",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
   },
 
   provider: {
     id: "provider",
     header: "Provider",
-    defaultWidth: 100,
+    size: 100,
     align: "left",
-    sortable: true,
-    sortType: "alphanumeric",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
   },
   endpoint: {
     id: "endpoint",
     header: "Endpoint",
-    defaultWidth: 340,
+    size: 340,
     align: "left",
-    sortable: true,
-    sortType: "alphanumeric",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
   },
   region: {
     id: "region",
     header: "Region",
-    defaultWidth: 120,
+    size: 120,
     align: "left",
-    sortable: true,
-    sortType: "alphanumeric",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
   },
   rolearn: {
     id: "rolearn",
     header: "RoleARN",
-    defaultWidth: 480,
+    size: 480,
     align: "left",
-    sortable: true,
-    sortType: "alphanumeric",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
   },
 };
 
 const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
-  // Create name column with function-based sortType for ReactNode content
+  // Create name column with function-based sortingFn for ReactNode content
   const nameColumn: ColumnConfig = {
     ...columns.name,
-    sortType: (rowIndex: number) => nodes[rowIndex]?.name ?? "",
+    sortingFn: (rowIndex: number) => nodes[rowIndex]?.name ?? "",
   };
 
   switch (nodes[0].type) {

@@ -13,7 +13,7 @@ export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
 
     columns.forEach((col) => {
       const persistedWidth = tableColumns[tableId]?.[col.id]?.width;
-      sizing[col.id] = persistedWidth ?? col.defaultWidth;
+      sizing[col.id] = persistedWidth ?? col.size;
     });
 
     // Add index column with fixed width
@@ -54,7 +54,7 @@ export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
     // Reset local state to defaults
     const defaultSizing: ColumnSizingState = {};
     columns.forEach((col) => {
-      defaultSizing[col.id] = col.defaultWidth;
+      defaultSizing[col.id] = col.size;
     });
     defaultSizing.index = 48;
 
