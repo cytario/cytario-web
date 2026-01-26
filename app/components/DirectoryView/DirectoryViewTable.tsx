@@ -47,7 +47,7 @@ const getData = (nodes: TreeNode[]): ReactNode[][] => {
   }
 };
 
-export default function DirectoryTable({ nodes }: { nodes: TreeNode[] }) {
+export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
   const columns = getColumns(nodes);
   const data = getData(nodes);
   return <Table columns={columns} data={data} />;

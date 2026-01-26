@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { Label } from "../Label";
 import { IconButton } from "~/components/Controls/IconButton";
-import Input from "~/components/Controls/Input";
+import { Input } from "~/components/Controls/Input";
 import { InputGroup } from "~/components/Controls/InputGroup";
 
 export const PasswordField = ({

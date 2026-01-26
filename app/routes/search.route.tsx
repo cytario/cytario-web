@@ -6,13 +6,13 @@ import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
-import BreadcrumbLink from "~/components/Breadcrumbs/BreadcrumbLink";
+import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { Container } from "~/components/Container";
 import {
   buildDirectoryTree,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
-import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
+import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { H1 } from "~/components/Fonts";
 import { GlobalSearchResults } from "~/components/GlobalSearch/GlobalSearch";
 import { getBucketConfigsForUser } from "~/utils/bucketConfig";

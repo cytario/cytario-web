@@ -3,12 +3,12 @@ import { useFetcher } from "react-router";
 
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import Input from "~/components/Controls/Input";
+import { Input } from "~/components/Controls/Input";
 import {
   TreeNode,
   buildDirectoryTree,
 } from "~/components/DirectoryView/buildDirectoryTree";
-import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
+import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { DEFAULT_RESULTS } from "~/components/GlobalSearch/GlobalSearch";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { ObjectPresignedUrl } from "~/routes/objects.route";

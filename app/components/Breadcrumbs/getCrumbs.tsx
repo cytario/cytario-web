@@ -1,4 +1,4 @@
-import BreadcrumbLink from "./BreadcrumbLink";
+import { BreadcrumbLink } from "./BreadcrumbLink";
 
 export const getCrumbs = (to: string, segments: string[]): JSX.Element[] => {
   const crumbsObjects = segments.map((name) => {

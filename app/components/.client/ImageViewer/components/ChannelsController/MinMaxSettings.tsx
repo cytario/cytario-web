@@ -5,7 +5,7 @@ import { select } from "../../state/selectors";
 import { ByteDomain } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { IconButton } from "~/components/Controls/IconButton";
-import Input from "~/components/Controls/Input";
+import { Input } from "~/components/Controls/Input";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);

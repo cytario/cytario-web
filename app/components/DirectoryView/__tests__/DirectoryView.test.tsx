@@ -4,7 +4,7 @@ import { createRoutesStub } from "react-router";
 import { Mock } from "vitest";
 
 import { TreeNode } from "../buildDirectoryTree";
-import DirectoryView from "../DirectoryView";
+import { DirectoryView } from "../DirectoryView";
 import { useDirectoryStore } from "../useDirectoryStore";
 
 vi.mock("../useDirectoryStore", () => ({

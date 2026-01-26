@@ -1,5 +1,5 @@
 import { IconButton } from "../Controls/IconButton";
-import Input from "../Controls/Input";
+import { Input } from "../Controls/Input";
 
 type SearchBarProps = Readonly<{
   value: string;

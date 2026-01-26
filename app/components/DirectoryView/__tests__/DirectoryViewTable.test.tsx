@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 
 import { TreeNode } from "../buildDirectoryTree";
-import DirectoryTable from "../DirectoryViewTable";
+import { DirectoryViewTable } from "../DirectoryViewTable";
 
 describe("DirectoryViewTable", () => {
   describe("bucket type nodes", () => {
@@ -43,7 +43,7 @@ describe("DirectoryViewTable", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
-          Component: () => <DirectoryTable nodes={mockBucketNodes} />,
+          Component: () => <DirectoryViewTable nodes={mockBucketNodes} />,
         },
       ]);
 
@@ -61,7 +61,7 @@ describe("DirectoryViewTable", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
-          Component: () => <DirectoryTable nodes={mockBucketNodes} />,
+          Component: () => <DirectoryViewTable nodes={mockBucketNodes} />,
         },
       ]);
 
@@ -116,7 +116,7 @@ describe("DirectoryViewTable", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
-          Component: () => <DirectoryTable nodes={mockFileNodes} />,
+          Component: () => <DirectoryViewTable nodes={mockFileNodes} />,
         },
       ]);
 
@@ -132,7 +132,7 @@ describe("DirectoryViewTable", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
-          Component: () => <DirectoryTable nodes={mockFileNodes} />,
+          Component: () => <DirectoryViewTable nodes={mockFileNodes} />,
         },
       ]);
 
@@ -168,7 +168,7 @@ describe("DirectoryViewTable", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
-          Component: () => <DirectoryTable nodes={mockDirNodes} />,
+          Component: () => <DirectoryViewTable nodes={mockDirNodes} />,
         },
       ]);
 
@@ -186,7 +186,7 @@ describe("DirectoryViewTable", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
-          Component: () => <DirectoryTable nodes={mockDirNodes} />,
+          Component: () => <DirectoryViewTable nodes={mockDirNodes} />,
         },
       ]);
 
