@@ -5,7 +5,7 @@ type BreadcrumbMatch = UIMatch<
   { breadcrumb: (match: BreadcrumbMatch) => string }
 >;
 
-export default function Breadcrumbs() {
+export function Breadcrumbs() {
   const matches = useMatches() as BreadcrumbMatch[];
   const filteredMatches = matches.filter(
     (match) => match.handle && match.handle.breadcrumb

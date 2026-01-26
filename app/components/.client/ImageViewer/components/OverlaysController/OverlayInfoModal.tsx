@@ -8,7 +8,7 @@ const MODAL_REGEX = /action/;
  * Node information modal component.
  * Displays information about the selected overlay and provides an option to remove it.
  */
-export default function OverlayInfoModal() {
+export function OverlayInfoModal() {
   const [infoModal, closeInfoModal] = useNodeInfoModal(MODAL_REGEX);
 
   if (!infoModal) return null;

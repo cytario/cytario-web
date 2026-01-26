@@ -12,7 +12,7 @@ const style = `
 
 `;
 
-export default function BreadcrumbLink({
+export function BreadcrumbLink({
   to,
   children,
   className = "",

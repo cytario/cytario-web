@@ -14,7 +14,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Container } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls/Button";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import DirectoryView from "~/components/DirectoryView/DirectoryView";
+import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
 import {
   getBucketConfigsForUser,

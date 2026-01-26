@@ -10,7 +10,7 @@ import { useView } from "./useView";
 import { select } from "../../state/selectors";
 import { ViewPort } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import ActiveViewStatePreview from "../Measurements/ActiveViewStatePreview";
+import { ActiveViewStatePreview } from "../Measurements/ActiveViewStatePreview";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 
 interface ViewProps {
@@ -58,7 +58,7 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
         });
       }
     },
-    [isInteractive, viewStateActive, setViewStateActive]
+    [isInteractive, viewStateActive, setViewStateActive],
   );
 
   const getCursor = useCallback(
@@ -67,7 +67,7 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
       if (isDragging) return "grabbing";
       return "grab";
     },
-    [isInteractive]
+    [isInteractive],
   );
 
   if (!viewStatePreview) {

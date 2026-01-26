@@ -4,7 +4,7 @@ import {
   buildDirectoryTree,
   TreeNode,
 } from "../DirectoryView/buildDirectoryTree";
-import DirectoryTree from "../DirectoryView/DirectoryViewTree";
+import { DirectoryTree } from "../DirectoryView/DirectoryViewTree";
 import { H2 } from "../Fonts";
 import { Placeholder } from "../Placeholder";
 import { GlobalSearchResults } from "./GlobalSearch";

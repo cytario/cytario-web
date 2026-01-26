@@ -1,8 +1,8 @@
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { ReactNode, useEffect } from "react";
 
-import DirectoryViewGrid from "./DirectoryViewGrid";
-import DirectoryViewTable from "./DirectoryViewTable";
+import { DirectoryViewGrid } from "./DirectoryViewGrid";
+import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
 import { ButtonLink } from "../Controls/Button";
 import { Icon } from "../Controls/IconButton";
@@ -46,7 +46,7 @@ function IconTab({ children, label }: TabProps) {
   );
 }
 
-export default function DirectoryView({
+export function DirectoryView({
   nodes,
   name,
   provider,

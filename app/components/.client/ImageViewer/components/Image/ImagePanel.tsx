@@ -19,7 +19,7 @@ import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 import { Crosshair } from "../Measurements/Crosshair";
 import { Measurements } from "../Measurements/Measurements";
-import SlideCarrier from "../Measurements/SlideCarrier";
+import { SlideCarrier } from "../Measurements/SlideCarrier";
 
 export interface ViewProps {
   viewPort: ViewPort;
@@ -53,13 +53,13 @@ const ImagePanelInner = ({
   const view = useView({ width, height });
 
   const channelsState = useViewerStore(
-    (store) => store.layersStates[store.imagePanels[imagePanelId]].channels
+    (store) => store.layersStates[store.imagePanels[imagePanelId]].channels,
   );
 
   /** Setup Orthographic View */
   const { ids } = useMemo(
     () => mapChannelConfigsToState(channelsState ?? {}),
-    [channelsState]
+    [channelsState],
   );
   const setPixelValues = useFeatureBarStore((state) => state.setPixelValues);
 
@@ -69,13 +69,13 @@ const ImagePanelInner = ({
       // console.log("hover", data);
       setPixelValues(ids, data ? data.hoverData : ids.map(() => 0));
     },
-    [ids, setPixelValues]
+    [ids, setPixelValues],
   );
 
   /* Setup Layers */
   const multiscaleLayer = useChannelsLayer(
     imagePanelId,
-    onMultiscaleLayerHover
+    onMultiscaleLayerHover,
   );
   const markersLayers = useOverlaysLayers(imagePanelId, setTooltip);
   const layers = [multiscaleLayer, ...markersLayers];
@@ -87,7 +87,7 @@ const ImagePanelInner = ({
       const initViewState = calculateViewStateToFit(
         metadata,
         { width, height },
-        { padding }
+        { padding },
       );
 
       setViewStateActive(initViewState);
@@ -103,7 +103,7 @@ const ImagePanelInner = ({
     ({ viewState }: { viewState: OrthographicViewState }) => {
       setViewStateActive(viewState as ViewState);
     },
-    [setViewStateActive]
+    [setViewStateActive],
   );
 
   const handleInteractionStateChange = useCallback(
@@ -116,7 +116,7 @@ const ImagePanelInner = ({
         setActiveImagePanelId(imagePanelId);
       }
     },
-    [activeImagePanelId, imagePanelId, setActiveImagePanelId]
+    [activeImagePanelId, imagePanelId, setActiveImagePanelId],
   );
 
   const getCursor = useCallback(
@@ -129,7 +129,7 @@ const ImagePanelInner = ({
       }
       return "crosshair";
     },
-    [isActivePanel]
+    [isActivePanel],
   );
 
   if (!loader || loader.length === 0 || !viewStateActive) return null;

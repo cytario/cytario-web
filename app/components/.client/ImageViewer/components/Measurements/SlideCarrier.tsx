@@ -1,6 +1,6 @@
 import { useMeasurements } from "./useMeasurements";
 
-export default function SlideCarrier() {
+export function SlideCarrier() {
   const {
     widthTotalMm,
     heightTotalMm,

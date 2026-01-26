@@ -1,6 +1,6 @@
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
 import { Icon, IconButton } from "~/components/Controls/IconButton";
-import Input from "~/components/Controls/Input";
+import { Input } from "~/components/Controls/Input";
 
 interface FeatureItemProps {
   title: string;

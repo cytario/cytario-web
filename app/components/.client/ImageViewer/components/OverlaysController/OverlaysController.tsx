@@ -1,4 +1,4 @@
-import OverlayInfoModal from "./OverlayInfoModal";
+import { OverlayInfoModal } from "./OverlayInfoModal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -33,7 +33,11 @@ export const OverlaysController = () => {
       toggleHidden={isInPointMode}
     >
       {entries.map(([resourceId, overlayState]) => (
-        <OverlaysControllerItem key={resourceId} resourceId={resourceId} overlayState={overlayState} />
+        <OverlaysControllerItem
+          key={resourceId}
+          resourceId={resourceId}
+          overlayState={overlayState}
+        />
       ))}
 
       <footer className="p-2">

@@ -23,7 +23,7 @@ import {
   buildDirectoryTree,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
-import DirectoryView from "~/components/DirectoryView/DirectoryView";
+import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";

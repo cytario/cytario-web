@@ -18,8 +18,8 @@ import {
   sessionMiddleware,
 } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
-import BreadcrumbLink from "./components/Breadcrumbs/BreadcrumbLink";
-import Breadcrumbs from "./components/Breadcrumbs/Breadcrumbs";
+import { BreadcrumbLink } from "./components/Breadcrumbs/BreadcrumbLink";
+import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
 import { Container } from "./components/Container";
 import { useDirectoryStore } from "./components/DirectoryView/useDirectoryStore";
 import { H1 } from "./components/Fonts";

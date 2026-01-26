@@ -1,7 +1,7 @@
 import { TreeNode } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
 
-export default function DirectoryTree({
+export function DirectoryTree({
   nodes,
   action,
   className,

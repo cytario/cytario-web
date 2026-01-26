@@ -2,7 +2,7 @@
 import { ResetViewStateButton } from "./Image/ResetViewStateButton";
 import { type ViewerStore, type ViewState } from "../state/types";
 import { Button } from "~/components/Controls/Button";
-import Input from "~/components/Controls/Input";
+import { Input } from "~/components/Controls/Input";
 import { InputGroup } from "~/components/Controls/InputGroup";
 
 const zoomFromMagnification = (
