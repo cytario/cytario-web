@@ -124,7 +124,7 @@ const getData = (nodes: TreeNode[]): ReactNode[][] => {
 
 export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
 
-export function DirectoryTable({ nodes }: { nodes: TreeNode[] }) {
+export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";
   const columns = getColumns(nodes);
