@@ -45,7 +45,8 @@ export function NodeLink({
   const provider = node._Bucket?.provider ?? storeProvider;
 
   const resourceId = createResourceId(provider!, bucketName, pathName);
-  const to = `/buckets/${resourceId}`;
+  // Strip trailing slash from URL to ensure consistent routing (breadcrumb matching)
+  const to = `/buckets/${resourceId}`.replace(/\/$/, "");
 
   // Open info modal
   const openNodeInfoModal: PointerEventHandler = useCallback(
