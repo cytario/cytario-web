@@ -1,12 +1,13 @@
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { useCallback } from "react";
+import { useStore } from "zustand";
 
-import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
+import { useTableStore } from "./state/useTableStore";
 
 /**
- * Manages sorting state for a table with persistence to the directory store.
+ * Manages sorting state for a table with persistence.
  *
- * The store acts as the single source of truth for sorting state, enabling
+ * The table store acts as the single source of truth for sorting state, enabling
  * sorting preferences to persist across page navigation and browser sessions.
  *
  * @param tableId - Unique identifier for the table (used as key in store)
@@ -26,27 +27,33 @@ import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
  * ```
  */
 export function useTableSorting(tableId: string) {
-  const { tableSorting, setTableSorting } = useDirectoryStore();
+  const store = useTableStore(tableId);
 
-  // Get sorting directly from store (source of truth)
-  const sorting = tableSorting[tableId] ?? [];
+  // Subscribe to sorting from the table store
+  const sorting = useStore(store, (state) => state.sorting);
+  const setSortingStore = useStore(store, (state) => state.setSorting);
+  const reset = useStore(store, (state) => state.reset);
 
   // Update store when sorting changes
   const setSorting: OnChangeFn<SortingState> = useCallback(
     (updaterOrValue) => {
+      // Read fresh state from store
+      const currentSorting = store.getState().sorting;
+
       const next =
         typeof updaterOrValue === "function"
-          ? updaterOrValue(tableSorting[tableId] ?? [])
+          ? updaterOrValue(currentSorting)
           : updaterOrValue;
-      setTableSorting(tableId, next);
+
+      setSortingStore(next);
     },
-    [tableId, tableSorting, setTableSorting],
+    [store, setSortingStore],
   );
 
   // Reset sorting to default (empty)
   const resetSorting = useCallback(() => {
-    setTableSorting(tableId, []);
-  }, [tableId, setTableSorting]);
+    reset();
+  }, [reset]);
 
   return {
     sorting,

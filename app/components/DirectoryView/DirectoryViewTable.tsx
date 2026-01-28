@@ -132,7 +132,7 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <Table columns={columns} data={data} tableId={`directory-${tableType}`} />
+      <Table columns={columns} data={data} tableId={tableType} />
     </div>
   );
 }

@@ -1,24 +1,15 @@
-import { ColumnConfig } from "./types";
-import { useColumnWidths } from "./useColumnWidths";
-import { useTableSorting } from "./useTableSorting";
+import { useTableStore } from "./state/useTableStore";
 import { IconButton } from "../Controls/IconButton";
 
-export const TableResetButton = ({
-  tableId,
-  columns,
-}: {
-  tableId: string;
-  columns: ColumnConfig[];
-}) => {
-  const { resetWidths } = useColumnWidths(columns, tableId);
-  const { resetSorting } = useTableSorting(tableId);
+export const TableResetButton = ({ tableId }: { tableId: string }) => {
+  const store = useTableStore(tableId);
 
   return (
     <IconButton
       icon="RotateCcw"
       onClick={() => {
-        resetWidths();
-        resetSorting();
+        // Call reset directly on store without subscribing to state
+        store.getState().reset();
       }}
       theme="white"
       label="Reset column widths and sorting to defaults"

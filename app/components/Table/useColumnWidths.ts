@@ -1,53 +1,67 @@
 import type { ColumnSizingState, OnChangeFn } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
+import { useStore } from "zustand";
 
+import { useTableStore } from "./state/useTableStore";
 import { ColumnConfig } from "./types";
-import { useDirectoryStore } from "../DirectoryView/useDirectoryStore";
 
 /**
- * Manages column width state for a table with persistence to the directory store.
+ * Manages column width state for a table with persistence.
  *
  * Column widths are derived from persisted values (if available) or fall back
  * to the default sizes defined in column config. Width changes are automatically
- * synced to the store for persistence across sessions.
+ * synced to the table's store for persistence across sessions.
  *
  * The index column always has a fixed width of 48px and is not persisted.
  */
 export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
-  const { tableColumns, setColumnWidth, resetTableConfig } = useDirectoryStore();
+  const store = useTableStore(tableId);
+
+  // Subscribe to column widths from the table store
+  const columnWidths = useStore(store, (state) => state.columnWidths);
+  const setColumnWidth = useStore(store, (state) => state.setColumnWidth);
+  const reset = useStore(store, (state) => state.reset);
 
   // Derive columnSizing from store or defaults
   const columnSizing = useMemo(() => {
     const sizing: ColumnSizingState = { index: 48 };
-    const tableConfig = tableColumns[tableId];
 
     columns.forEach((col) => {
-      sizing[col.id] = tableConfig?.[col.id]?.width ?? col.size;
+      sizing[col.id] = columnWidths[col.id] ?? col.size;
     });
 
     return sizing;
-  }, [columns, tableId, tableColumns]);
+  }, [columns, columnWidths]);
 
   // Persist width changes to store
   const setColumnSizing: OnChangeFn<ColumnSizingState> = useCallback(
     (updaterOrValue) => {
+      // Read fresh state from store
+      const currentWidths = store.getState().columnWidths;
+      const currentSizing: ColumnSizingState = { index: 48 };
+
+      columns.forEach((col) => {
+        currentSizing[col.id] = currentWidths[col.id] ?? col.size;
+      });
+
       const next =
         typeof updaterOrValue === "function"
-          ? updaterOrValue(columnSizing)
+          ? updaterOrValue(currentSizing)
           : updaterOrValue;
 
+      // Update only columns that changed (skip index column)
       Object.entries(next).forEach(([columnId, width]) => {
-        if (columnId !== "index" && columnSizing[columnId] !== width) {
-          setColumnWidth(tableId, columnId, width);
+        if (columnId !== "index" && currentSizing[columnId] !== width) {
+          setColumnWidth(columnId, width);
         }
       });
     },
-    [tableId, columnSizing, setColumnWidth],
+    [store, columns, setColumnWidth],
   );
 
   const resetWidths = useCallback(() => {
-    resetTableConfig(tableId);
-  }, [tableId, resetTableConfig]);
+    reset();
+  }, [reset]);
 
   return { columnSizing, setColumnSizing, resetWidths };
 }

@@ -11,7 +11,7 @@ export function DirectoryTree({
   className?: string;
 }) {
   return (
-    <ul className="pl-4">
+    <ul className="pl-6">
       {nodes.map((node) => (
         <li key={node.name}>
           <NodeLink

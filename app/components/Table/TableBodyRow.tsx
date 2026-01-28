@@ -34,7 +34,7 @@ export function TableBodyRow({
         const cxCell = twMerge(
           "px-2 pr-4",
           isIndexColumn ? "text-right" : `text-${columnConfig?.align}`,
-          (columnConfig?.monospace || isIndexColumn) && "font-mono font-light",
+          (columnConfig?.monospace || isIndexColumn) && "tabular-nums",
         );
 
         const style = {

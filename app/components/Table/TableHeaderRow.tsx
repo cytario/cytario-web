@@ -28,8 +28,8 @@ export function TableHeaderRow({
         const cx = twMerge(
           "relative p-2 pr-4",
           isIndexColumn ? "text-right" : `text-${columnConfig?.align}`,
-          columnConfig?.monospace && "font-mono font-bold",
-          isIndexColumn && "font-mono font-bold",
+          columnConfig?.monospace && "tabular-nums",
+          isIndexColumn && "tabular-nums",
         );
 
         const style = {
@@ -41,7 +41,7 @@ export function TableHeaderRow({
         return (
           <th key={header.id} className={cx} style={style}>
             {isIndexColumn ? (
-              <TableResetButton tableId={tableId} columns={columns} />
+              <TableResetButton tableId={tableId} />
             ) : header.isPlaceholder ? null : (
               <div className="flex items-center gap-1">
                 {/* Column Name */}

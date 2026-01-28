@@ -78,7 +78,7 @@ export function NodeLink({
       )}
 
       {/* Node name */}
-      <div className="w-full flex flex-grow items-center gap-1">
+      <div className="w-full flex flex-grow items-center gap-1 min-h-8">
         <Link
           to={to}
           className={cx}

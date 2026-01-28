@@ -19,7 +19,6 @@ export const ColumnResizeHandle = ({
         transition-colors duration-100
         z-20
         bg-transparent hover:bg-slate-100
-        margin-r-8
         flex justify-end
       `}
     >
