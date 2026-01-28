@@ -24,7 +24,7 @@ export const useDirectoryStore = create<DirectoryStore>()(
   persist(
     devtools(
       (set) => ({
-        activeTab: 0,
+        activeTab: 1,
         setActiveTab: (tabIndex) =>
           set({ activeTab: tabIndex }, false, "setActiveTab"),
         setProvider: (provider: string) =>
@@ -36,7 +36,7 @@ export const useDirectoryStore = create<DirectoryStore>()(
         headerSlot: null,
         setHeaderSlot: (headerSlot) => set({ headerSlot }),
       }),
-      { name }
+      { name },
     ),
     {
       name,
@@ -45,6 +45,6 @@ export const useDirectoryStore = create<DirectoryStore>()(
         const { headerSlot, setHeaderSlot, ...rest } = state;
         return rest;
       },
-    }
-  )
+    },
+  ),
 );
