@@ -14,14 +14,15 @@ interface ButtonProps {
 
 const style = `
   inline-flex items-center justify-center self-center w-auto
-  rounded-sm border gap-2
+  rounded-sm border gap-1 px-2
   disabled:cursor-not-allowed disabled:opacity-50
+  whitespace-nowrap font-bold
 `;
 
 const scaleStyles = {
-  small: "h-6 px-2 text-sm",
-  medium: "h-8 px-4 text-base",
-  large: "h-12 px-6 text-lg",
+  small: "h-6 text-sm",
+  medium: "h-8 text-base",
+  large: "h-12 text-lg",
 };
 
 export const themeStyles = {

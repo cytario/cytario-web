@@ -21,7 +21,7 @@ import {
   deleteBucketConfig,
 } from "~/utils/bucketConfig";
 
-const title = "Configured Buckets";
+const title = "Your Connected Buckets";
 
 export const meta: MetaFunction = () => {
   return [
@@ -82,8 +82,8 @@ export default function BucketsRoute() {
     bucketName: bucketConfig.name,
     name: bucketConfig.name,
     type: "bucket",
+    provider: bucketConfig.provider,
     children: [],
-    _Bucket: bucketConfig,
   }));
 
   return (

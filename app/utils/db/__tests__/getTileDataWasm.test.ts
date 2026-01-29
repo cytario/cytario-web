@@ -32,16 +32,20 @@ describe("getTileDataWasm", () => {
     const result = await getTileDataWasm(
       "bucket/path",
       defaultTileIndex,
-      credentials
+      credentials,
     );
 
     expect(result).toBe(mockTable);
     expect(createDatabase).toHaveBeenCalledWith(
       "bucket/path",
       credentials,
-      undefined
+      undefined,
     );
-    expect(getGeomQuery).toHaveBeenCalledWith("bucket/path", defaultTileIndex, []);
+    expect(getGeomQuery).toHaveBeenCalledWith(
+      "bucket/path",
+      defaultTileIndex,
+      [],
+    );
   });
 
   test("returns null for empty result set", async () => {
@@ -51,7 +55,7 @@ describe("getTileDataWasm", () => {
     const result = await getTileDataWasm(
       "bucket/path",
       defaultTileIndex,
-      credentials
+      credentials,
     );
 
     expect(result).toBeNull();
@@ -66,20 +70,20 @@ describe("getTileDataWasm", () => {
       "bucket/path",
       defaultTileIndex,
       credentials,
-      markerColumns
+      markerColumns,
     );
 
     expect(getGeomQuery).toHaveBeenCalledWith(
       "bucket/path",
       defaultTileIndex,
-      markerColumns
+      markerColumns,
     );
   });
 
   test("passes bucket config to createDatabase", async () => {
     const mockTable = { numRows: 5 };
     mockQuery.mockResolvedValue(mockTable);
-    const bucketConfig = mock.clientBucketConfig({
+    const bucketConfig = mock.bucketConfig({
       endpoint: "https://minio.local:9000",
     });
 
@@ -88,13 +92,13 @@ describe("getTileDataWasm", () => {
       defaultTileIndex,
       credentials,
       [],
-      bucketConfig
+      bucketConfig,
     );
 
     expect(createDatabase).toHaveBeenCalledWith(
       "bucket/path",
       credentials,
-      bucketConfig
+      bucketConfig,
     );
   });
 
@@ -104,12 +108,12 @@ describe("getTileDataWasm", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      getTileDataWasm("bucket/path", defaultTileIndex, credentials)
+      getTileDataWasm("bucket/path", defaultTileIndex, credentials),
     ).rejects.toThrow("Database connection failed");
 
     expect(consoleSpy).toHaveBeenCalledWith(
       "[getTileDataWasm] Error fetching tile data:",
-      dbError
+      dbError,
     );
     consoleSpy.mockRestore();
   });
@@ -120,12 +124,12 @@ describe("getTileDataWasm", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      getTileDataWasm("bucket/path", defaultTileIndex, credentials)
+      getTileDataWasm("bucket/path", defaultTileIndex, credentials),
     ).rejects.toThrow("Query failed");
 
     expect(consoleSpy).toHaveBeenCalledWith(
       "[getTileDataWasm] Error fetching tile data:",
-      queryError
+      queryError,
     );
     consoleSpy.mockRestore();
   });

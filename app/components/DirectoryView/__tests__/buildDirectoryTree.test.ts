@@ -27,12 +27,14 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         name: "folder1",
         bucketName: "test-bucket",
         pathName: "folder1/",
+        provider: "test-provider",
         children: [
           {
             type: "file",
             name: "file1.txt",
             pathName: "folder1/file1.txt",
             bucketName: "test-bucket",
+            provider: "test-provider",
             children: [],
             _Object: {
               Key: "folder1/file1.txt",
@@ -44,6 +46,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             name: "file2.txt",
             bucketName: "test-bucket",
             pathName: "folder1/file2.txt",
+            provider: "test-provider",
             children: [],
             _Object: {
               Key: "folder1/file2.txt",
@@ -61,12 +64,14 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         name: "folder2",
         bucketName: "test-bucket",
         pathName: "folder2/",
+        provider: "test-provider",
         children: [
           {
             type: "file",
             name: "file3.txt",
             bucketName: "test-bucket",
             pathName: "folder2/file3.txt",
+            provider: "test-provider",
             children: [],
             _Object: {
               Key: "folder2/file3.txt",
@@ -78,12 +83,14 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             name: "subfolder1",
             pathName: "folder2/subfolder1/",
             bucketName: "test-bucket",
+            provider: "test-provider",
             children: [
               {
                 type: "file",
                 name: "file4.txt",
                 bucketName: "test-bucket",
                 pathName: "folder2/subfolder1/file4.txt",
+                provider: "test-provider",
                 children: [],
                 _Object: {
                   Key: "folder2/subfolder1/file4.txt",
@@ -147,7 +154,7 @@ describe("buildDirectoryTree", () => {
   test.each(testCases)(
     "should correctly build a directory tree from a flat list of objects",
     (objects, expectedTree) => {
-      const tree = buildDirectoryTree("test-bucket", objects);
+      const tree = buildDirectoryTree("test-bucket", objects, "test-provider");
       expect(tree).toEqual(expectedTree);
     }
   );

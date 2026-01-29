@@ -7,20 +7,23 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { IconButton } from "../../Controls/IconButton";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { useDirectoryStore } from "~/components/DirectoryView/useDirectoryStore";
 import { createResourceId } from "~/utils/resourceId";
+
+export type NodeLinkListStyle = "list" | "grid";
 
 export interface NodeLinkProps {
   node: TreeNode;
-  listStyle?: "list" | "grid";
+  listStyle?: NodeLinkListStyle;
   className?: string;
   onClick?: (node: TreeNode) => void;
+  showInfoButton?: boolean;
 }
 
 const style = `
   flex flex-row flex-grow items-center
-  h-full min-w-0 gap-2
-  text-blue-700 hover:text-blue-500
+  h-full min-w-0 gap-1
+  text-cytario-turquoise-700 hover:text-cytario-turquoise-900
+  group-hover:underline
 `;
 
 export function NodeLink({
@@ -28,19 +31,20 @@ export function NodeLink({
   listStyle = "list",
   className,
   onClick,
+  showInfoButton = true,
 }: NodeLinkProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { provider: storeProvider } = useDirectoryStore();
 
   const nodeType = node.type;
-  const pathName = node.pathName;
-  const bucketName = node.bucketName;
-  // Use provider from node._Bucket for bucket nodes, or from store for files/directories
-  const provider = node._Bucket?.provider ?? storeProvider;
+  const resourceId = createResourceId(
+    node.provider,
+    node.bucketName,
+    node.pathName,
+  );
 
-  const resourceId = createResourceId(provider!, bucketName, pathName);
-  const to = `/buckets/${resourceId}`;
+  // Strip trailing slash from URL to ensure consistent routing (breadcrumb matching)
+  const to = `/buckets/${resourceId}`.replace(/\/$/, "");
 
   // Open info modal
   const openNodeInfoModal: PointerEventHandler = useCallback(
@@ -63,7 +67,7 @@ export function NodeLink({
   const cx = twMerge(style, className);
 
   return (
-    <div>
+    <div className="group">
       {/* Grid view thumbnail */}
       {listStyle === "grid" && (
         <Link to={to} className="flex items-center justify-center w-full h-40">
@@ -72,7 +76,7 @@ export function NodeLink({
       )}
 
       {/* Node name */}
-      <div className="w-full flex flex-grow items-center gap-1">
+      <div className="w-full flex flex-grow items-center gap-1 min-h-8">
         <Link
           to={to}
           className={cx}
@@ -89,13 +93,15 @@ export function NodeLink({
         </Link>
 
         {/* Context menu */}
-        <IconButton
-          icon="Info"
-          label="Show Info"
-          onClick={openNodeInfoModal}
-          theme="transparent"
-          className="border-none stroke-slate-300"
-        />
+        {showInfoButton && (
+          <IconButton
+            icon="Info"
+            label="Show Info"
+            onClick={openNodeInfoModal}
+            theme="transparent"
+            className="border-none text-slate-500"
+          />
+        )}
       </div>
     </div>
   );

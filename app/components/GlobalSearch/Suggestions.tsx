@@ -1,34 +1,15 @@
 import { Transition } from "@headlessui/react";
 
-import {
-  buildDirectoryTree,
-  TreeNode,
-} from "../DirectoryView/buildDirectoryTree";
+import { TreeNode } from "../DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "../DirectoryView/DirectoryViewTree";
 import { H2 } from "../Fonts";
 import { Placeholder } from "../Placeholder";
-import { GlobalSearchResults } from "./GlobalSearch";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 
 interface SuggestionsProps {
-  results: GlobalSearchResults;
+  nodes: TreeNode[];
   showResults: boolean;
 }
-export const Suggestions = ({
-  results: { files },
-  showResults,
-}: SuggestionsProps) => {
-  const nodes: TreeNode[] = Object.keys(files).map((bucketName) => {
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      children: buildDirectoryTree(
-        bucketName,
-        files[bucketName] as ObjectPresignedUrl[]
-      ),
-    };
-  });
+export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
 
   return (
     <Transition show={showResults}>

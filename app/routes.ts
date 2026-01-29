@@ -1,4 +1,4 @@
-import { type RouteConfig } from "@react-router/dev/routes";
+import { type RouteConfig, layout } from "@react-router/dev/routes";
 
 const publicRoutes = [
   {
@@ -16,27 +16,30 @@ const publicRoutes = [
 ];
 
 const protectedRoutes = [
-  {
-    path: "/",
-    file: "routes/buckets/buckets.route.tsx",
-    children: [
-      {
-        path: "connect-bucket",
-        file: "routes/buckets/connectBucket.modal.tsx",
-      },
-    ],
-  },
+  // wrap in scroll view route layout
+  layout("routes/layouts/scrollview.layout.tsx", [
+    {
+      path: "/",
+      file: "routes/buckets/buckets.route.tsx",
+      children: [
+        {
+          path: "connect-bucket",
+          file: "routes/buckets/connectBucket.modal.tsx",
+        },
+      ],
+    },
+    {
+      path: "/search",
+      file: "routes/search.route.tsx",
+    },
+    {
+      path: "/config",
+      file: "routes/config.route.tsx",
+    },
+  ]),
   {
     path: "/buckets/:provider/:bucketName/*",
     file: "routes/objects.route.tsx",
-  },
-  {
-    path: "/search",
-    file: "routes/search.route.tsx",
-  },
-  {
-    path: "/config",
-    file: "routes/config.route.tsx",
   },
 ];
 

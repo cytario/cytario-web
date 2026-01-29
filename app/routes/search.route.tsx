@@ -5,7 +5,6 @@ import { ObjectPresignedUrl } from "./objects.route";
 import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
-import { UserProfile } from "~/.server/auth/getUserInfo";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { Container } from "~/components/Container";
 import {
@@ -14,16 +13,14 @@ import {
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { H1 } from "~/components/Fonts";
-import { GlobalSearchResults } from "~/components/GlobalSearch/GlobalSearch";
 import { getBucketConfigsForUser } from "~/utils/bucketConfig";
 import { getObjects } from "~/utils/getObjects";
 
-export type BucketFiles = Record<string, _Object[]>;
+type BucketFiles = Record<string, _Object[]>;
 
 export interface SearchRouteLoaderResponse {
   searchQuery: string;
-  user?: UserProfile;
-  results: GlobalSearchResults;
+  nodes: TreeNode[];
 }
 
 export const middleware = [authMiddleware];
@@ -42,8 +39,6 @@ export const loader: LoaderFunction = async ({
   request,
   context,
 }): Promise<SearchRouteLoaderResponse> => {
-  // const { idToken, user } = context.get(authContext);
-
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get("query") ?? "";
 
@@ -72,40 +67,36 @@ export const loader: LoaderFunction = async ({
     return { ...(await acc), [key]: _files };
   }, {} as Promise<BucketFiles>);
 
-  // TODO:Refactor global search
-  const results = { files };
-
-  return { searchQuery, results };
-};
-
-export default function SearchRoute() {
-  const { searchQuery, results } = useLoaderData<SearchRouteLoaderResponse>();
-
-  // Keys are in format provider/bucketName
-  const children: TreeNode[] = Object.keys(results.files).map((key) => {
+  // Build tree nodes with provider info from key format
+  const nodes: TreeNode[] = Object.keys(files).map((key) => {
     const [provider, bucketName] = key.split("/");
     return {
       bucketName,
       name: bucketName,
       type: "bucket",
-      _Bucket: { provider } as BucketConfig,
+      provider,
       children: buildDirectoryTree(
         bucketName,
-        results.files[key] as ObjectPresignedUrl[],
-        ""
+        files[key] as ObjectPresignedUrl[],
+        provider,
+        "",
       ),
     };
   });
+
+  return { searchQuery, nodes };
+};
+
+export default function SearchRoute() {
+  const { searchQuery, nodes } = useLoaderData<SearchRouteLoaderResponse>();
 
   return (
     <Container>
       <H1>{`Search: ${searchQuery}`}</H1>
 
       <div className="bg-slate-100">
-        <DirectoryTree nodes={children} />
+        <DirectoryTree nodes={nodes} />
       </div>
-
-      {/* <code>{JSON.stringify(results)}</code> */}
     </Container>
   );
 }

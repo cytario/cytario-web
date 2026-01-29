@@ -13,8 +13,10 @@ const Sheet = ({
   const cx = twMerge(
     `
     absolute
-    bg-black 
     border border-white
+    bg-slate-300
+    group-hover:bg-slate-500
+    transition-all
   `,
     `top-${offset}`,
     `left-${offset}`,

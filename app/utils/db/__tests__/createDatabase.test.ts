@@ -52,7 +52,7 @@ describe("createDatabase", () => {
         ({
           instantiate: mockInstantiate,
           connect: mockConnect,
-        }) as never
+        }) as never,
     );
     mockConnect.mockResolvedValue(mockConnection);
     mockQuery.mockResolvedValue({});
@@ -67,7 +67,7 @@ describe("createDatabase", () => {
     const connection = await createDatabase(
       "test-resource",
       credentials,
-      undefined
+      undefined,
     );
 
     expect(connection).toBe(mockConnection);
@@ -99,13 +99,13 @@ describe("createDatabase", () => {
     await createDatabase("test-credentials", credentials, undefined);
 
     expect(mockQuery).toHaveBeenCalledWith(
-      `SET s3_access_key_id='${credentials.AccessKeyId}'`
+      `SET s3_access_key_id='${credentials.AccessKeyId}'`,
     );
     expect(mockQuery).toHaveBeenCalledWith(
-      `SET s3_secret_access_key='${credentials.SecretAccessKey}'`
+      `SET s3_secret_access_key='${credentials.SecretAccessKey}'`,
     );
     expect(mockQuery).toHaveBeenCalledWith(
-      `SET s3_session_token='${credentials.SessionToken}'`
+      `SET s3_session_token='${credentials.SessionToken}'`,
     );
   });
 
@@ -114,14 +114,14 @@ describe("createDatabase", () => {
 
     expect(mockQuery).toHaveBeenCalledWith("SET s3_region='eu-central-1'");
     expect(mockQuery).toHaveBeenCalledWith(
-      "SET s3_endpoint='s3.amazonaws.com'"
+      "SET s3_endpoint='s3.amazonaws.com'",
     );
     expect(mockQuery).toHaveBeenCalledWith("SET s3_url_style='vhost'");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_use_ssl=true");
   });
 
   test("uses bucket config region when provided", async () => {
-    const bucketConfig = mock.clientBucketConfig({ region: "us-west-2" });
+    const bucketConfig = mock.bucketConfig({ region: "us-west-2" });
 
     await createDatabase("test-resource-region", credentials, bucketConfig);
 
@@ -129,7 +129,7 @@ describe("createDatabase", () => {
   });
 
   test("configures endpoint from bucket config", async () => {
-    const bucketConfig = mock.clientBucketConfig({
+    const bucketConfig = mock.bucketConfig({
       endpoint: "https://minio.local:9000",
     });
     vi.mocked(getEndpointHostname).mockReturnValue("minio.local:9000");
@@ -139,11 +139,11 @@ describe("createDatabase", () => {
     await createDatabase("test-resource-minio", credentials, bucketConfig);
 
     expect(getEndpointHostname).toHaveBeenCalledWith(
-      "https://minio.local:9000"
+      "https://minio.local:9000",
     );
     expect(getDuckDbUrlStyle).toHaveBeenCalledWith("https://minio.local:9000");
     expect(mockQuery).toHaveBeenCalledWith(
-      "SET s3_endpoint='minio.local:9000'"
+      "SET s3_endpoint='minio.local:9000'",
     );
     expect(mockQuery).toHaveBeenCalledWith("SET s3_url_style='path'");
   });
@@ -155,7 +155,7 @@ describe("createDatabase", () => {
     } as never);
 
     await expect(
-      createDatabase("test-resource-no-worker", credentials, undefined)
+      createDatabase("test-resource-no-worker", credentials, undefined),
     ).rejects.toThrow("DuckDB WASM worker is not available");
   });
 
@@ -163,12 +163,12 @@ describe("createDatabase", () => {
     const connection1 = await createDatabase(
       "cached-resource",
       credentials,
-      undefined
+      undefined,
     );
     const connection2 = await createDatabase(
       "cached-resource",
       credentials,
-      undefined
+      undefined,
     );
 
     expect(connection1).toBe(connection2);
