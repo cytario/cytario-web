@@ -3,7 +3,7 @@ import { type Table } from "apache-arrow";
 
 import { createDatabase } from "./createDatabase";
 import { getGeomQuery } from "./getGeomQuery";
-import { ClientBucketConfig } from "../credentialsStore/useCredentialsStore";
+import { BucketConfig } from "~/.generated/client";
 
 interface TileIndex {
   z: number;
@@ -29,10 +29,14 @@ export async function getTileDataWasm(
   tileIndex: TileIndex,
   credentials: Credentials,
   markerColumns: string[] = [],
-  bucketConfig?: ClientBucketConfig | null
+  bucketConfig?: BucketConfig | null,
 ): Promise<Table | null> {
   try {
-    const connection = await createDatabase(resourceId, credentials, bucketConfig);
+    const connection = await createDatabase(
+      resourceId,
+      credentials,
+      bucketConfig,
+    );
     const tileQuery = getGeomQuery(resourceId, tileIndex, markerColumns);
     const arrowTable = await connection.query(tileQuery);
 

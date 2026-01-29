@@ -1,8 +1,8 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
 import { createDatabase } from "./createDatabase";
-import { ClientBucketConfig } from "../credentialsStore/useCredentialsStore";
 import { toS3Uri } from "../resourceId";
+import { BucketConfig } from "~/.generated/client";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
 
 /**
@@ -14,9 +14,13 @@ import { MarkerInfo } from "~/components/.client/ImageViewer/components/Overlays
 export async function getMarkerInfoWasm(
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: ClientBucketConfig | null
+  bucketConfig?: BucketConfig | null,
 ): Promise<MarkerInfo> {
-  const connection = await createDatabase(resourceId, credentials, bucketConfig);
+  const connection = await createDatabase(
+    resourceId,
+    credentials,
+    bucketConfig,
+  );
 
   try {
     const parquetPath = toS3Uri(resourceId);

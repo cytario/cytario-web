@@ -8,12 +8,12 @@ import {
 } from "@duckdb/duckdb-wasm";
 
 import { createSingleton } from "./createSingleton";
-import { ClientBucketConfig } from "../credentialsStore/useCredentialsStore";
 import {
   getDuckDbUrlStyle,
   shouldUseSSL,
   getEndpointHostname,
 } from "../s3Provider";
+import { BucketConfig } from "~/.generated/client";
 
 /**
  * Initialize DuckDB WASM with S3 support (singleton per resourceId)
@@ -24,7 +24,7 @@ import {
 const createDatabaseInternal = async (
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: ClientBucketConfig | null
+  bucketConfig?: BucketConfig | null,
 ) => {
   console.info("[getTileDataWasm] Initializing DuckDB WASM with S3 support...");
 
@@ -74,7 +74,7 @@ const createDatabaseInternal = async (
   await connection.query(`SET s3_use_ssl=${useSSL}`);
 
   console.info(
-    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: ${urlStyle})`
+    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: ${urlStyle})`,
   );
 
   return connection;
