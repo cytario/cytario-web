@@ -1,27 +1,23 @@
 import { ThumbnailBox } from "./ThumbnailBox";
 import { ThumbnailFile } from "./ThumbnailFile";
 import { ThumbnailSheets } from "./ThumbnailSheets";
-import { useDirectoryStore } from "../useDirectoryStore";
 import { ImagePreview } from "~/components/.client/ImageViewer/components/Image/ImagePreview";
 import { ViewerStoreProvider } from "~/components/.client/ImageViewer/state/ViewerStoreContext";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { createResourceId } from "~/utils/resourceId";
 
 export function NodeThumbnail({ node }: { node: TreeNode }) {
-  const { provider, bucketName } = useDirectoryStore();
-
   const key = node._Object?.Key;
-  const resourceId =
-    key && provider && bucketName
-      ? createResourceId(provider, bucketName, key)
-      : "";
+  const resourceId = key
+    ? createResourceId(node.provider, node.bucketName, key)
+    : "";
   const url = node._Object?.presignedUrl;
 
   if (!url) {
     // Return default thumbnails without image preview
     switch (node.type) {
       case "bucket":
-        return <ThumbnailBox label={provider}></ThumbnailBox>;
+        return <ThumbnailBox label={node.provider}></ThumbnailBox>;
       case "directory":
         return <ThumbnailSheets count={node.children?.length ?? 0} />;
       case "file":
@@ -32,7 +28,7 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
 
   switch (node.type) {
     case "bucket":
-      return <ThumbnailBox label={provider}></ThumbnailBox>;
+      return <ThumbnailBox label={node.provider}></ThumbnailBox>;
     case "directory":
       return (
         <ThumbnailSheets count={node.children?.length ?? 0}>

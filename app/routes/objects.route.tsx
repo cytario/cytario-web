@@ -123,7 +123,12 @@ export const loader = async ({
         })),
       );
 
-      const nodes = buildDirectoryTree(bucketName, objectsWithUrls, prefix);
+      const nodes = buildDirectoryTree(
+        bucketName,
+        objectsWithUrls,
+        bucketConfig.provider,
+        prefix
+      );
 
       return {
         credentials,

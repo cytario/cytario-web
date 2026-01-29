@@ -88,10 +88,11 @@ export default function SearchRoute() {
       bucketName,
       name: bucketName,
       type: "bucket",
-      _Bucket: { provider } as BucketConfig,
+      provider,
       children: buildDirectoryTree(
         bucketName,
         results.files[key] as ObjectPresignedUrl[],
+        provider,
         "",
       ),
     };

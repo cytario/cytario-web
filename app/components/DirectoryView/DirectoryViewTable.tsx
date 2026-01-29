@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { TreeNode, TreeNodeType } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
 import { ColumnConfig, Table } from "~/components/Table/Table";
+import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
 const columns: Record<string, ColumnConfig> = {
@@ -92,16 +93,22 @@ const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
   }
 };
 
-const getData = (nodes: TreeNode[]): ReactNode[][] => {
+const getData = (
+  nodes: TreeNode[],
+  getBucketConfig: (key: string) => { provider?: string; endpoint?: string | null; region?: string | null; roleArn?: string | null } | null
+): ReactNode[][] => {
   switch (nodes[0].type) {
     case "bucket":
       return nodes.map((node) => {
+        const storeKey = `${node.provider}/${node.bucketName}`;
+        const bucketConfig = getBucketConfig(storeKey);
+
         return [
           <NodeLink key={node.name} node={node} listStyle="list" />,
-          node._Bucket?.provider,
-          node._Bucket?.endpoint,
-          node._Bucket?.region,
-          node._Bucket?.roleArn,
+          bucketConfig?.provider,
+          bucketConfig?.endpoint,
+          bucketConfig?.region,
+          bucketConfig?.roleArn,
         ];
       });
 
@@ -125,10 +132,12 @@ const getData = (nodes: TreeNode[]): ReactNode[][] => {
 export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
 
 export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
+  const getBucketConfig = useCredentialsStore((state) => state.getBucketConfig);
+
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";
   const columns = getColumns(nodes);
-  const data = getData(nodes);
+  const data = getData(nodes, getBucketConfig);
 
   return (
     <div className="overflow-x-auto">

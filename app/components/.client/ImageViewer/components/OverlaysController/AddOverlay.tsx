@@ -54,13 +54,12 @@ export const AddOverlay = ({
   const nodes: TreeNode[] = Object.keys(results.files).map((key) => {
     const [provider, bucketName] = key.split("/");
     const objects = results.files[key] as ObjectPresignedUrl[];
-    const bucketConfig = { provider } as TreeNode["_Bucket"];
     return {
       bucketName,
       name: bucketName,
       type: "bucket",
-      _Bucket: bucketConfig,
-      children: buildDirectoryTree(bucketName, objects, undefined, bucketConfig),
+      provider,
+      children: buildDirectoryTree(bucketName, objects, provider, undefined),
     };
   });
 
@@ -72,24 +71,26 @@ export const AddOverlay = ({
         nodes={nodes}
         action={async (node) => {
           try {
-            if (!node.pathName || !node.bucketName || !node._Bucket?.provider) {
+            if (!node.pathName || !node.bucketName) {
               throw new Error("Invalid node selected");
             }
 
-            const provider = node._Bucket.provider;
             const resourceId = createResourceId(
-              provider,
+              node.provider,
               node.bucketName,
               node.pathName
             );
 
-            // Get credentials from the store using provider/bucketName key
-            // Credentials are per-bucket, not per-file
+            // Get credentials and bucket config from the store using provider/bucketName key
             // Use getState() to access store outside of React component render
-            const storeKey = `${provider}/${node.bucketName}`;
-            const credentials = useCredentialsStore
-              .getState()
-              .getCredentials(storeKey);
+            const storeKey = `${node.provider}/${node.bucketName}`;
+            const storeState = useCredentialsStore.getState();
+            const credentials = storeState.getCredentials(storeKey);
+            const bucketConfig = storeState.getBucketConfig(storeKey);
+
+            if (!bucketConfig) {
+              throw new Error("Bucket configuration not found");
+            }
 
             if (!credentials) {
               throw new Error(

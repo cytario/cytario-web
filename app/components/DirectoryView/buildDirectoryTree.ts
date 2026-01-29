@@ -1,16 +1,15 @@
-import { BucketConfig } from "~/.generated/client";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
 export type TreeNode = {
-  type: TreeNodeType;
-  name: string;
+  provider: string;
   bucketName: string;
+  name: string;
+  type: TreeNodeType;
   pathName?: string;
   children: TreeNode[];
   _Object?: ObjectPresignedUrl;
-  _Bucket?: BucketConfig;
 };
 
 function buildDirectoryTreeRecursive(
@@ -18,8 +17,8 @@ function buildDirectoryTreeRecursive(
   keyParts: string[],
   obj: ObjectPresignedUrl,
   bucketName: string,
+  provider: string,
   parentPath: string = "",
-  bucketConfig?: BucketConfig,
 ) {
   const name = keyParts[0];
   let pathName = parentPath + name;
@@ -31,9 +30,9 @@ function buildDirectoryTreeRecursive(
       name,
       pathName,
       bucketName,
+      provider,
       children: [],
       _Object: obj,
-      _Bucket: bucketConfig,
     });
   } else {
     let existingDir = currentDir.find((child) => child.name === name);
@@ -43,9 +42,9 @@ function buildDirectoryTreeRecursive(
         name,
         pathName,
         bucketName,
+        provider,
         children: [],
         _Object: obj,
-        _Bucket: bucketConfig,
       };
       currentDir.push(existingDir);
     }
@@ -55,8 +54,8 @@ function buildDirectoryTreeRecursive(
       keyParts.slice(1),
       obj,
       bucketName,
+      provider,
       pathName,
-      bucketConfig,
     );
   }
 }
@@ -64,8 +63,8 @@ function buildDirectoryTreeRecursive(
 export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],
+  provider: string,
   prefix?: string,
-  bucketConfig?: BucketConfig,
 ): TreeNode[] {
   const root: TreeNode[] = [];
 
@@ -80,8 +79,8 @@ export function buildDirectoryTree(
       pathSegments,
       obj,
       bucketName,
+      provider,
       prefix,
-      bucketConfig,
     );
   });
 

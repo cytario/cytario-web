@@ -23,9 +23,11 @@ export const Suggestions = ({
       bucketName,
       name: bucketName,
       type: "bucket",
+      provider: "unknown", // TODO: Update GlobalSearchResults to include provider
       children: buildDirectoryTree(
         bucketName,
-        files[bucketName] as ObjectPresignedUrl[]
+        files[bucketName] as ObjectPresignedUrl[],
+        "unknown" // TODO: Update GlobalSearchResults to include provider
       ),
     };
   });

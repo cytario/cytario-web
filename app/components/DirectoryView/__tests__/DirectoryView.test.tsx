@@ -6,6 +6,7 @@ import { Mock } from "vitest";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryView } from "../DirectoryView";
 import { useDirectoryStore } from "../useDirectoryStore";
+import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("../useDirectoryStore", () => ({
   useDirectoryStore: vi.fn(),
@@ -36,10 +37,10 @@ beforeEach(() => {
 });
 
 describe("DirectoryView Component", () => {
-  const mockNodes = [
-    { name: "File1.txt", type: "file" },
-    { name: "Folder1", type: "directory" },
-  ] as unknown as TreeNode[];
+  const mockNodes: TreeNode[] = [
+    mock.treeNode({ name: "File1.txt", type: "file" }),
+    mock.treeNode({ name: "Folder1", type: "directory" }),
+  ];
 
   test("renders the component with the correct name", () => {
     const RemixStub = createRoutesStub([

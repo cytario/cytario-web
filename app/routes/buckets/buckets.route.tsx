@@ -82,8 +82,8 @@ export default function BucketsRoute() {
     bucketName: bucketConfig.name,
     name: bucketConfig.name,
     type: "bucket",
+    provider: bucketConfig.provider,
     children: [],
-    _Bucket: bucketConfig,
   }));
 
   return (

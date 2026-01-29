@@ -7,7 +7,6 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { IconButton } from "../../Controls/IconButton";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { useDirectoryStore } from "~/components/DirectoryView/useDirectoryStore";
 import { createResourceId } from "~/utils/resourceId";
 
 export type NodeLinkListStyle = "list" | "grid";
@@ -36,15 +35,14 @@ export function NodeLink({
 }: NodeLinkProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { provider: storeProvider } = useDirectoryStore();
 
   const nodeType = node.type;
-  const pathName = node.pathName;
-  const bucketName = node.bucketName;
-  // Use provider from node._Bucket for bucket nodes, or from store for files/directories
-  const provider = node._Bucket?.provider ?? storeProvider;
+  const resourceId = createResourceId(
+    node.provider,
+    node.bucketName,
+    node.pathName,
+  );
 
-  const resourceId = createResourceId(provider!, bucketName, pathName);
   // Strip trailing slash from URL to ensure consistent routing (breadcrumb matching)
   const to = `/buckets/${resourceId}`.replace(/\/$/, "");
 

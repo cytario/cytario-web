@@ -29,8 +29,11 @@ const mock = {
   clientBucketConfig: (
     data: Partial<ClientBucketConfig> = {}
   ): ClientBucketConfig => ({
+    name: "mock-bucket",
+    provider: "aws",
     region: "us-east-1",
     endpoint: "https://s3.amazonaws.com",
+    roleArn: "arn:aws:iam::123456789012:role/mock-role",
     ...data,
   }),
   session: (
@@ -79,6 +82,7 @@ const mock = {
     name: "mockName",
     type: "directory",
     bucketName: "test-bucket",
+    provider: "test-provider",
     children: [],
     ...overrides,
   }),

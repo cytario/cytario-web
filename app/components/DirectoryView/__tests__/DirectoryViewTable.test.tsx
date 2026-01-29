@@ -4,6 +4,37 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTable } from "../DirectoryViewTable";
 
+// Mock the credentials store
+vi.mock("~/utils/credentialsStore/useCredentialsStore", () => ({
+  useCredentialsStore: vi.fn((selector) => {
+    const mockStore = {
+      getBucketConfig: (key: string) => {
+        // Return bucket config based on the key
+        if (key === "aws/my-aws-bucket") {
+          return {
+            name: "my-aws-bucket",
+            provider: "aws",
+            endpoint: "",
+            region: "eu-central-1",
+            roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
+          };
+        }
+        if (key === "minio/minio-bucket") {
+          return {
+            name: "minio-bucket",
+            provider: "minio",
+            endpoint: "https://s3.cytar.io",
+            region: null,
+            roleArn: null,
+          };
+        }
+        return null;
+      },
+    };
+    return selector(mockStore);
+  }),
+}));
+
 describe("DirectoryViewTable", () => {
   describe("bucket type nodes", () => {
     const mockBucketNodes: TreeNode[] = [
@@ -11,31 +42,15 @@ describe("DirectoryViewTable", () => {
         type: "bucket",
         name: "my-aws-bucket",
         bucketName: "my-aws-bucket",
+        provider: "aws",
         children: [],
-        _Bucket: {
-          id: 1,
-          name: "my-aws-bucket",
-          provider: "aws",
-          endpoint: "",
-          region: "eu-central-1",
-          roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
-          userId: "user-1",
-        },
       },
       {
         type: "bucket",
         name: "minio-bucket",
         bucketName: "minio-bucket",
+        provider: "minio",
         children: [],
-        _Bucket: {
-          id: 2,
-          name: "minio-bucket",
-          provider: "minio",
-          endpoint: "https://s3.cytar.io",
-          region: null,
-          roleArn: null,
-          userId: "user-1",
-        },
       },
     ];
 
@@ -89,6 +104,7 @@ describe("DirectoryViewTable", () => {
         name: "data.parquet",
         bucketName: "test-bucket",
         pathName: "folder/data.parquet",
+        provider: "test-provider",
         children: [],
         _Object: {
           Key: "folder/data.parquet",
@@ -102,6 +118,7 @@ describe("DirectoryViewTable", () => {
         name: "results.csv",
         bucketName: "test-bucket",
         pathName: "folder/results.csv",
+        provider: "test-provider",
         children: [],
         _Object: {
           Key: "folder/results.csv",
@@ -153,6 +170,7 @@ describe("DirectoryViewTable", () => {
         name: "images",
         bucketName: "test-bucket",
         pathName: "images/",
+        provider: "test-provider",
         children: [],
       },
       {
@@ -160,6 +178,7 @@ describe("DirectoryViewTable", () => {
         name: "data",
         bucketName: "test-bucket",
         pathName: "data/",
+        provider: "test-provider",
         children: [],
       },
     ];

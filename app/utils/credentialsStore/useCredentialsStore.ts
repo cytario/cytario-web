@@ -4,11 +4,14 @@ import { createJSONStorage, devtools, persist } from "zustand/middleware";
 
 /**
  * S3-compatible bucket configuration for client-side use.
- * Contains only the fields needed for DuckDB WASM S3 configuration.
+ * Contains fields needed for DuckDB WASM S3 configuration and display.
  */
 export interface ClientBucketConfig {
+  name: string;              // Bucket name
+  provider: string;          // Provider identifier (aws, minio, etc)
   endpoint?: string | null;
   region?: string | null;
+  roleArn?: string | null;   // AWS role ARN
 }
 
 /**
