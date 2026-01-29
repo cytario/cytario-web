@@ -3,16 +3,9 @@ import { useFetcher } from "react-router";
 
 import { SearchBar } from "./SearchBar";
 import { Suggestions } from "./Suggestions";
+import { TreeNode } from "../DirectoryView/buildDirectoryTree";
 import { useSearchParam } from "~/hooks/useSearchParam";
-import { BucketFiles, SearchRouteLoaderResponse } from "~/routes/search.route";
-
-export interface GlobalSearchResults {
-  files: BucketFiles;
-}
-
-export const DEFAULT_RESULTS: GlobalSearchResults = {
-  files: {},
-};
+import { SearchRouteLoaderResponse } from "~/routes/search.route";
 
 const DEBOUNCE_DURATION = 300;
 
@@ -25,8 +18,8 @@ export const GlobalSearch = () => {
   const [query, setQuery] = useState(searchQuery);
   const [showResults, setShowResults] = useState(false);
 
-  // Derive results from fetcher data
-  const results = fetcher.data?.results ?? DEFAULT_RESULTS;
+  // Derive nodes from fetcher data
+  const nodes: TreeNode[] = fetcher.data?.nodes ?? [];
 
   const handleSubmit = async (value: string) => {
     setSearchQuery(value);
@@ -77,7 +70,7 @@ export const GlobalSearch = () => {
         }}
       />
 
-      <Suggestions results={results} showResults={showResults} />
+      <Suggestions nodes={nodes} showResults={showResults} />
     </div>
   );
 };

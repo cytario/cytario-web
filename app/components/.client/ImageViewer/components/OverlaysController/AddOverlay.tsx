@@ -4,14 +4,8 @@ import { useFetcher } from "react-router";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { Input } from "~/components/Controls/Input";
-import {
-  TreeNode,
-  buildDirectoryTree,
-} from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { DEFAULT_RESULTS } from "~/components/GlobalSearch/GlobalSearch";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useCredentialsStore } from "~/utils/credentialsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
@@ -47,21 +41,8 @@ export const AddOverlay = ({
     }
   }, [objectsFetcher, objectsFetcher.state, searchString]);
 
-  // Derive results from fetcher data
-  const results = objectsFetcher.data?.results ?? DEFAULT_RESULTS;
-
-  // Nodes across buckets - keys are in format provider/bucketName
-  const nodes: TreeNode[] = Object.keys(results.files).map((key) => {
-    const [provider, bucketName] = key.split("/");
-    const objects = results.files[key] as ObjectPresignedUrl[];
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      provider,
-      children: buildDirectoryTree(bucketName, objects, provider, undefined),
-    };
-  });
+  // Derive nodes from fetcher data
+  const nodes = objectsFetcher.data?.nodes ?? [];
 
   return (
     <div className="relative flex flex-col gap-2">
