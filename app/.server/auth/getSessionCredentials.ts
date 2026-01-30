@@ -4,7 +4,6 @@ import {
   STSClient,
 } from "@aws-sdk/client-sts";
 
-import { decodeToken } from "./authMiddleware";
 import { type SessionData, type SessionCredentials } from "./sessionStorage";
 import { BucketConfig } from "~/.generated/client";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
@@ -18,8 +17,6 @@ const fetchTemporaryCredentials = async (
 
   const actualRegion = region ?? "eu-central-1";
   const providerConfig = getS3ProviderConfig(endpoint, actualRegion);
-
-  console.log("fetchTemporaryCredentials", decodeToken(idToken));
 
   try {
     const stsClient = new STSClient({

@@ -13,8 +13,9 @@ import { createLabel } from "~/.server/logging";
 
 export const authContext = createContext<Partial<SessionData>>();
 
+// TODO: use library
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const decodeToken = (token: string): Record<string, any> => {
+const decodeToken = (token: string): Record<string, any> => {
   const payload = token.split(".")[1];
   return JSON.parse(atob(payload));
 };

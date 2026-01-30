@@ -50,12 +50,14 @@ describe("Bucket Route", () => {
 
     handle.breadcrumb(mockArgs);
 
-    expect(getCrumbs).toHaveBeenCalledWith("/buckets/aws", [
-      "test-bucket",
-      "bucket",
-      "folder",
-      "file.ome.tiff",
-    ]);
+    expect(getCrumbs).toHaveBeenCalledWith(
+      "/buckets/aws",
+      ["bucket", "folder", "file.ome.tiff"],
+      {
+        dataConnectionName: "test-bucket",
+        dataConnectionPath: "/buckets/aws/test-bucket",
+      }
+    );
   });
 
   test("renders `DirectoryView`, if there are multiple nodes", async () => {
