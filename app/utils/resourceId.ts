@@ -7,7 +7,7 @@ export interface ResourceIdParts {
 export function createResourceId(
   provider: string,
   bucketName: string,
-  pathName = ""
+  pathName = "",
 ): string {
   return `${provider}/${bucketName}/${pathName}`;
 }
@@ -24,7 +24,7 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
 
   if (firstSlashIndex === -1 || secondSlashIndex === -1) {
     throw new Error(
-      `Invalid resourceId: "${resourceId}" - expected format provider/bucketName/pathName`
+      `Invalid resourceId: "${resourceId}" - expected format provider/bucketName/pathName`,
     );
   }
 
@@ -43,32 +43,14 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
   return { provider, bucketName, pathName };
 }
 
-/**
- * Extracts just the bucket name from a resourceId
- * @param resourceId - The composite identifier
- * @returns The bucket name portion
- */
-export function getBucketFromResourceId(resourceId: string): string {
-  return parseResourceId(resourceId).bucketName;
-}
+export const getBucketFromResourceId = (resourceId: string): string =>
+  parseResourceId(resourceId).bucketName;
 
-/**
- * Extracts just the path from a resourceId
- * @param resourceId - The composite identifier
- * @returns The path portion
- */
-export function getPathFromResourceId(resourceId: string): string {
-  return parseResourceId(resourceId).pathName;
-}
+export const getPathFromResourceId = (resourceId: string): string =>
+  parseResourceId(resourceId).pathName;
 
-/**
- * Extracts just the provider from a resourceId
- * @param resourceId - The composite identifier
- * @returns The provider portion
- */
-export function getProviderFromResourceId(resourceId: string): string {
-  return parseResourceId(resourceId).provider;
-}
+export const getProviderFromResourceId = (resourceId: string): string =>
+  parseResourceId(resourceId).provider;
 
 /**
  * Converts a resourceId to an S3 URI
@@ -78,18 +60,6 @@ export function getProviderFromResourceId(resourceId: string): string {
 export function toS3Uri(resourceId: string): string {
   const { bucketName, pathName } = parseResourceId(resourceId);
   return `s3://${bucketName}/${pathName}`;
-}
-
-/**
- * Checks if a string is a valid resourceId format (provider/bucketName/pathName)
- * @param value - String to check
- * @returns True if the string has format provider/bucketName/pathName with non-empty provider and bucketName
- */
-export function isValidResourceId(value: string): boolean {
-  const firstSlash = value.indexOf("/");
-  const secondSlash = value.indexOf("/", firstSlash + 1);
-  // Must have two slashes, with non-empty provider and bucketName
-  return firstSlash > 0 && secondSlash > firstSlash + 1;
 }
 
 /**
