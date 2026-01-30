@@ -6,6 +6,7 @@ import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";
 import {
   getBucketFromResourceId,
+  getPathFromResourceId,
   getProviderFromResourceId,
 } from "~/utils/resourceId";
 
@@ -57,6 +58,7 @@ export function NodeInfoModal() {
     case "bucket": {
       const provider = getProviderFromResourceId(infoModal.name);
       const bucketName = getBucketFromResourceId(infoModal.name);
+      const prefix = getPathFromResourceId(infoModal.name);
       return (
         <RouteModal title={bucketName} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
@@ -71,8 +73,9 @@ export function NodeInfoModal() {
             <Form method="delete" action="/">
               <input type="hidden" name="provider" value={provider} />
               <input type="hidden" name="bucketName" value={bucketName} />
+              <input type="hidden" name="prefix" value={prefix} />
               <Button type="submit" theme="error" scale="large">
-                Remove Bucket
+                Remove Data Connection
               </Button>
             </Form>
           </div>

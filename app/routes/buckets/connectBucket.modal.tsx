@@ -20,7 +20,7 @@ import { Select } from "~/components/Controls/Select";
 import { RouteModal } from "~/components/RouteModal";
 import { upsertBucketConfig } from "~/utils/bucketConfig";
 
-const title = "Connect Bucket";
+const title = "Add Data Connection";
 
 export const meta: MetaFunction = () => {
   return [{ title }];
@@ -29,7 +29,7 @@ export const meta: MetaFunction = () => {
 export const handle = {
   breadcrumb: () => (
     <BreadcrumbLink key="connect-bucket" to={`/connect-bucket`}>
-      Connect Bucket
+      Add Data Connection
     </BreadcrumbLink>
   ),
 };
@@ -46,6 +46,9 @@ export const action: ActionFunction = async ({ request, context }) => {
   const roleArn = formData.get("roleArn") as string;
   const bucketRegion = formData.get("bucketRegion") as string;
   const bucketEndpoint = formData.get("bucketEndpoint") as string;
+  const rawPrefix = (formData.get("prefix") as string)?.trim() || "";
+  // Normalize prefix: remove leading/trailing slashes
+  const prefix = rawPrefix.replace(/^\/+|\/+$/g, "");
 
   if (!bucketName?.trim()) {
     return { error: "Bucket name is required" };
@@ -66,16 +69,22 @@ export const action: ActionFunction = async ({ request, context }) => {
       roleArn: provider === "aws" ? roleArn.trim() : null,
       region: provider === "aws" ? bucketRegion : null,
       endpoint,
+      prefix,
     };
 
     await upsertBucketConfig(userId, newConfig);
 
     session.set("notification", {
       status: "success",
-      message: "Bucket connected successfully.",
+      message: "Data connection added successfully.",
     });
 
-    return redirect(`/buckets/${provider}/${bucketName}`, {
+    // Redirect to the data connection root (bucket + prefix)
+    const redirectPath = prefix
+      ? `/buckets/${provider}/${bucketName}/${prefix}`
+      : `/buckets/${provider}/${bucketName}`;
+
+    return redirect(redirectPath, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
@@ -100,8 +109,9 @@ export default function ConnectBucketModal() {
   return (
     <RouteModal title={title}>
       <p className="text-slate-700">
-        Connect your cloud storage bucket to view whole-slide images directly in
-        cytario.
+        Connect your cloud storage to view whole-slide images directly in
+        cytario. Optionally specify a path prefix to connect to a specific
+        folder.
       </p>
 
       <Form method="post" className="space-y-4">
@@ -135,6 +145,19 @@ export default function ConnectBucketModal() {
             placeholder="my-bucket-name"
             scale="large"
           />
+        </Field>
+
+        {/* Path Prefix (optional) */}
+        <Field>
+          <Label>Path Prefix (optional)</Label>
+          <Input
+            name="prefix"
+            placeholder="data/experiments"
+            scale="large"
+          />
+          <p className="text-sm text-slate-500 mt-1">
+            Connect to a specific folder within the bucket
+          </p>
         </Field>
 
         {/* AWS-specific fields */}
@@ -180,7 +203,7 @@ export default function ConnectBucketModal() {
         )}
 
         <Button type="submit" scale="large" theme="primary">
-          Connect Bucket
+          Add Data Connection
         </Button>
       </Form>
     </RouteModal>

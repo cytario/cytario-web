@@ -13,9 +13,11 @@ model BucketConfig {
   userId   String
   name     String
   provider String  // "aws" for AWS S3, user-defined for others (e.g., "minio")
+  endpoint String  // Required - AWS endpoint or custom (MinIO)
   roleArn  String? // Optional - only needed for AWS
   region   String? // Optional - only needed for AWS
-  endpoint String  // Required - AWS endpoint or custom (MinIO)
+  prefix   String  @default("")  
 
-  @@unique([userId, provider, name])
+  @@unique([userId, provider, name, prefix])  // Updated unique constraint
+
 }
