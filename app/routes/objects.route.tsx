@@ -15,7 +15,7 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { LZWDecoder } from "~/components/.client/ImageViewer/state/lzwDecoder";
-import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
+import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { Button } from "~/components/Controls/Button";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
@@ -27,7 +27,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getBucketConfigByPath } from "~/utils/bucketConfig";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { getObjects } from "~/utils/getObjects";
 import { getName, getPrefix } from "~/utils/pathUtils";
@@ -55,13 +55,44 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
 ];
 
 export const handle = {
-  breadcrumb: (obj: ActionFunctionArgs) => {
-    const { params } = obj;
+  breadcrumb: (match: {
+    params: Record<string, string | undefined>;
+    data?: BucketRouteLoaderResponse;
+  }) => {
+    const { params, data } = match;
     const provider = params.provider ?? "";
     const bucketName = params.bucketName ?? "";
-    const pathName = params["*"];
-    const pathSegments = pathName ? pathName.split("/") : [];
-    return getCrumbs(`/buckets/${provider}`, [bucketName, ...pathSegments]);
+    const pathName = params["*"] ?? "";
+    const prefix = data?.bucketConfig?.prefix ?? "";
+
+    // Calculate the relative path (path after the data connection prefix)
+    const normalizedPrefix = prefix.endsWith("/") ? prefix : prefix ? `${prefix}/` : "";
+    const relativePath =
+      normalizedPrefix && pathName.startsWith(normalizedPrefix)
+        ? pathName.slice(normalizedPrefix.length)
+        : normalizedPrefix && pathName === prefix.replace(/\/$/, "")
+          ? ""
+          : prefix
+            ? pathName.slice(prefix.length).replace(/^\//, "")
+            : pathName;
+
+    const relativeSegments = relativePath ? relativePath.split("/") : [];
+
+    // Build the data connection path (bucket + prefix as atomic unit)
+    const dataConnectionPath = prefix
+      ? `/buckets/${provider}/${bucketName}/${prefix.replace(/\/$/, "")}`
+      : `/buckets/${provider}/${bucketName}`;
+
+    // Display name: show bucket name, or bucket/lastPrefixSegment if prefix exists
+    const prefixLastSegment = prefix.replace(/\/$/, "").split("/").pop();
+    const dataConnectionName = prefix ? `${bucketName}/${prefixLastSegment}` : bucketName;
+
+    const options: CrumbsOptions = {
+      dataConnectionName,
+      dataConnectionPath,
+    };
+
+    return getCrumbs(`/buckets/${provider}`, relativeSegments, options);
   },
 };
 
@@ -95,10 +126,11 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const bucketConfig = await getBucketConfigByName(
+  const bucketConfig = await getBucketConfigByPath(
     userId,
     provider,
     bucketName,
+    pathName,
   );
 
   if (!bucketConfig) {

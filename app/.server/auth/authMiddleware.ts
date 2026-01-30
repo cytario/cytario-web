@@ -14,7 +14,7 @@ import { createLabel } from "~/.server/logging";
 export const authContext = createContext<Partial<SessionData>>();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const decodeToken = (token: string): Record<string, any> => {
+export const decodeToken = (token: string): Record<string, any> => {
   const payload = token.split(".")[1];
   return JSON.parse(atob(payload));
 };
@@ -51,7 +51,7 @@ const label = createLabel("authorize", "green");
  */
 export const authMiddleware: MiddlewareFunction = async (
   { request, params, context },
-  next
+  next,
 ) => {
   console.info(`${label} Request: ${request.url}`);
 
@@ -59,11 +59,12 @@ export const authMiddleware: MiddlewareFunction = async (
 
   if (!session) {
     throw new Error(
-      "Session not found in context. Ensure sessionMiddleware runs first."
+      "Session not found in context. Ensure sessionMiddleware runs first.",
     );
   }
 
   const { provider, bucketName } = params;
+  const pathName = params["*"];
 
   const sessionData = await getSessionData(session);
 
@@ -76,13 +77,14 @@ export const authMiddleware: MiddlewareFunction = async (
       // Fetch credentials for bucket if not present or expired
       if (bucketName && !isValidCredentials(credentials[bucketName])) {
         console.info(
-          `${label} Fetch temporary credentials for bucket "${provider}/${bucketName}"`
+          `${label} Fetch temporary credentials for bucket "${provider}/${bucketName}"`,
         );
 
         const newCredentials = await getSessionCredentials(
           updatedSessionData,
           provider,
-          bucketName
+          bucketName,
+          pathName,
         );
 
         updatedSessionData = {
@@ -110,7 +112,8 @@ export const authMiddleware: MiddlewareFunction = async (
       const newCredentials = await getSessionCredentials(
         { ...updatedSessionData, authTokens: newAuthTokens },
         provider,
-        bucketName
+        bucketName,
+        pathName,
       );
 
       updatedSessionData = {

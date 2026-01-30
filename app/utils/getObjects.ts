@@ -7,7 +7,7 @@ export const getObjects = async (
   bucketConfig: BucketConfig,
   s3Client: S3Client,
   query?: string | null,
-  prefix?: string
+  prefix?: string,
 ): Promise<_Object[]> => {
   const listObjectsCommand = new ListObjectsV2Command({
     Bucket: bucketConfig.name,
