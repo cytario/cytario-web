@@ -26,3 +26,7 @@ app/.generated/
 # Terraform
 .terraform
 terraform.tfstate
+devenv/cytario-db-data/
+devenv/minio-data/
+devenv/postgres-data/
+devenv/valkey-data/
