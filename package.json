@@ -13,6 +13,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
@@ -60,6 +61,7 @@
   "devDependencies": {
     "@commitlint/cli": ">=19.8.1",
     "@commitlint/config-conventional": ">=19.8.1",
+    "@playwright/test": "^1.58.1",
     "@react-router/dev": "^7.12.0",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
@@ -74,6 +76,7 @@
     "@typescript-eslint/parser": "^8.42.0",
     "@vitest/coverage-v8": "^3.2.3",
     "autoprefixer": "^10.4.23",
+    "checkly": "^6.9.10",
     "dotenv": "^16.4.7",
     "eslint": ">=8.38.0",
     "eslint-import-resolver-typescript": ">=3.6.1",
