@@ -93,7 +93,7 @@ export function DirectoryView({
               {/* Render button only on root */}
               {!bucketName && (
                 <ButtonLink to="/connect-bucket" theme="white">
-                  <Icon icon="Plug" size={16} /> Add Data Connection
+                  <Icon icon="Plug" size={16} /> Connect Storage
                 </ButtonLink>
               )}
 
@@ -130,4 +130,3 @@ export function DirectoryView({
     </>
   );
 }
-

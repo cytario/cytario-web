@@ -74,11 +74,14 @@ export function RouteModal({
           `}
         >
           <H2>{title}</H2>
-          <IconButton onClick={action} icon="X" label="Close modal" />
+          <IconButton
+            onClick={action}
+            icon="X"
+            label="Close modal"
+            theme="transparent"
+          />
         </header>
-        <div className="flex flex-col gap-4 p-4 overflow-y-auto flex-1">
-          {children}
-        </div>
+        <div className="space-y-8 p-4 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

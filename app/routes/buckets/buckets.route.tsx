@@ -21,7 +21,7 @@ import {
   deleteBucketConfig,
 } from "~/utils/bucketConfig";
 
-const title = "Your Data Connections";
+const title = "Your Storage Connections";
 
 export const meta: MetaFunction = () => {
   return [
@@ -112,7 +112,7 @@ export default function BucketsRoute() {
             cta={
               <>
                 <ButtonLink to="/connect-bucket" scale="large" theme="primary">
-                  Add Data Connection
+                  Connect Storage
                 </ButtonLink>
                 {/* <Button disabled scale="large">
                   Open Local File
