@@ -1,7 +1,7 @@
 import { twMerge } from "tailwind-merge";
 
 import { useFormWizard } from "./FormWizard";
-import { Button } from "~/components/Controls/Button";
+import { Button } from "~/components/Controls";
 
 interface FormWizardNavProps {
   onNext?: () => Promise<boolean> | boolean;

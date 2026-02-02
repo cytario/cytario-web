@@ -2,7 +2,7 @@ import { Dispatch, useMemo } from "react";
 
 import { ViewerStore, ViewPort, ViewState } from "../../state/types";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
-import { IconButton } from "~/components/Controls/IconButton";
+import { IconButton } from "~/components/Controls";
 
 export const ResetViewStateButton = ({
   metadata,
@@ -18,7 +18,7 @@ export const ResetViewStateButton = ({
       width: viewState?.width ?? 0,
       height: viewState?.height ?? 0,
     }),
-    [viewState]
+    [viewState],
   );
 
   return (

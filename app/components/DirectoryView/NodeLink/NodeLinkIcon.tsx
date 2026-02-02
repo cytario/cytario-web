@@ -1,4 +1,4 @@
-import { Icon, LucideIconsType } from "~/components/Controls/IconButton";
+import { Icon, type LucideIconsType } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 const icons: Record<string, LucideIconsType> = {

@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link } from "react-router";
 import { twMerge } from "tailwind-merge";
 
-import { Icon } from "../Controls/IconButton";
+import { Icon } from "../Controls";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 const style = `

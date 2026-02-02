@@ -4,7 +4,7 @@
 import { ReactNode, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router";
 
-import { IconButton } from "./Controls/IconButton";
+import { IconButton } from "./Controls";
 import { H2 } from "./Fonts";
 
 export function RouteModal({

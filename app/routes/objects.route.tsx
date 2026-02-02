@@ -18,7 +18,7 @@ import { JP2KDecoder } from "~/components/.client/ImageViewer/state/jp2k-decoder
 import { LZWDecoder } from "~/components/.client/ImageViewer/state/lzwDecoder";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
-import { Button } from "~/components/Controls/Button";
+import { Button } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
@@ -69,7 +69,11 @@ export const handle = {
     const prefix = data?.bucketConfig?.prefix ?? "";
 
     // Calculate the relative path (path after the data connection prefix)
-    const normalizedPrefix = prefix.endsWith("/") ? prefix : prefix ? `${prefix}/` : "";
+    const normalizedPrefix = prefix.endsWith("/")
+      ? prefix
+      : prefix
+        ? `${prefix}/`
+        : "";
     const relativePath =
       normalizedPrefix && pathName.startsWith(normalizedPrefix)
         ? pathName.slice(normalizedPrefix.length)
@@ -88,7 +92,9 @@ export const handle = {
 
     // Display name: show bucket name, or bucket/lastPrefixSegment if prefix exists
     const prefixLastSegment = prefix.replace(/\/$/, "").split("/").pop();
-    const dataConnectionName = prefix ? `${bucketName}/${prefixLastSegment}` : bucketName;
+    const dataConnectionName = prefix
+      ? `${bucketName}/${prefixLastSegment}`
+      : bucketName;
 
     const options: CrumbsOptions = {
       dataConnectionName,
@@ -162,7 +168,7 @@ export const loader = async ({
         bucketName,
         objectsWithUrls,
         bucketConfig.provider,
-        prefix
+        prefix,
       );
 
       return {

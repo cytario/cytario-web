@@ -1,5 +1,5 @@
+import { IconButton } from "../Controls";
 import { useTableStore } from "./state/useTableStore";
-import { IconButton } from "../Controls/IconButton";
 
 export const TableResetButton = ({ tableId }: { tableId: string }) => {
   const store = useTableStore(tableId);

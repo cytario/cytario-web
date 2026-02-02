@@ -1,7 +1,7 @@
 import { Header } from "@tanstack/react-table";
 
 import { TableRowData } from "./Table";
-import { IconButton } from "../Controls/IconButton";
+import { IconButton } from "../Controls";
 
 export const ColumnSortButton = ({
   header,
