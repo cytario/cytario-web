@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 
-import { Select } from "~/components/Controls/Select";
+import { Select } from "~/components/Controls";
 
 describe("Select", () => {
   test("should render select element with children", () => {
@@ -9,7 +9,7 @@ describe("Select", () => {
       <Select>
         <option value="option1">Option 1</option>
         <option value="option2">Option 2</option>
-      </Select>
+      </Select>,
     );
 
     const select = screen.getByRole("combobox");
@@ -20,7 +20,7 @@ describe("Select", () => {
     render(
       <Select data-testid="custom-select" disabled>
         <option value="test">Test Option</option>
-      </Select>
+      </Select>,
     );
 
     const select = screen.getByTestId("custom-select");
@@ -34,7 +34,7 @@ describe("Select", () => {
         <option value="option1">Option 1</option>
         <option value="option2">Option 2</option>
         <option value="option3">Option 3</option>
-      </Select>
+      </Select>,
     );
 
     expect(screen.getByText("Option 1")).toBeInTheDocument();

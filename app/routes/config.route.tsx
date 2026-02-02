@@ -3,7 +3,7 @@ import { LoaderFunction, useLoaderData } from "react-router";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { Container } from "~/components/Container";
-import { Button } from "~/components/Controls/Button";
+import { Button } from "~/components/Controls";
 import { DescriptionList } from "~/components/DescriptionList";
 
 export const middleware = [authMiddleware];

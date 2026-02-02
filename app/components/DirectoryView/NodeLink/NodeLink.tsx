@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 
 import { NodeLinkIcon } from "./NodeLinkIcon";
 import { NodeThumbnail } from "./NodeThumbnail";
-import { IconButton } from "../../Controls/IconButton";
+import { IconButton } from "../../Controls";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { createResourceId } from "~/utils/resourceId";

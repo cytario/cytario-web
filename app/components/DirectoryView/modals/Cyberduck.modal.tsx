@@ -1,7 +1,6 @@
 import { useParams } from "react-router";
 
-import { ButtonLink } from "~/components/Controls/Button";
-import { Icon } from "~/components/Controls/IconButton";
+import { ButtonLink, Icon } from "~/components/Controls";
 import { H3 } from "~/components/Fonts";
 import { Link } from "~/components/Link";
 import { RouteModal } from "~/components/RouteModal";

@@ -1,7 +1,7 @@
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
-import { IconButton } from "~/components/Controls/IconButton";
+import { IconButton } from "~/components/Controls";
 
 export const ToggleExpander = () => {
   const layersStates = useViewerStore(select.layersStates);

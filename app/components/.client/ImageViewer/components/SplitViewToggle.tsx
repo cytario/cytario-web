@@ -1,7 +1,7 @@
 import { select } from "../state/selectors";
 import { useViewerStore } from "../state/ViewerStoreContext";
 import { PresetLabel } from "./FeatureBar/Presets";
-import { Button } from "~/components/Controls/Button";
+import { Button } from "~/components/Controls";
 import { Tooltip } from "~/components/Tooltip/Tooltip";
 
 export const SplitViewToggle = () => {

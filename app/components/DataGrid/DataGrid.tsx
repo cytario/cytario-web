@@ -11,7 +11,7 @@ import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { WktSvg } from "./WktSvg";
 import { LavaLoader } from "../LavaLoader";
-import { Checkbox } from "~/components/Controls/Checkbox";
+import { Checkbox } from "~/components/Controls";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { parseResourceId } from "~/utils/resourceId";
 

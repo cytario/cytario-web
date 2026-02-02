@@ -1,13 +1,12 @@
 /* eslint-disable no-irregular-whitespace */
 import { ResetViewStateButton } from "./Image/ResetViewStateButton";
 import { type ViewerStore, type ViewState } from "../state/types";
-import { Button } from "~/components/Controls/Button";
-import { Input } from "~/components/Controls/Input";
+import { Button, Input } from "~/components/Controls";
 import { InputGroup } from "~/components/Controls/InputGroup";
 
 const zoomFromMagnification = (
   magnification: number,
-  objectivePower = 20
+  objectivePower = 20,
 ): number => Math.log2(magnification / objectivePower);
 
 const magnificationFromZoom = (zoom: number, objectivePower = 20): number =>

@@ -1,6 +1,6 @@
 import { Form } from "react-router";
 
-import { Button, ButtonLink } from "../Controls/Button";
+import { Button, ButtonLink } from "../Controls";
 import { RouteModal } from "../RouteModal";
 import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";

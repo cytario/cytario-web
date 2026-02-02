@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { IconButton } from "../Controls/IconButton";
+import { IconButton } from "../Controls";
 
 describe("IconButton", () => {
   it("renders children correctly", () => {
@@ -19,7 +19,7 @@ describe("IconButton", () => {
   it("does not call onClick when disabled", () => {
     const handleClick = vi.fn();
     const { getByRole } = render(
-      <IconButton icon="X" onClick={handleClick} disabled />
+      <IconButton icon="X" onClick={handleClick} disabled />,
     );
     fireEvent.click(getByRole("button"));
     expect(handleClick).not.toHaveBeenCalled();
@@ -27,7 +27,7 @@ describe("IconButton", () => {
 
   it("applies disabled attribute correctly", () => {
     const { getByRole } = render(
-      <IconButton icon="X" onClick={() => {}} disabled />
+      <IconButton icon="X" onClick={() => {}} disabled />,
     );
     expect(getByRole("button")).toBeDisabled();
   });

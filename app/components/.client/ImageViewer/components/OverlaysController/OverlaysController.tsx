@@ -3,7 +3,7 @@ import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { FeatureItem } from "../FeatureBar/FeatureItem";
-import { ButtonLink } from "~/components/Controls/Button";
+import { ButtonLink } from "~/components/Controls";
 import { Placeholder } from "~/components/Placeholder";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
