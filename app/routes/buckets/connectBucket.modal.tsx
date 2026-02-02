@@ -1,26 +1,15 @@
-import { Field, RadioGroup } from "@headlessui/react";
-import { useState } from "react";
-import {
-  type ActionFunction,
-  Form,
-  type MetaFunction,
-  redirect,
-} from "react-router";
+import { type ActionFunction, type MetaFunction, redirect } from "react-router";
 
-import AWS_REGIONS from "./awsRegions.json";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
-import { Button } from "~/components/Controls/Button";
-import { Input } from "~/components/Controls/Input";
-import { Label } from "~/components/Controls/Label";
-import { Radio } from "~/components/Controls/Radio";
-import { Select } from "~/components/Controls/Select";
 import { RouteModal } from "~/components/RouteModal";
+import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
+import { connectBucketSchema } from "~/forms/connectBucket/connectBucket.schema";
 import { upsertBucketConfig } from "~/utils/bucketConfig";
 
-const title = "Add Data Connection";
+const title = "Connect Storage";
 
 export const meta: MetaFunction = () => {
   return [{ title }];
@@ -29,7 +18,7 @@ export const meta: MetaFunction = () => {
 export const handle = {
   breadcrumb: () => (
     <BreadcrumbLink key="connect-bucket" to={`/connect-bucket`}>
-      Add Data Connection
+      {title}
     </BreadcrumbLink>
   ),
 };
@@ -41,35 +30,43 @@ export const action: ActionFunction = async ({ request, context }) => {
   const { sub: userId } = user;
 
   const formData = await request.formData();
-  const provider = formData.get("provider") as string;
-  const bucketName = formData.get("bucketName") as string;
-  const roleArn = formData.get("roleArn") as string;
-  const bucketRegion = formData.get("bucketRegion") as string;
-  const bucketEndpoint = formData.get("bucketEndpoint") as string;
-  const rawPrefix = (formData.get("prefix") as string)?.trim() || "";
-  // Normalize prefix: remove leading/trailing slashes
-  const prefix = rawPrefix.replace(/^\/+|\/+$/g, "");
 
-  if (!bucketName?.trim()) {
-    return { error: "Bucket name is required" };
+  const rawData = {
+    providerType: formData.get("providerType") as string,
+    provider: formData.get("provider") as string,
+    bucketName: formData.get("bucketName") as string,
+    prefix: formData.get("prefix") as string,
+    bucketRegion: formData.get("bucketRegion") as string,
+    roleArn: formData.get("roleArn") as string,
+    bucketEndpoint: formData.get("bucketEndpoint") as string,
+  };
+
+  const result = connectBucketSchema.safeParse(rawData);
+
+  if (!result.success) {
+    return {
+      errors: result.error.flatten().fieldErrors,
+      status: "error",
+    };
   }
 
+  const data = result.data;
   const session = await getSession(request);
 
   try {
-    // Construct endpoint based on provider
+    const provider = data.providerType === "aws" ? "aws" : data.provider;
     const endpoint =
-      provider === "aws"
-        ? `https://s3.${bucketRegion}.amazonaws.com`
-        : bucketEndpoint.trim();
+      data.providerType === "aws"
+        ? `https://s3.${data.bucketRegion}.amazonaws.com`
+        : data.bucketEndpoint;
 
     const newConfig = {
-      name: bucketName.trim(),
+      name: data.bucketName,
       provider,
-      roleArn: provider === "aws" ? roleArn.trim() : null,
-      region: provider === "aws" ? bucketRegion : null,
+      roleArn: data.providerType === "aws" ? data.roleArn : null,
+      region: data.providerType === "aws" ? data.bucketRegion : null,
       endpoint,
-      prefix,
+      prefix: data.prefix || "",
     };
 
     await upsertBucketConfig(userId, newConfig);
@@ -79,10 +76,9 @@ export const action: ActionFunction = async ({ request, context }) => {
       message: "Data connection added successfully.",
     });
 
-    // Redirect to the data connection root (bucket + prefix)
-    const redirectPath = prefix
-      ? `/buckets/${provider}/${bucketName}/${prefix}`
-      : `/buckets/${provider}/${bucketName}`;
+    const redirectPath = data.prefix
+      ? `/buckets/${provider}/${data.bucketName}/${data.prefix}`
+      : `/buckets/${provider}/${data.bucketName}`;
 
     return redirect(redirectPath, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
@@ -102,110 +98,9 @@ export const action: ActionFunction = async ({ request, context }) => {
 };
 
 export default function ConnectBucketModal() {
-  const [provider, setProvider] = useState<"aws" | string>("aws");
-
-  const isAWS = provider === "aws";
-
   return (
     <RouteModal title={title}>
-      <p className="text-slate-700">
-        Connect your cloud storage to view whole-slide images directly in
-        cytario. Optionally specify a path prefix to connect to a specific
-        folder.
-      </p>
-
-      <Form method="post" className="space-y-4">
-        {/* Provider Selection */}
-        <Field>
-          <Label>Provider</Label>
-          <RadioGroup
-            value={provider}
-            onChange={setProvider}
-            className="mt-2 flex gap-4"
-          >
-            <Radio value="aws">AWS S3</Radio>
-            <Radio value="other">Other</Radio>
-          </RadioGroup>
-        </Field>
-
-        {/* Other Provider Name */}
-        {!isAWS && (
-          <Field>
-            <Label>Provider Name</Label>
-            <Input name="provider" required placeholder="minio" scale="large" />
-          </Field>
-        )}
-
-        {/* Bucket Name */}
-        <Field>
-          <Label>Bucket Name</Label>
-          <Input
-            name="bucketName"
-            required
-            placeholder="my-bucket-name"
-            scale="large"
-          />
-        </Field>
-
-        {/* Path Prefix (optional) */}
-        <Field>
-          <Label>Path Prefix (optional)</Label>
-          <Input
-            name="prefix"
-            placeholder="data/experiments"
-            scale="large"
-          />
-          <p className="text-sm text-slate-500 mt-1">
-            Connect to a specific folder within the bucket
-          </p>
-        </Field>
-
-        {/* AWS-specific fields */}
-        {isAWS && (
-          <>
-            <input type="hidden" name="provider" value="aws" />
-
-            <Field>
-              <Label>Region</Label>
-              <Select name="bucketRegion" required defaultValue="eu-central-1">
-                {AWS_REGIONS.map((region) => (
-                  <option key={region.value} value={region.value}>
-                    {region.value}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field>
-              <Label>Role ARN</Label>
-              <Input
-                name="roleArn"
-                required
-                placeholder="arn:aws:iam::123456789012:role/MyRole"
-                scale="large"
-              />
-            </Field>
-          </>
-        )}
-
-        {/* Other provider fields */}
-        {!isAWS && (
-          <Field>
-            <Label>Endpoint</Label>
-
-            <Input
-              name="bucketEndpoint"
-              required
-              placeholder="http://localhost:9000"
-              scale="large"
-            />
-          </Field>
-        )}
-
-        <Button type="submit" scale="large" theme="primary">
-          Add Data Connection
-        </Button>
-      </Form>
+      <ConnectBucketForm />
     </RouteModal>
   );
 }
