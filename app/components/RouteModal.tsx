@@ -26,7 +26,7 @@ export function RouteModal({
     <Dialog open={true} onClose={action} className="relative z-50">
       <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
 
-      <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto">
+      <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto ">
         <DialogPanel
           className={`
             w-full max-w-lg bg-white rounded-xl border-slate-300 shadow-2xl
