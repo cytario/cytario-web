@@ -3,7 +3,7 @@ export { Fieldset } from "./Fieldset";
 export { Input } from "./Input";
 export { Label } from "./Label";
 export { Select } from "./Select";
-export { Radio } from "./Radio";
+export { Radio, RadioButton } from "./Radio";
 export { Checkbox } from "./Checkbox";
 export { Switch } from "./Switch";
 

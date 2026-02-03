@@ -7,7 +7,7 @@ import {
 } from "react-hook-form";
 
 import { ConnectBucketFormData } from "./connectBucket.schema";
-import { Field, Fieldset, Input, Radio } from "~/components/Controls";
+import { Field, Fieldset, Input, RadioButton } from "~/components/Controls";
 
 export const ProviderFieldset = ({
   control,
@@ -36,8 +36,8 @@ export const ProviderFieldset = ({
               onChange={field.onChange}
               className="flex gap-4"
             >
-              <Radio value="aws">AWS S3</Radio>
-              <Radio value="other">Other</Radio>
+              <RadioButton value="aws">AWS S3</RadioButton>
+              <RadioButton value="other">Other</RadioButton>
             </RadioGroup>
           )}
         />

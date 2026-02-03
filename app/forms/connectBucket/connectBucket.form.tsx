@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { KeyboardEvent, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
 import { AccessFieldset } from "./access.fieldset";
@@ -26,7 +26,6 @@ export const ConnectBucketForm = () => {
   const {
     control,
     register,
-    watch,
     trigger,
     handleSubmit,
     formState: { errors },
@@ -36,7 +35,7 @@ export const ConnectBucketForm = () => {
     mode: "onBlur",
   });
 
-  const providerType = watch("providerType");
+  const providerType = useWatch({ control, name: "providerType" });
   const isAWS = providerType === "aws";
 
   const validateCurrentStep = async (): Promise<boolean> => {
@@ -47,7 +46,7 @@ export const ConnectBucketForm = () => {
         ? ["providerType"]
         : ["providerType", "provider"];
     } else if (currentStep === 1) {
-      fieldsToValidate = ["bucketName", "prefix"];
+      fieldsToValidate = ["s3Uri"];
     } else if (currentStep === 2) {
       fieldsToValidate = isAWS
         ? ["bucketRegion", "roleArn"]
@@ -71,6 +70,15 @@ export const ConnectBucketForm = () => {
     submit(formData, { method: "post" });
   };
 
+  const isLastStep = currentStep === 2;
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === "Enter" && !isLastStep) {
+      e.preventDefault();
+      validateCurrentStep();
+    }
+  };
+
   return (
     <FormWizard
       currentStep={currentStep}
@@ -79,7 +87,12 @@ export const ConnectBucketForm = () => {
     >
       <FormWizardProgress labels={STEP_LABELS} />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        onKeyDown={handleKeyDown}
+        className="space-y-8 text-slate-500"
+      >
         {/* Step 1: Provider */}
         {currentStep === 0 && (
           <ProviderFieldset
@@ -92,7 +105,7 @@ export const ConnectBucketForm = () => {
 
         {/* Step 2: Location */}
         {currentStep === 1 && (
-          <LocationFieldset register={register} errors={errors} />
+          <LocationFieldset register={register} errors={errors} isAWS={isAWS} />
         )}
 
         {/* Step 3: Access */}
