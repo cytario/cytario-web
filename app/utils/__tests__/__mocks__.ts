@@ -23,6 +23,7 @@ const mock = {
     roleArn: "arn:aws:iam::123456789012:role/mock-role",
     region: "us-east-1",
     endpoint: "https://s3.amazonaws.com",
+    prefix: "",
     ...data,
   }),
   session: (

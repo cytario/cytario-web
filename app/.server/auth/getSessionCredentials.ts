@@ -6,12 +6,12 @@ import {
 
 import { type SessionData, type SessionCredentials } from "./sessionStorage";
 import { BucketConfig } from "~/.generated/client";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getBucketConfigByPath } from "~/utils/bucketConfig";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 const fetchTemporaryCredentials = async (
   bucketConfig: BucketConfig,
-  idToken: string
+  idToken: string,
 ): Promise<Credentials> => {
   const { region, endpoint, roleArn } = bucketConfig;
 
@@ -45,32 +45,37 @@ const fetchTemporaryCredentials = async (
 
 /**
  * Retrieves or refreshes session credentials for a specific bucket.
+ * @param pathName - The path within the bucket (used to find configs with prefixes)
  * @returns SessionCredentials
  */
 export const getSessionCredentials = async (
   sessionData: SessionData,
   provider?: string,
-  bucketName?: string
+  bucketName?: string,
+  pathName?: string,
 ): Promise<SessionCredentials> => {
   if (!provider || !bucketName) {
     return sessionData.credentials;
   }
 
-  const bucketConfig = await getBucketConfigByName(
+  const bucketConfig = await getBucketConfigByPath(
     sessionData.user.sub,
     provider,
-    bucketName
+    bucketName,
+    pathName ?? "",
   );
 
   if (!bucketConfig) {
-    throw new Error(`Bucket config not found for bucket: ${provider}/${bucketName}`);
+    throw new Error(
+      `Bucket config not found for bucket: ${provider}/${bucketName}/${pathName ?? ""}`,
+    );
   }
 
   return {
     ...sessionData.credentials,
     [bucketName]: await fetchTemporaryCredentials(
       bucketConfig,
-      sessionData.authTokens.idToken
+      sessionData.authTokens.idToken,
     ),
   };
 };

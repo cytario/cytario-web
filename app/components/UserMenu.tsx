@@ -1,6 +1,6 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 
-import { Icon } from "./Controls/IconButton";
+import { Icon } from "./Controls";
 
 interface UserMenuProps {
   accountSettingsUrl: string;

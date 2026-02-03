@@ -3,7 +3,7 @@ import { useFetcher } from "react-router";
 
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import { Input } from "~/components/Controls/Input";
+import { Input } from "~/components/Controls";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
@@ -20,7 +20,7 @@ export const AddOverlay = ({
 }) => {
   const addOverlaysState = useViewerStore(select.addOverlaysState);
   const addNotification = useNotificationStore(
-    (state) => state.addNotification
+    (state) => state.addNotification,
   );
 
   const obj: Record<string, "csv" | "parquet"> = {
@@ -59,7 +59,7 @@ export const AddOverlay = ({
             const resourceId = createResourceId(
               node.provider,
               node.bucketName,
-              node.pathName
+              node.pathName,
             );
 
             // Get credentials and bucket config from the store using provider/bucketName key
@@ -74,9 +74,7 @@ export const AddOverlay = ({
             }
 
             if (!credentials) {
-              throw new Error(
-                `No credentials found for bucket: ${storeKey}`
-              );
+              throw new Error(`No credentials found for bucket: ${storeKey}`);
             }
 
             if (extension === "csv") {

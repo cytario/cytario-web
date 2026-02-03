@@ -1,7 +1,7 @@
 import { MotionValue } from "motion/react";
 
 import { useFeatureBarStore } from "./useFeatureBar";
-import { IconButton } from "~/components/Controls/IconButton";
+import { IconButton } from "~/components/Controls";
 
 export const FeatureBarToggle = ({
   motionWidth,

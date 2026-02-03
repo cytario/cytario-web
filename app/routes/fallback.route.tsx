@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 
 import { Container } from "../components/Container";
-import { Button } from "~/components/Controls/Button";
+import { Button } from "~/components/Controls";
 import { Placeholder } from "~/components/Placeholder";
 
 export default function NotFound() {

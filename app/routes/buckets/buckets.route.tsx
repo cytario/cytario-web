@@ -12,7 +12,7 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Container } from "~/components/Container";
-import { ButtonLink } from "~/components/Controls/Button";
+import { ButtonLink } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
@@ -21,12 +21,12 @@ import {
   deleteBucketConfig,
 } from "~/utils/bucketConfig";
 
-const title = "Your Connected Buckets";
+const title = "Your Storage Connections";
 
 export const meta: MetaFunction = () => {
   return [
     { title },
-    { name: "description", content: "Manage your configured buckets" },
+    { name: "description", content: "Manage your data connections" },
   ];
 };
 
@@ -49,6 +49,7 @@ export const action: ActionFunction = async ({ request, context }) => {
     const formData = await request.formData();
     const provider = formData.get("provider") as string;
     const bucketName = formData.get("bucketName") as string;
+    const prefix = (formData.get("prefix") as string) ?? "";
 
     if (!provider) {
       return { error: "Provider is required" };
@@ -58,13 +59,13 @@ export const action: ActionFunction = async ({ request, context }) => {
       return { error: "Bucket name is required" };
     }
 
-    await deleteBucketConfig(userId, provider, bucketName);
+    await deleteBucketConfig(userId, provider, bucketName, prefix);
 
     const session = await getSession(request);
 
     session.set("notification", {
       status: "success",
-      message: "Bucket connection deleted.",
+      message: "Data connection deleted.",
     });
 
     return redirect("/", {
@@ -78,13 +79,25 @@ export const action: ActionFunction = async ({ request, context }) => {
 export default function BucketsRoute() {
   const { bucketConfigs } = useLoaderData<{ bucketConfigs: BucketConfig[] }>();
 
-  const nodes: TreeNode[] = bucketConfigs.map((bucketConfig) => ({
-    bucketName: bucketConfig.name,
-    name: bucketConfig.name,
-    type: "bucket",
-    provider: bucketConfig.provider,
-    children: [],
-  }));
+  const nodes: TreeNode[] = bucketConfigs.map((bucketConfig) => {
+    // Display name: bucket name or bucket/lastPrefixSegment if prefix exists
+    const prefixLastSegment = bucketConfig.prefix
+      ?.replace(/\/$/, "")
+      .split("/")
+      .pop();
+    const displayName = bucketConfig.prefix
+      ? `${bucketConfig.name}/${prefixLastSegment}`
+      : bucketConfig.name;
+
+    return {
+      bucketName: bucketConfig.name,
+      name: displayName,
+      type: "bucket",
+      provider: bucketConfig.provider,
+      pathName: bucketConfig.prefix || undefined,
+      children: [],
+    };
+  });
 
   return (
     <>
@@ -95,11 +108,11 @@ export default function BucketsRoute() {
           <Placeholder
             icon="FileSearch"
             title="Start exploring your data"
-            description="Connect a cloud bucket or open a local file."
+            description="Add a data connection to view your cloud storage."
             cta={
               <>
                 <ButtonLink to="/connect-bucket" scale="large" theme="primary">
-                  Connect Bucket
+                  Connect Storage
                 </ButtonLink>
                 {/* <Button disabled scale="large">
                   Open Local File

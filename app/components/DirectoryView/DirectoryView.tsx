@@ -4,8 +4,7 @@ import { ReactNode, useEffect } from "react";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
-import { ButtonLink } from "../Controls/Button";
-import { Icon } from "../Controls/IconButton";
+import { ButtonLink, Icon } from "../Controls";
 import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
 import { Container } from "~/components/Container";
@@ -93,7 +92,7 @@ export function DirectoryView({
               {/* Render button only on root */}
               {!bucketName && (
                 <ButtonLink to="/connect-bucket" theme="white">
-                  <Icon icon="Plug" size={16} /> Connect Bucket
+                  <Icon icon="Plug" size={16} /> Connect Storage
                 </ButtonLink>
               )}
 
@@ -130,4 +129,3 @@ export function DirectoryView({
     </>
   );
 }
-

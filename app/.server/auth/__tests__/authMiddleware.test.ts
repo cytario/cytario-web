@@ -162,7 +162,8 @@ describe("authMiddleware", () => {
       expect(getSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
         "aws",
-        "test-bucket"
+        "test-bucket",
+        undefined
       );
     });
 

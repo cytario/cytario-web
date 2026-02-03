@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 
 import { useNotificationStore } from "./Notification.store";
-import { IconButton } from "../Controls/IconButton";
+import { IconButton } from "../Controls";
 import { InputGroup } from "../Controls/InputGroup";
 
 export type NotificationType = "success" | "error" | "info";
@@ -59,7 +59,7 @@ const NotificationItem = ({
 }) => {
   const cx = twMerge(
     "px-2 py-1 bg-white/80 text-slate-900 border",
-    colors[status]
+    colors[status],
   );
 
   return (
@@ -85,7 +85,7 @@ export function NotificationList() {
         if (duration === Infinity) return;
         const timer = setTimeout(() => removeNotification(id), duration);
         return () => clearTimeout(timer);
-      }
+      },
     );
   }, [notifications, removeNotification]);
 
@@ -112,6 +112,6 @@ export function NotificationList() {
   // Client: use portal
   return createPortal(
     notificationMarkup,
-    document.getElementById("notification")!
+    document.getElementById("notification")!,
   );
 }

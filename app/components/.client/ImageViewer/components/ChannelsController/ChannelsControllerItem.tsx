@@ -4,7 +4,7 @@ import { Radio } from "@headlessui/react";
 import { twMerge } from "tailwind-merge";
 
 import { ColorPicker, rgb } from "./ColorPicker";
-import { Switch } from "../../../../Controls/Switch";
+import { Switch } from "../../../../Controls";
 import { select } from "../../state/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -63,7 +63,7 @@ export function ChannelsControllerItem({
     `,
     isVisible && "text-white",
     isActive && "bg-slate-500",
-    "group-data-[checked]/radio:opacity-50"
+    "group-data-[checked]/radio:opacity-50",
   );
 
   const disabled = !isVisible && visibleChannelCount >= MAX_VISIBLE_CHANNELS;
