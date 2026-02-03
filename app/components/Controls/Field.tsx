@@ -1,4 +1,4 @@
-import { Field as HeadlessField } from "@headlessui/react";
+import { Description, Field as HeadlessField } from "@headlessui/react";
 import { ReactNode } from "react";
 import { FieldError } from "react-hook-form";
 
@@ -16,11 +16,15 @@ export const Field = ({
   error?: FieldError;
 }) => {
   return (
-    <HeadlessField className="flex flex-col gap-1 text-slate-500 text-sm">
-      <Label>{label}</Label>
-      {description && <p>{description}</p>}
-      {children}
-      {error && <p className="text-sm text-rose-600">{error.message}</p>}
+    <HeadlessField className="space-y-4 text-sm">
+      <div className="space-y-1">
+        <Label>{label}</Label>
+        {description && <Description>{description}</Description>}
+      </div>
+      <div className="space-y-1">
+        {children}
+        {error && <p className="text-sm text-rose-700">{error.message}</p>}
+      </div>
     </HeadlessField>
   );
 };

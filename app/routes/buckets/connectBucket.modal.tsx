@@ -6,7 +6,10 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { RouteModal } from "~/components/RouteModal";
 import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
-import { connectBucketSchema } from "~/forms/connectBucket/connectBucket.schema";
+import {
+  connectBucketSchema,
+  parseS3Uri,
+} from "~/forms/connectBucket/connectBucket.schema";
 import { upsertBucketConfig } from "~/utils/bucketConfig";
 
 const title = "Connect Storage";
@@ -34,8 +37,7 @@ export const action: ActionFunction = async ({ request, context }) => {
   const rawData = {
     providerType: formData.get("providerType") as string,
     provider: formData.get("provider") as string,
-    bucketName: formData.get("bucketName") as string,
-    prefix: formData.get("prefix") as string,
+    s3Uri: formData.get("s3Uri") as string,
     bucketRegion: formData.get("bucketRegion") as string,
     roleArn: formData.get("roleArn") as string,
     bucketEndpoint: formData.get("bucketEndpoint") as string,
@@ -51,6 +53,7 @@ export const action: ActionFunction = async ({ request, context }) => {
   }
 
   const data = result.data;
+  const { bucketName, prefix } = parseS3Uri(data.s3Uri);
   const session = await getSession(request);
 
   try {
@@ -61,12 +64,12 @@ export const action: ActionFunction = async ({ request, context }) => {
         : data.bucketEndpoint;
 
     const newConfig = {
-      name: data.bucketName,
+      name: bucketName,
       provider,
       roleArn: data.providerType === "aws" ? data.roleArn : null,
       region: data.providerType === "aws" ? data.bucketRegion : null,
       endpoint,
-      prefix: data.prefix || "",
+      prefix,
     };
 
     await upsertBucketConfig(userId, newConfig);
@@ -76,9 +79,9 @@ export const action: ActionFunction = async ({ request, context }) => {
       message: "Data connection added successfully.",
     });
 
-    const redirectPath = data.prefix
-      ? `/buckets/${provider}/${data.bucketName}/${data.prefix}`
-      : `/buckets/${provider}/${data.bucketName}`;
+    const redirectPath = prefix
+      ? `/buckets/${provider}/${bucketName}/${prefix}`
+      : `/buckets/${provider}/${bucketName}`;
 
     return redirect(redirectPath, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },

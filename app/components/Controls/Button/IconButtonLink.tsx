@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Icon } from "./Icon";
 import { IconButtonBaseProps } from "./IconButton";
 import {
-  buttonBaseStyle,
+  buttonBaseStyles,
   buttonThemeStyles,
   iconButtonScaleStyles,
 } from "./styles";
@@ -24,7 +24,7 @@ export function IconButtonLink({
   label,
 }: IconButtonLinkProps) {
   const cx = twMerge(
-    buttonBaseStyle,
+    buttonBaseStyles,
     iconButtonScaleStyles[scale],
     buttonThemeStyles[theme],
     className,
