@@ -3,7 +3,7 @@
 exports[`Button component > applies additional class names 1`] = `
 <div>
   <button
-    class="inline-flex items-center justify-center self-center w-auto rounded-sm gap-1 px-2 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap font-bold h-8 text-base bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-500 extra-class"
+    class="inline-flex items-center justify-center self-center w-auto rounded-sm gap-1 px-2 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap font-bold h-8 text-base text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-500 extra-class"
     type="button"
   >
     Click me
@@ -14,7 +14,7 @@ exports[`Button component > applies additional class names 1`] = `
 exports[`Button component > matches default styles with snapshot 1`] = `
 <div>
   <button
-    class="inline-flex items-center justify-center self-center w-auto rounded-sm gap-1 px-2 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap font-bold h-8 text-base bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-500"
+    class="inline-flex items-center justify-center self-center w-auto rounded-sm gap-1 px-2 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap font-bold h-8 text-base text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-500"
     type="button"
   >
     Click me
@@ -25,7 +25,7 @@ exports[`Button component > matches default styles with snapshot 1`] = `
 exports[`Button component > renders the button with children 1`] = `
 <div>
   <button
-    class="inline-flex items-center justify-center self-center w-auto rounded-sm gap-1 px-2 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap font-bold h-8 text-base bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-500"
+    class="inline-flex items-center justify-center self-center w-auto rounded-sm gap-1 px-2 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap font-bold h-8 text-base text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-500"
     type="button"
   >
     Click me
