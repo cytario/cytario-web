@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge";
 
 import {
   buttonScaleStyles,
-  buttonBaseStyle,
+  buttonBaseStyles,
   buttonThemeStyles,
 } from "./styles";
 
@@ -27,7 +27,7 @@ export function Button({
   theme = "default",
 }: ButtonProps) {
   const cx = twMerge(
-    buttonBaseStyle,
+    buttonBaseStyles,
     buttonScaleStyles[scale],
     buttonThemeStyles[theme],
     className,

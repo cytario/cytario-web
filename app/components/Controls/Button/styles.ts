@@ -1,4 +1,4 @@
-export const buttonBaseStyle = `
+export const buttonBaseStyles = `
   inline-flex items-center justify-center self-center w-auto
   rounded-sm border gap-1 px-2
   disabled:cursor-not-allowed disabled:opacity-50
@@ -13,30 +13,37 @@ export const buttonScaleStyles = {
 
 export const buttonThemeStyles = {
   default: `
-    bg-slate-800 hover:bg-slate-700 text-slate-300
+    text-slate-300
+    bg-slate-800 hover:bg-slate-700
     border border-slate-500
   `,
   transparent: `
-    bg-transparent hover:bg-white/20 text-inherit
+    text-inherit
+    bg-transparent hover:bg-white/20 
   `,
   white: `
-    bg-white hover:bg-slate-50 text-inherit
+    text-inherit
+    bg-white hover:bg-slate-50
     border border-inherit
   `,
   primary: `
-    bg-cytario-turquoise-500 hover:bg-cytario-turquoise-700 text-white
+    text-white
+    bg-cytario-turquoise-500 hover:bg-cytario-turquoise-700
     border border-cytario-turquoise-500 border-t-cytario-turquoise-300 border-b-cytario-turquoise-700
   `,
   error: `
-    bg-rose-700 hover:bg-rose-500 text-white
+    text-white
+    bg-rose-700 hover:bg-rose-500 
     border border-rose-500 border-t-rose-300 border-b-rose-900
   `,
   success: `
-    bg-green-700 hover:bg-green-500 text-white
+    text-white
+    bg-green-700 hover:bg-green-500
     border border-green-500 border-t-green-300 border-b-green-900
   `,
   info: `
-    bg-slate-700 hover:bg-slate-500 text-white
+    text-white
+    bg-slate-700 hover:bg-slate-500
     border border-slate-500 border-t-slate-300 border-b-slate-900
   `,
 };
