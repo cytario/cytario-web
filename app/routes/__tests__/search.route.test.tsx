@@ -6,11 +6,6 @@ import { type SessionData } from "~/.server/auth/sessionStorage";
 import { loader, handle } from "~/routes/search.route";
 import mock from "~/utils/__tests__/__mocks__";
 
-vi.mock("~/utils/bucketConfig", () => ({
-  getBucketConfigs: vi.fn(),
-  getBucketConfigByName: vi.fn(),
-}));
-
 vi.mock("~/.server/auth/authMiddleware", () => ({
   authContext: createContext<Partial<SessionData>>(),
   authMiddleware: vi.fn(async (_ctx, next) => next()),
@@ -25,17 +20,12 @@ vi.mock("~/utils/getObjects", () => ({
 }));
 
 const { authContext } = await import("~/.server/auth/authMiddleware");
-const { getBucketConfigs, getBucketConfigByName } = await import(
-  "~/utils/bucketConfig"
-);
 const { getS3Client } = await import("~/.server/auth/getS3Client");
 const { getObjects } = await import("~/utils/getObjects");
 
 describe("SearchRoute", () => {
   test("loader should propagate errors from getGlobalSearch", async () => {
     // Setup mocks with return values
-    vi.mocked(getBucketConfigs).mockResolvedValue([mock.bucketConfig()]);
-    vi.mocked(getBucketConfigByName).mockResolvedValue(mock.bucketConfig());
     vi.mocked(getS3Client).mockResolvedValue({} as S3Client);
     vi.mocked(getObjects).mockRejectedValue(
       new Error("Search service unavailable")
@@ -57,6 +47,7 @@ describe("SearchRoute", () => {
             credentials: {
               "mock-bucket": mock.credentials(),
             },
+            bucketConfigs: [mock.bucketConfig()],
           };
         }
         return undefined;
@@ -67,7 +58,7 @@ describe("SearchRoute", () => {
       loader({
         request,
         params: {},
-        context: mockContext,
+        context: mockContext as never,
         unstable_pattern: "",
       })
     ).rejects.toThrow("Search service unavailable");

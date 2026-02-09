@@ -122,10 +122,11 @@ export const loader = async ({
   const { user, credentials: bucketsCredentials } = context.get(authContext);
   const { provider, bucketName } = params;
 
-  const credentials = bucketName && bucketsCredentials[bucketName];
-
   if (!provider) throw new Error("Provider is required");
   if (!bucketName) throw new Error("Bucket name is required");
+
+  const credentials = bucketsCredentials[bucketName];
+  if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
   const pathName = params["*"] as string;
   const prefix = getPrefix(pathName);

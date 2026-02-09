@@ -1,7 +1,7 @@
 import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
-import { getSessionCredentials } from "./getSessionCredentials";
+import { getAllSessionCredentials } from "./getSessionCredentials";
 import { refreshAccessToken as refreshAuthTokens } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import {
@@ -9,9 +9,15 @@ import {
   type SessionData,
   sessionStorage,
 } from "./sessionStorage";
+import { BucketConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
+import { getBucketConfigs } from "~/utils/bucketConfig";
 
-export const authContext = createContext<Partial<SessionData>>();
+export interface AuthContextData extends SessionData {
+  bucketConfigs: BucketConfig[];
+}
+
+export const authContext = createContext<AuthContextData>();
 
 // TODO: use library
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,14 +37,6 @@ const isValidToken = (token?: string): boolean => {
   }
 };
 
-const isValidCredentials = (credentials?: { Expiration?: Date }): boolean => {
-  if (!credentials?.Expiration) return false;
-
-  // Check if credentials are expired (with 5 minute buffer)
-  const bufferMs = 5 * 60 * 1000; // 5 minutes
-  return Date.now() < new Date(credentials.Expiration).getTime() - bufferMs;
-};
-
 const isComplete = (data: Partial<SessionData>): boolean => {
   return !!(data.user && data.authTokens);
 };
@@ -46,12 +44,37 @@ const isComplete = (data: Partial<SessionData>): boolean => {
 const label = createLabel("authorize", "green");
 
 /**
+ * Fetches all bucket configs and credentials for the user.
+ * Only fetches credentials for buckets with missing or expired credentials.
+ * Returns updated session data and bucket configs.
+ */
+const fetchAllCredentials = async (
+  sessionData: SessionData,
+): Promise<{ sessionData: SessionData; bucketConfigs: BucketConfig[] }> => {
+  const bucketConfigs = await getBucketConfigs(sessionData.user);
+
+  const newCredentials = await getAllSessionCredentials(
+    sessionData,
+    bucketConfigs,
+  );
+
+  return {
+    sessionData: {
+      ...sessionData,
+      credentials: newCredentials,
+    },
+    bucketConfigs,
+  };
+};
+
+/**
  * Middleware that validates and refreshes authentication tokens.
+ * Fetches bucket configs and credentials for all visible buckets.
  * Sets validated session data in authContext for downstream use.
  * Export this from protected routes that require authentication.
  */
 export const authMiddleware: MiddlewareFunction = async (
-  { request, params, context },
+  { request, context },
   next,
 ) => {
   console.info(`${label} Request: ${request.url}`);
@@ -64,41 +87,25 @@ export const authMiddleware: MiddlewareFunction = async (
     );
   }
 
-  const { provider, bucketName } = params;
-  const pathName = params["*"];
-
   const sessionData = await getSessionData(session);
 
   if (isComplete(sessionData)) {
     let updatedSessionData = sessionData as SessionData;
-    const { authTokens, credentials } = updatedSessionData;
+    const { authTokens } = updatedSessionData;
 
     // If idToken is valid, proceed
     if (isValidToken(authTokens.idToken)) {
-      // Fetch credentials for bucket if not present or expired
-      if (bucketName && !isValidCredentials(credentials[bucketName])) {
-        console.info(
-          `${label} Fetch temporary credentials for bucket "${provider}/${bucketName}"`,
-        );
+      const { sessionData: withCredentials, bucketConfigs } =
+        await fetchAllCredentials(updatedSessionData);
+      updatedSessionData = withCredentials;
 
-        const newCredentials = await getSessionCredentials(
-          updatedSessionData,
-          provider,
-          bucketName,
-          pathName,
-        );
-
-        updatedSessionData = {
-          ...updatedSessionData,
-          credentials: newCredentials,
-        };
-
+      // Only commit session if credentials changed
+      if (updatedSessionData.credentials !== sessionData.credentials) {
         session.set("credentials", updatedSessionData.credentials);
         await sessionStorage.commitSession(session);
       }
 
-      // Token is valid, set auth data and continue
-      context.set(authContext, updatedSessionData);
+      context.set(authContext, { ...updatedSessionData, bucketConfigs });
       return next();
     }
 
@@ -109,23 +116,17 @@ export const authMiddleware: MiddlewareFunction = async (
       const newAuthTokens = await refreshAuthTokens(authTokens.refreshToken);
       session.set("authTokens", newAuthTokens);
 
-      // Fetch new credentials with refreshed tokens
-      const newCredentials = await getSessionCredentials(
-        { ...updatedSessionData, authTokens: newAuthTokens },
-        provider,
-        bucketName,
-        pathName,
-      );
+      const { sessionData: withCredentials, bucketConfigs } =
+        await fetchAllCredentials({
+          ...updatedSessionData,
+          authTokens: newAuthTokens,
+        });
+      updatedSessionData = withCredentials;
 
-      updatedSessionData = {
-        ...updatedSessionData,
-        authTokens: newAuthTokens,
-        credentials: newCredentials,
-      };
-
-      // Set updated auth data and continue
+      session.set("credentials", updatedSessionData.credentials);
       await sessionStorage.commitSession(session);
-      context.set(authContext, updatedSessionData);
+
+      context.set(authContext, { ...updatedSessionData, bucketConfigs });
       return next();
     }
   }

@@ -2,7 +2,6 @@ import { _Object } from "@aws-sdk/client-s3";
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { ObjectPresignedUrl } from "./objects.route";
-import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
@@ -13,7 +12,6 @@ import {
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { H1 } from "~/components/Fonts";
-import { getBucketConfigs } from "~/utils/bucketConfig";
 import { getObjects } from "~/utils/getObjects";
 
 type BucketFiles = Record<string, _Object[]>;
@@ -42,9 +40,11 @@ export const loader: LoaderFunction = async ({
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get("query") ?? "";
 
-  const { user, credentials: bucketsCredentials } = context.get(authContext);
-
-  const bucketConfigs: BucketConfig[] = await getBucketConfigs(user);
+  const {
+    user,
+    credentials: bucketsCredentials,
+    bucketConfigs,
+  } = context.get(authContext);
 
   // Key format: provider/bucketName to match resourceId format
   const files = await bucketConfigs.reduce(async (acc, bucketConfig) => {

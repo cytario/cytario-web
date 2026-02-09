@@ -18,13 +18,14 @@ export const loader = async ({
   const { user, credentials: bucketsCredentials } = context.get(authContext);
   const { provider, bucketName } = params;
   const pathName = params["*"] as string;
+
+  if (!provider) throw new Error("Provider is required");
   if (!bucketName) throw new Error("Bucket name is required");
 
   console.info(`${label} Presign route: ${provider}/${bucketName}/${pathName}`);
 
-  const credentials = bucketName && bucketsCredentials[bucketName];
-
-  if (!provider) throw new Error("Provider is required");
+  const credentials = bucketsCredentials[bucketName];
+  if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
   const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
 

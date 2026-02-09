@@ -92,7 +92,7 @@ export const useCredentialsStore = create<CredentialsStore>()(
         },
       }),
       {
-        name: "credentials-storage",
+        name,
         storage: createJSONStorage(() => sessionStorage),
       },
     ),

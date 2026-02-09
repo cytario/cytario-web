@@ -25,7 +25,7 @@ function normalizeGroup(group: string): string {
   return group.replace(/^\//, "");
 }
 
-function enrichUserProfile(raw: Record<string, unknown>): UserProfile {
+function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   const groups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
   const adminScopes = groups
     .filter((g) => g.endsWith("/admins"))
@@ -40,31 +40,31 @@ function enrichUserProfile(raw: Record<string, unknown>): UserProfile {
   };
 }
 
+async function fetchUserProfile(accessToken: string): Promise<UserProfileRaw> {
+  const wellKnownEndpoints = await getWellKnownEndpoints();
+  const { userinfo_endpoint } = wellKnownEndpoints;
+
+  const response = await fetch(userinfo_endpoint, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`UserInfo fetch failed: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
 export const getUserInfo = async (
   accessToken: string,
 ): Promise<UserProfile> => {
   try {
-    const wellKnownEndpoints = await getWellKnownEndpoints();
-    const { userinfo_endpoint } = wellKnownEndpoints;
-
-    const response = await fetch(userinfo_endpoint, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `UserInfo fetch failed: ${response.status} - ${errorText}`,
-      );
-    }
-
-    const userProfile = await response.json();
-
-    console.log({ userProfile });
-
-    return enrichUserProfile(userProfile);
+    const userProfileRaw = await fetchUserProfile(accessToken);
+    const userProfile = enrichUserProfile(userProfileRaw);
+    return userProfile;
   } catch (error) {
     console.error("Keycloak getUserInfo failed:", error);
     throw error;
