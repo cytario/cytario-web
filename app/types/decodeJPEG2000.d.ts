@@ -1,0 +1,1 @@
+declare function decode(compressedImageFrame: Uint8Array): Uint8Array;
