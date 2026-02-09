@@ -68,6 +68,22 @@ const columns: Record<string, ColumnConfig> = {
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
+  ownerScope: {
+    id: "ownerScope",
+    header: "Scope",
+    size: 160,
+    align: "left",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
+  createdBy: {
+    id: "createdBy",
+    header: "Created By",
+    size: 280,
+    align: "left",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
 };
 
 const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
@@ -85,6 +101,8 @@ const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
         columns.endpoint,
         columns.region,
         columns.rolearn,
+        columns.ownerScope,
+        columns.createdBy,
       ];
     case "directory":
     case "file":
@@ -95,7 +113,7 @@ const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
 
 const getData = (
   nodes: TreeNode[],
-  getBucketConfig: (key: string) => { provider?: string; endpoint?: string | null; region?: string | null; roleArn?: string | null } | null
+  getBucketConfig: (key: string) => { provider?: string; endpoint?: string | null; region?: string | null; roleArn?: string | null; ownerScope?: string; createdBy?: string } | null
 ): ReactNode[][] => {
   switch (nodes[0].type) {
     case "bucket":
@@ -109,6 +127,8 @@ const getData = (
           bucketConfig?.endpoint,
           bucketConfig?.region,
           bucketConfig?.roleArn,
+          bucketConfig?.ownerScope,
+          bucketConfig?.createdBy,
         ];
       });
 

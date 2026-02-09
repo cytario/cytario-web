@@ -65,7 +65,7 @@ export const handle = {
     const pathName = params["*"] ?? "";
     const prefix = data?.bucketConfig?.prefix ?? "";
 
-    // Calculate the relative path (path after the data connection prefix)
+    // Calculate the relative path (path after the storage connection prefix)
     const normalizedPrefix = prefix.endsWith("/")
       ? prefix
       : prefix
@@ -82,7 +82,7 @@ export const handle = {
 
     const relativeSegments = relativePath ? relativePath.split("/") : [];
 
-    // Build the data connection path (bucket + prefix as atomic unit)
+    // Build the storage connection path (bucket + prefix as atomic unit)
     const dataConnectionPath = prefix
       ? `/buckets/${provider}/${bucketName}/${prefix.replace(/\/$/, "")}`
       : `/buckets/${provider}/${bucketName}`;
@@ -120,7 +120,6 @@ export const loader = async ({
   context,
 }: ActionFunctionArgs): Promise<BucketRouteLoaderResponse> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { sub: userId } = user;
   const { provider, bucketName } = params;
 
   const credentials = bucketName && bucketsCredentials[bucketName];
@@ -133,7 +132,7 @@ export const loader = async ({
   const name = getName(pathName, bucketName);
 
   const bucketConfig = await getBucketConfigByPath(
-    userId,
+    user,
     provider,
     bucketName,
     pathName,
@@ -144,7 +143,7 @@ export const loader = async ({
   }
 
   try {
-    const s3Client = await getS3Client(bucketConfig, credentials, userId);
+    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
 
     const objects: Readonly<_Object>[] = await getObjects(
       bucketConfig,

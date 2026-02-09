@@ -1,4 +1,4 @@
-import { PointerEventHandler, ReactNode } from "react";
+import { forwardRef, PointerEventHandler, ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Icon, type LucideIconsType } from "./Icon";
@@ -18,43 +18,41 @@ export interface IconButtonBaseProps {
 }
 
 interface IconButtonProps extends IconButtonBaseProps {
-  onClick: PointerEventHandler<HTMLButtonElement>;
+  onClick?: PointerEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   label?: string;
 }
 
-export function IconButton({
-  icon,
-  onClick,
-  disabled,
-  className,
-  label,
-  scale = "medium",
-  theme = "default",
-}: IconButtonProps) {
-  const cx = twMerge(
-    iconButtonBaseStyles,
-    iconButtonScaleStyles[scale],
-    buttonThemeStyles[theme],
-    className,
-  );
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  function IconButton(
+    { icon, onClick, disabled, className, label, scale = "medium", theme = "default" },
+    ref,
+  ) {
+    const cx = twMerge(
+      iconButtonBaseStyles,
+      iconButtonScaleStyles[scale],
+      buttonThemeStyles[theme],
+      className,
+    );
 
-  const button = (
-    <button
-      type="button"
-      className={cx}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-    >
-      <Icon icon={icon} />
-    </button>
-  );
+    const button = (
+      <button
+        ref={ref}
+        type="button"
+        className={cx}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+      >
+        <Icon icon={icon} />
+      </button>
+    );
 
-  // If label is provided, wrap with Tooltip
-  if (label) {
-    return <Tooltip content={label}>{button}</Tooltip>;
-  }
+    // If label is provided, wrap with Tooltip
+    if (label) {
+      return <Tooltip content={label}>{button}</Tooltip>;
+    }
 
-  return button;
-}
+    return button;
+  },
+);

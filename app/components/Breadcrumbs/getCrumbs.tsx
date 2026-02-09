@@ -1,9 +1,9 @@
 import { BreadcrumbLink } from "./BreadcrumbLink";
 
 export interface CrumbsOptions {
-  /** Display name for the atomic data connection crumb (bucket + prefix as one unit) */
+  /** Display name for the atomic storage connection crumb (bucket + prefix as one unit) */
   dataConnectionName?: string;
-  /** Full URL path to the data connection root */
+  /** Full URL path to the storage connection root */
   dataConnectionPath?: string;
 }
 
@@ -14,7 +14,7 @@ export const getCrumbs = (
 ): JSX.Element[] => {
   const { dataConnectionName, dataConnectionPath } = options ?? {};
 
-  // When a data connection with prefix is provided, render it as a single atomic crumb
+  // When a storage connection with prefix is provided, render it as a single atomic crumb
   if (dataConnectionName && dataConnectionPath) {
     const dataConnectionCrumb = (
       <BreadcrumbLink
@@ -26,7 +26,7 @@ export const getCrumbs = (
       </BreadcrumbLink>
     );
 
-    // Build crumbs for the remaining path segments (relative to data connection root)
+    // Build crumbs for the remaining path segments (relative to storage connection root)
     let currentPath = dataConnectionPath;
     const remainingCrumbs = segments.map((name, index) => {
       currentPath += `/${name}`;

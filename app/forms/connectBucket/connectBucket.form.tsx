@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyboardEvent, useState } from "react";
+import { KeyboardEvent, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
 import { AccessFieldset } from "./access.fieldset";
 import { LocationFieldset } from "./location.fieldset";
 import { ProviderFieldset } from "./provider.fieldset";
+import { Field, Fieldset, Select } from "~/components/Controls";
 import { FormWizard } from "~/components/FormWizard/FormWizard";
 import { FormWizardNav } from "~/components/FormWizard/FormWizardNav";
 import { FormWizardProgress } from "~/components/FormWizard/FormWizardProgress";
@@ -17,23 +18,45 @@ import {
 
 const STEP_LABELS = ["Storage Provider", "Data Location", "Access"];
 
-export const ConnectBucketForm = () => {
+interface ConnectBucketFormProps {
+  creatableScopes: {
+    personalScope: string;
+    adminScopes: string[];
+  };
+}
+
+export const ConnectBucketForm = ({
+  creatableScopes,
+}: ConnectBucketFormProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
+  const hasAdminScopes = creatableScopes.adminScopes.length > 0;
+
   const {
     control,
     register,
     trigger,
+    setValue,
     handleSubmit,
     formState: { errors },
   } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectBucketSchema),
-    defaultValues: defaultFormValues,
+    defaultValues: {
+      ...defaultFormValues,
+      ownerScope: creatableScopes.personalScope,
+    },
     mode: "onBlur",
   });
+
+  // Auto-set ownerScope for non-admin users
+  useEffect(() => {
+    if (!hasAdminScopes) {
+      setValue("ownerScope", creatableScopes.personalScope);
+    }
+  }, [hasAdminScopes, creatableScopes.personalScope, setValue]);
 
   const providerType = useWatch({ control, name: "providerType" });
   const isAWS = providerType === "aws";
@@ -43,8 +66,8 @@ export const ConnectBucketForm = () => {
 
     if (currentStep === 0) {
       fieldsToValidate = isAWS
-        ? ["providerType"]
-        : ["providerType", "provider"];
+        ? ["ownerScope", "providerType"]
+        : ["ownerScope", "providerType", "provider"];
     } else if (currentStep === 1) {
       fieldsToValidate = ["s3Uri"];
     } else if (currentStep === 2) {
@@ -95,12 +118,34 @@ export const ConnectBucketForm = () => {
       >
         {/* Step 1: Provider */}
         {currentStep === 0 && (
-          <ProviderFieldset
-            control={control}
-            register={register}
-            errors={errors}
-            isAWS={isAWS}
-          />
+          <>
+            {hasAdminScopes && (
+              <Fieldset>
+                <Field
+                  label="Visibility"
+                  description="Choose who can access this storage connection. Personal connections are only visible to you. Group connections are shared with all group members."
+                  error={errors.ownerScope}
+                >
+                  <Select {...register("ownerScope")}>
+                    <option value={creatableScopes.personalScope}>
+                      Personal
+                    </option>
+                    {creatableScopes.adminScopes.map((scope) => (
+                      <option key={scope} value={scope}>
+                        {scope}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </Fieldset>
+            )}
+            <ProviderFieldset
+              control={control}
+              register={register}
+              errors={errors}
+              isAWS={isAWS}
+            />
+          </>
         )}
 
         {/* Step 2: Location */}

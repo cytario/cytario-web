@@ -99,7 +99,10 @@ describe("getSessionCredentials", () => {
       await getSessionCredentials(mockSessionData, "aws", "new-bucket");
 
       expect(getBucketConfigByPath).toHaveBeenCalledWith(
-        "user-123",
+        expect.objectContaining({
+          sub: "user-123",
+          groups: ["org1/lab", "org1/lab/admins"],
+        }),
         "aws",
         "new-bucket",
         ""

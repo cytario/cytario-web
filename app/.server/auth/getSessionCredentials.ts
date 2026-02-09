@@ -59,7 +59,7 @@ export const getSessionCredentials = async (
   }
 
   const bucketConfig = await getBucketConfigByPath(
-    sessionData.user.sub,
+    sessionData.user,
     provider,
     bucketName,
     pathName ?? "",

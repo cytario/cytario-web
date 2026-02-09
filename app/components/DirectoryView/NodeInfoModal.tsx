@@ -74,7 +74,7 @@ export function NodeInfoModal() {
               <input type="hidden" name="bucketName" value={bucketName} />
               <input type="hidden" name="prefix" value={prefix} />
               <Button type="submit" theme="error" scale="large">
-                Remove Data Connection
+                Remove Storage Connection
               </Button>
             </Form>
           </div>

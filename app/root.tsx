@@ -105,8 +105,11 @@ const AppHeader = () => {
 
       <div className="h-full flex-none flex gap-2 p-2">
         <GlobalSearch />
-        {data?.accountSettingsUrl && (
-          <UserMenu accountSettingsUrl={data.accountSettingsUrl} />
+        {data?.accountSettingsUrl && data.user && (
+          <UserMenu
+            user={data.user}
+            accountSettingsUrl={data.accountSettingsUrl}
+          />
         )}
       </div>
     </header>

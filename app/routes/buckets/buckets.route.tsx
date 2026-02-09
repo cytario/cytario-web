@@ -16,17 +16,14 @@ import { ButtonLink } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
-import {
-  getBucketConfigsForUser,
-  deleteBucketConfig,
-} from "~/utils/bucketConfig";
+import { getBucketConfigs, deleteBucketConfig } from "~/utils/bucketConfig";
 
 const title = "Your Storage Connections";
 
 export const meta: MetaFunction = () => {
   return [
     { title },
-    { name: "description", content: "Manage your data connections" },
+    { name: "description", content: "Manage your storage connections" },
   ];
 };
 
@@ -34,16 +31,14 @@ export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
   const { user } = context.get(authContext);
-  const { sub: userId } = user;
 
-  const bucketConfigs = await getBucketConfigsForUser(userId);
+  const bucketConfigs = await getBucketConfigs(user);
 
   return { bucketConfigs };
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { sub: userId } = user;
 
   if (request.method.toLowerCase() === "delete") {
     const formData = await request.formData();
@@ -59,13 +54,13 @@ export const action: ActionFunction = async ({ request, context }) => {
       return { error: "Bucket name is required" };
     }
 
-    await deleteBucketConfig(userId, provider, bucketName, prefix);
+    await deleteBucketConfig(user, provider, bucketName, prefix);
 
     const session = await getSession(request);
 
     session.set("notification", {
       status: "success",
-      message: "Data connection deleted.",
+      message: "Storage connection deleted.",
     });
 
     return redirect("/", {
@@ -108,7 +103,7 @@ export default function BucketsRoute() {
           <Placeholder
             icon="FileSearch"
             title="Start exploring your data"
-            description="Add a data connection to view your cloud storage."
+            description="Add a storage connection to view your cloud storage."
             cta={
               <>
                 <ButtonLink to="/connect-bucket" scale="large" theme="primary">

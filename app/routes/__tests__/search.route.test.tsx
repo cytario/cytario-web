@@ -7,7 +7,7 @@ import { loader, handle } from "~/routes/search.route";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/utils/bucketConfig", () => ({
-  getBucketConfigsForUser: vi.fn(),
+  getBucketConfigs: vi.fn(),
   getBucketConfigByName: vi.fn(),
 }));
 
@@ -25,7 +25,7 @@ vi.mock("~/utils/getObjects", () => ({
 }));
 
 const { authContext } = await import("~/.server/auth/authMiddleware");
-const { getBucketConfigsForUser, getBucketConfigByName } = await import(
+const { getBucketConfigs, getBucketConfigByName } = await import(
   "~/utils/bucketConfig"
 );
 const { getS3Client } = await import("~/.server/auth/getS3Client");
@@ -34,7 +34,7 @@ const { getObjects } = await import("~/utils/getObjects");
 describe("SearchRoute", () => {
   test("loader should propagate errors from getGlobalSearch", async () => {
     // Setup mocks with return values
-    vi.mocked(getBucketConfigsForUser).mockResolvedValue([mock.bucketConfig()]);
+    vi.mocked(getBucketConfigs).mockResolvedValue([mock.bucketConfig()]);
     vi.mocked(getBucketConfigByName).mockResolvedValue(mock.bucketConfig());
     vi.mocked(getS3Client).mockResolvedValue({} as S3Client);
     vi.mocked(getObjects).mockRejectedValue(

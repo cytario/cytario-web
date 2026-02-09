@@ -18,7 +18,8 @@ const mock = {
   bucketConfig: (data: Partial<BucketConfig> = {}): BucketConfig => ({
     name: "mock-bucket",
     id: 0,
-    userId: "mock-user-id",
+    ownerScope: "org1/lab",
+    createdBy: "mock-user-id",
     provider: "aws",
     roleArn: "arn:aws:iam::123456789012:role/mock-role",
     region: "us-east-1",
@@ -57,7 +58,7 @@ const mock = {
     ...overrides,
   }),
   user: (overrides?: Partial<UserProfile>): UserProfile => ({
-    sub: "string", // uuid
+    sub: "mock-user-id",
     email_verified: true,
     name: "string",
     preferred_username: "string",
@@ -65,7 +66,9 @@ const mock = {
     family_name: "string",
     email: "string",
     policy: "string",
-    groups: ["group1", "group2"],
+    groups: ["org1/lab", "org1/lab/admins"],
+    adminScopes: ["org1/lab"],
+    isRealmAdmin: false,
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => ({

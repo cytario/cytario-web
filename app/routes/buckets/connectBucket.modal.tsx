@@ -1,6 +1,13 @@
-import { type ActionFunction, type MetaFunction, redirect } from "react-router";
+import {
+  type ActionFunction,
+  type LoaderFunction,
+  type MetaFunction,
+  redirect,
+} from "react-router";
+import { useLoaderData } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { canCreate, getCreatableScopes } from "~/.server/auth/authorization";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
@@ -28,13 +35,20 @@ export const handle = {
 
 export const middleware = [authMiddleware];
 
+export const loader: LoaderFunction = async ({ context }) => {
+  const { user } = context.get(authContext);
+  const creatableScopes = getCreatableScopes(user);
+
+  return { creatableScopes };
+};
+
 export const action: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { sub: userId } = user;
 
   const formData = await request.formData();
 
   const rawData = {
+    ownerScope: formData.get("ownerScope") as string,
     providerType: formData.get("providerType") as string,
     provider: formData.get("provider") as string,
     s3Uri: formData.get("s3Uri") as string,
@@ -53,6 +67,14 @@ export const action: ActionFunction = async ({ request, context }) => {
   }
 
   const data = result.data;
+
+  if (!canCreate(user, data.ownerScope)) {
+    return {
+      errors: { ownerScope: ["Not authorized to create in this scope"] },
+      status: "error",
+    };
+  }
+
   const { bucketName, prefix } = parseS3Uri(data.s3Uri);
   const session = await getSession(request);
 
@@ -72,11 +94,11 @@ export const action: ActionFunction = async ({ request, context }) => {
       prefix,
     };
 
-    await upsertBucketConfig(userId, newConfig);
+    await upsertBucketConfig(data.ownerScope, user.sub, newConfig);
 
     session.set("notification", {
       status: "success",
-      message: "Data connection added successfully.",
+      message: "Storage connection added successfully.",
     });
 
     const redirectPath = prefix
@@ -100,10 +122,20 @@ export const action: ActionFunction = async ({ request, context }) => {
   }
 };
 
+export interface ConnectBucketLoaderData {
+  creatableScopes: {
+    personalScope: string;
+    adminScopes: string[];
+  };
+}
+
 export default function ConnectBucketModal() {
+  const { creatableScopes } = useLoaderData<ConnectBucketLoaderData>();
+
+  console.log({ creatableScopes });
   return (
     <RouteModal title={title}>
-      <ConnectBucketForm />
+      <ConnectBucketForm creatableScopes={creatableScopes} />
     </RouteModal>
   );
 }

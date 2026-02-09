@@ -1,49 +1,60 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 
-import { Icon } from "./Controls";
+import { ButtonLink, IconButton } from "./Controls";
+import { UserProfile } from "~/.server/auth/getUserInfo";
 
 interface UserMenuProps {
+  user: UserProfile;
   accountSettingsUrl: string;
 }
 
-export function UserMenu({ accountSettingsUrl }: UserMenuProps) {
+export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
   return (
     <Menu>
-      <MenuButton
-        className="flex place-items-center place-content-center flex-shrink-0 w-8 h-8 rounded-sm border border-slate-500 text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400"
-        aria-label="User menu"
-      >
-        <Icon icon="User" />
-      </MenuButton>
+      <MenuButton as={IconButton} icon="User" label="User Menu" />
 
       <MenuItems
-        anchor="bottom end"
-        className="w-52 origin-top-right rounded-sm border border-slate-500 bg-slate-950 p-1 text-sm text-white shadow-lg focus:outline-none mt-1"
+        anchor="top end"
+        className={`
+        z-20 min-w-80
+        space-y-2 p-2 mt-2
+        bg-slate-950 text-white 
+        rounded-b shadow-lg
+        focus:outline-none 
+      `}
       >
-        <MenuItem>
-          {({ focus }) => (
-            <a
-              href={accountSettingsUrl}
-              className={`group flex w-full items-center rounded-sm px-3 py-2 ${
-                focus ? "bg-slate-800" : ""
-              }`}
-            >
-              Account Settings
-            </a>
-          )}
+        {/* Name & Email */}
+        <div>
+          <div className="font-bold">
+            {user.given_name} {user.family_name}
+          </div>
+
+          <div>{user.email}</div>
+        </div>
+
+        {/* Groups*/}
+        <div className="text-sm space-y-1 bg-slate-700 p-2 rounded-sm">
+          <div className="font-bold">Groups</div>
+          {user.groups.map((g) => (
+            <div key={g}>{g}</div>
+          ))}
+        </div>
+
+        {/* Menu Items */}
+        <MenuItem
+          as={ButtonLink}
+          to={accountSettingsUrl}
+          className="w-full data-[focus]:bg-slate-700"
+        >
+          Account Settings
         </MenuItem>
 
-        <MenuItem>
-          {({ focus }) => (
-            <a
-              href="/logout"
-              className={`group flex w-full items-center rounded-sm px-3 py-2 ${
-                focus ? "bg-slate-800" : ""
-              }`}
-            >
-              Logout
-            </a>
-          )}
+        <MenuItem
+          as={ButtonLink}
+          to={"/logout"}
+          className="w-full data-[focus]:bg-slate-700"
+        >
+          Logout
         </MenuItem>
       </MenuItems>
     </Menu>

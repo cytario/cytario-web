@@ -1,6 +1,9 @@
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 
-export interface UserProfile {
+// TODO: pass via env
+const REALM_ADMIN_GROUP = "cytario/admins";
+
+interface UserProfileRaw {
   sub: string; // uuid
   email_verified: boolean;
   name: string;
@@ -8,12 +11,37 @@ export interface UserProfile {
   given_name: string;
   family_name: string;
   email: string;
-  policy: string;
   groups: string[];
+  policy: string;
+}
+
+export interface UserProfile extends UserProfileRaw {
+  groups: string[];
+  adminScopes: string[];
+  isRealmAdmin: boolean;
+}
+
+function normalizeGroup(group: string): string {
+  return group.replace(/^\//, "");
+}
+
+function enrichUserProfile(raw: Record<string, unknown>): UserProfile {
+  const groups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
+  const adminScopes = groups
+    .filter((g) => g.endsWith("/admins"))
+    .map((g) => g.replace(/\/admins$/, ""));
+  const isRealmAdmin = groups.includes(REALM_ADMIN_GROUP);
+
+  return {
+    ...(raw as unknown as UserProfile),
+    groups,
+    adminScopes,
+    isRealmAdmin,
+  };
 }
 
 export const getUserInfo = async (
-  accessToken: string
+  accessToken: string,
 ): Promise<UserProfile> => {
   try {
     const wellKnownEndpoints = await getWellKnownEndpoints();
@@ -28,11 +56,15 @@ export const getUserInfo = async (
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `UserInfo fetch failed: ${response.status} - ${errorText}`
+        `UserInfo fetch failed: ${response.status} - ${errorText}`,
       );
     }
 
-    return (await response.json()) as UserProfile;
+    const userProfile = await response.json();
+
+    console.log({ userProfile });
+
+    return enrichUserProfile(userProfile);
   } catch (error) {
     console.error("Keycloak getUserInfo failed:", error);
     throw error;

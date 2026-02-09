@@ -13,7 +13,7 @@ import {
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { H1 } from "~/components/Fonts";
-import { getBucketConfigsForUser } from "~/utils/bucketConfig";
+import { getBucketConfigs } from "~/utils/bucketConfig";
 import { getObjects } from "~/utils/getObjects";
 
 type BucketFiles = Record<string, _Object[]>;
@@ -44,7 +44,7 @@ export const loader: LoaderFunction = async ({
 
   const { user, credentials: bucketsCredentials } = context.get(authContext);
 
-  const bucketConfigs: BucketConfig[] = await getBucketConfigsForUser(user.sub);
+  const bucketConfigs: BucketConfig[] = await getBucketConfigs(user);
 
   // Key format: provider/bucketName to match resourceId format
   const files = await bucketConfigs.reduce(async (acc, bucketConfig) => {
