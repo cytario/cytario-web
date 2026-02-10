@@ -19,6 +19,7 @@ export function loadJp2KDecoder(decodeConfig) {
       }
       return f;
     },
+    print: () => {}, // Suppress console.log output
   });
   return new Promise((resolve, reject) => {
     openJpegModule.then((instance) => {
