@@ -5,11 +5,57 @@ import { BaseDecoder } from "geotiff";
 import DecoderWorkerUrl from "./decoder.worker.js?worker&url";
 import { WorkerPool } from "./workerPool";
 
-// Create a shared worker pool
-const workerPool = new WorkerPool(DecoderWorkerUrl, 8);
+// Constants
+const DEFAULT_WORKER_POOL_SIZE = 8;
+const CACHE_SIZE_LIMIT = 1000; // Limit cache to prevent memory leaks
 
-// Cache for decoded blocks
-const bufferCache = new Map<number, ArrayBuffer>();
+// Create a shared worker pool
+const workerPool = new WorkerPool(DecoderWorkerUrl, DEFAULT_WORKER_POOL_SIZE);
+
+// LRU Cache for decoded blocks
+class LRUCache<K, V> {
+    private cache = new Map<K, V>();
+    private maxSize: number;
+
+    constructor(maxSize: number) {
+        this.maxSize = maxSize;
+    }
+
+    get(key: K): V | undefined {
+        if (!this.cache.has(key)) {
+            return undefined;
+        }
+        // Move to end (most recently used)
+        const value = this.cache.get(key)!;
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+
+    set(key: K, value: V): void {
+        // Remove if exists (to update position)
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        }
+        // Add to end
+        this.cache.set(key, value);
+
+        // Remove oldest if over limit
+        if (this.cache.size > this.maxSize) {
+            const firstKey = this.cache.keys().next().value;
+            if (firstKey !== undefined) {
+                this.cache.delete(firstKey);
+            }
+        }
+    }
+
+    clear(): void {
+        this.cache.clear();
+    }
+}
+
+// Cache for decoded blocks with LRU eviction
+const bufferCache = new LRUCache<number, ArrayBuffer>(CACHE_SIZE_LIMIT);
 
 export interface FileDirectory {
     TileWidth?: number;
@@ -19,11 +65,22 @@ export interface FileDirectory {
     BitsPerSample: number[];
 }
 
+/**
+ * Base decoder class for handling image block decoding with worker pool and caching
+ */
 export class GenericDecoder extends BaseDecoder {
-    private maxUncompressedSize: number;
+    private readonly maxUncompressedSize: number;
 
     constructor(fileDirectory: FileDirectory) {
         super();
+
+        if (
+            !fileDirectory.BitsPerSample ||
+            fileDirectory.BitsPerSample.length === 0
+        ) {
+            throw new Error("FileDirectory must have BitsPerSample defined");
+        }
+
         const width = fileDirectory.TileWidth || fileDirectory.ImageWidth || 0;
         const height =
             fileDirectory.TileLength || fileDirectory.ImageLength || 0;
@@ -32,10 +89,22 @@ export class GenericDecoder extends BaseDecoder {
         this.maxUncompressedSize = width * height * nbytes;
     }
 
+    /**
+     * Decodes a compressed image block using worker pool and caching
+     * @param inputBuffer - The compressed image block
+     * @returns Decoded image buffer
+     */
     async decodeBlock(inputBuffer: ArrayBuffer): Promise<ArrayBuffer> {
-        const bufferHash = this.hashBuffer(inputBuffer); // Generate a hash for the buffer
-        if (bufferCache.has(bufferHash)) {
-            return bufferCache.get(bufferHash)!; // Return cached result
+        if (!inputBuffer || inputBuffer.byteLength === 0) {
+            throw new Error("Invalid input buffer: empty or null");
+        }
+
+        const bufferHash = this.hashBuffer(inputBuffer);
+
+        // Check cache first
+        const cachedResult = bufferCache.get(bufferHash);
+        if (cachedResult) {
+            return cachedResult;
         }
 
         try {
@@ -45,27 +114,56 @@ export class GenericDecoder extends BaseDecoder {
                 decoderId: this.getDecoderId(),
             });
 
-            bufferCache.set(bufferHash, outputBuffer); // Cache the result
+            // Cache the result
+            bufferCache.set(bufferHash, outputBuffer);
             return outputBuffer;
         } catch (error) {
-            console.error("Error decoding block:", error);
-            throw error;
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to decode block: ${errorMessage}`);
         }
     }
 
+    /**
+     * Returns the decoder identifier (must be overridden by subclasses)
+     */
     public getDecoderId(): string {
         return "uninitialized-decoder";
     }
 
-
-    // Simple hash function for ArrayBuffer
+    /**
+     * FNV-1a hash function for ArrayBuffer - faster and better distribution than simple hash
+     * @param buffer - The buffer to hash
+     * @returns Hash value
+     */
     private hashBuffer(buffer: ArrayBuffer): number {
-        let hash = 0;
-        const view = new Uint8Array(buffer);
-        for (let i = 0; i < view.length; i++) {
-            hash = (hash * 31 + view[i]) >>> 0; // Simple hash function
-        }
-        return hash;
+        const FNV_OFFSET_BASIS = 2166136261;
+        const FNV_PRIME = 16777619;
 
+        let hash = FNV_OFFSET_BASIS;
+        const view = new Uint8Array(buffer);
+        const len = view.length;
+
+        for (let i = 0; i < len; i++) {
+            hash ^= view[i];
+            hash = Math.imul(hash, FNV_PRIME);
+        }
+
+        return hash >>> 0; // Convert to unsigned 32-bit integer
     }
+}
+
+/**
+ * Clears the decoder cache
+ */
+export function clearDecoderCache(): void {
+    bufferCache.clear();
+}
+
+/**
+ * Terminates the worker pool and releases resources
+ */
+export function shutdownDecoderPool(): void {
+    workerPool.terminate();
+    bufferCache.clear();
 }
