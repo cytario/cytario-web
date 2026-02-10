@@ -48,9 +48,6 @@ const Viewer = lazy(() =>
 addDecoder(5, () => LZWDecoder);
 addDecoder(33005, () => JP2KDecoder);
 
-// TODO: Uncomment when JPEGDecoder is available
-// addDecoder(7, () => JPEGDecoder);
-
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
