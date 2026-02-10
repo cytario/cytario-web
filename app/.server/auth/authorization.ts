@@ -48,7 +48,9 @@ export function canModify(user: UserProfile, ownerScope: string): boolean {
 export function canCreate(user: UserProfile, ownerScope: string): boolean {
   if (user.isRealmAdmin) return true;
   if (ownerScope === user.sub) return true;
-  return user.adminScopes.includes(ownerScope);
+  return user.adminScopes.some(
+    (scope) => ownerScope === scope || ownerScope.startsWith(scope + "/"),
+  );
 }
 
 /**

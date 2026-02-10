@@ -23,7 +23,7 @@ export function RouteModal({
   const action = onClose ?? goBack;
 
   return (
-    <Dialog open={true} onClose={action} className="relative z-50">
+    <Dialog open={true} onClose={action} className="relative z-40">
       <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto ">

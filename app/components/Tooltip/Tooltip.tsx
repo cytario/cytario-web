@@ -137,7 +137,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
       {typeof window !== "undefined" &&
         ReactDOM.createPortal(
           tooltipContent,
-          document.getElementById("tooltip")!
+          document.getElementById("tooltip")!,
         )}
     </span>
   );

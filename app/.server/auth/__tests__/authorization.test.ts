@@ -199,7 +199,7 @@ describe("canCreate", () => {
     expect(canCreate(user, "org1/lab")).toBe(true);
   });
 
-  test("admin cannot create in child scope (only direct admin scope)", () => {
+  test("admin can create in descendant scope", () => {
     const user = mock.user({
       sub: "user-1",
       groups: ["org1/lab/admins"],
@@ -207,7 +207,20 @@ describe("canCreate", () => {
       isRealmAdmin: false,
     });
 
-    expect(canCreate(user, "org1/lab/team-x")).toBe(false);
+    expect(canCreate(user, "org1/lab/team-x")).toBe(true);
+    expect(canCreate(user, "org1/lab/team-x/sub-team")).toBe(true);
+  });
+
+  test("admin scope boundary is respected (no partial match)", () => {
+    const user = mock.user({
+      sub: "user-1",
+      groups: ["org1/admins"],
+      adminScopes: ["org1"],
+      isRealmAdmin: false,
+    });
+
+    expect(canCreate(user, "org1/lab")).toBe(true);
+    expect(canCreate(user, "org10/lab")).toBe(false);
   });
 
   test("realm admin can create anywhere", () => {

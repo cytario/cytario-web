@@ -8,9 +8,11 @@ import { useLoaderData } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { canCreate, getCreatableScopes } from "~/.server/auth/authorization";
+import { getManageableScopes } from "~/.server/auth/getKeycloakGroups";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
+import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { RouteModal } from "~/components/RouteModal";
 import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
 import {
@@ -36,10 +38,24 @@ export const handle = {
 export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens } = context.get(authContext);
   const creatableScopes = getCreatableScopes(user);
 
-  return { creatableScopes };
+  try {
+    const adminScopes = await getManageableScopes(user, authTokens.accessToken);
+    return {
+      creatableScopes: { ...creatableScopes, adminScopes },
+    };
+  } catch (error) {
+    console.error("Failed to fetch manageable scopes:", error);
+    return {
+      creatableScopes: { ...creatableScopes, adminScopes: [] },
+      notification: {
+        status: "error",
+        message: "Failed to fetch manageable scopes.",
+      },
+    };
+  }
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -131,6 +147,7 @@ export interface ConnectBucketLoaderData {
 
 export default function ConnectBucketModal() {
   const { creatableScopes } = useLoaderData<ConnectBucketLoaderData>();
+  useBackendNotification();
 
   console.log({ creatableScopes });
   return (
