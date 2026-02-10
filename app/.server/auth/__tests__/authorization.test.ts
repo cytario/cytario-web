@@ -1,10 +1,4 @@
-import {
-  canCreate,
-  canModify,
-  canSee,
-  filterVisible,
-  getCreatableScopes,
-} from "../authorization";
+import { canCreate, canModify, canSee, filterVisible } from "../authorization";
 import mock from "~/utils/__tests__/__mocks__";
 
 describe("canSee", () => {
@@ -244,40 +238,6 @@ describe("canCreate", () => {
     });
 
     expect(canCreate(user, "org1/lab/team-x")).toBe(false);
-  });
-});
-
-describe("getCreatableScopes", () => {
-  test("returns personal scope and admin scopes", () => {
-    const user = mock.user({
-      sub: "user-1",
-      groups: ["org1/lab/admins", "org1/lab/team-x"],
-      adminScopes: ["org1/lab"],
-      isRealmAdmin: false,
-    });
-
-    const result = getCreatableScopes(user);
-
-    expect(result).toEqual({
-      personalScope: "user-1",
-      adminScopes: ["org1/lab"],
-    });
-  });
-
-  test("returns empty admin scopes for non-admin", () => {
-    const user = mock.user({
-      sub: "user-1",
-      groups: ["org1/lab/team-x"],
-      adminScopes: [],
-      isRealmAdmin: false,
-    });
-
-    const result = getCreatableScopes(user);
-
-    expect(result).toEqual({
-      personalScope: "user-1",
-      adminScopes: [],
-    });
   });
 });
 

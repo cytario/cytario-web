@@ -54,20 +54,6 @@ export function canCreate(user: UserProfile, ownerScope: string): boolean {
 }
 
 /**
- * Returns the scopes a user is allowed to create resources in.
- * Used by the UI to populate the scope selector dropdown.
- */
-export function getCreatableScopes(user: UserProfile): {
-  personalScope: string;
-  adminScopes: string[];
-} {
-  return {
-    personalScope: user.sub,
-    adminScopes: user.adminScopes,
-  };
-}
-
-/**
  * Filters a list of resources to only those the user can see.
  */
 export function filterVisible<T extends { ownerScope: string }>(

@@ -7,7 +7,7 @@ import {
 import { useLoaderData } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { canCreate, getCreatableScopes } from "~/.server/auth/authorization";
+import { canCreate } from "~/.server/auth/authorization";
 import { getManageableScopes } from "~/.server/auth/getKeycloakGroups";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
@@ -39,17 +39,15 @@ export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
   const { user, authTokens } = context.get(authContext);
-  const creatableScopes = getCreatableScopes(user);
+  // const creatableScopes = getCreatableScopes(user);
 
   try {
     const adminScopes = await getManageableScopes(user, authTokens.accessToken);
-    return {
-      creatableScopes: { ...creatableScopes, adminScopes },
-    };
+    return { adminScopes, userId: user.sub };
   } catch (error) {
     console.error("Failed to fetch manageable scopes:", error);
     return {
-      creatableScopes: { ...creatableScopes, adminScopes: [] },
+      adminScopes: [],
       notification: {
         status: "error",
         message: "Failed to fetch manageable scopes.",
@@ -139,20 +137,17 @@ export const action: ActionFunction = async ({ request, context }) => {
 };
 
 export interface ConnectBucketLoaderData {
-  creatableScopes: {
-    personalScope: string;
-    adminScopes: string[];
-  };
+  adminScopes: string[];
+  userId: string;
 }
 
 export default function ConnectBucketModal() {
-  const { creatableScopes } = useLoaderData<ConnectBucketLoaderData>();
+  const { adminScopes, userId } = useLoaderData<ConnectBucketLoaderData>();
   useBackendNotification();
 
-  console.log({ creatableScopes });
   return (
     <RouteModal title={title}>
-      <ConnectBucketForm creatableScopes={creatableScopes} />
+      <ConnectBucketForm adminScopes={adminScopes} userId={userId} />
     </RouteModal>
   );
 }
