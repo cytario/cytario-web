@@ -26,19 +26,7 @@ export class JP2KDecoder extends BaseDecoder {
     }
 
     async decodeBlock(buffer: ArrayBuffer) {
-        console.log(
-            "JP2KDecoder: Returning zero-filled block for size",
-            buffer.byteLength,
-        );
-        const outputLength = this.maxUncompressedSize || buffer.byteLength;
-        const zeroFilled = new Uint8Array(outputLength);
-        return zeroFilled.buffer;
-    }
-
-    async decodeBlock2(buffer: ArrayBuffer) {
-        console.log("JP2KDecoder: Decoding block of size", buffer.byteLength);
         const image = await decodeJPEG2000(new Uint8Array(buffer));
-        console.log("JP2KDecoder: Decoded image info", image.info);
         return image.pixels.buffer;
     }
 
