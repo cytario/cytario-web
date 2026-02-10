@@ -1,4 +1,5 @@
 import { BaseDecoder } from "geotiff";
+import { LRUCache } from "lru-cache";
 
 // Vite handles ?worker&url imports and provides the worker URL
 // eslint-disable-next-line import/default
@@ -12,50 +13,10 @@ const CACHE_SIZE_LIMIT = 1000; // Limit cache to prevent memory leaks
 // Create a shared worker pool
 const workerPool = new WorkerPool(DecoderWorkerUrl, DEFAULT_WORKER_POOL_SIZE);
 
-// LRU Cache for decoded blocks
-class LRUCache<K, V> {
-    private cache = new Map<K, V>();
-    private maxSize: number;
-
-    constructor(maxSize: number) {
-        this.maxSize = maxSize;
-    }
-
-    get(key: K): V | undefined {
-        if (!this.cache.has(key)) {
-            return undefined;
-        }
-        // Move to end (most recently used)
-        const value = this.cache.get(key)!;
-        this.cache.delete(key);
-        this.cache.set(key, value);
-        return value;
-    }
-
-    set(key: K, value: V): void {
-        // Remove if exists (to update position)
-        if (this.cache.has(key)) {
-            this.cache.delete(key);
-        }
-        // Add to end
-        this.cache.set(key, value);
-
-        // Remove oldest if over limit
-        if (this.cache.size > this.maxSize) {
-            const firstKey = this.cache.keys().next().value;
-            if (firstKey !== undefined) {
-                this.cache.delete(firstKey);
-            }
-        }
-    }
-
-    clear(): void {
-        this.cache.clear();
-    }
-}
-
 // Cache for decoded blocks with LRU eviction
-const bufferCache = new LRUCache<number, ArrayBuffer>(CACHE_SIZE_LIMIT);
+const bufferCache = new LRUCache<number, ArrayBuffer>({
+    max: CACHE_SIZE_LIMIT,
+});
 
 export interface FileDirectory {
     TileWidth?: number;
