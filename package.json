@@ -9,7 +9,7 @@
     "prepare": "husky || true",
     "build": "react-router build",
     "dev": "react-router dev",
-    "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint . --ignore-pattern 'devenv/**'",
+    "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "test": "vitest",
