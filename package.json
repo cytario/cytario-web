@@ -2,9 +2,21 @@
   "name": "cytario-web",
   "version": "1.0.0",
   "description": "Cytario Web",
-  "private": true,
+  "private": false,
   "sideEffects": false,
   "type": "module",
+  "exports": {
+    "./controls": "./app/components/Controls/index.ts",
+    "./components/*": "./app/components/*/index.ts",
+    "./tailwind.css": "./app/tailwind.css"
+  },
+  "main": "./app/components/Controls/index.ts",
+  "types": "./app/components/Controls/index.ts",
+  "files": [
+    "app/components/**",
+    "app/tailwind.css",
+    "README.md"
+  ],
   "scripts": {
     "prepare": "husky || true",
     "build": "react-router build",
@@ -98,5 +110,23 @@
   },
   "engines": {
     "node": ">=24.10.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@headlessui/react": "^2.0.0",
+    "lucide-react": "^0.468.0",
+    "tailwind-merge": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@headlessui/react": {
+      "optional": false
+    },
+    "lucide-react": {
+      "optional": false
+    },
+    "tailwind-merge": {
+      "optional": false
+    }
   }
 }

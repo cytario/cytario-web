@@ -8,7 +8,7 @@ import {
   buttonThemeStyles,
   iconButtonScaleStyles,
 } from "./styles";
-import { Tooltip } from "~/components/Tooltip/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip";
 
 interface IconButtonLinkProps extends IconButtonBaseProps {
   to: string;
