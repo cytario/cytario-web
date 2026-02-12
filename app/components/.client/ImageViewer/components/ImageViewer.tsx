@@ -1,17 +1,32 @@
+import type { Credentials } from "@aws-sdk/client-sts";
+
 import { FeatureBar } from "./FeatureBar/FeatureBar";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
 import { ViewerStoreProvider } from "../state/ViewerStoreContext";
+import { BucketConfig } from "~/.generated/client";
 
 interface ViewerProps {
   resourceId: string;
   url: string;
+  credentials?: Credentials;
+  bucketConfig?: BucketConfig;
 }
 
-export const Viewer = ({ resourceId, url }: ViewerProps) => {
+export const Viewer = ({
+  resourceId,
+  url,
+  credentials,
+  bucketConfig,
+}: ViewerProps) => {
   return (
-    <ViewerStoreProvider resourceId={resourceId} url={url}>
+    <ViewerStoreProvider
+      resourceId={resourceId}
+      url={url}
+      credentials={credentials}
+      bucketConfig={bucketConfig}
+    >
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
