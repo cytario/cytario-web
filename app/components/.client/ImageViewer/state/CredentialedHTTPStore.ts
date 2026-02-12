@@ -2,13 +2,13 @@ import { Sha256 } from "@aws-crypto/sha256-browser";
 import type { Credentials } from "@aws-sdk/client-sts";
 import { SignatureV4 } from "@smithy/signature-v4";
 
-import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
+import { BucketConfig } from "~/.generated/client";
 
 /**
  * A zarr-compatible HTTP store that signs requests with AWS Signature V4.
  * This allows accessing S3-stored zarr files using STS temporary credentials.
  *
- * Implements the zarr AsyncStore interface for read-only access.
+ * Implements zarrita's AsyncReadable interface for use with loadOmeZarrFromStore.
  */
 export class CredentialedHTTPStore {
   private signer: SignatureV4;
@@ -18,7 +18,7 @@ export class CredentialedHTTPStore {
   constructor(
     url: string,
     credentials: Credentials,
-    bucketConfig?: ClientBucketConfig
+    bucketConfig?: BucketConfig,
   ) {
     // Ensure URL ends with /
     this.baseUrl = new URL(url.endsWith("/") ? url : url + "/");
@@ -26,7 +26,7 @@ export class CredentialedHTTPStore {
 
     if (!credentials.AccessKeyId || !credentials.SecretAccessKey) {
       throw new Error(
-        "Invalid credentials: AccessKeyId and SecretAccessKey are required"
+        "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
     }
 
@@ -43,10 +43,11 @@ export class CredentialedHTTPStore {
   }
 
   /**
-   * Fetch a key from the store with signed request.
+   * Zarrita AsyncReadable interface: fetch a key from the store with signed request.
+   * Returns undefined for missing keys (404).
    */
-  async getItem(key: string): Promise<ArrayBuffer> {
-    const url = new URL(key, this.baseUrl);
+  async get(key: string): Promise<Uint8Array | undefined> {
+    const url = new URL(key.replace(/^\//, ""), this.baseUrl);
 
     const request = {
       method: "GET" as const,
@@ -66,64 +67,16 @@ export class CredentialedHTTPStore {
       headers: signedRequest.headers as HeadersInit,
     });
 
+    if (response.status === 404) {
+      return undefined;
+    }
+
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
       throw new Error(`HTTP ${response.status} fetching ${key}: ${errorText}`);
     }
 
-    return response.arrayBuffer();
+    return new Uint8Array(await response.arrayBuffer());
   }
 
-  /**
-   * Check if a key exists in the store.
-   */
-  async containsItem(key: string): Promise<boolean> {
-    try {
-      const url = new URL(key, this.baseUrl);
-
-      const request = {
-        method: "HEAD" as const,
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port ? parseInt(url.port) : undefined,
-        path: url.pathname,
-        headers: {
-          host: url.host,
-        },
-      };
-
-      const signedRequest = await this.signer.sign(request);
-
-      const response = await fetch(url.toString(), {
-        method: "HEAD",
-        headers: signedRequest.headers as HeadersInit,
-      });
-
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * List keys in the store (not implemented for S3).
-   */
-  async keys(): Promise<string[]> {
-    return [];
-  }
-
-  /**
-   * Delete an item (not supported - read-only store).
-   */
-  async deleteItem(): Promise<boolean> {
-    return false;
-  }
-
-  /**
-   * Set an item (not supported - read-only store).
-   */
-  async setItem(): Promise<boolean> {
-    console.warn("CredentialedHTTPStore is read-only");
-    return false;
-  }
 }

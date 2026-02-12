@@ -14,13 +14,6 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 interface RegisterViewerOptions {
   id: string;
   url: string;
-  credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
-}
-
-interface RegisterViewerOptions {
-  id: string;
-  url: string;
   offsetsUrl?: string;
   credentials?: Credentials;
   bucketConfig?: ClientBucketConfig;
@@ -117,14 +110,14 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
             viewers: { ...registryState.viewers, [id]: viewerStore },
           }),
           false,
-          "registerViewer"
+          "registerViewer",
         );
 
         return viewerStore;
       },
     }),
-    { name: "ViewerRegistryStore" }
-  )
+    { name: "ViewerRegistryStore" },
+  ),
 );
 
 const ViewerStoreContext = createContext<ViewerStoreApi | null>(null);
@@ -164,7 +157,7 @@ export const useViewerStore = <T,>(selector: (state: ViewerStore) => T): T => {
 
   if (!store)
     throw new Error(
-      "useViewerStoreContext must be used within ViewerStoreProvider"
+      "useViewerStoreContext must be used within ViewerStoreProvider",
     );
   return useStore(store, selector);
 };

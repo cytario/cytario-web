@@ -1,255 +1,177 @@
 import type { Credentials } from "@aws-sdk/client-sts";
-import { ZarrPixelSource } from "@hms-dbmi/viv";
-// @ts-expect-error - zarr package has type resolution issues with package.json exports
-import { openGroup, ZarrArray } from "zarr";
+import { loadOmeZarrFromStore, type RootAttrs } from "@hms-dbmi/viv";
 
 import { CredentialedHTTPStore } from "./CredentialedHTTPStore";
 import type { Image, Loader } from "./ome.tif.types";
-import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
-
-// bioformats2raw v3 layout paths
-const METADATA_PATH_V3 = "OME/METADATA.ome.xml";
-const IMAGE_SERIES_PATH = "0"; // First image series
+import type { BucketConfig } from "~/.generated/client";
 
 interface LoadOptions {
   credentials: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
 }
 
 /**
- * Load a bioformats2raw v3 zarr image using AWS credentials for S3 authentication.
- *
- * Expects the bioformats2raw v3 layout:
- * ```
- * {source}/
- * ├── .zattrs              # {"bioformats2raw.layout": 3}
- * ├── .zgroup
- * ├── 0/                   # Image series 0
- * │   ├── .zattrs          # Contains multiscales + omero metadata
- * │   ├── 0/, 1/, 2/...    # Resolution levels
- * └── OME/
- *     └── METADATA.ome.xml
- * ```
+ * Load an OME-Zarr image using AWS credentials for S3 authentication.
+ * Uses viv's loadOmeZarrFromStore with a custom credentialed store.
  */
 export async function loadBioformatsZarrWithCredentials(
   source: string,
-  options: LoadOptions
+  options: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
   const { credentials, bucketConfig } = options;
   const baseUrl = source.endsWith("/") ? source.slice(0, -1) : source;
 
-  // Create credentialed store for the root zarr directory
-  const store = new CredentialedHTTPStore(baseUrl, credentials, bucketConfig);
+  // Point store at image series 0 — bioformats2raw puts multiscales metadata
+  // under 0/, not at the root (which only has bioformats2raw.layout).
+  const store = new CredentialedHTTPStore(`${baseUrl}/0`, credentials, bucketConfig);
+  const result = await loadOmeZarrFromStore(store);
 
-  // Fetch XML metadata from OME/METADATA.ome.xml
-  const xmlBuffer = await store.getItem(METADATA_PATH_V3);
-  const xmlText = new TextDecoder().decode(xmlBuffer);
+  const loader = result.data as Loader;
 
-  // Parse OME-XML metadata
-  const metadata = parseOmeXml(xmlText);
-
-  // Load zarr pyramid from image series 0
-  const { data } = await loadMultiscales(store, IMAGE_SERIES_PATH);
-  const tileSize = guessTileSize(data[0]);
-
-  // Guess labels based on data shape and metadata
-  const resolvedLabels = guessBioformatsLabels(data[0], metadata);
-
-  // Create ZarrPixelSource for each resolution level
-  // Cast labels to the expected type - viv's Labels type is overly strict
-  const pyramid = data.map(
-    (arr) =>
-      new ZarrPixelSource(
-        arr,
-        resolvedLabels as unknown as ["t", "c", "z", "y", "x"],
-        tileSize
-      )
-  ) as Loader;
-
-  return { data: pyramid, metadata };
-}
-
-/**
- * Load multiscale zarr data from a store.
- * Replicates viv's internal loadMultiscales function.
- */
-async function loadMultiscales(
-  store: CredentialedHTTPStore,
-  path: string = ""
-): Promise<{ data: ZarrArray[]; labels: string[] }> {
-  const grp = await openGroup(store, path);
-  const rootAttrs = (await grp.attrs.asObject()) as {
-    multiscales?: Array<{
-      datasets: Array<{ path: string }>;
-      axes?: Array<string | { name: string }>;
-    }>;
+  return {
+    data: loader,
+    metadata: rootAttrsToImage(result.metadata, loader),
   };
-
-  let paths = ["0"];
-  let labels: string[] = ["t", "c", "z", "y", "x"];
-
-  if (rootAttrs.multiscales) {
-    const { datasets, axes } = rootAttrs.multiscales[0];
-    paths = datasets.map((d) => d.path);
-
-    if (axes) {
-      labels = axes.map((axis) =>
-        typeof axis === "string" ? axis : axis.name
-      );
-    }
-  }
-
-  const data = await Promise.all(
-    paths.map((p) => grp.getItem(p) as Promise<ZarrArray>)
-  );
-
-  return { data, labels };
 }
 
 /**
- * Guess appropriate tile size from zarr chunk dimensions.
- * Exported for testing.
+ * NGFF coordinate transformation (not typed in viv's RootAttrs but present at runtime).
  */
-export function guessTileSize(arr: ZarrArray): number {
-  const shape = arr.shape;
-  const chunks = arr.chunks;
+interface CoordinateTransformation {
+  type: "scale" | "translation";
+  scale?: number[];
+  translation?: number[];
+}
 
-  // Check if interleaved (last dim is 3 or 4)
-  const lastDimSize = shape[shape.length - 1];
-  const interleaved = lastDimSize === 3 || lastDimSize === 4;
-
-  const [yChunk, xChunk] = chunks.slice(interleaved ? -3 : -2);
-  const size = Math.min(yChunk, xChunk);
-
-  // Return previous power of 2
-  return Math.pow(2, Math.floor(Math.log2(size)));
+interface DatasetWithTransforms {
+  path: string;
+  coordinateTransformations?: CoordinateTransformation[];
 }
 
 /**
- * Guess dimension labels based on zarr shape and OME-XML metadata.
+ * Map NGFF RootAttrs metadata to the OME-TIFF Image type
+ * used by downstream consumers (getInitialChannelsState, etc.).
  * Exported for testing.
  */
-export function guessBioformatsLabels(
-  arr: ZarrArray,
-  metadata: Image
-): string[] {
-  const shape = arr.shape;
-  const pixels = metadata.Pixels;
+export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
+  const { omero, multiscales } = rootAttrs;
+  const multiscale = multiscales[0];
+  const axes = multiscale?.axes ?? [];
+  const channels = omero?.channels ?? [];
 
-  // Check if shape matches OME-Zarr layout (TCZYX)
-  const omeZarrShape = [
-    pixels.SizeT,
-    pixels.SizeC,
-    pixels.SizeZ,
-    pixels.SizeY,
-    pixels.SizeX,
-  ];
+  // Get image dimensions from the first resolution level's shape
+  const shape = loader[0]?.shape ?? [];
+  const labels = loader[0]?.labels ?? [];
+  const dimIndex = (name: string) => labels.indexOf(name);
 
-  const isOmeZarr = shape.every(
-    (size: number, i: number) => omeZarrShape[i] === size
-  );
+  const SizeX = shape[dimIndex("x")] ?? 0;
+  const SizeY = shape[dimIndex("y")] ?? 0;
+  const SizeZ = shape[dimIndex("z")] ?? 1;
+  const SizeT = shape[dimIndex("t")] ?? 1;
+  const SizeC = shape[dimIndex("c")] ?? (channels.length || 1);
 
-  if (isOmeZarr) {
-    return ["t", "c", "z", "y", "x"];
-  }
+  // Extract physical pixel sizes from NGFF coordinateTransformations.
+  // The first dataset's scale transform maps pixel indices to physical units.
+  const { PhysicalSizeX, PhysicalSizeY, PhysicalSizeZ } =
+    extractPhysicalSizes(multiscale, axes);
 
-  // Fall back to dimension order from metadata
-  return pixels.DimensionOrder.toLowerCase().split("").reverse();
-}
-
-/**
- * Parse OME-XML string into metadata object.
- * Simplified parser that extracts the essential fields.
- * Exported for testing.
- */
-export function parseOmeXml(xmlString: string): Image {
-  const parser = new DOMParser();
-  // Strip trailing null character if present (common in bioformats2raw output)
-  const cleanedXml = xmlString.endsWith("\0")
-    ? xmlString.slice(0, -1)
-    : xmlString;
-  const doc = parser.parseFromString(cleanedXml, "application/xml");
-
-  const imageEl = doc.querySelector("Image");
-  const pixelsEl = doc.querySelector("Pixels");
-
-  if (!pixelsEl) {
-    throw new Error("Invalid OME-XML: missing Pixels element");
-  }
-
-  const channels = Array.from(doc.querySelectorAll("Channel")).map(
-    (ch, index) => ({
-      ID: ch.getAttribute("ID") || `Channel:0:${index}`,
-      Name: ch.getAttribute("Name") || undefined,
-      SamplesPerPixel: ch.getAttribute("SamplesPerPixel")
-        ? parseInt(ch.getAttribute("SamplesPerPixel")!, 10)
-        : undefined,
-      Color: parseColor(ch.getAttribute("Color")),
-    })
-  );
-
-  const getAttr = (el: Element, name: string) => el.getAttribute(name);
-  const getNumAttr = (el: Element, name: string) => {
-    const val = el.getAttribute(name);
-    return val ? parseInt(val, 10) : 0;
-  };
-  const getFloatAttr = (el: Element, name: string) => {
-    const val = el.getAttribute(name);
-    return val ? parseFloat(val) : undefined;
+  // Resolve axis units (NGFF stores unit on the axis definition)
+  const axisUnit = (name: string) => {
+    const axis = axes.find(
+      (a): a is { name: string; unit?: string } =>
+        typeof a !== "string" && a.name === name,
+    );
+    return axis?.unit ?? "µm";
   };
 
   return {
-    ID: getAttr(imageEl!, "ID") || "Image:0",
-    Name: getAttr(imageEl!, "Name") || undefined,
+    ID: "Image:0",
+    Name: omero?.name,
     AquisitionDate: "",
     Pixels: {
-      ID: getAttr(pixelsEl, "ID") || "Pixels:0",
-      DimensionOrder: (getAttr(pixelsEl, "DimensionOrder") ||
-        "XYZCT") as Image["Pixels"]["DimensionOrder"],
-      Type: (getAttr(pixelsEl, "Type") || "uint16") as Image["Pixels"]["Type"],
-      SizeT: getNumAttr(pixelsEl, "SizeT") || 1,
-      SizeC: getNumAttr(pixelsEl, "SizeC") || 1,
-      SizeZ: getNumAttr(pixelsEl, "SizeZ") || 1,
-      SizeY: getNumAttr(pixelsEl, "SizeY"),
-      SizeX: getNumAttr(pixelsEl, "SizeX"),
-      PhysicalSizeX: getFloatAttr(pixelsEl, "PhysicalSizeX"),
-      PhysicalSizeY: getFloatAttr(pixelsEl, "PhysicalSizeY"),
-      PhysicalSizeZ: getFloatAttr(pixelsEl, "PhysicalSizeZ"),
-      PhysicalSizeXUnit: (getAttr(pixelsEl, "PhysicalSizeXUnit") ||
-        "µm") as Image["Pixels"]["PhysicalSizeXUnit"],
-      PhysicalSizeYUnit: (getAttr(pixelsEl, "PhysicalSizeYUnit") ||
-        "µm") as Image["Pixels"]["PhysicalSizeYUnit"],
-      PhysicalSizeZUnit: (getAttr(pixelsEl, "PhysicalSizeZUnit") ||
-        "µm") as Image["Pixels"]["PhysicalSizeZUnit"],
-      Channels: channels,
+      ID: "Pixels:0",
+      DimensionOrder: "XYZCT",
+      Type: "uint16",
+      SizeT,
+      SizeC,
+      SizeZ,
+      SizeY,
+      SizeX,
+      PhysicalSizeX,
+      PhysicalSizeY,
+      PhysicalSizeZ,
+      PhysicalSizeXUnit: axisUnit("x"),
+      PhysicalSizeYUnit: axisUnit("y"),
+      PhysicalSizeZUnit: axisUnit("z"),
+      Channels: channels.map((ch, i) => ({
+        ID: `Channel:0:${i}`,
+        Name: ch.label,
+        Color: parseOmeroColor(ch.color),
+      })),
     },
     format: () => ({
       "Acquisition Date": "",
-      "Dimensions (XY)": `${getNumAttr(pixelsEl, "SizeX")} x ${getNumAttr(pixelsEl, "SizeY")}`,
-      "Pixels Type": getAttr(pixelsEl, "Type") as Image["Pixels"]["Type"],
-      "Pixels Size (XYZ)": "-",
-      "Z-sections/Timepoints": `${getNumAttr(pixelsEl, "SizeZ") || 1} x ${getNumAttr(pixelsEl, "SizeT") || 1}`,
+      "Dimensions (XY)": `${SizeX} x ${SizeY}`,
+      "Pixels Type": "uint16",
+      "Pixels Size (XYZ)": PhysicalSizeX
+        ? `${PhysicalSizeX} x ${PhysicalSizeY} ${axisUnit("x")}`
+        : "-",
+      "Z-sections/Timepoints": `${SizeZ} x ${SizeT}`,
       Channels: channels.length,
     }),
+  } as Image;
+}
+
+/**
+ * Extract physical pixel sizes from NGFF coordinateTransformations on the first dataset.
+ * The scale transform values correspond to axes in order.
+ * Exported for testing.
+ */
+export function extractPhysicalSizes(
+  multiscale: RootAttrs["multiscales"][0] | undefined,
+  axes: RootAttrs["multiscales"][0]["axes"],
+) {
+  const datasets = (multiscale?.datasets ?? []) as DatasetWithTransforms[];
+  const firstDataset = datasets[0];
+  const scaleTransform = firstDataset?.coordinateTransformations?.find(
+    (t) => t.type === "scale",
+  );
+
+  if (!scaleTransform?.scale || !axes) {
+    return {};
+  }
+
+  const resolvedAxes =
+    axes.map((a) => (typeof a === "string" ? a : a.name)) ?? [];
+
+  const scaleForAxis = (name: string): number | undefined => {
+    const idx = resolvedAxes.indexOf(name);
+    return idx >= 0 ? scaleTransform.scale![idx] : undefined;
+  };
+
+  return {
+    PhysicalSizeX: scaleForAxis("x"),
+    PhysicalSizeY: scaleForAxis("y"),
+    PhysicalSizeZ: scaleForAxis("z"),
   };
 }
 
 /**
- * Parse color from OME-XML Color attribute (signed 32-bit integer).
+ * Parse omero channel color string to RGBA tuple.
+ * Omero colors are hex strings like "FF0000" (RGB) or "FF0000FF" (RGBA).
  * Exported for testing.
  */
-export function parseColor(
-  colorStr: string | null
+export function parseOmeroColor(
+  color: string,
 ): [number, number, number, number] | undefined {
-  if (!colorStr) return undefined;
+  if (!color) return undefined;
 
-  const int = parseInt(colorStr, 10);
-  if (isNaN(int)) return undefined;
+  const hex = color.replace(/^#/, "");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const a = hex.length >= 8 ? parseInt(hex.slice(6, 8), 16) : 255;
 
-  // Convert signed 32-bit int to RGBA
-  const buffer = new ArrayBuffer(4);
-  const view = new DataView(buffer);
-  view.setInt32(0, int, false);
-  const bytes = new Uint8Array(buffer);
-  return [bytes[0], bytes[1], bytes[2], bytes[3]];
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return undefined;
+  return [r, g, b, a];
 }

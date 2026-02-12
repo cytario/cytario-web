@@ -8,7 +8,7 @@ import { ViewerHeader } from "./ViewerHeader";
 import { JP2KDecoder } from "../state/jp2k-decoder";
 import { LZWDecoder } from "../state/lzwDecoder";
 import { ViewerStoreProvider } from "../state/ViewerStoreContext";
-import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
+import { BucketConfig } from "~/.generated/client";
 
 /**
  * Register decoders for GeoTIFF files.
@@ -28,7 +28,7 @@ interface ViewerProps {
   url: string;
   offsetsUrl?: string;
   credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
 }
 
 export const Viewer = ({
