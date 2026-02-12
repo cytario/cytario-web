@@ -1,10 +1,10 @@
 import { GenericDecoder, FileDirectory } from "./genericDecoder";
 
 /**
- * LZW (Lempel-Ziv-Welch) decoder implementation
- * Used for decoding LZW-compressed TIFF image data
+ * JPEG2000 (JP2K) decoder implementation
+ * Used for decoding JPEG2000-compressed image data
  */
-export class LZWDecoder extends GenericDecoder {
+export class JP2KDecoder extends GenericDecoder {
     constructor(fileDirectory: FileDirectory) {
         super(fileDirectory);
     }
@@ -13,6 +13,6 @@ export class LZWDecoder extends GenericDecoder {
      * Returns the decoder identifier for the worker pool
      */
     public getDecoderId(): string {
-        return "lzw-decoder";
+        return "jp2k-decoder";
     }
 }

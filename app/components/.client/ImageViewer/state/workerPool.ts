@@ -1,6 +1,7 @@
 export interface WorkerTaskData {
   buffer: ArrayBuffer;
   maxUncompressedSize: number;
+  decoderId: string;
 }
 export interface WorkerTaskEvent {
   taskId: string;
