@@ -4,7 +4,7 @@ import {
   buildDirectoryTree,
   TreeNode,
 } from "../DirectoryView/buildDirectoryTree";
-import DirectoryTree from "../DirectoryView/DirectoryViewTree";
+import { DirectoryTree } from "../DirectoryView/DirectoryViewTree";
 import { H2 } from "../Fonts";
 import { Placeholder } from "../Placeholder";
 import { GlobalSearchResults } from "./GlobalSearch";
@@ -18,14 +18,18 @@ export const Suggestions = ({
   results: { files },
   showResults,
 }: SuggestionsProps) => {
-  const nodes: TreeNode[] = Object.keys(files).map((bucketName) => {
+  const nodes: TreeNode[] = Object.keys(files).map((bucketKey) => {
+    const [provider, ...rest] = bucketKey.split("/");
+    const bucketName = rest.join("/");
     return {
+      provider,
       bucketName,
       name: bucketName,
-      type: "bucket",
+      type: "bucket" as const,
       children: buildDirectoryTree(
         bucketName,
-        files[bucketName] as ObjectPresignedUrl[]
+        files[bucketKey] as ObjectPresignedUrl[],
+        provider,
       ),
     };
   });

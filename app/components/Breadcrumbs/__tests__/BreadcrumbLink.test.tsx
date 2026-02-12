@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import BreadcrumbLink from "../BreadcrumbLink";
+import { BreadcrumbLink } from "../BreadcrumbLink";
 
 describe("BreadcrumbLink", () => {
   it("renders correctly with given props", () => {

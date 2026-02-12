@@ -1,7 +1,7 @@
 import { TreeNode } from "./buildDirectoryTree";
-import NodeLink from "./NodeLink";
+import { NodeLink } from "./NodeLink/NodeLink";
 
-export default function DirectoryTree({
+export function DirectoryTree({
   nodes,
   action,
   className,
@@ -11,10 +11,15 @@ export default function DirectoryTree({
   className?: string;
 }) {
   return (
-    <ul className="pl-4">
+    <ul className="pl-6">
       {nodes.map((node) => (
         <li key={node.name}>
-          <NodeLink node={node} onClick={action} className={className} />
+          <NodeLink
+            node={node}
+            onClick={action}
+            className={className}
+            showInfoButton={false}
+          />
 
           {node.children && node.children.length > 0 && (
             <DirectoryTree

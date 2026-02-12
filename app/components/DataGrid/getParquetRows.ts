@@ -1,9 +1,9 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
 import { getFileType, getReadFunction } from "./fileReader";
-import { ClientBucketConfig } from "../../utils/credentialsStore/useCredentialsStore";
 import { createDatabase } from "../../utils/db/createDatabase";
 import { toS3Uri } from "../../utils/resourceId";
+import { BucketConfig } from "~/.generated/client";
 
 /**
  * Fetch rows from a data file on S3
@@ -19,9 +19,13 @@ export async function getParquetRows(
   credentials: Credentials,
   limit = 100,
   offset = 0,
-  bucketConfig?: ClientBucketConfig | null
+  bucketConfig?: BucketConfig | null,
 ): Promise<Record<string, unknown>[]> {
-  const connection = await createDatabase(resourceId, credentials, bucketConfig);
+  const connection = await createDatabase(
+    resourceId,
+    credentials,
+    bucketConfig,
+  );
   const fileType = getFileType(resourceId);
   const s3Path = toS3Uri(resourceId);
   const readFn = getReadFunction(fileType, s3Path);

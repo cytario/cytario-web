@@ -4,7 +4,7 @@ import { useMeasurements } from "./useMeasurements";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 
-export default function ActiveViewStatePreview() {
+export function ActiveViewStatePreview() {
   const viewStateActive = useViewerStore(select.viewStateActive);
   const viewStatePreview = useViewerStore(select.viewStatePreview);
   const measurementsActive = useMeasurements(viewStateActive);

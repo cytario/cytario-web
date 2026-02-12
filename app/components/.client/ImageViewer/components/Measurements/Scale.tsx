@@ -48,27 +48,10 @@ export const Scale = () => {
         flex flex-col items-center
         text-xs font-semibold
         bg-slate-300 text-slate-900
-
-        `}
+      `}
       style={{ width: size }}
     >
       {unit}
-      {/* <rect
-        x={screenWidth - size}
-        width={size}
-        height={16}
-        className="fill-slate-300"
-        fillOpacity={1}
-      />
-      <text
-        x={screenWidth - size / 2}
-        y={10}
-        className="text-xs font-bold"
-        textAnchor="middle"
-        dominantBaseline="middle"
-      >
-        {unit}
-      </text> */}
     </div>
   );
 };

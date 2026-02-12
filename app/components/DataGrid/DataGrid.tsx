@@ -11,7 +11,7 @@ import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { WktSvg } from "./WktSvg";
 import { LavaLoader } from "../LavaLoader";
-import { Checkbox } from "~/components/Controls/Checkbox";
+import { Checkbox } from "~/components/Controls";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -83,7 +83,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
         credentials,
         PAGE_SIZE,
         rows.length,
-        bucketConfig
+        bucketConfig,
       );
       setRows((prev) => [...prev, ...newRows]);
       setHasMore(newRows.length === PAGE_SIZE);
@@ -92,7 +92,15 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     } finally {
       setIsFetchingMore(false);
     }
-  }, [resourceId, storeKey, getCredentials, getBucketConfig, rows.length, isFetchingMore, hasMore]);
+  }, [
+    resourceId,
+    storeKey,
+    getCredentials,
+    getBucketConfig,
+    rows.length,
+    isFetchingMore,
+    hasMore,
+  ]);
 
   const columnHelper = createColumnHelper<Record<string, unknown>>();
 
@@ -120,10 +128,10 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
             }
             return String(value);
           },
-        })
+        }),
       ),
     ],
-    [columns, columnHelper]
+    [columns, columnHelper],
   );
 
   const table = useReactTable({
@@ -163,7 +171,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   }
 
   if (error) {
-    return <div className="p-4 text-red-500">Error: {error}</div>;
+    return <div className="p-4 text-rose-500">Error: {error}</div>;
   }
 
   return (
@@ -189,7 +197,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
                     ? null
                     : flexRender(
                         header.column.columnDef.header,
-                        header.getContext()
+                        header.getContext(),
                       )}
                 </th>
               ))}
@@ -217,7 +225,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className={`border-b border-gray-100 dark:border-slate-700 font-mono px-4 flex items-center ${
+                    className={`border-b border-gray-100 dark:border-slate-700 tabular-nums px-4 flex items-center ${
                       RIGHT_ALIGNED_COLUMNS.has(cell.column.id)
                         ? "justify-end"
                         : ""

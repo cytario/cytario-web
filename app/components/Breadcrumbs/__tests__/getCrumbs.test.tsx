@@ -4,7 +4,7 @@ import { describe, expect, vi } from "vitest";
 import { getCrumbs } from "../getCrumbs";
 
 vi.mock("../BreadcrumbLink", () => ({
-  default: ({
+  BreadcrumbLink: ({
     children,
     to,
     className,

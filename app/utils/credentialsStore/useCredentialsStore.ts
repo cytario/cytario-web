@@ -2,14 +2,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 
-/**
- * S3-compatible bucket configuration for client-side use.
- * Contains only the fields needed for DuckDB WASM S3 configuration.
- */
-export interface ClientBucketConfig {
-  endpoint?: string | null;
-  region?: string | null;
-}
+import { BucketConfig } from "~/.generated/client";
 
 /**
  * Credentials store for managing S3 bucket credentials and configuration.
@@ -23,14 +16,14 @@ export interface ClientBucketConfig {
  */
 interface CredentialsStore {
   credentials: Record<string, Credentials>;
-  bucketConfigs: Record<string, ClientBucketConfig>;
+  bucketConfigs: Record<string, BucketConfig>;
   setCredentials: (
     key: string,
     credentials: Credentials,
-    bucketConfig?: ClientBucketConfig
+    bucketConfig?: BucketConfig,
   ) => void;
   getCredentials: (key: string) => Credentials | null;
-  getBucketConfig: (key: string) => ClientBucketConfig | null;
+  getBucketConfig: (key: string) => BucketConfig | null;
   hasCredentials: (key: string) => boolean;
   clearCredentials: (key: string) => void;
   clearAll: () => void;
@@ -48,7 +41,7 @@ export const useCredentialsStore = create<CredentialsStore>()(
         setCredentials: (
           key: string,
           credentials: Credentials,
-          bucketConfig?: ClientBucketConfig
+          bucketConfig?: BucketConfig,
         ) => {
           set(
             (state) => ({
@@ -64,7 +57,7 @@ export const useCredentialsStore = create<CredentialsStore>()(
                 : state.bucketConfigs,
             }),
             false,
-            "setCredentials"
+            "setCredentials",
           );
         },
 
@@ -90,7 +83,7 @@ export const useCredentialsStore = create<CredentialsStore>()(
               return { credentials: rest, bucketConfigs: restConfigs };
             },
             false,
-            "clearCredentials"
+            "clearCredentials",
           );
         },
 
@@ -101,8 +94,8 @@ export const useCredentialsStore = create<CredentialsStore>()(
       {
         name: "credentials-storage",
         storage: createJSONStorage(() => sessionStorage),
-      }
+      },
     ),
-    { name }
-  )
+    { name },
+  ),
 );

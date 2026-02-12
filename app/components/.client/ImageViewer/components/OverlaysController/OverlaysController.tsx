@@ -1,9 +1,10 @@
-import OverlayInfoModal from "./OverlayInfoModal";
+import { OverlayInfoModal } from "./OverlayInfoModal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { FeatureItem } from "../FeatureBar/FeatureItem";
-import { ButtonLink } from "~/components/Controls/Button";
+import { ButtonLink } from "~/components/Controls";
+import { Placeholder } from "~/components/Placeholder";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
 /**
@@ -33,13 +34,24 @@ export const OverlaysController = () => {
       toggleHidden={isInPointMode}
     >
       {entries.map(([resourceId, overlayState]) => (
-        <OverlaysControllerItem key={resourceId} resourceId={resourceId} overlayState={overlayState} />
+        <OverlaysControllerItem
+          key={resourceId}
+          resourceId={resourceId}
+          overlayState={overlayState}
+        />
       ))}
 
       <footer className="p-2">
-        <ButtonLink to="?action=load-overlay" className="w-full">
-          Load Overlay
-        </ButtonLink>
+        {entries.length === 0 ? (
+          <Placeholder
+            title="Add Overlay"
+            description="Add parquet cell detection files"
+            icon="Layers2"
+            cta={<ButtonLink to="?action=load-overlay">Add Overlay</ButtonLink>}
+          />
+        ) : (
+          <ButtonLink to="?action=load-overlay">Add Overlay</ButtonLink>
+        )}
       </footer>
 
       <OverlayInfoModal />

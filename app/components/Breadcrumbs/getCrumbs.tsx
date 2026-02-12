@@ -1,6 +1,52 @@
-import BreadcrumbLink from "./BreadcrumbLink";
+import { BreadcrumbLink } from "./BreadcrumbLink";
 
-export const getCrumbs = (to: string, segments: string[]): JSX.Element[] => {
+export interface CrumbsOptions {
+  /** Display name for the atomic data connection crumb (bucket + prefix as one unit) */
+  dataConnectionName?: string;
+  /** Full URL path to the data connection root */
+  dataConnectionPath?: string;
+}
+
+export const getCrumbs = (
+  basePath: string,
+  segments: string[],
+  options?: CrumbsOptions
+): JSX.Element[] => {
+  const { dataConnectionName, dataConnectionPath } = options ?? {};
+
+  // When a data connection with prefix is provided, render it as a single atomic crumb
+  if (dataConnectionName && dataConnectionPath) {
+    const dataConnectionCrumb = (
+      <BreadcrumbLink
+        key={dataConnectionPath}
+        to={dataConnectionPath}
+        className={segments.length === 0 ? "text-white" : ""}
+      >
+        {dataConnectionName}
+      </BreadcrumbLink>
+    );
+
+    // Build crumbs for the remaining path segments (relative to data connection root)
+    let currentPath = dataConnectionPath;
+    const remainingCrumbs = segments.map((name, index) => {
+      currentPath += `/${name}`;
+      const isActive = index === segments.length - 1;
+      return (
+        <BreadcrumbLink
+          key={currentPath}
+          to={currentPath}
+          className={isActive ? "text-white" : ""}
+        >
+          {name}
+        </BreadcrumbLink>
+      );
+    });
+
+    return [dataConnectionCrumb, ...remainingCrumbs];
+  }
+
+  // Default behavior: build crumbs progressively from basePath
+  let to = basePath;
   const crumbsObjects = segments.map((name) => {
     to += `/${name}`;
     return { name, to };

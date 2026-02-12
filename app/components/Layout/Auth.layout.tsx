@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { Link } from "~/components/Link";
 import { Logo } from "~/components/Logo";
 
-export default function AuthLayout({ children }: { children: ReactNode }) {
+export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex flex-grow flex-col p-4 gap-8 items-center justify-between bg-slate-50">
       <header>

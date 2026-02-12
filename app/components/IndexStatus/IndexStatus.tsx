@@ -1,4 +1,4 @@
-import { Icon } from "../Controls/IconButton";
+import { Icon } from "../Controls";
 import { useIndexStore } from "~/components/IndexStatus/useIndexStore";
 
 interface IndexStatusProps {

@@ -1,54 +1,147 @@
 import { filesize } from "filesize";
 import { ReactNode } from "react";
 
-import { TreeNode } from "./buildDirectoryTree";
-import NodeLink from "./NodeLink";
-import Table from "~/components/Table";
+import { TreeNode, TreeNodeType } from "./buildDirectoryTree";
+import { NodeLink } from "./NodeLink/NodeLink";
+import { ColumnConfig, Table } from "~/components/Table/Table";
+import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
-const getColumns = (nodes: TreeNode[]): string[] => {
+const columns: Record<string, ColumnConfig> = {
+  name: {
+    id: "name",
+    header: "Name",
+    size: 420,
+    align: "left",
+    enableSorting: true,
+    // Will be overridden with function in getColumns
+    sortingFn: "alphanumeric",
+  },
+  last_modified: {
+    id: "last_modified",
+    header: "Last Modified",
+    size: 420,
+    align: "right",
+    monospace: true,
+    enableSorting: true,
+    sortingFn: "datetime",
+  },
+  size: {
+    id: "size",
+    header: "Size",
+    size: 120,
+    align: "right",
+    monospace: true,
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
+
+  provider: {
+    id: "provider",
+    header: "Provider",
+    size: 100,
+    align: "left",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
+  endpoint: {
+    id: "endpoint",
+    header: "Endpoint",
+    size: 340,
+    align: "left",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
+  region: {
+    id: "region",
+    header: "Region",
+    size: 120,
+    align: "left",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
+  rolearn: {
+    id: "rolearn",
+    header: "RoleARN",
+    size: 480,
+    align: "left",
+    enableSorting: true,
+    sortingFn: "alphanumeric",
+  },
+};
+
+const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
+  // Create name column with function-based sortingFn for ReactNode content
+  const nameColumn: ColumnConfig = {
+    ...columns.name,
+    sortingFn: (rowIndex: number) => nodes[rowIndex]?.name ?? "",
+  };
+
   switch (nodes[0].type) {
     case "bucket":
-      return ["Name", "Provider", "Endpoint", "Region", "RoleARN"];
+      return [
+        nameColumn,
+        columns.provider,
+        columns.endpoint,
+        columns.region,
+        columns.rolearn,
+      ];
     case "directory":
-      return ["Name"];
     case "file":
     default:
-      return ["Name", "Last Modified", "Size"];
+      return [nameColumn, columns.last_modified, columns.size];
   }
 };
 
-const getData = (nodes: TreeNode[]): ReactNode[][] => {
+const getData = (
+  nodes: TreeNode[],
+  getBucketConfig: (key: string) => { provider?: string; endpoint?: string | null; region?: string | null; roleArn?: string | null } | null
+): ReactNode[][] => {
   switch (nodes[0].type) {
     case "bucket":
       return nodes.map((node) => {
+        const storeKey = `${node.provider}/${node.bucketName}`;
+        const bucketConfig = getBucketConfig(storeKey);
+
         return [
           <NodeLink key={node.name} node={node} listStyle="list" />,
-          node._Bucket?.provider,
-          node._Bucket?.endpoint,
-          node._Bucket?.region,
-          node._Bucket?.roleArn,
+          bucketConfig?.provider,
+          bucketConfig?.endpoint,
+          bucketConfig?.region,
+          bucketConfig?.roleArn,
         ];
       });
+
     case "directory":
-      return nodes.map((node) => {
-        return [<NodeLink key={node.name} node={node} listStyle="list" />];
-      });
     case "file":
     default:
       return nodes.map((node) => {
+        // Directories show null values for now (TODO: aggregate children values)
+        const isFile = node.type === "file";
         return [
           <NodeLink key={node.name} node={node} listStyle="list" />,
-          node._Object?.LastModified &&
+          isFile &&
+            node._Object?.LastModified &&
             formatHumanReadableDate(node._Object.LastModified),
-          node._Object && filesize(node._Object.Size ?? 0).toString(),
+          isFile && node._Object && filesize(node._Object.Size ?? 0).toString(),
         ];
       });
   }
 };
 
-export default function DirectoryTable({ nodes }: { nodes: TreeNode[] }) {
+export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
+
+export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
+  const getBucketConfig = useCredentialsStore((state) => state.getBucketConfig);
+
+  const tableType: TableType =
+    nodes[0].type === "bucket" ? "bucket" : "directory";
   const columns = getColumns(nodes);
-  const data = getData(nodes);
-  return <Table columns={columns} data={data} />;
+  const data = getData(nodes, getBucketConfig);
+
+  return (
+    <div className="overflow-x-auto">
+      <Table columns={columns} data={data} tableId={tableType} />
+    </div>
+  );
 }

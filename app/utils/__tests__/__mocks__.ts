@@ -13,7 +13,6 @@ import {
   Image,
 } from "~/components/.client/ImageViewer/state/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
 
 const mock = {
   bucketConfig: (data: Partial<BucketConfig> = {}): BucketConfig => ({
@@ -24,17 +23,11 @@ const mock = {
     roleArn: "arn:aws:iam::123456789012:role/mock-role",
     region: "us-east-1",
     endpoint: "https://s3.amazonaws.com",
-    ...data,
-  }),
-  clientBucketConfig: (
-    data: Partial<ClientBucketConfig> = {}
-  ): ClientBucketConfig => ({
-    region: "us-east-1",
-    endpoint: "https://s3.amazonaws.com",
+    prefix: "",
     ...data,
   }),
   session: (
-    data: Partial<SessionData & SessionFlashData> = {}
+    data: Partial<SessionData & SessionFlashData> = {},
   ): CytarioSession => ({
     id: "session",
     data,
@@ -45,7 +38,7 @@ const mock = {
     unset: vi.fn(),
   }),
   tokenReponse: (
-    overrides?: Partial<AuthTokensResponse>
+    overrides?: Partial<AuthTokensResponse>,
   ): AuthTokensResponse => ({
     access_token: "access_token",
     expires_in: 60 * 60, // 1 hour
@@ -79,6 +72,7 @@ const mock = {
     name: "mockName",
     type: "directory",
     bucketName: "test-bucket",
+    provider: "test-provider",
     children: [],
     ...overrides,
   }),

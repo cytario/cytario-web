@@ -1,7 +1,7 @@
 import { TreeNode } from "./buildDirectoryTree";
-import NodeLink from "./NodeLink";
+import { NodeLink } from "./NodeLink/NodeLink";
 
-export default function DirectoryViewGrid({ nodes }: { nodes: TreeNode[] }) {
+export function DirectoryViewGrid({ nodes }: { nodes: TreeNode[] }) {
   return (
     <div className="flex flex-wrap -m-2">
       {nodes.map((node) => (

@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 export const Fieldset = ({ children }: { children: ReactNode }) => {
   return (
-    <HeadlessFieldset className="flex flex-col gap-2 w-full">
+    <HeadlessFieldset className="flex flex-col gap-8">
       {children}
     </HeadlessFieldset>
   );

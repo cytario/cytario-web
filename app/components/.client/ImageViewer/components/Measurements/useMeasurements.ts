@@ -62,7 +62,7 @@ const screenPixelsToAbsolutePixels = (n = 0, zoom: number) =>
   n * (1 / 2 ** zoom);
 
 export const useMeasurements = (
-  viewStateOptional?: ViewState | null
+  viewStateOptional?: ViewState | null,
 ): UseMeasurementsData => {
   const viewStateActive = useViewerStore(select.viewStateActive);
   const viewState = viewStateOptional ?? viewStateActive;
@@ -82,12 +82,12 @@ export const useMeasurements = (
   const absoluteToMetric = absoluteToMetricFactory(
     // TODO: Use a default value from metadata or a sensible default
     metadata.Pixels.PhysicalSizeX ?? 1,
-    unit
+    unit,
   );
 
   const metricToAbsolute = metricToAbsoluteFactory(
     metadata.Pixels.PhysicalSizeX ?? 1,
-    unit
+    unit,
   );
 
   const widthTotalMm = absoluteToMetric(metadata.Pixels.SizeX);
@@ -95,11 +95,11 @@ export const useMeasurements = (
 
   const imageWidthScreen = absolutePixelsToScreenPixels(
     metadata.Pixels.SizeX,
-    zoom
+    zoom,
   );
   const imageHeightScreen = absolutePixelsToScreenPixels(
     metadata.Pixels.SizeY,
-    zoom
+    zoom,
   );
 
   const screenOffsetLeft = -target[0] / (1 / 2 ** zoom) + viewPortWidth / 2;
@@ -108,16 +108,16 @@ export const useMeasurements = (
   const screenOffsetBottom = viewPortHeight - screenOffsetTop;
 
   const metricOffsetLeft = absoluteToMetric(
-    screenPixelsToAbsolutePixels(-screenOffsetLeft, zoom)
+    screenPixelsToAbsolutePixels(-screenOffsetLeft, zoom),
   );
   const metricOffsetTop = absoluteToMetric(
-    screenPixelsToAbsolutePixels(-screenOffsetTop, zoom)
+    screenPixelsToAbsolutePixels(-screenOffsetTop, zoom),
   );
   const metricOffsetRight = absoluteToMetric(
-    screenPixelsToAbsolutePixels(screenOffsetRight, zoom)
+    screenPixelsToAbsolutePixels(screenOffsetRight, zoom),
   );
   const metricOffsetBottom = absoluteToMetric(
-    screenPixelsToAbsolutePixels(screenOffsetBottom, zoom)
+    screenPixelsToAbsolutePixels(screenOffsetBottom, zoom),
   );
 
   const one_mm = absolutePixelsToScreenPixels(metricToAbsolute(1), zoom);

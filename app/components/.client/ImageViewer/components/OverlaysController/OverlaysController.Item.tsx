@@ -7,8 +7,7 @@ import { select } from "../../state/selectors";
 import { ChannelsStateColumns, OverlayState } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
-import { Button } from "~/components/Controls/Button";
-import { IconButton, IconButtonLink } from "~/components/Controls/IconButton";
+import { Button, IconButton, IconButtonLink } from "~/components/Controls";
 import { LavaLoader } from "~/components/LavaLoader";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { useCredentialsStore } from "~/utils/credentialsStore";
@@ -30,13 +29,17 @@ export const OverlaysControllerItem = ({
   const removeOverlaysState = useViewerStore(select.removeOverlaysState);
   const updateOverlaysState = useViewerStore(select.updateOverlaysState);
   const addNotification = useNotificationStore(
-    (state) => state.addNotification
+    (state) => state.addNotification,
   );
 
   // Get file download progress from the file store
-  const fileProgress = useFileStore((state) => state.files[resourceId]?.progress);
+  const fileProgress = useFileStore(
+    (state) => state.files[resourceId]?.progress,
+  );
 
-  const cx = twMerge("grid gap-1 m-1 grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]");
+  const cx = twMerge(
+    "grid gap-1 m-1 grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]",
+  );
 
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +50,7 @@ export const OverlaysControllerItem = ({
   // Calculate maxDomain from actual marker counts (for progress bar scaling)
   const maxDomain = Math.max(
     ...Object.values(overlayState).map(({ count }) => count),
-    1 // Prevent division by zero
+    1, // Prevent division by zero
   );
 
   // Parse resourceId to get store key (provider/bucketName)
@@ -67,7 +70,7 @@ export const OverlaysControllerItem = ({
         const markerInfo = await getMarkerInfoWasm(
           resourceId,
           credentials[storeKey],
-          bucketConfigs[storeKey]
+          bucketConfigs[storeKey],
         );
         if (markerInfo && Object.keys(markerInfo).length > 0) {
           const newOverlayState = getOverlayState(markerInfo);
@@ -124,7 +127,7 @@ export const OverlaysControllerItem = ({
             label="Remove overlay"
             onClick={() => {
               const confirmation = confirm(
-                `Are you sure you want to remove overlay "${fileName}"?`
+                `Are you sure you want to remove overlay "${fileName}"?`,
               );
               if (confirmation) removeOverlaysState(resourceId);
             }}
@@ -153,7 +156,7 @@ export const OverlaysControllerItem = ({
                     name={
                       markerName.replace(
                         "marker_positive_",
-                        ""
+                        "",
                       ) as keyof ChannelsStateColumns
                     }
                     color={color}
@@ -169,7 +172,7 @@ export const OverlaysControllerItem = ({
                     }
                   />
                 );
-              }
+              },
             )
           ) : (
             <div className="p-4 text-sm text-slate-400">

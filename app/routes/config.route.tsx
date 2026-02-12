@@ -1,10 +1,10 @@
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
-import BreadcrumbLink from "~/components/Breadcrumbs/BreadcrumbLink";
+import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { Container } from "~/components/Container";
-import { Button } from "~/components/Controls/Button";
-import DescriptionList from "~/components/DescriptionList";
+import { Button } from "~/components/Controls";
+import { DescriptionList } from "~/components/DescriptionList";
 
 export const middleware = [authMiddleware];
 
@@ -44,7 +44,7 @@ export default function ConfigRoute() {
       </Button>
       <div>
         {typeof window !== "undefined" && (
-          <code className="block bg-slate-100 p-4">
+          <code className="block bg-slate-100 p-4 overflow-auto">
             {JSON.stringify(localStorage, null, 2)}
           </code>
         )}

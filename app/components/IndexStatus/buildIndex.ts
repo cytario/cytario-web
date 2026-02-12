@@ -13,8 +13,8 @@ import {
 } from "@duckdb/duckdb-wasm";
 
 import { useIndexStore, IndexBuildProgress } from "./useIndexStore";
-import { ClientBucketConfig } from "../../utils/credentialsStore/useCredentialsStore";
-import { createS3ClientOptions } from "../../utils/s3Provider";
+import { BucketConfig } from "~/.generated/client";
+import { createS3ClientOptions } from "~/utils/s3Provider";
 
 const MAX_KEYS = 1000;
 
@@ -30,7 +30,7 @@ export interface IndexObject {
  */
 function createS3Client(
   credentials: Credentials,
-  bucketConfig: ClientBucketConfig
+  bucketConfig: BucketConfig
 ): S3Client {
   const options = createS3ClientOptions(
     credentials,
@@ -149,7 +149,7 @@ export async function buildIndex(
   bucketKey: string,
   bucketName: string,
   credentials: Credentials,
-  bucketConfig: ClientBucketConfig
+  bucketConfig: BucketConfig
 ): Promise<void> {
   const store = useIndexStore.getState();
 

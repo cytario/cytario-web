@@ -1,13 +1,10 @@
 import { Form } from "react-router";
 
-import { Button, ButtonLink } from "../Controls/Button";
+import { Button, ButtonLink } from "../Controls";
 import { RouteModal } from "../RouteModal";
 import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";
-import {
-  getBucketFromResourceId,
-  getProviderFromResourceId,
-} from "~/utils/resourceId";
+import { parseResourceId } from "~/utils/resourceId";
 
 const PATTERN = /bucket|directory|file|action/;
 
@@ -55,8 +52,12 @@ export function NodeInfoModal() {
         </RouteModal>
       );
     case "bucket": {
-      const provider = getProviderFromResourceId(infoModal.name);
-      const bucketName = getBucketFromResourceId(infoModal.name);
+      const {
+        provider,
+        bucketName,
+        pathName: prefix,
+      } = parseResourceId(infoModal.name);
+
       return (
         <RouteModal title={bucketName} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
@@ -71,8 +72,9 @@ export function NodeInfoModal() {
             <Form method="delete" action="/">
               <input type="hidden" name="provider" value={provider} />
               <input type="hidden" name="bucketName" value={bucketName} />
+              <input type="hidden" name="prefix" value={prefix} />
               <Button type="submit" theme="error" scale="large">
-                Remove Bucket
+                Remove Data Connection
               </Button>
             </Form>
           </div>

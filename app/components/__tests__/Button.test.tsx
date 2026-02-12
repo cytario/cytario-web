@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
-import { Button } from "../Controls/Button";
+import { Button } from "../Controls";
 
 describe("Button component", () => {
   it("renders the button with children", () => {
@@ -21,7 +21,7 @@ describe("Button component", () => {
     render(
       <Button onClick={handleClick} disabled>
         Click me
-      </Button>
+      </Button>,
     );
     fireEvent.click(screen.getByText("Click me"));
     expect(handleClick).not.toHaveBeenCalled();
@@ -31,7 +31,7 @@ describe("Button component", () => {
     const { container } = render(
       <Button onClick={() => {}} className="extra-class">
         Click me
-      </Button>
+      </Button>,
     );
     expect(container).toMatchSnapshot(); // Snapshot to check the applied class names
   });

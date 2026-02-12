@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-import { Icon, type LucideIconsType } from "./Controls/IconButton";
+import { Icon, type LucideIconsType } from "./Controls";
 import { H2 } from "./Fonts";
 
 export function Placeholder({

@@ -6,7 +6,7 @@ import {
 import { getSessionCredentials } from "../getSessionCredentials";
 import type { SessionData } from "../sessionStorage";
 import mock from "~/utils/__tests__/__mocks__";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getBucketConfigByPath } from "~/utils/bucketConfig";
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("@aws-sdk/client-sts", () => ({
 }));
 
 vi.mock("~/utils/bucketConfig", () => ({
-  getBucketConfigByName: vi.fn(),
+  getBucketConfigByPath: vi.fn(),
 }));
 
 vi.mock("~/utils/s3Provider", () => ({
@@ -54,7 +54,7 @@ describe("getSessionCredentials", () => {
       Credentials: mockCredentials,
     });
 
-    vi.mocked(getBucketConfigByName).mockResolvedValue(
+    vi.mocked(getBucketConfigByPath).mockResolvedValue(
       mock.bucketConfig({
         name: "test-bucket",
         roleArn: "arn:aws:iam::123456789012:role/test-role",
@@ -69,7 +69,7 @@ describe("getSessionCredentials", () => {
       const result = await getSessionCredentials(mockSessionData);
 
       expect(result).toBe(mockSessionData.credentials);
-      expect(getBucketConfigByName).not.toHaveBeenCalled();
+      expect(getBucketConfigByPath).not.toHaveBeenCalled();
       expect(mockSend).not.toHaveBeenCalled();
     });
 
@@ -98,10 +98,11 @@ describe("getSessionCredentials", () => {
     test("fetches bucket config by name", async () => {
       await getSessionCredentials(mockSessionData, "aws", "new-bucket");
 
-      expect(getBucketConfigByName).toHaveBeenCalledWith(
+      expect(getBucketConfigByPath).toHaveBeenCalledWith(
         "user-123",
         "aws",
-        "new-bucket"
+        "new-bucket",
+        ""
       );
     });
 
@@ -143,12 +144,12 @@ describe("getSessionCredentials", () => {
 
   describe("error handling", () => {
     test("throws when bucket config not found", async () => {
-      vi.mocked(getBucketConfigByName).mockResolvedValue(null);
+      vi.mocked(getBucketConfigByPath).mockResolvedValue(null);
 
       await expect(
         getSessionCredentials(mockSessionData, "aws", "unknown-bucket")
       ).rejects.toThrow(
-        "Bucket config not found for bucket: aws/unknown-bucket"
+        "Bucket config not found for bucket: aws/unknown-bucket/"
       );
     });
 
@@ -173,7 +174,7 @@ describe("getSessionCredentials", () => {
 
   describe("region handling", () => {
     test("uses default region when bucket config has no region", async () => {
-      vi.mocked(getBucketConfigByName).mockResolvedValue(
+      vi.mocked(getBucketConfigByPath).mockResolvedValue(
         mock.bucketConfig({
           name: "regionless-bucket",
           region: null,
@@ -190,7 +191,7 @@ describe("getSessionCredentials", () => {
     });
 
     test("handles undefined roleArn", async () => {
-      vi.mocked(getBucketConfigByName).mockResolvedValue(
+      vi.mocked(getBucketConfigByPath).mockResolvedValue(
         mock.bucketConfig({
           name: "no-role-bucket",
           roleArn: null,

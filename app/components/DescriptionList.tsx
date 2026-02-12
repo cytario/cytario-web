@@ -27,4 +27,4 @@ const DescriptionList = ({ data, className }: DescriptionListProps<any>) => {
   );
 };
 
-export default DescriptionList;
+export { DescriptionList };

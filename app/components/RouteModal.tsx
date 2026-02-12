@@ -1,11 +1,13 @@
-/* eslint-disable jsx-a11y/click-events-have-key-events */
-/* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
-
-import { ReactNode, useCallback, useEffect } from "react";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
+import { ReactNode, useCallback } from "react";
 import { useNavigate } from "react-router";
 
-import { IconButton } from "./Controls/IconButton";
-import { H2 } from "./Fonts";
+import { IconButton } from "./Controls";
 
 export function RouteModal({
   title,
@@ -20,66 +22,38 @@ export function RouteModal({
   const goBack = useCallback(() => navigate(-1), [navigate]);
   const action = onClose ?? goBack;
 
-  // Global Escape key handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        action();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [action]);
-
-  // Update document title while modal is open
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = title;
-    return () => {
-      document.title = previousTitle;
-    };
-  }, [title]);
-
   return (
-    <div
-      role="presentation"
-      className={`
-        fixed top-0 left-0 z-50 overflow-auto 
-        grid place-items-center
-        w-screen h-screen p-4
-        bg-black/50 text-slate-900
-        backdrop-blur-sm 
-      `}
-      aria-hidden="false"
-      onClick={action}
-    >
-      <div
-        role="dialog"
-        className={`
-          w-full max-w-lg bg-white rounded-xl border-slate-300 shadow-2xl
-          max-h-full flex flex-col
-          overflow-hidden border
-          `}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header
+    <Dialog open={true} onClose={action} className="relative z-50">
+      <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+
+      <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto ">
+        <DialogPanel
           className={`
-            flex items-start justify-between
-            p-4 bg-slate-100
-            border-b border-slate-300
-            rounded-t-xl
-            flex-shrink-0
+            w-full max-w-lg bg-white rounded-xl border-slate-300 shadow-2xl
+            max-h-full flex flex-col
+            overflow-hidden border text-slate-900
           `}
         >
-          <H2>{title}</H2>
-          <IconButton onClick={action} icon="X" label="Close modal" />
-        </header>
-        <div className="flex flex-col gap-4 p-4 overflow-y-auto flex-1">
-          {children}
-        </div>
+          <header
+            className={`
+              flex items-start justify-between
+              p-4 bg-slate-100
+              border-b border-slate-300
+              rounded-t-xl
+              flex-shrink-0
+            `}
+          >
+            <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
+            <IconButton
+              onClick={action}
+              icon="X"
+              label="Close modal"
+              theme="transparent"
+            />
+          </header>
+          <div className="space-y-8 p-4 overflow-y-auto flex-1">{children}</div>
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }

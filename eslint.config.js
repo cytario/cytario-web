@@ -8,7 +8,10 @@ import reactHooksPlugin from "eslint-plugin-react-hooks";
 import globals from "globals";
 
 export default [
-  // Base config for all files
+  // ESLint recommended rules
+  js.configs.recommended,
+
+  // Ignore build artifacts and dependencies
   {
     ignores: [
       "**/node_modules/**",
@@ -18,7 +21,8 @@ export default [
       "**/coverage/**",
     ],
   },
-  js.configs.recommended,
+
+  // JavaScript/TypeScript + React configuration
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
@@ -49,6 +53,7 @@ export default [
       ...reactHooksPlugin.configs.recommended.rules,
       ...jsxA11yPlugin.configs.recommended.rules,
       ...importPlugin.configs.recommended.rules,
+      // Enforce organized imports: external, then internal, alphabetically
       "import/order": [
         "error",
         {
@@ -68,6 +73,7 @@ export default [
       react: {
         version: "detect",
       },
+      // Treat these components like forms/links for a11y rules
       formComponents: ["Form"],
       linkComponents: [
         { name: "Link", linkAttribute: "to" },
@@ -81,11 +87,13 @@ export default [
       },
     },
   },
-  // TypeScript files
+
+  // TypeScript-specific configuration
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
+      // Fetch API types
       globals: {
         RequestInit: "readonly",
         RequestInfo: "readonly",
@@ -103,6 +111,7 @@ export default [
       ...importPlugin.configs.typescript.rules,
     },
     settings: {
+      // Treat imports starting with ~/ as internal
       "import/internal-regex": "^~/",
       "import/resolver": {
         node: {
@@ -114,7 +123,8 @@ export default [
       },
     },
   },
-  // Test files
+
+  // Test files configuration
   {
     files: [
       "**/*.test.ts",
@@ -126,6 +136,7 @@ export default [
     languageOptions: {
       globals: {
         ...globals.node,
+        // Vitest globals
         vi: true,
         describe: true,
         test: true,
@@ -137,6 +148,7 @@ export default [
       },
     },
     rules: {
+      // Allow ts-expect-error in tests for intentional error cases
       "@typescript-eslint/ban-ts-comment": [
         "error",
         {
@@ -144,6 +156,7 @@ export default [
           "ts-ignore": false,
         },
       ],
+      // Enforce consistent test function naming
       "no-restricted-globals": [
         "warn",
         {
@@ -153,7 +166,23 @@ export default [
       ],
     },
   },
-  // Node config files
+
+  // Enforce named exports in app directory (except routes and framework files)
+  {
+    files: ["app/**/*.{ts,tsx,js,jsx}"],
+    ignores: [
+      "app/routes/**",
+      "app/routes.ts",
+      "app/root.tsx",
+      "app/entry.*.tsx",
+      "**/__mocks__.*",
+    ],
+    rules: {
+      "import/no-default-export": "error",
+    },
+  },
+
+  // Configuration files
   {
     files: [".eslintrc.cjs", "eslint.config.js", "vitest.config.ts"],
     languageOptions: {

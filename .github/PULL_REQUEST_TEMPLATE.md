@@ -4,7 +4,7 @@
 
 ## Related Issue
 
-<!-- Link to the issue this PR addresses, e.g., "Fixes #123" -->
+<!-- Link to the issue this PR addresses -->
 
 ## Type of Change
 

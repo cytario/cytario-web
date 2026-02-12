@@ -4,14 +4,13 @@ import { useState } from "react";
 import { select } from "../../state/selectors";
 import { ByteDomain } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import { IconButton } from "~/components/Controls/IconButton";
-import Input from "~/components/Controls/Input";
+import { IconButton, Input } from "~/components/Controls";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
   const setContrastLimits = useViewerStore(select.setContrastLimits);
   const resetContrastLimits = useViewerStore(
-    (state) => state.resetContrastLimits
+    (state) => state.resetContrastLimits,
   );
 
   // Local state only used while editing (null = not editing, use store value)
@@ -57,7 +56,7 @@ export function MinMaxSettings() {
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    type: "min" | "max"
+    type: "min" | "max",
   ) => {
     if (e.key === "Enter") {
       e.currentTarget.blur();

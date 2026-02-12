@@ -15,22 +15,22 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { LZWDecoder } from "~/components/.client/ImageViewer/state/lzwDecoder";
-import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
+import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
-import { Button } from "~/components/Controls/Button";
+import { Button } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
-import DirectoryView from "~/components/DirectoryView/DirectoryView";
+import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { buildIndex } from "~/components/IndexStatus/buildIndex";
 import { IndexStatus } from "~/components/IndexStatus/IndexStatus";
 import { useIndexStore } from "~/components/IndexStatus/useIndexStore";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getBucketConfigByPath } from "~/utils/bucketConfig";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { getObjects } from "~/utils/getObjects";
 import { getName, getPrefix } from "~/utils/pathUtils";
@@ -39,8 +39,8 @@ import { createResourceId, matchesExtension } from "~/utils/resourceId";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
-    (module) => ({ default: module.Viewer })
-  )
+    (module) => ({ default: module.Viewer }),
+  ),
 );
 
 /**
@@ -58,13 +58,50 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
 ];
 
 export const handle = {
-  breadcrumb: (obj: ActionFunctionArgs) => {
-    const { params } = obj;
+  breadcrumb: (match: {
+    params: Record<string, string | undefined>;
+    data?: BucketRouteLoaderResponse;
+  }) => {
+    const { params, data } = match;
     const provider = params.provider ?? "";
     const bucketName = params.bucketName ?? "";
-    const pathName = params["*"];
-    const pathSegments = pathName ? pathName.split("/") : [];
-    return getCrumbs(`/buckets/${provider}`, [bucketName, ...pathSegments]);
+    const pathName = params["*"] ?? "";
+    const prefix = data?.bucketConfig?.prefix ?? "";
+
+    // Calculate the relative path (path after the data connection prefix)
+    const normalizedPrefix = prefix.endsWith("/")
+      ? prefix
+      : prefix
+        ? `${prefix}/`
+        : "";
+    const relativePath =
+      normalizedPrefix && pathName.startsWith(normalizedPrefix)
+        ? pathName.slice(normalizedPrefix.length)
+        : normalizedPrefix && pathName === prefix.replace(/\/$/, "")
+          ? ""
+          : prefix
+            ? pathName.slice(prefix.length).replace(/^\//, "")
+            : pathName;
+
+    const relativeSegments = relativePath ? relativePath.split("/") : [];
+
+    // Build the data connection path (bucket + prefix as atomic unit)
+    const dataConnectionPath = prefix
+      ? `/buckets/${provider}/${bucketName}/${prefix.replace(/\/$/, "")}`
+      : `/buckets/${provider}/${bucketName}`;
+
+    // Display name: show bucket name, or bucket/lastPrefixSegment if prefix exists
+    const prefixLastSegment = prefix.replace(/\/$/, "").split("/").pop();
+    const dataConnectionName = prefix
+      ? `${bucketName}/${prefixLastSegment}`
+      : bucketName;
+
+    const options: CrumbsOptions = {
+      dataConnectionName,
+      dataConnectionPath,
+    };
+
+    return getCrumbs(`/buckets/${provider}`, relativeSegments, options);
   },
 };
 
@@ -98,10 +135,11 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const bucketConfig = await getBucketConfigByName(
+  const bucketConfig = await getBucketConfigByPath(
     userId,
     provider,
-    bucketName
+    bucketName,
+    pathName,
   );
 
   if (!bucketConfig) {
@@ -115,7 +153,7 @@ export const loader = async ({
       bucketConfig,
       s3Client,
       undefined,
-      prefix
+      prefix,
     );
 
     if (objects.length > 0) {
@@ -123,10 +161,15 @@ export const loader = async ({
         objects.map(async (obj) => ({
           ...obj,
           presignedUrl: await getPresignedUrl(bucketConfig, s3Client, obj.Key!),
-        }))
+        })),
       );
 
-      const nodes = buildDirectoryTree(bucketName, objectsWithUrls, prefix);
+      const nodes = buildDirectoryTree(
+        bucketName,
+        objectsWithUrls,
+        bucketConfig.provider,
+        prefix,
+      );
 
       return {
         credentials,
@@ -179,7 +222,7 @@ export default function ObjectsRoute() {
   const resourceId = createResourceId(
     bucketConfig.provider,
     bucketConfig.name,
-    pathName
+    pathName,
   );
 
   // Store credentials and bucket config in Zustand store when they're available
@@ -199,7 +242,7 @@ export default function ObjectsRoute() {
         buildIndex(bucketKey, bucketName, credentials, bucketConfig).catch(
           (error) => {
             console.error(`[ObjectsRoute] Failed to build index:`, error);
-          }
+          },
         );
       }
     }
@@ -208,14 +251,16 @@ export default function ObjectsRoute() {
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
-      <DirectoryView
-        name={name}
-        nodes={nodes}
-        provider={bucketConfig.provider}
-        bucketName={bucketName}
-        pathName={pathName}
-        headerActions={<IndexStatus bucketKey={bucketKey} />}
-      />
+      <div className="max-h-full overflow-x-hidden overflow-y-auto">
+        <DirectoryView
+          name={name}
+          nodes={nodes}
+          provider={bucketConfig.provider}
+          bucketName={bucketName}
+          pathName={pathName}
+          headerActions={<IndexStatus bucketKey={bucketKey} />}
+        />
+      </div>
     );
   }
 
@@ -224,7 +269,7 @@ export default function ObjectsRoute() {
     const isCsv = matchesExtension(resourceId, /\.csv$/i);
     const isTabularFile = matchesExtension(
       resourceId,
-      /\.(csv|parquet|json|ndjson)$/i
+      /\.(csv|parquet|json|ndjson)$/i,
     );
 
     if (isTabularFile) {

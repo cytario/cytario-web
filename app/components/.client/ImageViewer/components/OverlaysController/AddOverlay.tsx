@@ -3,15 +3,9 @@ import { useFetcher } from "react-router";
 
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import Input from "~/components/Controls/Input";
-import {
-  TreeNode,
-  buildDirectoryTree,
-} from "~/components/DirectoryView/buildDirectoryTree";
-import DirectoryTree from "~/components/DirectoryView/DirectoryViewTree";
-import { DEFAULT_RESULTS } from "~/components/GlobalSearch/GlobalSearch";
+import { Input } from "~/components/Controls";
+import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useCredentialsStore } from "~/utils/credentialsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
@@ -26,7 +20,7 @@ export const AddOverlay = ({
 }) => {
   const addOverlaysState = useViewerStore(select.addOverlaysState);
   const addNotification = useNotificationStore(
-    (state) => state.addNotification
+    (state) => state.addNotification,
   );
 
   const obj: Record<string, "csv" | "parquet"> = {
@@ -47,22 +41,8 @@ export const AddOverlay = ({
     }
   }, [objectsFetcher, objectsFetcher.state, searchString]);
 
-  // Derive results from fetcher data
-  const results = objectsFetcher.data?.results ?? DEFAULT_RESULTS;
-
-  // Nodes across buckets - keys are in format provider/bucketName
-  const nodes: TreeNode[] = Object.keys(results.files).map((key) => {
-    const [provider, bucketName] = key.split("/");
-    const objects = results.files[key] as ObjectPresignedUrl[];
-    const bucketConfig = { provider } as TreeNode["_Bucket"];
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      _Bucket: bucketConfig,
-      children: buildDirectoryTree(bucketName, objects, undefined, bucketConfig),
-    };
-  });
+  // Derive nodes from fetcher data
+  const nodes = objectsFetcher.data?.nodes ?? [];
 
   return (
     <div className="relative flex flex-col gap-2">
@@ -72,29 +52,29 @@ export const AddOverlay = ({
         nodes={nodes}
         action={async (node) => {
           try {
-            if (!node.pathName || !node.bucketName || !node._Bucket?.provider) {
+            if (!node.pathName || !node.bucketName) {
               throw new Error("Invalid node selected");
             }
 
-            const provider = node._Bucket.provider;
             const resourceId = createResourceId(
-              provider,
+              node.provider,
               node.bucketName,
-              node.pathName
+              node.pathName,
             );
 
-            // Get credentials from the store using provider/bucketName key
-            // Credentials are per-bucket, not per-file
+            // Get credentials and bucket config from the store using provider/bucketName key
             // Use getState() to access store outside of React component render
-            const storeKey = `${provider}/${node.bucketName}`;
-            const credentials = useCredentialsStore
-              .getState()
-              .getCredentials(storeKey);
+            const storeKey = `${node.provider}/${node.bucketName}`;
+            const storeState = useCredentialsStore.getState();
+            const credentials = storeState.getCredentials(storeKey);
+            const bucketConfig = storeState.getBucketConfig(storeKey);
+
+            if (!bucketConfig) {
+              throw new Error("Bucket configuration not found");
+            }
 
             if (!credentials) {
-              throw new Error(
-                `No credentials found for bucket: ${storeKey}`
-              );
+              throw new Error(`No credentials found for bucket: ${storeKey}`);
             }
 
             if (extension === "csv") {

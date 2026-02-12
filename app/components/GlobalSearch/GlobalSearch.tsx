@@ -67,7 +67,7 @@ export const GlobalSearch = () => {
         setResults(DEFAULT_RESULTS);
       }
     },
-    [setSearchQuery]
+    [setSearchQuery],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
