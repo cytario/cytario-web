@@ -118,6 +118,22 @@ describe("getInitialChannelsState", () => {
     expect(result.channelsState["GFP"].color).toEqual([0, 255, 0]);
   });
 
+  test("channels fall back to OVERLAY_COLORS as RGB when metadata lacks Color", async () => {
+    const metadata = createMockMetadata([
+      { Name: "DAPI" },
+      { Name: "CD8" },
+      { Name: "PanCK" },
+    ]);
+
+    const result = await getInitialChannelsState(metadata, mockLoader);
+
+    // Fallback colors should be RGB (3 elements), not RGBA (4 elements)
+    expect(result.channelsState["DAPI"].color).toEqual([255, 0, 0]);
+    expect(result.channelsState["CD8"].color).toEqual([255, 128, 0]);
+    expect(result.channelsState["PanCK"].color).toEqual([255, 255, 0]);
+    expect(result.channelsState["DAPI"].color).toHaveLength(3);
+  });
+
   test("handles single channel", async () => {
     const metadata = createMockMetadata([{ Name: "SingleChannel" }]);
 

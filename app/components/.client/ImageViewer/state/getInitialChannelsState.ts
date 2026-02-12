@@ -3,9 +3,17 @@ import { ChannelConfig, ChannelsState, RGB } from "./types";
 import { OVERLAY_COLORS } from "../components/OverlaysController/getOverlayState";
 import { getSelectionStats } from "../utils/getSelectionStats";
 
+/** Returns the RGB color for a channel, falling back to OVERLAY_COLORS if metadata lacks a Color. */
+const getInitialColor = (channels: Channel[], index: number): RGB => {
+  const colorRaw =
+    channels[index]?.Color ?? OVERLAY_COLORS[index % OVERLAY_COLORS.length];
+  return colorRaw.slice(0, 3) as RGB;
+};
+
+/** Builds the initial channel configs (color, domain, contrast limits) from OME-TIFF metadata. */
 export const getInitialChannelsState = async (
   metadata: Image,
-  loader: Loader
+  loader: Loader,
 ) => {
   const channels = metadata.Pixels.Channels as Channel[];
 
@@ -19,9 +27,7 @@ export const getInitialChannelsState = async (
 
   const initialChannelsState = channels.reduce((acc, channel, index) => {
     const key = channelIds[index];
-    const color =
-      (channels[index]?.Color?.slice(0, -1) as RGB) ??
-      OVERLAY_COLORS[index % OVERLAY_COLORS.length];
+    const color = getInitialColor(channels, index);
 
     const isFirstChannel = index === 0;
     const initialChannelConfig: ChannelConfig = {
