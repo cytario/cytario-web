@@ -1,4 +1,4 @@
-import { BreadcrumbLink } from "./BreadcrumbLink";
+import { BreadcrumbData } from "./Breadcrumbs";
 
 export interface CrumbsOptions {
   /** Display name for the atomic data connection crumb (bucket + prefix as one unit) */
@@ -11,35 +11,26 @@ export const getCrumbs = (
   basePath: string,
   segments: string[],
   options?: CrumbsOptions
-): JSX.Element[] => {
+): BreadcrumbData[] => {
   const { dataConnectionName, dataConnectionPath } = options ?? {};
 
   // When a data connection with prefix is provided, render it as a single atomic crumb
   if (dataConnectionName && dataConnectionPath) {
-    const dataConnectionCrumb = (
-      <BreadcrumbLink
-        key={dataConnectionPath}
-        to={dataConnectionPath}
-        className={segments.length === 0 ? "text-white" : ""}
-      >
-        {dataConnectionName}
-      </BreadcrumbLink>
-    );
+    const dataConnectionCrumb: BreadcrumbData = {
+      label: dataConnectionName,
+      to: dataConnectionPath,
+      isActive: segments.length === 0,
+    };
 
     // Build crumbs for the remaining path segments (relative to data connection root)
     let currentPath = dataConnectionPath;
-    const remainingCrumbs = segments.map((name, index) => {
+    const remainingCrumbs: BreadcrumbData[] = segments.map((name, index) => {
       currentPath += `/${name}`;
-      const isActive = index === segments.length - 1;
-      return (
-        <BreadcrumbLink
-          key={currentPath}
-          to={currentPath}
-          className={isActive ? "text-white" : ""}
-        >
-          {name}
-        </BreadcrumbLink>
-      );
+      return {
+        label: name,
+        to: currentPath,
+        isActive: index === segments.length - 1,
+      };
     });
 
     return [dataConnectionCrumb, ...remainingCrumbs];
@@ -52,13 +43,9 @@ export const getCrumbs = (
     return { name, to };
   });
 
-  return crumbsObjects.map(({ name, to }, index) => {
-    const isActive = index === crumbsObjects.length - 1;
-
-    return (
-      <BreadcrumbLink key={to} to={to} className={isActive ? "text-white" : ""}>
-        {name}
-      </BreadcrumbLink>
-    );
-  });
+  return crumbsObjects.map(({ name, to }, index) => ({
+    label: name,
+    to,
+    isActive: index === crumbsObjects.length - 1,
+  }));
 };

@@ -24,7 +24,10 @@ export function BreadcrumbLink({
   className?: string;
   isRoot?: boolean;
 }>) {
-  const listItemStyle = twMerge("h-full", !isRoot ? "min-w-0 shrink" : "");
+  const listItemStyle = twMerge(
+    "h-full",
+    !isRoot ? "min-w-8 shrink last:shrink-0" : "",
+  );
   const linkStyle = twMerge(style, className);
 
   return (

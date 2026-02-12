@@ -1,7 +1,6 @@
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
-import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { Container } from "~/components/Container";
 import { Button } from "~/components/Controls";
 import { DescriptionList } from "~/components/DescriptionList";
@@ -9,13 +8,7 @@ import { DescriptionList } from "~/components/DescriptionList";
 export const middleware = [authMiddleware];
 
 export const handle = {
-  breadcrumb: () => {
-    return (
-      <BreadcrumbLink key="config" to={`/config`}>
-        Config
-      </BreadcrumbLink>
-    );
-  },
+  breadcrumb: () => ({ label: "Config", to: "/config" }),
 };
 
 export const loader: LoaderFunction = async () => {
