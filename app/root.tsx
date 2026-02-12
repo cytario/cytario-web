@@ -127,7 +127,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat">
+      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-slate-100">
         {data?.user && <AppHeader />}
 
         {children}

@@ -69,63 +69,59 @@ export function DirectoryView({
   }
 
   return (
-    <>
-      {/* List vs Grid */}
-      <TabGroup selectedIndex={activeTab} onChange={setActiveTab}>
-        <Container>
-          <header className="flex flex-col justify-between mt-24 gap-2">
-            {/* Actions */}
-            <div className="flex gap-2">
-              {name && <H1 className="flex-grow">{name}</H1>}
+    <TabGroup selectedIndex={activeTab} onChange={setActiveTab}>
+      <div className="container mx-auto">
+        <header className="flex flex-col justify-between mb-8 gap-2">
+          {/* Actions */}
+          <div className="flex gap-2">
+            {name && <H1 className="flex-grow">{name}</H1>}
 
-              {/* Tabs */}
-              <TabList className="flex gap-1">
-                <IconTab label="List View">
-                  <Icon icon="List" size={16} />
-                </IconTab>
-                <IconTab label="Grid View">
-                  <Icon icon="Grid2x2" />
-                </IconTab>
-              </TabList>
-            </div>
-            <div>
-              {/* Render button only on root */}
-              {!bucketName && (
-                <ButtonLink to="/connect-bucket" theme="white">
-                  <Icon icon="Plug" size={16} /> Connect Storage
-                </ButtonLink>
-              )}
+            {/* Tabs */}
+            <TabList className="flex gap-1">
+              <IconTab label="List View">
+                <Icon icon="List" size={16} />
+              </IconTab>
+              <IconTab label="Grid View">
+                <Icon icon="Grid2x2" />
+              </IconTab>
+            </TabList>
+          </div>
+          <div>
+            {/* Render button only on root */}
+            {!bucketName && (
+              <ButtonLink to="/connect-bucket" theme="white">
+                <Icon icon="Plug" size={16} /> Connect Storage
+              </ButtonLink>
+            )}
 
-              {/* Cyberduck button - only show when viewing a bucket */}
-              {bucketName && (
-                <ButtonLink
-                  to="?action=cyberduck"
-                  theme="white"
-                  className="gap-2"
-                >
-                  <Icon icon="Download" size={16} />
-                  Access with Cyberduck
-                </ButtonLink>
-              )}
-            </div>
-          </header>
-        </Container>
+            {/* Cyberduck button - only show when viewing a bucket */}
+            {bucketName && (
+              <ButtonLink
+                to="?action=cyberduck"
+                theme="white"
+                className="gap-2"
+              >
+                <Icon icon="Download" size={16} />
+                Access with Cyberduck
+              </ButtonLink>
+            )}
+          </div>
+        </header>
+      </div>
 
-        {/* Tab Panels */}
-        <TabPanels>
-          <TabPanel>
-            <DirectoryViewTable nodes={nodes} />
-          </TabPanel>
-          <TabPanel>
-            <Container>
-              <DirectoryViewGrid nodes={nodes} />
-            </Container>
-          </TabPanel>
-        </TabPanels>
-      </TabGroup>
-
+      {/* Tab Panels */}
+      <TabPanels>
+        <TabPanel>
+          <DirectoryViewTable nodes={nodes} />
+        </TabPanel>
+        <TabPanel>
+          <div className="container mx-auto">
+            <DirectoryViewGrid nodes={nodes} />
+          </div>
+        </TabPanel>
+      </TabPanels>
       {/* Modal */}
       <NodeInfoModal />
-    </>
+    </TabGroup>
   );
 }

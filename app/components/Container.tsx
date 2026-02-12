@@ -6,8 +6,8 @@ interface ContainerProps {
 
 export function Container({ children }: ContainerProps) {
   return (
-    <section className="container flex-grow mx-auto my-12 px-6">
-      <div className="">{children}</div>
+    <section className="flex-grow bg-gradient-to-br from-white to-slate-200 py-20">
+      {children}
     </section>
   );
 }

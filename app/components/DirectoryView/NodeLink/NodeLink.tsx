@@ -67,16 +67,16 @@ export function NodeLink({
   const cx = twMerge(style, className);
 
   return (
-    <div className="group">
+    <div className="group flex flex-col h-full">
       {/* Grid view thumbnail */}
       {listStyle === "grid" && (
-        <Link to={to} className="flex items-center justify-center w-full h-40">
+        <Link to={to} className="flex items-center justify-center w-full flex-1 min-h-0">
           <NodeThumbnail node={node} />
         </Link>
       )}
 
       {/* Node name */}
-      <div className="w-full flex flex-grow items-center gap-1 min-h-8">
+      <div className="w-full flex items-center gap-1 min-h-8">
         <Link
           to={to}
           className={cx}

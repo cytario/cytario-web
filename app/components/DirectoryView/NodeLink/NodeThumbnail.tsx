@@ -43,7 +43,19 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
 
   switch (node.type) {
     case "bucket":
-      return <ThumbnailBox label={node.provider}></ThumbnailBox>;
+      return (
+        <ThumbnailBox label={node.provider}>
+          {key && isOmeTiff(key) && (
+            <ClientOnly>
+              <Suspense>
+                <ViewerStoreProvider resourceId={resourceId} url={url}>
+                  <ImagePreview />
+                </ViewerStoreProvider>
+              </Suspense>
+            </ClientOnly>
+          )}
+        </ThumbnailBox>
+      );
     case "directory":
       return (
         <ThumbnailSheets count={node.children?.length ?? 0}>

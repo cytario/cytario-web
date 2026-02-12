@@ -15,6 +15,7 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
+import { Container } from "~/components/Container";
 import { Button } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
@@ -241,7 +242,7 @@ export default function ObjectsRoute() {
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
-      <div className="max-h-full overflow-x-hidden overflow-y-auto">
+      <Container>
         <DirectoryView
           name={name}
           nodes={nodes}
@@ -249,7 +250,7 @@ export default function ObjectsRoute() {
           bucketName={bucketName}
           pathName={pathName}
         />
-      </div>
+      </Container>
     );
   }
 
