@@ -5,13 +5,13 @@ import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
 import { ViewerStoreProvider } from "../state/ViewerStoreContext";
-import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
+import { BucketConfig } from "~/.generated/client";
 
 interface ViewerProps {
   resourceId: string;
   url: string;
   credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
 }
 
 export const Viewer = ({

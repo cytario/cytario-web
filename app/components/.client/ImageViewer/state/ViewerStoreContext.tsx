@@ -7,7 +7,7 @@ import { devtools } from "zustand/middleware";
 import { createViewerStore } from "./createViewerStore";
 import { loadBioformatsZarrWithCredentials } from "./loadBioformatsZarrWithCredentials";
 import { ViewerStore } from "./types";
-import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
+import { BucketConfig } from "~/.generated/client";
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -15,7 +15,7 @@ interface RegisterViewerOptions {
   id: string;
   url: string;
   credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
 }
 
 interface ViewerRegistryStore {
@@ -86,14 +86,14 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
             viewers: { ...registryState.viewers, [id]: viewerStore },
           }),
           false,
-          "registerViewer"
+          "registerViewer",
         );
 
         return viewerStore;
       },
     }),
-    { name: "ViewerRegistryStore" }
-  )
+    { name: "ViewerRegistryStore" },
+  ),
 );
 
 const ViewerStoreContext = createContext<ViewerStoreApi | null>(null);
@@ -102,7 +102,7 @@ interface ViewerStoreProviderProps {
   resourceId: string;
   url: string;
   credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
   children: ReactNode;
 }
 
@@ -116,7 +116,7 @@ export const ViewerStoreProvider = ({
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
   const store = useMemo(
     () => registerViewer({ id: resourceId, url, credentials, bucketConfig }),
-    [resourceId, url, credentials, bucketConfig, registerViewer]
+    [resourceId, url, credentials, bucketConfig, registerViewer],
   );
 
   return (
@@ -131,7 +131,7 @@ export const useViewerStore = <T,>(selector: (state: ViewerStore) => T): T => {
 
   if (!store)
     throw new Error(
-      "useViewerStoreContext must be used within ViewerStoreProvider"
+      "useViewerStoreContext must be used within ViewerStoreProvider",
     );
   return useStore(store, selector);
 };
