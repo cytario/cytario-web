@@ -11,10 +11,15 @@ import { ViewerStoreProvider } from "../state/ViewerStoreContext";
 /**
  * Register decoders for GeoTIFF files.
  * Must run client-side only — decoders use Web Workers.
+ * Guarded to prevent duplicate registration during HMR.
  * @url https://github.com/vitessce/vitessce/issues/1709#issuecomment-2960537868
  */
-addDecoder(5, () => LZWDecoder);
-addDecoder(33005, () => JP2KDecoder);
+let decodersRegistered = false;
+if (!decodersRegistered) {
+  addDecoder(5, () => LZWDecoder);
+  addDecoder(33005, () => JP2KDecoder);
+  decodersRegistered = true;
+}
 
 interface ViewerProps {
   resourceId: string;
