@@ -16,6 +16,14 @@ interface DirectoryStore {
   setHeaderSlot: (slot: React.ReactNode) => void;
 }
 
+export function getGridSize(viewMode: ViewMode): "sm" | "md" | "lg" {
+  switch (viewMode) {
+    case "grid-sm": return "sm";
+    case "grid-md": return "md";
+    case "grid-lg": default: return "lg";
+  }
+}
+
 const name = "DirectoryStore";
 
 /**

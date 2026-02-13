@@ -7,15 +7,12 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { IconButton } from "../../Controls";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { type GridSize } from "~/components/DirectoryView/DirectoryViewGrid";
+import { type ViewMode } from "~/components/DirectoryView/useDirectoryStore";
 import { createResourceId } from "~/utils/resourceId";
-
-export type NodeLinkListStyle = "list" | "grid";
 
 export interface NodeLinkProps {
   node: TreeNode;
-  listStyle?: NodeLinkListStyle;
-  gridSize?: GridSize;
+  viewMode?: ViewMode;
   className?: string;
   onClick?: (node: TreeNode) => void;
   showInfoButton?: boolean;
@@ -30,8 +27,7 @@ const style = `
 
 export function NodeLink({
   node,
-  listStyle = "list",
-  gridSize,
+  viewMode = "list",
   className,
   onClick,
   showInfoButton = true,
@@ -72,9 +68,9 @@ export function NodeLink({
   return (
     <div className="group flex flex-col h-full">
       {/* Grid view thumbnail */}
-      {listStyle === "grid" && (
+      {viewMode !== "list" && (
         <Link to={to} className="flex items-center justify-center w-full flex-1 min-h-0">
-          <NodeThumbnail node={node} gridSize={gridSize} />
+          <NodeThumbnail node={node} viewMode={viewMode} />
         </Link>
       )}
 

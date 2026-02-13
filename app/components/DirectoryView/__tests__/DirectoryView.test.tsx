@@ -8,7 +8,8 @@ import { DirectoryView } from "../DirectoryView";
 import { useDirectoryStore } from "../useDirectoryStore";
 import mock from "~/utils/__tests__/__mocks__";
 
-vi.mock("../useDirectoryStore", () => ({
+vi.mock("../useDirectoryStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../useDirectoryStore")>()),
   useDirectoryStore: vi.fn(),
 }));
 
