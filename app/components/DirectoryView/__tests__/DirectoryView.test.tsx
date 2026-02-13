@@ -16,11 +16,11 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(),
 }));
 
-const mockSetActiveTab = vi.fn();
+const mockSetViewMode = vi.fn();
 
 const mockStoreDefaults = {
-  activeTab: 0,
-  setActiveTab: mockSetActiveTab,
+  viewMode: "list" as const,
+  setViewMode: mockSetViewMode,
   setBucketName: vi.fn(),
   setPathName: vi.fn(),
   setProvider: vi.fn(),
@@ -82,7 +82,7 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("[Placeholder: No items]")).toBeInTheDocument();
   });
 
-  test("renders the tabs and switches between them", () => {
+  test("renders the toggle buttons and switches view mode", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -99,21 +99,21 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Check that the tabs are rendered
-    expect(screen.getByRole("tab", { name: /List/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Grid/i })).toBeInTheDocument();
+    // Check that the toggle buttons are rendered
+    expect(screen.getByRole("button", { name: /List View/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Grid View/i })).toBeInTheDocument();
 
-    // Simulate switching tabs
-    const gridTab = screen.getByRole("tab", { name: /grid/i });
+    // Simulate switching to grid
+    const gridButton = screen.getByRole("button", { name: /Grid View/i });
     act(() => {
-      fireEvent.click(gridTab);
+      fireEvent.click(gridButton);
     });
 
-    // Verify that the active tab is updated in the Zustand store
-    expect(mockSetActiveTab).toHaveBeenCalledWith(1);
+    // Verify that the view mode is updated in the Zustand store
+    expect(mockSetViewMode).toHaveBeenCalledWith("grid");
   });
 
-  test("renders the DirectoryTable in the List tab", () => {
+  test("renders the DirectoryTable in list mode", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -130,12 +130,12 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Verify that the DirectoryTable is rendered by default
+    // Verify that the DirectoryTable is rendered in list mode
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
     expect(screen.getByText("Folder1")).toBeInTheDocument();
   });
 
-  test("renders the DirectoryViewGrid in the Grid tab", () => {
+  test("renders the DirectoryViewGrid in grid mode", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -152,7 +152,7 @@ describe("DirectoryView Component", () => {
 
     (useDirectoryStore as unknown as Mock).mockReturnValue({
       ...mockStoreDefaults,
-      activeTab: 1, // Simulate the Grid tab being active
+      viewMode: "grid",
     });
 
     render(<RemixStub initialEntries={["/"]} />);

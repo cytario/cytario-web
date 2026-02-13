@@ -8,14 +8,14 @@ interface HeadingProps {
 
 export function H1({ children, className }: HeadingProps) {
   const cx = twMerge(
-    "gap-1 text-2xl sm:text-3xl md:text-4xl font-bold",
+    "gap-1 font-bold text-2xl sm:text-3xl md:text-4xl ",
     className,
   );
   return <h1 className={cx}>{children}</h1>;
 }
 
 export function H2({ children, className }: HeadingProps) {
-  const cx = twMerge("gap-1 text-2xl", className);
+  const cx = twMerge("gap-1 font-bold text-xl sm:text-2xl md:text-3xl", className);
   return <h2 className={cx}>{children}</h2>;
 }
 

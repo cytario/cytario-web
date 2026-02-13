@@ -1,7 +1,7 @@
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
-import { Container } from "~/components/Container";
+import { Section } from "~/components/Container";
 import { Button } from "~/components/Controls";
 import { DescriptionList } from "~/components/DescriptionList";
 
@@ -22,7 +22,7 @@ export default function ConfigRoute() {
   const data = useLoaderData<typeof loader>();
 
   return (
-    <Container>
+    <Section>
       <DescriptionList data={data} />
       <Button
         onClick={() => {
@@ -42,6 +42,6 @@ export default function ConfigRoute() {
           </code>
         )}
       </div>
-    </Container>
+    </Section>
   );
 }

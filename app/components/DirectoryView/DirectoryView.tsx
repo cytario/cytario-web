@@ -1,13 +1,13 @@
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { ReactNode, useEffect } from "react";
+import { useEffect } from "react";
 
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
+import { ViewModeToggle } from "./ViewModeToggle";
 import { ButtonLink, Icon } from "../Controls";
 import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
-import { Container } from "~/components/Container";
+import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 export interface DirectoryViewBaseProps {
@@ -21,29 +21,6 @@ interface DirectoryViewProps extends DirectoryViewBaseProps {
   name: string;
 }
 
-interface TabProps {
-  label: string;
-  children: ReactNode;
-}
-
-function IconTab({ children, label }: TabProps) {
-  return (
-    <Tab
-      aria-label={label}
-      className={`
-        flex items-center justify-center
-        w-8 h-8
-        bg-white
-        data-[hover]:bg-slate-300 
-        data-[selected]:bg-slate-700 data-[selected]:text-white 
-        border border-slate-300
-      `}
-    >
-      {children}
-    </Tab>
-  );
-}
-
 export function DirectoryView({
   nodes,
   name,
@@ -51,7 +28,7 @@ export function DirectoryView({
   bucketName,
   pathName,
 }: DirectoryViewProps) {
-  const { activeTab, setActiveTab, setProvider, setBucketName, setPathName } =
+  const { viewMode, setProvider, setBucketName, setPathName } =
     useDirectoryStore();
 
   useEffect(() => {
@@ -62,39 +39,27 @@ export function DirectoryView({
 
   if (nodes.length === 0) {
     return (
-      <Container>
+      <Section>
         <div>[Placeholder: No items]</div>
-      </Container>
+      </Section>
     );
   }
 
   return (
-    <TabGroup selectedIndex={activeTab} onChange={setActiveTab}>
-      <div className="container mx-auto">
+    <>
+      <Container>
         <header className="flex flex-col justify-between mb-8 gap-2">
-          {/* Actions */}
           <div className="flex gap-2">
             {name && <H1 className="flex-grow">{name}</H1>}
-
-            {/* Tabs */}
-            <TabList className="flex gap-1">
-              <IconTab label="List View">
-                <Icon icon="List" size={16} />
-              </IconTab>
-              <IconTab label="Grid View">
-                <Icon icon="Grid2x2" />
-              </IconTab>
-            </TabList>
+            <ViewModeToggle />
           </div>
           <div>
-            {/* Render button only on root */}
             {!bucketName && (
               <ButtonLink to="/connect-bucket" theme="white">
                 <Icon icon="Plug" size={16} /> Connect Storage
               </ButtonLink>
             )}
 
-            {/* Cyberduck button - only show when viewing a bucket */}
             {bucketName && (
               <ButtonLink
                 to="?action=cyberduck"
@@ -107,21 +72,17 @@ export function DirectoryView({
             )}
           </div>
         </header>
-      </div>
+      </Container>
 
-      {/* Tab Panels */}
-      <TabPanels>
-        <TabPanel>
-          <DirectoryViewTable nodes={nodes} />
-        </TabPanel>
-        <TabPanel>
-          <div className="container mx-auto">
-            <DirectoryViewGrid nodes={nodes} />
-          </div>
-        </TabPanel>
-      </TabPanels>
-      {/* Modal */}
+      {viewMode === "list" ? (
+        <DirectoryViewTable nodes={nodes} />
+      ) : (
+        <Container>
+          <DirectoryViewGrid nodes={nodes} />
+        </Container>
+      )}
+
       <NodeInfoModal />
-    </TabGroup>
+    </>
   );
 }

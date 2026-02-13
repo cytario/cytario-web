@@ -14,11 +14,13 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { getSession } from "~/.server/auth/getSession";
 import { getSessionCredentials } from "~/.server/auth/getSessionCredentials";
 import { SessionData, sessionStorage } from "~/.server/auth/sessionStorage";
-import { Container } from "~/components/Container";
+import { ClientOnly } from "~/components/ClientOnly";
+import { Section } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
+import { RecentlyViewed } from "~/components/RecentlyViewed/RecentlyViewed";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import {
   getBucketConfigsForUser,
@@ -139,7 +141,7 @@ export default function BucketsRoute() {
 
   return (
     <>
-      <Container>
+      <Section>
         {nodes.length > 0 ? (
           <DirectoryView nodes={nodes} name={title} bucketName="" />
         ) : (
@@ -154,7 +156,11 @@ export default function BucketsRoute() {
             }
           />
         )}
-      </Container>
+      </Section>
+
+      <ClientOnly>
+        <RecentlyViewed />
+      </ClientOnly>
 
       <Outlet />
     </>

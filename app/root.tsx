@@ -19,7 +19,7 @@ import {
 } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
-import { Container } from "./components/Container";
+import { Section } from "./components/Container";
 import { useDirectoryStore } from "./components/DirectoryView/useDirectoryStore";
 import { H1 } from "./components/Fonts";
 import { GlobalSearch } from "./components/GlobalSearch";
@@ -152,9 +152,9 @@ export function ErrorBoundary() {
   const error = useRouteError() as Error;
 
   return (
-    <Container>
+    <Section>
       <H1>{error.name}</H1>
       <p>{error?.message ?? "Unknown error"}</p>
-    </Container>
+    </Section>
   );
 }

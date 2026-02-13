@@ -9,8 +9,8 @@ export function DirectoryViewGrid({ nodes }: { nodes: TreeNode[] }) {
           key={node.name}
           className={`
             flex flex-col p-2
-            w-full sm:w-6/12 md:w-4/12 lg:w-3/12 xl:w-2/12 
-            h-60
+            w-full sm:w-6/12 md:w-4/12 lg:w-3/12 xl:w-2/12
+            aspect-square
           `}
         >
           <NodeLink key={node.name} node={node} listStyle="grid" />
