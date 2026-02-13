@@ -7,11 +7,12 @@ import { ViewerStoreProvider } from "../state/ViewerStoreContext";
 interface ViewerProps {
   resourceId: string;
   url: string;
+  offsetsUrl?: string;
 }
 
-export const Viewer = ({ resourceId, url }: ViewerProps) => {
+export const Viewer = ({ resourceId, url, offsetsUrl }: ViewerProps) => {
   return (
-    <ViewerStoreProvider resourceId={resourceId} url={url}>
+    <ViewerStoreProvider resourceId={resourceId} url={url} offsetsUrl={offsetsUrl}>
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier

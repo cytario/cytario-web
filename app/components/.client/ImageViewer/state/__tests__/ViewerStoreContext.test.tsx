@@ -180,6 +180,195 @@ describe("ViewerStoreContext", () => {
       });
     });
 
+    test("fetches offsets and passes them to loadOmeTiff when offsetsUrl is provided", async () => {
+      const mockOffsets = [0, 1024, 2048];
+      const setLoader = vi.fn();
+      const setMetadata = vi.fn();
+      const setIsViewerLoading = vi.fn();
+
+      vi.mocked(createViewerStore).mockReturnValue({
+        getState: vi.fn(() => ({
+          setLoader,
+          setMetadata,
+          setError: vi.fn(),
+          setIsViewerLoading,
+        })),
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      } as unknown as ReturnType<typeof createViewerStore>);
+
+      vi.mocked(loadOmeTiff).mockResolvedValue({
+        data: [],
+        metadata: {},
+      } as unknown as Awaited<ReturnType<typeof loadOmeTiff>>);
+
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockOffsets),
+      } as Response);
+
+      render(
+        <ViewerStoreProvider
+          resourceId="offsets-viewer"
+          url="https://example.com/image.ome.tiff"
+          offsetsUrl="https://example.com/image.offsets.json"
+        >
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          "https://example.com/image.offsets.json",
+        );
+        expect(loadOmeTiff).toHaveBeenCalledWith(
+          "https://example.com/image.ome.tiff",
+          expect.objectContaining({ offsets: mockOffsets }),
+        );
+      });
+
+      fetchSpy.mockRestore();
+    });
+
+    test("proceeds without offsets when offset fetch returns 404", async () => {
+      const setLoader = vi.fn();
+      const setMetadata = vi.fn();
+      const setIsViewerLoading = vi.fn();
+
+      vi.mocked(createViewerStore).mockReturnValue({
+        getState: vi.fn(() => ({
+          setLoader,
+          setMetadata,
+          setError: vi.fn(),
+          setIsViewerLoading,
+        })),
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      } as unknown as ReturnType<typeof createViewerStore>);
+
+      vi.mocked(loadOmeTiff).mockResolvedValue({
+        data: [],
+        metadata: {},
+      } as unknown as Awaited<ReturnType<typeof loadOmeTiff>>);
+
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: false,
+        status: 404,
+      } as Response);
+
+      render(
+        <ViewerStoreProvider
+          resourceId="offsets-404-viewer"
+          url="https://example.com/image.ome.tiff"
+          offsetsUrl="https://example.com/image.offsets.json"
+        >
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(loadOmeTiff).toHaveBeenCalledWith(
+          "https://example.com/image.ome.tiff",
+          expect.objectContaining({ offsets: undefined }),
+        );
+      });
+
+      fetchSpy.mockRestore();
+    });
+
+    test("proceeds without offsets on network error and logs a warning", async () => {
+      const setLoader = vi.fn();
+      const setIsViewerLoading = vi.fn();
+
+      vi.mocked(createViewerStore).mockReturnValue({
+        getState: vi.fn(() => ({
+          setLoader,
+          setMetadata: vi.fn(),
+          setError: vi.fn(),
+          setIsViewerLoading,
+        })),
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      } as unknown as ReturnType<typeof createViewerStore>);
+
+      vi.mocked(loadOmeTiff).mockResolvedValue({
+        data: [],
+        metadata: {},
+      } as unknown as Awaited<ReturnType<typeof loadOmeTiff>>);
+
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValue(new TypeError("Network error"));
+      const warnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      render(
+        <ViewerStoreProvider
+          resourceId="offsets-network-error-viewer"
+          url="https://example.com/image.ome.tiff"
+          offsetsUrl="https://example.com/image.offsets.json"
+        >
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          "Failed to fetch OME-TIFF offsets:",
+          expect.any(TypeError),
+        );
+        expect(loadOmeTiff).toHaveBeenCalledWith(
+          "https://example.com/image.ome.tiff",
+          expect.objectContaining({ offsets: undefined }),
+        );
+      });
+
+      fetchSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    test("does not fetch offsets when offsetsUrl is not provided", async () => {
+      vi.mocked(createViewerStore).mockReturnValue({
+        getState: vi.fn(() => ({
+          setLoader: vi.fn(),
+          setMetadata: vi.fn(),
+          setError: vi.fn(),
+          setIsViewerLoading: vi.fn(),
+        })),
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      } as unknown as ReturnType<typeof createViewerStore>);
+
+      vi.mocked(loadOmeTiff).mockResolvedValue({
+        data: [],
+        metadata: {},
+      } as unknown as Awaited<ReturnType<typeof loadOmeTiff>>);
+
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+      render(
+        <ViewerStoreProvider
+          resourceId="no-offsets-viewer"
+          url="https://example.com/image.tiff"
+        >
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(loadOmeTiff).toHaveBeenCalled();
+      });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(loadOmeTiff).toHaveBeenCalledWith(
+        "https://example.com/image.tiff",
+        expect.objectContaining({ offsets: undefined }),
+      );
+
+      fetchSpy.mockRestore();
+    });
+
     test("always sets isViewerLoading to false after load attempt", async () => {
       const setIsViewerLoading = vi.fn();
 

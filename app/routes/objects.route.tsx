@@ -31,6 +31,7 @@ import { Placeholder } from "~/components/Placeholder";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { getObjects } from "~/utils/getObjects";
+import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { createResourceId, matchesExtension } from "~/utils/resourceId";
 
@@ -108,6 +109,7 @@ export interface BucketRouteLoaderResponse {
   pathName: string;
   name: string;
   url?: string;
+  offsetsUrl?: string;
   notification?: NotificationInput;
   credentials: Credentials;
   bucketConfig: BucketConfig;
@@ -178,7 +180,14 @@ export const loader = async ({
       };
     }
 
-    const url = await getPresignedUrl(bucketConfig, s3Client, pathName);
+    const offsetKey = getOffsetKeyForOmeTiff(pathName);
+
+    const [url, offsetsUrl] = await Promise.all([
+      getPresignedUrl(bucketConfig, s3Client, pathName),
+      offsetKey
+        ? getPresignedUrl(bucketConfig, s3Client, offsetKey)
+        : undefined,
+    ]);
 
     return {
       credentials,
@@ -188,6 +197,7 @@ export const loader = async ({
       bucketName,
       pathName,
       url,
+      offsetsUrl,
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
@@ -208,8 +218,16 @@ export const loader = async ({
 };
 
 export default function ObjectsRoute() {
-  const { name, url, nodes, pathName, bucketName, credentials, bucketConfig } =
-    useLoaderData<BucketRouteLoaderResponse>();
+  const {
+    name,
+    url,
+    offsetsUrl,
+    nodes,
+    pathName,
+    bucketName,
+    credentials,
+    bucketConfig,
+  } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const navigate = useNavigate();
   const { setCredentials } = useCredentialsStore();
@@ -278,7 +296,7 @@ export default function ObjectsRoute() {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer resourceId={resourceId} url={url} />
+            <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
           </Suspense>
         </ClientOnly>
       );

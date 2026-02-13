@@ -113,6 +113,7 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             name: "file.ome.tiff",
             url: "https://example.com/test/path/to/file.ome.tiff",
+            offsetsUrl: "https://example.com/test/path/to/file.offsets.json",
           };
         },
       },
