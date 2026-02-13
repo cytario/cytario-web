@@ -1,19 +1,33 @@
+import { TooltipSpan } from "../../Tooltip/TooltipSpan";
+
+export interface ThumbnailMeta {
+  key: string;
+  value: string;
+}
+
 export const ThumbnailLabel = ({
-  children,
+  metadata,
 }: {
-  children?: string | number;
+  metadata?: ThumbnailMeta[];
 }) => {
+  if (!metadata || metadata.length === 0) return null;
+
   return (
     <div
       className={`
-        absolute top-6 right-2
-        flex items-center justify-center
-        px-1 h-4 min-w-4
-        text-sm font-bold
-      text-slate-700 bg-white tabular-nums
+        absolute top-0 left-0 right-0 
+        flex flex-col items-start 
+        gap-0.5 max-w-1/2 m-1
       `}
     >
-      {children}
+      {metadata.map((entry) => (
+        <div
+          key={entry.key}
+          className="px-1 h-4 text-xs font-bold text-slate-700 bg-white/80"
+        >
+          <TooltipSpan>{entry.value}</TooltipSpan>
+        </div>
+      ))}
     </div>
   );
 };

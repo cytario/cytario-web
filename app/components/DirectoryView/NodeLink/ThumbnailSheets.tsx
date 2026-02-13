@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
-import { ThumbnailLabel } from "./ThumbnailLabel";
+import { ThumbnailLabel, type ThumbnailMeta } from "./ThumbnailLabel";
 
 const Sheet = ({
   children,
@@ -18,19 +18,19 @@ const Sheet = ({
     group-hover:bg-slate-500
     transition-all
   `,
-    `top-${offset}`,
-    `left-${offset}`,
-    `right-${4 - offset}`,
-    `bottom-${4 - offset}`,
+    `top-${4 - offset}`,
+    `left-${4 - offset}`,
+    `right-${offset}`,
+    `bottom-${offset}`,
   );
   return <div className={cx}>{children}</div>;
 };
 
 export const ThumbnailSheets = ({
   children,
-  count = 0,
+  metadata,
 }: {
-  count?: number;
+  metadata?: ThumbnailMeta[];
   children?: ReactNode;
 }) => {
   return (
@@ -38,7 +38,7 @@ export const ThumbnailSheets = ({
       <Sheet offset={0} />
       <Sheet offset={2} />
       <Sheet offset={4}>{children}</Sheet>
-      <ThumbnailLabel>{count}</ThumbnailLabel>
+      <ThumbnailLabel metadata={metadata} />
     </div>
   );
 };

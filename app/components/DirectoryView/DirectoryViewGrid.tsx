@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge";
 import { TreeNode } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
 
-type GridSize = "sm" | "md" | "lg";
+export type GridSize = "sm" | "md" | "lg";
 
 const gridSizeClasses: Record<GridSize, string> = {
   sm: "w-6/12 sm:w-4/12 md:w-3/12 lg:w-2/12 xl:w-2/12 2xl:w-1/12",
@@ -28,7 +28,7 @@ export function DirectoryViewGrid({
             gridSizeClasses[size],
           )}
         >
-          <NodeLink key={node.name} node={node} listStyle="grid" />
+          <NodeLink key={node.name} node={node} listStyle="grid" gridSize={size} />
         </div>
       ))}
     </div>
