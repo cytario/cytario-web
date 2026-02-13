@@ -39,7 +39,6 @@ const Viewer = lazy(() =>
   ),
 );
 
-
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [

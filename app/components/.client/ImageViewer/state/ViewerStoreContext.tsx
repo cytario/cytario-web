@@ -33,7 +33,15 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
           try {
             const response = await fetch(offsetsUrl);
             if (!response.ok) return undefined;
-            return await response.json();
+            const json: unknown = await response.json();
+            if (
+              !Array.isArray(json) ||
+              !json.every((v) => typeof v === "number")
+            ) {
+              console.warn("Invalid OME-TIFF offsets format, expected number[]");
+              return undefined;
+            }
+            return json;
           } catch (error) {
             console.warn("Failed to fetch OME-TIFF offsets:", error);
             return undefined;

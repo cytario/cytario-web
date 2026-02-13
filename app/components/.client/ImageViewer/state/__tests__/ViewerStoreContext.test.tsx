@@ -328,6 +328,59 @@ describe("ViewerStoreContext", () => {
       warnSpy.mockRestore();
     });
 
+    test("discards malformed offsets JSON and proceeds without offsets", async () => {
+      const setLoader = vi.fn();
+      const setIsViewerLoading = vi.fn();
+
+      vi.mocked(createViewerStore).mockReturnValue({
+        getState: vi.fn(() => ({
+          setLoader,
+          setMetadata: vi.fn(),
+          setError: vi.fn(),
+          setIsViewerLoading,
+        })),
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      } as unknown as ReturnType<typeof createViewerStore>);
+
+      vi.mocked(loadOmeTiff).mockResolvedValue({
+        data: [],
+        metadata: {},
+      } as unknown as Awaited<ReturnType<typeof loadOmeTiff>>);
+
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ not: "an array" }),
+      } as Response);
+
+      const warnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      render(
+        <ViewerStoreProvider
+          resourceId="offsets-malformed-viewer"
+          url="https://example.com/image.ome.tiff"
+          offsetsUrl="https://example.com/image.offsets.json"
+        >
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          "Invalid OME-TIFF offsets format, expected number[]",
+        );
+        expect(loadOmeTiff).toHaveBeenCalledWith(
+          "https://example.com/image.ome.tiff",
+          expect.objectContaining({ offsets: undefined }),
+        );
+      });
+
+      fetchSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
     test("does not fetch offsets when offsetsUrl is not provided", async () => {
       vi.mocked(createViewerStore).mockReturnValue({
         getState: vi.fn(() => ({

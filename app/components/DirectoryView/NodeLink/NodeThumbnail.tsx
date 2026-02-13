@@ -5,6 +5,7 @@ import { ThumbnailFile } from "./ThumbnailFile";
 import { ThumbnailSheets } from "./ThumbnailSheets";
 import { ClientOnly } from "~/components/ClientOnly";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId } from "~/utils/resourceId";
 
 // Lazy-load client-only components to prevent SSR crashes.
@@ -46,7 +47,7 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
     case "directory":
       return (
         <ThumbnailSheets count={node.children?.length ?? 0}>
-          {key?.endsWith("ome.tif") && (
+          {key && isOmeTiff(key) && (
             <ClientOnly>
               <Suspense>
                 <ViewerStoreProvider resourceId={resourceId} url={url}>
@@ -61,7 +62,7 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
     default:
       return (
         <ThumbnailFile>
-          {key?.endsWith("ome.tif") && (
+          {key && isOmeTiff(key) && (
             <ClientOnly>
               <Suspense>
                 <ViewerStoreProvider resourceId={resourceId} url={url}>
