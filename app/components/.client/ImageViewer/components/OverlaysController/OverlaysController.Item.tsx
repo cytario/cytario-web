@@ -10,7 +10,7 @@ import { ChannelsControllerItem } from "../ChannelsController/ChannelsController
 import { Button, IconButton, IconButtonLink } from "~/components/Controls";
 import { LavaLoader } from "~/components/LavaLoader";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
-import { useCredentialsStore } from "~/utils/credentialsStore";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { getFileName, parseResourceId } from "~/utils/resourceId";
@@ -57,8 +57,9 @@ export const OverlaysControllerItem = ({
   const { provider, bucketName } = parseResourceId(resourceId);
   const storeKey = `${provider}/${bucketName}`;
 
-  const credentials = useCredentialsStore((state) => state.credentials);
-  const bucketConfigs = useCredentialsStore((state) => state.bucketConfigs);
+  const connection = useConnectionsStore(
+    (state) => state.connections[storeKey],
+  );
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
@@ -67,10 +68,14 @@ export const OverlaysControllerItem = ({
     const fetchMarkers = async () => {
       setIsLoading(true);
       try {
+        if (!connection?.credentials) {
+          throw new Error(`No credentials found for bucket: ${storeKey}`);
+        }
+
         const markerInfo = await getMarkerInfoWasm(
           resourceId,
-          credentials[storeKey],
-          bucketConfigs[storeKey],
+          connection.credentials,
+          connection.bucketConfig,
         );
         if (markerInfo && Object.keys(markerInfo).length > 0) {
           const newOverlayState = getOverlayState(markerInfo);
@@ -99,8 +104,7 @@ export const OverlaysControllerItem = ({
     updateOverlaysState,
     addNotification,
     fileName,
-    credentials,
-    bucketConfigs,
+    connection,
     storeKey,
   ]);
 

@@ -4,11 +4,33 @@ import { Mock } from "vitest";
 
 import { Breadcrumbs } from "../Breadcrumbs";
 
-vi.mock("react-router", () => ({
-  useMatches: vi.fn(() => [
-    { handle: { breadcrumb: () => <li key="Home">Home</li> } },
-    { handle: { breadcrumb: () => <li key="Login">Login</li> } },
-  ]),
+vi.mock("react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router")>();
+  return {
+    ...actual,
+    useMatches: vi.fn(() => [
+      { handle: { breadcrumb: () => ({ label: "Home", to: "/home" }) } },
+      { handle: { breadcrumb: () => ({ label: "Login", to: "/login" }) } },
+    ]),
+  };
+});
+
+vi.mock("../BreadcrumbLink", () => ({
+  BreadcrumbLink: ({
+    children,
+    to,
+  }: {
+    children: React.ReactNode;
+    to: string;
+  }) => (
+    <li>
+      <a href={to}>{children}</a>
+    </li>
+  ),
+}));
+
+vi.mock("../../Logo", () => ({
+  Logo: () => <span>Logo</span>,
 }));
 
 describe("Breadcrumbs", () => {
@@ -42,9 +64,9 @@ describe("Breadcrumbs", () => {
 
   test("renders only matches with breadcrumb handle", () => {
     (useMatches as Mock).mockReturnValue([
-      { handle: { breadcrumb: () => <li key="Home">Home</li> } },
+      { handle: { breadcrumb: () => ({ label: "Home", to: "/home" }) } },
       { handle: {} },
-      { handle: { breadcrumb: () => <li key="Login">Login</li> } },
+      { handle: { breadcrumb: () => ({ label: "Login", to: "/login" }) } },
     ]);
 
     const { getByText, queryByText } = render(<Breadcrumbs />);

@@ -12,7 +12,7 @@ import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { WktSvg } from "./WktSvg";
 import { LavaLoader } from "../LavaLoader";
 import { Checkbox } from "~/components/Controls";
-import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
 const isWkt = (value: unknown): value is string => {
@@ -36,13 +36,15 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { provider, bucketName } = parseResourceId(resourceId);
   const storeKey = `${provider}/${bucketName}`;
-  const { getCredentials, getBucketConfig } = useCredentialsStore();
+  const connection = useConnectionsStore(
+    (state) => state.connections[storeKey],
+  );
 
   // Initial data fetch
   useEffect(() => {
     const fetchData = async () => {
-      const credentials = getCredentials(storeKey);
-      const bucketConfig = getBucketConfig(storeKey);
+      const credentials = connection?.credentials;
+      const bucketConfig = connection?.bucketConfig;
 
       if (!credentials) {
         setError(`No credentials available for bucket: ${storeKey}`);
@@ -66,14 +68,14 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     };
 
     fetchData();
-  }, [resourceId, storeKey, getCredentials, getBucketConfig]);
+  }, [resourceId, storeKey, connection]);
 
   // Fetch more rows
   const fetchMore = useCallback(async () => {
     if (isFetchingMore || !hasMore) return;
 
-    const credentials = getCredentials(storeKey);
-    const bucketConfig = getBucketConfig(storeKey);
+    const credentials = connection?.credentials;
+    const bucketConfig = connection?.bucketConfig;
     if (!credentials) return;
 
     setIsFetchingMore(true);
@@ -94,9 +96,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     }
   }, [
     resourceId,
-    storeKey,
-    getCredentials,
-    getBucketConfig,
+    connection,
     rows.length,
     isFetchingMore,
     hasMore,

@@ -47,7 +47,7 @@ export function IconButton({
       disabled={disabled}
       aria-label={label}
     >
-      <Icon icon={icon} />
+      <Icon icon={icon} strokeWidth={1.5} />
     </button>
   );
 

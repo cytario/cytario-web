@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 
-import { Container } from "../components/Container";
+import { Section } from "../components/Container";
 import { Button } from "~/components/Controls";
 import { Placeholder } from "~/components/Placeholder";
 
@@ -8,7 +8,7 @@ export default function NotFound() {
   const navigate = useNavigate();
 
   return (
-    <Container>
+    <Section>
       <Placeholder
         icon="Ban"
         title="Page Not Found"
@@ -23,6 +23,6 @@ export default function NotFound() {
           </Button>
         }
       />
-    </Container>
+    </Section>
   );
 }

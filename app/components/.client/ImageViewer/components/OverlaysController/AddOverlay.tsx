@@ -7,7 +7,7 @@ import { Input } from "~/components/Controls";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
-import { useCredentialsStore } from "~/utils/credentialsStore";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 import { createResourceId } from "~/utils/resourceId";
 
@@ -62,12 +62,12 @@ export const AddOverlay = ({
               node.pathName,
             );
 
-            // Get credentials and bucket config from the store using provider/bucketName key
+            // Get connection from the store using provider/bucketName key
             // Use getState() to access store outside of React component render
             const storeKey = `${node.provider}/${node.bucketName}`;
-            const storeState = useCredentialsStore.getState();
-            const credentials = storeState.getCredentials(storeKey);
-            const bucketConfig = storeState.getBucketConfig(storeKey);
+            const conn = useConnectionsStore.getState().connections[storeKey];
+            const credentials = conn?.credentials;
+            const bucketConfig = conn?.bucketConfig;
 
             if (!bucketConfig) {
               throw new Error("Bucket configuration not found");

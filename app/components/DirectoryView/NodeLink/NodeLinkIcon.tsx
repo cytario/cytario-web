@@ -10,7 +10,7 @@ const icons: Record<string, LucideIconsType> = {
 export function NodeLinkIcon({ node }: { node: TreeNode }) {
   return (
     <div className={"flex items-center justify-center"}>
-      <Icon icon={icons[node.type]} strokeWidth={1} />
+      <Icon icon={icons[node.type]} strokeWidth={1.5} />
     </div>
   );
 }

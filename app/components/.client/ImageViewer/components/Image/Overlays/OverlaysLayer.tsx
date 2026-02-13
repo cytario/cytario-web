@@ -12,7 +12,7 @@ import { MarkerProps } from "./markerUniforms";
 import { CellMarker } from "../../../state/types";
 import { H3 } from "~/components/Fonts";
 import { NotificationInput } from "~/components/Notification/Notification.store";
-import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
 import { parseResourceId } from "~/utils/resourceId";
@@ -77,11 +77,11 @@ export const OverlaysLayer = ({
       const { provider, bucketName } = parseResourceId(resourceId);
       const storeKey = `${provider}/${bucketName}`;
 
-      // Get credentials and bucket config from the store using provider/bucketName key
+      // Get connection from the store using provider/bucketName key
       // Use getState() to access store outside of React component render
-      const storeState = useCredentialsStore.getState();
-      const credentials = storeState.getCredentials(storeKey);
-      const bucketConfig = storeState.getBucketConfig(storeKey);
+      const conn = useConnectionsStore.getState().connections[storeKey];
+      const credentials = conn?.credentials;
+      const bucketConfig = conn?.bucketConfig;
 
       if (!credentials) {
         throw new Error(`No credentials found for bucket: ${storeKey}`);

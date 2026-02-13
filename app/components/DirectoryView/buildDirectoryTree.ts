@@ -60,6 +60,11 @@ function buildDirectoryTreeRecursive(
         _Object: obj,
       };
       currentDir.push(existingDir);
+    } else if (
+      obj.Key?.endsWith(".ome.tif") &&
+      !existingDir._Object?.Key?.endsWith(".ome.tif")
+    ) {
+      existingDir._Object = obj;
     }
 
     buildDirectoryTreeRecursive(

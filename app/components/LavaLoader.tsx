@@ -1,17 +1,43 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { twMerge } from "tailwind-merge";
 
-export const LavaLoader = ({ absolute = false }: { absolute?: boolean }) => {
-  const dots = useMemo(() => [1, 2, 3, 4, 5, 6, 7, 8, 9], []);
+export const LavaLoader = ({
+  absolute = false,
+  rows = 3,
+  cols = 3,
+}: {
+  absolute?: boolean;
+  rows?: number;
+  cols?: number;
+}) => {
+  const totalDots = rows * cols;
   const size = 12;
   const duration = 500;
 
   const pickRandomDot = useCallback(() => {
-    const randomIndex = Math.floor(Math.random() * dots.length);
-    const col = randomIndex % 3;
-    const row = Math.floor(randomIndex / 3);
+    const randomIndex = Math.floor(Math.random() * totalDots);
+    const col = randomIndex % cols;
+    const row = Math.floor(randomIndex / cols);
     return { row, col };
-  }, [dots]);
+  }, [totalDots, cols]);
+
+  const pickNeighbor = useCallback(
+    (current: { row: number; col: number }) => {
+      const neighbors: { row: number; col: number }[] = [];
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = current.row + dr;
+          const nc = current.col + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+            neighbors.push({ row: nr, col: nc });
+          }
+        }
+      }
+      return neighbors[Math.floor(Math.random() * neighbors.length)];
+    },
+    [rows, cols]
+  );
 
   const [activeDot, setActiveDot] = useState<{
     row: number;
@@ -19,9 +45,12 @@ export const LavaLoader = ({ absolute = false }: { absolute?: boolean }) => {
   }>(pickRandomDot());
 
   useEffect(() => {
-    const interval = setInterval(() => setActiveDot(pickRandomDot()), duration);
+    const interval = setInterval(
+      () => setActiveDot((prev) => pickNeighbor(prev)),
+      duration
+    );
     return () => clearInterval(interval);
-  }, [dots, pickRandomDot, duration]);
+  }, [pickNeighbor, duration]);
 
   const cx = twMerge(
     "flex items-center justify-center w-full h-full",
@@ -33,8 +62,8 @@ export const LavaLoader = ({ absolute = false }: { absolute?: boolean }) => {
       <svg
         xmlns="http://www.w3.org/2000/svg"
         version="1.1"
-        width={48}
-        height={48}
+        width={(cols + 1) * size}
+        height={(rows + 1) * size}
         shapeRendering="geometricPrecision"
       >
         <defs>
@@ -54,9 +83,9 @@ export const LavaLoader = ({ absolute = false }: { absolute?: boolean }) => {
         </defs>
 
         <g filter="url(#lava)">
-          {dots.map((_, i) => {
-            const col = i % 3;
-            const row = Math.floor(i / 3);
+          {Array.from({ length: totalDots }, (_, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
             const isActive = activeDot?.row === row && activeDot?.col === col;
 
             return (

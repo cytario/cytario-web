@@ -5,8 +5,7 @@ import { ObjectPresignedUrl } from "./objects.route";
 import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
-import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
-import { Container } from "~/components/Container";
+import { Section } from "~/components/Container";
 import {
   buildDirectoryTree,
   TreeNode,
@@ -26,13 +25,7 @@ export interface SearchRouteLoaderResponse {
 export const middleware = [authMiddleware];
 
 export const handle = {
-  breadcrumb: () => {
-    return (
-      <BreadcrumbLink key="search" to={`/search`}>
-        Search
-      </BreadcrumbLink>
-    );
-  },
+  breadcrumb: () => ({ label: "Search", to: "/search" }),
 };
 
 export const loader: LoaderFunction = async ({
@@ -91,12 +84,12 @@ export default function SearchRoute() {
   const { searchQuery, nodes } = useLoaderData<SearchRouteLoaderResponse>();
 
   return (
-    <Container>
+    <Section>
       <H1>{`Search: ${searchQuery}`}</H1>
 
       <div className="bg-slate-100">
         <DirectoryTree nodes={nodes} />
       </div>
-    </Container>
+    </Section>
   );
 }

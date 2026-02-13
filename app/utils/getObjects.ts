@@ -8,10 +8,12 @@ export const getObjects = async (
   s3Client: S3Client,
   query?: string | null,
   prefix?: string,
+  maxKeys?: number,
 ): Promise<_Object[]> => {
   const listObjectsCommand = new ListObjectsV2Command({
     Bucket: bucketConfig.name,
     Prefix: prefix,
+    ...(maxKeys ? { MaxKeys: maxKeys } : {}),
   });
 
   const { Contents } = await s3Client.send(listObjectsCommand);

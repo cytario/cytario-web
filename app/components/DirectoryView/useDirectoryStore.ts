@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+export type ViewMode = "list" | "grid-sm" | "grid-md" | "grid-lg";
+
 interface DirectoryStore {
-  activeTab: number;
-  setActiveTab: (tabIndex: number) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
   provider?: string;
   setProvider: (provider: string) => void;
   bucketName?: string;
@@ -17,16 +19,15 @@ interface DirectoryStore {
 const name = "DirectoryStore";
 
 /**
- * Zustand store to manage layout state such as active tab, bucket name, and path name.
+ * Zustand store to manage layout state such as view mode, bucket name, and path name.
  * The store is persisted in local storage except for the header slot.
  */
 export const useDirectoryStore = create<DirectoryStore>()(
   persist(
     devtools(
       (set) => ({
-        activeTab: 1,
-        setActiveTab: (tabIndex) =>
-          set({ activeTab: tabIndex }, false, "setActiveTab"),
+        viewMode: "grid-md",
+        setViewMode: (mode) => set({ viewMode: mode }, false, "setViewMode"),
         setProvider: (provider: string) =>
           set({ provider }, false, "setProvider"),
         setBucketName: (bucketName: string) =>
