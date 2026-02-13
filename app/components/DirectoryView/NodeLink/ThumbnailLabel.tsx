@@ -15,15 +15,21 @@ export const ThumbnailLabel = ({
   return (
     <div
       className={`
-        absolute top-0 left-0 right-0 
+        absolute top-0 left-0 right-4
         flex flex-col items-start 
-        gap-0.5 max-w-1/2 m-1
+        p-1
       `}
     >
       {metadata.map((entry) => (
         <div
           key={entry.key}
-          className="px-1 h-4 text-xs font-bold text-slate-700 bg-white/80"
+          className={`
+            max-w-full
+            text-xs font-bold 
+            text-slate-300 p-1
+            backdrop-blur-sm
+            
+          `}
         >
           <TooltipSpan>{entry.value}</TooltipSpan>
         </div>

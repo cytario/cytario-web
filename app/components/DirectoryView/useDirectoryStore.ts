@@ -16,14 +16,6 @@ interface DirectoryStore {
   setHeaderSlot: (slot: React.ReactNode) => void;
 }
 
-export function getGridSize(viewMode: ViewMode): "sm" | "md" | "lg" {
-  switch (viewMode) {
-    case "grid-sm": return "sm";
-    case "grid-md": return "md";
-    case "grid-lg": default: return "lg";
-  }
-}
-
 const name = "DirectoryStore";
 
 /**
@@ -35,8 +27,7 @@ export const useDirectoryStore = create<DirectoryStore>()(
     devtools(
       (set) => ({
         viewMode: "grid-md",
-        setViewMode: (mode) =>
-          set({ viewMode: mode }, false, "setViewMode"),
+        setViewMode: (mode) => set({ viewMode: mode }, false, "setViewMode"),
         setProvider: (provider: string) =>
           set({ provider }, false, "setProvider"),
         setBucketName: (bucketName: string) =>

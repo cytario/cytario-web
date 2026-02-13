@@ -1,4 +1,11 @@
-import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Tooltip } from "./Tooltip";
 
@@ -23,7 +30,7 @@ export const TooltipSpan = ({ children }: { children: ReactNode }) => {
     <Tooltip content={isTruncated ? children : null}>
       <span
         ref={ref}
-        className="truncate overflow-hidden whitespace-nowrap block min-w-0"
+        className="truncate overflow-hidden whitespace-nowrap block min-w-0 w-full"
       >
         {children}
       </span>

@@ -69,7 +69,10 @@ export function NodeLink({
     <div className="group flex flex-col h-full">
       {/* Grid view thumbnail */}
       {viewMode !== "list" && (
-        <Link to={to} className="flex items-center justify-center w-full flex-1 min-h-0">
+        <Link
+          to={to}
+          className="flex items-center justify-center w-full flex-1 min-h-0"
+        >
           <NodeThumbnail node={node} viewMode={viewMode} />
         </Link>
       )}
@@ -89,20 +92,19 @@ export function NodeLink({
         >
           <NodeLinkIcon node={node} />
           <TooltipSpan>{node.name}</TooltipSpan>
+
+          {/* Context menu */}
+          {showInfoButton && (
+            <IconButton
+              icon="Info"
+              label="Show Info"
+              onClick={openNodeInfoModal}
+              theme="transparent"
+              className="border-none text-inherit"
+            />
+          )}
         </Link>
-
-        {/* Context menu */}
-        {showInfoButton && (
-          <IconButton
-            icon="Info"
-            label="Show Info"
-            onClick={openNodeInfoModal}
-            theme="transparent"
-            className="border-none text-slate-500"
-          />
-        )}
       </div>
-
     </div>
   );
 }
