@@ -1,10 +1,25 @@
+import { lazy, Suspense } from "react";
+
 import { ThumbnailBox } from "./ThumbnailBox";
 import { ThumbnailFile } from "./ThumbnailFile";
 import { ThumbnailSheets } from "./ThumbnailSheets";
-import { ImagePreview } from "~/components/.client/ImageViewer/components/Image/ImagePreview";
-import { ViewerStoreProvider } from "~/components/.client/ImageViewer/state/ViewerStoreContext";
+import { ClientOnly } from "~/components/ClientOnly";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId } from "~/utils/resourceId";
+
+// Lazy-load client-only components to prevent SSR crashes.
+// .client/ imports are stubbed to undefined on the server.
+const ViewerStoreProvider = lazy(() =>
+  import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
+    (mod) => ({ default: mod.ViewerStoreProvider }),
+  ),
+);
+const ImagePreview = lazy(() =>
+  import("~/components/.client/ImageViewer/components/Image/ImagePreview").then(
+    (mod) => ({ default: mod.ImagePreview }),
+  ),
+);
 
 export function NodeThumbnail({ node }: { node: TreeNode }) {
   const key = node._Object?.Key;
@@ -32,10 +47,14 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
     case "directory":
       return (
         <ThumbnailSheets count={node.children?.length ?? 0}>
-          {key?.endsWith("ome.tif") && (
-            <ViewerStoreProvider resourceId={resourceId} url={url}>
-              <ImagePreview />
-            </ViewerStoreProvider>
+          {key && isOmeTiff(key) && (
+            <ClientOnly>
+              <Suspense>
+                <ViewerStoreProvider resourceId={resourceId} url={url}>
+                  <ImagePreview />
+                </ViewerStoreProvider>
+              </Suspense>
+            </ClientOnly>
           )}
         </ThumbnailSheets>
       );
@@ -43,10 +62,14 @@ export function NodeThumbnail({ node }: { node: TreeNode }) {
     default:
       return (
         <ThumbnailFile>
-          {key?.endsWith("ome.tif") && (
-            <ViewerStoreProvider resourceId={resourceId} url={url}>
-              <ImagePreview />
-            </ViewerStoreProvider>
+          {key && isOmeTiff(key) && (
+            <ClientOnly>
+              <Suspense>
+                <ViewerStoreProvider resourceId={resourceId} url={url}>
+                  <ImagePreview />
+                </ViewerStoreProvider>
+              </Suspense>
+            </ClientOnly>
           )}
         </ThumbnailFile>
       );

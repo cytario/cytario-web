@@ -1,6 +1,5 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { addDecoder } from "geotiff";
 import { lazy, Suspense, useEffect } from "react";
 import {
   ActionFunctionArgs,
@@ -14,8 +13,6 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { JP2KDecoder } from "~/components/.client/ImageViewer/state/jp2k-decoder";
-import { LZWDecoder } from "~/components/.client/ImageViewer/state/lzwDecoder";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { Button } from "~/components/Controls";
@@ -31,6 +28,7 @@ import { Placeholder } from "~/components/Placeholder";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
 import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
 import { getObjects } from "~/utils/getObjects";
+import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { createResourceId, matchesExtension } from "~/utils/resourceId";
 
@@ -40,13 +38,6 @@ const Viewer = lazy(() =>
     (module) => ({ default: module.Viewer }),
   ),
 );
-
-/**
- * Add LZW decoder for GeoTIFF files.
- * @url https://github.com/vitessce/vitessce/issues/1709#issuecomment-2960537868
- */
-addDecoder(5, () => LZWDecoder);
-addDecoder(33005, () => JP2KDecoder);
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -108,6 +99,7 @@ export interface BucketRouteLoaderResponse {
   pathName: string;
   name: string;
   url?: string;
+  offsetsUrl?: string;
   notification?: NotificationInput;
   credentials: Credentials;
   bucketConfig: BucketConfig;
@@ -178,7 +170,14 @@ export const loader = async ({
       };
     }
 
-    const url = await getPresignedUrl(bucketConfig, s3Client, pathName);
+    const offsetKey = getOffsetKeyForOmeTiff(pathName);
+
+    const [url, offsetsUrl] = await Promise.all([
+      getPresignedUrl(bucketConfig, s3Client, pathName),
+      offsetKey
+        ? getPresignedUrl(bucketConfig, s3Client, offsetKey)
+        : undefined,
+    ]);
 
     return {
       credentials,
@@ -188,6 +187,7 @@ export const loader = async ({
       bucketName,
       pathName,
       url,
+      offsetsUrl,
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
@@ -208,8 +208,16 @@ export const loader = async ({
 };
 
 export default function ObjectsRoute() {
-  const { name, url, nodes, pathName, bucketName, credentials, bucketConfig } =
-    useLoaderData<BucketRouteLoaderResponse>();
+  const {
+    name,
+    url,
+    offsetsUrl,
+    nodes,
+    pathName,
+    bucketName,
+    credentials,
+    bucketConfig,
+  } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const navigate = useNavigate();
   const { setCredentials } = useCredentialsStore();
@@ -278,7 +286,7 @@ export default function ObjectsRoute() {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer resourceId={resourceId} url={url} />
+            <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
           </Suspense>
         </ClientOnly>
       );

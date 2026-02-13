@@ -7,14 +7,16 @@ The Image Viewer is a multi-panel microscopy image viewing interface that allows
 ## Architecture
 
 ```
-ImageViewer
-├── ImageControlBar (left sidebar)
-│   ├── ImagePreview (navigation map)
-│   └── ImageControlItems
-│       └── Channels (visibility, contrast, histogram)
-└── ImagePanels (main viewport area)
-    ├── ImagePanel[0]
-    └── ImagePanel[1] (optional)
+ImageViewer (registers decoders, provides store)
+├── ViewerStoreProvider (fetches offsets, loads OME-TIFF)
+│   ├── ViewerHeader
+│   │   └── Magnifier
+│   ├── FeatureBar (left sidebar)
+│   │   ├── ImagePreview (navigation map)
+│   │   └── ChannelsController (visibility, contrast, histogram)
+│   └── ImagePanels (main viewport area)
+│       ├── ImagePanel[0]
+│       └── ImagePanel[1] (optional)
 ```
 
 ## Layout
@@ -77,7 +79,7 @@ A single `*.ome.tif` file loaded into the viewer. Each slide maintains its own i
 
 ### **Store Registry**
 
-Each slide registers a unique Zustand store in a global registry, enabling:
+Each slide registers a unique Zustand store in a global registry via `ViewerStoreProvider`. Registration accepts the image URL and an optional `offsetsUrl` for offset sidecar files. The registry enables:
 
 - View state persistence across routes
 - Independent state management per slide
@@ -151,9 +153,11 @@ imagePanelIndex: 0; // Currently active panel (receives control input)
 ### **Loading a Slide**
 
 1. Slide registers in store registry
-2. Metadata and loader initialization
-3. Initial VCS[0] created with default channel settings
-4. First ImagePanel created and assigned VCS[0]
+2. Offset sidecar file fetched (if `offsetsUrl` provided), validated as `number[]`
+3. `loadOmeTiff(url, { offsets })` called with offsets (or `undefined` for graceful fallback)
+4. Metadata and loader initialization
+5. Initial VCS[0] created with default channel settings
+6. First ImagePanel created and assigned VCS[0]
 
 ### **Adding Split View**
 
@@ -176,6 +180,48 @@ imagePanelIndex: 0; // Currently active panel (receives control input)
 3. ImageControlBar loads the active panel's VCS
 4. Controls reflect new VCS state
 
+## Decoder Registration
+
+GeoTIFF decoders are registered at the module level in `ImageViewer.tsx`:
+
+```typescript
+import { addDecoder } from "geotiff";
+addDecoder(5, () => LZWDecoder);       // LZW compression
+addDecoder(33005, () => JP2KDecoder);   // JPEG2000 compression
+```
+
+This runs client-side only — decoders use Web Workers and must not be imported during SSR. The `ImageViewer` component is lazy-loaded from the route via `React.lazy()` + `<ClientOnly>` + `<Suspense>`, ensuring decoders are never evaluated on the server.
+
+## OME-TIFF Offset Sidecar Files
+
+The viewer supports **offset sidecar files** (`.offsets.json`) for faster OME-TIFF loading. TIFF files store image planes as sequentially-linked IFDs; offsets provide direct byte positions, eliminating sequential traversal over HTTP.
+
+### Data Flow
+
+```
+Route Loader (server)
+├── Detects OME-TIFF via getOffsetKeyForOmeTiff()
+├── Generates presigned URL for image
+├── Generates presigned URL for .offsets.json (in parallel)
+└── Returns { url, offsetsUrl } to client
+
+ImageViewer (client)
+└── ViewerStoreProvider
+    ├── Fetches offsetsUrl (if provided)
+    ├── Validates response is number[] (rejects malformed JSON)
+    ├── Falls back gracefully on 404/403/network error
+    └── Passes offsets to loadOmeTiff(url, { offsets })
+```
+
+### Naming Convention
+
+| Image key | Offsets key |
+|---|---|
+| `data/image.ome.tif` | `data/image.offsets.json` |
+| `data/image.ome.tiff` | `data/image.offsets.json` |
+
+Offsets are generated with [`generate-tiff-offsets`](https://github.com/hms-dbmi/generate-tiff-offsets) and placed alongside the OME-TIFF in S3. If the file doesn't exist, the viewer loads normally via sequential IFD traversal.
+
 ## Component Responsibilities
 
 ### **ImageViewer**
@@ -183,6 +229,7 @@ imagePanelIndex: 0; // Currently active panel (receives control input)
 - Root component and state provider
 - Layout management
 - Store initialization
+- Decoder registration (LZW, JP2K)
 
 ### **ImageControlBar**
 
