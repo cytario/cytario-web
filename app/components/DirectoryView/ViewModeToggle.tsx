@@ -1,10 +1,10 @@
-import { Icon } from "../Controls";
+import { Icon, LucideIconsType } from "../Controls";
 import { useDirectoryStore, ViewMode } from "./useDirectoryStore";
 
 interface ToggleButtonProps {
   active: boolean;
   onClick: () => void;
-  icon: "List" | "Grid2x2";
+  icon: LucideIconsType;
   label: string;
 }
 
@@ -27,25 +27,27 @@ function ToggleButton({ active, onClick, icon, label }: ToggleButtonProps) {
   );
 }
 
+const modes: { mode: ViewMode; icon: LucideIconsType; label: string }[] = [
+  { mode: "list", icon: "List", label: "List View" },
+  { mode: "grid-sm", icon: "Grid3x3", label: "Small Grid" },
+  { mode: "grid-md", icon: "Grid2x2", label: "Medium Grid" },
+  { mode: "grid-lg", icon: "Square", label: "Large Grid" },
+];
+
 export function ViewModeToggle() {
   const { viewMode, setViewMode } = useDirectoryStore();
 
-  const toggle = (mode: ViewMode) => () => setViewMode(mode);
-
   return (
     <div className="flex gap-1">
-      <ToggleButton
-        active={viewMode === "list"}
-        onClick={toggle("list")}
-        icon="List"
-        label="List View"
-      />
-      <ToggleButton
-        active={viewMode === "grid"}
-        onClick={toggle("grid")}
-        icon="Grid2x2"
-        label="Grid View"
-      />
+      {modes.map(({ mode, icon, label }) => (
+        <ToggleButton
+          key={mode}
+          active={viewMode === mode}
+          onClick={() => setViewMode(mode)}
+          icon={icon}
+          label={label}
+        />
+      ))}
     </div>
   );
 }

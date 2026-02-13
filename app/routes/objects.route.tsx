@@ -266,7 +266,7 @@ export default function ObjectsRoute() {
           LastModified: fileLastModified
             ? new Date(fileLastModified)
             : undefined,
-          presignedUrl: "",
+          presignedUrl: url,
         },
       });
     }

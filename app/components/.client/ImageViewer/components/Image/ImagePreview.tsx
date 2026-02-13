@@ -32,16 +32,11 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
 
   /* Reset `viewStatePreview` upon container resize */
   useEffect(() => {
-    const { width: wP, height: hP } = viewPort;
-    const { width: wS, height: hS } = viewStatePreview ?? {
-      width: 0,
-      height: 0,
-    };
-    if (metadata && (wP !== wS || hP !== hS)) {
+    if (metadata) {
       const initialViewState = calculateViewStateToFit(metadata, viewPort);
       setViewStatePreview(initialViewState);
     }
-  }, [metadata, setViewStatePreview, viewPort, viewStatePreview]);
+  }, [metadata, setViewStatePreview, viewPort]);
 
   const view = useView(viewPort);
 

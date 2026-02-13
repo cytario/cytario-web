@@ -19,12 +19,15 @@ export function RecentlyViewed() {
         <H2>Recently Viewed</H2>
       </Container>
       <div className="mt-4">
-        {viewMode === "grid" ? (
-          <Container>
-            <DirectoryViewGrid nodes={nodes} />
-          </Container>
-        ) : (
+        {viewMode === "list" ? (
           <DirectoryViewTable nodes={nodes} />
+        ) : (
+          <Container>
+            <DirectoryViewGrid
+              nodes={nodes}
+              size={viewMode === "grid-lg" ? "lg" : viewMode === "grid-md" ? "md" : "sm"}
+            />
+          </Container>
         )}
       </div>
     </Section>

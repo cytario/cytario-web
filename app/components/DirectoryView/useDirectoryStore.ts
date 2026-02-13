@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-export type ViewMode = "list" | "grid";
+export type ViewMode = "list" | "grid-sm" | "grid-md" | "grid-lg";
 
 interface DirectoryStore {
   viewMode: ViewMode;
@@ -26,7 +26,7 @@ export const useDirectoryStore = create<DirectoryStore>()(
   persist(
     devtools(
       (set) => ({
-        viewMode: "grid",
+        viewMode: "grid-md",
         setViewMode: (mode) =>
           set({ viewMode: mode }, false, "setViewMode"),
         setProvider: (provider: string) =>

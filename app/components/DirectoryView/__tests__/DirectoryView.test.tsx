@@ -101,16 +101,16 @@ describe("DirectoryView Component", () => {
 
     // Check that the toggle buttons are rendered
     expect(screen.getByRole("button", { name: /List View/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Grid View/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Small Grid/i })).toBeInTheDocument();
 
     // Simulate switching to grid
-    const gridButton = screen.getByRole("button", { name: /Grid View/i });
+    const gridButton = screen.getByRole("button", { name: /Small Grid/i });
     act(() => {
       fireEvent.click(gridButton);
     });
 
     // Verify that the view mode is updated in the Zustand store
-    expect(mockSetViewMode).toHaveBeenCalledWith("grid");
+    expect(mockSetViewMode).toHaveBeenCalledWith("grid-sm");
   });
 
   test("renders the DirectoryTable in list mode", () => {
@@ -152,7 +152,7 @@ describe("DirectoryView Component", () => {
 
     (useDirectoryStore as unknown as Mock).mockReturnValue({
       ...mockStoreDefaults,
-      viewMode: "grid",
+      viewMode: "grid-sm",
     });
 
     render(<RemixStub initialEntries={["/"]} />);

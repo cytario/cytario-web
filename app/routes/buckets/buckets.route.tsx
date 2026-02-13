@@ -55,12 +55,12 @@ const fetchPreviewObject = async (
     s3,
     null,
     config.prefix || undefined,
-    1,
+    100,
   );
-  const first = objects[0];
-  if (!first?.Key) return undefined;
-  const presignedUrl = await getPresignedUrl(config, s3, first.Key);
-  return { ...first, presignedUrl } as ObjectPresignedUrl;
+  const preview = objects.find((obj) => obj.Key?.endsWith(".ome.tif"));
+  if (!preview?.Key) return undefined;
+  const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
+  return { ...preview, presignedUrl } as ObjectPresignedUrl;
 };
 
 export const loader: LoaderFunction = async ({ context }) => {

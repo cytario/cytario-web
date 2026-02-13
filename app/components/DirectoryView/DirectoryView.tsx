@@ -78,7 +78,10 @@ export function DirectoryView({
         <DirectoryViewTable nodes={nodes} />
       ) : (
         <Container>
-          <DirectoryViewGrid nodes={nodes} />
+          <DirectoryViewGrid
+            nodes={nodes}
+            size={viewMode === "grid-lg" ? "lg" : viewMode === "grid-md" ? "md" : "sm"}
+          />
         </Container>
       )}
 
