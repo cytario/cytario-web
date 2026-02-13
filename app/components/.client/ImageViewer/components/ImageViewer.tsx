@@ -1,8 +1,20 @@
+import { addDecoder } from "geotiff";
+
 import { FeatureBar } from "./FeatureBar/FeatureBar";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
+import { JP2KDecoder } from "../state/jp2k-decoder";
+import { LZWDecoder } from "../state/lzwDecoder";
 import { ViewerStoreProvider } from "../state/ViewerStoreContext";
+
+/**
+ * Register decoders for GeoTIFF files.
+ * Must run client-side only — decoders use Web Workers.
+ * @url https://github.com/vitessce/vitessce/issues/1709#issuecomment-2960537868
+ */
+addDecoder(5, () => LZWDecoder);
+addDecoder(33005, () => JP2KDecoder);
 
 interface ViewerProps {
   resourceId: string;

@@ -10,15 +10,6 @@ vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   Viewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));
 
-vi.mock("~/components/.client/ImageViewer/state/workerPool", () => ({
-  WorkerPool: vi.fn().mockImplementation(() => ({
-    executeTask: vi.fn(),
-    terminate: vi.fn(),
-  })),
-}));
-
-vi.mock("~/components/.client/ImageViewer/state/lzwDecoder", () => ({}));
-
 vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
   getSelectionStats: vi.fn(
     () =>

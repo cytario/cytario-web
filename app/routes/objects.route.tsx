@@ -1,6 +1,5 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { addDecoder } from "geotiff";
 import { lazy, Suspense, useEffect } from "react";
 import {
   ActionFunctionArgs,
@@ -14,8 +13,6 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { JP2KDecoder } from "~/components/.client/ImageViewer/state/jp2k-decoder";
-import { LZWDecoder } from "~/components/.client/ImageViewer/state/lzwDecoder";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { Button } from "~/components/Controls";
@@ -42,12 +39,6 @@ const Viewer = lazy(() =>
   ),
 );
 
-/**
- * Add LZW decoder for GeoTIFF files.
- * @url https://github.com/vitessce/vitessce/issues/1709#issuecomment-2960537868
- */
-addDecoder(5, () => LZWDecoder);
-addDecoder(33005, () => JP2KDecoder);
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
