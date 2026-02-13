@@ -7,8 +7,8 @@ import { type ThumbnailMeta } from "./ThumbnailLabel";
 import { ThumbnailSheets } from "./ThumbnailSheets";
 import { ClientOnly } from "~/components/ClientOnly";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { type GridSize } from "~/components/DirectoryView/DirectoryViewGrid";
-import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
+import { type ViewMode, getGridSize } from "~/components/DirectoryView/useDirectoryStore";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 import { formatShortDate } from "~/utils/formatHumanReadableDate";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId } from "~/utils/resourceId";
@@ -28,9 +28,12 @@ const ImagePreview = lazy(() =>
 
 function useNodeMetadata(
   node: TreeNode,
-  gridSize?: GridSize,
+  viewMode?: ViewMode,
 ): ThumbnailMeta[] {
-  const getBucketConfig = useCredentialsStore((state) => state.getBucketConfig);
+  const connections = useConnectionsStore((state) => state.connections);
+  const getBucketConfig = (key: string) =>
+    connections[key]?.bucketConfig ?? null;
+  const gridSize = viewMode ? getGridSize(viewMode) : undefined;
 
   if (!gridSize || gridSize === "sm") {
     // sm: keep legacy single-value labels
@@ -80,12 +83,12 @@ function useNodeMetadata(
 
 export function NodeThumbnail({
   node,
-  gridSize,
+  viewMode,
 }: {
   node: TreeNode;
-  gridSize?: GridSize;
+  viewMode?: ViewMode;
 }) {
-  const metadata = useNodeMetadata(node, gridSize);
+  const metadata = useNodeMetadata(node, viewMode);
   const key = node._Object?.Key;
   const resourceId = key
     ? createResourceId(node.provider, node.bucketName, key)

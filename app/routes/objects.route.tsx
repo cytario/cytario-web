@@ -27,7 +27,10 @@ import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
-import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
+import {
+  select,
+  useConnectionsStore,
+} from "~/utils/connectionsStore";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
@@ -231,7 +234,7 @@ export default function ObjectsRoute() {
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const navigate = useNavigate();
-  const { setCredentials } = useCredentialsStore();
+  const setConnection = useConnectionsStore(select.setConnection);
 
   const resourceId = createResourceId(
     bucketConfig.provider,
@@ -240,14 +243,14 @@ export default function ObjectsRoute() {
   );
 
   // Store credentials and bucket config in Zustand store when they're available
-  // Credentials are per-bucket, not per-file
+  // Connections are per-bucket, not per-file
   // Key format: provider/bucketName to avoid collisions across providers
   useEffect(() => {
     if (credentials && bucketName && bucketConfig) {
       const storeKey = `${bucketConfig.provider}/${bucketName}`;
-      setCredentials(storeKey, credentials, bucketConfig);
+      setConnection(storeKey, credentials, bucketConfig);
     }
-  }, [bucketName, credentials, bucketConfig, setCredentials]);
+  }, [bucketName, credentials, bucketConfig, setConnection]);
 
   // Track recently viewed images
   const { addItem } = useRecentlyViewedStore();
