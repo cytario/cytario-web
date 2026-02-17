@@ -8,21 +8,19 @@ export const allowedFilesPattern = new RegExp(
   "i"
 );
 
-const str = "lab/";
 export const filterObjects = (
   objects: Readonly<_Object>[] = [],
   { query }: { query?: string | null }
 ): _Object[] => {
   return objects
     .reduce((acc, item) => {
-      const name = item.Key?.replace(str, "");
       // does not match allowed file pattern
       if (!allowedFilesPattern.test(item.Key!)) {
         return acc;
       }
 
       // does not match provided search query
-      if (query && !search(query, name)) {
+      if (query && !search(query, item.Key)) {
         return acc;
       }
 
@@ -30,8 +28,8 @@ export const filterObjects = (
       return [...acc, item];
     }, [] as _Object[])
     .sort((a, b) => {
-      const aIsDir = a.Key?.replace(str, "")!.includes("/");
-      const bIsDir = b.Key?.replace(str, "")!.includes("/");
+      const aIsDir = a.Key!.includes("/");
+      const bIsDir = b.Key!.includes("/");
 
       // First, ensure directories come before files
       if (aIsDir && !bIsDir) return -1;

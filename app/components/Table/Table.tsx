@@ -112,7 +112,7 @@ export function Table({ columns, data, tableId = "default" }: TablePropsType) {
 
   return (
     <table className="min-w-full">
-      <thead className="sticky top-0 bg-white z-10 w-full shadow-md">
+      <thead className="sticky top-0 bg-white z-10 w-full">
         {table.getHeaderGroups().map((headerGroup) => (
           <TableHeaderRow
             key={headerGroup.id}

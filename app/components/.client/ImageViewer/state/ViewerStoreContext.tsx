@@ -99,10 +99,9 @@ export const ViewerStoreProvider = ({
   offsetsUrl,
   children,
 }: ViewerStoreProviderProps) => {
-  const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
   const store = useMemo(
-    () => registerViewer(resourceId, url, offsetsUrl),
-    [resourceId, url, offsetsUrl, registerViewer],
+    () => useViewerRegistryStore.getState().registerViewer(resourceId, url, offsetsUrl),
+    [resourceId, url, offsetsUrl]
   );
 
   return (

@@ -27,6 +27,7 @@ interface ChannelsControllerItemProps {
   onColorChange?: (color: RGBA) => void;
 }
 
+/** Individual channel row in the ChannelsController. Displays color picker, name, pixel intensity bar, visibility toggle, and a loading overlay. */
 export function ChannelsControllerItem({
   name,
   isVisible,
@@ -120,7 +121,7 @@ export function ChannelsControllerItem({
         </Tooltip>
       </div>
 
-      {isLoading && <LavaLoader absolute />}
+      {isLoading && <LavaLoader absolute rows={1} cols={6} />}
     </Radio>
   );
 }

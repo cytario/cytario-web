@@ -7,13 +7,12 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { IconButton } from "../../Controls";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { type ViewMode } from "~/components/DirectoryView/useDirectoryStore";
 import { createResourceId } from "~/utils/resourceId";
-
-export type NodeLinkListStyle = "list" | "grid";
 
 export interface NodeLinkProps {
   node: TreeNode;
-  listStyle?: NodeLinkListStyle;
+  viewMode?: ViewMode;
   className?: string;
   onClick?: (node: TreeNode) => void;
   showInfoButton?: boolean;
@@ -28,7 +27,7 @@ const style = `
 
 export function NodeLink({
   node,
-  listStyle = "list",
+  viewMode = "list",
   className,
   onClick,
   showInfoButton = true,
@@ -67,16 +66,19 @@ export function NodeLink({
   const cx = twMerge(style, className);
 
   return (
-    <div className="group">
+    <div className="group flex flex-col h-full">
       {/* Grid view thumbnail */}
-      {listStyle === "grid" && (
-        <Link to={to} className="flex items-center justify-center w-full h-40">
-          <NodeThumbnail node={node} />
+      {viewMode !== "list" && (
+        <Link
+          to={to}
+          className="flex items-center justify-center w-full flex-1 min-h-0"
+        >
+          <NodeThumbnail node={node} viewMode={viewMode} />
         </Link>
       )}
 
       {/* Node name */}
-      <div className="w-full flex flex-grow items-center gap-1 min-h-8">
+      <div className="w-full flex items-center gap-1 min-h-8">
         <Link
           to={to}
           className={cx}
@@ -90,18 +92,18 @@ export function NodeLink({
         >
           <NodeLinkIcon node={node} />
           <TooltipSpan>{node.name}</TooltipSpan>
-        </Link>
 
-        {/* Context menu */}
-        {showInfoButton && (
-          <IconButton
-            icon="Info"
-            label="Show Info"
-            onClick={openNodeInfoModal}
-            theme="transparent"
-            className="border-none text-slate-500"
-          />
-        )}
+          {/* Context menu */}
+          {showInfoButton && (
+            <IconButton
+              icon="Info"
+              label="Show Info"
+              onClick={openNodeInfoModal}
+              theme="transparent"
+              className="border-none text-inherit"
+            />
+          )}
+        </Link>
       </div>
     </div>
   );

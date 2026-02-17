@@ -105,7 +105,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
     };
   }, []);
 
-  const tooltipContent = visible ? (
+  const tooltipContent = visible && content ? (
     <div
       ref={tooltipRef}
       role="tooltip"

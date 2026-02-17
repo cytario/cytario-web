@@ -1,4 +1,4 @@
-import { _Object } from "@aws-sdk/client-s3";
+import { _Object, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 import { lazy, Suspense, useEffect } from "react";
 import {
@@ -15,6 +15,7 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
+import { Section } from "~/components/Container";
 import { Button } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
@@ -26,10 +27,14 @@ import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
-import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
+import {
+  select,
+  useConnectionsStore,
+} from "~/utils/connectionsStore";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
+import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 import { createResourceId, matchesExtension } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -100,6 +105,8 @@ export interface BucketRouteLoaderResponse {
   name: string;
   url?: string;
   offsetsUrl?: string;
+  fileSize?: number;
+  fileLastModified?: string;
   notification?: NotificationInput;
   credentials: Credentials;
   bucketConfig: BucketConfig;
@@ -172,11 +179,14 @@ export const loader = async ({
 
     const offsetKey = getOffsetKeyForOmeTiff(pathName);
 
-    const [url, offsetsUrl] = await Promise.all([
+    const [url, offsetsUrl, head] = await Promise.all([
       getPresignedUrl(bucketConfig, s3Client, pathName),
       offsetKey
         ? getPresignedUrl(bucketConfig, s3Client, offsetKey)
         : undefined,
+      s3Client.send(
+        new HeadObjectCommand({ Bucket: bucketConfig.name, Key: pathName }),
+      ),
     ]);
 
     return {
@@ -188,6 +198,8 @@ export const loader = async ({
       pathName,
       url,
       offsetsUrl,
+      fileSize: head.ContentLength,
+      fileLastModified: head.LastModified?.toISOString(),
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
@@ -212,6 +224,8 @@ export default function ObjectsRoute() {
     name,
     url,
     offsetsUrl,
+    fileSize,
+    fileLastModified,
     nodes,
     pathName,
     bucketName,
@@ -220,7 +234,7 @@ export default function ObjectsRoute() {
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const navigate = useNavigate();
-  const { setCredentials } = useCredentialsStore();
+  const setConnection = useConnectionsStore(select.setConnection);
 
   const resourceId = createResourceId(
     bucketConfig.provider,
@@ -229,19 +243,42 @@ export default function ObjectsRoute() {
   );
 
   // Store credentials and bucket config in Zustand store when they're available
-  // Credentials are per-bucket, not per-file
+  // Connections are per-bucket, not per-file
   // Key format: provider/bucketName to avoid collisions across providers
   useEffect(() => {
     if (credentials && bucketName && bucketConfig) {
       const storeKey = `${bucketConfig.provider}/${bucketName}`;
-      setCredentials(storeKey, credentials, bucketConfig);
+      setConnection(storeKey, credentials, bucketConfig);
     }
-  }, [bucketName, credentials, bucketConfig, setCredentials]);
+  }, [bucketName, credentials, bucketConfig, setConnection]);
+
+  // Track recently viewed images
+  const { addItem } = useRecentlyViewedStore();
+  useEffect(() => {
+    if (url && matchesExtension(resourceId, /\.(tif|tiff)$/i)) {
+      addItem({
+        provider: bucketConfig.provider,
+        bucketName: bucketConfig.name,
+        pathName,
+        name,
+        type: "file",
+        children: [],
+        _Object: {
+          Key: pathName,
+          Size: fileSize,
+          LastModified: fileLastModified
+            ? new Date(fileLastModified)
+            : undefined,
+          presignedUrl: url,
+        },
+      });
+    }
+  }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
-      <div className="max-h-full overflow-x-hidden overflow-y-auto">
+      <Section>
         <DirectoryView
           name={name}
           nodes={nodes}
@@ -249,7 +286,7 @@ export default function ObjectsRoute() {
           bucketName={bucketName}
           pathName={pathName}
         />
-      </div>
+      </Section>
     );
   }
 
