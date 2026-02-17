@@ -10,8 +10,6 @@ vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   Viewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));
 
-vi.mock("~/components/.client/ImageViewer/state/lzwDecoder", () => ({}));
-
 vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
   getSelectionStats: vi.fn(
     () =>
@@ -106,6 +104,7 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             name: "file.ome.tiff",
             url: "https://example.com/test/path/to/file.ome.tiff",
+            offsetsUrl: "https://example.com/test/path/to/file.offsets.json",
           };
         },
       },

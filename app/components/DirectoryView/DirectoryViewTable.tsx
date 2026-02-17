@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { TreeNode, TreeNodeType } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
 import { ColumnConfig, Table } from "~/components/Table/Table";
-import { useCredentialsStore } from "~/utils/credentialsStore/useCredentialsStore";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
 const columns: Record<string, ColumnConfig> = {
@@ -122,7 +122,7 @@ const getData = (
         const bucketConfig = getBucketConfig(storeKey);
 
         return [
-          <NodeLink key={node.name} node={node} listStyle="list" />,
+          <NodeLink key={node.name} node={node} viewMode="list" />,
           bucketConfig?.provider,
           bucketConfig?.endpoint,
           bucketConfig?.region,
@@ -139,7 +139,7 @@ const getData = (
         // Directories show null values for now (TODO: aggregate children values)
         const isFile = node.type === "file";
         return [
-          <NodeLink key={node.name} node={node} listStyle="list" />,
+          <NodeLink key={node.name} node={node} viewMode="list" />,
           isFile &&
             node._Object?.LastModified &&
             formatHumanReadableDate(node._Object.LastModified),
@@ -152,7 +152,9 @@ const getData = (
 export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
 
 export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
-  const getBucketConfig = useCredentialsStore((state) => state.getBucketConfig);
+  const connections = useConnectionsStore((state) => state.connections);
+  const getBucketConfig = (key: string) =>
+    connections[key]?.bucketConfig ?? null;
 
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";

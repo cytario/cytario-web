@@ -3,6 +3,35 @@ import { mockAnimationsApi } from "jsdom-testing-mocks";
 import { createElement } from "react";
 import { beforeAll } from "vitest";
 
+// Provide a working Storage implementation for Zustand persist middleware.
+// Node.js 24's built-in localStorage is broken without --localstorage-file,
+// and happy-dom doesn't fully override it.
+function createStorageMock(): Storage {
+  const store = new Map<string, string>();
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => store.clear(),
+    get length() {
+      return store.size;
+    },
+    key: (index: number) => [...store.keys()][index] ?? null,
+  };
+}
+
+Object.defineProperty(globalThis, "localStorage", {
+  value: createStorageMock(),
+  writable: true,
+});
+
+Object.defineProperty(globalThis, "sessionStorage", {
+  value: createStorageMock(),
+  writable: true,
+});
+
 // Mock the well-known endpoints for authentication
 vi.mock("~/.server/auth/wellKnownEndpoints", () => ({
   wellKnownEndpoints: {
@@ -27,7 +56,9 @@ beforeAll(() => {
   mockAnimationsApi();
 });
 
-// Reset all mocks after each test file
+// Reset all mocks and storage after each test file
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
+  sessionStorage.clear();
 });

@@ -19,6 +19,7 @@ export default [
       "**/.cache/**",
       "**/.react-router/**",
       "**/coverage/**",
+      "**/devenv/**",
     ],
   },
 

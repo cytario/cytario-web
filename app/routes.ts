@@ -36,11 +36,11 @@ const protectedRoutes = [
       path: "/config",
       file: "routes/config.route.tsx",
     },
+    {
+      path: "/buckets/:provider/:bucketName/*",
+      file: "routes/objects.route.tsx",
+    },
   ]),
-  {
-    path: "/buckets/:provider/:bucketName/*",
-    file: "routes/objects.route.tsx",
-  },
 ];
 
 const apiRoutes = [

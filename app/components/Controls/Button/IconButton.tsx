@@ -44,7 +44,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         disabled={disabled}
         aria-label={label}
       >
-        <Icon icon={icon} />
+        <Icon icon={icon} strokeWidth={1.5} />
       </button>
     );
 

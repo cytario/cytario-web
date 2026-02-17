@@ -4,34 +4,30 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTable } from "../DirectoryViewTable";
 
-// Mock the credentials store
-vi.mock("~/utils/credentialsStore/useCredentialsStore", () => ({
-  useCredentialsStore: vi.fn((selector) => {
-    const mockStore = {
-      getBucketConfig: (key: string) => {
-        // Return bucket config based on the key
-        if (key === "aws/my-aws-bucket") {
-          return {
-            name: "my-aws-bucket",
-            provider: "aws",
-            endpoint: "",
-            region: "eu-central-1",
-            roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
-          };
-        }
-        if (key === "minio/minio-bucket") {
-          return {
-            name: "minio-bucket",
-            provider: "minio",
-            endpoint: "https://s3.cytar.io",
-            region: null,
-            roleArn: null,
-          };
-        }
-        return null;
+// Mock the connections store
+vi.mock("~/utils/connectionsStore", () => ({
+  useConnectionsStore: vi.fn((selector) => {
+    const connections: Record<string, { bucketConfig: Record<string, unknown> }> = {
+      "aws/my-aws-bucket": {
+        bucketConfig: {
+          name: "my-aws-bucket",
+          provider: "aws",
+          endpoint: "",
+          region: "eu-central-1",
+          roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
+        },
+      },
+      "minio/minio-bucket": {
+        bucketConfig: {
+          name: "minio-bucket",
+          provider: "minio",
+          endpoint: "https://s3.cytar.io",
+          region: null,
+          roleArn: null,
+        },
       },
     };
-    return selector(mockStore);
+    return selector({ connections });
   }),
 }));
 

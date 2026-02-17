@@ -18,13 +18,11 @@ import {
   sessionMiddleware,
 } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
-import { BreadcrumbLink } from "./components/Breadcrumbs/BreadcrumbLink";
 import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
-import { Container } from "./components/Container";
+import { Section } from "./components/Container";
 import { useDirectoryStore } from "./components/DirectoryView/useDirectoryStore";
 import { H1 } from "./components/Fonts";
 import { GlobalSearch } from "./components/GlobalSearch";
-import { Logo } from "./components/Logo";
 import {
   NotificationInput,
   NotificationList,
@@ -55,13 +53,7 @@ export const links: LinksFunction = () => [
 ];
 
 export const handle = {
-  breadcrumb: () => {
-    return (
-      <BreadcrumbLink key="/" to="/" isRoot>
-        <Logo scale={1.4} />
-      </BreadcrumbLink>
-    );
-  },
+  breadcrumb: () => ({ label: "", to: "/", isRoot: true }),
 };
 
 export const middleware: MiddlewareFunction[] = [sessionMiddleware];
@@ -138,7 +130,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat">
+      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-slate-100">
         {data?.user && <AppHeader />}
 
         {children}
@@ -163,9 +155,9 @@ export function ErrorBoundary() {
   const error = useRouteError() as Error;
 
   return (
-    <Container>
+    <Section>
       <H1>{error.name}</H1>
       <p>{error?.message ?? "Unknown error"}</p>
-    </Container>
+    </Section>
   );
 }

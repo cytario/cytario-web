@@ -67,8 +67,6 @@ describe("SearchRoute", () => {
   test("handle should return correct breadcrumb", () => {
     const breadcrumb = handle.breadcrumb();
 
-    expect(breadcrumb.key).toBe("search");
-    expect(breadcrumb.props.to).toBe("/search");
-    expect(breadcrumb.props.children).toBe("Search");
+    expect(breadcrumb).toEqual({ label: "Search", to: "/search" });
   });
 });
