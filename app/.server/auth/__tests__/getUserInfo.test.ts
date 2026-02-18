@@ -25,20 +25,34 @@ describe("getUserInfo", () => {
 
   describe("Success Cases", () => {
     test("returns user profile on successful fetch", async () => {
-      const mockUser = mock.user({
+      const rawProfile = {
         sub: "user-uuid-123",
         email: "user@example.com",
+        email_verified: true,
         name: "Test User",
-      });
+        preferred_username: "string",
+        given_name: "string",
+        family_name: "string",
+        policy: "string",
+        groups: ["/org1/lab", "/org1/lab/admins"],
+      };
 
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve(mockUser),
+        json: () => Promise.resolve(rawProfile),
       });
 
       const result = await getUserInfo("access-token-123");
 
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual(
+        expect.objectContaining({
+          sub: "user-uuid-123",
+          email: "user@example.com",
+          groups: ["org1/lab"],
+          adminScopes: ["org1/lab"],
+          isRealmAdmin: false,
+        }),
+      );
     });
 
     test("uses correct userinfo endpoint from wellKnown", async () => {

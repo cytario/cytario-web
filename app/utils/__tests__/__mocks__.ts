@@ -66,7 +66,7 @@ const mock = {
     family_name: "string",
     email: "string",
     policy: "string",
-    groups: ["org1/lab", "org1/lab/admins"],
+    groups: ["org1/lab"],
     adminScopes: ["org1/lab"],
     isRealmAdmin: false,
     ...overrides,

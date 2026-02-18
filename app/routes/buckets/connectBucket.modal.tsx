@@ -8,8 +8,8 @@ import { useLoaderData } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { canCreate } from "~/.server/auth/authorization";
-import { getManageableScopes } from "~/.server/auth/getKeycloakGroups";
 import { getSession } from "~/.server/auth/getSession";
+import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { useBackendNotification } from "~/components/Notification/Notification.store";

@@ -1,4 +1,5 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { Link } from "react-router";
 
 import { ButtonLink, IconButton } from "./Controls";
 import { UserProfile } from "~/.server/auth/getUserInfo";
@@ -31,6 +32,18 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
 
           <div>{user.email}</div>
         </div>
+
+        {/* Admin Groups */}
+        {user.adminScopes.length > 0 && (
+          <div className="text-sm space-y-1 bg-slate-700 p-2 rounded-sm flex flex-col">
+            <div className="font-bold">Admin Groups</div>
+            {user.adminScopes.map((scope) => (
+              <Link key={scope} to={`/admin/${scope}`}>
+                {scope}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Groups*/}
         <div className="text-sm space-y-1 bg-slate-700 p-2 rounded-sm">

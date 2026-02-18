@@ -1,4 +1,4 @@
-import { flattenGroups, getManageableScopes } from "../getKeycloakGroups";
+import { flattenGroups, getManageableScopes } from "../keycloakAdmin";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/config", () => ({

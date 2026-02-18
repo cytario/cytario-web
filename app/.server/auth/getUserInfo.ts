@@ -26,11 +26,12 @@ function normalizeGroup(group: string): string {
 }
 
 function enrichUserProfile(raw: UserProfileRaw): UserProfile {
-  const groups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
-  const adminScopes = groups
+  const allGroups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
+  const adminScopes = allGroups
     .filter((g) => g.endsWith("/admins"))
     .map((g) => g.replace(/\/admins$/, ""));
-  const isRealmAdmin = groups.includes(REALM_ADMIN_GROUP);
+  const isRealmAdmin = allGroups.includes(REALM_ADMIN_GROUP);
+  const groups = allGroups.filter((g) => !g.endsWith("/admins"));
 
   return {
     ...(raw as unknown as UserProfile),

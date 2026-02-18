@@ -40,6 +40,10 @@ const protectedRoutes = [
       path: "/buckets/:provider/:bucketName/*",
       file: "routes/objects.route.tsx",
     },
+    {
+      path: "/admin/*",
+      file: "routes/admin/admin.route.tsx",
+    },
   ]),
 ];
 
