@@ -9,6 +9,26 @@ export async function updateUser(
   await adminMutate(accessToken, "PUT", `/users/${userId}`, data);
 }
 
+export async function addUserToGroup(
+  accessToken: string,
+  userId: string,
+  groupId: string,
+): Promise<void> {
+  await adminMutate(accessToken, "PUT", `/users/${userId}/groups/${groupId}`);
+}
+
+export async function removeUserFromGroup(
+  accessToken: string,
+  userId: string,
+  groupId: string,
+): Promise<void> {
+  await adminMutate(
+    accessToken,
+    "DELETE",
+    `/users/${userId}/groups/${groupId}`,
+  );
+}
+
 export async function inviteUser(
   accessToken: string,
   email: string,

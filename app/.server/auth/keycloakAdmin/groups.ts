@@ -2,10 +2,22 @@ import type { UserProfile } from "../getUserInfo";
 import { adminFetch, type KeycloakGroup, type KeycloakUser } from "./client";
 
 export interface GroupWithMembers {
+  id: string;
   name: string;
   path: string;
   members: KeycloakUser[];
   subGroups: GroupWithMembers[];
+}
+
+export interface UserWithGroups {
+  user: KeycloakUser;
+  groupPaths: Set<string>;
+}
+
+export interface GroupInfo {
+  id: string;
+  path: string;
+  name: string;
 }
 
 async function fetchGroups(
@@ -92,6 +104,58 @@ function collectGroupIds(group: KeycloakGroup): string[] {
 }
 
 /**
+ * Recursively collect all groups with their IDs from a GroupWithMembers tree.
+ * Filters out "admins" groups.
+ */
+export function flattenGroupsWithIds(
+  group: GroupWithMembers,
+  accumulator: GroupInfo[] = [],
+): GroupInfo[] {
+  if (group.name !== "admins") {
+    accumulator.push({
+      id: group.id,
+      path: group.path,
+      name: group.name,
+    });
+  }
+
+  for (const subGroup of group.subGroups) {
+    flattenGroupsWithIds(subGroup, accumulator);
+  }
+
+  return accumulator;
+}
+
+/**
+ * Collect all unique users and track their group memberships from a GroupWithMembers tree.
+ * Returns an array of users with their associated group paths.
+ */
+export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
+  const userMap = new Map<string, UserWithGroups>();
+
+  function traverse(g: GroupWithMembers) {
+    // Add members of current group
+    for (const member of g.members) {
+      if (!userMap.has(member.id)) {
+        userMap.set(member.id, {
+          user: member,
+          groupPaths: new Set(),
+        });
+      }
+      userMap.get(member.id)!.groupPaths.add(g.path);
+    }
+
+    // Traverse subgroups
+    for (const subGroup of g.subGroups) {
+      traverse(subGroup);
+    }
+  }
+
+  traverse(group);
+  return Array.from(userMap.values());
+}
+
+/**
  * Fetches members for a group and all its sub-groups, returning the tree structure.
  */
 export async function getGroupWithMembers(
@@ -115,6 +179,7 @@ export async function getGroupWithMembers(
   );
 
   const buildTree = (g: KeycloakGroup): GroupWithMembers => ({
+    id: g.id,
     name: g.name,
     path: g.path.replace(/^\//, ""),
     members: membersByGroupId.get(g.id) ?? [],

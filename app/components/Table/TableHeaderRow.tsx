@@ -27,7 +27,9 @@ export function TableHeaderRow({
 
         const cx = twMerge(
           "relative p-2 pr-4",
-          isIndexColumn ? "text-right" : `text-${columnConfig?.align}`,
+          isIndexColumn
+            ? "text-right"
+            : `text-${columnConfig?.align ?? "left"}`,
           columnConfig?.monospace && "tabular-nums",
           isIndexColumn && "tabular-nums",
         );

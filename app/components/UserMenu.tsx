@@ -1,4 +1,5 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { ButtonLink, IconButton } from "./Controls";
@@ -7,6 +8,14 @@ import { UserProfile } from "~/.server/auth/getUserInfo";
 interface UserMenuProps {
   user: UserProfile;
   accountSettingsUrl: string;
+}
+
+export function Card({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-sm space-y-1 bg-slate-700 p-2 border border-slate-500 rounded-sm flex flex-col">
+      {children}
+    </div>
+  );
 }
 
 export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
@@ -35,23 +44,27 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
 
         {/* Admin Groups */}
         {user.adminScopes.length > 0 && (
-          <div className="text-sm space-y-1 bg-slate-700 p-2 rounded-sm flex flex-col">
+          <Card>
             <div className="font-bold">Admin Groups</div>
             {user.adminScopes.map((scope) => (
-              <Link key={scope} to={`/admin/${scope}`}>
+              <Link
+                key={scope}
+                to={`/admin/${scope}`}
+                className="hover:underline"
+              >
                 {scope}
               </Link>
             ))}
-          </div>
+          </Card>
         )}
 
         {/* Groups*/}
-        <div className="text-sm space-y-1 bg-slate-700 p-2 rounded-sm">
+        <Card>
           <div className="font-bold">Groups</div>
           {user.groups.map((g) => (
             <div key={g}>{g}</div>
           ))}
-        </div>
+        </Card>
 
         {/* Menu Items */}
         <MenuItem

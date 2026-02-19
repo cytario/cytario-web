@@ -38,7 +38,7 @@ export async function adminFetch<T>(
 
 export async function adminMutate(
   accessToken: string,
-  method: "POST" | "PUT",
+  method: "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<Response> {

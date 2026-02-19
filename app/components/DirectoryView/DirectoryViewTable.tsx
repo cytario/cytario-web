@@ -12,7 +12,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "name",
     header: "Name",
     size: 420,
-    align: "left",
     enableSorting: true,
     // Will be overridden with function in getColumns
     sortingFn: "alphanumeric",
@@ -40,7 +39,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "provider",
     header: "Provider",
     size: 100,
-    align: "left",
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
@@ -48,7 +46,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "endpoint",
     header: "Endpoint",
     size: 340,
-    align: "left",
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
@@ -56,7 +53,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "region",
     header: "Region",
     size: 120,
-    align: "left",
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
@@ -64,7 +60,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "rolearn",
     header: "RoleARN",
     size: 480,
-    align: "left",
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
@@ -72,7 +67,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "ownerScope",
     header: "Scope",
     size: 160,
-    align: "left",
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
@@ -80,7 +74,6 @@ const columns: Record<string, ColumnConfig> = {
     id: "createdBy",
     header: "Created By",
     size: 280,
-    align: "left",
     enableSorting: true,
     sortingFn: "alphanumeric",
   },
@@ -113,7 +106,16 @@ const getColumns = (nodes: TreeNode[]): ColumnConfig[] => {
 
 const getData = (
   nodes: TreeNode[],
-  getBucketConfig: (key: string) => { provider?: string; endpoint?: string | null; region?: string | null; roleArn?: string | null; ownerScope?: string; createdBy?: string } | null
+  getBucketConfig: (
+    key: string,
+  ) => {
+    provider?: string;
+    endpoint?: string | null;
+    region?: string | null;
+    roleArn?: string | null;
+    ownerScope?: string;
+    createdBy?: string;
+  } | null,
 ): ReactNode[][] => {
   switch (nodes[0].type) {
     case "bucket":

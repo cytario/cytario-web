@@ -1,10 +1,12 @@
 import { Switch as HeadlessSwitch } from "@headlessui/react";
 import colors from "tailwindcss/colors";
 
+import tailwindConfig from "tailwind.config";
+
 export function Switch({
   checked,
   onChange,
-  color = colors.slate[500],
+  color = tailwindConfig.theme.extend.colors.cytario.turquoise[500],
   disabled = false,
 }: {
   checked: boolean;

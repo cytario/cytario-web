@@ -21,10 +21,12 @@ export interface UserProfile extends UserProfileRaw {
   isRealmAdmin: boolean;
 }
 
+/** Removes leading slash from group name. */
 function normalizeGroup(group: string): string {
   return group.replace(/^\//, "");
 }
 
+/** Enriches raw user profile with admin scopes and realm admin status. */
 function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   const allGroups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
   const adminScopes = allGroups
@@ -41,6 +43,7 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   };
 }
 
+/** Fetches user profile from Keycloak userinfo endpoint. */
 async function fetchUserProfile(accessToken: string): Promise<UserProfileRaw> {
   const wellKnownEndpoints = await getWellKnownEndpoints();
   const { userinfo_endpoint } = wellKnownEndpoints;
@@ -59,6 +62,7 @@ async function fetchUserProfile(accessToken: string): Promise<UserProfileRaw> {
   return await response.json();
 }
 
+/** Retrieves and enriches user profile data from Keycloak. */
 export const getUserInfo = async (
   accessToken: string,
 ): Promise<UserProfile> => {
