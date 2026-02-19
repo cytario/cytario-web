@@ -27,13 +27,17 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Bucket configuration not found", { status: 404 });
   }
 
-  const { auth } = cytarioConfig;
+  const { auth, endpoints } = cytarioConfig;
 
   const actualRegion = bucketConfig.region ?? "eu-central-1";
   const providerConfig = getS3ProviderConfig(bucketConfig.endpoint, actualRegion);
 
+  // Derive a unique vendor ID from the webapp hostname (e.g. "cytario.com" → "cytario-com")
+  const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
+
   // Generate Cyberduck profile XML
   const profile = generateCyberduckProfile({
+    vendor,
     bucketName,
     roleArn: bucketConfig.roleArn,
     region: actualRegion,
@@ -59,6 +63,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
 };
 
 interface CyberduckProfileConfig {
+  vendor: string;
   bucketName: string;
   roleArn: string | null;
   region: string;
@@ -76,6 +81,7 @@ interface CyberduckProfileConfig {
 
 function generateCyberduckProfile(config: CyberduckProfileConfig): string {
   const {
+    vendor,
     bucketName,
     roleArn,
     region,
@@ -118,7 +124,7 @@ function generateCyberduckProfile(config: CyberduckProfileConfig): string {
         <key>Protocol</key>
         <string>s3</string>
         <key>Vendor</key>
-        <string>s3-sts</string>
+        <string>${escapeXml(vendor)}</string>
         <key>Description</key>
         <string>Cytario - ${escapeXml(bucketName)}</string>
         <key>Default Nickname</key>
