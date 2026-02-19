@@ -6,4 +6,4 @@ export {
   getGroupWithMembers,
   type GroupWithMembers,
 } from "./groups";
-export { inviteUser } from "./users";
+export { inviteUser, updateUser } from "./users";

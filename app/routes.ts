@@ -41,8 +41,38 @@ const protectedRoutes = [
       file: "routes/objects.route.tsx",
     },
     {
-      path: "/admin/*",
+      id: "admin-org-group",
+      path: "/admin/:org/:group",
       file: "routes/admin/admin.route.tsx",
+      children: [
+        {
+          id: "admin-org-group-invite",
+          path: "invite",
+          file: "routes/admin/invite.modal.tsx",
+        },
+        {
+          id: "admin-org-group-user",
+          path: "user/:userId",
+          file: "routes/admin/user.modal.tsx",
+        },
+      ],
+    },
+    {
+      id: "admin-org",
+      path: "/admin/:org",
+      file: "routes/admin/admin.route.tsx",
+      children: [
+        {
+          id: "admin-org-invite",
+          path: "invite",
+          file: "routes/admin/invite.modal.tsx",
+        },
+        {
+          id: "admin-org-user",
+          path: "user/:userId",
+          file: "routes/admin/user.modal.tsx",
+        },
+      ],
     },
   ]),
 ];

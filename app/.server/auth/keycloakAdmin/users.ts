@@ -1,6 +1,14 @@
 import { adminFetch, adminMutate, type KeycloakUser } from "./client";
 import { findGroupByPath } from "./groups";
 
+export async function updateUser(
+  accessToken: string,
+  userId: string,
+  data: { firstName: string; lastName: string; email: string; enabled: boolean },
+): Promise<void> {
+  await adminMutate(accessToken, "PUT", `/users/${userId}`, data);
+}
+
 export async function inviteUser(
   accessToken: string,
   email: string,
