@@ -1,24 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
-import {
-  type ActionFunction,
-  type LoaderFunction,
-  type MetaFunction,
-  Link,
-  Outlet,
-  useLoaderData,
-} from "react-router";
-import { z } from "zod";
+import { type MetaFunction, Link, Outlet, useLoaderData } from "react-router";
 
-import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
-  adminFetch,
-  getGroupWithMembers,
-  flattenGroupsWithIds,
-  collectAllUsers,
-  addUserToGroup,
-  removeUserFromGroup,
-  updateUser,
-  type KeycloakUser,
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
@@ -28,100 +12,12 @@ import { H1 } from "~/components/Fonts";
 import { Placeholder } from "~/components/Placeholder";
 import { type ColumnConfig, Table } from "~/components/Table/Table";
 
-const title = "Admin";
-
-export const meta: MetaFunction = () => [{ title }];
+export const meta: MetaFunction = () => [{ title: "Admin" }];
 
 export const middleware = [authMiddleware];
 
-export const loader: LoaderFunction = async ({ context, params }) => {
-  const { user, authTokens } = context.get(authContext);
-  const scope = [params.s0, params.s1, params.s2, params.s3].filter(Boolean).join("/");
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
-
-  const group = await getGroupWithMembers(authTokens.accessToken, scope);
-
-  if (!group) {
-    return { scope, users: [], groups: [] };
-  }
-
-  const users = collectAllUsers(group);
-  const groups = flattenGroupsWithIds(group);
-
-  return { scope, users, groups };
-};
-
-const toggleGroupMembershipSchema = z.object({
-  action: z.literal("toggleGroupMembership"),
-  userId: z.string(),
-  groupId: z.string(),
-  isMember: z.enum(["true", "false"]),
-});
-
-const toggleUserEnabledSchema = z.object({
-  action: z.literal("toggleUserEnabled"),
-  userId: z.string(),
-  enabled: z.enum(["true", "false"]),
-});
-
-export const action: ActionFunction = async ({ request, context, params }) => {
-  const { user, authTokens } = context.get(authContext);
-  const scope = [params.s0, params.s1, params.s2, params.s3].filter(Boolean).join("/");
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-
-  if (!isAdmin) {
-    return { error: "Unauthorized" };
-  }
-
-  const formData = await request.formData();
-  const data = Object.fromEntries(formData);
-
-  try {
-    if (data.action === "toggleGroupMembership") {
-      const { userId, groupId, isMember } =
-        toggleGroupMembershipSchema.parse(data);
-
-      if (isMember === "true") {
-        await removeUserFromGroup(authTokens.accessToken, userId, groupId);
-      } else {
-        await addUserToGroup(authTokens.accessToken, userId, groupId);
-      }
-
-      return { success: true };
-    }
-
-    if (data.action === "toggleUserEnabled") {
-      const { userId, enabled } = toggleUserEnabledSchema.parse(data);
-
-      const userToUpdate = await adminFetch<KeycloakUser>(
-        authTokens.accessToken,
-        `/users/${userId}`,
-      );
-
-      await updateUser(authTokens.accessToken, userId, {
-        ...userToUpdate,
-        enabled: enabled !== "true",
-      });
-
-      return { success: true };
-    }
-
-    return { error: "Invalid action" };
-  } catch (error) {
-    console.error("Action failed:", error);
-    return { error: "Operation failed" };
-  }
-};
+export { usersLoader as loader } from "./users.loader";
+export { usersAction as action } from "./users.action";
 
 function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
   return [
@@ -152,7 +48,7 @@ function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
   ];
 }
 
-export default function AdminRoute() {
+export default function AdminUsersRoute() {
   const { scope, users, groups } = useLoaderData<{
     scope: string;
     users: UserWithGroups[];
@@ -173,10 +69,10 @@ export default function AdminRoute() {
         formData.append("groupId", groupId);
         formData.append("isMember", String(isMember));
 
-        const response = await fetch(window.location.pathname, {
-          method: "POST",
-          body: formData,
-        });
+        const response = await fetch(
+          `${window.location.pathname}${window.location.search}`,
+          { method: "POST", body: formData },
+        );
 
         if (!response.ok) throw new Error("Toggle failed");
 
@@ -205,10 +101,10 @@ export default function AdminRoute() {
         formData.append("userId", userId);
         formData.append("enabled", String(enabled));
 
-        const response = await fetch(window.location.pathname, {
-          method: "POST",
-          body: formData,
-        });
+        const response = await fetch(
+          `${window.location.pathname}${window.location.search}`,
+          { method: "POST", body: formData },
+        );
 
         if (!response.ok) throw new Error("Toggle failed");
 
@@ -232,7 +128,7 @@ export default function AdminRoute() {
     return users.map(({ user, groupPaths }) => [
       <Link
         key={`name-${user.id}`}
-        to={`user/${user.id}`}
+        to={`${user.id}?scope=${encodeURIComponent(scope)}`}
         className="text-cytario-turquoise-700 hover:underline"
       >
         {user.firstName} {user.lastName}
@@ -261,17 +157,19 @@ export default function AdminRoute() {
   }, [
     users,
     groups,
+    scope,
     pendingToggles,
     handleToggleMembership,
     handleToggleEnabled,
   ]);
 
   return (
+    <>
     <Section>
       <Container>
         <div className="flex items-center justify-between mb-6">
           <H1 className="font-bold text-2xl">{scope}</H1>
-          <ButtonLink to="invite" theme="primary">
+          <ButtonLink to={`invite?scope=${encodeURIComponent(scope)}`} theme="primary">
             Invite User
           </ButtonLink>
         </div>
@@ -290,8 +188,8 @@ export default function AdminRoute() {
           description="There are no users in this scope"
         />
       )}
-
-      <Outlet />
     </Section>
+    <Outlet />
+    </>
   );
 }

@@ -39,11 +39,11 @@ export const loader: LoaderFunction = async ({ context, params }) => {
 export const inviteUserAction: ActionFunction = async ({
   request,
   context,
-  params,
 }) => {
   const { user, authTokens } = context.get(authContext);
-  const scope = [params.s0, params.s1, params.s2, params.s3].filter(Boolean).join("/");
-  const adminUrl = `/admin/${scope}`;
+  const scope = new URL(request.url).searchParams.get("scope");
+  if (!scope) throw new Response("Missing scope", { status: 400 });
+  const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
 
   const isAdmin = user.adminScopes.some(
     (s) => scope === s || scope.startsWith(s + "/"),

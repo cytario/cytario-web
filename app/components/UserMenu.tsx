@@ -49,7 +49,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
             {user.adminScopes.map((scope) => (
               <Link
                 key={scope}
-                to={`/admin/${scope}`}
+                to={`/admin/users?scope=${encodeURIComponent(scope)}`}
                 className="hover:underline"
               >
                 {scope}
