@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { useLoaderData, useNavigation, useSubmit } from "react-router";
+import { useNavigation, useSubmit } from "react-router";
 
 import {
   type InviteUserFormData,
@@ -8,11 +8,12 @@ import {
 } from "./inviteUser.schema";
 import { Button, Field, Fieldset, Input, Select } from "~/components/Controls";
 
-export function InviteUserForm() {
-  const { scope, groupOptions } = useLoaderData<{
-    scope: string;
-    groupOptions: string[];
-  }>();
+interface InviteUserFormProps {
+  scope: string;
+  groupOptions: string[];
+}
+
+export function InviteUserForm({ scope, groupOptions }: InviteUserFormProps) {
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";

@@ -1,5 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
-import { type MetaFunction, Link, Outlet, useLoaderData } from "react-router";
+import {
+  type MetaFunction,
+  type ShouldRevalidateFunction,
+  Link,
+  Outlet,
+  useLoaderData,
+} from "react-router";
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
@@ -18,6 +24,18 @@ export const middleware = [authMiddleware];
 
 export { usersLoader as loader } from "./users.loader";
 export { usersAction as action } from "./users.action";
+
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  formAction,
+  defaultShouldRevalidate,
+}) => {
+  if (formAction) return defaultShouldRevalidate;
+  return (
+    currentUrl.searchParams.get("scope") !== nextUrl.searchParams.get("scope")
+  );
+};
 
 function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
   return [
@@ -163,13 +181,17 @@ export default function AdminUsersRoute() {
     handleToggleEnabled,
   ]);
 
+  console.log(scope, users, groups);
+
   return (
-    <>
     <Section>
       <Container>
         <div className="flex items-center justify-between mb-6">
           <H1 className="font-bold text-2xl">{scope}</H1>
-          <ButtonLink to={`invite?scope=${encodeURIComponent(scope)}`} theme="primary">
+          <ButtonLink
+            to={`invite?scope=${encodeURIComponent(scope)}`}
+            theme="primary"
+          >
             Invite User
           </ButtonLink>
         </div>
@@ -188,8 +210,7 @@ export default function AdminUsersRoute() {
           description="There are no users in this scope"
         />
       )}
+      <Outlet context={{ scope, users, groups }} />
     </Section>
-    <Outlet />
-    </>
   );
 }
