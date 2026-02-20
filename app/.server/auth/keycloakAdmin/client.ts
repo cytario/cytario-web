@@ -16,33 +16,18 @@ export interface KeycloakUser {
   enabled: boolean;
 }
 
-const adminApiBaseUrl = (): string =>
-  cytarioConfig.auth.baseUrl.replace("/realms/", "/admin/realms/");
+const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace(
+  "/realms/",
+  "/admin/realms/",
+);
 
-export async function adminFetch<T>(
+async function adminRequest(
   accessToken: string,
-  path: string,
-): Promise<T> {
-  const response = await fetch(`${adminApiBaseUrl()}${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Keycloak Admin API ${path} failed: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  return response.json();
-}
-
-export async function adminMutate(
-  accessToken: string,
-  method: "POST" | "PUT" | "DELETE",
+  method: string,
   path: string,
   body?: unknown,
 ): Promise<Response> {
-  const response = await fetch(`${adminApiBaseUrl()}${path}`, {
+  const response = await fetch(`${adminApiBaseUrl}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -58,4 +43,21 @@ export async function adminMutate(
   }
 
   return response;
+}
+
+export async function adminFetch<T>(
+  accessToken: string,
+  path: string,
+): Promise<T> {
+  const response = await adminRequest(accessToken, "GET", path);
+  return response.json();
+}
+
+export async function adminMutate(
+  accessToken: string,
+  method: "POST" | "PUT" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<Response> {
+  return adminRequest(accessToken, method, path, body);
 }

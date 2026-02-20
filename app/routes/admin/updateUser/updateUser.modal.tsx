@@ -2,16 +2,22 @@ import { useOutletContext, useParams } from "react-router";
 
 import { UpdateUserForm } from "./updateUser.form";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
-import { type UserWithGroups } from "~/.server/auth/keycloakAdmin";
+import {
+  type UserWithGroups,
+  type GroupInfo,
+} from "~/.server/auth/keycloakAdmin";
 import { RouteModal } from "~/components/RouteModal";
 
-export { updateUserAction as action } from "./updateUser.action";
+export { userDetailAction as action } from "./userDetail.action";
 
 export const middleware = [authMiddleware];
 
 export default function UserModal() {
   const { userId } = useParams();
-  const { users } = useOutletContext<{ users: UserWithGroups[] }>();
+  const { users, groups } = useOutletContext<{
+    users: UserWithGroups[];
+    groups: GroupInfo[];
+  }>();
 
   const match = users.find(({ user }) => user.id === userId);
 
@@ -21,7 +27,11 @@ export default function UserModal() {
 
   return (
     <RouteModal title="Edit User">
-      <UpdateUserForm user={match.user} />
+      <UpdateUserForm
+        user={match.user}
+        groups={groups}
+        groupPaths={match.groupPaths}
+      />
     </RouteModal>
   );
 }

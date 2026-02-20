@@ -1,15 +1,16 @@
-import { ActionFunction, redirect } from "react-router";
+import { type ActionFunction, redirect } from "react-router";
 
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { updateUser } from "~/.server/auth/keycloakAdmin";
+import {
+  addUserToGroup,
+  removeUserFromGroup,
+  updateUser,
+} from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
-/**
- * Handles user update form submission. Validates input and updates user in Keycloak.
- */
-export const updateUserAction: ActionFunction = async ({
+export const userDetailAction: ActionFunction = async ({
   request,
   context,
   params,
@@ -28,6 +29,7 @@ export const updateUserAction: ActionFunction = async ({
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
+
   const result = updateUserSchema.safeParse({
     ...rawData,
     enabled: rawData.enabled === "true",
@@ -41,6 +43,23 @@ export const updateUserAction: ActionFunction = async ({
 
   try {
     await updateUser(authTokens.accessToken, params.userId!, result.data);
+
+    // Process group membership changes
+    const groupEntries = [...formData.entries()]
+      .filter(([key]) => key.startsWith("group-"))
+      .map(([key, value]) => ({
+        groupId: key.replace("group-", ""),
+        shouldBeMember: value === "true",
+      }));
+
+    await Promise.all(
+      groupEntries.map(({ groupId, shouldBeMember }) =>
+        shouldBeMember
+          ? addUserToGroup(authTokens.accessToken, params.userId!, groupId)
+          : removeUserFromGroup(authTokens.accessToken, params.userId!, groupId),
+      ),
+    );
+
     session.set("notification", {
       status: "success",
       message: "User updated successfully.",

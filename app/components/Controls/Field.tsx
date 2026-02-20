@@ -18,10 +18,13 @@ export const Field = ({
   error?: FieldError;
   inline?: boolean;
 }) => {
-  const cx = twMerge("flex gap-2 text-sm", inline ? "flex-row" : "flex-col");
+  const cx = twMerge(
+    "flex gap-2 text-sm",
+    inline ? "flex-row-reverse justify-end" : "flex-col",
+  );
   return (
     <HeadlessField className={cx}>
-      <div className="space-y-1">
+      <div className="flex flex-col justify-center">
         <Label>{label}</Label>
         {description && <Description>{description}</Description>}
       </div>

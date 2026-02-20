@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import {
   type MetaFunction,
   type ShouldRevalidateFunction,
@@ -13,7 +13,7 @@ import {
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
 import { Container, Section } from "~/components/Container";
-import { ButtonLink, Switch } from "~/components/Controls";
+import { ButtonLink, Checkbox } from "~/components/Controls";
 import { H1 } from "~/components/Fonts";
 import { Placeholder } from "~/components/Placeholder";
 import { type ColumnConfig, Table } from "~/components/Table/Table";
@@ -23,7 +23,6 @@ export const meta: MetaFunction = () => [{ title: "Admin" }];
 export const middleware = [authMiddleware];
 
 export { usersLoader as loader } from "./users.loader";
-export { usersAction as action } from "./users.action";
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
   currentUrl,
@@ -73,73 +72,6 @@ export default function AdminUsersRoute() {
     groups: GroupInfo[];
   }>();
 
-  const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
-
-  const handleToggleMembership = useCallback(
-    async (userId: string, groupId: string, isMember: boolean) => {
-      const toggleKey = `${userId}-${groupId}`;
-      setPendingToggles((prev) => new Set(prev).add(toggleKey));
-
-      try {
-        const formData = new FormData();
-        formData.append("action", "toggleGroupMembership");
-        formData.append("userId", userId);
-        formData.append("groupId", groupId);
-        formData.append("isMember", String(isMember));
-
-        const response = await fetch(
-          `${window.location.pathname}${window.location.search}`,
-          { method: "POST", body: formData },
-        );
-
-        if (!response.ok) throw new Error("Toggle failed");
-
-        window.location.reload();
-      } catch (error) {
-        console.error("Toggle membership failed:", error);
-      } finally {
-        setPendingToggles((prev) => {
-          const next = new Set(prev);
-          next.delete(toggleKey);
-          return next;
-        });
-      }
-    },
-    [],
-  );
-
-  const handleToggleEnabled = useCallback(
-    async (userId: string, enabled: boolean) => {
-      const toggleKey = `enabled-${userId}`;
-      setPendingToggles((prev) => new Set(prev).add(toggleKey));
-
-      try {
-        const formData = new FormData();
-        formData.append("action", "toggleUserEnabled");
-        formData.append("userId", userId);
-        formData.append("enabled", String(enabled));
-
-        const response = await fetch(
-          `${window.location.pathname}${window.location.search}`,
-          { method: "POST", body: formData },
-        );
-
-        if (!response.ok) throw new Error("Toggle failed");
-
-        window.location.reload();
-      } catch (error) {
-        console.error("Toggle enabled failed:", error);
-      } finally {
-        setPendingToggles((prev) => {
-          const next = new Set(prev);
-          next.delete(toggleKey);
-          return next;
-        });
-      }
-    },
-    [],
-  );
-
   const columns = useMemo(() => buildMatrixColumns(groups), [groups]);
 
   const data = useMemo(() => {
@@ -152,36 +84,16 @@ export default function AdminUsersRoute() {
         {user.firstName} {user.lastName}
       </Link>,
       user.email,
-      <Switch
-        key={`status-${user.id}`}
-        checked={user.enabled}
-        onChange={() => handleToggleEnabled(user.id, user.enabled)}
-        disabled={pendingToggles.has(`enabled-${user.id}`)}
-      />,
-      ...groups.map((group) => {
-        const isMember = groupPaths.has(group.path);
-        const toggleKey = `${user.id}-${group.id}`;
-
-        return (
-          <Switch
-            key={toggleKey}
-            checked={isMember}
-            onChange={() => handleToggleMembership(user.id, group.id, isMember)}
-            disabled={pendingToggles.has(toggleKey)}
-          />
-        );
-      }),
+      <Checkbox key={`status-${user.id}`} checked={user.enabled} disabled />,
+      ...groups.map((group) => (
+        <Checkbox
+          key={`${user.id}-${group.id}`}
+          checked={groupPaths.has(group.path)}
+          disabled
+        />
+      )),
     ]);
-  }, [
-    users,
-    groups,
-    scope,
-    pendingToggles,
-    handleToggleMembership,
-    handleToggleEnabled,
-  ]);
-
-  console.log(scope, users, groups);
+  }, [users, groups, scope]);
 
   return (
     <Section>
