@@ -24,7 +24,7 @@ export const Magnifier = ({
 }) => {
   const zoom = viewStateActive?.zoom ?? 0;
   const magnification = magnificationFromZoom(zoom, 20);
-  const color = zoom <= 0 ? "bg-slate-300" : "bg-rose-500";
+  const color = zoom <= 0 ? "bg-[var(--color-text-secondary)]" : "bg-[var(--color-action-danger)]";
 
   return (
     <div className="flex items-center gap-2">
