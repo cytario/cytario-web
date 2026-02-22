@@ -88,7 +88,7 @@ const AppHeader = () => {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
 
   return (
-    <header className="z-20 flex justify-between items-center h-12 bg-slate-950 top-0 left-0 right-0">
+    <header className="z-20 flex justify-between items-center h-12 bg-[var(--color-brand-primary)] top-0 left-0 right-0">
       <div className="h-full flex-shrink min-w-0">
         <Breadcrumbs />
       </div>

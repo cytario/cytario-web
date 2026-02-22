@@ -73,5 +73,3 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     secrets: [COOKIE_SECRET!],
   },
 };
-
-console.log({ cytarioConfig });

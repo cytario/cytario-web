@@ -1,4 +1,4 @@
-import { ButtonLink } from "@cytario/design";
+import { ButtonLink, H1 } from "@cytario/design";
 import { Download, Plug } from "lucide-react";
 import { useEffect } from "react";
 
@@ -52,9 +52,9 @@ export function DirectoryView({
         <header className="flex flex-col justify-between mb-8 gap-2">
           <div className="flex gap-2">
             {name && (
-              <h1 className="flex-grow font-bold text-2xl sm:text-3xl md:text-4xl">
+              <H1 className="flex-grow text-2xl sm:text-3xl md:text-4xl">
                 {name}
-              </h1>
+              </H1>
             )}
             <ViewModeToggle />
           </div>
@@ -62,7 +62,7 @@ export function DirectoryView({
             {!bucketName && (
               <ButtonLink
                 href="/connect-bucket"
-                variant="secondary"
+                variant="neutral"
                 iconLeft={Plug}
               >
                 Connect Storage
@@ -72,7 +72,7 @@ export function DirectoryView({
             {bucketName && (
               <ButtonLink
                 href="?action=cyberduck"
-                variant="secondary"
+                variant="neutral"
                 iconLeft={Download}
               >
                 Access with Cyberduck

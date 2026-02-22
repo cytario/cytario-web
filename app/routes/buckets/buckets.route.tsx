@@ -151,7 +151,7 @@ export default function BucketsRoute() {
             title="Start exploring your data"
             description="Add a data connection to view your cloud storage."
             action={
-              <ButtonLink href="/connect-bucket" size="lg" variant="primary">
+              <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
                 Connect Storage
               </ButtonLink>
             }
