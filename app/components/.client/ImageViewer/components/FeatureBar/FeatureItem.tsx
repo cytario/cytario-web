@@ -1,5 +1,8 @@
+import { IconButton } from "@cytario/design";
+import { ChevronsDown, ChevronsUp, Circle, CircleDot, type LucideIcon } from "lucide-react";
+
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
-import { Input, Icon, IconButton } from "~/components/Controls";
+import { Input } from "~/components/Controls";
 
 interface FeatureItemProps {
   title: string;
@@ -9,7 +12,7 @@ interface FeatureItemProps {
   onSliderChange?: (value: number) => void;
   toggleValue?: boolean;
   onToggleChange?: (value: boolean) => void;
-  toggleIcon?: "Circle" | "CircleDot";
+  toggleIcon?: LucideIcon;
   toggleHidden?: boolean;
 }
 
@@ -21,7 +24,7 @@ function FeatureItemInner({
   onSliderChange,
   toggleValue,
   onToggleChange,
-  toggleIcon = "CircleDot",
+  toggleIcon = CircleDot,
   toggleHidden = false,
 }: FeatureItemProps) {
   const isOpen = useFeatureItemStore((s) => s.isOpen);
@@ -31,17 +34,17 @@ function FeatureItemInner({
     <div
       className={`
         flex flex-col w-full
-        bg-slate-800 text-slate-300
-        border-b border-slate-950
+        bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]
+        border-b border-[var(--color-surface-default)]
       `}
     >
-      <div className="z-10 sticky top-0 left-0 bg-slate-900">
+      <div className="z-10 sticky top-0 left-0 bg-[var(--color-surface-default)]">
         <header
           className={`
             flex-grow flex items-center h-14
-            border-b border-b-slate-950
-            border-t border-t-slate-800
-            bg-slate-900 hover:bg-slate-800 
+            border-b border-b-[var(--color-surface-default)]
+            border-t border-t-[var(--color-surface-subtle)]
+            bg-[var(--color-surface-default)] hover:bg-[var(--color-surface-subtle)]
             transition-colors
             pr-2
           `}
@@ -55,17 +58,17 @@ function FeatureItemInner({
             `}
             onClick={() => setIsOpen(!isOpen)}
           >
-            <Icon icon={isOpen ? "ChevronsUp" : "ChevronsDown"} />
+            {isOpen ? <ChevronsUp size={24} /> : <ChevronsDown size={24} />}
             {title}
           </button>
 
           {onToggleChange && !toggleHidden && (
             <IconButton
-              icon={toggleValue ? toggleIcon : "Circle"}
-              label={toggleValue ? "Hide outlines" : "Show outlines"}
-              onClick={() => onToggleChange(!toggleValue)}
-              theme="transparent"
-              className={`border-none ${toggleValue ? "stroke-white" : "stroke-slate-500"}`}
+              icon={toggleValue ? toggleIcon : Circle}
+              aria-label={toggleValue ? "Hide outlines" : "Show outlines"}
+              onPress={() => onToggleChange(!toggleValue)}
+              variant="ghost"
+              className={`border-none ${toggleValue ? "stroke-[var(--color-text-primary)]" : "stroke-[var(--color-text-tertiary)]"}`}
             />
           )}
 

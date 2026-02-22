@@ -1,4 +1,4 @@
-import { Tab, TabGroup, TabList } from "@headlessui/react";
+import { Tab, TabList, Tabs, type Key } from "@cytario/design";
 
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -18,17 +18,21 @@ export function Presets({ children }: { children: React.ReactNode }) {
     select.setActiveChannelsStateIndex
   );
 
+  const handleSelectionChange = (key: Key) => {
+    setActiveChannelsStateIndex(Number(key));
+  };
+
   return (
-    <TabGroup
-      selectedIndex={activeChannelsStateIndex}
-      onChange={setActiveChannelsStateIndex}
+    <Tabs
+      selectedKey={String(activeChannelsStateIndex)}
+      onSelectionChange={handleSelectionChange}
       className="relative flex flex-col h-full overflow-hidden"
     >
       <div
         className={`
           flex justify-between
           gap-2 p-2 pt-0
-          border-b border-slate-600
+          border-b border-[var(--color-border-strong)]
           flex-shrink-0
           relative left-0 right-0
         `}
@@ -58,16 +62,18 @@ export function Presets({ children }: { children: React.ReactNode }) {
                 content={`Select Channels State #${index + 1}`}
               >
                 <Tab
+                  id={String(index)}
                   className={`
                   group/tab
                   relative
                   flex items-center justify-center
                   rounded-sm h-8 min-w-8
+                  p-0
 
-                  border border-slate-500 data-[selected]:border-slate-300
-                  bg-slate-700 data-[selected]:bg-slate-300
-                  data-[hover]:bg-slate-500
-                  text-slate-700
+                  border border-[var(--color-border-strong)] data-[selected]:border-[var(--color-text-secondary)]
+                  bg-[var(--color-surface-muted)] data-[selected]:bg-[var(--color-text-secondary)]
+                  data-[hovered]:bg-[var(--color-border-strong)]
+                  text-[var(--color-surface-muted)]
                 `}
                   style={{
                     background,
@@ -86,7 +92,7 @@ export function Presets({ children }: { children: React.ReactNode }) {
         {/* Scrollview */}
         {children}
       </div>
-    </TabGroup>
+    </Tabs>
   );
 }
 
@@ -124,8 +130,8 @@ export const PresetLabel = ({ index }: { index: number }) => {
                       text-xs font-semibold
                       rounded-br-sm rounded-tr-sm
 
-                      bg-slate-500
-                      group-data-[selected]/tab:bg-slate-300
+                      bg-[var(--color-border-strong)]
+                      group-data-[selected]/tab:bg-[var(--color-text-secondary)]
                     `}
       >
         {index + 1}

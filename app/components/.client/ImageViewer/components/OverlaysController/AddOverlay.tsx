@@ -1,11 +1,10 @@
+import { Input , useToast } from "@cytario/design";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import { Input } from "~/components/Controls";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
@@ -19,9 +18,7 @@ export const AddOverlay = ({
   query: string;
 }) => {
   const addOverlaysState = useViewerStore(select.addOverlaysState);
-  const addNotification = useNotificationStore(
-    (state) => state.addNotification,
-  );
+  const { toast } = useToast();
 
   const obj: Record<string, "csv" | "parquet"> = {
     "convert-overlay": "csv",
@@ -46,7 +43,7 @@ export const AddOverlay = ({
 
   return (
     <div className="relative flex flex-col gap-2">
-      <Input value={extension} readOnly />
+      <Input value={extension} isReadOnly />
 
       <DirectoryTree
         nodes={nodes}
@@ -79,15 +76,15 @@ export const AddOverlay = ({
 
             if (extension === "csv") {
               convertCsvToParquet(resourceId, credentials);
-              addNotification({
-                status: "success",
+              toast({
+                variant: "success",
                 message: `Started conversion: ${node.name}`,
               });
             } else {
               addOverlaysState({ [resourceId]: {} });
 
-              addNotification({
-                status: "success",
+              toast({
+                variant: "success",
                 message: `Overlay added: ${node.name}`,
               });
             }
@@ -98,8 +95,8 @@ export const AddOverlay = ({
             }
           } catch (error) {
             console.error("Error processing overlay:", error);
-            addNotification({
-              status: "error",
+            toast({
+              variant: "error",
               message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
             });
           }

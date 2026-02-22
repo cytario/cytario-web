@@ -1,4 +1,5 @@
 import { _Object } from "@aws-sdk/client-s3";
+import { H1 } from "@cytario/design";
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { ObjectPresignedUrl } from "./objects.route";
@@ -11,7 +12,6 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { H1 } from "~/components/Fonts";
 import { getBucketConfigsForUser } from "~/utils/bucketConfig";
 import { getObjects } from "~/utils/getObjects";
 

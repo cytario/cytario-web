@@ -1,44 +1,49 @@
+import { Select } from "@cytario/design";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 
-import { Select } from "~/components/Controls";
+
+const items = [
+  { id: "option1", name: "Option 1" },
+  { id: "option2", name: "Option 2" },
+  { id: "option3", name: "Option 3" },
+];
 
 describe("Select", () => {
-  test("should render select element with children", () => {
-    render(
-      <Select>
-        <option value="option1">Option 1</option>
-        <option value="option2">Option 2</option>
-      </Select>,
-    );
+  test("should render select with label", () => {
+    render(<Select label="Test Select" items={items} />);
 
-    const select = screen.getByRole("combobox");
-    expect(select).toBeInTheDocument();
+    expect(screen.getByText("Test Select")).toBeInTheDocument();
   });
 
-  test("should forward props to HeadlessUI Select", () => {
+  test("should render placeholder text", () => {
     render(
-      <Select data-testid="custom-select" disabled>
-        <option value="test">Test Option</option>
-      </Select>,
+      <Select
+        label="Test Select"
+        items={items}
+        placeholder="Choose an option"
+      />,
     );
 
-    const select = screen.getByTestId("custom-select");
-    expect(select).toBeInTheDocument();
-    expect(select).toBeDisabled();
+    expect(screen.getByText("Choose an option")).toBeInTheDocument();
   });
 
-  test("should render multiple options", () => {
+  test("should render as disabled", () => {
+    render(<Select label="Test Select" items={items} isDisabled />);
+
+    const trigger = screen.getByRole("button");
+    expect(trigger).toBeDisabled();
+  });
+
+  test("should display error message", () => {
     render(
-      <Select>
-        <option value="option1">Option 1</option>
-        <option value="option2">Option 2</option>
-        <option value="option3">Option 3</option>
-      </Select>,
+      <Select
+        label="Test Select"
+        items={items}
+        errorMessage="Selection is required"
+      />,
     );
 
-    expect(screen.getByText("Option 1")).toBeInTheDocument();
-    expect(screen.getByText("Option 2")).toBeInTheDocument();
-    expect(screen.getByText("Option 3")).toBeInTheDocument();
+    expect(screen.getByText("Selection is required")).toBeInTheDocument();
   });
 });

@@ -1,12 +1,13 @@
+import { ButtonLink, H1 } from "@cytario/design";
+import { Download, Plug } from "lucide-react";
 import { useEffect } from "react";
+
 
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
-import { ViewModeToggle } from "./ViewModeToggle";
-import { ButtonLink, Icon } from "../Controls";
-import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
+import { ViewModeToggle } from "./ViewModeToggle";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
@@ -50,23 +51,30 @@ export function DirectoryView({
       <Container>
         <header className="flex flex-col justify-between mb-8 gap-2">
           <div className="flex gap-2">
-            {name && <H1 className="flex-grow">{name}</H1>}
+            {name && (
+              <H1 className="flex-grow text-2xl sm:text-3xl md:text-4xl">
+                {name}
+              </H1>
+            )}
             <ViewModeToggle />
           </div>
           <div>
             {!bucketName && (
-              <ButtonLink to="/connect-bucket" theme="white">
-                <Icon icon="Plug" size={16} /> Connect Storage
+              <ButtonLink
+                href="/connect-bucket"
+                variant="neutral"
+                iconLeft={Plug}
+              >
+                Connect Storage
               </ButtonLink>
             )}
 
             {bucketName && (
               <ButtonLink
-                to="?action=cyberduck"
-                theme="white"
-                className="gap-2"
+                href="?action=cyberduck"
+                variant="neutral"
+                iconLeft={Download}
               >
-                <Icon icon="Download" size={16} />
                 Access with Cyberduck
               </ButtonLink>
             )}

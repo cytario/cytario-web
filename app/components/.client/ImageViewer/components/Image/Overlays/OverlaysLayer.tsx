@@ -1,3 +1,4 @@
+import { H3 } from "@cytario/design";
 import { AccessorContext, PickingInfo } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { PolygonLayer } from "@deck.gl/layers";
@@ -10,8 +11,7 @@ import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
 import { getPolygon } from "./getPolygon";
 import { MarkerProps } from "./markerUniforms";
 import { CellMarker } from "../../../state/types";
-import { H3 } from "~/components/Fonts";
-import { NotificationInput } from "~/components/Notification/Notification.store";
+import { toastBridge } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
@@ -29,7 +29,6 @@ interface OverlaysLayerProps {
   setTooltip?: SetTooltip;
   imageWidth: number;
   imageHeight: number;
-  addNotification: (n: NotificationInput) => number;
   minZoom: number;
   maxZoom: number;
   strokeOpacity: number;
@@ -57,7 +56,6 @@ export const OverlaysLayer = ({
   setTooltip,
   imageWidth,
   imageHeight,
-  addNotification,
   minZoom,
   maxZoom,
   strokeOpacity,
@@ -100,8 +98,8 @@ export const OverlaysLayer = ({
 
       return data;
     } catch (error) {
-      addNotification({
-        status: "error",
+      toastBridge.emit({
+        variant: "error",
         message: `Error fetching tile data: ${
           (error as Error).message ?? error
         }`,
@@ -160,7 +158,7 @@ export const OverlaysLayer = ({
       content: (
         <div className="flex flex-col gap-1">
           <header>
-            <H3>ID: {String(id)}</H3>
+            <H3 className="text-lg font-normal">ID: {String(id)}</H3>
           </header>
           {activeMarkers.map((marker) => {
             const color = `rgba(${fileMarkers[marker].color.join(",")})`;
@@ -418,8 +416,8 @@ export const OverlaysLayer = ({
     },
 
     onTileError: (error) => {
-      addNotification({
-        status: "error",
+      toastBridge.emit({
+        variant: "error",
         message: `Error loading tile: ${error.message}`,
       });
       console.error("Error loading tile:", error);

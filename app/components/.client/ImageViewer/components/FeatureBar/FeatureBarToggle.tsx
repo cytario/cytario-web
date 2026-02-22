@@ -1,7 +1,8 @@
+import { IconButton } from "@cytario/design";
+import { ChevronsRight } from "lucide-react";
 import { MotionValue } from "motion/react";
 
 import { useFeatureBarStore } from "./useFeatureBar";
-import { IconButton } from "~/components/Controls";
 
 export const FeatureBarToggle = ({
   motionWidth,
@@ -12,15 +13,15 @@ export const FeatureBarToggle = ({
 
   return (
     <IconButton
-      onClick={() => {
+      onPress={() => {
         if (motionWidth.isAnimating()) motionWidth.stop();
         const currentX = motionWidth.get();
         setWidth(Math.max(currentX, minWidth));
         motionWidth.set(currentX === 0 ? width : 0);
       }}
-      scale="large"
-      icon="ChevronsRight"
-      label="Toggle Feature Bar"
+      size="lg"
+      icon={ChevronsRight}
+      aria-label="Toggle Feature Bar"
       className="z-30 fixed bottom-2 left-2 shadow-2xl"
     />
   );

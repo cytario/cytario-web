@@ -1,8 +1,9 @@
+import { IconButton } from "@cytario/design";
+import { Fullscreen } from "lucide-react";
 import { Dispatch, useMemo } from "react";
 
 import { ViewerStore, ViewPort, ViewState } from "../../state/types";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
-import { IconButton } from "~/components/Controls";
 
 export const ResetViewStateButton = ({
   metadata,
@@ -23,10 +24,10 @@ export const ResetViewStateButton = ({
 
   return (
     <IconButton
-      label="Reset View State"
+      aria-label="Reset View State"
       className="w-10"
-      icon="Fullscreen"
-      onClick={() => {
+      icon={Fullscreen}
+      onPress={() => {
         if (metadata) {
           const viewStateActive = calculateViewStateToFit(metadata, viewPort, {
             padding: 48,
