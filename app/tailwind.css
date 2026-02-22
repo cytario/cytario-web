@@ -1,6 +1,52 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Scan @cytario/design dist for class usage */
+@source "../node_modules/@cytario/design/dist";
+
+/* Class-based dark mode */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Custom colors */
+  --color-cytario-purple-500: #5c2483;
+
+  --color-cytario-turquoise-50: #F0FAFA;
+  --color-cytario-turquoise-100: #CCEDED;
+  --color-cytario-turquoise-200: #99DBDB;
+  --color-cytario-turquoise-300: #66C9C9;
+  --color-cytario-turquoise-400: #4DC3C3;
+  --color-cytario-turquoise-500: #35B7B8;
+  --color-cytario-turquoise-600: #2A9293;
+  --color-cytario-turquoise-700: #1F7172;
+  --color-cytario-turquoise-800: #165859;
+  --color-cytario-turquoise-900: #0D3F40;
+  --color-cytario-turquoise-950: #072425;
+
+  /* Custom font family */
+  --font-montserrat: "Montserrat", sans-serif;
+
+  /* Custom animations */
+  --animate-fade-in: fade-in 0.3s ease-in forwards;
+  --animate-pulse-once: pulse-once 0.1s ease-in-out 1 forwards;
+}
+
+@keyframes fade-in {
+  0% {
+    filter: blur(12px);
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    filter: blur(0px);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-once {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
 
 html,
 body {
