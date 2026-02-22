@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { Radio, Switch } from "@cytario/design";
+import { Switch } from "@cytario/design";
+import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { ColorPicker, rgb } from "./ColorPicker";

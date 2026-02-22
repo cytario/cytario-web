@@ -1,5 +1,5 @@
 import { H1, RouterProvider, ToastProvider } from "@cytario/design";
-import { useEffect } from "react";
+import { type CSSProperties, useEffect } from "react";
 import {
   Links,
   Meta,
@@ -32,8 +32,28 @@ import { toastBridge } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
 
 import "@cytario/design/tokens/variables.css";
+import "@cytario/design/tokens/variables-dark.css";
 import "./tailwind.css";
 import "rc-slider/assets/index.css";
+
+/**
+ * CSS custom property overrides that recontextualize design tokens for rendering
+ * on the near-black (slate-950) header. Design system components inside this scope
+ * (Breadcrumbs, Button, IconButton, Input) automatically get light text, transparent
+ * surfaces, and appropriate border/hover colors without per-component className hacks.
+ */
+const darkSurfaceTokens = {
+  "--color-text-primary": "var(--color-neutral-0)",
+  "--color-text-secondary": "var(--color-slate-400)",
+  "--color-surface-default": "transparent",
+  "--color-border-default": "var(--color-slate-700)",
+  "--color-border-strong": "var(--color-slate-600)",
+  "--color-border-focus": "var(--color-neutral-0)",
+  "--color-neutral-100": "var(--color-slate-800)",
+  "--color-neutral-200": "var(--color-slate-700)",
+  "--color-neutral-300": "var(--color-slate-600)",
+  "--color-neutral-400": "var(--color-slate-500)",
+} as CSSProperties;
 
 export const links: LinksFunction = () => [
   {
@@ -88,7 +108,10 @@ const AppHeader = () => {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
 
   return (
-    <header className="z-20 flex justify-between items-center h-12 bg-[var(--color-brand-primary)] top-0 left-0 right-0">
+    <header
+      className="z-20 flex justify-between items-center h-12 bg-slate-950 top-0 left-0 right-0"
+      style={darkSurfaceTokens}
+    >
       <div className="h-full flex-shrink min-w-0">
         <Breadcrumbs />
       </div>

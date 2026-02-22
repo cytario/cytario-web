@@ -2,11 +2,11 @@ import {
   Button,
   IconButton,
   IconButtonLink,
-  RadioGroup,
   useToast,
 } from "@cytario/design";
 import { ExternalLink, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { RadioGroup } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { getOverlayState } from "./getOverlayState";

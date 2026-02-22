@@ -40,7 +40,7 @@ export const Viewer = ({ resourceId, url, offsetsUrl }: ViewerProps) => {
         )}
       </ViewerHeader>
 
-      <div className="relative flex flex-grow h-full bg-slate-950 text-white overflow-hidden">
+      <div data-theme="dark" className="relative flex flex-grow h-full bg-slate-950 text-white overflow-hidden">
         <FeatureBar />
         <ImagePanels />
       </div>
