@@ -3,7 +3,6 @@ import { type ActionFunction, type MetaFunction, redirect } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { RouteModal } from "~/components/RouteModal";
 import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
 import {
@@ -19,11 +18,7 @@ export const meta: MetaFunction = () => {
 };
 
 export const handle = {
-  breadcrumb: () => (
-    <BreadcrumbLink key="connect-bucket" to={`/connect-bucket`}>
-      {title}
-    </BreadcrumbLink>
-  ),
+  breadcrumb: () => ({ label: title, to: "/connect-bucket" }),
 };
 
 export const middleware = [authMiddleware];

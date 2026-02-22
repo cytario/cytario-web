@@ -1,3 +1,4 @@
+import { H1, RouterProvider, ToastProvider } from "@cytario/design";
 import { useEffect } from "react";
 import {
   Links,
@@ -5,6 +6,8 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useHref,
+  useNavigate,
   useRouteError,
   useRouteLoaderData,
   type LinksFunction,
@@ -21,17 +24,14 @@ import { sessionStorage } from "./.server/auth/sessionStorage";
 import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
 import { Section } from "./components/Container";
 import { useDirectoryStore } from "./components/DirectoryView/useDirectoryStore";
-import { H1 } from "./components/Fonts";
 import { GlobalSearch } from "./components/GlobalSearch";
-import {
-  NotificationInput,
-  NotificationList,
-} from "./components/Notification/Notification";
-import { useNotificationStore } from "./components/Notification/Notification.store";
+import { type NotificationInput } from "./components/Notification/Notification.store";
 import { UserMenu } from "./components/UserMenu";
 import { cytarioConfig } from "./config";
+import { toastBridge } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
 
+import "@cytario/design/tokens/variables.css";
 import "./tailwind.css";
 import "rc-slider/assets/index.css";
 
@@ -110,7 +110,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (data?.notification) {
-      useNotificationStore.getState().addNotification(data?.notification);
+      const variant = data.notification.status ?? "info";
+      toastBridge.emit({ variant, message: data.notification.message });
     }
   }, [data?.notification]);
 
@@ -132,11 +133,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {children}
 
-        <div id="modal" />
         <div id="tooltip" />
-        <div id="notification" />
-
-        <NotificationList />
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -145,7 +142,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  const navigate = useNavigate();
+
+  return (
+    <RouterProvider navigate={navigate} useHref={useHref}>
+      <ToastProvider bridge={toastBridge}>
+        <Outlet />
+      </ToastProvider>
+    </RouterProvider>
+  );
 }
 
 export function ErrorBoundary() {

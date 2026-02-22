@@ -1,4 +1,4 @@
-import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
+import { Popover, PopoverContent, PopoverTrigger } from "@cytario/design";
 
 import { RGB, RGBA } from "../../state/types";
 import { OVERLAY_COLORS } from "../OverlaysController/getOverlayState";
@@ -16,25 +16,24 @@ interface ColorPickerProps {
 const style = `
   flex flex-shrink-0
   w-5 h-5 rounded-full
-  border-2 
+  border-2
   border-slate-500 hover:border-slate-300
-  cursor-pointer 
+  cursor-pointer
   transition-colors
   focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300
 `;
 
 export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
   return (
-    <Popover className="relative">
-      <PopoverButton
-        className={style}
-        style={{ backgroundColor: rgb(color) }}
-      />
+    <Popover>
+      <PopoverTrigger>
+        <span
+          className={style}
+          style={{ backgroundColor: rgb(color) }}
+        />
+      </PopoverTrigger>
 
-      <PopoverPanel
-        anchor="bottom start"
-        className="z-50 bg-slate-800 border border-slate-600 rounded-sm p-2 shadow-lg"
-      >
+      <PopoverContent placement="bottom start" className="p-2">
         {({ close }) => (
           <div className="flex gap-2">
             {OVERLAY_COLORS.map((presetColor, idx) => (
@@ -50,7 +49,7 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
             ))}
           </div>
         )}
-      </PopoverPanel>
+      </PopoverContent>
     </Popover>
   );
 }

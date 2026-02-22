@@ -1,3 +1,5 @@
+import { ButtonLink, EmptyState } from "@cytario/design";
+import { FileSearch } from "lucide-react";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -6,6 +8,7 @@ import {
   redirect,
 } from "react-router";
 import { useLoaderData } from "react-router";
+
 
 import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
@@ -16,10 +19,8 @@ import { getSessionCredentials } from "~/.server/auth/getSessionCredentials";
 import { SessionData, sessionStorage } from "~/.server/auth/sessionStorage";
 import { ClientOnly } from "~/components/ClientOnly";
 import { Section } from "~/components/Container";
-import { ButtonLink } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { Placeholder } from "~/components/Placeholder";
 import { RecentlyViewed } from "~/components/RecentlyViewed/RecentlyViewed";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import {
@@ -145,12 +146,12 @@ export default function BucketsRoute() {
         {nodes.length > 0 ? (
           <DirectoryView nodes={nodes} name={title} bucketName="" />
         ) : (
-          <Placeholder
-            icon="FileSearch"
+          <EmptyState
+            icon={FileSearch}
             title="Start exploring your data"
             description="Add a data connection to view your cloud storage."
-            cta={
-              <ButtonLink to="/connect-bucket" scale="large" theme="primary">
+            action={
+              <ButtonLink href="/connect-bucket" size="lg" variant="primary">
                 Connect Storage
               </ButtonLink>
             }

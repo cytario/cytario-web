@@ -1,8 +1,8 @@
+import { Button } from "@cytario/design";
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
-import { Button } from "~/components/Controls";
 import { DescriptionList } from "~/components/DescriptionList";
 
 export const middleware = [authMiddleware];
@@ -25,13 +25,13 @@ export default function ConfigRoute() {
     <Section>
       <DescriptionList data={data} />
       <Button
-        onClick={() => {
+        onPress={() => {
           if (confirm("Are you sure you want to clear local storage?")) {
             window.localStorage.clear();
             window.location.reload();
           }
         }}
-        theme="error"
+        variant="destructive"
       >
         Clear Local Storage
       </Button>

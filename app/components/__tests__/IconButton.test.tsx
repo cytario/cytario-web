@@ -1,34 +1,38 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { IconButton, type IconButtonProps } from "@cytario/design";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { X } from "lucide-react";
+import { describe, expect, test, vi } from "vitest";
 
-import { IconButton } from "../Controls";
+
+// Cast to work around npm-link LucideIcon type mismatch; resolves with registry install
+const XIcon = X as IconButtonProps["icon"];
 
 describe("IconButton", () => {
-  it("renders children correctly", () => {
-    const { getByRole } = render(<IconButton icon="X" onClick={() => {}} />);
-    expect(getByRole("button")).toBeInTheDocument();
+  test("renders button correctly", () => {
+    render(<IconButton icon={XIcon} aria-label="Close" onPress={() => {}} />);
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
-  it("calls onClick when clicked", () => {
-    const handleClick = vi.fn();
-    const { getByRole } = render(<IconButton icon="X" onClick={handleClick} />);
-    fireEvent.click(getByRole("button"));
-    expect(handleClick).toHaveBeenCalledTimes(1);
+  test("calls onPress when clicked", () => {
+    const handlePress = vi.fn();
+    render(<IconButton icon={XIcon} aria-label="Close" onPress={handlePress} />);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(handlePress).toHaveBeenCalledTimes(1);
   });
 
-  it("does not call onClick when disabled", () => {
-    const handleClick = vi.fn();
-    const { getByRole } = render(
-      <IconButton icon="X" onClick={handleClick} disabled />,
+  test("does not call onPress when disabled", () => {
+    const handlePress = vi.fn();
+    render(
+      <IconButton icon={XIcon} aria-label="Close" onPress={handlePress} isDisabled />,
     );
-    fireEvent.click(getByRole("button"));
-    expect(handleClick).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(handlePress).not.toHaveBeenCalled();
   });
 
-  it("applies disabled attribute correctly", () => {
-    const { getByRole } = render(
-      <IconButton icon="X" onClick={() => {}} disabled />,
+  test("applies disabled attribute correctly", () => {
+    render(
+      <IconButton icon={XIcon} aria-label="Close" onPress={() => {}} isDisabled />,
     );
-    expect(getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Close" })).toBeDisabled();
   });
 });

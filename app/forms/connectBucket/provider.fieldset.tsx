@@ -1,22 +1,15 @@
-import { RadioGroup } from "@headlessui/react";
-import {
-  Control,
-  Controller,
-  FieldErrors,
-  UseFormRegister,
-} from "react-hook-form";
+import { Field, Fieldset, Input, RadioButton, RadioGroup } from "@cytario/design";
+import { Control, Controller, FieldErrors } from "react-hook-form";
+
 
 import { ConnectBucketFormData } from "./connectBucket.schema";
-import { Field, Fieldset, Input, RadioButton } from "~/components/Controls";
 
 export const ProviderFieldset = ({
   control,
-  register,
   errors,
   isAWS,
 }: {
   control: Control<ConnectBucketFormData>;
-  register: UseFormRegister<ConnectBucketFormData>;
   errors: FieldErrors<ConnectBucketFormData>;
   isAWS: boolean;
 }) => {
@@ -32,6 +25,7 @@ export const ProviderFieldset = ({
           control={control}
           render={({ field }) => (
             <RadioGroup
+              aria-label="Storage provider"
               value={field.value}
               onChange={field.onChange}
               className="flex gap-4"
@@ -49,7 +43,20 @@ export const ProviderFieldset = ({
           description="A user-friendly name to identify this storage connection."
           error={errors.provider}
         >
-          <Input {...register("provider")} placeholder="minio" scale="large" />
+          <Controller
+            name="provider"
+            control={control}
+            render={({ field }) => (
+              <Input
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                name={field.name}
+                placeholder="minio"
+                size="lg"
+              />
+            )}
+          />
         </Field>
       )}
     </Fieldset>

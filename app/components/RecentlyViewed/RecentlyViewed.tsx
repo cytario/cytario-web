@@ -1,8 +1,9 @@
+import { H2 } from "@cytario/design";
+
 import { Container, Section } from "~/components/Container";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import { DirectoryViewTable } from "~/components/DirectoryView/DirectoryViewTable";
 import { useDirectoryStore } from "~/components/DirectoryView/useDirectoryStore";
-import { H2 } from "~/components/Fonts";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 export function RecentlyViewed() {

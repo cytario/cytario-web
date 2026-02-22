@@ -1,8 +1,8 @@
 /* eslint-disable no-irregular-whitespace */
+import { Button, Input, InputGroup } from "@cytario/design";
+
 import { ResetViewStateButton } from "./Image/ResetViewStateButton";
 import { type ViewerStore, type ViewState } from "../state/types";
-import { Button, Input } from "~/components/Controls";
-import { InputGroup } from "~/components/Controls/InputGroup";
 
 const zoomFromMagnification = (
   magnification: number,
@@ -30,8 +30,7 @@ export const Magnifier = ({
   return (
     <div className="flex items-center gap-2">
       <Input
-        readOnly
-        theme="dark"
+        isReadOnly
         value={magnification.toFixed(1)}
         className="w-12 text-sm text-right"
       />
@@ -49,7 +48,7 @@ export const Magnifier = ({
               <Button
                 key={mag}
                 className="w-10 h-8 text-xs p-0 justify-center font-semibold"
-                onClick={() => {
+                onPress={() => {
                   if (viewStateActive) {
                     setViewStateActive({
                       ...viewStateActive,

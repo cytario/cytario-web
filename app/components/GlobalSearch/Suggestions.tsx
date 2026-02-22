@@ -1,9 +1,9 @@
-import { Transition } from "@headlessui/react";
+import { EmptyState, H2 } from "@cytario/design";
+import { SearchX } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { TreeNode } from "../DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "../DirectoryView/DirectoryViewTree";
-import { H2 } from "../Fonts";
-import { Placeholder } from "../Placeholder";
 
 interface SuggestionsProps {
   nodes: TreeNode[];
@@ -12,44 +12,42 @@ interface SuggestionsProps {
 export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
 
   return (
-    <Transition show={showResults}>
-      <div
-        className={`
-          z-10 absolute top-12 right-0
-          max-h-[calc(100vh-4rem)]
-          min-w-80
-          flex flex-col
-          overflow-hidden
-          bg-white/80 backdrop-blur-lg
-          text-black
-          shadow-lg rounded-sm border
-          transition duration-200 ease-in
-          data-[closed]:opacity-0
-          data-[closed]:-translate-y-1
-        `}
-      >
-        {nodes.length > 0 ? (
-          <>
-            <header className="flex-shrink-0 p-4 border-b">
-              <H2>All Results</H2>
-            </header>
-            <div className="overflow-y-auto flex-1">
-              <DirectoryTree nodes={nodes} />
-            </div>
-            {/* {
-              <footer className="flex-shrink-0 p-4 border-t">
-                <ButtonLink to={`/search?query=${searchString}`}>All</ButtonLink>
-              </footer>
-            } */}
-          </>
-        ) : (
-          <Placeholder
-            icon="SearchX"
-            title="No results found"
-            description="Try adjusting your search criteria or filters."
-          />
-        )}
-      </div>
-    </Transition>
+    <AnimatePresence>
+      {showResults && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.2, ease: "easeIn" }}
+          className={`
+            z-10 absolute top-12 right-0
+            max-h-[calc(100vh-4rem)]
+            min-w-80
+            flex flex-col
+            overflow-hidden
+            bg-white/80 backdrop-blur-lg
+            text-black
+            shadow-lg rounded-sm border
+          `}
+        >
+          {nodes.length > 0 ? (
+            <>
+              <header className="flex-shrink-0 p-4 border-b">
+                <H2>All Results</H2>
+              </header>
+              <div className="overflow-y-auto flex-1">
+                <DirectoryTree nodes={nodes} />
+              </div>
+            </>
+          ) : (
+            <EmptyState
+              icon={SearchX}
+              title="No results found"
+              description="Try adjusting your search criteria or filters."
+            />
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

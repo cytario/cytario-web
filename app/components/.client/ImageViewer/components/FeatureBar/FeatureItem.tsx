@@ -1,5 +1,8 @@
+import { IconButton } from "@cytario/design";
+import { ChevronsDown, ChevronsUp, Circle, CircleDot, type LucideIcon } from "lucide-react";
+
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
-import { Input, Icon, IconButton } from "~/components/Controls";
+import { Input } from "~/components/Controls";
 
 interface FeatureItemProps {
   title: string;
@@ -9,7 +12,7 @@ interface FeatureItemProps {
   onSliderChange?: (value: number) => void;
   toggleValue?: boolean;
   onToggleChange?: (value: boolean) => void;
-  toggleIcon?: "Circle" | "CircleDot";
+  toggleIcon?: LucideIcon;
   toggleHidden?: boolean;
 }
 
@@ -21,7 +24,7 @@ function FeatureItemInner({
   onSliderChange,
   toggleValue,
   onToggleChange,
-  toggleIcon = "CircleDot",
+  toggleIcon = CircleDot,
   toggleHidden = false,
 }: FeatureItemProps) {
   const isOpen = useFeatureItemStore((s) => s.isOpen);
@@ -55,16 +58,16 @@ function FeatureItemInner({
             `}
             onClick={() => setIsOpen(!isOpen)}
           >
-            <Icon icon={isOpen ? "ChevronsUp" : "ChevronsDown"} />
+            {isOpen ? <ChevronsUp size={24} /> : <ChevronsDown size={24} />}
             {title}
           </button>
 
           {onToggleChange && !toggleHidden && (
             <IconButton
-              icon={toggleValue ? toggleIcon : "Circle"}
-              label={toggleValue ? "Hide outlines" : "Show outlines"}
-              onClick={() => onToggleChange(!toggleValue)}
-              theme="transparent"
+              icon={toggleValue ? toggleIcon : Circle}
+              aria-label={toggleValue ? "Hide outlines" : "Show outlines"}
+              onPress={() => onToggleChange(!toggleValue)}
+              variant="ghost"
               className={`border-none ${toggleValue ? "stroke-white" : "stroke-slate-500"}`}
             />
           )}

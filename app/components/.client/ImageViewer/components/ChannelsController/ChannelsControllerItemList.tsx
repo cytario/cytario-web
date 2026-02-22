@@ -1,4 +1,4 @@
-import { RadioGroup } from "@headlessui/react";
+import { RadioGroup } from "@cytario/design";
 import { useEffect, useMemo } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -44,6 +44,7 @@ export function ChannelsControllerItemList({
 
   return (
     <RadioGroup
+      aria-label="Image channels"
       value={selectedChannelId}
       onChange={(name) => {
         setSelectedChannelId(name);

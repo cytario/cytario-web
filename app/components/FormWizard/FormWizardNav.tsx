@@ -1,7 +1,7 @@
+import { Button } from "@cytario/design";
 import { twMerge } from "tailwind-merge";
 
 import { useFormWizard } from "./FormWizard";
-import { Button } from "~/components/Controls";
 
 interface FormWizardNavProps {
   onNext?: () => Promise<boolean> | boolean;
@@ -29,10 +29,10 @@ export function FormWizardNav({
     >
       {canGoBack && (
         <Button
-          onClick={goBack}
-          disabled={isSubmitting}
-          theme="white"
-          scale="large"
+          onPress={goBack}
+          isDisabled={isSubmitting}
+          variant="secondary"
+          size="lg"
         >
           Back
         </Button>
@@ -41,19 +41,19 @@ export function FormWizardNav({
       {isLastStep ? (
         <Button
           type="submit"
-          theme="primary"
-          scale="large"
-          disabled={isSubmitting}
+          variant="primary"
+          size="lg"
+          isDisabled={isSubmitting}
         >
           {isSubmitting ? "Connecting..." : submitLabel}
         </Button>
       ) : (
         <Button
           type="button"
-          onClick={handleNext}
-          theme="primary"
-          scale="large"
-          disabled={isSubmitting}
+          onPress={handleNext}
+          variant="primary"
+          size="lg"
+          isDisabled={isSubmitting}
         >
           Next
         </Button>

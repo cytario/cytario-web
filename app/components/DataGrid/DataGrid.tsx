@@ -1,3 +1,4 @@
+import { Checkbox } from "@cytario/design";
 import {
   createColumnHelper,
   flexRender,
@@ -11,7 +12,6 @@ import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { WktSvg } from "./WktSvg";
 import { LavaLoader } from "../LavaLoader";
-import { Checkbox } from "~/components/Controls";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -121,7 +121,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
               return <span className="text-gray-400 italic">null</span>;
             }
             if (typeof value === "boolean") {
-              return <Checkbox checked={value} disabled />;
+              return <Checkbox isSelected={value} isDisabled />;
             }
             if (isWkt(value)) {
               return <WktSvg wkt={value} />;

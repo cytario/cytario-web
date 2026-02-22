@@ -1,10 +1,9 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { Radio } from "@headlessui/react";
+import { Radio, Switch } from "@cytario/design";
 import { twMerge } from "tailwind-merge";
 
 import { ColorPicker, rgb } from "./ColorPicker";
-import { Switch } from "../../../../Controls";
 import { select } from "../../state/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -114,9 +113,10 @@ export function ChannelsControllerItem({
         {/* Visibility Toggle */}
         <Tooltip content={tooltip}>
           <Switch
-            checked={isVisible}
-            onChange={toggleChannelVisibility}
-            disabled={disabled}
+            isSelected={isVisible}
+            onChange={() => toggleChannelVisibility()}
+            color={rgb(color)}
+            isDisabled={disabled}
           />
         </Tooltip>
       </div>

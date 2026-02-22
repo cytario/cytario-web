@@ -5,7 +5,6 @@ import { OverlaysLayer } from "./OverlaysLayer";
 import { select } from "../../../state/selectors";
 import { useViewerStore } from "../../../state/ViewerStoreContext";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
-import { useNotificationStore } from "~/components/Notification/Notification.store";
 
 type SetTooltip = (
   tooltip: { content: ReactNode; x: number; y: number } | null
@@ -39,10 +38,6 @@ export const useOverlaysLayers = (
   const showCellOutline =
     layersStates[panelLayersStateIndex]?.showCellOutline ?? true;
 
-  const addNotification = useNotificationStore(
-    (state) => state.addNotification
-  );
-
   const overlaysLayers = useMemo(() => {
     const layersState = layersStates[panelLayersStateIndex];
     const overlayState = layersState?.overlays;
@@ -67,7 +62,6 @@ export const useOverlaysLayers = (
         setTooltip,
         imageWidth,
         imageHeight,
-        addNotification,
         minZoom,
         maxZoom,
         strokeOpacity: showCellOutline ? 1 : 0,
@@ -81,7 +75,6 @@ export const useOverlaysLayers = (
     setTooltip,
     imageWidth,
     imageHeight,
-    addNotification,
     minZoom,
     maxZoom,
     fillOpacity,

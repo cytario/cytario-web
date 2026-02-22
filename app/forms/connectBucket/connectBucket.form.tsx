@@ -25,7 +25,6 @@ export const ConnectBucketForm = () => {
 
   const {
     control,
-    register,
     trigger,
     handleSubmit,
     formState: { errors },
@@ -97,7 +96,6 @@ export const ConnectBucketForm = () => {
         {currentStep === 0 && (
           <ProviderFieldset
             control={control}
-            register={register}
             errors={errors}
             isAWS={isAWS}
           />
@@ -105,12 +103,12 @@ export const ConnectBucketForm = () => {
 
         {/* Step 2: Location */}
         {currentStep === 1 && (
-          <LocationFieldset register={register} errors={errors} isAWS={isAWS} />
+          <LocationFieldset control={control} errors={errors} isAWS={isAWS} />
         )}
 
         {/* Step 3: Access */}
         {currentStep === 2 && (
-          <AccessFieldset register={register} errors={errors} isAWS={isAWS} />
+          <AccessFieldset control={control} errors={errors} isAWS={isAWS} />
         )}
 
         <FormWizardNav

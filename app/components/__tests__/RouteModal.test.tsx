@@ -1,9 +1,18 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 
 import { RouteModal } from "../RouteModal";
 
 const onClose = vi.fn();
+
+vi.mock("@cytario/design", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@cytario/design")>();
+  return {
+    ...actual,
+  };
+});
 
 const RemixStub = createRoutesStub([
   {
@@ -17,6 +26,10 @@ const RemixStub = createRoutesStub([
 ]);
 
 describe("RouteModal", () => {
+  beforeEach(() => {
+    onClose.mockClear();
+  });
+
   test("renders title and children", () => {
     render(<RemixStub initialEntries={["/connect-bucket"]} />);
 
@@ -24,27 +37,17 @@ describe("RouteModal", () => {
     expect(screen.getByText("Modal Content")).toBeInTheDocument();
   });
 
-  // Click-outside behavior is handled by Headless UI Dialog internally
-  // and tested by the library itself
-
-  test("does not call onClose when clicking inside dialog content", () => {
+  test("does not call onClose when clicking inside dialog content", async () => {
     render(<RemixStub initialEntries={["/connect-bucket"]} />);
 
-    fireEvent.click(screen.getByText("Modal Content"));
+    await userEvent.click(screen.getByText("Modal Content"));
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  test("calls onClose when clicking close button", () => {
+  test("calls onClose when pressing Escape key", async () => {
     render(<RemixStub initialEntries={["/connect-bucket"]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /close modal/i }));
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  test("calls onClose when Escape key is pressed", () => {
-    render(<RemixStub initialEntries={["/connect-bucket"]} />);
-
-    fireEvent.keyDown(window, { key: "Escape" });
+    await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
   });
 });

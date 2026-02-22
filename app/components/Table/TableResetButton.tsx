@@ -1,4 +1,6 @@
-import { IconButton } from "../Controls";
+import { IconButton } from "@cytario/design";
+import { RotateCcw } from "lucide-react";
+
 import { useTableStore } from "./state/useTableStore";
 
 export const TableResetButton = ({ tableId }: { tableId: string }) => {
@@ -6,13 +8,13 @@ export const TableResetButton = ({ tableId }: { tableId: string }) => {
 
   return (
     <IconButton
-      icon="RotateCcw"
-      onClick={() => {
+      icon={RotateCcw}
+      onPress={() => {
         // Call reset directly on store without subscribing to state
         store.getState().reset();
       }}
-      theme="white"
-      label="Reset column widths and sorting to defaults"
+      variant="secondary"
+      aria-label="Reset column widths and sorting to defaults"
     />
   );
 };

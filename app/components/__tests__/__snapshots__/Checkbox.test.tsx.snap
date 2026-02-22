@@ -2,120 +2,134 @@
 
 exports[`Checkbox component > matches snapshot when checked 1`] = `
 <DocumentFragment>
-  <span
-    aria-checked="true"
-    class="
-  group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
-  bg-white data-[checked]:bg-cytario-turquoise-500
-  hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
-"
-    data-checked=""
-    data-headlessui-state="checked"
-    id="headlessui-checkbox-_r_4_"
-    role="checkbox"
-    tabindex="0"
+  <label
+    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    data-rac=""
+    data-react-aria-pressable="true"
+    data-selected="true"
   >
-    <svg
-      class="lucide lucide-check 
-              fill-none stroke-slate-700
-              group-data-[checked]/checkbox:stroke-white"
-      fill="none"
-      height="24"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-      viewBox="0 0 24 24"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
+    <span
+      style="border: 0px; clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; width: 1px; white-space: nowrap;"
     >
-      <path
-        d="M20 6 9 17l-5-5"
+      <input
+        checked=""
+        data-react-aria-pressable="true"
+        tabindex="0"
+        title=""
+        type="checkbox"
       />
-    </svg>
-  </span>
+    </span>
+    <div
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-action-primary)] border-[var(--color-action-primary)]"
+    >
+      <svg
+        class="lucide lucide-check w-4 h-4 text-[var(--color-text-inverse)]"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="3"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 6 9 17l-5-5"
+        />
+      </svg>
+    </div>
+  </label>
 </DocumentFragment>
 `;
 
 exports[`Checkbox component > matches snapshot when not checked 1`] = `
 <DocumentFragment>
-  <span
-    aria-checked="false"
-    class="
-  group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
-  bg-white data-[checked]:bg-cytario-turquoise-500
-  hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
-"
-    data-headlessui-state=""
-    id="headlessui-checkbox-_r_5_"
-    role="checkbox"
-    tabindex="0"
-  />
+  <label
+    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    data-rac=""
+    data-react-aria-pressable="true"
+  >
+    <span
+      style="border: 0px; clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; width: 1px; white-space: nowrap;"
+    >
+      <input
+        data-react-aria-pressable="true"
+        tabindex="0"
+        title=""
+        type="checkbox"
+      />
+    </span>
+    <div
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-surface-default)] border-[var(--color-border-default)] group-hover:border-[var(--color-border-strong)]"
+    />
+  </label>
 </DocumentFragment>
 `;
 
-exports[`Checkbox component > renders as checked when checked prop is true 1`] = `
+exports[`Checkbox component > renders as checked when isSelected prop is true 1`] = `
 <DocumentFragment>
-  <span
-    aria-checked="true"
-    class="
-  group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
-  bg-white data-[checked]:bg-cytario-turquoise-500
-  hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
-"
-    data-checked=""
-    data-headlessui-state="checked"
-    id="headlessui-checkbox-_r_1_"
-    role="checkbox"
-    tabindex="0"
+  <label
+    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    data-rac=""
+    data-react-aria-pressable="true"
+    data-selected="true"
   >
-    <svg
-      class="lucide lucide-check 
-              fill-none stroke-slate-700
-              group-data-[checked]/checkbox:stroke-white"
-      fill="none"
-      height="24"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-      viewBox="0 0 24 24"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
+    <span
+      style="border: 0px; clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; width: 1px; white-space: nowrap;"
     >
-      <path
-        d="M20 6 9 17l-5-5"
+      <input
+        checked=""
+        data-react-aria-pressable="true"
+        tabindex="0"
+        title=""
+        type="checkbox"
       />
-    </svg>
-  </span>
+    </span>
+    <div
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-action-primary)] border-[var(--color-action-primary)]"
+    >
+      <svg
+        class="lucide lucide-check w-4 h-4 text-[var(--color-text-inverse)]"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="3"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 6 9 17l-5-5"
+        />
+      </svg>
+    </div>
+  </label>
 </DocumentFragment>
 `;
 
 exports[`Checkbox component > renders correctly 1`] = `
 <DocumentFragment>
-  <span
-    aria-checked="false"
-    class="
-  group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
-  bg-white data-[checked]:bg-cytario-turquoise-500
-  hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
-"
-    data-headlessui-state=""
-    id="headlessui-checkbox-_r_0_"
-    role="checkbox"
-    tabindex="0"
-  />
+  <label
+    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    data-rac=""
+    data-react-aria-pressable="true"
+  >
+    <span
+      style="border: 0px; clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; width: 1px; white-space: nowrap;"
+    >
+      <input
+        data-react-aria-pressable="true"
+        tabindex="0"
+        title=""
+        type="checkbox"
+      />
+    </span>
+    <div
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-surface-default)] border-[var(--color-border-default)] group-hover:border-[var(--color-border-strong)]"
+    />
+  </label>
 </DocumentFragment>
 `;

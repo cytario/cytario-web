@@ -1,6 +1,7 @@
+import { Button, ButtonLink } from "@cytario/design";
 import { Form } from "react-router";
 
-import { Button, ButtonLink } from "../Controls";
+
 import { RouteModal } from "../RouteModal";
 import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";
@@ -24,9 +25,9 @@ export function NodeInfoModal() {
         <RouteModal title={infoModal.name} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
             <ButtonLink
-              to={`/buckets/${infoModal.name}`}
-              theme="white"
-              scale="large"
+              href={`/buckets/${infoModal.name}`}
+              variant="secondary"
+              size="lg"
             >
               Open {infoModal.type}
             </ButtonLink>
@@ -38,14 +39,14 @@ export function NodeInfoModal() {
         <RouteModal title={infoModal.name} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
             <ButtonLink
-              to={`/buckets/${infoModal.name}`}
-              theme="white"
-              scale="large"
+              href={`/buckets/${infoModal.name}`}
+              variant="secondary"
+              size="lg"
             >
               Open {infoModal.type}
             </ButtonLink>
 
-            <Button scale="large" disabled>
+            <Button size="lg" isDisabled>
               Download {infoModal.type}
             </Button>
           </div>
@@ -62,9 +63,9 @@ export function NodeInfoModal() {
         <RouteModal title={bucketName} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
             <ButtonLink
-              to={`/buckets/${infoModal.name}`}
-              theme="white"
-              scale="large"
+              href={`/buckets/${infoModal.name}`}
+              variant="secondary"
+              size="lg"
             >
               Open {infoModal.type}
             </ButtonLink>
@@ -73,7 +74,7 @@ export function NodeInfoModal() {
               <input type="hidden" name="provider" value={provider} />
               <input type="hidden" name="bucketName" value={bucketName} />
               <input type="hidden" name="prefix" value={prefix} />
-              <Button type="submit" theme="error" scale="large">
+              <Button type="submit" variant="destructive" size="lg">
                 Remove Data Connection
               </Button>
             </Form>

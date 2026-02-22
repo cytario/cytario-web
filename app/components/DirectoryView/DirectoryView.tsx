@@ -1,12 +1,13 @@
+import { ButtonLink, H1 } from "@cytario/design";
+import { Download, Plug } from "lucide-react";
 import { useEffect } from "react";
+
 
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
-import { ViewModeToggle } from "./ViewModeToggle";
-import { ButtonLink, Icon } from "../Controls";
-import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
+import { ViewModeToggle } from "./ViewModeToggle";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
@@ -55,18 +56,21 @@ export function DirectoryView({
           </div>
           <div>
             {!bucketName && (
-              <ButtonLink to="/connect-bucket" theme="white">
-                <Icon icon="Plug" size={16} /> Connect Storage
+              <ButtonLink
+                href="/connect-bucket"
+                variant="secondary"
+                iconLeft={Plug}
+              >
+                Connect Storage
               </ButtonLink>
             )}
 
             {bucketName && (
               <ButtonLink
-                to="?action=cyberduck"
-                theme="white"
-                className="gap-2"
+                href="?action=cyberduck"
+                variant="secondary"
+                iconLeft={Download}
               >
-                <Icon icon="Download" size={16} />
                 Access with Cyberduck
               </ButtonLink>
             )}

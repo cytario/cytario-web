@@ -1,6 +1,10 @@
-import { UIMatch, useMatches } from "react-router";
+import {
+  Breadcrumbs as DesignBreadcrumbs,
+  type BreadcrumbItem,
+} from "@cytario/design";
+import { Link , UIMatch, useMatches } from "react-router";
 
-import { BreadcrumbLink } from "./BreadcrumbLink";
+
 import { Logo } from "../Logo";
 
 export interface BreadcrumbData {
@@ -26,25 +30,28 @@ export function Breadcrumbs() {
     return Array.isArray(result) ? result : [result];
   });
 
+  const rootCrumb = crumbs.find((c) => c.isRoot);
+  const navCrumbs = crumbs.filter((c) => !c.isRoot);
+
+  const items: BreadcrumbItem[] = navCrumbs.map((crumb) => ({
+    id: crumb.to,
+    label: crumb.label,
+    href: crumb.isActive ? undefined : crumb.to,
+  }));
+
   return (
-    <div className="flex h-full mx-2">
-      <ul className="flex overflow-hidden">
-        {crumbs.map((crumb) =>
-          crumb.isRoot ? (
-            <BreadcrumbLink key={crumb.to} to={crumb.to} isRoot>
-              <Logo scale={1.4} />
-            </BreadcrumbLink>
-          ) : (
-            <BreadcrumbLink
-              key={crumb.to}
-              to={crumb.to}
-              className={crumb.isActive ? "text-white" : ""}
-            >
-              {crumb.label}
-            </BreadcrumbLink>
-          )
-        )}
-      </ul>
+    <div className="flex h-full items-center mx-2 gap-1">
+      {rootCrumb && (
+        <Link to={rootCrumb.to} className="flex items-center h-full px-1">
+          <Logo scale={1.4} />
+        </Link>
+      )}
+      {items.length > 0 && (
+        <DesignBreadcrumbs
+          items={items}
+          className="flex items-center overflow-hidden"
+        />
+      )}
     </div>
   );
 }
