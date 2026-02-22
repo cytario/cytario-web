@@ -13,8 +13,8 @@ export const Tick = ({ number, offset, vertical = false }: TickProps) => {
   const n = Math.round((number as number) * 100) / 100;
 
   const cx = twMerge(
-    "absolute left-0 bg-slate-900",
-    "border-l border-l-slate-300",
+    "absolute left-0 bg-[var(--color-surface-default)]",
+    "border-l border-l-[var(--color-text-secondary)]",
     isMajor ? "h-4" : "h-2",
     vertical ? "rotate-90" : "",
     vertical ? "bottom-0" : "top-0"

@@ -17,10 +17,10 @@ const style = `
   flex flex-shrink-0
   w-5 h-5 rounded-full
   border-2
-  border-slate-500 hover:border-slate-300
+  border-[var(--color-border-strong)] hover:border-[var(--color-text-secondary)]
   cursor-pointer
   transition-colors
-  focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300
+  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
 `;
 
 export function ColorPicker({ color, onColorChange }: ColorPickerProps) {

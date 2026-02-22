@@ -47,7 +47,7 @@ export const Scale = () => {
         absolute top-0 right-0 
         flex flex-col items-center
         text-xs font-semibold
-        bg-slate-300 text-slate-900
+        bg-[var(--color-text-secondary)] text-[var(--color-surface-default)]
       `}
       style={{ width: size }}
     >

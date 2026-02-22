@@ -16,7 +16,7 @@ export const FeatureBarDragHandle = ({
       className={`
           cursor-ew-resize absolute top-0 left-0.5 h-full w-4
           bg-transparent
-          hover:bg-white/20
+          hover:bg-[var(--color-surface-overlay)]
           duration-100
           z-10
         `}

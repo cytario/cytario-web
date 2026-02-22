@@ -112,9 +112,9 @@ export const OverlaysControllerItem = ({
   ]);
 
   return (
-    <div className="flex flex-col border-b-2 border-b-slate-900">
+    <div className="flex flex-col border-b-2 border-b-[var(--color-surface-default)]">
       {/* Header */}
-      <header className="flex p-2 gap-2 border-b border-b-slate-900">
+      <header className="flex p-2 gap-2 border-b border-b-[var(--color-surface-default)]">
         <Button
           className="flex-1 min-w-0 truncate text-left"
           onPress={() => setIsOpen(!isOpen)}
@@ -182,7 +182,7 @@ export const OverlaysControllerItem = ({
               },
             )
           ) : (
-            <div className="p-4 text-sm text-slate-400">
+            <div className="p-4 text-sm text-[var(--color-text-secondary)]">
               No markers found in this overlay
             </div>
           )}
