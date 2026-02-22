@@ -1,4 +1,6 @@
+import { ButtonLink, EmptyState } from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
+import { UserPlus, Users, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   type MetaFunction,
@@ -15,11 +17,8 @@ import {
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
 import { Section, SectionHeader } from "~/components/Container";
-import { ButtonLink } from "~/components/Controls";
-import { Icon } from "~/components/Controls/Button/Icon";
 import { GroupPill } from "~/components/Pill/GroupPill";
 import { Pill } from "~/components/Pill/Pill";
-import { Placeholder } from "~/components/Placeholder";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import {
   type CellRenderers,
@@ -298,16 +297,18 @@ export default function AdminUsersRoute() {
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>
         <ButtonLink
-          to={`invite?scope=${encodeURIComponent(scope)}`}
-          theme="white"
+          href={`invite?scope=${encodeURIComponent(scope)}`}
+          variant="secondary"
+          iconLeft={UserPlus}
         >
-          <Icon icon="UserPlus" size={16} /> Invite User
+          Invite User
         </ButtonLink>
         <ButtonLink
-          to={`bulk-invite?scope=${encodeURIComponent(scope)}`}
-          theme="white"
+          href={`bulk-invite?scope=${encodeURIComponent(scope)}`}
+          variant="secondary"
+          iconLeft={UsersRound}
         >
-          <Icon icon="UsersRound" size={16} /> Bulk Invite
+          Bulk Invite
         </ButtonLink>
       </SectionHeader>
 
@@ -324,15 +325,14 @@ export default function AdminUsersRoute() {
           showFilters
         />
       ) : (
-        <Placeholder
-          icon="Users"
+        <EmptyState
+          icon={Users}
           title="No users yet"
           description="Invite team members to get started."
-          cta={
+          action={
             <ButtonLink
-              to={`invite?scope=${encodeURIComponent(scope)}`}
-              scale="large"
-              theme="primary"
+              href={`invite?scope=${encodeURIComponent(scope)}`}
+              size="lg"
             >
               Invite User
             </ButtonLink>

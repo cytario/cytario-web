@@ -1,9 +1,9 @@
+import { Checkbox } from "@cytario/design";
 import { Row, flexRender } from "@tanstack/react-table";
 import { KeyboardEvent, useCallback } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { ColumnConfig } from "./types";
-import { Checkbox } from "../Controls";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableBodyRowProps {
@@ -77,9 +77,6 @@ export function TableBodyRow({
           maxWidth: cell.column.getSize(),
         };
 
-        // For index column, use visual row number instead of stored index.
-        // For middle ellipsis, pass the raw string value so TooltipSpan
-        // can do JS-based truncation (flexRender wraps values in React elements).
         const rawValue = cell.getValue();
         const useRawString =
           columnConfig?.ellipsis === "middle" && typeof rawValue === "string";
@@ -100,7 +97,7 @@ export function TableBodyRow({
             <div className="flex items-center gap-1 text-sm text-slate-500 tabular-nums justify-between">
               {enableRowSelection && (
                 <Checkbox
-                  checked={row.getIsSelected()}
+                  isSelected={row.getIsSelected()}
                   onChange={() => row.toggleSelected()}
                 />
               )}

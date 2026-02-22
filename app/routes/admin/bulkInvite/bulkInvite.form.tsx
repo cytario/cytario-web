@@ -1,3 +1,5 @@
+import { Button, Checkbox, Field, Icon, IconButton, Select } from "@cytario/design";
+import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -6,15 +8,7 @@ import {
   bulkInviteRowSchema,
   bulkInviteSchema,
 } from "./bulkInvite.schema";
-import {
-  Button,
-  Checkbox,
-  Field,
-  Icon,
-  IconButton,
-  Input,
-  Select,
-} from "~/components/Controls";
+import { Input } from "~/components/Controls";
 import { GroupPill } from "~/components/Pill/GroupPill";
 
 interface BulkInviteFormProps {
@@ -150,7 +144,7 @@ export function BulkInviteForm({
     });
   };
 
-  const selectOptions = groupOptions.map((p) => ({ label: p, value: p }));
+  const selectItems = groupOptions.map((p) => ({ id: p, name: p }));
 
   return (
     <form
@@ -162,12 +156,12 @@ export function BulkInviteForm({
     >
       <div className="space-y-4 mb-6">
         <Field label="Group Membership">
-          {selectOptions.length > 0 ? (
+          {selectItems.length > 0 ? (
             <Select
-              options={selectOptions}
-              value={groupPath}
-              onChange={setGroupPath}
-              renderOption={(option) => <GroupPill path={option.value} />}
+              label="Group Membership"
+              items={selectItems}
+              selectedKey={groupPath}
+              onSelectionChange={(key) => setGroupPath(key as string)}
             />
           ) : (
             <p className="text-sm text-slate-400">
@@ -175,13 +169,14 @@ export function BulkInviteForm({
             </p>
           )}
         </Field>
-        <Field
-          label="Enabled"
-          description="Uncheck to pre-provision accounts without granting immediate access."
-          inline
-        >
-          <Checkbox checked={enabled} onChange={() => setEnabled((v) => !v)} />
-        </Field>
+        <div className="flex items-center gap-2">
+          <Checkbox isSelected={enabled} onChange={setEnabled}>
+            Enabled
+          </Checkbox>
+          <p className="text-sm text-slate-500">
+            Uncheck to pre-provision accounts without granting immediate access.
+          </p>
+        </div>
       </div>
 
       {formError && (
@@ -274,11 +269,11 @@ export function BulkInviteForm({
                 <td className="pl-1 py-1">
                   {rows.length > 1 && (
                     <IconButton
-                      icon="X"
-                      scale="small"
-                      theme="transparent"
-                      onClick={() => removeRow(i)}
-                      label="Remove row"
+                      icon={X}
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => removeRow(i)}
+                      aria-label="Remove row"
                     />
                   )}
                 </td>
@@ -289,8 +284,8 @@ export function BulkInviteForm({
       </table>
 
       <div className="mt-2">
-        <Button theme="transparent" scale="small" onClick={addRow}>
-          <Icon icon="Plus" size={14} />
+        <Button variant="ghost" size="sm" onPress={addRow}>
+          <Icon icon={Plus} size="sm" />
           Add Row
         </Button>
       </div>

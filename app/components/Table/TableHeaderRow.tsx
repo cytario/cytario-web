@@ -1,8 +1,10 @@
+import { Checkbox, IconButton } from "@cytario/design";
 import {
   HeaderGroup,
   VisibilityState,
   flexRender,
 } from "@tanstack/react-table";
+import { FilterX } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
 import { ColumnFilterInput } from "./ColumnFilterInput";
@@ -10,7 +12,6 @@ import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { ColumnSortButton } from "./ColumnSortButton";
 import { TableMenu } from "./TableMenu";
 import { ColumnConfig } from "./types";
-import { Checkbox, IconButton } from "../Controls";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableHeaderRowProps {
@@ -47,7 +48,6 @@ export function TableHeaderRow({
 
         const isSorted = header.column.getIsSorted();
 
-        // Dynamic classNames for table header
         const baseClass = "relative pl-4 pr-4 group/header text-sm align-top";
         const indexClass = "text-right tabular-nums text-center p-1 px-2";
 
@@ -102,8 +102,8 @@ export function TableHeaderRow({
                 <div className="flex items-center gap-1">
                   {enableRowSelection && (
                     <Checkbox
-                      checked={header.getContext().table.getIsAllRowsSelected()}
-                      indeterminate={
+                      isSelected={header.getContext().table.getIsAllRowsSelected()}
+                      isIndeterminate={
                         header.getContext().table.getIsSomeRowsSelected() &&
                         !header.getContext().table.getIsAllRowsSelected()
                       }
@@ -121,18 +121,17 @@ export function TableHeaderRow({
                 </div>
                 {hasFilters && (
                   <IconButton
-                    icon="FilterX"
-                    scale="small"
-                    theme="white"
-                    onClick={onClearAllFilters}
-                    label="Clear all filters"
+                    icon={FilterX}
+                    size="sm"
+                    variant="secondary"
+                    onPress={onClearAllFilters}
+                    aria-label="Clear all filters"
                   />
                 )}
               </div>
             ) : (
               <div className="flex flex-col gap-2 pb-2">
                 {header.column.getCanSort() ? (
-                  /*  Sortable Header */
                   <button
                     type="button"
                     className={twMerge(
@@ -157,7 +156,6 @@ export function TableHeaderRow({
                     <ColumnSortButton header={header} />
                   </button>
                 ) : (
-                  // Non-Sortable Header
                   <div className={tableHeadCx}>
                     <div className="min-w-0">
                       <TooltipSpan>
@@ -170,7 +168,6 @@ export function TableHeaderRow({
                   </div>
                 )}
 
-                {/* Column Filter */}
                 {showFilters &&
                   header.column.getCanFilter() &&
                   columnConfig?.enableColumnFilter && (
@@ -185,7 +182,6 @@ export function TableHeaderRow({
               </div>
             )}
 
-            {/* Resize handle */}
             {!isIndexColumn && header.column.getCanResize() && (
               <ColumnResizeHandle header={header} />
             )}

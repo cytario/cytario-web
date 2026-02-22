@@ -1,8 +1,8 @@
+import { ButtonLink, H3, Link } from "@cytario/design";
+import { Download } from "lucide-react";
 import { useParams } from "react-router";
 
-import { ButtonLink, Icon } from "~/components/Controls";
-import { H3 } from "~/components/Fonts";
-import { Link } from "~/components/Link";
+
 import { RouteModal } from "~/components/RouteModal";
 
 /**
@@ -26,12 +26,12 @@ export function CyberduckModal() {
 
       {/* Quick Start */}
       <div className="bg-slate-50 border border-slate-200 rounded-sm px-4 py-2 flex flex-col gap-2">
-        <H3>Quick Start</H3>
+        <H3 className="text-lg font-normal">Quick Start</H3>
         <ol className="list-decimal list-inside space-y-1 text-sm text-slate-700">
           <li>
             Download and install{" "}
             <Link
-              to="https://cyberduck.io/download/"
+              href="https://cyberduck.io/download/"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -46,12 +46,12 @@ export function CyberduckModal() {
       </div>
 
       <ButtonLink
-        to={`/api/cyberduck-profile/${provider}/${bucketName}`}
-        theme="primary"
-        scale="large"
+        href={`/api/cyberduck-profile/${provider}/${bucketName}`}
+        variant="primary"
+        size="lg"
+        iconLeft={Download}
         download
       >
-        <Icon icon="Download" />
         Download Cyberduck Profile
       </ButtonLink>
     </RouteModal>

@@ -1,4 +1,4 @@
-import { TabPanel, TabPanels } from "@headlessui/react";
+import { TabPanel } from "@cytario/design";
 
 import { ChannelsControllerItemList } from "./ChannelsControllerItemList";
 import { Histogram } from "./Histogram";
@@ -21,16 +21,14 @@ export function ChannelsController() {
       sliderValue={channelsOpacity}
       onSliderChange={setChannelsOpacity}
     >
-      <TabPanels>
-        {layersStates.map((_, index) => (
-          <TabPanel key={index}>
-            <ChannelsControllerItemList
-              isExpanded={isExpanded}
-              setIsExpanded={setIsExpanded}
-            />
-          </TabPanel>
-        ))}
-      </TabPanels>
+      {layersStates.map((_, index) => (
+        <TabPanel key={index} id={String(index)}>
+          <ChannelsControllerItemList
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+          />
+        </TabPanel>
+      ))}
     </FeatureItem>
   );
 }

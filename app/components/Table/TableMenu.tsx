@@ -1,15 +1,15 @@
 import {
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuItems,
-  MenuSeparator,
-} from "@headlessui/react";
+  Checkbox,
+  IconButton,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@cytario/design";
 import type { VisibilityState } from "@tanstack/react-table";
+import { Columns3 } from "lucide-react";
 
 import { useTableStore } from "./state/useTableStore";
 import { ColumnConfig } from "./types";
-import { Checkbox, IconButton } from "../Controls";
 
 interface TableMenuProps {
   toggleableColumns: ColumnConfig[];
@@ -27,41 +27,40 @@ export function TableMenu({
   const store = useTableStore(tableId);
 
   return (
-    <Menu>
-      <MenuButton
-        as={IconButton}
-        icon="Columns3"
-        theme="white"
-        label="Column settings"
-        scale="small"
-      />
-      <MenuItems
-        anchor="bottom start"
-        className="z-20 min-w-48 p-1 bg-white border border-slate-300 rounded-sm shadow-lg"
-      >
+    <Popover>
+      <PopoverTrigger>
+        <IconButton
+          // @ts-expect-error — npm-link LucideIcon type mismatch; resolves with registry install
+          icon={Columns3}
+          variant="ghost"
+          size="sm"
+          aria-label="Column settings"
+        />
+      </PopoverTrigger>
+      <PopoverContent placement="bottom start" className="min-w-48 p-1">
         {toggleableColumns.map((col) => (
-          <MenuItem key={col.id} as="div">
-            <button
-              type="button"
-              onClick={() => toggleColumn(col.id)}
-              className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-slate-700 data-[focus]:bg-slate-100 rounded"
-            >
-              <Checkbox checked={columnVisibility[col.id] !== false} />
-              {col.header}
-            </button>
-          </MenuItem>
-        ))}
-        <MenuSeparator className="my-1 h-px bg-slate-200" />
-        <MenuItem as="div">
           <button
+            key={col.id}
             type="button"
-            onClick={() => store.getState().reset()}
-            className="flex w-full items-center px-2 py-1.5 text-sm text-slate-500 data-[focus]:bg-slate-100 rounded"
+            onClick={() => toggleColumn(col.id)}
+            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100 rounded"
           >
-            Reset all
+            <Checkbox
+              isSelected={columnVisibility[col.id] !== false}
+              slot={null}
+            />
+            {col.header}
           </button>
-        </MenuItem>
-      </MenuItems>
-    </Menu>
+        ))}
+        <div className="my-1 h-px bg-slate-200" />
+        <button
+          type="button"
+          onClick={() => store.getState().reset()}
+          className="flex w-full items-center px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 rounded"
+        >
+          Reset all
+        </button>
+      </PopoverContent>
+    </Popover>
   );
 }

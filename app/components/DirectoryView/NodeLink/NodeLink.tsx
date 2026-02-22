@@ -1,10 +1,11 @@
-import { KeyboardEventHandler, PointerEventHandler, useCallback } from "react";
+import { IconButton } from "@cytario/design";
+import { Info } from "lucide-react";
+import { KeyboardEventHandler, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { NodeLinkIcon } from "./NodeLinkIcon";
 import { NodeThumbnail } from "./NodeThumbnail";
-import { IconButton } from "../../Controls";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
@@ -47,21 +48,15 @@ export function NodeLink({
   const to = `/buckets/${resourceId}`.replace(/\/$/, "");
 
   // Open info modal
-  const openNodeInfoModal: PointerEventHandler = useCallback(
-    (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+  const openNodeInfoModal = useCallback(() => {
+    const search = new URLSearchParams(location.search);
+    search.set(nodeType, resourceId);
 
-      const search = new URLSearchParams(location.search);
-      search.set(nodeType, resourceId);
-
-      navigate({
-        pathname: location.pathname,
-        search: `?${search.toString()}`,
-      });
-    },
-    [resourceId, location.pathname, location.search, navigate, nodeType],
-  );
+    navigate({
+      pathname: location.pathname,
+      search: `?${search.toString()}`,
+    });
+  }, [resourceId, location.pathname, location.search, navigate, nodeType]);
 
   // Activate link with Space key (links natively only respond to Enter)
   const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -113,10 +108,10 @@ export function NodeLink({
           {/* Context menu */}
           {showInfoButton && (
             <IconButton
-              icon="Info"
-              label="Show Info"
-              onClick={openNodeInfoModal}
-              theme="transparent"
+              icon={Info}
+              aria-label="Show Info"
+              onPress={openNodeInfoModal}
+              variant="ghost"
               className="border-none text-inherit"
             />
           )}

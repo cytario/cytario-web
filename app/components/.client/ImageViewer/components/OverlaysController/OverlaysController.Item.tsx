@@ -1,4 +1,11 @@
-import { RadioGroup } from "@headlessui/react";
+import {
+  Button,
+  IconButton,
+  IconButtonLink,
+  RadioGroup,
+  useToast,
+} from "@cytario/design";
+import { ExternalLink, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -7,9 +14,7 @@ import { select } from "../../state/selectors";
 import { ChannelsStateColumns, OverlayState } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
-import { Button, IconButton, IconButtonLink } from "~/components/Controls";
 import { LavaLoader } from "~/components/LavaLoader";
-import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
@@ -28,9 +33,7 @@ export const OverlaysControllerItem = ({
   const setMarkerColor = useViewerStore(select.setMarkerColor);
   const removeOverlaysState = useViewerStore(select.removeOverlaysState);
   const updateOverlaysState = useViewerStore(select.updateOverlaysState);
-  const addNotification = useNotificationStore(
-    (state) => state.addNotification,
-  );
+  const { toast } = useToast();
 
   // Get file download progress from the file store
   const fileProgress = useFileStore(
@@ -81,15 +84,15 @@ export const OverlaysControllerItem = ({
           const newOverlayState = getOverlayState(markerInfo);
           updateOverlaysState(resourceId, newOverlayState);
         } else {
-          addNotification({
-            status: "error",
+          toast({
+            variant: "error",
             message: `No marker columns found in ${fileName}`,
           });
         }
       } catch (error) {
         console.error("Error fetching markers:", error);
-        addNotification({
-          status: "error",
+        toast({
+          variant: "error",
           message: `Failed to load markers for ${fileName}`,
         });
       } finally {
@@ -102,7 +105,7 @@ export const OverlaysControllerItem = ({
     hasMarkers,
     resourceId,
     updateOverlaysState,
-    addNotification,
+    toast,
     fileName,
     connection,
     storeKey,
@@ -114,22 +117,22 @@ export const OverlaysControllerItem = ({
       <header className="flex p-2 gap-2 border-b border-b-slate-900">
         <Button
           className="flex-1 min-w-0 truncate text-left"
-          onClick={() => setIsOpen(!isOpen)}
+          onPress={() => setIsOpen(!isOpen)}
         >
           {fileName}
         </Button>
 
         <div className="flex gap-2 flex-shrink-0">
           <IconButtonLink
-            to={`/buckets/${resourceId}`}
-            icon="ExternalLink"
-            label="Open file"
+            href={`/buckets/${resourceId}`}
+            icon={ExternalLink}
+            aria-label="Open file"
           />
 
           <IconButton
-            icon="X"
-            label="Remove overlay"
-            onClick={() => {
+            icon={X}
+            aria-label="Remove overlay"
+            onPress={() => {
               const confirmation = confirm(
                 `Are you sure you want to remove overlay "${fileName}"?`,
               );
@@ -141,7 +144,7 @@ export const OverlaysControllerItem = ({
 
       {/* Body */}
       {isOpen && (
-        <RadioGroup className={cx}>
+        <RadioGroup aria-label="Overlay markers" className={cx}>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LavaLoader />

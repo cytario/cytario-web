@@ -1,52 +1,52 @@
+import { Checkbox } from "@cytario/design";
 import { render, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 
-import { Checkbox } from "../Controls";
 
 describe("Checkbox component", () => {
-  it("renders correctly", () => {
+  test("renders correctly", () => {
     const { asFragment } = render(
-      <Checkbox checked={false} onChange={() => {}} />,
+      <Checkbox isSelected={false} onChange={() => {}} />,
     );
     expect(asFragment()).toMatchSnapshot();
   });
 
-  it("renders as checked when checked prop is true", () => {
+  test("renders as checked when isSelected prop is true", () => {
     const { asFragment } = render(
-      <Checkbox checked={true} onChange={() => {}} />,
+      <Checkbox isSelected={true} onChange={() => {}} />,
     );
     expect(asFragment()).toMatchSnapshot();
   });
 
-  it("calls onChange when clicked", () => {
+  test("calls onChange when clicked", () => {
     const handleChange = vi.fn();
     const { getByRole } = render(
-      <Checkbox checked={false} onChange={handleChange} />,
+      <Checkbox isSelected={false} onChange={handleChange} />,
     );
     fireEvent.click(getByRole("checkbox"));
     expect(handleChange).toHaveBeenCalledTimes(1);
   });
 
-  it("does not call onChange when disabled", () => {
+  test("does not call onChange when disabled", () => {
     const handleChange = vi.fn();
     const { getByRole } = render(
-      <Checkbox checked={false} onChange={handleChange} disabled />,
+      <Checkbox isSelected={false} onChange={handleChange} isDisabled />,
     );
     fireEvent.click(getByRole("checkbox"));
     expect(handleChange).not.toHaveBeenCalled();
   });
 
-  it("matches snapshot when checked", () => {
+  test("matches snapshot when checked", () => {
     const { asFragment } = render(
-      <Checkbox checked={true} onChange={() => {}} />,
+      <Checkbox isSelected={true} onChange={() => {}} />,
     );
-    expect(asFragment()).toMatchSnapshot(); // Snapshot when checked
+    expect(asFragment()).toMatchSnapshot();
   });
 
-  it("matches snapshot when not checked", () => {
+  test("matches snapshot when not checked", () => {
     const { asFragment } = render(
-      <Checkbox checked={false} onChange={() => {}} />,
+      <Checkbox isSelected={false} onChange={() => {}} />,
     );
-    expect(asFragment()).toMatchSnapshot(); // Snapshot when not checked
+    expect(asFragment()).toMatchSnapshot();
   });
 });
