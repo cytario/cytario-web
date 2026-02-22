@@ -13,8 +13,8 @@ import { filterNodes } from "~/components/DirectoryView/filterNodes";
 import { FilterSidebar } from "~/components/DirectoryView/FilterSidebar";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { H1 } from "~/components/Fonts";
-import { Placeholder } from "~/components/Placeholder";
+import { EmptyState, H1 } from "@cytario/design";
+import { Clock } from "lucide-react";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
@@ -70,8 +70,8 @@ export default function RecentRoute() {
           )}
         </div>
       ) : (
-        <Placeholder
-          icon="Clock"
+        <EmptyState
+          icon={Clock}
           title="No recent items"
           description="Items you view or browse will appear here."
         />

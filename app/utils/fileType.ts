@@ -1,4 +1,6 @@
-import type { LucideIconsType } from "~/components/Controls";
+import type { icons } from "lucide-react";
+
+export type LucideIconName = keyof typeof icons;
 
 export type FileType =
   | "OME-TIFF"
@@ -14,7 +16,7 @@ export type FileType =
 interface FileTypeEntry {
   pattern: RegExp;
   type: FileType;
-  icon: LucideIconsType;
+  icon: LucideIconName;
 }
 
 /**
@@ -49,7 +51,7 @@ export function getFileType(path: string): FileType {
 }
 
 /** Returns a Lucide icon name appropriate for the file's extension. */
-export function getFileTypeIcon(path: string): LucideIconsType {
+export function getFileTypeIcon(path: string): LucideIconName {
   for (const entry of FILE_TYPE_REGISTRY) {
     if (entry.pattern.test(path)) return entry.icon;
   }

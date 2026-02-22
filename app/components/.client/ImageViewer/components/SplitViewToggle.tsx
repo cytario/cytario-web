@@ -1,7 +1,8 @@
+import { Button } from "@cytario/design";
+
 import { select } from "../state/selectors";
 import { useViewerStore } from "../state/ViewerStoreContext";
 import { PresetLabel } from "./FeatureBar/Presets";
-import { Button } from "~/components/Controls";
 import { Tooltip } from "~/components/Tooltip/Tooltip";
 
 export const SplitViewToggle = () => {
@@ -17,7 +18,7 @@ export const SplitViewToggle = () => {
       content={isSplitViewEnabled ? "Disable Split View" : "Enable Split View"}
     >
       <Button
-        onClick={() => {
+        onPress={() => {
           if (imagePanels.length === 1) {
             addImagePanel();
           } else {

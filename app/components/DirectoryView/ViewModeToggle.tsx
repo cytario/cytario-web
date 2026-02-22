@@ -1,38 +1,36 @@
-import { Radio, RadioGroup } from "@headlessui/react";
+import { ToggleButton } from "@cytario/design";
+import { Grid2x2, Grid3x3, List, Rows3, Square } from "lucide-react";
 
-import { Icon, LucideIconsType } from "../Controls";
 import { useLayoutStore, ViewMode } from "./useLayoutStore";
-import { Tooltip } from "../Tooltip/Tooltip";
 
-const modes: { mode: ViewMode; icon: LucideIconsType; label: string }[] = [
-  { mode: "list-wide", icon: "Rows3", label: "Wide List View" },
-  { mode: "list", icon: "List", label: "List View" },
-  { mode: "grid-sm", icon: "Grid3x3", label: "Small Grid" },
-  { mode: "grid-md", icon: "Grid2x2", label: "Medium Grid" },
-  { mode: "grid-lg", icon: "Square", label: "Large Grid" },
+const modes: {
+  mode: ViewMode;
+  icon: React.ReactNode;
+  label: string;
+}[] = [
+  { mode: "list-wide", icon: <Rows3 size={16} />, label: "Wide List View" },
+  { mode: "list", icon: <List size={16} />, label: "List View" },
+  { mode: "grid-sm", icon: <Grid3x3 size={16} />, label: "Small Grid" },
+  { mode: "grid-md", icon: <Grid2x2 size={16} />, label: "Medium Grid" },
+  { mode: "grid-lg", icon: <Square size={16} />, label: "Large Grid" },
 ];
 
 export function ViewModeToggle() {
   const { viewMode, setViewMode } = useLayoutStore();
 
   return (
-    <RadioGroup
-      value={viewMode}
-      onChange={setViewMode}
-      className="flex gap-1"
-      aria-label="View mode"
-    >
+    <div className="flex gap-1" role="radiogroup" aria-label="View mode">
       {modes.map(({ mode, icon, label }) => (
-        <Tooltip key={mode} content={label}>
-          <Radio
-            value={mode}
-            aria-label={label}
-            className="flex cursor-pointer items-center justify-center w-8 h-8 border border-slate-300 outline-none focus-visible:ring-2 focus-visible:ring-cytario-turquoise-700 data-[checked]:bg-slate-700 data-[checked]:text-white bg-white hover:bg-slate-300"
-          >
-            <Icon icon={icon} size={16} />
-          </Radio>
-        </Tooltip>
+        <ToggleButton
+          key={mode}
+          isSelected={viewMode === mode}
+          onChange={() => setViewMode(mode)}
+          size="sm"
+          aria-label={label}
+        >
+          {icon}
+        </ToggleButton>
       ))}
-    </RadioGroup>
+    </div>
   );
 }

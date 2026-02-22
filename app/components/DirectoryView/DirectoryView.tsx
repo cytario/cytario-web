@@ -16,7 +16,6 @@ import { FilterSidebar } from "./FilterSidebar";
 import { NodeInfoModal } from "./NodeInfoModal";
 import { type ViewMode } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
-import { Placeholder } from "~/components/Placeholder";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
@@ -86,15 +85,7 @@ export function DirectoryView({
   }, [provider, bucketName, pathName, name, addItem, nodes]);
 
   if (nodes.length === 0) {
-    return (
-      <Section>
-        <Placeholder
-          icon="FolderOpen"
-          title="No items found"
-          description="This folder is empty or you may not have permission to view its contents."
-        />
-      </Section>
-    );
+    return null;
   }
 
   return (

@@ -6,6 +6,15 @@ import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import ObjectsRoute, { handle } from "~/routes/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("@cytario/design", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@cytario/design")>();
+  return {
+    ...actual,
+    useToast: () => ({ toast: vi.fn(), toasts: [], removeToast: vi.fn() }),
+  };
+});
+
 vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   Viewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));

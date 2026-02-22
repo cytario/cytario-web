@@ -1,4 +1,7 @@
-import { IconButton, Input } from "../Controls";
+import { IconButton } from "@cytario/design";
+import { X } from "lucide-react";
+
+import { Input } from "../Controls";
 
 type SearchBarProps = Readonly<{
   value: string;
@@ -19,7 +22,11 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
       />
 
       {value ? (
-        <IconButton icon="X" onClick={onClear} label="Clear search" />
+        <IconButton
+          icon={X}
+          onPress={onClear}
+          aria-label="Clear search"
+        />
       ) : null}
     </div>
   );

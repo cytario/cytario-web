@@ -1,31 +1,16 @@
-import { RadioGroup } from "@headlessui/react";
-import React from "react";
-import {
-  Control,
-  Controller,
-  FieldErrors,
-  UseFormRegister,
-} from "react-hook-form";
+import { Field, Fieldset, Input, RadioButton, RadioGroup, Select } from "@cytario/design";
+import { Control, Controller, FieldErrors } from "react-hook-form";
 
 import { ConnectBucketFormData } from "./connectBucket.schema";
-import {
-  Field,
-  Fieldset,
-  Input,
-  RadioButton,
-  Select,
-} from "~/components/Controls";
 
 export const ProviderFieldset = ({
   control,
-  register,
   errors,
   isAWS,
   adminScopes,
   userId,
 }: {
   control: Control<ConnectBucketFormData>;
-  register: UseFormRegister<ConnectBucketFormData>;
   errors: FieldErrors<ConnectBucketFormData>;
   isAWS: boolean;
   adminScopes?: string[];
@@ -44,13 +29,13 @@ export const ProviderFieldset = ({
             control={control}
             render={({ field }) => (
               <Select
-                options={[
-                  { label: "Personal", value: userId },
-                  ...adminScopes.map((str) => ({ label: str, value: str })),
+                label="Visibility"
+                items={[
+                  { id: userId, name: "Personal" },
+                  ...adminScopes.map((str) => ({ id: str, name: str })),
                 ]}
-                value={field.value}
-                onChange={field.onChange}
-                name={field.name}
+                selectedKey={field.value}
+                onSelectionChange={(key) => field.onChange(key)}
               />
             )}
           />
@@ -66,6 +51,7 @@ export const ProviderFieldset = ({
           control={control}
           render={({ field }) => (
             <RadioGroup
+              aria-label="Storage provider"
               value={field.value}
               onChange={field.onChange}
               className="flex gap-4"
@@ -83,7 +69,20 @@ export const ProviderFieldset = ({
           description="A user-friendly name to identify this storage connection."
           error={errors.provider}
         >
-          <Input {...register("provider")} placeholder="minio" scale="large" />
+          <Controller
+            name="provider"
+            control={control}
+            render={({ field }) => (
+              <Input
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                name={field.name}
+                placeholder="minio"
+                size="lg"
+              />
+            )}
+          />
         </Field>
       )}
     </Fieldset>

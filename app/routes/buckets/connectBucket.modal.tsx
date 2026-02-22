@@ -9,7 +9,6 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { canCreate } from "~/.server/auth/authorization";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { RouteModal } from "~/components/RouteModal";
 import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
@@ -26,11 +25,7 @@ export const meta: MetaFunction = () => {
 };
 
 export const handle = {
-  breadcrumb: () => (
-    <BreadcrumbLink key="connect-bucket" to={`/connect-bucket`}>
-      {title}
-    </BreadcrumbLink>
-  ),
+  breadcrumb: () => ({ label: title, to: "/connect-bucket" }),
 };
 
 export const middleware = [authMiddleware];

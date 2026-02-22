@@ -1,10 +1,11 @@
-import { Field, Label } from "@headlessui/react";
+import { IconButton } from "@cytario/design";
+import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { select } from "../../state/selectors";
 import { ByteDomain } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import { IconButton, Input } from "~/components/Controls";
+import { Input } from "~/components/Controls";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
@@ -80,11 +81,12 @@ export function MinMaxSettings() {
 
   return (
     <div className="m-2 flex gap-2 items-center">
-      <Field className="relative flex min-w-0">
-        <Label className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
+      <div className="relative flex min-w-0">
+        <label htmlFor="min-contrast" className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
           Min
-        </Label>
+        </label>
         <Input
+          id="min-contrast"
           theme="dark"
           className="text-right [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           type="number"
@@ -94,12 +96,13 @@ export function MinMaxSettings() {
           onBlur={(e) => commitValue("min", e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, "min")}
         />
-      </Field>
-      <Field className="relative flex min-w-0">
-        <Label className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
+      </div>
+      <div className="relative flex min-w-0">
+        <label htmlFor="max-contrast" className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
           Max
-        </Label>
+        </label>
         <Input
+          id="max-contrast"
           theme="dark"
           className="text-right [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           type="number"
@@ -109,11 +112,12 @@ export function MinMaxSettings() {
           onBlur={(e) => commitValue("max", e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, "max")}
         />
-      </Field>
+      </div>
       <IconButton
-        disabled={isResetDisabled}
-        icon="RotateCcw"
-        onClick={resetContrastLimits}
+        aria-label="Reset contrast"
+        isDisabled={isResetDisabled}
+        icon={RotateCcw}
+        onPress={resetContrastLimits}
       />
     </div>
   );

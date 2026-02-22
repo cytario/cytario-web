@@ -1,4 +1,4 @@
-import { RadioGroup } from "@headlessui/react";
+import { RadioGroup } from "@cytario/design";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Mock } from "vitest";
 
@@ -39,7 +39,7 @@ describe("ChannelsControllerItem", () => {
 
   const renderWithRadioGroup = (props = {}) => {
     return render(
-      <RadioGroup value="Red" onChange={vi.fn()}>
+      <RadioGroup aria-label="Test channels" value="Red" onChange={vi.fn()}>
         <ChannelsControllerItem {...defaultProps} {...props} />
       </RadioGroup>
     );
@@ -69,13 +69,13 @@ describe("ChannelsControllerItem", () => {
   test("switch is checked when channel is visible", () => {
     renderWithRadioGroup({ isVisible: true });
     const switchElement = screen.getByRole("switch");
-    expect(switchElement).toHaveAttribute("aria-checked", "true");
+    expect(switchElement).toBeChecked();
   });
 
   test("switch is unchecked when channel is not visible", () => {
     renderWithRadioGroup({ isVisible: false });
     const switchElement = screen.getByRole("switch");
-    expect(switchElement).toHaveAttribute("aria-checked", "false");
+    expect(switchElement).not.toBeChecked();
   });
 
   test("calls toggleChannelVisibility when switch is clicked", () => {
@@ -132,7 +132,7 @@ describe("ChannelsControllerItem", () => {
       });
       // The indicator should be approximately 50% width (127/255)
       const indicator = container.querySelector(
-        '[style*="width"]'
+        '[style*="width"][style*="background-color"]'
       ) as HTMLElement;
       expect(indicator).toBeInTheDocument();
       expect(indicator?.style.width).toBe("49.80392156862745%");

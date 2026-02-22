@@ -1,4 +1,4 @@
-import { Tab, TabGroup, TabList } from "@headlessui/react";
+import { Tab, TabList, Tabs, type Key } from "@cytario/design";
 
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -18,10 +18,14 @@ export function Presets({ children }: { children: React.ReactNode }) {
     select.setActiveChannelsStateIndex
   );
 
+  const handleSelectionChange = (key: Key) => {
+    setActiveChannelsStateIndex(Number(key));
+  };
+
   return (
-    <TabGroup
-      selectedIndex={activeChannelsStateIndex}
-      onChange={setActiveChannelsStateIndex}
+    <Tabs
+      selectedKey={String(activeChannelsStateIndex)}
+      onSelectionChange={handleSelectionChange}
       className="relative flex flex-col h-full overflow-hidden"
     >
       <div
@@ -58,15 +62,17 @@ export function Presets({ children }: { children: React.ReactNode }) {
                 content={`Select Channels State #${index + 1}`}
               >
                 <Tab
+                  id={String(index)}
                   className={`
                   group/tab
                   relative
                   flex items-center justify-center
                   rounded-sm h-8 min-w-8
+                  p-0
 
                   border border-slate-500 data-[selected]:border-slate-300
                   bg-slate-700 data-[selected]:bg-slate-300
-                  data-[hover]:bg-slate-500
+                  data-[hovered]:bg-slate-500
                   text-slate-700
                 `}
                   style={{
@@ -86,7 +92,7 @@ export function Presets({ children }: { children: React.ReactNode }) {
         {/* Scrollview */}
         {children}
       </div>
-    </TabGroup>
+    </Tabs>
   );
 }
 

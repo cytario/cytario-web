@@ -1,12 +1,11 @@
 import { Header, SortDirection } from "@tanstack/react-table";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
-import { Icon } from "../Controls";
-
-/** Returns the chevron icon name based on current sort direction. Unsorted shows up (first click = ascending). */
+/** Returns the chevron icon based on current sort direction. */
 function getIcon(sortDirection: false | SortDirection) {
-  if (sortDirection === "desc") return "ChevronUp";
-  return "ChevronDown";
+  if (sortDirection === "desc") return ChevronUp;
+  return ChevronDown;
 }
 
 /** Returns Tailwind classes — visible when sorted, hidden until header hover when unsorted. */
@@ -27,7 +26,7 @@ export const ColumnSortButton = ({
   header: Header<unknown, unknown>;
 }) => {
   const sortDirection = header.column.getIsSorted();
-  const icon = getIcon(sortDirection);
+  const IconComponent = getIcon(sortDirection);
   const cx = twMerge("shrink-0", getStyle(sortDirection));
-  return <Icon icon={icon} size={14} className={cx} />;
+  return <IconComponent size={14} className={cx} />;
 };

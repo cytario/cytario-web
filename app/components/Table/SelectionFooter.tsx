@@ -1,6 +1,5 @@
+import { Button } from "@cytario/design";
 import { ReactNode } from "react";
-
-import { Button } from "../Controls/Button/Button";
 
 interface SelectionFooterProps {
   selectedCount: number;
@@ -27,7 +26,7 @@ export function SelectionFooter({
             <span className="font-medium text-slate-900">{selectedCount}</span>
             {" "}of {totalCount} selected
           </span>
-          <Button theme="white" scale="small" onClick={onReset}>
+          <Button variant="secondary" size="sm" onPress={onReset}>
             Clear selection
           </Button>
         </div>

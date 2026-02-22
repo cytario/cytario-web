@@ -1,3 +1,4 @@
+import { Button } from "@cytario/design";
 import {
   useNavigate,
   useNavigation,
@@ -11,7 +12,6 @@ import {
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
-import { Button } from "~/components/Controls";
 import { RouteModal } from "~/components/RouteModal";
 
 export { userDetailAction as action } from "./userDetail.action";
@@ -38,27 +38,24 @@ export default function UserModal() {
   return (
     <RouteModal
       title={`Edit User \u2014 ${match.user.firstName} ${match.user.lastName}`}
-      footer={
-        <>
-          <Button onClick={() => navigate(-1)} theme="white">
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="update-form"
-            theme="primary"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </>
-      }
     >
       <UpdateUserForm
         user={match.user}
         groups={groups}
         groupPaths={match.groupPaths}
       />
+      <footer className="flex gap-3 justify-end mt-6">
+        <Button onPress={() => navigate(-1)} variant="secondary">
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          form="update-form"
+          isDisabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : "Save Changes"}
+        </Button>
+      </footer>
     </RouteModal>
   );
 }

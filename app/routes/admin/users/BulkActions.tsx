@@ -1,3 +1,5 @@
+import { Button, Icon, Select } from "@cytario/design";
+import { Ban, Check, UserMinus, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
@@ -6,7 +8,6 @@ import {
   type UserWithGroups,
 } from "~/.server/auth/keycloakAdmin";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { Button, Icon, Select } from "~/components/Controls";
 import { GroupPill } from "~/components/Pill/GroupPill";
 
 type BulkIntent =
@@ -27,32 +28,32 @@ const dialogConfig: Record<
   {
     title: string;
     confirmLabel: string;
-    confirmTheme: "error" | "primary";
+    confirmVariant: "destructive" | "primary";
     needsGroup: boolean;
   }
 > = {
   addToGroup: {
     title: "Add to Group",
     confirmLabel: "Add to Group",
-    confirmTheme: "primary",
+    confirmVariant: "primary",
     needsGroup: true,
   },
   removeFromGroup: {
     title: "Remove from Group",
     confirmLabel: "Remove from Group",
-    confirmTheme: "error",
+    confirmVariant: "destructive",
     needsGroup: true,
   },
   enableAccounts: {
     title: "Enable Accounts",
     confirmLabel: "Enable",
-    confirmTheme: "primary",
+    confirmVariant: "primary",
     needsGroup: false,
   },
   disableAccounts: {
     title: "Disable Accounts",
     confirmLabel: "Disable",
-    confirmTheme: "error",
+    confirmVariant: "destructive",
     needsGroup: false,
   },
 };
@@ -62,7 +63,7 @@ function GroupSelector({
   value,
   onChange,
 }: {
-  options: { label: string; value: string }[];
+  options: { id: string; name: string }[];
   value: string;
   onChange: (value: string) => void;
 }) {
@@ -72,10 +73,10 @@ function GroupSelector({
   return (
     <div className="mt-3">
       <Select
-        options={options}
-        value={value}
-        onChange={onChange}
-        renderOption={(option) => <GroupPill path={option.label} />}
+        label="Group"
+        items={options}
+        selectedKey={value}
+        onSelectionChange={(key) => onChange(key as string)}
       />
     </div>
   );
@@ -99,7 +100,7 @@ export function BulkActions({
     () =>
       groups
         .filter((g) => !g.isAdmin)
-        .map((g) => ({ label: g.path, value: g.id })),
+        .map((g) => ({ id: g.id, name: g.path })),
     [groups],
   );
 
@@ -112,7 +113,7 @@ export function BulkActions({
   const removeGroupOptions = useMemo(
     () =>
       allGroupOptions.filter((o) =>
-        selectedUsers.some((u) => u.groupPaths.has(o.label)),
+        selectedUsers.some((u) => u.groupPaths.has(o.name)),
       ),
     [allGroupOptions, selectedUsers],
   );
@@ -121,7 +122,7 @@ export function BulkActions({
   const addGroupOptions = useMemo(
     () =>
       allGroupOptions.filter((o) =>
-        selectedUsers.some((u) => !u.groupPaths.has(o.label)),
+        selectedUsers.some((u) => !u.groupPaths.has(o.name)),
       ),
     [allGroupOptions, selectedUsers],
   );
@@ -135,7 +136,7 @@ export function BulkActions({
 
   const openDialog = (newIntent: BulkIntent) => {
     setIntent(newIntent);
-    setSelectedGroupId(getGroupOptions(newIntent)[0]?.value ?? "");
+    setSelectedGroupId(getGroupOptions(newIntent)[0]?.id ?? "");
     setDialogOpen(true);
   };
 
@@ -169,39 +170,39 @@ export function BulkActions({
   return (
     <>
       <Button
-        theme="white"
-        scale="small"
-        onClick={() => openDialog("addToGroup")}
-        disabled={isSubmitting}
+        variant="secondary"
+        size="sm"
+        onPress={() => openDialog("addToGroup")}
+        isDisabled={isSubmitting}
+        iconLeft={UserPlus}
       >
-        <Icon icon="UserPlus" size={14} />
         Add to group
       </Button>
       <Button
-        theme="white"
-        scale="small"
-        onClick={() => openDialog("removeFromGroup")}
-        disabled={isSubmitting}
+        variant="secondary"
+        size="sm"
+        onPress={() => openDialog("removeFromGroup")}
+        isDisabled={isSubmitting}
+        iconLeft={UserMinus}
       >
-        <Icon icon="UserMinus" size={14} />
         Remove from group
       </Button>
       <Button
-        theme="white"
-        scale="small"
-        onClick={() => openDialog("enableAccounts")}
-        disabled={isSubmitting}
+        variant="secondary"
+        size="sm"
+        onPress={() => openDialog("enableAccounts")}
+        isDisabled={isSubmitting}
+        iconLeft={Check}
       >
-        <Icon icon="Check" size={14} />
         Enable
       </Button>
       <Button
-        theme="error"
-        scale="small"
-        onClick={() => openDialog("disableAccounts")}
-        disabled={isSubmitting}
+        variant="destructive"
+        size="sm"
+        onPress={() => openDialog("disableAccounts")}
+        isDisabled={isSubmitting}
+        iconLeft={Ban}
       >
-        <Icon icon="Ban" size={14} />
         Disable
       </Button>
 
@@ -212,7 +213,7 @@ export function BulkActions({
           onCancel={handleCancel}
           title={config.title}
           confirmLabel={config.confirmLabel}
-          confirmTheme={config.confirmTheme}
+          confirmVariant={config.confirmVariant}
         >
           <p className="text-sm text-slate-600">
             This will affect{" "}

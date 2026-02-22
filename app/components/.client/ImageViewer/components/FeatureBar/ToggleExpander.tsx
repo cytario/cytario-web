@@ -1,7 +1,9 @@
+import { IconButton } from "@cytario/design";
+import { Filter, FilterX } from "lucide-react";
+
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
-import { IconButton } from "~/components/Controls";
 
 export const ToggleExpander = () => {
   const layersStates = useViewerStore(select.layersStates);
@@ -11,10 +13,10 @@ export const ToggleExpander = () => {
 
   return (
     <IconButton
-      icon={isExpanded ? "Filter" : "FilterX"}
-      label={isExpanded ? "Hide disabled channels" : "Show disabled channels"}
-      onClick={() => setIsExpanded(!isExpanded)}
-      disabled={layersStates.length === 0}
+      icon={isExpanded ? Filter : FilterX}
+      aria-label={isExpanded ? "Hide disabled channels" : "Show disabled channels"}
+      onPress={() => setIsExpanded(!isExpanded)}
+      isDisabled={layersStates.length === 0}
     />
   );
 };

@@ -1,7 +1,8 @@
+import { H3, IconButton } from "@cytario/design";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
+import { FilterX } from "lucide-react";
 
-import { IconButton, Input, Select } from "../Controls";
-import { H3 } from "../Fonts";
+import { Input } from "../Controls";
 import type { ColumnConfig } from "~/components/Table/types";
 
 interface FilterSidebarProps {
@@ -26,7 +27,7 @@ export function FilterSidebar({
     (columnFilters.find((f) => f.id === columnId)?.value as string) ?? "";
 
   const setFilter = (columnId: string, value: string | undefined) => {
-    setColumnFilters((prev) => {
+    setColumnFilters((prev: ColumnFiltersState) => {
       const without = prev.filter((f) => f.id !== columnId);
       if (!value) return without;
       return [...without, { id: columnId, value }];
@@ -41,11 +42,11 @@ export function FilterSidebar({
         <H3>Filters</H3>
         {hasActiveFilters && (
           <IconButton
-            icon="FilterX"
-            scale="small"
-            theme="white"
-            onClick={clearAll}
-            label="Clear all filters"
+            icon={FilterX}
+            size="sm"
+            variant="secondary"
+            onPress={clearAll}
+            aria-label="Clear all filters"
           />
         )}
       </header>
@@ -62,22 +63,12 @@ export function FilterSidebar({
             >
               {col.header}
             </label>
-            {col.filterType === "select" ? (
-              <Select
-                id={inputId}
-                options={col.filterOptions ?? []}
-                value={filterValue}
-                onChange={(value) => setFilter(col.id, value || undefined)}
-                renderOption={col.filterRender}
-              />
-            ) : (
-              <Input
-                id={inputId}
-                value={filterValue}
-                onChange={(e) => setFilter(col.id, e.target.value || undefined)}
-                placeholder={col.filterPlaceholder ?? `Filter ${col.header}...`}
-              />
-            )}
+            <Input
+              id={inputId}
+              value={filterValue}
+              onChange={(e) => setFilter(col.id, e.target.value || undefined)}
+              placeholder={col.filterPlaceholder ?? `Filter ${col.header}...`}
+            />
           </div>
         );
       })}

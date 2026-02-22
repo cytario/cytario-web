@@ -1,4 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
+import { ButtonLink, EmptyState } from "@cytario/design";
+import { ArrowRight, FileSearch } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import {
   ActionFunction,
@@ -15,10 +17,8 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
-import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { Placeholder } from "~/components/Placeholder";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
@@ -99,9 +99,9 @@ function ShowAllLink({
   maxItems: number;
 }) {
   return (
-    <ButtonLink to={href} theme="white">
+    <ButtonLink href={href} variant="secondary">
       {total > maxItems ? `Show all (${total})` : "View all"}
-      <Icon icon="ArrowRight" size={16} />
+      <ArrowRight size={16} />
     </ButtonLink>
   );
 }
@@ -246,12 +246,12 @@ export default function BucketsRoute() {
 
       {nodes.length === 0 && (
         <Section>
-          <Placeholder
-            icon="FileSearch"
+          <EmptyState
+            icon={FileSearch}
             title="Start exploring your data"
             description="Add a storage connection to view your cloud storage."
-            cta={
-              <ButtonLink to="/connect-bucket" scale="large" theme="primary">
+            action={
+              <ButtonLink href="/connect-bucket" size="lg" variant="primary">
                 Connect Storage
               </ButtonLink>
             }

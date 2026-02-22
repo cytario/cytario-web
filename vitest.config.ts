@@ -37,7 +37,10 @@ export default defineConfig({
         environment: "happy-dom",
         server: {
             deps: {
-                inline: ["@cornerstonejs/codec-openjpeg"],
+                inline: [
+                    "@cornerstonejs/codec-openjpeg",
+                    "@cytario/design",
+                ],
             },
         },
         coverage: {

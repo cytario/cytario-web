@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-import { H2 } from "./Fonts";
+import { H2 } from "@cytario/design";
 
 interface LayoutWrapperProps {
   children: ReactNode;
