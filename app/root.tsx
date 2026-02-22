@@ -35,7 +35,6 @@ import { toastBridge, toToastVariant } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
 
 import "@cytario/design/tokens/variables.css";
-// eslint-disable-next-line import/no-unresolved -- dark tokens not yet in package exports (UI-ISSUES.md #2)
 import "@cytario/design/tokens/variables-dark.css";
 import "./tailwind.css";
 import "rc-slider/assets/index.css";
