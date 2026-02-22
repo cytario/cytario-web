@@ -89,8 +89,32 @@ export function DirectoryView({
   }
 
   return (
+<<<<<<< HEAD
     <Section>
       <SectionHeader name={name}>{children}</SectionHeader>
+=======
+    <>
+      <Container>
+        <header className="flex flex-col justify-between mb-8 gap-2">
+          <div className="flex gap-2">
+            {name && (
+              <h1 className="flex-grow font-bold text-2xl sm:text-3xl md:text-4xl">
+                {name}
+              </h1>
+            )}
+            <ViewModeToggle />
+          </div>
+          <div>
+            {!bucketName && (
+              <ButtonLink
+                href="/connect-bucket"
+                variant="secondary"
+                iconLeft={Plug}
+              >
+                Connect Storage
+              </ButtonLink>
+            )}
+>>>>>>> 0998c12 (fix: restore H1 responsive sizing and ViewModeToggle styling)
 
       {showFilters && isGrid && (
         <SidebarPortal>
