@@ -42,8 +42,8 @@ export function Histogram() {
   }, []);
 
   return (
-    <div ref={ref} className="top-0 border-b border-slate-500 overflow-hidden ">
-      <div className="p-2 pb-0 bg-slate-950 overflow-visible">
+    <div ref={ref} className="top-0 border-b border-[var(--color-border-strong)] overflow-hidden">
+      <div className="p-2 pb-0 bg-[var(--color-neutral-950)] overflow-visible">
         <svg width={width} height={height}>
           {channelConfigs.map(
             ({ histogram, color, contrastLimits, isVisible }, channelIndex) => {

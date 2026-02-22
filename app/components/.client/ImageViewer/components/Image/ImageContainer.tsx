@@ -37,12 +37,12 @@ export function ImageContainer({
     overflow-hidden
   `;
 
-  let background = "bg-slate-900";
+  let background = "bg-[var(--color-surface-default)]";
   if (isPreview) background = "bg-black";
-  if (error) background = "bg-slate-100";
+  if (error) background = "bg-[var(--color-surface-muted)]";
 
-  let border = "border border-2 border-slate-500";
-  if (isActivePanel) border += " border-slate-300";
+  let border = "border border-2 border-[var(--color-border-strong)]";
+  if (isActivePanel) border += " border-[var(--color-text-secondary)]";
   if (isPreview) border += " border-none";
   if (error) background += " border-none";
 
@@ -53,7 +53,7 @@ export function ImageContainer({
     pointer-events-none w-full h-full 
     absolute top-0 left-0
     border-[16px]
-    box-border border-slate-300
+    box-border border-[var(--color-text-secondary)]
   `,
     isActivePanel ? "animate-pulse-once" : "border-none"
   );

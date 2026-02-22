@@ -1,123 +1,58 @@
 # UI Issues in @cytario/design
 
-Visual regressions identified after migrating from custom components / @headlessui/react to @cytario/design.
+Open issues found in cytario-web after migrating to `@cytario/design`. Each issue describes the root cause and what's needed from the design system.
 
 ---
 
-## 1. H1 Heading: Missing Responsive Sizing and Font Weight Mismatch
+## 1. Styled Tab/TabList/Tabs Conflict with Custom Tab Rendering
 
-**Component:** `H1` (from `Heading`)
+**Component:** `Tab`, `TabList`, `Tabs`
 
-**Expected (pre-migration):**
-```
-font-bold text-2xl sm:text-3xl md:text-4xl
-```
-- `font-bold` (700)
-- Responsive: `text-2xl` on mobile, `text-3xl` on sm, `text-4xl` on md+
+**Context:** The image viewer's preset selector uses 4 tab buttons with fully custom rendering — gradient backgrounds based on active channel colors, number badges, and overlay indicator dots. It imports `Tab`, `TabList`, `Tabs` from `@cytario/design` for the selection semantics.
 
-**Actual (design system):**
-```
-font-semibold text-3xl
-```
-- `font-semibold` (600) instead of `font-bold` (700)
-- Fixed `text-3xl` at all breakpoints (no responsive scaling)
+**Problem:** The design system's `Tab` component applies its own className via a render function that sets text colors, backgrounds, hover/selected states, padding, and font weights. These styles conflict with the custom rendering because:
 
-**Impact:** The "Your Storage Connections" heading on the buckets page appears noticeably smaller on medium+ screens (text-3xl vs text-4xl) and lighter weight (semibold vs bold).
+1. The design system uses `.join(" ")` (not `twMerge`) to merge its internal styles with the consumer's `className`. Both class lists end up in the DOM and Tailwind's CSS generation order determines which wins — not the order in the class attribute.
+2. Specifically, the Tab applies `text-[var(--color-text-secondary)]` (unselected) and `text-[var(--color-teal-700)]` (selected) which override the custom text colors.
+3. The pills variant adds `bg-[var(--color-surface-default)]` (selected) and `bg-transparent` (unselected) backgrounds that fight with the custom gradient backgrounds.
 
-**Workaround applied in cytario-web:** Replaced `<H1>` with a plain `<h1>` element using the original responsive classes (`font-bold text-2xl sm:text-3xl md:text-4xl`) in `DirectoryView.tsx`. The design system `H1` cannot be overridden via `className` because `Heading` uses `.join(" ")` instead of `twMerge` for class composition, so the component's internal `text-3xl` always wins over an external `text-2xl` at the base breakpoint.
+**Impact:** The preset tabs are nearly invisible — text blends into the background because the design system's text color wins over the custom one.
+
+**Why a workaround is not appropriate:** Importing raw `react-aria-components` primitives works but defeats the purpose of the migration. The design system should support this use case directly.
 
 **Suggested design system fix:**
-1. **Use `twMerge` instead of `.join(" ")`** for class composition in `Heading` (and all components). This is the most impactful fix -- it allows consumers to override any style via `className` without conflicts.
-2. Add a `size` option larger than `2xl` (e.g., `3xl` mapping to `text-4xl`)
-3. Support responsive size arrays (e.g., `size={["2xl", "3xl", "4xl"]}`)
-4. Use `font-bold` instead of `font-semibold` for H1 to better match common heading expectations
 
-> **Fixed in @cytario/design** (cytario/cytario-design@81680a5):
-> - Heading now uses `twMerge` — consumer `className` overrides work correctly (e.g., `<H1 className="text-2xl sm:text-3xl md:text-4xl">` now wins over the internal size class).
-> - Added `size="3xl"` (maps to `text-4xl`).
-> - H1 now defaults to `font-bold` (700). A `weight` prop (`"semibold" | "bold"`) is available on all headings.
-> - Responsive size arrays (suggestion 3) were not added — use `className` overrides with responsive Tailwind classes instead, which is now possible thanks to `twMerge`.
-> - **Migration in cytario-web:** Replace the plain `<h1>` workaround in `DirectoryView.tsx` with `<H1 className="text-2xl sm:text-3xl md:text-4xl">` or `<H1 size="3xl">` depending on the desired behavior.
+1. **Use `twMerge` for className composition in `Tab`** (same pattern already applied to `Heading`, `Button`, `ToggleButton`). This lets consumers override any style via `className` without conflicts.
+2. **Add an `unstyled` variant** (or `variant="custom"`) to `Tab` that provides only the accessibility/selection semantics with no visual styles — similar to how `RadioGroup`/`Radio` differ from their unstyled RAC counterparts. This is useful when consumers need full control over rendering but still want the design system's API surface.
+3. **Re-export the raw RAC primitives** (e.g., `export { Tabs as UnstyledTabs, Tab as UnstyledTab, TabList as UnstyledTabList } from "react-aria-components"`) so consumers don't need a direct `react-aria-components` dependency for unstyled use cases.
 
 ---
 
-## 2. ToggleButton: No Bordered/Square Variant for Toggle Groups
+## 2. Dark Theme CSS Not Exported
 
-**Component:** `ToggleButton`
+**Component:** Token CSS files
 
-**Expected (pre-migration):**
-```
-w-8 h-8                          -- fixed square dimensions
-border border-slate-300           -- visible border
-bg-slate-700 text-white           -- active: dark background, white text
-bg-white hover:bg-slate-300       -- inactive: white background
-(no border-radius)                -- sharp corners
-```
+**Problem:** The design system generates `variables-dark.css` with `[data-theme="dark"]` token overrides, but the package.json `exports` map only exposes `./tokens/variables.css` (light theme). Consumers cannot import the dark theme tokens via the package specifier.
 
-**Actual (design system):**
-```
-px-3 py-1.5 text-sm               -- padding-based sizing (not square)
-rounded-[var(--border-radius-md)]  -- rounded corners
-bg-transparent                     -- inactive: no background
-bg-[var(--color-neutral-200)]      -- active: subtle gray background
-(no border)                        -- no visible border
-```
+**Impact:** Any consumer that needs dark-themed design system components (e.g., an image viewer with a dark sidebar) cannot use `data-theme="dark"` without reaching into the package's internal file structure.
 
-**Impact:** The view mode toggle (list/grid-sm/grid-md/grid-lg) buttons appear unstyled and lack the visual affordance of a traditional toggle button group. The active state has very low contrast compared to the previous dark-on-white treatment.
+**Suggested design system fix:**
 
-**Why className override is not sufficient:** The `ToggleButton` component uses a render function for className that conditionally applies selected/unselected styles internally. External `className` overrides cannot conditionally change styles based on `isSelected` state, making it impossible to restore the high-contrast active/inactive distinction from outside the component.
-
-**Workaround applied in cytario-web:** Reverted to a custom `ViewModeButton` component with the original styling in `ViewModeToggle.tsx`.
-
-**Suggested design system fix:** Add an `outlined` or `bordered` variant to `ToggleButton` that provides:
-- A visible border
-- High-contrast selected state (dark background + white text)
-- Support for fixed square dimensions (e.g., `isSquare` prop or icon-only detection)
-- Optionally, a `ToggleButtonGroup` compound component that handles mutual exclusion and removes inter-button borders for a seamless group appearance
-
-> **Fixed in @cytario/design** (cytario/cytario-design@81680a5):
-> - Added `variant="outlined"`: white bg + neutral-300 border (unselected), neutral-800 bg + white text (selected). High-contrast active/inactive distinction.
-> - Added `isSquare` prop: uses fixed dimensions (`h-7 w-7` / `h-8 w-8` / `h-10 w-10` for sm/md/lg) and `rounded-none` instead of padding-based sizing.
-> - ToggleButton now uses `twMerge` for className composition.
-> - `ToggleButtonGroup` compound component was not added in this pass.
-> - **Migration in cytario-web:** Replace the custom `ViewModeButton` in `ViewModeToggle.tsx` with `<ToggleButton variant="outlined" isSquare size="sm">`. Wire up selection state via `isSelected` / `onChange` as before.
+1. Add `"./tokens/variables-dark.css": "./src/tokens/variables-dark.css"` to the `exports` map in `package.json`
+2. Add `"src/tokens/variables-dark.css"` to the `files` array
+3. Alternatively, bundle the dark tokens into `variables.css` so a single import provides both themes
 
 ---
 
-## 3. ButtonLink: No "Neutral" / "White" Variant
+## 3. Directory Imports in Compiled Output
 
-**Component:** `ButtonLink`
+**Component:** Package build output (`dist/`)
 
-**Expected (pre-migration, `theme="white"`):**
-```
-bg-white hover:bg-slate-50
-text-inherit
-border border-inherit
-```
+**Problem:** The compiled `dist/index.js` uses directory imports (e.g., `./components/Button` instead of `./components/Button/index.js`). Node.js ESM does not support directory imports — they are a CJS-only convention.
 
-**Actual (design system, `variant="secondary"`):**
-```
-bg-transparent
-text-[var(--color-action-secondary)]   -- purple/brand colored text
-border border-[var(--color-border-brand)]  -- purple/brand colored border
-hover:bg-[var(--color-purple-50)]
-```
+**Impact:** Any consumer using Vite SSR (or any Node.js ESM environment) gets `ERR_UNSUPPORTED_DIR_IMPORT` unless they add `@cytario/design` to `ssr.noExternal` in their Vite config, forcing Vite to bundle it through its transform pipeline.
 
-**Impact:** The "Connect Storage" and "Access with Cyberduck" buttons changed from a neutral white appearance (matching the page chrome) to a purple-branded appearance. This may be an intentional design upgrade, but it differs from the pre-migration visual.
+**Suggested design system fix:**
 
-**No workaround applied:** The `secondary` variant is acceptable as a design evolution. If the neutral white style is needed, a `variant="outline"` or `variant="neutral"` should be added to the design system.
-
-**Suggested design system fix:** Consider adding a neutral/outline variant:
-```typescript
-neutral: [
-  "bg-white text-slate-700",
-  "border border-slate-300",
-  "hover:bg-slate-50",
-  "pressed:bg-slate-100",
-].join(" "),
-```
-
-> **Fixed in @cytario/design** (cytario/cytario-design@81680a5):
-> - Added `variant="neutral"` to `Button` and `ButtonLink`: white bg, neutral-300 border, neutral-50 hover, neutral-100 pressed. Uses `--color-text-primary` token (not hardcoded slate) for proper theme compatibility.
-> - Both `Button` and `ButtonLink` now use `twMerge` for className composition.
-> - **Migration in cytario-web:** If the neutral white appearance is desired for "Connect Storage" / "Access with Cyberduck" buttons, change `variant="secondary"` to `variant="neutral"`.
+1. Set `"moduleResolution": "nodenext"` and `"module": "nodenext"` in `tsconfig.build.json` — TypeScript will then require and preserve explicit `.js` extensions in import paths
+2. Or use a bundler (e.g., `tsup`, `rollup`) that rewrites directory imports to include `/index.js` in the output
