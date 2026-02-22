@@ -20,7 +20,7 @@
     "@aws-sdk/client-sts": "^3.687.0",
     "@aws-sdk/s3-request-presigner": "^3.693.0",
     "@cornerstonejs/codec-openjpeg": "^1.3.0",
-    "@cytario/design": "^1.6.1",
+    "@cytario/design": "^1.7.0",
     "@deck.gl/core": "~9.1.15",
     "@deck.gl/extensions": "~9.1.15",
     "@deck.gl/geo-layers": "~9.1.15",

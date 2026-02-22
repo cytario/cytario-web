@@ -1,5 +1,5 @@
-import { RadioGroup } from "@cytario/design";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { RadioGroup } from "react-aria-components";
 import { Mock } from "vitest";
 
 import { select } from "../../../state/selectors";

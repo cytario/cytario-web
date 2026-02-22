@@ -1,4 +1,3 @@
-/* eslint-disable no-irregular-whitespace */
 import { Button, Input, InputGroup } from "@cytario/design";
 
 import { ResetViewStateButton } from "./Image/ResetViewStateButton";
@@ -32,7 +31,8 @@ export const Magnifier = ({
       <Input
         isReadOnly
         value={magnification.toFixed(1)}
-        className="w-12 text-sm text-right"
+        size="sm"
+        className="w-16 text-xs text-right tabular-nums"
       />
 
       <ResetViewStateButton
@@ -41,13 +41,15 @@ export const Magnifier = ({
         setViewState={setViewStateActive}
       />
 
-      <div className="flex items-center relative h-full gap-[13px]">
-        <InputGroup>
+      <div className="flex items-center relative h-full">
+        <InputGroup className="border border-[var(--color-border-default)] rounded-[var(--border-radius-md)]">
           {[5, 10, 20, 40, 80].map((mag) => {
             return (
               <Button
                 key={mag}
-                className="w-10 h-8 text-xs p-0 justify-center font-semibold"
+                variant="ghost"
+                size="sm"
+                className="w-9 text-xs p-0 justify-center font-semibold"
                 onPress={() => {
                   if (viewStateActive) {
                     setViewStateActive({
@@ -57,7 +59,7 @@ export const Magnifier = ({
                   }
                 }}
               >
-                {mag} x
+                {mag}x
               </Button>
             );
           })}

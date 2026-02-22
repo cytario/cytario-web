@@ -1,5 +1,5 @@
-import { RadioGroup } from "@cytario/design";
 import { useEffect, useMemo } from "react";
+import { RadioGroup } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { ChannelsControllerItem } from "./ChannelsControllerItem";

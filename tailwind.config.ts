@@ -2,7 +2,10 @@ import containerQueries from "@tailwindcss/container-queries";
 import type { Config } from "tailwindcss";
 
 export default {
-  content: ["./app/**/{**,.client,.server}/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./app/**/{**,.client,.server}/**/*.{js,jsx,ts,tsx}",
+    "./node_modules/@cytario/design/dist/**/*.js",
+  ],
   safelist: [
     "left-0",
     "left-2",
