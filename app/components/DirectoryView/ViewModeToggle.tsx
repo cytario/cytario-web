@@ -1,7 +1,38 @@
-import { ToggleButton } from "@cytario/design";
 import { Grid2x2, Grid3x3, List, Square } from "lucide-react";
 
 import { useDirectoryStore, ViewMode } from "./useDirectoryStore";
+
+interface ViewModeButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}
+
+/**
+ * Custom toggle button for view mode selection.
+ *
+ * Uses a hand-built button instead of `@cytario/design` ToggleButton because
+ * the design system component lacks support for bordered, square, high-contrast
+ * toggle groups (see UI-ISSUES.md).
+ */
+function ViewModeButton({ active, onClick, icon, label }: ViewModeButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+      className={`flex items-center justify-center w-8 h-8 border border-slate-300 ${
+        active
+          ? "bg-slate-700 text-white"
+          : "bg-white text-slate-700 hover:bg-slate-300"
+      }`}
+    >
+      {icon}
+    </button>
+  );
+}
 
 const modes: {
   mode: ViewMode;
@@ -20,15 +51,13 @@ export function ViewModeToggle() {
   return (
     <div className="flex gap-1">
       {modes.map(({ mode, icon, label }) => (
-        <ToggleButton
+        <ViewModeButton
           key={mode}
-          isSelected={viewMode === mode}
-          onChange={() => setViewMode(mode)}
-          size="sm"
-          aria-label={label}
-        >
-          {icon}
-        </ToggleButton>
+          active={viewMode === mode}
+          onClick={() => setViewMode(mode)}
+          icon={icon}
+          label={label}
+        />
       ))}
     </div>
   );

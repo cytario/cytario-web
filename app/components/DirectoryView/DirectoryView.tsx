@@ -1,4 +1,4 @@
-import { ButtonLink, H1 } from "@cytario/design";
+import { ButtonLink } from "@cytario/design";
 import { Download, Plug } from "lucide-react";
 import { useEffect } from "react";
 
@@ -51,7 +51,11 @@ export function DirectoryView({
       <Container>
         <header className="flex flex-col justify-between mb-8 gap-2">
           <div className="flex gap-2">
-            {name && <H1 className="flex-grow">{name}</H1>}
+            {name && (
+              <h1 className="flex-grow font-bold text-2xl sm:text-3xl md:text-4xl">
+                {name}
+              </h1>
+            )}
             <ViewModeToggle />
           </div>
           <div>
