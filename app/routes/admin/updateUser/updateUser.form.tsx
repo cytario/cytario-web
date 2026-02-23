@@ -5,6 +5,7 @@ import { useSubmit } from "react-router";
 
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { type KeycloakUser } from "~/.server/auth/keycloakAdmin/client";
+import { ConfirmDialog } from "~/components/ConfirmDialog";
 import {
   Checkbox,
   Field,
@@ -54,7 +55,11 @@ export const UpdateUserForm = ({
     mode: "onBlur",
   });
 
-  const onSubmit = (data: UpdateUserFormData) => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+
+  const buildFormData = (data: UpdateUserFormData): FormData => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -67,7 +72,54 @@ export const UpdateUserForm = ({
         String(memberGroupIds.has(group.id)),
       );
     }
+    return formData;
+  };
+
+  const detectDestructiveChanges = (data: UpdateUserFormData): string[] => {
+    const changes: string[] = [];
+
+    if (user.enabled && !data.enabled) {
+      changes.push(
+        `Disable account for ${user.firstName} ${user.lastName}`,
+      );
+    }
+
+    const removedGroups = groups.filter(
+      (g) => groupPaths.has(g.path) && !memberGroupIds.has(g.id),
+    );
+    if (removedGroups.length > 0) {
+      const names = removedGroups.map((g) => g.path).join(", ");
+      changes.push(`Remove from groups: ${names}`);
+    }
+
+    return changes;
+  };
+
+  const onSubmit = (data: UpdateUserFormData) => {
+    const formData = buildFormData(data);
+    const destructiveChanges = detectDestructiveChanges(data);
+
+    if (destructiveChanges.length > 0) {
+      setPendingFormData(formData);
+      setWarnings(destructiveChanges);
+      setShowConfirm(true);
+      return;
+    }
+
     submit(formData, { method: "post" });
+  };
+
+  const onConfirm = () => {
+    if (pendingFormData) {
+      submit(pendingFormData, { method: "post" });
+    }
+    setShowConfirm(false);
+    setPendingFormData(null);
+  };
+
+  const onCancelConfirm = () => {
+    setShowConfirm(false);
+    setPendingFormData(null);
   };
 
   const toggleGroup = (groupId: string) => {
@@ -80,68 +132,86 @@ export const UpdateUserForm = ({
   };
 
   return (
-    <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
-      <Fieldset>
-        <Field label="Account enabled" inline>
-          <Controller
-            control={control}
-            name="enabled"
-            render={({ field }) => (
-              <Checkbox
-                checked={field.value}
-                onChange={() => field.onChange(!field.value)}
-              />
-            )}
-          />
-        </Field>
-        <Field label="Email" error={errors.email}>
-          <Input
-            {...register("email")}
-            type="email"
-            scale="large"
-            theme="light"
-          />
-        </Field>
-        <Field label="First name" error={errors.firstName}>
-          <Input {...register("firstName")} scale="large" theme="light" />
-        </Field>
-        <Field label="Last name" error={errors.lastName}>
-          <Input {...register("lastName")} scale="large" theme="light" />
-        </Field>
-      </Fieldset>
-
-      {groups.filter((g) => !g.isAdmin).length > 0 && (
-        <Fieldset className="my-8">
-          <H3>Group Membership</H3>
-          {groups
-            .filter((g) => !g.isAdmin)
-            .map((group) => (
-              <Field key={group.id} label={group.path} inline>
+    <>
+      <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
+        <Fieldset>
+          <Field label="Account enabled" inline>
+            <Controller
+              control={control}
+              name="enabled"
+              render={({ field }) => (
                 <Checkbox
-                  checked={memberGroupIds.has(group.id)}
-                  onChange={() => toggleGroup(group.id)}
+                  checked={field.value}
+                  onChange={() => field.onChange(!field.value)}
                 />
-              </Field>
-            ))}
+              )}
+            />
+          </Field>
+          <Field label="Email" error={errors.email}>
+            <Input
+              {...register("email")}
+              type="email"
+              scale="large"
+              theme="light"
+            />
+          </Field>
+          <Field label="First name" error={errors.firstName}>
+            <Input {...register("firstName")} scale="large" theme="light" />
+          </Field>
+          <Field label="Last name" error={errors.lastName}>
+            <Input {...register("lastName")} scale="large" theme="light" />
+          </Field>
         </Fieldset>
-      )}
 
-      {groups.filter((g) => g.isAdmin).length > 0 && (
-        <Fieldset className="my-8">
-          <H3>Admin Groups</H3>
-          {groups
-            .filter((g) => g.isAdmin)
-            .map((group) => (
-              <Field key={group.id} label={group.path} inline>
-                <Checkbox
-                  checked={memberGroupIds.has(group.id)}
-                  onChange={() => toggleGroup(group.id)}
-                />
-              </Field>
-            ))}
-        </Fieldset>
-      )}
+        {groups.filter((g) => !g.isAdmin).length > 0 && (
+          <Fieldset className="my-8">
+            <H3>Group Membership</H3>
+            {groups
+              .filter((g) => !g.isAdmin)
+              .map((group) => (
+                <Field key={group.id} label={group.path} inline>
+                  <Checkbox
+                    checked={memberGroupIds.has(group.id)}
+                    onChange={() => toggleGroup(group.id)}
+                  />
+                </Field>
+              ))}
+          </Fieldset>
+        )}
 
-    </form>
+        {groups.filter((g) => g.isAdmin).length > 0 && (
+          <Fieldset className="my-8">
+            <H3>Admin Groups</H3>
+            {groups
+              .filter((g) => g.isAdmin)
+              .map((group) => (
+                <Field key={group.id} label={group.path} inline>
+                  <Checkbox
+                    checked={memberGroupIds.has(group.id)}
+                    onChange={() => toggleGroup(group.id)}
+                  />
+                </Field>
+              ))}
+          </Fieldset>
+        )}
+      </form>
+
+      <ConfirmDialog
+        open={showConfirm}
+        onConfirm={onConfirm}
+        onCancel={onCancelConfirm}
+        title="Confirm Changes"
+        confirmLabel="Save Changes"
+      >
+        <p className="text-sm text-slate-600">
+          You are about to make the following changes:
+        </p>
+        <ul className="list-disc list-inside text-sm text-slate-900 space-y-1">
+          {warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      </ConfirmDialog>
+    </>
   );
 };

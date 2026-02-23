@@ -178,7 +178,7 @@ export async function getGroupWithMembers(
     allIds.map(async (id) => {
       const members = await adminFetch<KeycloakUser[]>(
         accessToken,
-        `/groups/${id}/members`,
+        `/groups/${id}/members?max=500`,
       );
       membersByGroupId.set(id, members);
     }),
