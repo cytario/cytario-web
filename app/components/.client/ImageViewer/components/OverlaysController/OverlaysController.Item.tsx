@@ -1,5 +1,4 @@
 import {
-  Button,
   IconButton,
   IconButtonLink,
   useToast,
@@ -41,7 +40,7 @@ export const OverlaysControllerItem = ({
   );
 
   const cx = twMerge(
-    "grid gap-1 m-1 grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]",
+    "flex flex-col px-3",
   );
 
   const [isOpen, setIsOpen] = useState(true);
@@ -112,35 +111,38 @@ export const OverlaysControllerItem = ({
   ]);
 
   return (
-    <div className="flex flex-col border-b-2 border-b-[var(--color-surface-default)]">
-      {/* Header */}
-      <header className="flex p-2 gap-2 border-b border-b-[var(--color-surface-default)]">
-        <Button
-          className="flex-1 min-w-0 truncate text-left"
-          onPress={() => setIsOpen(!isOpen)}
+    <div className="flex flex-col">
+      {/* File info row */}
+      <div className="flex items-center gap-1.5 px-3 pt-2">
+        <button
+          type="button"
+          className="flex-1 min-w-0 truncate rounded border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-2 py-1 text-xs text-[var(--color-text-primary)] text-left"
+          onClick={() => setIsOpen(!isOpen)}
         >
           {fileName}
-        </Button>
+        </button>
 
-        <div className="flex gap-2 flex-shrink-0">
-          <IconButtonLink
-            href={`/buckets/${resourceId}`}
-            icon={ExternalLink}
-            aria-label="Open file"
-          />
+        <IconButtonLink
+          href={`/buckets/${resourceId}`}
+          icon={ExternalLink}
+          aria-label="Open file"
+          variant="ghost"
+          size="sm"
+        />
 
-          <IconButton
-            icon={X}
-            aria-label="Remove overlay"
-            onPress={() => {
-              const confirmation = confirm(
-                `Are you sure you want to remove overlay "${fileName}"?`,
-              );
-              if (confirmation) removeOverlaysState(resourceId);
-            }}
-          />
-        </div>
-      </header>
+        <IconButton
+          icon={X}
+          aria-label="Remove overlay"
+          variant="ghost"
+          size="sm"
+          onPress={() => {
+            const confirmation = confirm(
+              `Are you sure you want to remove overlay "${fileName}"?`,
+            );
+            if (confirmation) removeOverlaysState(resourceId);
+          }}
+        />
+      </div>
 
       {/* Body */}
       {isOpen && (

@@ -1,11 +1,13 @@
 import { IconButton } from "@cytario/design";
-import { ChevronsDown, ChevronsUp, Circle, CircleDot, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, Circle, CircleDot, type LucideIcon } from "lucide-react";
 
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
 import { Input } from "~/components/Controls";
 
 interface FeatureItemProps {
   title: string;
+  /** Displayed next to the title, e.g. "4/12" for channel counts */
+  badge?: string;
   header?: React.ReactNode;
   children: React.ReactNode;
   sliderValue?: number;
@@ -18,6 +20,7 @@ interface FeatureItemProps {
 
 function FeatureItemInner({
   title,
+  badge,
   header,
   children,
   sliderValue,
@@ -31,36 +34,31 @@ function FeatureItemInner({
   const setIsOpen = useFeatureItemStore((s) => s.setIsOpen);
 
   return (
-    <div
-      className={`
-        flex flex-col w-full
-        bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]
-        border-b border-[var(--color-surface-default)]
-      `}
-    >
+    <div className="flex flex-col w-full text-[var(--color-text-secondary)]">
       <div className="z-10 sticky top-0 left-0 bg-[var(--color-surface-default)]">
-        <header
-          className={`
-            flex-grow flex items-center h-14
-            border-b border-b-[var(--color-surface-default)]
-            border-t border-t-[var(--color-surface-subtle)]
-            bg-[var(--color-surface-default)] hover:bg-[var(--color-surface-subtle)]
-            transition-colors
-            pr-2
-          `}
-        >
+        {/* Section divider */}
+        <div className="mx-3 h-px bg-[var(--color-border-default)]" />
+
+        <header className="flex items-center gap-2 px-3 pt-3 pb-2">
           <button
-            className={`
-              flex flex-grow items-center
-              px-2 py-2 gap-2
-              h-full
-              font-semibold
-            `}
+            className="flex items-center gap-2 flex-grow text-left"
             onClick={() => setIsOpen(!isOpen)}
           >
-            {isOpen ? <ChevronsUp size={24} /> : <ChevronsDown size={24} />}
-            {title}
+            {isOpen ? (
+              <ChevronDown size={14} className="text-[var(--color-text-secondary)] shrink-0" />
+            ) : (
+              <ChevronRight size={14} className="text-[var(--color-text-secondary)] shrink-0" />
+            )}
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+              {title}
+            </span>
           </button>
+
+          {badge && (
+            <span className="text-xs text-[var(--color-text-tertiary)]">
+              {badge}
+            </span>
+          )}
 
           {onToggleChange && !toggleHidden && (
             <IconButton
@@ -68,6 +66,7 @@ function FeatureItemInner({
               aria-label={toggleValue ? "Hide outlines" : "Show outlines"}
               onPress={() => onToggleChange(!toggleValue)}
               variant="ghost"
+              size="sm"
               className={`border-none ${toggleValue ? "stroke-[var(--color-text-primary)]" : "stroke-[var(--color-text-tertiary)]"}`}
             />
           )}

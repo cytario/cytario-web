@@ -27,7 +27,7 @@ interface ChannelsControllerItemProps {
   onColorChange?: (color: RGBA) => void;
 }
 
-/** Individual channel row in the ChannelsController. Displays color picker, name, pixel intensity bar, visibility toggle, and a loading overlay. */
+/** Individual channel row in the ChannelsController. Displays color dot, name, pixel value, visibility toggle, and a loading overlay. */
 export function ChannelsControllerItem({
   name,
   isVisible,
@@ -47,24 +47,18 @@ export function ChannelsControllerItem({
       group/radio
       cursor-pointer
       relative
-      flex flex-col items-center
+      flex items-center gap-2
       focus:outline-none
       data-[focus]:outline-1
       data-[focus]:outline-[var(--color-text-primary)]
-      duration-100 ease-in
-      h-8
-      flex items-center justify-between
-      rounded-sm
-      overflow-hidden
-      px-2 gap-1
-      border-none
-      bg-[var(--color-surface-muted)] hover:bg-[var(--color-border-strong)]
+      py-2
+      border-b border-[var(--color-surface-subtle)]
       text-[var(--color-text-secondary)]
       transition-colors
+      border-none
     `,
     isVisible && "text-[var(--color-text-primary)]",
-    isActive && "bg-[var(--color-border-strong)]",
-    "group-data-[checked]/radio:opacity-50",
+    isActive && "bg-[var(--color-surface-subtle)]",
   );
 
   const disabled = !isVisible && visibleChannelCount >= MAX_VISIBLE_CHANNELS;
@@ -76,10 +70,10 @@ export function ChannelsControllerItem({
   return (
     <Radio key={name} value={name} className={cx}>
       {/* Intensity Indicator */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 ">
+      <div className="absolute bottom-0 left-0 right-0 h-0.5">
         {isVisible && (
           <div
-            className="h-full border-r-2 border-white "
+            className="h-full"
             style={{
               width: `${(pixelValue / maxDomain) * 100}%`,
               backgroundColor: rgb(color),
@@ -88,39 +82,36 @@ export function ChannelsControllerItem({
         )}
       </div>
 
-      {/* Main Item */}
-      <div className="relative w-full flex items-center gap-2 h-full">
-        {/* Color Picker */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <ColorPicker
-            color={color}
-            onColorChange={onColorChange ?? (() => {})}
-          />
-        </div>
-
-        {/* Item Name & Count */}
-        <div className="grow">
-          <div className="flex grow justify-between text-sm">
-            <div className="font-bold">{name}</div>
-            {pixelValue > 0 && (
-              <span className="tabular-nums">{pixelValue}</span>
-            )}
-          </div>
-        </div>
-
-        {/* Visibility Toggle */}
-        <Tooltip content={tooltip}>
-          <Switch
-            isSelected={isVisible}
-            onChange={() => toggleChannelVisibility()}
-            color={rgb(color)}
-            isDisabled={disabled}
-          />
-        </Tooltip>
+      {/* Color Picker (dot) */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <ColorPicker
+          color={color}
+          onColorChange={onColorChange ?? (() => {})}
+        />
       </div>
+
+      {/* Channel Name */}
+      <span className="flex-1 text-sm truncate">{name}</span>
+
+      {/* Pixel Value */}
+      {pixelValue > 0 && (
+        <span className="text-xs tabular-nums text-[var(--color-text-secondary)]">
+          {pixelValue}
+        </span>
+      )}
+
+      {/* Visibility Toggle */}
+      <Tooltip content={tooltip}>
+        <Switch
+          isSelected={isVisible}
+          onChange={() => toggleChannelVisibility()}
+          color={rgb(color)}
+          isDisabled={disabled}
+        />
+      </Tooltip>
 
       {isLoading && <LavaLoader absolute rows={1} cols={6} />}
     </Radio>
