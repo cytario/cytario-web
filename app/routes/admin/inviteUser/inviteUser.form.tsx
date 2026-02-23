@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
@@ -11,15 +12,18 @@ import { Field, Fieldset, Input, Select } from "~/components/Controls";
 interface InviteUserFormProps {
   scope: string;
   groupOptions: string[];
+  inviteAnother?: boolean;
+  actionData?: { success?: boolean; message?: string };
 }
 
-export function InviteUserForm({ scope, groupOptions }: InviteUserFormProps) {
+export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData }: InviteUserFormProps) {
   const submit = useSubmit();
 
   const {
     control,
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
@@ -32,11 +36,20 @@ export function InviteUserForm({ scope, groupOptions }: InviteUserFormProps) {
     mode: "onBlur",
   });
 
+  useEffect(() => {
+    if (actionData?.success === true) {
+      reset({ email: "", firstName: "", lastName: "", groupPath: scope });
+    }
+  }, [actionData, reset, scope]);
+
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       formData.append(key, value);
     });
+    if (inviteAnother) {
+      formData.append("inviteAnother", "true");
+    }
     submit(formData, { method: "post" });
   };
 

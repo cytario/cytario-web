@@ -118,8 +118,17 @@ export default function AdminUsersRoute() {
         </div>
       ) : (
         <Placeholder
-          title="No users"
-          description="There are no users in this scope"
+          icon="Users"
+          title="No users yet"
+          description="Invite team members to get started."
+          cta={
+            <ButtonLink
+              to={`invite?scope=${encodeURIComponent(scope)}`}
+              theme="primary"
+            >
+              Invite User
+            </ButtonLink>
+          }
         />
       )}
       <Outlet context={{ scope, users, groups }} />

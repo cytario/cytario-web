@@ -53,6 +53,7 @@ export const inviteUserAction: ActionFunction = async ({
   }
 
   const formData = await request.formData();
+  const inviteAnother = formData.get("inviteAnother") === "true";
   const result = inviteUserSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -77,12 +78,25 @@ export const inviteUserAction: ActionFunction = async ({
       result.data.lastName,
       result.data.groupPath,
     );
+
+    if (inviteAnother) {
+      return {
+        success: true,
+        message: `Invited ${result.data.email} to ${result.data.groupPath}.`,
+      };
+    }
+
     session.set("notification", {
       status: "success",
       message: `Invited ${result.data.email} to ${result.data.groupPath}.`,
     });
   } catch (e) {
     console.error("Invite failed:", e);
+
+    if (inviteAnother) {
+      return { success: false, message: "Failed to invite user." };
+    }
+
     session.set("notification", {
       status: "error",
       message: "Failed to invite user.",
