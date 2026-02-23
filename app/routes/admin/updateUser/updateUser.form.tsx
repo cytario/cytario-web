@@ -114,7 +114,7 @@ export const UpdateUserForm = ({
       </Fieldset>
 
       {groups.filter((g) => !g.isAdmin).length > 0 && (
-        <Fieldset>
+        <Fieldset className="my-8">
           <H3>Group Membership</H3>
           {groups
             .filter((g) => !g.isAdmin)
@@ -130,7 +130,7 @@ export const UpdateUserForm = ({
       )}
 
       {groups.filter((g) => g.isAdmin).length > 0 && (
-        <Fieldset>
+        <Fieldset className="my-8">
           <H3>Admin Groups</H3>
           {groups
             .filter((g) => g.isAdmin)
