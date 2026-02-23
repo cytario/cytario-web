@@ -113,17 +113,35 @@ export const UpdateUserForm = ({
         </Field>
       </Fieldset>
 
-      {groups.length > 0 && (
+      {groups.filter((g) => !g.isAdmin).length > 0 && (
         <Fieldset>
           <H3>Group Membership</H3>
-          {groups.map((group) => (
-            <Field key={group.id} label={group.path} inline>
-              <Checkbox
-                checked={memberGroupIds.has(group.id)}
-                onChange={() => toggleGroup(group.id)}
-              />
-            </Field>
-          ))}
+          {groups
+            .filter((g) => !g.isAdmin)
+            .map((group) => (
+              <Field key={group.id} label={group.path} inline>
+                <Checkbox
+                  checked={memberGroupIds.has(group.id)}
+                  onChange={() => toggleGroup(group.id)}
+                />
+              </Field>
+            ))}
+        </Fieldset>
+      )}
+
+      {groups.filter((g) => g.isAdmin).length > 0 && (
+        <Fieldset>
+          <H3>Admin Groups</H3>
+          {groups
+            .filter((g) => g.isAdmin)
+            .map((group) => (
+              <Field key={group.id} label={group.path} inline>
+                <Checkbox
+                  checked={memberGroupIds.has(group.id)}
+                  onChange={() => toggleGroup(group.id)}
+                />
+              </Field>
+            ))}
         </Fieldset>
       )}
 

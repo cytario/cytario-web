@@ -12,12 +12,14 @@ export interface GroupWithMembers {
 export interface UserWithGroups {
   user: KeycloakUser;
   groupPaths: Set<string>;
+  adminScopes: Set<string>;
 }
 
 export interface GroupInfo {
   id: string;
   path: string;
   name: string;
+  isAdmin: boolean;
 }
 
 async function fetchGroups(
@@ -111,13 +113,12 @@ export function flattenGroupsWithIds(
   group: GroupWithMembers,
   accumulator: GroupInfo[] = [],
 ): GroupInfo[] {
-  if (group.name !== "admins") {
-    accumulator.push({
-      id: group.id,
-      path: group.path,
-      name: group.name,
-    });
-  }
+  accumulator.push({
+    id: group.id,
+    path: group.path,
+    name: group.name,
+    isAdmin: group.name === "admins",
+  });
 
   for (const subGroup of group.subGroups) {
     flattenGroupsWithIds(subGroup, accumulator);
@@ -140,9 +141,14 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
         userMap.set(member.id, {
           user: member,
           groupPaths: new Set(),
+          adminScopes: new Set(),
         });
       }
-      userMap.get(member.id)!.groupPaths.add(g.path);
+      const entry = userMap.get(member.id)!;
+      entry.groupPaths.add(g.path);
+      if (g.name === "admins") {
+        entry.adminScopes.add(g.path.replace(/\/admins$/, ""));
+      }
     }
 
     // Traverse subgroups
