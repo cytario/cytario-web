@@ -1,12 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
+import { useSubmit } from "react-router";
 
 import {
   type InviteUserFormData,
   inviteUserSchema,
 } from "./inviteUser.schema";
-import { Button, Field, Fieldset, Input, Select } from "~/components/Controls";
+import { Field, Fieldset, Input, Select } from "~/components/Controls";
 
 interface InviteUserFormProps {
   scope: string;
@@ -15,8 +15,6 @@ interface InviteUserFormProps {
 
 export function InviteUserForm({ scope, groupOptions }: InviteUserFormProps) {
   const submit = useSubmit();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
 
   const {
     control,
@@ -43,7 +41,7 @@ export function InviteUserForm({ scope, groupOptions }: InviteUserFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form id="invite-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Fieldset>
         <Field
           label="Email"
@@ -95,9 +93,6 @@ export function InviteUserForm({ scope, groupOptions }: InviteUserFormProps) {
           />
         </Field>
       </Fieldset>
-      <Button type="submit" theme="primary" disabled={isSubmitting}>
-        {isSubmitting ? "Inviting..." : "Send Invite"}
-      </Button>
     </form>
   );
 }

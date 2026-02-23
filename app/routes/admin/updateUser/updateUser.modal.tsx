@@ -1,4 +1,9 @@
-import { useOutletContext, useParams } from "react-router";
+import {
+  useNavigate,
+  useNavigation,
+  useOutletContext,
+  useParams,
+} from "react-router";
 
 import { UpdateUserForm } from "./updateUser.form";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
@@ -6,6 +11,7 @@ import {
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
+import { Button } from "~/components/Controls";
 import { RouteModal } from "~/components/RouteModal";
 
 export { userDetailAction as action } from "./userDetail.action";
@@ -13,6 +19,10 @@ export { userDetailAction as action } from "./userDetail.action";
 export const middleware = [authMiddleware];
 
 export default function UserModal() {
+  const navigate = useNavigate();
+  const { state } = useNavigation();
+  const isSubmitting = state === "submitting";
+
   const { userId } = useParams();
   const { users, groups } = useOutletContext<{
     users: UserWithGroups[];
@@ -26,7 +36,24 @@ export default function UserModal() {
   }
 
   return (
-    <RouteModal title="Edit User">
+    <RouteModal
+      title="Edit User"
+      footer={
+        <>
+          <Button onClick={() => navigate(-1)} theme="white">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="update-form"
+            theme="primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save Changes"}
+          </Button>
+        </>
+      }
+    >
       <UpdateUserForm
         user={match.user}
         groups={groups}

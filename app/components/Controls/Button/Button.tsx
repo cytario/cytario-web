@@ -13,6 +13,7 @@ interface ButtonProps {
   children: ReactNode;
   className?: string;
   type?: "button" | "submit" | "reset";
+  form?: string;
   scale?: keyof typeof buttonScaleStyles;
   theme?: keyof typeof buttonThemeStyles;
 }
@@ -23,6 +24,7 @@ export function Button({
   children,
   className,
   type = "button",
+  form,
   scale = "medium",
   theme = "default",
 }: ButtonProps) {
@@ -34,7 +36,13 @@ export function Button({
   );
 
   return (
-    <button className={cx} onClick={onClick} disabled={disabled} type={type}>
+    <button
+      className={cx}
+      onClick={onClick}
+      disabled={disabled}
+      type={type}
+      form={form}
+    >
       {children}
     </button>
   );

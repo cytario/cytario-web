@@ -1,12 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
+import { useSubmit } from "react-router";
 
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { type KeycloakUser } from "~/.server/auth/keycloakAdmin/client";
 import {
-  Button,
   Checkbox,
   Field,
   Fieldset,
@@ -30,8 +29,6 @@ export const UpdateUserForm = ({
   groupPaths,
 }: UpdateUserFormProps) => {
   const submit = useSubmit();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
 
   const [memberGroupIds, setMemberGroupIds] = useState<Set<string>>(() => {
     const ids = new Set<string>();
@@ -83,7 +80,7 @@ export const UpdateUserForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="">
+    <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
       <Fieldset>
         <Field label="Account enabled" inline>
           <Controller
@@ -145,11 +142,6 @@ export const UpdateUserForm = ({
         </Fieldset>
       )}
 
-      <footer className="pt-4">
-        <Button type="submit" theme="primary" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save Changes"}
-        </Button>
-      </footer>
     </form>
   );
 };

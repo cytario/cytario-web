@@ -62,7 +62,7 @@ export const userDetailAction: ActionFunction = async ({
 
     session.set("notification", {
       status: "success",
-      message: "User updated successfully.",
+      message: `Updated ${result.data.firstName} ${result.data.lastName}.`,
     });
   } catch (e) {
     console.error("Update user failed:", e);

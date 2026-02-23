@@ -57,7 +57,7 @@ export const Select = ({
           <ListboxOption
             key={option.value}
             value={option.value}
-            className="px-2 py-2 text-lg cursor-pointer data-[focus]:bg-blue-100"
+            className="px-2 py-2 text-lg cursor-pointer data-[focus]:bg-slate-100"
           >
             {option.label}
           </ListboxOption>
