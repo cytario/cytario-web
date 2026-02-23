@@ -2,6 +2,7 @@ import {
   ActionFunction,
   type LoaderFunction,
   type MetaFunction,
+  type ShouldRevalidateFunction,
   Outlet,
   redirect,
 } from "react-router";
@@ -12,6 +13,7 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { getSession } from "~/.server/auth/getSession";
+import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
 import { SessionCredentials, sessionStorage } from "~/.server/auth/sessionStorage";
 import { ClientOnly } from "~/components/ClientOnly";
 import { Section } from "~/components/Container";
@@ -31,6 +33,14 @@ export const meta: MetaFunction = () => {
     { title },
     { name: "description", content: "Manage your storage connections" },
   ];
+};
+
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  formAction,
+  defaultShouldRevalidate,
+}) => {
+  if (formAction) return defaultShouldRevalidate;
+  return false;
 };
 
 export const middleware = [authMiddleware];
@@ -57,14 +67,21 @@ const fetchPreviewObject = async (
 };
 
 export const loader: LoaderFunction = async ({ context }) => {
-  const { bucketConfigs, credentials, user } = context.get(authContext);
+  const { bucketConfigs, credentials, user, authTokens } =
+    context.get(authContext);
   const userId = user.sub;
 
-  const previews = await Promise.allSettled(
-    bucketConfigs.map((config) =>
-      fetchPreviewObject(config, credentials, userId),
+  const [previews, adminScopes] = await Promise.all([
+    Promise.allSettled(
+      bucketConfigs.map((config) =>
+        fetchPreviewObject(config, credentials, userId),
+      ),
     ),
-  );
+    getManageableScopes(user, authTokens.accessToken).catch((error) => {
+      console.error("Failed to fetch manageable scopes:", error);
+      return [] as string[];
+    }),
+  ]);
 
   const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
     const result = previews[i];
@@ -89,7 +106,7 @@ export const loader: LoaderFunction = async ({ context }) => {
     };
   });
 
-  return { nodes };
+  return { nodes, adminScopes, userId };
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -127,7 +144,11 @@ export const action: ActionFunction = async ({ request, context }) => {
 };
 
 export default function BucketsRoute() {
-  const { nodes } = useLoaderData<{ nodes: TreeNode[] }>();
+  const { nodes, adminScopes, userId } = useLoaderData<{
+    nodes: TreeNode[];
+    adminScopes: string[];
+    userId: string;
+  }>();
 
   return (
     <>
@@ -152,7 +173,7 @@ export default function BucketsRoute() {
         <RecentlyViewed />
       </ClientOnly>
 
-      <Outlet />
+      <Outlet context={{ adminScopes, userId }} />
     </>
   );
 }

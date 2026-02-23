@@ -1,15 +1,13 @@
 import {
   type ActionFunction,
-  type LoaderFunction,
   type MetaFunction,
   redirect,
 } from "react-router";
-import { useLoaderData } from "react-router";
+import { useOutletContext } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { canCreate } from "~/.server/auth/authorization";
 import { getSession } from "~/.server/auth/getSession";
-import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
@@ -36,25 +34,6 @@ export const handle = {
 };
 
 export const middleware = [authMiddleware];
-
-export const loader: LoaderFunction = async ({ context }) => {
-  const { user, authTokens } = context.get(authContext);
-  // const creatableScopes = getCreatableScopes(user);
-
-  try {
-    const adminScopes = await getManageableScopes(user, authTokens.accessToken);
-    return { adminScopes, userId: user.sub };
-  } catch (error) {
-    console.error("Failed to fetch manageable scopes:", error);
-    return {
-      adminScopes: [],
-      notification: {
-        status: "error",
-        message: "Failed to fetch manageable scopes.",
-      },
-    };
-  }
-};
 
 export const action: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
@@ -136,13 +115,11 @@ export const action: ActionFunction = async ({ request, context }) => {
   }
 };
 
-export interface ConnectBucketLoaderData {
-  adminScopes: string[];
-  userId: string;
-}
-
 export default function ConnectBucketModal() {
-  const { adminScopes, userId } = useLoaderData<ConnectBucketLoaderData>();
+  const { adminScopes, userId } = useOutletContext<{
+    adminScopes: string[];
+    userId: string;
+  }>();
   useBackendNotification();
 
   return (
