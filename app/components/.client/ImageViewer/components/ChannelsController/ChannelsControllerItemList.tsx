@@ -33,7 +33,7 @@ export function ChannelsControllerItemList({
   );
 
   const cx = twMerge(
-    "grid gap-1 m-1 grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]"
+    "flex flex-col px-3"
   );
 
   useEffect(() => {

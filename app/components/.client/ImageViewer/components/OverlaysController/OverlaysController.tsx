@@ -43,16 +43,17 @@ export const OverlaysController = () => {
         />
       ))}
 
-      <footer className="p-2">
+      <footer className="px-3 pb-3">
         {entries.length === 0 ? (
           <EmptyState
             title="Add Overlay"
             description="Add parquet cell detection files"
             icon={Layers2}
-            action={<ButtonLink href="?action=load-overlay">Add Overlay</ButtonLink>}
+            className="py-6"
+            action={<ButtonLink href="?action=load-overlay" variant="secondary" size="sm">Add Overlay</ButtonLink>}
           />
         ) : (
-          <ButtonLink href="?action=load-overlay">Add Overlay</ButtonLink>
+          <ButtonLink href="?action=load-overlay" variant="secondary" size="sm">Add Overlay</ButtonLink>
         )}
       </footer>
 

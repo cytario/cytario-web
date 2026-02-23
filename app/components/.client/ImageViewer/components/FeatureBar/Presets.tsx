@@ -4,13 +4,8 @@ import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { rgb } from "../ChannelsController/ColorPicker";
 import { SplitViewToggle } from "../SplitViewToggle";
-import { Tooltip } from "~/components/Tooltip/Tooltip";
-
-const obj = {};
 
 export function Presets({ children }: { children: React.ReactNode }) {
-  const layersStates = useViewerStore(select.layersStates);
-
   const activeChannelsStateIndex = useViewerStore(
     select.activeChannelsStateIndex
   );
@@ -24,77 +19,61 @@ export function Presets({ children }: { children: React.ReactNode }) {
 
   return (
     <Tabs
+      variant="unstyled"
       selectedKey={String(activeChannelsStateIndex)}
       onSelectionChange={handleSelectionChange}
       className="relative flex flex-col h-full overflow-hidden"
     >
       <div
         className={`
-          flex justify-between
-          gap-2 p-2 pt-0
-          border-b border-[var(--color-border-strong)]
+          flex items-center justify-between
+          gap-1.5 px-3 pt-4 pb-3
+          border-b border-[var(--color-border-default)]
           flex-shrink-0
           relative left-0 right-0
         `}
       >
-        <TabList className={"flex gap-2"}>
-          {[0, 1, 2, 3].map((_, index) => {
-            const layersState = layersStates[index];
-            const presetChannelsOpacity = layersState?.channelsOpacity ?? 1;
+        <TabList className={"flex gap-1.5"}>
+          {[0, 1, 2, 3].map((_, index) => (
+            <Tab
+              key={index}
+              id={String(index)}
+              aria-label={`Channels preset ${index + 1}`}
+              className={`
+                group/tab
+                relative overflow-hidden
+                flex items-center justify-center
+                rounded-sm h-8 min-w-8
+                p-0
 
-            const colors = Object.entries(layersState?.channels ?? obj)
-              .filter(([, { isVisible }]) => isVisible)
-              .map(([, config]) => rgb(config.color, presetChannelsOpacity));
+                border transition-colors
+                border-[var(--color-border-strong)]
+                bg-[var(--color-surface-muted)]
+                data-[hovered]:bg-[var(--color-border-strong)]
 
-            // Flatten overlays to CellMarker[]
-            // const visibleOverlays = Object.values(layersState?.overlays ?? obj)
-            //   .flatMap((overlayState) => Object.values(overlayState))
-            //   .filter((marker) => marker.isVisible);
-
-            const background =
-              colors.length > 0
-                ? `linear-gradient(-45deg, ${colors.join(", ")})`
-                : "transparent";
-
-            return (
-              <Tooltip
-                key={index}
-                content={`Select Channels State #${index + 1}`}
-              >
-                <Tab
-                  id={String(index)}
-                  className={`
-                  group/tab
-                  relative
-                  flex items-center justify-center
-                  rounded-sm h-8 min-w-8
-                  p-0
-
-                  border border-[var(--color-border-strong)] data-[selected]:border-[var(--color-text-secondary)]
-                  bg-[var(--color-surface-muted)] data-[selected]:bg-[var(--color-text-secondary)]
-                  data-[hovered]:bg-[var(--color-border-strong)]
-                  text-[var(--color-surface-muted)]
-                `}
-                  style={{
-                    background,
-                  }}
-                >
-                  <PresetLabel index={index} />
-                </Tab>
-              </Tooltip>
-            );
-          })}
+                data-[selected]:border-[var(--color-border-focus)]
+                data-[selected]:ring-1
+                data-[selected]:ring-[var(--color-border-focus)]
+                data-[selected]:ring-offset-1
+                data-[selected]:ring-offset-[var(--color-surface-default)]
+              `}
+            >
+              <PresetLabel index={index} />
+            </Tab>
+          ))}
         </TabList>
         <SplitViewToggle />
       </div>
 
-      <div className="relative flex flex-col h-full overflow-auto pb-60">
-        {/* Scrollview */}
+      <div className="relative flex flex-col flex-1 min-h-0 overflow-y-auto pb-60">
+        {/* Scrollable content */}
         {children}
       </div>
     </Tabs>
   );
 }
+
+const emptyObj = {};
 
 export const PresetLabel = ({ index }: { index: number }) => {
   const layersStates = useViewerStore(select.layersStates);
@@ -102,58 +81,50 @@ export const PresetLabel = ({ index }: { index: number }) => {
   const layersState = layersStates[index];
   const presetChannelsOpacity = layersState?.channelsOpacity ?? 1;
 
-  const colors = Object.entries(layersState?.channels ?? obj)
+  const colors = Object.entries(layersState?.channels ?? emptyObj)
     .filter(([, { isVisible }]) => isVisible)
     .map(([, config]) => rgb(config.color, presetChannelsOpacity));
 
   // Flatten overlays to CellMarker[]
-  const visibleOverlays = Object.values(layersState?.overlays ?? obj)
+  const visibleOverlays = Object.values(layersState?.overlays ?? emptyObj)
     .flatMap((overlayState) => Object.values(overlayState))
     .filter((marker) => marker.isVisible);
 
-  const background =
-    colors.length > 0
-      ? `linear-gradient(-45deg, ${colors.join(", ")})`
-      : "transparent";
-
   return (
-    <div
-      className={`
-        relative flex items-center justify-center w-full h-full
-      `}
-      style={{ background }}
-    >
+    <div className="relative flex flex-col justify-between w-full h-full">
+      {/* Number badge */}
       <span
         className={`
-                      absolute top-0 left-0 p-0.5
-                      flex grow items-center justify-center
-                      text-xs font-semibold
-                      rounded-br-sm rounded-tr-sm
-
-                      bg-[var(--color-border-strong)]
-                      group-data-[selected]/tab:bg-[var(--color-text-secondary)]
-                    `}
+          absolute top-0 left-0 px-1 py-px
+          text-[10px] font-bold leading-tight
+          text-[var(--color-text-secondary)]
+          group-data-[selected]/tab:text-[var(--color-text-primary)]
+        `}
       >
         {index + 1}
       </span>
 
-      {/* dots for each enabled overlay state */}
+      {/* Overlay indicator dots */}
       {visibleOverlays.length > 0 && (
-        <div className="absolute bottom-0.5 right-0.5">
+        <div className="absolute top-0.5 right-0.5 flex gap-px">
           {visibleOverlays.slice(0, 4).map((marker, i) => (
             <div
               key={i}
-              className={`
-                            absolute bottom-0 right-0 
-                            w-2 h-2 rounded-full
-                            border border-white 
-                            
-                          `}
-              style={{
-                backgroundColor: rgb(marker.color, 1),
-                right: i * 6,
-                bottom: 2,
-              }}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: rgb(marker.color, 1) }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Color bars at bottom showing active channels */}
+      {colors.length > 0 && (
+        <div className="mt-auto flex w-full">
+          {colors.map((color, i) => (
+            <div
+              key={i}
+              className="h-1.5 flex-1"
+              style={{ backgroundColor: color }}
             />
           ))}
         </div>

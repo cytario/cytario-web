@@ -13,10 +13,15 @@ export function ChannelsController() {
   const setIsExpanded = useFeatureBarStore((state) => state.setIsExpanded);
   const channelsOpacity = useViewerStore(select.channelsOpacity);
   const setChannelsOpacity = useViewerStore(select.setChannelsOpacity);
+  const visibleChannelCount = useViewerStore(select.visibleChannelCount);
+  const channelIds = useViewerStore(select.channelIds);
+
+  const badge = `${visibleChannelCount}/${channelIds.length}`;
 
   return (
     <FeatureItem
       title="Channels"
+      badge={badge}
       header={<Histogram />}
       sliderValue={channelsOpacity}
       onSliderChange={setChannelsOpacity}

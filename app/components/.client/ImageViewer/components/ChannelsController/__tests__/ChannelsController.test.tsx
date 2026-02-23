@@ -148,21 +148,26 @@ describe("ChannelsController", () => {
 
   test("selects a channel when clicked", () => {
     renderWithTabs();
-    const greenChannel = screen.getByText("Green").closest("div");
-    expect(greenChannel).toBeInTheDocument();
+    // Click the text element — React Aria Radio picks up the click on its children
+    const greenText = screen.getByText("Green");
+    expect(greenText).toBeInTheDocument();
 
-    if (greenChannel) {
-      fireEvent.click(greenChannel);
-      expect(mockSetSelectedChannelId).toHaveBeenCalledWith("Green");
-      expect(mockSetChannelVisibility).toHaveBeenCalledWith("Green", true);
-    }
+    fireEvent.click(greenText);
+    expect(mockSetSelectedChannelId).toHaveBeenCalledWith("Green");
+    expect(mockSetChannelVisibility).toHaveBeenCalledWith("Green", true);
+  });
+
+  test("renders channel count badge", () => {
+    renderWithTabs();
+    // Badge shows visible/total channel count
+    expect(screen.getByText("1/2")).toBeInTheDocument();
   });
 
   test("renders switches for channel visibility", () => {
     renderWithTabs();
     const switches = screen.getAllByRole("switch");
 
-    // Should have switches for Red and Green channels (2), plus FeatureItem toggle (1)
+    // Should have switches for Red and Green channels (2)
     expect(switches.length).toBeGreaterThanOrEqual(2);
   });
 });
