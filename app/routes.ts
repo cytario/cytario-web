@@ -40,20 +40,26 @@ const protectedRoutes = [
       path: "/buckets/:provider/:bucketName/*",
       file: "routes/objects.route.tsx",
     },
-    {
-      path: "/admin/users",
-      file: "routes/admin/users/users.route.tsx",
-      children: [
-        {
-          path: "invite",
-          file: "routes/admin/inviteUser/inviteUser.modal.tsx",
-        },
-        {
-          path: ":userId",
-          file: "routes/admin/updateUser/updateUser.modal.tsx",
-        },
-      ],
-    },
+    layout("routes/admin/admin.layout.tsx", [
+      {
+        path: "/admin/users",
+        file: "routes/admin/users/users.route.tsx",
+        children: [
+          {
+            path: "invite",
+            file: "routes/admin/inviteUser/inviteUser.modal.tsx",
+          },
+          {
+            path: ":userId",
+            file: "routes/admin/updateUser/updateUser.modal.tsx",
+          },
+        ],
+      },
+      {
+        path: "/admin/groups",
+        file: "routes/admin/groups/groups.route.tsx",
+      },
+    ]),
   ]),
 ];
 

@@ -5,6 +5,7 @@ import {
   Link,
   Outlet,
   useLoaderData,
+  useSearchParams,
 } from "react-router";
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
@@ -12,9 +13,8 @@ import {
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
-import { Container, Section } from "~/components/Container";
+import { Container } from "~/components/Container";
 import { ButtonLink, Checkbox } from "~/components/Controls";
-import { H1 } from "~/components/Fonts";
 import { Placeholder } from "~/components/Placeholder";
 import {
   type CellRenderers,
@@ -22,7 +22,7 @@ import {
   Table,
 } from "~/components/Table/Table";
 
-export const meta: MetaFunction = () => [{ title: "Admin" }];
+export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
 
 export const middleware = [authMiddleware];
 
@@ -44,71 +44,57 @@ interface UserRow {
   name: string;
   email: string;
   enabled: boolean;
+  groups: string;
   _userId: string;
   _scope: string;
   _groupPaths: Set<string>;
   [key: string]: unknown;
 }
 
-function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
-  return [
-    {
-      id: "name",
-      header: "Name",
-      size: 200,
-      enableSorting: true,
-      anchor: true,
-      enableColumnFilter: true,
-      filterType: "text",
-    },
-    {
-      id: "email",
-      header: "Email",
-      size: 250,
-      enableSorting: true,
-      enableColumnFilter: true,
-      filterType: "text",
-    },
-    {
-      id: "enabled",
-      header: "Enabled",
-      size: 120,
-      enableResizing: true,
-      enableSorting: true,
-      sortingFn: "boolean" as const,
-    },
-    ...groups.map((g) => ({
-      id: `group-${g.id}`,
-      header: g.path,
-      size: 120,
-      enableResizing: true,
-      enableSorting: true,
-      sortingFn: "boolean" as const,
-    })),
-  ];
-}
+const columns: ColumnConfig[] = [
+  {
+    id: "name",
+    header: "Name",
+    size: 200,
+    enableSorting: true,
+    anchor: true,
+    enableColumnFilter: true,
+    filterType: "text",
+  },
+  {
+    id: "email",
+    header: "Email",
+    size: 250,
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterType: "text",
+  },
+  {
+    id: "enabled",
+    header: "Enabled",
+    size: 100,
+    enableSorting: true,
+    sortingFn: "boolean" as const,
+  },
+  {
+    id: "groups",
+    header: "Groups",
+    size: 300,
+    enableSorting: true,
+  },
+];
 
-function buildCellRenderers(groups: GroupInfo[]): CellRenderers<UserRow> {
-  const renderers: CellRenderers<UserRow> = {
-    name: (row) => (
-      <Link
-        to={`${row._userId}?scope=${encodeURIComponent(row._scope)}`}
-        className="text-cytario-turquoise-700 hover:underline"
-      >
-        {row.name}
-      </Link>
-    ),
-    enabled: (row) => <Checkbox checked={row.enabled} disabled />,
-  };
-
-  groups.forEach((group) => {
-    renderers[`group-${group.id}`] = (row) => (
-      <Checkbox checked={row._groupPaths.has(group.path)} disabled />
-    );
-  });
-
-  return renderers;
-}
+const cellRenderers: CellRenderers<UserRow> = {
+  name: (row) => (
+    <Link
+      to={`${row._userId}?scope=${encodeURIComponent(row._scope)}`}
+      className="text-cytario-turquoise-700 hover:underline"
+    >
+      {row.name}
+    </Link>
+  ),
+  enabled: (row) => <Checkbox checked={row.enabled} disabled />,
+};
 
 export default function AdminUsersRoute() {
   const { scope, users, groups } = useLoaderData<{
@@ -117,34 +103,51 @@ export default function AdminUsersRoute() {
     groups: GroupInfo[];
   }>();
 
-  const columns = useMemo(() => buildMatrixColumns(groups), [groups]);
-
-  const cellRenderers = useMemo(() => buildCellRenderers(groups), [groups]);
+  const [searchParams] = useSearchParams();
+  const groupFilter = searchParams.get("group");
 
   const data: UserRow[] = useMemo(
     () =>
-      users.map(({ user, groupPaths }) => {
-        const row: UserRow = {
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email ?? "",
-          enabled: user.enabled,
-          _userId: user.id,
-          _scope: scope,
-          _groupPaths: groupPaths,
-        };
-        groups.forEach((group) => {
-          row[`group-${group.id}`] = groupPaths.has(group.path);
-        });
-        return row;
-      }),
-    [users, groups, scope],
+      users.map(({ user, groupPaths }) => ({
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email ?? "",
+        enabled: user.enabled,
+        groups: [...groupPaths]
+          .filter((p) => !p.endsWith("/admins"))
+          .join(", "),
+        _userId: user.id,
+        _scope: scope,
+        _groupPaths: groupPaths,
+      })),
+    [users, scope],
   );
 
+  const filteredData = groupFilter
+    ? data.filter((row) => row._groupPaths.has(groupFilter))
+    : data;
+
   return (
-    <Section>
+    <>
       <Container>
-        <div className="flex items-center justify-between mb-6">
-          <H1 className="font-bold text-2xl">{scope}</H1>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {groupFilter && (
+              <>
+                <span className="text-sm text-slate-600">
+                  Filtered by group:
+                </span>
+                <span className="text-sm font-medium bg-slate-100 px-2 py-0.5 rounded">
+                  {groupFilter}
+                </span>
+                <Link
+                  to={`/admin/users?scope=${encodeURIComponent(scope)}`}
+                  className="text-sm text-cytario-turquoise-700 hover:underline"
+                >
+                  Clear
+                </Link>
+              </>
+            )}
+          </div>
           <ButtonLink
             to={`invite?scope=${encodeURIComponent(scope)}`}
             theme="primary"
@@ -153,31 +156,37 @@ export default function AdminUsersRoute() {
           </ButtonLink>
         </div>
       </Container>
-      {users.length > 0 ? (
+      {filteredData.length > 0 ? (
         <div className="overflow-x-auto">
           <Table
             columns={columns}
-            data={data}
+            data={filteredData}
             cellRenderers={cellRenderers}
-            tableId={`admin-matrix-${scope}`}
+            tableId={`admin-users-${scope}`}
           />
         </div>
       ) : (
         <Placeholder
           icon="Users"
-          title="No users yet"
-          description="Invite team members to get started."
+          title="No users found"
+          description={
+            groupFilter
+              ? "No users in this group."
+              : "Invite team members to get started."
+          }
           cta={
-            <ButtonLink
-              to={`invite?scope=${encodeURIComponent(scope)}`}
-              theme="primary"
-            >
-              Invite User
-            </ButtonLink>
+            !groupFilter ? (
+              <ButtonLink
+                to={`invite?scope=${encodeURIComponent(scope)}`}
+                theme="primary"
+              >
+                Invite User
+              </ButtonLink>
+            ) : undefined
           }
         />
       )}
       <Outlet context={{ scope, users, groups }} />
-    </Section>
+    </>
   );
 }
