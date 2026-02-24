@@ -24,6 +24,7 @@ interface ColumnSizing {
 interface ColumnDisplay {
   align?: "left" | "right" | "center";
   monospace?: boolean;
+  ellipsis?: "left" | "middle" | "right";
 }
 
 // Filtering props

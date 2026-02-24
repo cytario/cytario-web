@@ -1,39 +1,79 @@
-import {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { ReactNode, useRef } from "react";
 
 import { Tooltip } from "./Tooltip";
+import { useMiddleEllipsis } from "./useMiddleEllipsis";
+import { useOverflowDetection } from "./useOverflowDetection";
 
-export const TooltipSpan = ({ children }: { children: ReactNode }) => {
+type EllipsisMode = "left" | "middle" | "right";
+
+interface TooltipSpanProps {
+  children: ReactNode;
+  ellipsis?: EllipsisMode;
+}
+
+const spanCx = "truncate overflow-hidden whitespace-nowrap block min-w-0 w-full";
+
+// ─── Right (default): pure CSS truncation ───────────────────────────
+
+const RightEllipsis = ({ children }: { children: ReactNode }) => {
   const ref = useRef<HTMLSpanElement>(null);
-  const [isTruncated, setIsTruncated] = useState(false);
+  const isTruncated = useOverflowDetection(ref);
 
-  const checkTruncation = useCallback(() => {
-    if (ref.current) {
-      setIsTruncated(ref.current.scrollWidth > ref.current.offsetWidth);
-    }
-  }, []);
+  return (
+    <Tooltip content={isTruncated ? children : null}>
+      <span ref={ref} className={spanCx}>
+        {children}
+      </span>
+    </Tooltip>
+  );
+};
 
-  useLayoutEffect(checkTruncation, [checkTruncation]);
+// ─── Left: CSS direction trick ──────────────────────────────────────
 
-  useEffect(() => {
-    window.addEventListener("resize", checkTruncation);
-    return () => window.removeEventListener("resize", checkTruncation);
-  }, [checkTruncation]);
+const LeftEllipsis = ({ children }: { children: ReactNode }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isTruncated = useOverflowDetection(ref);
 
   return (
     <Tooltip content={isTruncated ? children : null}>
       <span
         ref={ref}
-        className="truncate overflow-hidden whitespace-nowrap block min-w-0 w-full"
+        className={spanCx}
+        style={{ direction: "rtl", textAlign: "left" }}
       >
-        {children}
+        <bdi>{children}</bdi>
       </span>
     </Tooltip>
   );
+};
+
+// ─── Middle: JS-based truncation ────────────────────────────────────
+
+const MiddleEllipsisString = ({ text }: { text: string }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const displayed = useMiddleEllipsis(ref, text);
+  const isTruncated = displayed !== text;
+
+  return (
+    <Tooltip content={isTruncated ? text : null}>
+      <span
+        ref={ref}
+        className="overflow-hidden whitespace-nowrap block min-w-0 w-full"
+      >
+        {displayed}
+      </span>
+    </Tooltip>
+  );
+};
+
+// ─── Public component ───────────────────────────────────────────────
+
+export const TooltipSpan = ({
+  children,
+  ellipsis = "right",
+}: TooltipSpanProps) => {
+  if (ellipsis === "left") return <LeftEllipsis>{children}</LeftEllipsis>;
+  if (ellipsis === "middle" && typeof children === "string")
+    return <MiddleEllipsisString text={children} />;
+  return <RightEllipsis>{children}</RightEllipsis>;
 };

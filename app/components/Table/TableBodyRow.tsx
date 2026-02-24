@@ -41,6 +41,7 @@ export function TableBodyRow({
           "px-4 py-2",
           isIndexColumn ? "text-right" : alignClass,
           (columnConfig?.monospace || isRight || isIndexColumn) && "tabular-nums",
+          !columnConfig?.anchor && !isIndexColumn && "text-sm",
         );
 
         const style = {
@@ -49,18 +50,26 @@ export function TableBodyRow({
           maxWidth: cell.column.getSize(),
         };
 
-        // For index column, use visual row number instead of stored index
+        // For index column, use visual row number instead of stored index.
+        // For middle ellipsis, pass the raw string value so TooltipSpan
+        // can do JS-based truncation (flexRender wraps values in React elements).
+        const rawValue = cell.getValue();
+        const useRawString =
+          columnConfig?.ellipsis === "middle" && typeof rawValue === "string";
+
         const content = isIndexColumn
           ? rowIndex + 1
-          : flexRender(cell.column.columnDef.cell, cell.getContext());
+          : useRawString
+            ? rawValue
+            : flexRender(cell.column.columnDef.cell, cell.getContext());
 
         return isIndexColumn ? (
           <th key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan>{content}</TooltipSpan>
+            <TooltipSpan ellipsis={columnConfig?.ellipsis}>{content}</TooltipSpan>
           </th>
         ) : (
           <td key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan>{content}</TooltipSpan>
+            <TooltipSpan ellipsis={columnConfig?.ellipsis}>{content}</TooltipSpan>
           </td>
         );
       })}

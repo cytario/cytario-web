@@ -6,6 +6,7 @@ import {
   Outlet,
   useLoaderData,
 } from "react-router";
+import { twMerge } from "tailwind-merge";
 
 import type { GroupTreeNode } from "./users.loader";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
@@ -45,7 +46,7 @@ interface UserRow {
   name: string;
   userId: string;
   email: string;
-  enabled: boolean;
+  enabled: string;
   groups: string;
   _scope: string;
   [key: string]: unknown;
@@ -84,6 +85,7 @@ function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
       filterType: "text",
       defaultVisible: false,
       monospace: true,
+      ellipsis: "middle",
     },
     {
       id: "email",
@@ -92,13 +94,14 @@ function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
       enableSorting: true,
       enableColumnFilter: true,
       filterType: "text",
+      ellipsis: "middle",
     },
     {
       id: "enabled",
       header: "Enabled",
       size: 120,
       enableSorting: true,
-      sortingFn: "boolean" as const,
+      sortingFn: "alphanumeric" as const,
       enableColumnFilter: true,
       filterType: "select",
       filterOptions: [
@@ -149,12 +152,12 @@ const cellRenderers: CellRenderers<UserRow> = {
   enabled: (row) => (
     <span
       className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
-        row.enabled
+        row.enabled === "true"
           ? "bg-green-100 text-green-700"
           : "bg-slate-100 text-slate-500"
       }`}
     >
-      {row.enabled ? "Active" : "Disabled"}
+      {row.enabled === "true" ? "Active" : "Disabled"}
     </span>
   ),
   groups: (row) => (
@@ -169,18 +172,33 @@ const cellRenderers: CellRenderers<UserRow> = {
           return (
             <div
               key={path}
-              className={`
-              px-1 py-0.5 text-xs font-medium rounded-full
-              flex gap-1 
-              bg-white 
-              border text-slate-900
-              
-              `}
+              className={twMerge(
+                "flex text-xs font-medium rounded-full",
+                "bg-white",
+              )}
             >
               {Array.from({ length: depth }, (_, i) => (
-                <div key={i} className="w-4 h-4 rounded-full border" />
+                <div
+                  key={i}
+                  className={twMerge(
+                    "w-5 h-5 rounded-full border-2",
+                    "border-white",
+                    groupColorClass(leaf ?? ""),
+                  )}
+                />
               ))}
-              <span className={`px-1 rounded-full ${groupColorClass(leaf ?? "")}`}>{leaf}</span>
+              <span
+                className={twMerge(
+                  `
+                  min-h-5
+                  px-2 rounded-full 
+                  border-2 `,
+                  "border-white",
+                  groupColorClass(leaf ?? ""),
+                )}
+              >
+                {leaf}
+              </span>
             </div>
           );
         })}
@@ -210,7 +228,7 @@ export default function AdminUsersRoute() {
         name: `${user.firstName} ${user.lastName}`,
         userId: user.id,
         email: user.email ?? "",
-        enabled: user.enabled,
+        enabled: String(user.enabled),
         groups: [...groupPaths]
           .filter((p) => !p.endsWith("/admins"))
           .join(", "),
