@@ -1,0 +1,28 @@
+export const baseStyle = `
+  flex w-full border rounded-sm
+  transition duration-100 ease-in
+  disabled:opacity-50 disabled:cursor-not-allowed
+`;
+
+export const heightStyles = {
+  small: "h-6",
+  medium: "h-8",
+  large: "h-12",
+};
+
+export const textStyles = {
+  small: "text-sm",
+  medium: "text-base",
+  large: "text-lg",
+};
+
+export const sizeStyles = {
+  small: "h-6 px-2 text-sm",
+  medium: "h-8 px-2 text-base",
+  large: "h-12 px-2 text-lg",
+};
+
+export const themes = {
+  dark: "bg-slate-950 border-slate-500 text-slate-300",
+  light: "bg-white border-slate-300 text-slate-700",
+};

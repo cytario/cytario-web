@@ -38,13 +38,9 @@ export function TableHeaderRow({
         const isSorted = header.column.getIsSorted();
 
         const cx = twMerge(
-          "relative pl-4 pr-4 group/header text-sm color-rose-400 align-top",
-          isIndexColumn
-            ? "text-right"
-            : `text-${columnConfig?.align ?? "left"}`,
-          columnConfig?.monospace && "tabular-nums",
-          isIndexColumn && "tabular-nums",
-          !isIndexColumn && isSorted && "font-semibold",
+          "relative pl-4 pr-4 group/header text-sm align-top",
+          `text-${columnConfig?.align ?? "left"}`,
+          isIndexColumn && "text-right tabular-nums",
         );
 
         const style = {
@@ -63,7 +59,7 @@ export function TableHeaderRow({
                 tableId={tableId}
               />
             ) : header.isPlaceholder ? null : (
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 pb-1">
                 {header.column.getCanSort() ? (
                   <button
                     type="button"
@@ -74,7 +70,7 @@ export function TableHeaderRow({
                       text-left
                       hover:text-slate-700
                     `,
-                      isSorted ? " text-slate-700" : " text-slate-500",
+                      isSorted ? " text-slate-900" : " text-slate-500",
                     )}
                     onClick={
                       header.column.getToggleSortingHandler() ?? undefined

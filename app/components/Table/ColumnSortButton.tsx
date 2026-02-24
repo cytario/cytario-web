@@ -29,5 +29,11 @@ export const ColumnSortButton = ({
     );
   }
 
-  return null;
+  return (
+    <Icon
+      icon="ChevronDown"
+      size={14}
+      className="shrink-0 opacity-0 group-hover/header:opacity-100 text-slate-300"
+    />
+  );
 };

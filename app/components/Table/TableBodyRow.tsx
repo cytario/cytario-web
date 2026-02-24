@@ -31,7 +31,7 @@ export function TableBodyRow({
         const columnConfig = columns.find((col) => col.id === cell.column.id);
 
         const cxCell = twMerge(
-          "px-2 pr-4",
+          "px-4",
           isIndexColumn
             ? "text-right"
             : `text-${columnConfig?.align ?? "left"}`,

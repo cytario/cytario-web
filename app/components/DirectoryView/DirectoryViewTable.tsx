@@ -22,7 +22,15 @@ interface BucketRow {
 }
 
 const bucketColumns: ColumnConfig[] = [
-  { id: "name", header: "Name", size: 420, enableSorting: true, anchor: true },
+  {
+    id: "name",
+    header: "Name",
+    size: 420,
+    enableSorting: true,
+    anchor: true,
+    enableColumnFilter: true,
+    filterType: "text",
+  },
   {
     id: "provider",
     header: "Provider",
