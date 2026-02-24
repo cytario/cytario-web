@@ -14,7 +14,7 @@ interface TooltipSpanProps {
 }
 
 const spanCx = "truncate overflow-hidden whitespace-nowrap block min-w-0 w-full";
-const copyCx = "hover:bg-black/10 transition-colors";
+const copyCx = "hover:bg-black/10 transition-colors -mx-1 px-1 rounded";
 
 const leftStyle: CSSProperties = { direction: "rtl", textAlign: "left" };
 
@@ -26,7 +26,7 @@ const handleCopyKeyDown = (handleClick: () => void) => (e: KeyboardEvent) => {
 };
 
 const CopiedOverlay = () => (
-  <span className="absolute inset-0 flex items-center text-gray-400 text-xs pointer-events-none">
+  <span className="absolute inset-0 flex items-center px-1 text-gray-400 pointer-events-none">
     Copied
   </span>
 );
