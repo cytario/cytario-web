@@ -46,25 +46,69 @@ interface UserRow {
   userId: string;
   email: string;
   enabled: string;
+  adminGroups: string;
   groups: string;
   _scope: string;
   [key: string]: unknown;
 }
 
+function buildGroupColumn(
+  id: string,
+  header: string,
+  allGroups: GroupInfo[],
+  counts: Map<string, number>,
+  totalCount: number,
+  { pillVisibleCount, ...extra }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
+): ColumnConfig {
+  const options = [
+    { label: "All", value: "" },
+    ...allGroups.map((g) => ({ label: g.path, value: g.path })),
+  ];
+
+  return {
+    id,
+    header,
+    size: 300,
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterType: "select",
+    filterOptions: options,
+    filterFn: (row, columnId, filterValue) => {
+      const paths = row.getValue<string>(columnId).split(", ");
+      return paths.includes(filterValue);
+    },
+    filterRender: (option) => {
+      const count = option.value
+        ? counts.get(option.value) ?? 0
+        : totalCount;
+      const pill = option.value ? (
+        <GroupPill path={option.value} visibleCount={pillVisibleCount} />
+      ) : (
+        <span className="h-5 px-2 rounded-full border-2 border-white bg-slate-100 text-slate-500 text-xs font-medium">
+          All
+        </span>
+      );
+      return (
+        <span className="flex w-full items-center justify-between gap-2">
+          {pill}
+          <span className="rounded-full bg-slate-100 text-slate-500 px-1.5 text-xs tabular-nums">
+            {count}
+          </span>
+        </span>
+      );
+    },
+    ...extra,
+  };
+}
+
 function buildColumns(
   groups: GroupInfo[],
-  scope: string,
   groupCounts: Map<string, number>,
+  adminGroupCounts: Map<string, number>,
   totalCount: number,
 ): ColumnConfig[] {
   const nonAdminGroups = groups.filter((g) => !g.isAdmin);
-  const scopeGroup = nonAdminGroups.find((g) => g.path === scope);
-  const groupOptions = [
-    { label: scopeGroup?.path ?? scope, value: "" },
-    ...nonAdminGroups
-      .filter((g) => g.path !== scope)
-      .map((g) => ({ label: g.path, value: g.path })),
-  ];
+  const adminGroups = groups.filter((g) => g.isAdmin);
 
   return [
     {
@@ -112,32 +156,21 @@ function buildColumns(
         { label: "Disabled", value: "false" },
       ],
     },
-    {
-      id: "groups",
-      header: "Groups",
-      size: 300,
-      enableSorting: true,
-      enableColumnFilter: true,
-      filterType: "select",
-      filterOptions: groupOptions,
-      filterFn: (row, columnId, filterValue) => {
-        const paths = row.getValue<string>(columnId).split(", ");
-        return paths.includes(filterValue);
-      },
-      filterRender: (option) => {
-        const count = option.value
-          ? groupCounts.get(option.value) ?? 0
-          : totalCount;
-        return (
-          <span className="flex w-full items-center justify-between gap-2">
-            <GroupPill path={option.value || option.label} />
-            <span className="rounded-full bg-slate-100 text-slate-500 px-1.5 text-xs tabular-nums">
-              {count}
-            </span>
-          </span>
-        );
-      },
-    },
+    buildGroupColumn(
+      "adminGroups",
+      "Admin Groups",
+      adminGroups,
+      adminGroupCounts,
+      totalCount,
+      { defaultVisible: false, pillVisibleCount: 2 },
+    ),
+    buildGroupColumn(
+      "groups",
+      "Groups",
+      nonAdminGroups,
+      groupCounts,
+      totalCount,
+    ),
   ];
 }
 
@@ -160,6 +193,16 @@ const cellRenderers: CellRenderers<UserRow> = {
     >
       {row.enabled === "true" ? "Active" : "Disabled"}
     </span>
+  ),
+  adminGroups: (row) => (
+    <div className="flex flex-wrap gap-1">
+      {row.adminGroups
+        .split(", ")
+        .filter(Boolean)
+        .map((path) => (
+          <GroupPill key={path} path={path} visibleCount={2} />
+        ))}
+    </div>
   ),
   groups: (row) => (
     <div className="flex flex-wrap gap-1">
@@ -189,6 +232,9 @@ export default function AdminUsersRoute() {
         userId: user.id,
         email: user.email ?? "",
         enabled: String(user.enabled),
+        adminGroups: [...groupPaths]
+          .filter((p) => p.endsWith("/admins"))
+          .join(", "),
         groups: [...groupPaths]
           .filter((p) => !p.endsWith("/admins"))
           .join(", "),
@@ -207,9 +253,19 @@ export default function AdminUsersRoute() {
     return counts;
   }, [data]);
 
+  const adminGroupCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of data) {
+      for (const path of row.adminGroups.split(", ").filter(Boolean)) {
+        counts.set(path, (counts.get(path) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [data]);
+
   const columns = useMemo(
-    () => buildColumns(groups, scope, groupCounts, data.length),
-    [groups, scope, groupCounts, data.length],
+    () => buildColumns(groups, groupCounts, adminGroupCounts, data.length),
+    [groups, groupCounts, adminGroupCounts, data.length],
   );
 
   return (

@@ -21,39 +21,43 @@ function groupColorClass(name: string): string {
 
 interface GroupPillProps {
   path: string;
+  visibleCount?: number;
 }
 
-export function GroupPill({ path }: GroupPillProps) {
-  const segments = path.split("/");
-  const leaf = segments.at(-1) ?? "";
-  const parents = segments.slice(0, -1);
-  const depth = parents.length;
+export function GroupPill({ path, visibleCount = 1 }: GroupPillProps) {
+  const segments = path.split("/").filter(Boolean);
+  const dotCount = Math.max(0, segments.length - visibleCount);
+  const dotSegments = segments.slice(0, dotCount);
+  const visibleSegments = segments.slice(dotCount);
 
   return (
-    <div className="relative" style={{ marginLeft: depth * 6 }}>
-      {parents.map((_, i) => {
-        const ancestorName = segments[depth - 1 - i];
+    <div className="relative flex" style={{ marginLeft: dotCount * 6 }}>
+      {dotSegments.map((_, i) => {
+        const name = dotSegments[dotCount - 1 - i];
         return (
           <div
             key={i}
             className={twMerge(
               "absolute top-0 h-5 w-5 rounded-full border-2 border-white",
-              groupColorClass(ancestorName),
+              groupColorClass(name),
             )}
-            style={{ left: -(i + 1) * 6, zIndex: depth - i }}
+            style={{ left: -(i + 1) * 6, zIndex: dotCount - i }}
           />
         );
       })}
-      <div
-        className={twMerge(
-          "relative h-5 px-2 rounded-full border-2 text-xs font-medium",
-          "border-white",
-          groupColorClass(leaf),
-        )}
-        style={{ zIndex: depth + 1 }}
-      >
-        {leaf}
-      </div>
+      {visibleSegments.map((segment, i) => (
+        <div
+          key={segment}
+          className={twMerge(
+            "relative h-5 rounded-full border-2 text-xs font-medium border-white",
+            groupColorClass(segment),
+            i === 0 ? "px-2" : "-ml-1 pl-2.5 pr-2",
+          )}
+          style={{ zIndex: dotCount + i + 1 }}
+        >
+          {segment}
+        </div>
+      ))}
     </div>
   );
 }
