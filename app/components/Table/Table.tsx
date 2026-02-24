@@ -69,7 +69,9 @@ export function Table<TData extends Record<string, unknown>>({
         enableResizing: colConfig.enableResizing !== false,
         enableSorting: colConfig.enableSorting ?? false,
         enableColumnFilter: colConfig.enableColumnFilter ?? false,
-        filterFn: colConfig.filterFn,
+        ...(colConfig.filterFn && {
+          filterFn: colConfig.filterFn as typeof colConfig.filterFn & {},
+        }),
         sortingFn:
           colConfig.sortingFn === "boolean"
             ? booleanSortingFn
