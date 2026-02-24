@@ -1,12 +1,11 @@
 import { Row, flexRender } from "@tanstack/react-table";
 import { twMerge } from "tailwind-merge";
 
-import { TableRowData } from "./Table";
 import { ColumnConfig } from "./types";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableBodyRowProps {
-  row: Row<TableRowData>;
+  row: Row<unknown>;
   rowIndex: number;
   columns: ColumnConfig[];
   className?: string;

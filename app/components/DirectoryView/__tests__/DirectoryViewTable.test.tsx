@@ -15,6 +15,8 @@ vi.mock("~/utils/connectionsStore", () => ({
           endpoint: "",
           region: "eu-central-1",
           roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
+          ownerScope: "cytario",
+          createdBy: "admin@cytario.com",
         },
       },
       "minio/minio-bucket": {
@@ -24,6 +26,8 @@ vi.mock("~/utils/connectionsStore", () => ({
           endpoint: "https://s3.cytar.io",
           region: null,
           roleArn: null,
+          ownerScope: "cytario/lab",
+          createdBy: "lab@cytario.com",
         },
       },
     };
@@ -50,7 +54,7 @@ describe("DirectoryViewTable", () => {
       },
     ];
 
-    test("renders bucket columns: Name, Provider, Endpoint, Region, RoleARN", () => {
+    test("renders bucket columns: Name, Provider, Endpoint, Region, Scope, Created By", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
@@ -60,12 +64,14 @@ describe("DirectoryViewTable", () => {
 
       render(<RemixStub initialEntries={["/"]} />);
 
-      // Check column headers
       expect(screen.getByText("Name")).toBeInTheDocument();
       expect(screen.getByText("Provider")).toBeInTheDocument();
       expect(screen.getByText("Endpoint")).toBeInTheDocument();
       expect(screen.getByText("Region")).toBeInTheDocument();
-      expect(screen.getByText("RoleARN")).toBeInTheDocument();
+      expect(screen.getByText("Scope")).toBeInTheDocument();
+      expect(screen.getByText("Created By")).toBeInTheDocument();
+      // RoleARN is hidden by default
+      expect(screen.queryByText("RoleARN")).not.toBeInTheDocument();
     });
 
     test("renders bucket data with provider and endpoint", () => {
@@ -78,18 +84,17 @@ describe("DirectoryViewTable", () => {
 
       render(<RemixStub initialEntries={["/"]} />);
 
-      // Check AWS bucket data
+      // Check bucket names
       expect(screen.getByText("my-aws-bucket")).toBeInTheDocument();
-      expect(screen.getByText("aws")).toBeInTheDocument();
-      expect(screen.getByText("eu-central-1")).toBeInTheDocument();
-      expect(
-        screen.getByText("arn:aws:iam::123456789:role/S3AccessRole")
-      ).toBeInTheDocument();
-
-      // Check MinIO bucket data
       expect(screen.getByText("minio-bucket")).toBeInTheDocument();
-      expect(screen.getByText("minio")).toBeInTheDocument();
-      expect(screen.getByText("https://s3.cytar.io")).toBeInTheDocument();
+
+      // Provider values appear in both data cells and select filter options
+      expect(screen.getAllByText("aws").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("minio").length).toBeGreaterThanOrEqual(1);
+
+      // Region and endpoint values may also appear in select filter options
+      expect(screen.getAllByText("eu-central-1").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("https://s3.cytar.io").length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -135,7 +140,6 @@ describe("DirectoryViewTable", () => {
 
       render(<RemixStub initialEntries={["/"]} />);
 
-      // Check column headers
       expect(screen.getByText("Name")).toBeInTheDocument();
       expect(screen.getByText("Last Modified")).toBeInTheDocument();
       expect(screen.getByText("Size")).toBeInTheDocument();
@@ -189,11 +193,9 @@ describe("DirectoryViewTable", () => {
 
       render(<RemixStub initialEntries={["/"]} />);
 
-      // Directory views use the same columns as file views
       expect(screen.getByText("Name")).toBeInTheDocument();
       expect(screen.getByText("Last Modified")).toBeInTheDocument();
       expect(screen.getByText("Size")).toBeInTheDocument();
-      // Bucket columns should NOT be present
       expect(screen.queryByText("Provider")).not.toBeInTheDocument();
     });
 

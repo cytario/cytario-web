@@ -1,11 +1,9 @@
 import { Header } from "@tanstack/react-table";
 
-import { TableRowData } from "./Table";
-
 export const ColumnResizeHandle = ({
   header,
 }: {
-  header: Header<TableRowData, unknown>;
+  header: Header<unknown, unknown>;
 }) => {
   return (
     <button
@@ -22,7 +20,7 @@ export const ColumnResizeHandle = ({
         flex justify-end
       `}
     >
-      <div className="w-0.5 h-full bg-slate-500" />
+      <div className="w-0.5 h-full bg-slate-100" />
     </button>
   );
 };

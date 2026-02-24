@@ -16,7 +16,11 @@ import { Container, Section } from "~/components/Container";
 import { ButtonLink, Checkbox } from "~/components/Controls";
 import { H1 } from "~/components/Fonts";
 import { Placeholder } from "~/components/Placeholder";
-import { type ColumnConfig, Table } from "~/components/Table/Table";
+import {
+  type CellRenderers,
+  type ColumnConfig,
+  Table,
+} from "~/components/Table/Table";
 
 export const meta: MetaFunction = () => [{ title: "Admin" }];
 
@@ -36,6 +40,16 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   );
 };
 
+interface UserRow {
+  name: string;
+  email: string;
+  status: boolean;
+  _userId: string;
+  _scope: string;
+  _groupPaths: Set<string>;
+  [key: string]: unknown;
+}
+
 function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
   return [
     {
@@ -43,12 +57,17 @@ function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
       header: "Name",
       size: 200,
       enableSorting: true,
+      anchor: true,
+      enableColumnFilter: true,
+      filterType: "text",
     },
     {
       id: "email",
       header: "Email",
       size: 250,
       enableSorting: true,
+      enableColumnFilter: true,
+      filterType: "text",
     },
     {
       id: "status",
@@ -65,6 +84,30 @@ function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
   ];
 }
 
+function buildCellRenderers(
+  groups: GroupInfo[],
+): CellRenderers<UserRow> {
+  const renderers: CellRenderers<UserRow> = {
+    name: (row) => (
+      <Link
+        to={`${row._userId}?scope=${encodeURIComponent(row._scope)}`}
+        className="text-cytario-turquoise-700 hover:underline"
+      >
+        {row.name}
+      </Link>
+    ),
+    status: (row) => <Checkbox checked={row.status} disabled />,
+  };
+
+  groups.forEach((group) => {
+    renderers[`group-${group.id}`] = (row) => (
+      <Checkbox checked={row._groupPaths.has(group.path)} disabled />
+    );
+  });
+
+  return renderers;
+}
+
 export default function AdminUsersRoute() {
   const { scope, users, groups } = useLoaderData<{
     scope: string;
@@ -74,26 +117,29 @@ export default function AdminUsersRoute() {
 
   const columns = useMemo(() => buildMatrixColumns(groups), [groups]);
 
-  const data = useMemo(() => {
-    return users.map(({ user, groupPaths }) => [
-      <Link
-        key={`name-${user.id}`}
-        to={`${user.id}?scope=${encodeURIComponent(scope)}`}
-        className="text-cytario-turquoise-700 hover:underline"
-      >
-        {user.firstName} {user.lastName}
-      </Link>,
-      user.email,
-      <Checkbox key={`status-${user.id}`} checked={user.enabled} disabled />,
-      ...groups.map((group) => (
-        <Checkbox
-          key={`${user.id}-${group.id}`}
-          checked={groupPaths.has(group.path)}
-          disabled
-        />
-      )),
-    ]);
-  }, [users, groups, scope]);
+  const cellRenderers = useMemo(
+    () => buildCellRenderers(groups),
+    [groups],
+  );
+
+  const data: UserRow[] = useMemo(
+    () =>
+      users.map(({ user, groupPaths }) => {
+        const row: UserRow = {
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email ?? "",
+          status: user.enabled,
+          _userId: user.id,
+          _scope: scope,
+          _groupPaths: groupPaths,
+        };
+        groups.forEach((group) => {
+          row[`group-${group.id}`] = groupPaths.has(group.path);
+        });
+        return row;
+      }),
+    [users, groups, scope],
+  );
 
   return (
     <Section>
@@ -113,6 +159,7 @@ export default function AdminUsersRoute() {
           <Table
             columns={columns}
             data={data}
+            cellRenderers={cellRenderers}
             tableId={`admin-matrix-${scope}`}
           />
         </div>

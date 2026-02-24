@@ -1,23 +1,33 @@
-import { HeaderGroup, flexRender } from "@tanstack/react-table";
+import {
+  HeaderGroup,
+  VisibilityState,
+  flexRender,
+} from "@tanstack/react-table";
 import { twMerge } from "tailwind-merge";
 
+import { ColumnFilterInput } from "./ColumnFilterInput";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { ColumnSortButton } from "./ColumnSortButton";
-import { TableRowData } from "./Table";
-import { TableResetButton } from "./TableResetButton";
+import { TableMenu } from "./TableMenu";
 import { ColumnConfig } from "./types";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableHeaderRowProps {
-  headerGroup: HeaderGroup<TableRowData>;
+  headerGroup: HeaderGroup<unknown>;
   columns: ColumnConfig[];
   tableId: string;
+  toggleableColumns: ColumnConfig[];
+  columnVisibility: VisibilityState;
+  toggleColumn: (columnId: string) => void;
 }
 
 export function TableHeaderRow({
   headerGroup,
   columns,
   tableId,
+  toggleableColumns,
+  columnVisibility,
+  toggleColumn,
 }: TableHeaderRowProps) {
   return (
     <tr key={headerGroup.id} className="w-full block">
@@ -25,13 +35,16 @@ export function TableHeaderRow({
         const columnConfig = columns.find((col) => col.id === header.id);
         const isIndexColumn = header.id === "index";
 
+        const isSorted = header.column.getIsSorted();
+
         const cx = twMerge(
-          "relative p-2 pr-4",
+          "relative pl-4 pr-4 group/header text-sm color-rose-400 align-top",
           isIndexColumn
             ? "text-right"
             : `text-${columnConfig?.align ?? "left"}`,
           columnConfig?.monospace && "tabular-nums",
           isIndexColumn && "tabular-nums",
+          !isIndexColumn && isSorted && "font-semibold",
         );
 
         const style = {
@@ -43,23 +56,61 @@ export function TableHeaderRow({
         return (
           <th key={header.id} className={cx} style={style}>
             {isIndexColumn ? (
-              <TableResetButton tableId={tableId} />
+              <TableMenu
+                toggleableColumns={toggleableColumns}
+                columnVisibility={columnVisibility}
+                toggleColumn={toggleColumn}
+                tableId={tableId}
+              />
             ) : header.isPlaceholder ? null : (
-              <div className="flex items-center gap-1">
-                {/* Column Name */}
-                <div className="flex-grow min-w-0">
-                  <TooltipSpan>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
+              <div className="flex flex-col gap-1">
+                {header.column.getCanSort() ? (
+                  <button
+                    type="button"
+                    className={twMerge(
+                      `
+                      cursor-pointer
+                      flex items-center h-8 gap-1
+                      text-left
+                      hover:text-slate-700
+                    `,
+                      isSorted ? " text-slate-700" : " text-slate-500",
                     )}
-                  </TooltipSpan>
-                </div>
-
-                {/* Column Sort Button */}
-                {header.column.getCanSort() && (
-                  <ColumnSortButton header={header} />
+                    onClick={
+                      header.column.getToggleSortingHandler() ?? undefined
+                    }
+                  >
+                    <div className="flex-grow min-w-0">
+                      <TooltipSpan>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                      </TooltipSpan>
+                    </div>
+                    <ColumnSortButton header={header} />
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <div className="flex-grow min-w-0">
+                      <TooltipSpan>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                      </TooltipSpan>
+                    </div>
+                  </div>
                 )}
+
+                {/* Column Filter */}
+                {header.column.getCanFilter() &&
+                  columnConfig?.enableColumnFilter && (
+                    <ColumnFilterInput
+                      column={header.column}
+                      filterType={columnConfig.filterType ?? "text"}
+                    />
+                  )}
               </div>
             )}
 
