@@ -1,23 +1,25 @@
 import { Column } from "@tanstack/react-table";
 import { useMemo } from "react";
 
-import { IconButton, Input, Select } from "../Controls";
+import { IconButton, Input, Select, TreeSelect, type TreeNode } from "../Controls";
 
 interface ColumnFilterInputProps {
   column: Column<unknown, unknown>;
   filterType: "text" | "select";
   filterOptions?: { label: string; value: string }[];
+  filterTree?: TreeNode;
 }
 
 export function ColumnFilterInput({
   column,
   filterType,
   filterOptions,
+  filterTree,
 }: ColumnFilterInputProps) {
   const filterValue = (column.getFilterValue() as string) ?? "";
 
   const sortedOptions = useMemo(() => {
-    if (filterType !== "select") return [];
+    if (filterType !== "select" || filterTree) return [];
     if (filterOptions) {
       return [{ label: "All", value: "" }, ...filterOptions];
     }
@@ -30,24 +32,33 @@ export function ColumnFilterInput({
         .sort()
         .map((v) => ({ label: v, value: v })),
     ];
-  }, [column, filterType, filterOptions]);
+  }, [column, filterType, filterOptions, filterTree]);
 
+  const setFilter = (value: string) =>
+    column.setFilterValue(value || undefined);
   const clearFilter = () => column.setFilterValue(undefined);
 
   return (
     <div className="flex items-center gap-1">
-      {filterType === "select" ? (
+      {filterTree ? (
+        <TreeSelect
+          scale="small"
+          tree={filterTree}
+          value={filterValue}
+          onChange={setFilter}
+        />
+      ) : filterType === "select" ? (
         <Select
           scale="small"
           options={sortedOptions}
           value={filterValue}
-          onChange={(value) => column.setFilterValue(value || undefined)}
+          onChange={setFilter}
         />
       ) : (
         <Input
           scale="small"
           value={filterValue}
-          onChange={(e) => column.setFilterValue(e.target.value || undefined)}
+          onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter..."
         />
       )}

@@ -87,7 +87,6 @@ const fileColumns: ColumnConfig[] = [
     header: "Last Modified",
     size: 420,
     align: "right",
-    monospace: true,
     enableSorting: true,
     sortingFn: "datetime",
   },
@@ -96,7 +95,6 @@ const fileColumns: ColumnConfig[] = [
     header: "Size",
     size: 120,
     align: "right",
-    monospace: true,
     enableSorting: true,
   },
 ];

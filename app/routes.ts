@@ -55,10 +55,6 @@ const protectedRoutes = [
           },
         ],
       },
-      {
-        path: "/admin/groups",
-        file: "routes/admin/groups/groups.route.tsx",
-      },
     ]),
   ]),
 ];

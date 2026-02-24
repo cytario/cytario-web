@@ -30,12 +30,17 @@ export function TableBodyRow({
         const isIndexColumn = cell.column.id === "index";
         const columnConfig = columns.find((col) => col.id === cell.column.id);
 
-        const cxCell = twMerge(
-          "px-4",
-          isIndexColumn
+        const isRight = columnConfig?.align === "right";
+        const alignClass =
+          isRight
             ? "text-right"
-            : `text-${columnConfig?.align ?? "left"}`,
-          (columnConfig?.monospace || isIndexColumn) && "tabular-nums",
+            : columnConfig?.align === "center"
+              ? "text-center"
+              : "text-left";
+        const cxCell = twMerge(
+          "px-4 py-2",
+          isIndexColumn ? "text-right" : alignClass,
+          (columnConfig?.monospace || isRight || isIndexColumn) && "tabular-nums",
         );
 
         const style = {

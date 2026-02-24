@@ -44,10 +44,15 @@ export function TableHeaderRow({
 
         const isSorted = header.column.getIsSorted();
 
+        const alignClass =
+          columnConfig?.align === "right"
+            ? "text-right"
+            : columnConfig?.align === "center"
+              ? "text-center"
+              : "text-left";
         const cx = twMerge(
           "relative pl-4 pr-4 group/header text-sm align-top",
-          `text-${columnConfig?.align ?? "left"}`,
-          isIndexColumn && "text-right tabular-nums",
+          isIndexColumn ? "text-right tabular-nums" : alignClass,
         );
 
         const style = {
@@ -56,7 +61,8 @@ export function TableHeaderRow({
           maxWidth: header.getSize(),
         };
 
-        const tableHeadCx = " flex items-center gap-1 h-8 text-slate-500";
+        const isRight = columnConfig?.align === "right";
+        const tableHeadCx = "flex items-center gap-1 h-8 text-left text-slate-500";
 
         return (
           <th key={header.id} className={cx} style={style}>
@@ -85,9 +91,8 @@ export function TableHeaderRow({
                     type="button"
                     className={twMerge(
                       tableHeadCx,
-                      `cursor-pointer text-left
-                      hover:text-slate-700
-                    `,
+                      "cursor-pointer hover:text-slate-700",
+                      isRight && "flex-row-reverse",
                       isSorted && "text-slate-900",
                     )}
                     onClick={
@@ -124,6 +129,7 @@ export function TableHeaderRow({
                       column={header.column}
                       filterType={columnConfig.filterType ?? "text"}
                       filterOptions={columnConfig.filterOptions}
+                      filterTree={columnConfig.filterTree}
                     />
                   )}
               </div>

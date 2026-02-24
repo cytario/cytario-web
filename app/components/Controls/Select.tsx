@@ -7,7 +7,15 @@ import {
 import { twMerge } from "tailwind-merge";
 
 import { Icon } from "./Button/Icon";
-import { baseStyle, heightStyles, textStyles } from "./styles";
+import {
+  baseStyle,
+  heightStyles,
+  listboxButtonStyle,
+  listboxChevronSizes,
+  listboxOptionStyle,
+  listboxOptionsStyle,
+  textStyles,
+} from "./styles";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 type SelectOption = { label: string; value: string };
@@ -20,12 +28,6 @@ type SelectProps = {
   disabled?: boolean;
   scale?: "small" | "medium" | "large";
   className?: string;
-};
-
-const iconSizes = {
-  small: { size: 14 as const, className: "w-6" },
-  medium: { size: 16 as const, className: "w-8" },
-  large: { size: 20 as const, className: "w-12" },
 };
 
 export const Select = ({
@@ -46,7 +48,7 @@ export const Select = ({
           baseStyle,
           heightStyles[scale],
           textStyles[scale],
-          "items-center border-slate-300 text-left overflow-hidden min-w-0",
+          listboxButtonStyle,
           className,
         )}
       >
@@ -55,26 +57,23 @@ export const Select = ({
         </span>
         <Icon
           icon="ChevronDown"
-          size={iconSizes[scale].size}
+          size={listboxChevronSizes[scale].size}
           className={twMerge(
             "flex items-center justify-center h-full",
-            iconSizes[scale].className,
+            listboxChevronSizes[scale].className,
           )}
         />
       </ListboxButton>
 
       <ListboxOptions
         anchor="bottom start"
-        className={twMerge(
-          "z-20 min-w-[var(--button-width)] w-max border border-slate-300 bg-white rounded-sm",
-          textStyles[scale],
-        )}
+        className={twMerge(listboxOptionsStyle, textStyles[scale])}
       >
         {options.map((option) => (
           <ListboxOption
             key={option.value}
             value={option.value}
-            className="cursor-pointer data-[focus]:bg-slate-100 px-2 py-1"
+            className={listboxOptionStyle}
           >
             {option.label}
           </ListboxOption>
