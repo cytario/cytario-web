@@ -12,12 +12,11 @@ export const ColumnResizeHandle = ({
       onTouchStart={header.getResizeHandler()}
       aria-label={`Resize ${header.column.columnDef.header} column`}
       className={`
-        absolute top-0 right-0 h-full w-4
-        cursor-col-resize
-        transition-colors duration-100
-        z-20
-        bg-transparent hover:bg-slate-100
+        z-20 cursor-col-resize
+        absolute top-0 right-0 h-full w-2
         flex justify-end
+        transition-colors duration-200
+        bg-transparent hover:bg-cytario-turquoise-500
       `}
     >
       <div className="w-0.5 h-full bg-slate-100" />

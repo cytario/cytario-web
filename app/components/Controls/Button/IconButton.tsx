@@ -9,6 +9,12 @@ import {
 } from "./styles";
 import { Tooltip } from "../../Tooltip/Tooltip";
 
+const iconSizes: Record<keyof typeof iconButtonScaleStyles, number> = {
+  small: 14,
+  medium: 20,
+  large: 24,
+};
+
 export interface IconButtonBaseProps {
   icon: LucideIconsType;
   children?: ReactNode;
@@ -44,7 +50,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         disabled={disabled}
         aria-label={label}
       >
-        <Icon icon={icon} strokeWidth={1.5} />
+        <Icon icon={icon} size={iconSizes[scale]} strokeWidth={1.5} />
       </button>
     );
 

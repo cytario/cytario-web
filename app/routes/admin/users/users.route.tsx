@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   type MetaFunction,
   type ShouldRevalidateFunction,
@@ -16,6 +16,7 @@ import {
 import { Container } from "~/components/Container";
 import { ButtonLink, Checkbox } from "~/components/Controls";
 import { Placeholder } from "~/components/Placeholder";
+import { useTableStore } from "~/components/Table/state/useTableStore";
 import {
   type CellRenderers,
   type ColumnConfig,
@@ -51,38 +52,47 @@ interface UserRow {
   [key: string]: unknown;
 }
 
-const columns: ColumnConfig[] = [
-  {
-    id: "name",
-    header: "Name",
-    size: 200,
-    enableSorting: true,
-    anchor: true,
-    enableColumnFilter: true,
-    filterType: "text",
-  },
-  {
-    id: "email",
-    header: "Email",
-    size: 250,
-    enableSorting: true,
-    enableColumnFilter: true,
-    filterType: "text",
-  },
-  {
-    id: "enabled",
-    header: "Enabled",
-    size: 100,
-    enableSorting: true,
-    sortingFn: "boolean" as const,
-  },
-  {
-    id: "groups",
-    header: "Groups",
-    size: 300,
-    enableSorting: true,
-  },
-];
+function buildColumns(groups: GroupInfo[]): ColumnConfig[] {
+  const groupOptions = groups
+    .filter((g) => !g.isAdmin)
+    .map((g) => ({ label: g.path, value: g.path }));
+
+  return [
+    {
+      id: "name",
+      header: "Name",
+      size: 200,
+      enableSorting: true,
+      anchor: true,
+      enableColumnFilter: true,
+      filterType: "text",
+    },
+    {
+      id: "email",
+      header: "Email",
+      size: 250,
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterType: "text",
+    },
+    {
+      id: "enabled",
+      header: "Enabled",
+      size: 100,
+      enableSorting: true,
+      sortingFn: "boolean" as const,
+    },
+    {
+      id: "groups",
+      header: "Groups",
+      size: 300,
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterType: "select",
+      filterOptions: groupOptions,
+    },
+  ];
+}
 
 const cellRenderers: CellRenderers<UserRow> = {
   name: (row) => (
@@ -103,8 +113,24 @@ export default function AdminUsersRoute() {
     groups: GroupInfo[];
   }>();
 
+  const columns = useMemo(() => buildColumns(groups), [groups]);
+
   const [searchParams] = useSearchParams();
   const groupFilter = searchParams.get("group");
+  const tableId = `admin-users-${scope}`;
+  const store = useTableStore(tableId);
+
+  useEffect(() => {
+    if (groupFilter) {
+      store.getState().setColumnFilters([{ id: "groups", value: groupFilter }]);
+    } else {
+      const current = store.getState().columnFilters;
+      const withoutGroup = current.filter((f) => f.id !== "groups");
+      if (withoutGroup.length !== current.length) {
+        store.getState().setColumnFilters(withoutGroup);
+      }
+    }
+  }, [groupFilter, store]);
 
   const data: UserRow[] = useMemo(
     () =>
@@ -122,32 +148,10 @@ export default function AdminUsersRoute() {
     [users, scope],
   );
 
-  const filteredData = groupFilter
-    ? data.filter((row) => row._groupPaths.has(groupFilter))
-    : data;
-
   return (
     <>
       <Container>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            {groupFilter && (
-              <>
-                <span className="text-sm text-slate-600">
-                  Filtered by group:
-                </span>
-                <span className="text-sm font-medium bg-slate-100 px-2 py-0.5 rounded">
-                  {groupFilter}
-                </span>
-                <Link
-                  to={`/admin/users?scope=${encodeURIComponent(scope)}`}
-                  className="text-sm text-cytario-turquoise-700 hover:underline"
-                >
-                  Clear
-                </Link>
-              </>
-            )}
-          </div>
+        <div className="flex items-center justify-end mb-4">
           <ButtonLink
             to={`invite?scope=${encodeURIComponent(scope)}`}
             theme="primary"
@@ -156,33 +160,27 @@ export default function AdminUsersRoute() {
           </ButtonLink>
         </div>
       </Container>
-      {filteredData.length > 0 ? (
+      {data.length > 0 ? (
         <div className="overflow-x-auto">
           <Table
             columns={columns}
-            data={filteredData}
+            data={data}
             cellRenderers={cellRenderers}
-            tableId={`admin-users-${scope}`}
+            tableId={tableId}
           />
         </div>
       ) : (
         <Placeholder
           icon="Users"
-          title="No users found"
-          description={
-            groupFilter
-              ? "No users in this group."
-              : "Invite team members to get started."
-          }
+          title="No users yet"
+          description="Invite team members to get started."
           cta={
-            !groupFilter ? (
-              <ButtonLink
-                to={`invite?scope=${encodeURIComponent(scope)}`}
-                theme="primary"
-              >
-                Invite User
-              </ButtonLink>
-            ) : undefined
+            <ButtonLink
+              to={`invite?scope=${encodeURIComponent(scope)}`}
+              theme="primary"
+            >
+              Invite User
+            </ButtonLink>
           }
         />
       )}

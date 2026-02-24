@@ -8,7 +8,7 @@ body {
 }
 
 ::selection {
-  @apply bg-cytario-purple-500 text-white;
+  @apply bg-cytario-purple-500/60 text-white;
 }
 
 @font-face {

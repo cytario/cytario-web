@@ -8,6 +8,7 @@ import { twMerge } from "tailwind-merge";
 
 import { Icon } from "./Button/Icon";
 import { baseStyle, heightStyles, textStyles } from "./styles";
+import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 type SelectOption = { label: string; value: string };
 
@@ -18,6 +19,7 @@ type SelectProps = {
   name?: string;
   disabled?: boolean;
   scale?: "small" | "medium" | "large";
+  className?: string;
 };
 
 const iconSizes = {
@@ -33,6 +35,7 @@ export const Select = ({
   name,
   disabled,
   scale = "large",
+  className,
 }: SelectProps) => {
   const selectedOption = options.find((o) => o.value === value);
 
@@ -43,10 +46,13 @@ export const Select = ({
           baseStyle,
           heightStyles[scale],
           textStyles[scale],
-          "items-center border-slate-300 text-left",
+          "items-center border-slate-300 text-left overflow-hidden min-w-0",
+          className,
         )}
       >
-        <span className="w-full px-2">{selectedOption?.label ?? value}</span>
+        <span className="min-w-0 flex-1 px-2">
+          <TooltipSpan>{selectedOption?.label ?? value}</TooltipSpan>
+        </span>
         <Icon
           icon="ChevronDown"
           size={iconSizes[scale].size}
@@ -58,9 +64,9 @@ export const Select = ({
       </ListboxButton>
 
       <ListboxOptions
-        anchor="bottom"
+        anchor="bottom start"
         className={twMerge(
-          "z-20 w-[var(--button-width)] border border-slate-300 bg-white rounded-sm",
+          "z-20 min-w-[var(--button-width)] w-max border border-slate-300 bg-white rounded-sm",
           textStyles[scale],
         )}
       >

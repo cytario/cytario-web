@@ -28,6 +28,7 @@ interface ColumnDisplay {
 interface ColumnFiltering {
   enableColumnFilter?: boolean;
   filterType?: "text" | "select";
+  filterOptions?: { label: string; value: string }[];
 }
 
 // Visibility props

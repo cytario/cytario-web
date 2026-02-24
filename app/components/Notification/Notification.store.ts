@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useActionData, useLoaderData } from "react-router";
 import { create } from "zustand";
 
-export type NotificationType = "success" | "error" | "info";
+export type NotificationType = "success" | "error" | "warning" | "info";
 
 export interface NotificationInput {
   message: string;

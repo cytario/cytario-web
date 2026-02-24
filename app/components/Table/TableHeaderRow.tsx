@@ -4,12 +4,15 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { twMerge } from "tailwind-merge";
+import { useStore } from "zustand";
 
 import { ColumnFilterInput } from "./ColumnFilterInput";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { ColumnSortButton } from "./ColumnSortButton";
+import { useTableStore } from "./state/useTableStore";
 import { TableMenu } from "./TableMenu";
 import { ColumnConfig } from "./types";
+import { IconButton } from "../Controls";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableHeaderRowProps {
@@ -29,6 +32,10 @@ export function TableHeaderRow({
   columnVisibility,
   toggleColumn,
 }: TableHeaderRowProps) {
+  const store = useTableStore(tableId);
+  const hasFilters = useStore(store, (s) => s.columnFilters.length > 0);
+  const clearAllFilters = () => store.getState().setColumnFilters([]);
+
   return (
     <tr key={headerGroup.id} className="w-full block">
       {headerGroup.headers.map((header) => {
@@ -54,12 +61,23 @@ export function TableHeaderRow({
         return (
           <th key={header.id} className={cx} style={style}>
             {isIndexColumn ? (
-              <TableMenu
-                toggleableColumns={toggleableColumns}
-                columnVisibility={columnVisibility}
-                toggleColumn={toggleColumn}
-                tableId={tableId}
-              />
+              <div className="flex flex-col gap-1">
+                <TableMenu
+                  toggleableColumns={toggleableColumns}
+                  columnVisibility={columnVisibility}
+                  toggleColumn={toggleColumn}
+                  tableId={tableId}
+                />
+                {hasFilters && (
+                  <IconButton
+                    icon="FilterX"
+                    scale="small"
+                    theme="secondary"
+                    onClick={clearAllFilters}
+                    label="Clear all filters"
+                  />
+                )}
+              </div>
             ) : header.isPlaceholder ? null : (
               <div className="flex flex-col gap-1 pb-1">
                 {header.column.getCanSort() ? (
@@ -105,6 +123,7 @@ export function TableHeaderRow({
                     <ColumnFilterInput
                       column={header.column}
                       filterType={columnConfig.filterType ?? "text"}
+                      filterOptions={columnConfig.filterOptions}
                     />
                   )}
               </div>
