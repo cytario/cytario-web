@@ -1,3 +1,5 @@
+import { Credentials } from "@aws-sdk/client-sts";
+import { useEffect } from "react";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -24,6 +26,7 @@ import { Placeholder } from "~/components/Placeholder";
 import { RecentlyViewed } from "~/components/RecentlyViewed/RecentlyViewed";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
+import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getObjects } from "~/utils/getObjects";
 
 const title = "Your Storage Connections";
@@ -106,7 +109,7 @@ export const loader: LoaderFunction = async ({ context }) => {
     };
   });
 
-  return { nodes, adminScopes, userId };
+  return { nodes, adminScopes, userId, credentials, bucketConfigs };
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -144,11 +147,25 @@ export const action: ActionFunction = async ({ request, context }) => {
 };
 
 export default function BucketsRoute() {
-  const { nodes, adminScopes, userId } = useLoaderData<{
-    nodes: TreeNode[];
-    adminScopes: string[];
-    userId: string;
-  }>();
+  const { nodes, adminScopes, userId, credentials, bucketConfigs } =
+    useLoaderData<{
+      nodes: TreeNode[];
+      adminScopes: string[];
+      userId: string;
+      credentials: Record<string, Credentials>;
+      bucketConfigs: BucketConfig[];
+    }>();
+
+  const setConnection = useConnectionsStore(select.setConnection);
+
+  useEffect(() => {
+    for (const config of bucketConfigs) {
+      const creds = credentials[config.name];
+      if (creds) {
+        setConnection(`${config.provider}/${config.name}`, creds, config);
+      }
+    }
+  }, [credentials, bucketConfigs, setConnection]);
 
   return (
     <>
