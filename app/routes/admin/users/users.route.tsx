@@ -43,7 +43,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 interface UserRow {
   name: string;
   email: string;
-  status: boolean;
+  enabled: boolean;
   _userId: string;
   _scope: string;
   _groupPaths: Set<string>;
@@ -70,23 +70,25 @@ function buildMatrixColumns(groups: GroupInfo[]): ColumnConfig[] {
       filterType: "text",
     },
     {
-      id: "status",
-      header: "Status",
+      id: "enabled",
+      header: "Enabled",
       size: 120,
       enableResizing: true,
+      enableSorting: true,
+      sortingFn: "boolean" as const,
     },
     ...groups.map((g) => ({
       id: `group-${g.id}`,
       header: g.path,
       size: 120,
       enableResizing: true,
+      enableSorting: true,
+      sortingFn: "boolean" as const,
     })),
   ];
 }
 
-function buildCellRenderers(
-  groups: GroupInfo[],
-): CellRenderers<UserRow> {
+function buildCellRenderers(groups: GroupInfo[]): CellRenderers<UserRow> {
   const renderers: CellRenderers<UserRow> = {
     name: (row) => (
       <Link
@@ -96,7 +98,7 @@ function buildCellRenderers(
         {row.name}
       </Link>
     ),
-    status: (row) => <Checkbox checked={row.status} disabled />,
+    enabled: (row) => <Checkbox checked={row.enabled} disabled />,
   };
 
   groups.forEach((group) => {
@@ -117,10 +119,7 @@ export default function AdminUsersRoute() {
 
   const columns = useMemo(() => buildMatrixColumns(groups), [groups]);
 
-  const cellRenderers = useMemo(
-    () => buildCellRenderers(groups),
-    [groups],
-  );
+  const cellRenderers = useMemo(() => buildCellRenderers(groups), [groups]);
 
   const data: UserRow[] = useMemo(
     () =>
@@ -128,7 +127,7 @@ export default function AdminUsersRoute() {
         const row: UserRow = {
           name: `${user.firstName} ${user.lastName}`,
           email: user.email ?? "",
-          status: user.enabled,
+          enabled: user.enabled,
           _userId: user.id,
           _scope: scope,
           _groupPaths: groupPaths,

@@ -7,7 +7,7 @@ import {
   type InviteUserFormData,
   inviteUserSchema,
 } from "./inviteUser.schema";
-import { Field, Fieldset, Input, Select } from "~/components/Controls";
+import { Checkbox, Field, Fieldset, Input, Select } from "~/components/Controls";
 
 interface InviteUserFormProps {
   scope: string;
@@ -32,20 +32,21 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
       firstName: "",
       lastName: "",
       groupPath: scope,
+      enabled: true,
     },
     mode: "onBlur",
   });
 
   useEffect(() => {
     if (actionData?.success === true) {
-      reset({ email: "", firstName: "", lastName: "", groupPath: scope });
+      reset({ email: "", firstName: "", lastName: "", groupPath: scope, enabled: true });
     }
   }, [actionData, reset, scope]);
 
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, value);
+      formData.append(key, String(value));
     });
     if (inviteAnother) {
       formData.append("inviteAnother", "true");
@@ -91,7 +92,7 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
         >
           <Input {...register("lastName")} scale="large" theme="light" />
         </Field>
-        <Field label="Group">
+        <Field label="Group Membership">
           <Controller
             control={control}
             name="groupPath"
@@ -101,6 +102,18 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
                 value={field.value}
                 onChange={field.onChange}
                 name={field.name}
+              />
+            )}
+          />
+        </Field>
+        <Field label="Enabled" inline>
+          <Controller
+            control={control}
+            name="enabled"
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onChange={field.onChange}
               />
             )}
           />

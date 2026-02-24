@@ -1,6 +1,7 @@
 export const baseStyle = `
   flex w-full border rounded-sm
   transition duration-100 ease-in
+  font-normal
   disabled:opacity-50 disabled:cursor-not-allowed
 `;
 

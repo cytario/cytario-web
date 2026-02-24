@@ -135,7 +135,7 @@ export const UpdateUserForm = ({
     <>
       <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
         <Fieldset>
-          <Field label="Account enabled" inline>
+          <Field label="Enabled" inline>
             <Controller
               control={control}
               name="enabled"

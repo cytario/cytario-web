@@ -35,6 +35,7 @@ export async function inviteUser(
   firstName: string,
   lastName: string,
   groupPath: string,
+  enabled: boolean,
 ): Promise<void> {
   const group = await findGroupByPath(accessToken, groupPath);
   if (!group) throw new Error(`Group not found: ${groupPath}`);
@@ -47,7 +48,7 @@ export async function inviteUser(
       email,
       firstName,
       lastName,
-      enabled: true,
+      enabled,
     });
     const location = res.headers.get("location");
     if (!location) throw new Error("Missing Location header");

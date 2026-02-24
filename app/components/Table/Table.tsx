@@ -5,6 +5,7 @@ import {
   getFilteredRowModel,
   getFacetedUniqueValues,
   ColumnDef,
+  SortingFn,
 } from "@tanstack/react-table";
 import { ReactNode, useMemo } from "react";
 
@@ -18,6 +19,12 @@ import { useTableSorting } from "./useTableSorting";
 
 // Re-export types for external use
 export type { ColumnConfig, TableProps, CellRenderers } from "./types";
+
+const booleanSortingFn: SortingFn<unknown> = (rowA, rowB, columnId) => {
+  const a = rowA.getValue<boolean>(columnId) ? 1 : 0;
+  const b = rowB.getValue<boolean>(columnId) ? 1 : 0;
+  return a - b;
+};
 
 export function Table<TData extends Record<string, unknown>>({
   columns,
@@ -62,7 +69,10 @@ export function Table<TData extends Record<string, unknown>>({
         enableResizing: colConfig.enableResizing !== false,
         enableSorting: colConfig.enableSorting ?? false,
         enableColumnFilter: colConfig.enableColumnFilter ?? false,
-        sortingFn: colConfig.sortingFn ?? "alphanumeric",
+        sortingFn:
+          colConfig.sortingFn === "boolean"
+            ? booleanSortingFn
+            : (colConfig.sortingFn ?? "alphanumeric"),
         size: columnSizing[colConfig.id] ?? colConfig.size ?? 150,
         minSize: colConfig.minSize ?? 48,
         maxSize: colConfig.maxSize ?? Number.MAX_SAFE_INTEGER,

@@ -5,6 +5,7 @@ export const inviteUserSchema = z.object({
   firstName: z.string().min(1, "Required").max(255),
   lastName: z.string().min(1, "Required").max(255),
   groupPath: z.string().min(1, "Required").max(255),
+  enabled: z.boolean(),
 });
 
 export type InviteUserFormData = z.infer<typeof inviteUserSchema>;

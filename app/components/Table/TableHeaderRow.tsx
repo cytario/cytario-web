@@ -49,6 +49,8 @@ export function TableHeaderRow({
           maxWidth: header.getSize(),
         };
 
+        const tableHeadCx = " flex items-center gap-1 h-8 text-slate-500";
+
         return (
           <th key={header.id} className={cx} style={style}>
             {isIndexColumn ? (
@@ -64,13 +66,11 @@ export function TableHeaderRow({
                   <button
                     type="button"
                     className={twMerge(
-                      `
-                      cursor-pointer
-                      flex items-center h-8 gap-1
-                      text-left
+                      tableHeadCx,
+                      `cursor-pointer text-left
                       hover:text-slate-700
                     `,
-                      isSorted ? " text-slate-900" : " text-slate-500",
+                      isSorted && "text-slate-900",
                     )}
                     onClick={
                       header.column.getToggleSortingHandler() ?? undefined
@@ -87,7 +87,7 @@ export function TableHeaderRow({
                     <ColumnSortButton header={header} />
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1">
+                  <div className={tableHeadCx}>
                     <div className="flex-grow min-w-0">
                       <TooltipSpan>
                         {flexRender(

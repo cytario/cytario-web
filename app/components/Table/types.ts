@@ -8,7 +8,7 @@ type ColumnBehavior = Pick<ColumnDefBase<unknown>, "enableResizing">;
 // SortingAccessor functions are no longer needed)
 interface ColumnSorting {
   enableSorting?: boolean;
-  sortingFn?: "alphanumeric" | "datetime" | "basic";
+  sortingFn?: "alphanumeric" | "datetime" | "basic" | "boolean";
 }
 
 // Sizing props (aligned with TanStack naming)

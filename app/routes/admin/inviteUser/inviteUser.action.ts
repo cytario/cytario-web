@@ -54,7 +54,11 @@ export const inviteUserAction: ActionFunction = async ({
 
   const formData = await request.formData();
   const inviteAnother = formData.get("inviteAnother") === "true";
-  const result = inviteUserSchema.safeParse(Object.fromEntries(formData));
+  const rawData = Object.fromEntries(formData);
+  const result = inviteUserSchema.safeParse({
+    ...rawData,
+    enabled: rawData.enabled === "true",
+  });
 
   if (!result.success) {
     return { errors: result.error.flatten().fieldErrors };
@@ -77,6 +81,7 @@ export const inviteUserAction: ActionFunction = async ({
       result.data.firstName,
       result.data.lastName,
       result.data.groupPath,
+      result.data.enabled,
     );
 
     if (inviteAnother) {

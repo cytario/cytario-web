@@ -48,7 +48,7 @@ describe("inviteUser", () => {
       { status: 204 },
     ]);
 
-    await inviteUser("token", "test@example.com", "Test", "User", "vericura/lab");
+    await inviteUser("token", "test@example.com", "Test", "User", "vericura/lab", true);
 
     // POST /users with correct body
     expect(fetchMock).toHaveBeenCalledWith(
@@ -93,7 +93,7 @@ describe("inviteUser", () => {
       { status: 204 },
     ]);
 
-    await inviteUser("token", "test@example.com", "Test", "User", "vericura/lab");
+    await inviteUser("token", "test@example.com", "Test", "User", "vericura/lab", true);
 
     // Should add existing user to group
     expect(fetchMock).toHaveBeenCalledWith(
@@ -115,7 +115,7 @@ describe("inviteUser", () => {
     ]);
 
     await expect(
-      inviteUser("token", "test@example.com", "Test", "User", "nonexistent"),
+      inviteUser("token", "test@example.com", "Test", "User", "nonexistent", true),
     ).rejects.toThrow("Group not found: nonexistent");
   });
 
@@ -130,7 +130,7 @@ describe("inviteUser", () => {
     ]);
 
     await expect(
-      inviteUser("token", "test@example.com", "Test", "User", "vericura/lab"),
+      inviteUser("token", "test@example.com", "Test", "User", "vericura/lab", true),
     ).rejects.toThrow("User conflict but not found: test@example.com");
   });
 
@@ -143,7 +143,7 @@ describe("inviteUser", () => {
     ]);
 
     await expect(
-      inviteUser("token", "test@example.com", "Test", "User", "vericura/lab"),
+      inviteUser("token", "test@example.com", "Test", "User", "vericura/lab", true),
     ).rejects.toThrow("500 Internal Server Error");
   });
 
@@ -156,7 +156,7 @@ describe("inviteUser", () => {
     ]);
 
     await expect(
-      inviteUser("token", "test@example.com", "Test", "User", "vericura/lab"),
+      inviteUser("token", "test@example.com", "Test", "User", "vericura/lab", true),
     ).rejects.toThrow("Missing Location header");
   });
 });
