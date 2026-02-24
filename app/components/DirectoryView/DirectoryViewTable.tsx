@@ -30,6 +30,7 @@ const bucketColumns: ColumnConfig[] = [
     anchor: true,
     enableColumnFilter: true,
     filterType: "text",
+    filterPlaceholder: "Filter by name...",
   },
   {
     id: "provider",
@@ -39,7 +40,13 @@ const bucketColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "select",
   },
-  { id: "endpoint", header: "Endpoint", size: 340, enableSorting: true },
+  {
+    id: "endpoint",
+    header: "Endpoint",
+    size: 340,
+    enableSorting: true,
+    defaultVisible: false,
+  },
   {
     id: "region",
     header: "Region",
@@ -63,7 +70,13 @@ const bucketColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "select",
   },
-  { id: "createdBy", header: "Created By", size: 280, enableSorting: true },
+  {
+    id: "createdBy",
+    header: "Created By",
+    size: 280,
+    enableSorting: true,
+    defaultVisible: false,
+  },
 ];
 
 const bucketCellRenderers: CellRenderers<BucketRow> = {
@@ -75,20 +88,30 @@ const bucketCellRenderers: CellRenderers<BucketRow> = {
 interface FileRow {
   [key: string]: unknown;
   name: string;
-  last_modified: string;
-  size: string;
+  last_modified: number;
+  size: number;
   _node: TreeNode;
 }
 
 const fileColumns: ColumnConfig[] = [
-  { id: "name", header: "Name", size: 420, enableSorting: true, anchor: true },
+  {
+    id: "name",
+    header: "Name",
+    size: 420,
+    enableSorting: true,
+    anchor: true,
+    enableColumnFilter: true,
+    filterType: "text",
+    filterPlaceholder: "Filter by name...",
+    copyable: true,
+  },
   {
     id: "last_modified",
     header: "Last Modified",
-    size: 420,
+    size: 280,
     align: "right",
     enableSorting: true,
-    sortingFn: "datetime",
+    sortingFn: "basic",
   },
   {
     id: "size",
@@ -96,11 +119,15 @@ const fileColumns: ColumnConfig[] = [
     size: 120,
     align: "right",
     enableSorting: true,
+    sortingFn: "basic",
   },
 ];
 
 const fileCellRenderers: CellRenderers<FileRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
+  last_modified: (row) =>
+    row.last_modified ? formatHumanReadableDate(row.last_modified) : null,
+  size: (row) => (row.size ? filesize(row.size).toString() : null),
 };
 
 // --- Component ---
@@ -139,12 +166,9 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
         name: node.name,
         last_modified:
           isFile && node._Object?.LastModified
-            ? formatHumanReadableDate(node._Object.LastModified)
-            : "",
-        size:
-          isFile && node._Object
-            ? filesize(node._Object.Size ?? 0).toString()
-            : "",
+            ? new Date(node._Object.LastModified).getTime()
+            : 0,
+        size: isFile && node._Object ? (node._Object.Size ?? 0) : 0,
         _node: node,
       };
     });

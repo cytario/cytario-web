@@ -30,6 +30,7 @@ interface ColumnDisplay {
 interface ColumnFiltering {
   enableColumnFilter?: boolean;
   filterType?: "text" | "select";
+  filterPlaceholder?: string;
   filterOptions?: { label: string; value: string }[];
   filterRender?: (option: { label: string; value: string }) => ReactNode;
   filterFn?: FilterFn<unknown>;

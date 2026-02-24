@@ -93,7 +93,7 @@ export function Table<TData extends Record<string, unknown>>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    enableSortingRemoval: false,
+    enableSortingRemoval: true,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
     state: {
@@ -125,14 +125,25 @@ export function Table<TData extends Record<string, unknown>>({
       </thead>
 
       <tbody>
-        {table.getRowModel().rows.map((row, index) => (
-          <TableBodyRow
-            key={row.id}
-            row={row}
-            rowIndex={index}
-            columns={columns}
-          />
-        ))}
+        {table.getRowModel().rows.length === 0 && data.length > 0 ? (
+          <tr>
+            <td
+              colSpan={columns.length + 1}
+              className="text-center text-slate-400 py-8"
+            >
+              No results match your filters
+            </td>
+          </tr>
+        ) : (
+          table.getRowModel().rows.map((row, index) => (
+            <TableBodyRow
+              key={row.id}
+              row={row}
+              rowIndex={index}
+              columns={columns}
+            />
+          ))
+        )}
       </tbody>
     </table>
   );

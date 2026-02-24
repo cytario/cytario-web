@@ -54,7 +54,7 @@ describe("DirectoryViewTable", () => {
       },
     ];
 
-    test("renders bucket columns: Name, Provider, Endpoint, Region, Scope, Created By", () => {
+    test("renders bucket columns: Name, Provider, Region, Scope visible; Endpoint, Created By, RoleARN hidden", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
@@ -66,11 +66,11 @@ describe("DirectoryViewTable", () => {
 
       expect(screen.getByText("Name")).toBeInTheDocument();
       expect(screen.getByText("Provider")).toBeInTheDocument();
-      expect(screen.getByText("Endpoint")).toBeInTheDocument();
       expect(screen.getByText("Region")).toBeInTheDocument();
       expect(screen.getByText("Scope")).toBeInTheDocument();
-      expect(screen.getByText("Created By")).toBeInTheDocument();
-      // RoleARN is hidden by default
+      // Endpoint, Created By, and RoleARN are hidden by default
+      expect(screen.queryByText("Endpoint")).not.toBeInTheDocument();
+      expect(screen.queryByText("Created By")).not.toBeInTheDocument();
       expect(screen.queryByText("RoleARN")).not.toBeInTheDocument();
     });
 
@@ -92,9 +92,8 @@ describe("DirectoryViewTable", () => {
       expect(screen.getAllByText("aws").length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText("minio").length).toBeGreaterThanOrEqual(1);
 
-      // Region and endpoint values may also appear in select filter options
+      // Region values appear in data cells and select filter options
       expect(screen.getAllByText("eu-central-1").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText("https://s3.cytar.io").length).toBeGreaterThanOrEqual(1);
     });
   });
 

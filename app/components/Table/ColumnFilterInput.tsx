@@ -6,6 +6,7 @@ import { IconButton, Input, Select } from "../Controls";
 interface ColumnFilterInputProps {
   column: Column<unknown, unknown>;
   filterType: "text" | "select";
+  filterPlaceholder?: string;
   filterOptions?: { label: string; value: string }[];
   filterRender?: (option: { label: string; value: string }) => ReactNode;
 }
@@ -13,6 +14,7 @@ interface ColumnFilterInputProps {
 export function ColumnFilterInput({
   column,
   filterType,
+  filterPlaceholder,
   filterOptions,
   filterRender,
 }: ColumnFilterInputProps) {
@@ -53,7 +55,7 @@ export function ColumnFilterInput({
           scale="small"
           value={filterValue}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter..."
+          placeholder={filterPlaceholder ?? `Filter ${column.columnDef.header}...`}
         />
       )}
       {filterValue && (

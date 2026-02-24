@@ -128,6 +128,7 @@ export function TableHeaderRow({
                     <ColumnFilterInput
                       column={header.column}
                       filterType={columnConfig.filterType ?? "text"}
+                      filterPlaceholder={columnConfig.filterPlaceholder}
                       filterOptions={columnConfig.filterOptions}
                       filterRender={columnConfig.filterRender}
                     />
