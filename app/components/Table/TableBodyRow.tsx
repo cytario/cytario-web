@@ -31,16 +31,16 @@ export function TableBodyRow({
         const columnConfig = columns.find((col) => col.id === cell.column.id);
 
         const isRight = columnConfig?.align === "right";
-        const alignClass =
-          isRight
-            ? "text-right"
-            : columnConfig?.align === "center"
-              ? "text-center"
-              : "text-left";
+        const alignClass = isRight
+          ? "text-right"
+          : columnConfig?.align === "center"
+            ? "text-center"
+            : "text-left";
         const cxCell = twMerge(
           "px-4 py-2",
           isIndexColumn ? "text-right" : alignClass,
-          (columnConfig?.monospace || isRight || isIndexColumn) && "tabular-nums",
+          columnConfig?.monospace && "font-mono font-light",
+          (isRight || isIndexColumn) && "tabular-nums",
           !columnConfig?.anchor && !isIndexColumn && "text-sm",
         );
 
@@ -63,13 +63,22 @@ export function TableBodyRow({
             ? rawValue
             : flexRender(cell.column.columnDef.cell, cell.getContext());
 
+        const copyValue =
+          columnConfig?.copyable && typeof rawValue === "string"
+            ? rawValue
+            : undefined;
+
         return isIndexColumn ? (
           <th key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan ellipsis={columnConfig?.ellipsis}>{content}</TooltipSpan>
+            <TooltipSpan ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
+              {content}
+            </TooltipSpan>
           </th>
         ) : (
           <td key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan ellipsis={columnConfig?.ellipsis}>{content}</TooltipSpan>
+            <TooltipSpan ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
+              {content}
+            </TooltipSpan>
           </td>
         );
       })}

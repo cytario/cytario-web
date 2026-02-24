@@ -6,11 +6,14 @@ exports[`Checkbox component > matches snapshot when checked 1`] = `
     aria-checked="true"
     class="
   group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
+  flex overflow-hidden place-items-center flex-shrink-0
+  size-6 rounded-sm p-1
+  border border-slate-300
+  cursor-pointer
   bg-white data-[checked]:bg-cytario-turquoise-500
   hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
+  data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed
+  data-[disabled]:hover:bg-white data-[disabled]:hover:data-[checked]:bg-cytario-turquoise-500
 "
     data-checked=""
     data-headlessui-state="checked"
@@ -46,11 +49,14 @@ exports[`Checkbox component > matches snapshot when not checked 1`] = `
     aria-checked="false"
     class="
   group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
+  flex overflow-hidden place-items-center flex-shrink-0
+  size-6 rounded-sm p-1
+  border border-slate-300
+  cursor-pointer
   bg-white data-[checked]:bg-cytario-turquoise-500
   hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
+  data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed
+  data-[disabled]:hover:bg-white data-[disabled]:hover:data-[checked]:bg-cytario-turquoise-500
 "
     data-headlessui-state=""
     id="headlessui-checkbox-_r_5_"
@@ -66,11 +72,14 @@ exports[`Checkbox component > renders as checked when checked prop is true 1`] =
     aria-checked="true"
     class="
   group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
+  flex overflow-hidden place-items-center flex-shrink-0
+  size-6 rounded-sm p-1
+  border border-slate-300
+  cursor-pointer
   bg-white data-[checked]:bg-cytario-turquoise-500
   hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
+  data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed
+  data-[disabled]:hover:bg-white data-[disabled]:hover:data-[checked]:bg-cytario-turquoise-500
 "
     data-checked=""
     data-headlessui-state="checked"
@@ -106,11 +115,14 @@ exports[`Checkbox component > renders correctly 1`] = `
     aria-checked="false"
     class="
   group/checkbox
-  flex overflow-hidden place-items-center flex-shrink-0 
-  size-6 rounded-sm p-1 
-  border border-slate-300 
+  flex overflow-hidden place-items-center flex-shrink-0
+  size-6 rounded-sm p-1
+  border border-slate-300
+  cursor-pointer
   bg-white data-[checked]:bg-cytario-turquoise-500
   hover:bg-slate-100 hover:data-[checked]:bg-cytario-turquoise-700
+  data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed
+  data-[disabled]:hover:bg-white data-[disabled]:hover:data-[checked]:bg-cytario-turquoise-500
 "
     data-headlessui-state=""
     id="headlessui-checkbox-_r_0_"

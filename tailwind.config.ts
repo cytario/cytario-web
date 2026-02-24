@@ -50,6 +50,7 @@ export default {
       },
       fontFamily: {
         montserrat: ["Montserrat", "sans-serif"],
+        mono: ["Fira Code", "ui-monospace", "monospace"],
       },
       animation: {
         "fade-in": "fadeIn .3s ease-in forwards",

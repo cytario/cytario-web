@@ -6,16 +6,15 @@ import {
   Outlet,
   useLoaderData,
 } from "react-router";
-import { twMerge } from "tailwind-merge";
 
-import type { GroupTreeNode } from "./users.loader";
+import { GroupPill } from "./GroupPill";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
 import { Container } from "~/components/Container";
-import { ButtonLink, type TreeNode } from "~/components/Controls";
+import { ButtonLink } from "~/components/Controls";
 import { Icon } from "~/components/Controls/Button/Icon";
 import { Placeholder } from "~/components/Placeholder";
 import {
@@ -52,20 +51,21 @@ interface UserRow {
   [key: string]: unknown;
 }
 
-function toFilterTree(node: GroupTreeNode): TreeNode | null {
-  if (node.name === "admins") return null;
-  return {
-    id: node.id,
-    label: node.name,
-    value: node.path,
-    count: node.memberCount,
-    children: node.subGroups
-      .map(toFilterTree)
-      .filter((n): n is TreeNode => n !== null),
-  };
-}
+function buildColumns(
+  groups: GroupInfo[],
+  scope: string,
+  groupCounts: Map<string, number>,
+  totalCount: number,
+): ColumnConfig[] {
+  const nonAdminGroups = groups.filter((g) => !g.isAdmin);
+  const scopeGroup = nonAdminGroups.find((g) => g.path === scope);
+  const groupOptions = [
+    { label: scopeGroup?.path ?? scope, value: "" },
+    ...nonAdminGroups
+      .filter((g) => g.path !== scope)
+      .map((g) => ({ label: g.path, value: g.path })),
+  ];
 
-function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
   return [
     {
       id: "name",
@@ -86,6 +86,7 @@ function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
       defaultVisible: false,
       monospace: true,
       ellipsis: "middle",
+      copyable: true,
     },
     {
       id: "email",
@@ -95,6 +96,7 @@ function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
       enableColumnFilter: true,
       filterType: "text",
       ellipsis: "middle",
+      copyable: true,
     },
     {
       id: "enabled",
@@ -105,6 +107,7 @@ function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
       enableColumnFilter: true,
       filterType: "select",
       filterOptions: [
+        { label: "All", value: "" },
         { label: "Active", value: "true" },
         { label: "Disabled", value: "false" },
       ],
@@ -116,28 +119,26 @@ function buildColumns(filterTree: TreeNode | null): ColumnConfig[] {
       enableSorting: true,
       enableColumnFilter: true,
       filterType: "select",
-      filterTree: filterTree ?? undefined,
+      filterOptions: groupOptions,
+      filterFn: (row, columnId, filterValue) => {
+        const paths = row.getValue<string>(columnId).split(", ");
+        return paths.includes(filterValue);
+      },
+      filterRender: (option) => {
+        const count = option.value
+          ? groupCounts.get(option.value) ?? 0
+          : totalCount;
+        return (
+          <span className="flex w-full items-center justify-between gap-2">
+            <GroupPill path={option.value || option.label} />
+            <span className="rounded-full bg-slate-100 text-slate-500 px-1.5 text-xs tabular-nums">
+              {count}
+            </span>
+          </span>
+        );
+      },
     },
   ];
-}
-
-const groupColors = [
-  "bg-sky-100 text-sky-800",
-  "bg-amber-100 text-amber-800",
-  "bg-emerald-100 text-emerald-800",
-  "bg-rose-100 text-rose-800",
-  "bg-violet-100 text-violet-800",
-  "bg-orange-100 text-orange-800",
-  "bg-teal-100 text-teal-800",
-  "bg-fuchsia-100 text-fuchsia-800",
-];
-
-function groupColorClass(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  }
-  return groupColors[Math.abs(hash) % groupColors.length];
 }
 
 const cellRenderers: CellRenderers<UserRow> = {
@@ -165,60 +166,19 @@ const cellRenderers: CellRenderers<UserRow> = {
       {row.groups
         .split(", ")
         .filter(Boolean)
-        .map((path) => {
-          const segments = path.split("/");
-          const leaf = segments.at(-1);
-          const depth = segments.length - 1;
-          return (
-            <div
-              key={path}
-              className={twMerge(
-                "flex text-xs font-medium rounded-full",
-                "bg-white",
-              )}
-            >
-              {Array.from({ length: depth }, (_, i) => (
-                <div
-                  key={i}
-                  className={twMerge(
-                    "w-5 h-5 rounded-full border-2",
-                    "border-white",
-                    groupColorClass(leaf ?? ""),
-                  )}
-                />
-              ))}
-              <span
-                className={twMerge(
-                  `
-                  min-h-5
-                  px-2 rounded-full 
-                  border-2 `,
-                  "border-white",
-                  groupColorClass(leaf ?? ""),
-                )}
-              >
-                {leaf}
-              </span>
-            </div>
-          );
-        })}
+        .map((path) => (
+          <GroupPill key={path} path={path} />
+        ))}
     </div>
   ),
 };
 
 export default function AdminUsersRoute() {
-  const { scope, users, groups, groupTree } = useLoaderData<{
+  const { scope, users, groups } = useLoaderData<{
     scope: string;
     users: UserWithGroups[];
     groups: GroupInfo[];
-    groupTree: GroupTreeNode | null;
   }>();
-
-  const filterTree = useMemo(
-    () => (groupTree ? toFilterTree(groupTree) : null),
-    [groupTree],
-  );
-  const columns = useMemo(() => buildColumns(filterTree), [filterTree]);
 
   const tableId = `admin-users-${scope}`;
 
@@ -235,6 +195,21 @@ export default function AdminUsersRoute() {
         _scope: scope,
       })),
     [users, scope],
+  );
+
+  const groupCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of data) {
+      for (const path of row.groups.split(", ").filter(Boolean)) {
+        counts.set(path, (counts.get(path) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [data]);
+
+  const columns = useMemo(
+    () => buildColumns(groups, scope, groupCounts, data.length),
+    [groups, scope, groupCounts, data.length],
   );
 
   return (

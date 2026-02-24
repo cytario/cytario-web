@@ -1,7 +1,5 @@
-import type { ColumnDefBase } from "@tanstack/react-table";
+import type { ColumnDefBase, FilterFn } from "@tanstack/react-table";
 import { ReactNode } from "react";
-
-import type { TreeNode } from "../Controls";
 
 // Behavior props aligned with TanStack naming
 type ColumnBehavior = Pick<ColumnDefBase<unknown>, "enableResizing">;
@@ -25,6 +23,7 @@ interface ColumnDisplay {
   align?: "left" | "right" | "center";
   monospace?: boolean;
   ellipsis?: "left" | "middle" | "right";
+  copyable?: boolean;
 }
 
 // Filtering props
@@ -32,7 +31,8 @@ interface ColumnFiltering {
   enableColumnFilter?: boolean;
   filterType?: "text" | "select";
   filterOptions?: { label: string; value: string }[];
-  filterTree?: TreeNode;
+  filterRender?: (option: { label: string; value: string }) => ReactNode;
+  filterFn?: FilterFn<unknown>;
 }
 
 // Visibility props

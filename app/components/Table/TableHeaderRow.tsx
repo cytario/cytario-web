@@ -129,7 +129,7 @@ export function TableHeaderRow({
                       column={header.column}
                       filterType={columnConfig.filterType ?? "text"}
                       filterOptions={columnConfig.filterOptions}
-                      filterTree={columnConfig.filterTree}
+                      filterRender={columnConfig.filterRender}
                     />
                   )}
               </div>

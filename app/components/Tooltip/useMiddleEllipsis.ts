@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useState } from "react";
+import { RefObject, useLayoutEffect, useState } from "react";
 
 const ELLIPSIS = "\u2026";
 
@@ -35,8 +35,14 @@ function computeTruncated(el: HTMLElement, text: string): string {
   const startLen = Math.ceil(lo / 2);
   const endLen = Math.floor(lo / 2);
 
-  if (endLen === 0) return text.slice(0, startLen) + ELLIPSIS;
-  return text.slice(0, startLen) + ELLIPSIS + text.slice(text.length - endLen);
+  const result =
+    endLen === 0
+      ? text.slice(0, startLen) + ELLIPSIS
+      : text.slice(0, startLen) + ELLIPSIS + text.slice(text.length - endLen);
+
+  // Ensure the DOM shows the final result immediately, before React re-renders.
+  el.textContent = result;
+  return result;
 }
 
 /**
@@ -49,7 +55,8 @@ export function useMiddleEllipsis(
 ): string {
   const [displayed, setDisplayed] = useState(text);
 
-  useEffect(() => {
+  // useLayoutEffect runs before paint, so the user never sees the full text.
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
 

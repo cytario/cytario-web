@@ -1,27 +1,27 @@
 import { Column } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 
-import { IconButton, Input, Select, TreeSelect, type TreeNode } from "../Controls";
+import { IconButton, Input, Select } from "../Controls";
 
 interface ColumnFilterInputProps {
   column: Column<unknown, unknown>;
   filterType: "text" | "select";
   filterOptions?: { label: string; value: string }[];
-  filterTree?: TreeNode;
+  filterRender?: (option: { label: string; value: string }) => ReactNode;
 }
 
 export function ColumnFilterInput({
   column,
   filterType,
   filterOptions,
-  filterTree,
+  filterRender,
 }: ColumnFilterInputProps) {
   const filterValue = (column.getFilterValue() as string) ?? "";
 
   const sortedOptions = useMemo(() => {
-    if (filterType !== "select" || filterTree) return [];
+    if (filterType !== "select") return [];
     if (filterOptions) {
-      return [{ label: "All", value: "" }, ...filterOptions];
+      return filterOptions;
     }
     const facetedValues = column.getFacetedUniqueValues();
     return [
@@ -32,7 +32,7 @@ export function ColumnFilterInput({
         .sort()
         .map((v) => ({ label: v, value: v })),
     ];
-  }, [column, filterType, filterOptions, filterTree]);
+  }, [column, filterType, filterOptions]);
 
   const setFilter = (value: string) =>
     column.setFilterValue(value || undefined);
@@ -40,19 +40,13 @@ export function ColumnFilterInput({
 
   return (
     <div className="flex items-center gap-1">
-      {filterTree ? (
-        <TreeSelect
-          scale="small"
-          tree={filterTree}
-          value={filterValue}
-          onChange={setFilter}
-        />
-      ) : filterType === "select" ? (
+      {filterType === "select" ? (
         <Select
           scale="small"
           options={sortedOptions}
           value={filterValue}
           onChange={setFilter}
+          renderOption={filterRender}
         />
       ) : (
         <Input

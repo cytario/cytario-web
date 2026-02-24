@@ -4,6 +4,7 @@ import {
   ListboxOption,
   ListboxOptions,
 } from "@headlessui/react";
+import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Icon } from "./Button/Icon";
@@ -28,6 +29,7 @@ type SelectProps = {
   disabled?: boolean;
   scale?: "small" | "medium" | "large";
   className?: string;
+  renderOption?: (option: SelectOption) => ReactNode;
 };
 
 export const Select = ({
@@ -38,6 +40,7 @@ export const Select = ({
   disabled,
   scale = "large",
   className,
+  renderOption,
 }: SelectProps) => {
   const selectedOption = options.find((o) => o.value === value);
 
@@ -75,7 +78,11 @@ export const Select = ({
             value={option.value}
             className={listboxOptionStyle}
           >
-            {option.label}
+            {renderOption ? (
+              <span className="flex w-full items-center">{renderOption(option)}</span>
+            ) : (
+              option.label
+            )}
           </ListboxOption>
         ))}
       </ListboxOptions>
