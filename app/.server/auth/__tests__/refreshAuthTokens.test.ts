@@ -244,7 +244,7 @@ describe("refreshAccessTokenWithLock", () => {
     await expect(
       refreshAccessTokenWithLock("session-123", "refresh-token"),
     ).rejects.toThrow(
-      "Failed to acquire refresh lock for session session-123 after 10 retries",
+      "Failed to acquire refresh lock after maximum retries",
     );
 
     expect(redis.set).toHaveBeenCalledTimes(10);

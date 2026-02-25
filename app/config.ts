@@ -74,4 +74,4 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
   },
 };
 
-console.log({ cytarioConfig });
+console.log("Cytario config loaded for:", cytarioConfig.endpoints.webapp);

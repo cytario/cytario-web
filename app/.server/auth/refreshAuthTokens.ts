@@ -96,7 +96,5 @@ export async function refreshAccessTokenWithLock(
     await delay(RETRY_DELAY_MS);
   }
 
-  throw new Error(
-    `Failed to acquire refresh lock for session ${sessionId} after ${MAX_RETRIES} retries`,
-  );
+  throw new Error("Failed to acquire refresh lock after maximum retries");
 }

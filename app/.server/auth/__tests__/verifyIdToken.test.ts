@@ -58,6 +58,26 @@ describe("verifyIdToken", () => {
     expect(result).toBeNull();
   });
 
+  test("returns null for an expired token", async () => {
+    vi.mocked(jwtVerify).mockRejectedValue(
+      new Error('"exp" claim timestamp check failed'),
+    );
+
+    const result = await verifyIdToken("expired-token");
+
+    expect(result).toBeNull();
+  });
+
+  test("returns null for wrong issuer", async () => {
+    vi.mocked(jwtVerify).mockRejectedValue(
+      new Error('"iss" claim check failed'),
+    );
+
+    const result = await verifyIdToken("wrong-issuer-token");
+
+    expect(result).toBeNull();
+  });
+
   test("returns null when JWKS fetch fails", async () => {
     vi.mocked(createRemoteJWKSet).mockImplementation(() => {
       throw new Error("JWKS endpoint unreachable");

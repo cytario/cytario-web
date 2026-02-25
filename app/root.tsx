@@ -159,17 +159,20 @@ export function ErrorBoundary() {
     title = `${error.status} ${error.statusText}`;
     message = error.data ?? "An error occurred while processing your request.";
   } else if (error instanceof Error) {
-    title = error.name;
-    message = error.message;
+    // Log full error server-side but only show generic message to client
+    // to avoid leaking internal details (session IDs, endpoints, stack traces)
+    console.error("Unhandled error:", error);
   }
 
   return (
     <Section>
-      <H1>{title}</H1>
-      <p>{message}</p>
-      <a href="/" className="text-cytario-purple-500 underline mt-4 inline-block">
-        Go home
-      </a>
+      <div role="alert">
+        <H1>{title}</H1>
+        <p>{message}</p>
+        <a href="/" className="text-cytario-purple-500 underline mt-4 inline-block">
+          Go home
+        </a>
+      </div>
     </Section>
   );
 }

@@ -5,6 +5,7 @@ import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { validateOAuthState } from "~/.server/auth/oauthState";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/.server/auth/exchangeAuthCode", () => ({
@@ -30,6 +31,10 @@ vi.mock("~/.server/auth/sessionStorage", () => ({
   },
 }));
 
+vi.mock("~/.server/auth/verifyIdToken", () => ({
+  verifyIdToken: vi.fn(),
+}));
+
 vi.mock("~/config", () => ({
   cytarioConfig: {
     endpoints: { webapp: "https://app.example.com" },
@@ -38,19 +43,6 @@ vi.mock("~/config", () => ({
 }));
 
 const { getSession } = await import("~/.server/auth/getSession");
-
-/**
- * Helper to create a valid JWT-like token with a nonce in the payload
- */
-const createIdToken = (nonce: string): string => {
-  const header = Buffer.from(JSON.stringify({ alg: "RS256" })).toString(
-    "base64url",
-  );
-  const payload = Buffer.from(
-    JSON.stringify({ sub: "user-123", nonce }),
-  ).toString("base64url");
-  return `${header}.${payload}.fake-signature`;
-};
 
 describe("callback loader", () => {
   const mockUser = mock.user();
@@ -69,10 +61,8 @@ describe("callback loader", () => {
     mockSession = { get: vi.fn(), set: vi.fn() };
     vi.mocked(getSession).mockResolvedValue(mockSession as never);
     vi.mocked(validateOAuthState).mockResolvedValue(mockStateData);
-    vi.mocked(exchangeAuthCode).mockResolvedValue({
-      ...mock.tokenReponse(),
-      id_token: createIdToken("test-nonce-abc"),
-    });
+    vi.mocked(exchangeAuthCode).mockResolvedValue(mock.tokenReponse());
+    vi.mocked(verifyIdToken).mockResolvedValue({ nonce: "test-nonce-abc", sub: "user-123" });
     vi.mocked(getUserInfo).mockResolvedValue(mockUser);
   });
 
@@ -154,16 +144,31 @@ describe("callback loader", () => {
     expect((response as Response).status).toBe(302);
   });
 
-  test("redirects to login on nonce mismatch", async () => {
-    vi.mocked(exchangeAuthCode).mockResolvedValue({
-      ...mock.tokenReponse(),
-      id_token: createIdToken("wrong-nonce"),
-    });
+  test("redirects to login when ID token signature verification fails", async () => {
+    vi.mocked(verifyIdToken).mockResolvedValue(null);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const request = new Request(
       "http://localhost/auth/callback?code=auth-code&state=valid-state",
     );
+
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect((response as Response).status).toBe(302);
+    expect(mockSession.set).toHaveBeenCalledWith("notification", {
+      status: "error",
+      message: "Authentication failed. Please try again.",
+    });
+    consoleSpy.mockRestore();
+  });
+
+  test("redirects to login on nonce mismatch", async () => {
+    vi.mocked(verifyIdToken).mockResolvedValue({ nonce: "wrong-nonce", sub: "user-123" });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const request = new Request(
+      "http://localhost/auth/callback?code=auth-code&state=valid-state",
+    );
 
     const response = await loader({ request } as LoaderFunctionArgs);
 

@@ -78,7 +78,7 @@ describe("getUserInfo", () => {
         given_name: "Full",
         family_name: "Name",
         email: "full@example.com",
-        policy: "default-policy",
+        policy: ["default-policy"],
         groups: ["admin", "users"],
       });
 
@@ -96,7 +96,7 @@ describe("getUserInfo", () => {
       expect(result.given_name).toBe("Full");
       expect(result.family_name).toBe("Name");
       expect(result.email).toBe("full@example.com");
-      expect(result.policy).toBe("default-policy");
+      expect(result.policy).toEqual(["default-policy"]);
       expect(result.groups).toEqual(["admin", "users"]);
     });
   });

@@ -24,10 +24,21 @@ vi.mock("~/.server/auth/sessionStorage", () => ({
   },
 }));
 
+vi.mock("~/config", () => ({
+  cytarioConfig: {
+    endpoints: { webapp: "https://app.example.com" },
+    auth: {
+      clientId: "test-client-id",
+      clientSecret: "test-client-secret",
+      scopes: ["openid", "profile", "email"],
+    },
+  },
+}));
+
 vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    // @ts-ignore
+    // @ts-expect-error -- importOriginal returns unknown; spread is safe here
     ...actual,
     redirect: vi.fn(
       (url, init) => new Response(null, { status: 302, headers: { Location: url, ...init?.headers } }),
@@ -114,7 +125,7 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     expect(validateRedirectTo).toHaveBeenCalledWith("/profile");
   });
 
-  test("redirects to /login with flash notification on error", async () => {
+  test("throws 502 response when auth service is unreachable", async () => {
     const mockSession = {
       get: vi.fn(() => null),
       set: vi.fn(),
@@ -127,14 +138,16 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const request = new Request("http://localhost/login");
-    await loader({ request } as LoaderFunctionArgs);
 
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message:
-        "Unable to connect to authentication service. Please try again.",
+    await expect(
+      loader({ request } as LoaderFunctionArgs),
+    ).rejects.toSatisfy((thrown: unknown) => {
+      expect(thrown).toBeInstanceOf(Response);
+      const response = thrown as Response;
+      expect(response.status).toBe(502);
+      return true;
     });
-    expect(redirect).toHaveBeenCalledWith("/login", expect.any(Object));
+
     consoleSpy.mockRestore();
   });
 });

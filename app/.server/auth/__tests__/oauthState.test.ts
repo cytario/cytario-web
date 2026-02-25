@@ -1,5 +1,3 @@
-import { createHash } from "crypto";
-
 import { redis } from "../../db/redis";
 import {
   generateCodeChallenge,
@@ -37,12 +35,11 @@ describe("oauthState", () => {
   });
 
   describe("generateCodeChallenge", () => {
-    test("generates S256 challenge from verifier", () => {
+    test("matches RFC 7636 Appendix B test vector", () => {
+      // RFC 7636 §Appendix B: known verifier → known S256 challenge
       const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
-      const expected = createHash("sha256")
-        .update(verifier)
-        .digest("base64url");
-      expect(generateCodeChallenge(verifier)).toBe(expected);
+      const expectedChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+      expect(generateCodeChallenge(verifier)).toBe(expectedChallenge);
     });
 
     test("produces deterministic output for same input", () => {
@@ -103,6 +100,19 @@ describe("oauthState", () => {
 
     test("rejects data: URIs", () => {
       expect(validateRedirectTo("data:text/html,<script>alert(1)</script>")).toBe("/");
+    });
+
+    test("rejects null byte injection", () => {
+      expect(validateRedirectTo("/page\x00.html")).toBe("/page%00.html");
+    });
+
+    test("rejects URLs with credentials (user:pass@host)", () => {
+      expect(validateRedirectTo("http://admin:pass@evil.com")).toBe("/");
+    });
+
+    test("normalizes dot-dot traversal", () => {
+      const result = validateRedirectTo("/a/../b");
+      expect(result).toBe("/b");
     });
   });
 

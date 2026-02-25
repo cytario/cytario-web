@@ -125,6 +125,30 @@ describe("logout loader", () => {
     consoleSpy.mockRestore();
   });
 
+  test("warns but continues when revocation returns non-200", async () => {
+    vi.mocked(getSessionData).mockResolvedValue({
+      user: mock.user(),
+      authTokens: {
+        accessToken: "access",
+        idToken: "id",
+        refreshToken: "refresh",
+      },
+      credentials: {},
+      notification: undefined,
+    });
+    mockFetch.mockResolvedValue({ ok: false, status: 503 });
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const request = new Request("http://localhost/logout");
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect(response.status).toBe(302);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Token revocation returned 503"),
+    );
+    consoleSpy.mockRestore();
+  });
+
   test("skips revocation when no refresh token", async () => {
     vi.mocked(getSessionData).mockResolvedValue({
       user: undefined,
@@ -158,6 +182,10 @@ describe("logout loader", () => {
     const location = response.headers.get("Location");
     expect(location).toContain("https://auth.example.com/logout");
     expect(location).toContain("id_token_hint=id-token-hint");
+    expect(location).toContain(
+      "post_logout_redirect_uri=" +
+        encodeURIComponent("https://app.example.com/login"),
+    );
     expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
   });
 });

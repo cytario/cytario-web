@@ -397,6 +397,24 @@ describe("authMiddleware", () => {
       expect(response).toBeDefined();
       consoleSpy.mockRestore();
     });
+
+    test("redirects to login when refresh lock exhaustion throws", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
+        new Error("Failed to acquire refresh lock after maximum retries"),
+      );
+
+      const args = createMiddlewareArgs();
+
+      await expect(
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
+      ).rejects.toThrow();
+
+      expect(mockNext).not.toHaveBeenCalled();
+    });
   });
 
   describe("Logout Flow", () => {

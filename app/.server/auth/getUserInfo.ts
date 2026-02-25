@@ -10,7 +10,7 @@ const userProfileSchema = z.object({
   given_name: z.string(),
   family_name: z.string(),
   email: z.string(),
-  policy: z.string(),
+  policy: z.array(z.string()),
   groups: z.array(z.string()),
 });
 
