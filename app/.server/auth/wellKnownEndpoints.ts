@@ -2,7 +2,7 @@ import { cytarioConfig } from "~/config";
 
 const { baseUrl } = cytarioConfig.auth;
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 interface WellKnownEndpoints {
   authorization_endpoint: string;
