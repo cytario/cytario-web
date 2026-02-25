@@ -1,7 +1,10 @@
 import { LoaderFunctionArgs, redirect, MetaFunction } from "react-router";
 
 import { getSession } from "~/.server/auth/getSession";
-import { generateOAuthState } from "~/.server/auth/oauthState";
+import {
+  generateOAuthState,
+  validateRedirectTo,
+} from "~/.server/auth/oauthState";
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 import { createLabel } from "~/.server/logging";
 import { cytarioConfig } from "~/config";
@@ -23,13 +26,8 @@ const label = createLabel("login", "blue");
  * OAuth 2.0 Authorization Code Flow - Login Initiator
  *
  * This route redirects users to Keycloak for authentication using the modern
- * Authorization Code Flow instead of the deprecated Resource Owner Password Credentials (ROPC).
- *
- * Benefits:
- * - Industry standard OAuth 2.0 flow (not deprecated)
- * - User credentials never touch this application
- * - Supports MFA, SSO, and social login
- * - Tokens remain server-side only (via callback handler)
+ * Authorization Code Flow with PKCE instead of the deprecated Resource Owner
+ * Password Credentials (ROPC).
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.info(`${label} Login initiated`);
@@ -48,8 +46,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const redirectTo = url.searchParams.get("redirect");
 
-    // Generate state parameter for CSRF protection and store redirect destination
-    const state = await generateOAuthState(redirectTo || undefined);
+    // Validate redirect at ingress to prevent open redirect
+    const safeRedirectTo = validateRedirectTo(redirectTo || undefined);
+
+    // Generate state, PKCE, and nonce for CSRF/replay protection
+    const { state, codeChallenge, nonce } = await generateOAuthState(
+      safeRedirectTo === "/" ? undefined : safeRedirectTo,
+    );
 
     // Get Keycloak endpoints
     const wellKnownEndpoints = await getWellKnownEndpoints();
@@ -62,6 +65,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("scope", cytarioConfig.auth.scopes.join(" "));
     authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
+    authUrl.searchParams.set("nonce", nonce);
 
     console.info(`${label} Redirecting to Keycloak authorization endpoint`);
 
@@ -69,11 +75,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect(authUrl.toString());
   } catch (error) {
     console.error(`${label} Failed to initiate login:`, error);
-    throw new Response("Failed to initiate login", { status: 500 });
+    throw new Response(
+      "Unable to connect to authentication service. Please try again later.",
+      { status: 502 },
+    );
   }
 };
 
-// This route only handles redirects, no UI needed
+// Loading state shown briefly before redirect fires
 export default function LoginRoute() {
-  return null;
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <p role="status" className="text-slate-500">Redirecting to login...</p>
+    </div>
+  );
 }

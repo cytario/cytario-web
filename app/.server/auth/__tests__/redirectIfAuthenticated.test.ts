@@ -29,7 +29,7 @@ describe("redirectIfAuthenticated", () => {
     vi.mocked(getSession).mockResolvedValue(mockSession);
   });
 
-  test("redirects to /profile when user is authenticated", async () => {
+  test("redirects to / when user is authenticated", async () => {
     vi.mocked(getSessionData).mockResolvedValue({
       user: mock.user(),
       authTokens: {
@@ -49,7 +49,7 @@ describe("redirectIfAuthenticated", () => {
       >[0])
     ).rejects.toThrow();
 
-    expect(redirect).toHaveBeenCalledWith("/profile");
+    expect(redirect).toHaveBeenCalledWith("/");
   });
 
   test("does not redirect when user is not authenticated", async () => {

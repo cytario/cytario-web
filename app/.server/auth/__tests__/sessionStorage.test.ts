@@ -22,14 +22,6 @@ vi.mock("~/config", () => ({
   },
 }));
 
-// Mock randomUUID for predictable anonymous session IDs
-vi.mock("crypto", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("crypto")>();
-  return {
-    ...actual,
-    randomUUID: vi.fn(() => "mock-random-uuid"),
-  };
-});
 
 describe("sessionStorage", () => {
   const mockUser = mock.user({ sub: "user-123" });
@@ -87,7 +79,7 @@ describe("sessionStorage", () => {
   });
 
   describe("createData", () => {
-    test("stores session data in Redis", async () => {
+    test("stores session data in Redis with UUID session ID", async () => {
       const request = new Request("http://localhost/");
       const session = await sessionStorage.getSession(
         request.headers.get("Cookie")
@@ -101,11 +93,12 @@ describe("sessionStorage", () => {
         expires: mockExpires,
       });
 
-      expect(redis.hset).toHaveBeenCalledWith(
-        "user-123",
-        "data",
-        expect.any(String)
+      const sessionId = vi.mocked(redis.hset).mock.calls[0][0] as string;
+      // Session ID should be a UUID, not user.sub
+      expect(sessionId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
       );
+      expect(sessionId).not.toBe("user-123");
     });
 
     test("sets session expiry in Redis", async () => {
@@ -123,12 +116,14 @@ describe("sessionStorage", () => {
       });
 
       expect(redis.expireat).toHaveBeenCalledWith(
-        "user-123",
+        expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+        ),
         Math.floor(mockExpires.getTime() / 1000)
       );
     });
 
-    test("uses user.sub as session ID", async () => {
+    test("always uses randomUUID for session ID, never user.sub", async () => {
       const request = new Request("http://localhost/");
       const session = await sessionStorage.getSession(
         request.headers.get("Cookie")
@@ -142,10 +137,10 @@ describe("sessionStorage", () => {
         expires: mockExpires,
       });
 
-      expect(redis.hset).toHaveBeenCalledWith(
-        "custom-user-id",
-        "data",
-        expect.any(String)
+      const sessionId = vi.mocked(redis.hset).mock.calls[0][0] as string;
+      expect(sessionId).not.toBe("custom-user-id");
+      expect(sessionId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
       );
     });
   });

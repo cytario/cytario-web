@@ -1,11 +1,17 @@
 import { redis } from "../../db/redis";
-import { generateOAuthState, validateOAuthState } from "../oauthState";
+import {
+  generateCodeChallenge,
+  generateCodeVerifier,
+  generateNonce,
+  generateOAuthState,
+  validateOAuthState,
+  validateRedirectTo,
+} from "../oauthState";
 
 vi.mock("../../db/redis", () => ({
   redis: {
     setex: vi.fn(),
-    get: vi.fn(),
-    del: vi.fn(),
+    getdel: vi.fn(),
   },
 }));
 
@@ -14,25 +20,130 @@ describe("oauthState", () => {
     vi.clearAllMocks();
   });
 
-  describe("generateOAuthState", () => {
-    test("generates random hex state string", async () => {
-      vi.mocked(redis.setex).mockResolvedValue("OK");
-
-      const state = await generateOAuthState();
-
-      expect(state).toMatch(/^[a-f0-9]{64}$/); // 32 bytes = 64 hex chars
+  describe("generateCodeVerifier", () => {
+    test("generates a base64url string of 43 characters", () => {
+      const verifier = generateCodeVerifier();
+      expect(verifier).toHaveLength(43);
+      expect(verifier).toMatch(/^[A-Za-z0-9_-]+$/);
     });
 
-    test("stores state in Redis with 10-minute TTL", async () => {
+    test("generates unique verifiers", () => {
+      const v1 = generateCodeVerifier();
+      const v2 = generateCodeVerifier();
+      expect(v1).not.toBe(v2);
+    });
+  });
+
+  describe("generateCodeChallenge", () => {
+    test("matches RFC 7636 Appendix B test vector", () => {
+      // RFC 7636 §Appendix B: known verifier → known S256 challenge
+      const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+      const expectedChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+      expect(generateCodeChallenge(verifier)).toBe(expectedChallenge);
+    });
+
+    test("produces deterministic output for same input", () => {
+      const verifier = generateCodeVerifier();
+      const c1 = generateCodeChallenge(verifier);
+      const c2 = generateCodeChallenge(verifier);
+      expect(c1).toBe(c2);
+    });
+  });
+
+  describe("generateNonce", () => {
+    test("generates a 32-character hex string", () => {
+      const nonce = generateNonce();
+      expect(nonce).toMatch(/^[a-f0-9]{32}$/);
+    });
+
+    test("generates unique nonces", () => {
+      const n1 = generateNonce();
+      const n2 = generateNonce();
+      expect(n1).not.toBe(n2);
+    });
+  });
+
+  describe("validateRedirectTo", () => {
+    test("returns / for undefined input", () => {
+      expect(validateRedirectTo(undefined)).toBe("/");
+    });
+
+    test("returns / for empty string", () => {
+      expect(validateRedirectTo("")).toBe("/");
+    });
+
+    test("preserves valid relative paths", () => {
+      expect(validateRedirectTo("/buckets")).toBe("/buckets");
+    });
+
+    test("preserves query params and hash", () => {
+      expect(validateRedirectTo("/page?q=1#section")).toBe(
+        "/page?q=1#section",
+      );
+    });
+
+    test("rejects absolute URLs (different origin)", () => {
+      expect(validateRedirectTo("https://evil.com/steal")).toBe("/");
+    });
+
+    test("rejects protocol-relative URLs", () => {
+      expect(validateRedirectTo("//evil.com")).toBe("/");
+    });
+
+    test("rejects backslash bypass vectors", () => {
+      expect(validateRedirectTo("\\/evil.com")).toBe("/");
+    });
+
+    test("rejects javascript: URIs", () => {
+      expect(validateRedirectTo("javascript:alert(1)")).toBe("/");
+    });
+
+    test("rejects data: URIs", () => {
+      expect(validateRedirectTo("data:text/html,<script>alert(1)</script>")).toBe("/");
+    });
+
+    test("rejects null byte injection", () => {
+      expect(validateRedirectTo("/page\x00.html")).toBe("/page%00.html");
+    });
+
+    test("rejects URLs with credentials (user:pass@host)", () => {
+      expect(validateRedirectTo("http://admin:pass@evil.com")).toBe("/");
+    });
+
+    test("normalizes dot-dot traversal", () => {
+      const result = validateRedirectTo("/a/../b");
+      expect(result).toBe("/b");
+    });
+  });
+
+  describe("generateOAuthState", () => {
+    test("returns state, codeChallenge, and nonce", async () => {
       vi.mocked(redis.setex).mockResolvedValue("OK");
 
-      const state = await generateOAuthState();
+      const result = await generateOAuthState();
+
+      expect(result).toHaveProperty("state");
+      expect(result).toHaveProperty("codeChallenge");
+      expect(result).toHaveProperty("nonce");
+      expect(result.state).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    test("stores state with codeVerifier and nonce in Redis with 10-minute TTL", async () => {
+      vi.mocked(redis.setex).mockResolvedValue("OK");
+
+      const result = await generateOAuthState();
 
       expect(redis.setex).toHaveBeenCalledWith(
-        `oauth_state:${state}`,
-        600, // 10 minutes in seconds
-        expect.any(String)
+        `oauth_state:${result.state}`,
+        600,
+        expect.any(String),
       );
+
+      const storedData = JSON.parse(
+        vi.mocked(redis.setex).mock.calls[0][2] as string,
+      );
+      expect(storedData.codeVerifier).toBeDefined();
+      expect(storedData.nonce).toBe(result.nonce);
     });
 
     test("includes redirectTo in state data when provided", async () => {
@@ -40,33 +151,33 @@ describe("oauthState", () => {
 
       await generateOAuthState("/buckets");
 
-      const setexCall = vi.mocked(redis.setex).mock.calls[0];
-      const storedData = JSON.parse(setexCall[2] as string);
-
+      const storedData = JSON.parse(
+        vi.mocked(redis.setex).mock.calls[0][2] as string,
+      );
       expect(storedData.redirectTo).toBe("/buckets");
     });
 
-    test("includes state and createdAt in stored data", async () => {
+    test("codeChallenge matches S256 of stored codeVerifier", async () => {
       vi.mocked(redis.setex).mockResolvedValue("OK");
-      const beforeTime = Date.now();
 
-      const state = await generateOAuthState();
+      const result = await generateOAuthState();
 
-      const setexCall = vi.mocked(redis.setex).mock.calls[0];
-      const storedData = JSON.parse(setexCall[2] as string);
-
-      expect(storedData.state).toBe(state);
-      expect(storedData.createdAt).toBeGreaterThanOrEqual(beforeTime);
-      expect(storedData.createdAt).toBeLessThanOrEqual(Date.now());
+      const storedData = JSON.parse(
+        vi.mocked(redis.setex).mock.calls[0][2] as string,
+      );
+      const expectedChallenge = generateCodeChallenge(
+        storedData.codeVerifier,
+      );
+      expect(result.codeChallenge).toBe(expectedChallenge);
     });
 
     test("generates unique states on each call", async () => {
       vi.mocked(redis.setex).mockResolvedValue("OK");
 
-      const state1 = await generateOAuthState();
-      const state2 = await generateOAuthState();
+      const result1 = await generateOAuthState();
+      const result2 = await generateOAuthState();
 
-      expect(state1).not.toBe(state2);
+      expect(result1.state).not.toBe(result2.state);
     });
   });
 
@@ -75,38 +186,31 @@ describe("oauthState", () => {
       state: "abc123",
       redirectTo: "/dashboard",
       createdAt: Date.now(),
+      codeVerifier: "test-verifier",
+      nonce: "test-nonce",
     };
 
-    test("returns state data for valid state", async () => {
-      vi.mocked(redis.get).mockResolvedValue(JSON.stringify(validStateData));
-      vi.mocked(redis.del).mockResolvedValue(1);
+    test("returns state data for valid state using atomic GETDEL", async () => {
+      vi.mocked(redis.getdel).mockResolvedValue(
+        JSON.stringify(validStateData),
+      );
 
       const result = await validateOAuthState("abc123");
 
       expect(result).toEqual(validStateData);
-    });
-
-    test("deletes state after validation (one-time use)", async () => {
-      vi.mocked(redis.get).mockResolvedValue(JSON.stringify(validStateData));
-      vi.mocked(redis.del).mockResolvedValue(1);
-
-      await validateOAuthState("abc123");
-
-      expect(redis.del).toHaveBeenCalledWith("oauth_state:abc123");
+      expect(redis.getdel).toHaveBeenCalledWith("oauth_state:abc123");
     });
 
     test("returns null for non-existent state", async () => {
-      vi.mocked(redis.get).mockResolvedValue(null);
+      vi.mocked(redis.getdel).mockResolvedValue(null);
 
       const result = await validateOAuthState("nonexistent");
 
       expect(result).toBeNull();
-      expect(redis.del).not.toHaveBeenCalled();
     });
 
     test("returns null for invalid JSON in Redis", async () => {
-      vi.mocked(redis.get).mockResolvedValue("invalid json{");
-      vi.mocked(redis.del).mockResolvedValue(1);
+      vi.mocked(redis.getdel).mockResolvedValue("invalid json{");
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
@@ -116,17 +220,17 @@ describe("oauthState", () => {
       expect(result).toBeNull();
       expect(consoleSpy).toHaveBeenCalledWith(
         "Failed to parse OAuth state:",
-        expect.any(Error)
+        expect.any(Error),
       );
       consoleSpy.mockRestore();
     });
 
     test("uses correct Redis key prefix", async () => {
-      vi.mocked(redis.get).mockResolvedValue(null);
+      vi.mocked(redis.getdel).mockResolvedValue(null);
 
       await validateOAuthState("mystate");
 
-      expect(redis.get).toHaveBeenCalledWith("oauth_state:mystate");
+      expect(redis.getdel).toHaveBeenCalledWith("oauth_state:mystate");
     });
   });
 });

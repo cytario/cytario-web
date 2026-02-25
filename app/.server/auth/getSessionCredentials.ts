@@ -21,9 +21,24 @@ export const isValidCredentials = (
   return Date.now() < new Date(credentials.Expiration).getTime() - bufferMs;
 };
 
+/**
+ * Sanitizes a string for use as an AWS STS RoleSessionName.
+ * Allowed characters: [\w+=,.@-]. Collapses consecutive hyphens.
+ * Truncates to 64 chars. Falls back to "cytario-session" if result < 2 chars.
+ */
+export const sanitizeRoleSessionName = (name: string): string => {
+  const sanitized = name
+    .replace(/[^\w+=,.@-]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 64);
+
+  return sanitized.length >= 2 ? sanitized : "cytario-session";
+};
+
 const fetchTemporaryCredentials = async (
   bucketConfig: BucketConfig,
   idToken: string,
+  roleSessionName: string,
 ): Promise<Credentials> => {
   const { region, endpoint, roleArn } = bucketConfig;
 
@@ -38,7 +53,7 @@ const fetchTemporaryCredentials = async (
 
     const command = new AssumeRoleWithWebIdentityCommand({
       RoleArn: roleArn ?? undefined,
-      RoleSessionName: "test-web-identity-session",
+      RoleSessionName: roleSessionName,
       WebIdentityToken: idToken,
       DurationSeconds: 60 * 60 * 1, // 1 hour
     });
@@ -85,6 +100,8 @@ export const getAllSessionCredentials = async (
     `${label} Fetching credentials for ${bucketsNeedingCredentials.length} bucket(s)`,
   );
 
+  const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
+
   // Fetch all in parallel — one failure doesn't block others
   const results = await Promise.allSettled(
     bucketsNeedingCredentials.map(async ([name, config]) => ({
@@ -92,6 +109,7 @@ export const getAllSessionCredentials = async (
       credentials: await fetchTemporaryCredentials(
         config,
         sessionData.authTokens.idToken,
+        roleSessionName,
       ),
     })),
   );

@@ -3,13 +3,25 @@ import { LoaderFunctionArgs, redirect } from "react-router";
 import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { getSession } from "~/.server/auth/getSession";
 import { getUserInfo } from "~/.server/auth/getUserInfo";
-import { validateOAuthState } from "~/.server/auth/oauthState";
+import { validateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import { createLabel } from "~/.server/logging";
 import { NotificationInput } from "~/components/Notification/Notification.store";
 import { cytarioConfig } from "~/config";
 
 const label = createLabel("auth-callback", "cyan");
+
+/**
+ * Redirects to login with an error notification stored in the session.
+ */
+const failWithNotification = async (request: Request, message: string) => {
+  const session = await getSession(request);
+  session.set("notification", { status: "error" as const, message });
+  return redirect("/login", {
+    headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
+  });
+};
 
 /**
  * OAuth 2.0 Authorization Code Flow callback handler.
@@ -27,29 +39,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Handle errors from authorization server
   if (error) {
     console.error(`${label} Authorization error:`, error, errorDescription);
-    const notification: NotificationInput = {
-      status: "error",
-      message: errorDescription || `Authentication failed: ${error}`,
-    };
-    const session = await getSession(request);
-    session.set("notification", notification);
-    return redirect("/login", {
-      headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
-    });
+    return failWithNotification(
+      request,
+      errorDescription || "Authentication failed. Please try again.",
+    );
   }
 
   // Validate required parameters
   if (!code || !state) {
     console.error(`${label} Missing code or state parameter`);
-    return redirect("/login?error=missing_parameters");
+    return failWithNotification(
+      request,
+      "Authentication failed. Missing required parameters.",
+    );
   }
 
   try {
-    // Validate state to prevent CSRF attacks
+    // Validate state to prevent CSRF attacks (atomic GETDEL)
     const stateData = await validateOAuthState(state);
     if (!stateData) {
       console.error(`${label} Invalid or expired state parameter`);
-      return redirect("/login?error=invalid_state");
+      return failWithNotification(
+        request,
+        "Authentication session expired. Please try again.",
+      );
+    }
+
+    // Guard for in-flight states from before PKCE deployment
+    if (!stateData.codeVerifier || !stateData.nonce) {
+      console.error(`${label} State missing codeVerifier or nonce`);
+      return failWithNotification(
+        request,
+        "Authentication session invalid. Please try again.",
+      );
     }
 
     console.info(`${label} State validated successfully`);
@@ -57,9 +79,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Build the redirect URI (must match what was sent to authorization endpoint)
     const redirectUri = `${cytarioConfig.endpoints.webapp}/auth/callback`;
 
-    // Exchange authorization code for tokens
+    // Exchange authorization code for tokens with PKCE verifier
     console.info(`${label} Exchanging authorization code for tokens`);
-    const tokens = await exchangeAuthCode(code, redirectUri);
+    const tokens = await exchangeAuthCode(
+      code,
+      redirectUri,
+      stateData.codeVerifier,
+    );
+
+    // Verify ID token signature via JWKS and validate nonce from verified payload
+    const idTokenPayload = await verifyIdToken(tokens.id_token);
+    if (!idTokenPayload) {
+      console.error(`${label} ID token signature verification failed`);
+      return failWithNotification(
+        request,
+        "Authentication failed. Please try again.",
+      );
+    }
+
+    if (idTokenPayload.nonce !== stateData.nonce) {
+      console.error(`${label} Nonce mismatch in ID token`);
+      return failWithNotification(
+        request,
+        "Authentication failed. Please try again.",
+      );
+    }
 
     // Get user info using the access token
     console.info(`${label} Fetching user info`);
@@ -81,10 +125,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     session.set("notification", notification);
 
     // Redirect to the originally requested page or default to home
-    const redirectTo = stateData.redirectTo || "/";
+    const redirectTo = validateRedirectTo(stateData.redirectTo);
     console.info(
       `${label} Authentication successful, redirecting to:`,
-      redirectTo
+      redirectTo,
     );
 
     return redirect(redirectTo, {
@@ -92,16 +136,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   } catch (error) {
     console.error(`${label} Authentication failed:`, error);
-    const notification: NotificationInput = {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Authentication failed.",
-    };
-    const session = await getSession(request);
-    session.set("notification", notification);
-    return redirect("/login", {
-      headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
-    });
+    return failWithNotification(
+      request,
+      "Authentication failed. Please try again.",
+    );
   }
 };
 

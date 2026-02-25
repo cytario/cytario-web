@@ -1,19 +1,23 @@
+import { z } from "zod";
+
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 
 // TODO: pass via env
 const REALM_ADMIN_GROUP = "cytario/admins";
 
-interface UserProfileRaw {
-  sub: string; // uuid
-  email_verified: boolean;
-  name: string;
-  preferred_username: string;
-  given_name: string;
-  family_name: string;
-  email: string;
-  groups: string[];
-  policy: string;
-}
+const userProfileSchema = z.object({
+  sub: z.string(),
+  email_verified: z.boolean(),
+  name: z.string(),
+  preferred_username: z.string(),
+  given_name: z.string(),
+  family_name: z.string(),
+  email: z.string(),
+  policy: z.array(z.string()),
+  groups: z.array(z.string()),
+});
+
+type UserProfileRaw = z.infer<typeof userProfileSchema>;
 
 export interface UserProfile extends UserProfileRaw {
   groups: string[];
@@ -43,33 +47,29 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   };
 }
 
-/** Fetches user profile from Keycloak userinfo endpoint. */
-async function fetchUserProfile(accessToken: string): Promise<UserProfileRaw> {
-  const wellKnownEndpoints = await getWellKnownEndpoints();
-  const { userinfo_endpoint } = wellKnownEndpoints;
-
-  const response = await fetch(userinfo_endpoint, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`UserInfo fetch failed: ${response.status} - ${errorText}`);
-  }
-
-  return await response.json();
-}
-
 /** Retrieves and enriches user profile data from Keycloak. */
 export const getUserInfo = async (
   accessToken: string,
 ): Promise<UserProfile> => {
   try {
-    const userProfileRaw = await fetchUserProfile(accessToken);
-    const userProfile = enrichUserProfile(userProfileRaw);
-    return userProfile;
+    const wellKnownEndpoints = await getWellKnownEndpoints();
+    const { userinfo_endpoint } = wellKnownEndpoints;
+
+    const response = await fetch(userinfo_endpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `UserInfo fetch failed: ${response.status} - ${errorText}`,
+      );
+    }
+
+    const raw = userProfileSchema.parse(await response.json());
+    return enrichUserProfile(raw);
   } catch (error) {
     console.error("Keycloak getUserInfo failed:", error);
     throw error;

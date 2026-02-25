@@ -2,13 +2,14 @@ import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
-import { refreshAccessToken as refreshAuthTokens } from "./refreshAuthTokens";
+import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import {
   type CytarioSession,
   type SessionData,
   sessionStorage,
 } from "./sessionStorage";
+import { verifyIdToken } from "./verifyIdToken";
 import { BucketConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getBucketConfigs } from "~/utils/bucketConfig";
@@ -19,19 +20,17 @@ export interface AuthContextData extends SessionData {
 
 export const authContext = createContext<AuthContextData>();
 
-// TODO: use library
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const decodeToken = (token: string): Record<string, any> => {
-  const payload = token.split(".")[1];
-  return JSON.parse(atob(payload));
-};
-
-const isValidToken = (token?: string): boolean => {
+/**
+ * Lightweight expiry check for refresh tokens (opaque to clients).
+ * Only checks the `exp` claim — no signature verification needed.
+ */
+const isRefreshTokenValid = (token?: string): boolean => {
   if (!token) return false;
 
   try {
-    const decodedPayload = decodeToken(token);
-    return Math.floor(Date.now() / 1000) < decodedPayload.exp;
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    return Math.floor(Date.now() / 1000) < decoded.exp;
   } catch {
     return false;
   }
@@ -93,8 +92,10 @@ export const authMiddleware: MiddlewareFunction = async (
     let updatedSessionData = sessionData as SessionData;
     const { authTokens } = updatedSessionData;
 
-    // If idToken is valid, proceed
-    if (isValidToken(authTokens.idToken)) {
+    // Verify idToken signature via JWKS
+    const idTokenPayload = await verifyIdToken(authTokens.idToken);
+
+    if (idTokenPayload) {
       const { sessionData: withCredentials, bucketConfigs } =
         await fetchAllCredentials(updatedSessionData);
       updatedSessionData = withCredentials;
@@ -110,10 +111,13 @@ export const authMiddleware: MiddlewareFunction = async (
     }
 
     // If idToken is invalid but refreshToken is valid, refresh tokens
-    if (isValidToken(authTokens.refreshToken)) {
+    if (isRefreshTokenValid(authTokens.refreshToken)) {
       console.info(`${label} Fetch new tokens and credentials`);
 
-      const newAuthTokens = await refreshAuthTokens(authTokens.refreshToken);
+      const newAuthTokens = await refreshAccessTokenWithLock(
+        session.id,
+        authTokens.refreshToken,
+      );
       session.set("authTokens", newAuthTokens);
 
       const { sessionData: withCredentials, bucketConfigs } =
@@ -143,7 +147,9 @@ export const authMiddleware: MiddlewareFunction = async (
  */
 const logout = async (url: string, session: CytarioSession) => {
   console.info(`${label} Delete session and redirect to login`);
-  throw redirect(`/login?redirect=${encodeURIComponent(url)}`, {
+  const requestUrl = new URL(url);
+  const relativeUrl = requestUrl.pathname + requestUrl.search;
+  throw redirect(`/login?redirect=${encodeURIComponent(relativeUrl)}`, {
     headers: {
       "Set-Cookie": await sessionStorage.destroySession(session),
     },

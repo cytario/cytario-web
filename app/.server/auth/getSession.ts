@@ -2,7 +2,8 @@ import { CytarioSession, sessionStorage } from "./sessionStorage";
 
 /**
  * Retrieves the Cytario session from the request.
- * @deprecated use middleware context instead to prevent multiple session reads per request
+ * @deprecated For routes under the auth middleware chain, use `context.get(sessionContext)` instead.
+ * Direct use in auth routes (login, callback, logout) that run outside middleware is acceptable.
  */
 export const getSession = async (request: Request): Promise<CytarioSession> => {
   const cookie = request.headers.get("cookie");

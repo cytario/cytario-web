@@ -56,8 +56,7 @@ export const sessionStorage = createSessionStorage<
   },
 
   async createData(data, expires) {
-    // Anonymouse session support via random UUID
-    const id = data.user?.sub ?? randomUUID();
+    const id = randomUUID();
     console.info(`${label} Create: ${id}`);
 
     if (!id || !expires) {
