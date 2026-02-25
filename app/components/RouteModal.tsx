@@ -22,9 +22,9 @@ export function RouteModal({
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
-      if (!isOpen) handleClose();
+      if (!isOpen && isDismissable) handleClose();
     },
-    [handleClose],
+    [isDismissable, handleClose],
   );
 
   return (

@@ -47,12 +47,12 @@ describe("LocationFieldset", () => {
   test("renders region select when isAWS is true", () => {
     render(<Wrapper isAWS={true} />);
 
-    expect(screen.getByText("Region")).toBeInTheDocument();
+    expect(screen.getAllByText("Region").length).toBeGreaterThanOrEqual(1);
   });
 
   test("does not render region select when isAWS is false", () => {
     render(<Wrapper isAWS={false} />);
 
-    expect(screen.queryByText("Region")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("Region")).toHaveLength(0);
   });
 });

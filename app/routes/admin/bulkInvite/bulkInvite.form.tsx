@@ -9,7 +9,6 @@ import {
   bulkInviteSchema,
 } from "./bulkInvite.schema";
 import { Input } from "~/components/Controls";
-import { GroupPill } from "~/components/Pill/GroupPill";
 
 interface BulkInviteFormProps {
   scope: string;

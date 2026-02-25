@@ -1,4 +1,4 @@
-import { Button, Icon, Select } from "@cytario/design";
+import { Button, Select } from "@cytario/design";
 import { Ban, Check, UserMinus, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
@@ -8,7 +8,6 @@ import {
   type UserWithGroups,
 } from "~/.server/auth/keycloakAdmin";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { GroupPill } from "~/components/Pill/GroupPill";
 
 type BulkIntent =
   | "addToGroup"

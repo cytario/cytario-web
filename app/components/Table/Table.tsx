@@ -207,14 +207,12 @@ export function Table<TData extends Record<string, unknown>>({
               <tr>
                 <td colSpan={columns.length + 1}>
                   <EmptyState
-                    // @ts-expect-error — npm-link LucideIcon type mismatch; resolves with registry install
                     icon={SearchX}
                     title="No results"
                     description="No results match your filters"
                     action={
                       <Button
                         variant="secondary"
-                        // @ts-expect-error — npm-link LucideIcon type mismatch; resolves with registry install
                         iconLeft={FilterX}
                         onPress={resetFilters}
                       >

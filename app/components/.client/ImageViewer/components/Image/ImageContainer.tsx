@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
+import { ImageOff } from "lucide-react";
 import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -7,7 +8,6 @@ import { useResizeObserver } from "./useResizeObserver";
 import { select } from "../../state/selectors";
 import { ViewPort } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import { ImageOff } from "lucide-react";
 import { LavaLoader } from "~/components/LavaLoader";
 
 interface ViewContainerProps {
