@@ -12,7 +12,7 @@ export const redirectIfAuthenticated = async ({
   const { user } = await getSessionData(session);
 
   if (user) {
-    throw redirect("/profile");
+    throw redirect("/");
   }
 
   return;

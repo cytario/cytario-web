@@ -19,6 +19,7 @@ describe("exchangeAuthCode", () => {
   const mockTokenEndpoint = "https://keycloak.example.com/token";
   const mockCode = "auth-code-123";
   const mockRedirectUri = "https://app.example.com/auth/callback";
+  const mockCodeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,6 +30,8 @@ describe("exchangeAuthCode", () => {
       userinfo_endpoint: "https://keycloak.example.com/userinfo",
       end_session_endpoint: "https://keycloak.example.com/logout",
       revocation_endpoint: "https://keycloak.example.com/revoke",
+      jwks_uri: "https://keycloak.example.com/certs",
+      issuer: "https://keycloak.example.com/realms/test",
     });
   });
 
@@ -39,7 +42,7 @@ describe("exchangeAuthCode", () => {
       json: () => Promise.resolve(mockTokenResponse),
     });
 
-    const result = await exchangeAuthCode(mockCode, mockRedirectUri);
+    const result = await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
 
     expect(result).toEqual(mockTokenResponse);
   });
@@ -50,7 +53,7 @@ describe("exchangeAuthCode", () => {
       json: () => Promise.resolve(mock.tokenReponse()),
     });
 
-    await exchangeAuthCode(mockCode, mockRedirectUri);
+    await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
 
     expect(fetch).toHaveBeenCalledWith(
       mockTokenEndpoint,
@@ -58,13 +61,13 @@ describe("exchangeAuthCode", () => {
     );
   });
 
-  test("sends authorization_code grant type", async () => {
+  test("sends authorization_code grant type with code_verifier", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mock.tokenReponse()),
     });
 
-    await exchangeAuthCode(mockCode, mockRedirectUri);
+    await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     const body = fetchCall[1]?.body as URLSearchParams;
@@ -72,6 +75,7 @@ describe("exchangeAuthCode", () => {
     expect(body.get("grant_type")).toBe("authorization_code");
     expect(body.get("code")).toBe(mockCode);
     expect(body.get("redirect_uri")).toBe(mockRedirectUri);
+    expect(body.get("code_verifier")).toBe(mockCodeVerifier);
   });
 
   test("includes Basic auth header with client credentials", async () => {
@@ -80,7 +84,7 @@ describe("exchangeAuthCode", () => {
       json: () => Promise.resolve(mock.tokenReponse()),
     });
 
-    await exchangeAuthCode(mockCode, mockRedirectUri);
+    await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     const headers = fetchCall[1]?.headers as Record<string, string>;
@@ -95,7 +99,7 @@ describe("exchangeAuthCode", () => {
       json: () => Promise.resolve(mock.tokenReponse()),
     });
 
-    await exchangeAuthCode(mockCode, mockRedirectUri);
+    await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     const headers = fetchCall[1]?.headers as Record<string, string>;
@@ -103,7 +107,7 @@ describe("exchangeAuthCode", () => {
     expect(headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
   });
 
-  test("throws error on non-200 response", async () => {
+  test("throws error on non-200 response without leaking response body", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
@@ -111,9 +115,9 @@ describe("exchangeAuthCode", () => {
     });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(exchangeAuthCode(mockCode, mockRedirectUri)).rejects.toThrow(
-      "Token exchange failed: 400 - invalid_grant: Code expired"
-    );
+    await expect(
+      exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier),
+    ).rejects.toThrow("Token exchange failed: 400");
 
     consoleSpy.mockRestore();
   });
@@ -123,9 +127,9 @@ describe("exchangeAuthCode", () => {
     global.fetch = vi.fn().mockRejectedValue(networkError);
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(exchangeAuthCode(mockCode, mockRedirectUri)).rejects.toThrow(
-      "Network error"
-    );
+    await expect(
+      exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier),
+    ).rejects.toThrow("Network error");
 
     expect(consoleSpy).toHaveBeenCalledWith(
       "Authorization code exchange failed:",
@@ -143,7 +147,7 @@ describe("exchangeAuthCode", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
-      await exchangeAuthCode(mockCode, mockRedirectUri);
+      await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
     } catch {
       // Expected to throw
     }

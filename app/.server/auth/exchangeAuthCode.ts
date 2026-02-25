@@ -6,11 +6,12 @@ const { clientId, clientSecret } = cytarioConfig.auth;
 
 /**
  * Exchanges an authorization code for tokens using the OAuth 2.0 Authorization Code Flow.
- * This is the modern, recommended approach instead of the password grant (ROPC).
+ * Includes PKCE code_verifier for proof of possession.
  */
 export const exchangeAuthCode = async (
   code: string,
-  redirectUri: string
+  redirectUri: string,
+  codeVerifier: string,
 ): Promise<AuthTokensResponse> => {
   try {
     const wellKnownEndpoints = await getWellKnownEndpoints();
@@ -19,20 +20,20 @@ export const exchangeAuthCode = async (
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: `Basic ${Buffer.from(
-          `${clientId}:${clientSecret}`
+          `${clientId}:${clientSecret}`,
         ).toString("base64")}`,
       },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
         redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
       }),
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
       throw new Error(
-        `Token exchange failed: ${tokenResponse.status} - ${errorText}`
+        `Token exchange failed: ${tokenResponse.status}`,
       );
     }
 

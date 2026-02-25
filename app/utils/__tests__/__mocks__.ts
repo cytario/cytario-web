@@ -64,7 +64,7 @@ const mock = {
     given_name: "string",
     family_name: "string",
     email: "string",
-    policy: "string",
+    policy: ["default-policy"],
     groups: ["group1", "group2"],
     ...overrides,
   }),

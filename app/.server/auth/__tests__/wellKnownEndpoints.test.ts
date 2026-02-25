@@ -19,6 +19,8 @@ describe("getWellKnownEndpoints", () => {
     revocation_endpoint: "https://auth.example.com/revoke",
     end_session_endpoint: "https://auth.example.com/logout",
     userinfo_endpoint: "https://auth.example.com/userinfo",
+    jwks_uri: "https://auth.example.com/certs",
+    issuer: "https://auth.example.com/realms/test",
   };
 
   beforeEach(() => {
@@ -41,11 +43,11 @@ describe("getWellKnownEndpoints", () => {
       await freshGet();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://auth.example.com/realms/test/.well-known/openid-configuration"
+        "https://auth.example.com/realms/test/.well-known/openid-configuration",
       );
     });
 
-    test("returns all endpoint URLs", async () => {
+    test("returns all endpoint URLs including jwks_uri and issuer", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockEndpoints),
@@ -57,10 +59,8 @@ describe("getWellKnownEndpoints", () => {
       const result = await freshGet();
 
       expect(result).toEqual(mockEndpoints);
-      expect(result.authorization_endpoint).toBe("https://auth.example.com/auth");
-      expect(result.token_endpoint).toBe("https://auth.example.com/token");
-      expect(result.end_session_endpoint).toBe("https://auth.example.com/logout");
-      expect(result.userinfo_endpoint).toBe("https://auth.example.com/userinfo");
+      expect(result.jwks_uri).toBe("https://auth.example.com/certs");
+      expect(result.issuer).toBe("https://auth.example.com/realms/test");
     });
   });
 
@@ -82,6 +82,30 @@ describe("getWellKnownEndpoints", () => {
       // Should only fetch once
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
+
+    test("re-fetches after TTL expires", async () => {
+      vi.useFakeTimers();
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockEndpoints),
+      });
+
+      const { getWellKnownEndpoints: freshGet } = await import(
+        "../wellKnownEndpoints"
+      );
+
+      await freshGet();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // Advance past 1-hour TTL
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
+      await freshGet();
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
   });
 
   describe("Error Handling", () => {
@@ -98,7 +122,7 @@ describe("getWellKnownEndpoints", () => {
       );
 
       await expect(freshGet()).rejects.toThrow(
-        "Failed to fetch well-known endpoints: 404 Not Found - Realm not found"
+        "Failed to fetch well-known endpoints: 404 Not Found - Realm not found",
       );
     });
 

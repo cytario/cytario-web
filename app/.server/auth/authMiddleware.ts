@@ -2,30 +2,29 @@ import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
 import { getSessionCredentials } from "./getSessionCredentials";
-import { refreshAccessToken as refreshAuthTokens } from "./refreshAuthTokens";
+import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import {
   type CytarioSession,
   type SessionData,
   sessionStorage,
 } from "./sessionStorage";
+import { verifyIdToken } from "./verifyIdToken";
 import { createLabel } from "~/.server/logging";
 
 export const authContext = createContext<Partial<SessionData>>();
 
-// TODO: use library
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const decodeToken = (token: string): Record<string, any> => {
-  const payload = token.split(".")[1];
-  return JSON.parse(atob(payload));
-};
-
-const isValidToken = (token?: string): boolean => {
+/**
+ * Lightweight expiry check for refresh tokens (opaque to clients).
+ * Only checks the `exp` claim — no signature verification needed.
+ */
+const isRefreshTokenValid = (token?: string): boolean => {
   if (!token) return false;
 
   try {
-    const decodedPayload = decodeToken(token);
-    return Math.floor(Date.now() / 1000) < decodedPayload.exp;
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    return Math.floor(Date.now() / 1000) < decoded.exp;
   } catch {
     return false;
   }
@@ -73,28 +72,46 @@ export const authMiddleware: MiddlewareFunction = async (
     let updatedSessionData = sessionData as SessionData;
     const { authTokens, credentials } = updatedSessionData;
 
-    // If idToken is valid, proceed
-    if (isValidToken(authTokens.idToken)) {
+    // Verify idToken signature via JWKS
+    const idTokenPayload = await verifyIdToken(authTokens.idToken);
+
+    if (idTokenPayload) {
       // Fetch credentials for bucket if not present or expired
       if (bucketName && !isValidCredentials(credentials[bucketName])) {
         console.info(
           `${label} Fetch temporary credentials for bucket "${provider}/${bucketName}"`,
         );
 
-        const newCredentials = await getSessionCredentials(
-          updatedSessionData,
-          provider,
-          bucketName,
-          pathName,
-        );
+        try {
+          const newCredentials = await getSessionCredentials(
+            updatedSessionData,
+            provider,
+            bucketName,
+            pathName,
+          );
 
-        updatedSessionData = {
-          ...updatedSessionData,
-          credentials: newCredentials,
-        };
+          updatedSessionData = {
+            ...updatedSessionData,
+            credentials: newCredentials,
+          };
 
-        session.set("credentials", updatedSessionData.credentials);
-        await sessionStorage.commitSession(session);
+          session.set("credentials", updatedSessionData.credentials);
+        } catch (error) {
+          console.error(
+            `${label} Failed to fetch credentials for bucket "${provider}/${bucketName}":`,
+            error,
+          );
+          session.set("notification", {
+            status: "error",
+            message: `Unable to access bucket "${bucketName}". Temporary credentials could not be obtained.`,
+          });
+        }
+
+        const setCookieHeader = await sessionStorage.commitSession(session);
+        context.set(authContext, updatedSessionData);
+        const response = (await next()) as Response;
+        response.headers.append("Set-Cookie", setCookieHeader);
+        return response;
       }
 
       // Token is valid, set auth data and continue
@@ -103,30 +120,51 @@ export const authMiddleware: MiddlewareFunction = async (
     }
 
     // If idToken is invalid but refreshToken is valid, refresh tokens
-    if (isValidToken(authTokens.refreshToken)) {
+    if (isRefreshTokenValid(authTokens.refreshToken)) {
       console.info(`${label} Fetch new tokens and credentials`);
 
-      const newAuthTokens = await refreshAuthTokens(authTokens.refreshToken);
+      const newAuthTokens = await refreshAccessTokenWithLock(
+        session.id,
+        authTokens.refreshToken,
+      );
       session.set("authTokens", newAuthTokens);
 
       // Fetch new credentials with refreshed tokens
-      const newCredentials = await getSessionCredentials(
-        { ...updatedSessionData, authTokens: newAuthTokens },
-        provider,
-        bucketName,
-        pathName,
-      );
+      try {
+        const newCredentials = await getSessionCredentials(
+          { ...updatedSessionData, authTokens: newAuthTokens },
+          provider,
+          bucketName,
+          pathName,
+        );
 
-      updatedSessionData = {
-        ...updatedSessionData,
-        authTokens: newAuthTokens,
-        credentials: newCredentials,
-      };
+        updatedSessionData = {
+          ...updatedSessionData,
+          authTokens: newAuthTokens,
+          credentials: newCredentials,
+        };
+      } catch (error) {
+        console.error(
+          `${label} Failed to fetch credentials after token refresh:`,
+          error,
+        );
+        updatedSessionData = {
+          ...updatedSessionData,
+          authTokens: newAuthTokens,
+        };
+        if (bucketName) {
+          session.set("notification", {
+            status: "error",
+            message: `Unable to access bucket "${bucketName}". Temporary credentials could not be obtained.`,
+          });
+        }
+      }
 
-      // Set updated auth data and continue
-      await sessionStorage.commitSession(session);
+      const setCookieHeader = await sessionStorage.commitSession(session);
       context.set(authContext, updatedSessionData);
-      return next();
+      const response = (await next()) as Response;
+      response.headers.append("Set-Cookie", setCookieHeader);
+      return response;
     }
   }
 
@@ -142,7 +180,9 @@ export const authMiddleware: MiddlewareFunction = async (
  */
 const logout = async (url: string, session: CytarioSession) => {
   console.info(`${label} Delete session and redirect to login`);
-  throw redirect(`/login?redirect=${encodeURIComponent(url)}`, {
+  const requestUrl = new URL(url);
+  const relativeUrl = requestUrl.pathname + requestUrl.search;
+  throw redirect(`/login?redirect=${encodeURIComponent(relativeUrl)}`, {
     headers: {
       "Set-Cookie": await sessionStorage.destroySession(session),
     },
