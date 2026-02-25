@@ -3,7 +3,10 @@ import {
   STSClient,
 } from "@aws-sdk/client-sts";
 
-import { getSessionCredentials } from "../getSessionCredentials";
+import {
+  getSessionCredentials,
+  sanitizeRoleSessionName,
+} from "../getSessionCredentials";
 import type { SessionData } from "../sessionStorage";
 import mock from "~/utils/__tests__/__mocks__";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
@@ -28,7 +31,7 @@ describe("getSessionCredentials", () => {
   const mockCredentials = mock.credentials();
 
   const mockSessionData: SessionData = {
-    user: mock.user({ sub: "user-123" }),
+    user: mock.user({ sub: "user-123", name: "Test User" }),
     authTokens: {
       accessToken: "access-token",
       idToken: "id-token-for-sts",
@@ -106,12 +109,12 @@ describe("getSessionCredentials", () => {
       );
     });
 
-    test("calls STS AssumeRoleWithWebIdentity", async () => {
+    test("calls STS AssumeRoleWithWebIdentity with sanitized user name", async () => {
       await getSessionCredentials(mockSessionData, "aws", "new-bucket");
 
       expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith({
         RoleArn: "arn:aws:iam::123456789012:role/test-role",
-        RoleSessionName: "test-web-identity-session",
+        RoleSessionName: "Test-User",
         WebIdentityToken: "id-token-for-sts",
         DurationSeconds: 3600, // 1 hour
       });
@@ -169,6 +172,41 @@ describe("getSessionCredentials", () => {
       await expect(
         getSessionCredentials(mockSessionData, "aws", "test-bucket")
       ).rejects.toThrow("STS service unavailable");
+    });
+  });
+
+  describe("sanitizeRoleSessionName", () => {
+    test("replaces spaces with hyphens", () => {
+      expect(sanitizeRoleSessionName("Test User")).toBe("Test-User");
+    });
+
+    test("handles Unicode characters like Müller", () => {
+      expect(sanitizeRoleSessionName("Müller")).toBe("M-ller");
+    });
+
+    test("collapses consecutive hyphens", () => {
+      expect(sanitizeRoleSessionName("a   b")).toBe("a-b");
+    });
+
+    test("preserves valid AWS chars (letters, digits, +=,.@-)", () => {
+      expect(sanitizeRoleSessionName("user+=,.@-name")).toBe("user+=,.@-name");
+    });
+
+    test("truncates to 64 characters", () => {
+      const longName = "a".repeat(100);
+      expect(sanitizeRoleSessionName(longName)).toHaveLength(64);
+    });
+
+    test("falls back to cytario-session for empty string", () => {
+      expect(sanitizeRoleSessionName("")).toBe("cytario-session");
+    });
+
+    test("falls back to cytario-session for single char result", () => {
+      expect(sanitizeRoleSessionName("!")).toBe("cytario-session");
+    });
+
+    test("handles already valid names", () => {
+      expect(sanitizeRoleSessionName("valid-name")).toBe("valid-name");
     });
   });
 

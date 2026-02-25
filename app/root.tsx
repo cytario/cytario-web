@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import {
+  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
@@ -149,12 +150,26 @@ export default function App() {
 }
 
 export function ErrorBoundary() {
-  const error = useRouteError() as Error;
+  const error = useRouteError();
+
+  let title = "Error";
+  let message = "An unexpected error occurred.";
+
+  if (isRouteErrorResponse(error)) {
+    title = `${error.status} ${error.statusText}`;
+    message = error.data ?? "An error occurred while processing your request.";
+  } else if (error instanceof Error) {
+    title = error.name;
+    message = error.message;
+  }
 
   return (
     <Section>
-      <H1>{error.name}</H1>
-      <p>{error?.message ?? "Unknown error"}</p>
+      <H1>{title}</H1>
+      <p>{message}</p>
+      <a href="/" className="text-cytario-purple-500 underline mt-4 inline-block">
+        Go home
+      </a>
     </Section>
   );
 }

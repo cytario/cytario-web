@@ -20,6 +20,8 @@ describe("getUserInfo", () => {
       revocation_endpoint: "https://auth.example.com/revoke",
       end_session_endpoint: "https://auth.example.com/logout",
       userinfo_endpoint: mockUserinfoEndpoint,
+      jwks_uri: "https://auth.example.com/certs",
+      issuer: "https://auth.example.com/realms/test",
     });
   });
 
@@ -96,6 +98,47 @@ describe("getUserInfo", () => {
       expect(result.email).toBe("full@example.com");
       expect(result.policy).toBe("default-policy");
       expect(result.groups).toEqual(["admin", "users"]);
+    });
+  });
+
+  describe("Zod Validation", () => {
+    test("throws ZodError for malformed userinfo response", async () => {
+      const malformedProfile = {
+        sub: "uuid-123",
+        email: "user@example.com",
+        // Missing required fields: name, preferred_username, etc.
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(malformedProfile),
+      });
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await expect(getUserInfo("access-token")).rejects.toThrow();
+      consoleSpy.mockRestore();
+    });
+
+    test("throws when policy field is missing", async () => {
+      const profileWithoutPolicy = {
+        sub: "uuid-123",
+        email_verified: true,
+        name: "Test",
+        preferred_username: "test",
+        given_name: "Test",
+        family_name: "User",
+        email: "test@example.com",
+        // Missing policy and groups
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(profileWithoutPolicy),
+      });
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await expect(getUserInfo("access-token")).rejects.toThrow();
+      consoleSpy.mockRestore();
     });
   });
 

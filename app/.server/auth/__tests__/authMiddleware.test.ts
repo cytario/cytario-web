@@ -3,9 +3,10 @@ import { redirect } from "react-router";
 import { authMiddleware, authContext } from "../authMiddleware";
 import { getSessionData } from "../getSession";
 import { getSessionCredentials } from "../getSessionCredentials";
-import { refreshAccessToken } from "../refreshAuthTokens";
+import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
+import { verifyIdToken } from "../verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("../getSession", () => ({
@@ -17,7 +18,7 @@ vi.mock("../getSessionCredentials", () => ({
 }));
 
 vi.mock("../refreshAuthTokens", () => ({
-  refreshAccessToken: vi.fn(),
+  refreshAccessTokenWithLock: vi.fn(),
 }));
 
 vi.mock("../sessionStorage", () => ({
@@ -25,6 +26,10 @@ vi.mock("../sessionStorage", () => ({
     commitSession: vi.fn(),
     destroySession: vi.fn(),
   },
+}));
+
+vi.mock("../verifyIdToken", () => ({
+  verifyIdToken: vi.fn(),
 }));
 
 vi.mock("react-router", async (importOriginal) => {
@@ -40,22 +45,29 @@ vi.mock("react-router", async (importOriginal) => {
 });
 
 describe("authMiddleware", () => {
-  const mockNext = vi.fn().mockResolvedValue(new Response("OK"));
+  const mockNext = vi.fn();
   const mockSession = mock.session();
 
-  // Create valid tokens (not expired)
-  const validIdToken = mock.idToken({ exp: Math.floor(Date.now() / 1000) + 3600 });
-  const validRefreshToken = mock.idToken({ exp: Math.floor(Date.now() / 1000) + 86400 });
+  // Valid JWT payload (from verifyIdToken)
+  const validIdTokenPayload = {
+    sub: "user-123",
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iss: "https://auth.example.com/realms/test",
+  };
 
-  // Create expired tokens
-  const expiredIdToken = mock.idToken({ exp: Math.floor(Date.now() / 1000) - 3600 });
-  const expiredRefreshToken = mock.idToken({ exp: Math.floor(Date.now() / 1000) - 3600 });
+  // Valid and expired refresh tokens (lightweight base64 check only)
+  const validRefreshToken = mock.idToken({
+    exp: Math.floor(Date.now() / 1000) + 86400,
+  });
+  const expiredRefreshToken = mock.idToken({
+    exp: Math.floor(Date.now() / 1000) - 3600,
+  });
 
   const mockSessionData = {
     user: mock.user(),
     authTokens: {
       accessToken: "access-token",
-      idToken: validIdToken,
+      idToken: "valid-id-token",
       refreshToken: validRefreshToken,
     },
     credentials: {},
@@ -64,7 +76,7 @@ describe("authMiddleware", () => {
 
   const createMiddlewareArgs = (
     params: Record<string, string> = {},
-    hasSession = true
+    hasSession = true,
   ) => {
     const context = new Map();
     if (hasSession) {
@@ -83,13 +95,17 @@ describe("authMiddleware", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNext.mockResolvedValue(new Response("OK"));
     vi.mocked(getSessionData).mockResolvedValue(mockSessionData);
+    vi.mocked(verifyIdToken).mockResolvedValue(validIdTokenPayload);
     vi.mocked(sessionStorage.commitSession).mockResolvedValue("session-cookie");
-    vi.mocked(sessionStorage.destroySession).mockResolvedValue("destroy-cookie");
+    vi.mocked(sessionStorage.destroySession).mockResolvedValue(
+      "destroy-cookie",
+    );
     vi.mocked(getSessionCredentials).mockResolvedValue({});
-    vi.mocked(refreshAccessToken).mockResolvedValue({
+    vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
       accessToken: "new-access-token",
-      idToken: validIdToken,
+      idToken: "new-id-token",
       refreshToken: validRefreshToken,
     });
   });
@@ -99,22 +115,26 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs({}, false);
 
       await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext)
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
       ).rejects.toThrow(
-        "Session not found in context. Ensure sessionMiddleware runs first."
+        "Session not found in context. Ensure sessionMiddleware runs first.",
       );
     });
   });
 
   describe("Valid Token Flow", () => {
-    test("proceeds to next() when idToken is valid", async () => {
+    test("proceeds to next() when idToken is verified", async () => {
       const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
+      expect(verifyIdToken).toHaveBeenCalledWith("valid-id-token");
       expect(mockNext).toHaveBeenCalled();
     });
 
@@ -123,7 +143,7 @@ describe("authMiddleware", () => {
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(args.context.set).toHaveBeenCalledWith(
@@ -131,19 +151,19 @@ describe("authMiddleware", () => {
         expect.objectContaining({
           user: expect.any(Object),
           authTokens: expect.any(Object),
-        })
+        }),
       );
     });
 
-    test("does not refresh tokens when idToken is valid", async () => {
+    test("does not refresh tokens when idToken is verified", async () => {
       const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
-      expect(refreshAccessToken).not.toHaveBeenCalled();
+      expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
     });
   });
 
@@ -156,14 +176,14 @@ describe("authMiddleware", () => {
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(getSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
         "aws",
         "test-bucket",
-        undefined
+        undefined,
       );
     });
 
@@ -184,7 +204,7 @@ describe("authMiddleware", () => {
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(getSessionCredentials).toHaveBeenCalled();
@@ -207,7 +227,7 @@ describe("authMiddleware", () => {
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(getSessionCredentials).not.toHaveBeenCalled();
@@ -221,107 +241,171 @@ describe("authMiddleware", () => {
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
     });
+
+    test("appends Set-Cookie header to response after credential fetch", async () => {
+      const args = createMiddlewareArgs({
+        provider: "aws",
+        bucketName: "test-bucket",
+      });
+
+      const response = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(response.headers.get("Set-Cookie")).toBe("session-cookie");
+    });
+
+    test("continues without crashing when credential fetch fails", async () => {
+      vi.mocked(getSessionCredentials).mockRejectedValue(
+        new Error("STS service unavailable"),
+      );
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const args = createMiddlewareArgs({
+        provider: "aws",
+        bucketName: "test-bucket",
+      });
+
+      const response = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(response).toBeDefined();
+      consoleSpy.mockRestore();
+    });
+
+    test("uses append (not set) for Set-Cookie to preserve downstream cookies", async () => {
+      const args = createMiddlewareArgs({
+        provider: "aws",
+        bucketName: "test-bucket",
+      });
+
+      const response = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      // Verify append was used (Set-Cookie header is present)
+      expect(response.headers.get("Set-Cookie")).toBe("session-cookie");
+    });
   });
 
   describe("Token Refresh Flow", () => {
-    test("refreshes tokens when idToken expired but refreshToken valid", async () => {
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        authTokens: {
-          ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
-          refreshToken: validRefreshToken,
-        },
-      });
+    test("refreshes tokens when idToken verification fails but refreshToken valid", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
 
       const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
-      expect(refreshAccessToken).toHaveBeenCalledWith(validRefreshToken);
+      expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(
+        mockSession.id,
+        validRefreshToken,
+      );
     });
 
     test("updates session with new tokens after refresh", async () => {
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        authTokens: {
-          ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
-          refreshToken: validRefreshToken,
-        },
-      });
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
 
       const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(mockSession.set).toHaveBeenCalledWith(
         "authTokens",
         expect.objectContaining({
           accessToken: "new-access-token",
-        })
+        }),
       );
     });
 
     test("commits session after token refresh", async () => {
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        authTokens: {
-          ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
-          refreshToken: validRefreshToken,
-        },
-      });
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
 
       const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
     });
 
     test("proceeds to next() after successful token refresh", async () => {
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        authTokens: {
-          ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
-          refreshToken: validRefreshToken,
-        },
-      });
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
 
       const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
     });
+
+    test("appends Set-Cookie header to response after token refresh", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+
+      const args = createMiddlewareArgs();
+
+      const response = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(response.headers.get("Set-Cookie")).toBe("session-cookie");
+    });
+
+    test("continues without crashing when credential fetch fails after refresh", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(getSessionCredentials).mockRejectedValue(
+        new Error("STS service unavailable"),
+      );
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const args = createMiddlewareArgs({
+        provider: "aws",
+        bucketName: "test-bucket",
+      });
+
+      const response = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(response).toBeDefined();
+      consoleSpy.mockRestore();
+    });
   });
 
   describe("Logout Flow", () => {
-    test("redirects to login when both tokens expired", async () => {
+    test("redirects to login when both tokens are invalid", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
         authTokens: {
           ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
           refreshToken: expiredRefreshToken,
         },
       });
@@ -329,7 +413,10 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext)
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
       ).rejects.toThrow();
 
       expect(redirect).toHaveBeenCalledWith(
@@ -338,16 +425,16 @@ describe("authMiddleware", () => {
           headers: expect.objectContaining({
             "Set-Cookie": "destroy-cookie",
           }),
-        })
+        }),
       );
     });
 
     test("destroys session on logout", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
         authTokens: {
           ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
           refreshToken: expiredRefreshToken,
         },
       });
@@ -357,7 +444,7 @@ describe("authMiddleware", () => {
       try {
         await authMiddleware(
           args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext
+          mockNext,
         );
       } catch {
         // Expected redirect
@@ -377,45 +464,49 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext)
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
       ).rejects.toThrow();
 
       expect(redirect).toHaveBeenCalled();
     });
 
-    test("includes original URL in redirect for post-login navigation", async () => {
+    test("includes relative URL in redirect for post-login navigation", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
         authTokens: {
           ...mockSessionData.authTokens,
-          idToken: expiredIdToken,
           refreshToken: expiredRefreshToken,
         },
       });
 
       const args = createMiddlewareArgs();
       (args.request as Request) = new Request(
-        "http://localhost/protected/page?query=test"
+        "http://localhost/protected/page?query=test",
       );
 
       try {
         await authMiddleware(
           args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext
+          mockNext,
         );
       } catch {
         // Expected redirect
       }
 
       expect(redirect).toHaveBeenCalledWith(
-        expect.stringContaining(encodeURIComponent("/protected/page?query=test")),
-        expect.any(Object)
+        `/login?redirect=${encodeURIComponent("/protected/page?query=test")}`,
+        expect.any(Object),
       );
     });
   });
 
   describe("Invalid Token Format", () => {
-    test("redirects to login when idToken is malformed", async () => {
+    test("redirects to login when idToken verification fails and refresh token is malformed", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
         authTokens: {
@@ -428,7 +519,10 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext)
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
       ).rejects.toThrow();
 
       expect(redirect).toHaveBeenCalled();

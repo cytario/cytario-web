@@ -66,7 +66,7 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
   },
   cookie: {
     httpOnly: true,
-    secure: NODE_ENV === "production",
+    secure: NODE_ENV !== "development",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24, // 1 day
