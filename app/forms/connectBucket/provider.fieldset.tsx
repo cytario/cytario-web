@@ -15,6 +15,7 @@ import {
   RadioButton,
   Select,
 } from "~/components/Controls";
+import { GroupPill } from "~/routes/admin/users/GroupPill";
 
 export const ProviderFieldset = ({
   control,
@@ -51,6 +52,13 @@ export const ProviderFieldset = ({
                 value={field.value}
                 onChange={field.onChange}
                 name={field.name}
+                renderOption={(option) =>
+                  option.value === userId ? (
+                    option.label
+                  ) : (
+                    <GroupPill path={option.value} />
+                  )
+                }
               />
             )}
           />

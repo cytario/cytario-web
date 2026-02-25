@@ -9,6 +9,7 @@ import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { Placeholder } from "~/components/Placeholder";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
@@ -19,6 +20,7 @@ export interface DirectoryViewBaseProps {
 
 interface DirectoryViewProps extends DirectoryViewBaseProps {
   name: string;
+  isAdmin?: boolean;
 }
 
 export function DirectoryView({
@@ -27,6 +29,7 @@ export function DirectoryView({
   provider,
   bucketName,
   pathName,
+  isAdmin,
 }: DirectoryViewProps) {
   const { viewMode, setProvider, setBucketName, setPathName } =
     useDirectoryStore();
@@ -40,7 +43,11 @@ export function DirectoryView({
   if (nodes.length === 0) {
     return (
       <Section>
-        <div>[Placeholder: No items]</div>
+        <Placeholder
+          icon="FolderOpen"
+          title="No items found"
+          description="This folder is empty or you may not have permission to view its contents."
+        />
       </Section>
     );
   }
@@ -54,7 +61,7 @@ export function DirectoryView({
             <ViewModeToggle />
           </div>
           <div>
-            {!bucketName && (
+            {!bucketName && isAdmin && (
               <ButtonLink to="/connect-bucket" theme="white">
                 <Icon icon="Plug" size={16} /> Connect Storage
               </ButtonLink>

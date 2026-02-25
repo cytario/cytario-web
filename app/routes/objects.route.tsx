@@ -31,11 +31,12 @@ import {
   select,
   useConnectionsStore,
 } from "~/utils/connectionsStore";
+import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
-import { createResourceId, matchesExtension } from "~/utils/resourceId";
+import { createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -241,6 +242,7 @@ export default function ObjectsRoute() {
     bucketConfig.name,
     pathName,
   );
+  const fileType = getFileType(resourceId);
 
   // Store credentials and bucket config in Zustand store when they're available
   // Connections are per-bucket, not per-file
@@ -255,7 +257,7 @@ export default function ObjectsRoute() {
   // Track recently viewed images
   const { addItem } = useRecentlyViewedStore();
   useEffect(() => {
-    if (url && matchesExtension(resourceId, /\.(tif|tiff)$/i)) {
+    if (url && (fileType === "TIFF" || fileType === "OME-TIFF")) {
       addItem({
         provider: bucketConfig.provider,
         bucketName: bucketConfig.name,
@@ -292,17 +294,14 @@ export default function ObjectsRoute() {
 
   // Open file viewer when a single file is selected
   if (url) {
-    const isCsv = matchesExtension(resourceId, /\.csv$/i);
-    const isTabularFile = matchesExtension(
-      resourceId,
-      /\.(csv|parquet|json|ndjson)$/i,
-    );
+    const isCsv = fileType === "CSV";
+    const isTabularFile = ["CSV", "Parquet", "JSON"].includes(fileType);
 
     if (isTabularFile) {
       return (
         <div className="flex flex-col h-full">
           {isCsv && (
-            <header className="flex items-center justify-between p-4 bg-rose-300">
+            <header className="flex items-center justify-between p-4 bg-amber-100 border-b border-amber-300 text-amber-900">
               <div className="flex items-center gap-2">
                 <span className="text-sm">
                   CSV files are slow to query. Convert to Parquet for better
@@ -319,7 +318,7 @@ export default function ObjectsRoute() {
       );
     }
 
-    if (matchesExtension(resourceId, /\.(tif|tiff)$/i)) {
+    if (fileType === "TIFF" || fileType === "OME-TIFF") {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>

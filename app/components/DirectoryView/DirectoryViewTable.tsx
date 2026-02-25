@@ -3,8 +3,10 @@ import { useMemo } from "react";
 
 import { TreeNode, TreeNodeType } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
+import { Pill } from "~/components/Pill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
+import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
 // --- Bucket view ---
@@ -69,6 +71,7 @@ const bucketColumns: ColumnConfig[] = [
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
+    defaultVisible: false,
   },
   {
     id: "createdBy",
@@ -88,9 +91,30 @@ const bucketCellRenderers: CellRenderers<BucketRow> = {
 interface FileRow {
   [key: string]: unknown;
   name: string;
+  file_type: string;
   last_modified: number;
   size: number;
   _node: TreeNode;
+}
+
+function computeDirectorySize(node: TreeNode): number {
+  if (node.type === "file") return node._Object?.Size ?? 0;
+  return node.children.reduce(
+    (sum, child) => sum + computeDirectorySize(child),
+    0,
+  );
+}
+
+function computeDirectoryLastModified(node: TreeNode): number {
+  if (node.type === "file") {
+    return node._Object?.LastModified
+      ? new Date(node._Object.LastModified).getTime()
+      : 0;
+  }
+  return node.children.reduce(
+    (max, child) => Math.max(max, computeDirectoryLastModified(child)),
+    0,
+  );
 }
 
 const fileColumns: ColumnConfig[] = [
@@ -103,7 +127,14 @@ const fileColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "text",
     filterPlaceholder: "Filter by name...",
-    copyable: true,
+  },
+  {
+    id: "file_type",
+    header: "Type",
+    size: 140,
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterType: "select",
   },
   {
     id: "last_modified",
@@ -125,6 +156,7 @@ const fileColumns: ColumnConfig[] = [
 
 const fileCellRenderers: CellRenderers<FileRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
+  file_type: (row) => <Pill name={row.file_type} />,
   last_modified: (row) =>
     row.last_modified ? formatHumanReadableDate(row.last_modified) : null,
   size: (row) => (row.size ? filesize(row.size).toString() : null),
@@ -164,11 +196,15 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
       const isFile = node.type === "file";
       return {
         name: node.name,
-        last_modified:
-          isFile && node._Object?.LastModified
-            ? new Date(node._Object.LastModified).getTime()
-            : 0,
-        size: isFile && node._Object ? (node._Object.Size ?? 0) : 0,
+        file_type: isFile ? getFileType(node.name) : "Directory",
+        last_modified: isFile
+          ? (node._Object?.LastModified
+              ? new Date(node._Object.LastModified).getTime()
+              : 0)
+          : computeDirectoryLastModified(node),
+        size: isFile
+          ? (node._Object?.Size ?? 0)
+          : computeDirectorySize(node),
         _node: node,
       };
     });
@@ -176,25 +212,23 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
 
   if (tableType === "bucket") {
     return (
-      <div className="overflow-x-auto">
-        <Table
-          columns={bucketColumns}
-          data={bucketData}
-          cellRenderers={bucketCellRenderers}
-          tableId="bucket"
-        />
-      </div>
+      <Table
+        columns={bucketColumns}
+        data={bucketData}
+        cellRenderers={bucketCellRenderers}
+        tableId="bucket"
+        ariaLabel="Storage connections"
+      />
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table
-        columns={fileColumns}
-        data={fileData}
-        cellRenderers={fileCellRenderers}
-        tableId="directory"
-      />
-    </div>
+    <Table
+      columns={fileColumns}
+      data={fileData}
+      cellRenderers={fileCellRenderers}
+      tableId="directory"
+      ariaLabel="Files and folders"
+    />
   );
 }

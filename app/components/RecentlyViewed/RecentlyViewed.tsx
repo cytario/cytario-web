@@ -18,7 +18,7 @@ export function RecentlyViewed() {
       <Container>
         <H2>Recently Viewed</H2>
       </Container>
-      <div className="mt-4">
+      <div className="mt-8">
         {viewMode === "list" ? (
           <DirectoryViewTable nodes={nodes} />
         ) : (

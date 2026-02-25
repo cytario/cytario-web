@@ -2,14 +2,18 @@ import { ReactNode } from "react";
 
 interface LayoutWrapperProps {
   children: ReactNode;
+  // theme?: "white"; //
 }
 
-export function Section({ children }: LayoutWrapperProps) {
+export function Section({
+  children /* , theme = "white" */,
+}: LayoutWrapperProps) {
   return (
     <section
       className={`
         flex-grow 
-        bg-gradient-to-br from-white to-slate-200 
+        bg-white 
+        
         py-8 sm:py-12 lg:py-16
       `}
     >

@@ -7,6 +7,7 @@ import { useResizeObserver } from "./useResizeObserver";
 import { select } from "../../state/selectors";
 import { ViewPort } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
+import { Icon } from "~/components/Controls";
 import { LavaLoader } from "~/components/LavaLoader";
 
 interface ViewContainerProps {
@@ -72,11 +73,11 @@ export function ImageContainer({
             className={`
           flex flex-grow w-full h-full flex-col
           items-center justify-center text-center
-          overflow-hidden
+          overflow-hidden gap-1 p-2 text-slate-500
         `}
           >
-            <div>{error.name}</div>
-            <div>{error.message}</div>
+            <Icon icon="ImageOff" size={isPreview ? 20 : 32} strokeWidth={1.5} />
+            <div className="text-xs">Preview unavailable</div>
           </div>
         ) : (
           <>

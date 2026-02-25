@@ -25,11 +25,14 @@ export function DirectoryViewGrid({
 
   return (
     <div className="flex flex-wrap -m-2">
-      {nodes.map((node) => (
-        <div key={node.name} className={cx}>
-          <NodeLink key={node.name} node={node} viewMode={viewMode} />
-        </div>
-      ))}
+      {nodes.map((node) => {
+        const key = `${node.provider}/${node.bucketName}/${node.pathName ?? node.name}`;
+        return (
+          <div key={key} className={cx}>
+            <NodeLink node={node} viewMode={viewMode} />
+          </div>
+        );
+      })}
     </div>
   );
 }

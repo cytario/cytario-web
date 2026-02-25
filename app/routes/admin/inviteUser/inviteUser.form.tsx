@@ -8,6 +8,7 @@ import {
   inviteUserSchema,
 } from "./inviteUser.schema";
 import { Checkbox, Field, Fieldset, Input, Select } from "~/components/Controls";
+import { GroupPill } from "~/routes/admin/users/GroupPill";
 
 interface InviteUserFormProps {
   scope: string;
@@ -103,6 +104,9 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
                   value={field.value}
                   onChange={field.onChange}
                   name={field.name}
+                  renderOption={(option) => (
+                    <GroupPill path={option.value} />
+                  )}
                 />
               )}
             />

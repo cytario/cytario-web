@@ -9,16 +9,23 @@ import { useNavigate } from "react-router";
 
 import { IconButton } from "./Controls";
 
+const sizeStyles = {
+  default: "max-w-lg",
+  wide: "max-w-4xl",
+};
+
 export function RouteModal({
   title,
   children,
   footer,
   onClose,
+  size = "default",
 }: Readonly<{
   title: string;
   children: ReactNode;
   footer?: ReactNode;
   onClose?: () => void;
+  size?: keyof typeof sizeStyles;
 }>) {
   const navigate = useNavigate();
   const goBack = useCallback(() => navigate(-1), [navigate]);
@@ -31,7 +38,7 @@ export function RouteModal({
       <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto ">
         <DialogPanel
           className={`
-            w-full max-w-lg bg-white rounded-xl border-slate-300 shadow-2xl
+            w-full ${sizeStyles[size]} bg-white rounded-xl border-slate-300 shadow-2xl
             max-h-full flex flex-col
             overflow-hidden border text-slate-900
           `}

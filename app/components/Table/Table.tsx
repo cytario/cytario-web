@@ -7,11 +7,13 @@ import {
   ColumnDef,
   SortingFn,
 } from "@tanstack/react-table";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useMemo, useRef } from "react";
 
 import { TableBodyRow } from "./TableBodyRow";
 import { TableHeaderRow } from "./TableHeaderRow";
 import { CellRenderers, TableProps as TablePropsType } from "./types";
+import { Button, Icon } from "../Controls";
+import { Placeholder } from "../Placeholder";
 import { useColumnFilters } from "./useColumnFilters";
 import { useColumnVisibility } from "./useColumnVisibility";
 import { useColumnWidths } from "./useColumnWidths";
@@ -31,6 +33,11 @@ export function Table<TData extends Record<string, unknown>>({
   data,
   cellRenderers = {} as CellRenderers<TData>,
   tableId = "default",
+  ariaLabel,
+  enableRowSelection,
+  rowSelection,
+  onRowSelectionChange,
+  getRowId,
 }: TablePropsType<TData>) {
   const { columnSizing, setColumnSizing } = useColumnWidths(columns, tableId);
   const anchorColumnId = columns.find((c) => c.anchor)?.id ?? columns[0]?.id;
@@ -41,7 +48,10 @@ export function Table<TData extends Record<string, unknown>>({
     toggleableColumns,
     toggleColumn,
   } = useColumnVisibility(columns, tableId);
-  const { columnFilters, setColumnFilters } = useColumnFilters(tableId);
+  const { columnFilters, setColumnFilters, resetFilters } =
+    useColumnFilters(tableId);
+
+  const indexColumnSize = enableRowSelection ? 80 : 48;
 
   const columnDefs: ColumnDef<TData>[] = useMemo(() => {
     const indexColumn: ColumnDef<TData> = {
@@ -51,9 +61,9 @@ export function Table<TData extends Record<string, unknown>>({
       enableResizing: false,
       enableSorting: false,
       enableColumnFilter: false,
-      size: 48,
-      minSize: 48,
-      maxSize: 48,
+      size: indexColumnSize,
+      minSize: indexColumnSize,
+      maxSize: indexColumnSize,
     };
 
     const dataColumns = columns.map((colConfig): ColumnDef<TData> => {
@@ -83,7 +93,7 @@ export function Table<TData extends Record<string, unknown>>({
     });
 
     return [indexColumn, ...dataColumns];
-  }, [columns, cellRenderers, columnSizing]);
+  }, [columns, cellRenderers, columnSizing, indexColumnSize]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -93,58 +103,123 @@ export function Table<TData extends Record<string, unknown>>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    enableSortingRemoval: true,
+    enableSortingRemoval: false,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
+    enableRowSelection: !!enableRowSelection,
     state: {
       columnSizing,
       sorting,
       columnVisibility,
       columnFilters,
+      ...(enableRowSelection && { rowSelection }),
     },
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnFiltersChange: setColumnFilters,
+    ...(enableRowSelection && {
+      onRowSelectionChange: onRowSelectionChange,
+      getRowId: getRowId as (row: TData) => string,
+    }),
   });
 
-  return (
-    <table className="min-w-full">
-      <thead className="sticky top-0 bg-white z-10 w-full">
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableHeaderRow
-            key={headerGroup.id}
-            headerGroup={headerGroup}
-            columns={columns}
-            tableId={tableId}
-            toggleableColumns={toggleableColumns}
-            columnVisibility={columnVisibility}
-            toggleColumn={toggleColumn}
-          />
-        ))}
-      </thead>
+  const headerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const isSyncing = useRef(false);
 
-      <tbody>
-        {table.getRowModel().rows.length === 0 && data.length > 0 ? (
-          <tr>
-            <td
-              colSpan={columns.length + 1}
-              className="text-center text-slate-400 py-8"
-            >
-              No results match your filters
-            </td>
-          </tr>
-        ) : (
-          table.getRowModel().rows.map((row, index) => (
-            <TableBodyRow
-              key={row.id}
-              row={row}
-              rowIndex={index}
-              columns={columns}
-            />
-          ))
-        )}
-      </tbody>
-    </table>
+  const handleScroll =
+    (source: "header" | "body") => () => {
+      if (isSyncing.current) return;
+      isSyncing.current = true;
+      const from =
+        source === "header" ? headerRef.current : bodyRef.current;
+      const to =
+        source === "header" ? bodyRef.current : headerRef.current;
+      if (from && to) to.scrollLeft = from.scrollLeft;
+      requestAnimationFrame(() => {
+        isSyncing.current = false;
+      });
+    };
+
+  const filteredCount = table.getRowModel().rows.length;
+  const totalCount = data.length;
+  const isFiltered = filteredCount !== totalCount;
+
+  return (
+    <>
+      {/* Screen-reader announcement for filter changes */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {isFiltered
+          ? `Showing ${filteredCount} of ${totalCount} rows`
+          : ""}
+      </div>
+
+      {/* Sticky header — sticks vertically, scrolls horizontally (hidden scrollbar) */}
+      <div
+        ref={headerRef}
+        className="sticky top-0 z-10 bg-white border-b border-slate-200 overflow-x-auto"
+        style={{ scrollbarWidth: "none" }}
+        onScroll={handleScroll("header")}
+      >
+        <table className="min-w-full" aria-label={ariaLabel}>
+          <thead className="w-full">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableHeaderRow
+                key={headerGroup.id}
+                headerGroup={headerGroup}
+                columns={columns}
+                tableId={tableId}
+                toggleableColumns={toggleableColumns}
+                columnVisibility={columnVisibility}
+                toggleColumn={toggleColumn}
+                enableRowSelection={!!enableRowSelection}
+              />
+            ))}
+          </thead>
+        </table>
+      </div>
+
+      {/* Scrollable body — horizontal scrollbar visible */}
+      <div
+        ref={bodyRef}
+        className="overflow-x-auto"
+        onScroll={handleScroll("body")}
+      >
+        <table className="min-w-full" aria-label={ariaLabel}>
+          <tbody>
+            {table.getRowModel().rows.length === 0 && data.length > 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length + 1}
+                >
+                  <Placeholder
+                    icon="SearchX"
+                    title="No results"
+                    description="No results match your filters"
+                    cta={
+                      <Button theme="secondary" onClick={resetFilters}>
+                        <Icon icon="FilterX" size={16} />
+                        Clear all filters
+                      </Button>
+                    }
+                  />
+                </td>
+              </tr>
+            ) : (
+              table.getRowModel().rows.map((row, index) => (
+                <TableBodyRow
+                  key={row.id}
+                  row={row}
+                  rowIndex={index}
+                  columns={columns}
+                  enableRowSelection={!!enableRowSelection}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

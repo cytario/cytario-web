@@ -49,6 +49,7 @@ export function ColumnFilterInput({
           value={filterValue}
           onChange={setFilter}
           renderOption={filterRender}
+          aria-label={`Filter by ${column.columnDef.header}`}
         />
       ) : (
         <Input
@@ -56,13 +57,14 @@ export function ColumnFilterInput({
           value={filterValue}
           onChange={(e) => setFilter(e.target.value)}
           placeholder={filterPlaceholder ?? `Filter ${column.columnDef.header}...`}
+          aria-label={`Filter by ${column.columnDef.header}`}
         />
       )}
       {filterValue && (
         <IconButton
           icon="X"
           scale="small"
-          theme="secondary"
+          theme="white"
           onClick={clearFilter}
           label="Clear filter"
         />

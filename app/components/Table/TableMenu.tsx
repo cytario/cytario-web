@@ -31,13 +31,13 @@ export function TableMenu({
       <MenuButton
         as={IconButton}
         icon="Columns3"
-        theme="transparent"
+        theme="white"
         label="Column settings"
-        className="border-none"
+        scale="small"
       />
       <MenuItems
         anchor="bottom start"
-        className="z-20 min-w-48 p-1 bg-white border border-slate-200 rounded-md shadow-lg"
+        className="z-20 min-w-48 p-1 bg-white border border-slate-300 rounded-sm shadow-lg"
       >
         {toggleableColumns.map((col) => (
           <MenuItem key={col.id} as="div">

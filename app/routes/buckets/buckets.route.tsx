@@ -28,8 +28,9 @@ import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getObjects } from "~/utils/getObjects";
+import { isOmeTiff } from "~/utils/omeTiffOffsets";
 
-const title = "Your Storage Connections";
+const title = "Storage Connections";
 
 export const meta: MetaFunction = () => {
   return [
@@ -63,7 +64,7 @@ const fetchPreviewObject = async (
     config.prefix || undefined,
     100,
   );
-  const preview = objects.find((obj) => obj.Key?.endsWith(".ome.tif"));
+  const preview = objects.find((obj) => isOmeTiff(obj.Key ?? ""));
   if (!preview?.Key) return undefined;
   const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
   return { ...preview, presignedUrl } as ObjectPresignedUrl;
@@ -169,9 +170,13 @@ export default function BucketsRoute() {
 
   return (
     <>
+      <ClientOnly>
+        <RecentlyViewed />
+      </ClientOnly>
+
       <Section>
         {nodes.length > 0 ? (
-          <DirectoryView nodes={nodes} name={title} bucketName="" />
+          <DirectoryView nodes={nodes} name={title} bucketName="" isAdmin={adminScopes.length > 0} />
         ) : (
           <Placeholder
             icon="FileSearch"
@@ -185,10 +190,6 @@ export default function BucketsRoute() {
           />
         )}
       </Section>
-
-      <ClientOnly>
-        <RecentlyViewed />
-      </ClientOnly>
 
       <Outlet context={{ adminScopes, userId }} />
     </>

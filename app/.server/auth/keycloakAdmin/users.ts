@@ -29,6 +29,14 @@ export async function removeUserFromGroup(
   );
 }
 
+export async function setUserEnabled(
+  accessToken: string,
+  userId: string,
+  enabled: boolean,
+): Promise<void> {
+  await adminMutate(accessToken, "PUT", `/users/${userId}`, { enabled });
+}
+
 export async function inviteUser(
   accessToken: string,
   email: string,

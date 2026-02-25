@@ -90,7 +90,7 @@ export function NodeThumbnail({
 
   const imagePreview = url && key && isOmeTiff(key) && (
     <ClientOnly>
-      <Suspense>
+      <Suspense fallback={<div className="animate-pulse w-full h-full bg-slate-600" />}>
         <ViewerStoreProvider
           resourceId={createResourceId(node.provider, node.bucketName, key)}
           url={url}

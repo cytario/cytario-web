@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -6,6 +6,8 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
+  useNavigation,
   useRouteError,
   useRouteLoaderData,
   type LinksFunction,
@@ -111,6 +113,9 @@ const AppHeader = () => {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
+  const location = useLocation();
+  const navigation = useNavigation();
+  const isInitialRender = useRef(true);
 
   useEffect(() => {
     if (data?.notification) {
@@ -123,6 +128,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
     useFileStore.getState().hydrate();
   }, []);
 
+  // Move focus to main content on route change (skip initial render)
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    const main = document.getElementById("main-content");
+    if (main) {
+      main.tabIndex = -1;
+      main.focus({ preventScroll: true });
+    }
+  }, [location.pathname]);
+
+  const isNavigating = navigation.state === "loading";
+
   return (
     <html lang="en">
       <head>
@@ -132,9 +152,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-slate-100">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-cytario-turquoise-700"
+        >
+          Skip to content
+        </a>
+
+        {isNavigating && (
+          <div
+            role="progressbar"
+            aria-label="Loading page"
+            className="fixed top-0 left-0 right-0 z-50 h-1 bg-cytario-turquoise-700/30"
+          >
+            <div className="h-full bg-cytario-turquoise-700 animate-progress-bar" />
+          </div>
+        )}
+
         {data?.user && <AppHeader />}
 
-        {children}
+        <main id="main-content" className="min-h-full outline-none">
+          {children}
+        </main>
 
         <div id="modal" />
         <div id="tooltip" />
@@ -172,7 +211,10 @@ export function ErrorBoundary() {
       <div role="alert">
         <H1>{title}</H1>
         <p>{message}</p>
-        <a href="/" className="text-cytario-purple-500 underline mt-4 inline-block">
+        <a
+          href="/"
+          className="text-cytario-purple-500 underline mt-4 inline-block"
+        >
           Go home
         </a>
       </div>
