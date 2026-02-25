@@ -6,7 +6,6 @@ import { useSubmit } from "react-router";
 
 import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
 import { Input } from "~/components/Controls";
-import { GroupPill } from "~/components/Pill/GroupPill";
 
 interface InviteUserFormProps {
   scope: string;

@@ -67,7 +67,6 @@ export function ColumnFilterInput({
       )}
       {filterValue && (
         <IconButton
-          // @ts-expect-error — npm-link LucideIcon type mismatch; resolves with registry install
           icon={X}
           size="sm"
           variant="ghost"

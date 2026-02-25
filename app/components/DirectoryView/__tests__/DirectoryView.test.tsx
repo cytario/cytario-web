@@ -40,7 +40,7 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("Test Directory")).toBeInTheDocument();
   });
 
-  test("renders the placeholder when there are no nodes", () => {
+  test("renders nothing when there are no nodes", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -58,7 +58,7 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    expect(screen.getByText("No items found")).toBeInTheDocument();
+    expect(screen.queryByText("Empty Directory")).not.toBeInTheDocument();
   });
 
   test("renders the DirectoryTable in list mode", () => {

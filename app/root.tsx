@@ -41,7 +41,7 @@ import "rc-slider/assets/index.css";
 
 /**
  * CSS custom property overrides that recontextualize design tokens for rendering
- * on the near-black (slate-950) header. Design system components inside this scope
+ * on the dark navy (slate-900) header. Design system components inside this scope
  * (Breadcrumbs, Button, IconButton, Input) automatically get light text, transparent
  * surfaces, and appropriate border/hover colors without per-component className hacks.
  */
@@ -112,7 +112,7 @@ const AppHeader = () => {
 
   return (
     <header
-      className="z-20 flex justify-between items-center h-12 bg-slate-950 top-0 left-0 right-0"
+      className="z-20 flex justify-between items-center h-12 bg-slate-900 top-0 left-0 right-0"
       style={darkSurfaceTokens}
     >
       <div className="h-full flex-shrink min-w-0">

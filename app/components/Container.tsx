@@ -1,6 +1,5 @@
-import { ReactNode } from "react";
-
 import { H2 } from "@cytario/design";
+import { ReactNode } from "react";
 
 interface LayoutWrapperProps {
   children: ReactNode;

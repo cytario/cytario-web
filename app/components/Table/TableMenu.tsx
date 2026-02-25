@@ -30,7 +30,6 @@ export function TableMenu({
     <Popover>
       <PopoverTrigger>
         <IconButton
-          // @ts-expect-error — npm-link LucideIcon type mismatch; resolves with registry install
           icon={Columns3}
           variant="ghost"
           size="sm"
