@@ -11,6 +11,7 @@ export default function AdminLayout() {
     <Section>
       <Container>
         <header className="mb-2">
+          <p className="text-sm text-slate-500">Admin</p>
           <H1>{scope}</H1>
         </header>
       </Container>

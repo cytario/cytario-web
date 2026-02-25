@@ -98,13 +98,21 @@ export const inviteUserAction: ActionFunction = async ({
   } catch (e) {
     console.error("Invite failed:", e);
 
+    const status = e instanceof Response ? e.status : undefined;
+    const message =
+      status === 409
+        ? `A user with email ${result.data.email} already exists.`
+        : status === 404
+          ? `Group ${result.data.groupPath} was not found.`
+          : "Failed to invite user. Please try again.";
+
     if (inviteAnother) {
-      return { success: false, message: "Failed to invite user." };
+      return { success: false, message };
     }
 
     session.set("notification", {
       status: "error",
-      message: "Failed to invite user.",
+      message,
     });
   }
 

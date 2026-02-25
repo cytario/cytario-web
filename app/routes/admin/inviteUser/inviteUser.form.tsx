@@ -93,20 +93,30 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
           <Input {...register("lastName")} scale="large" theme="light" />
         </Field>
         <Field label="Group Membership">
-          <Controller
-            control={control}
-            name="groupPath"
-            render={({ field }) => (
-              <Select
-                options={groupOptions.map((p) => ({ label: p, value: p }))}
-                value={field.value}
-                onChange={field.onChange}
-                name={field.name}
-              />
-            )}
-          />
+          {groupOptions.length > 0 ? (
+            <Controller
+              control={control}
+              name="groupPath"
+              render={({ field }) => (
+                <Select
+                  options={groupOptions.map((p) => ({ label: p, value: p }))}
+                  value={field.value}
+                  onChange={field.onChange}
+                  name={field.name}
+                />
+              )}
+            />
+          ) : (
+            <p className="text-sm text-slate-400">
+              No groups available in this scope.
+            </p>
+          )}
         </Field>
-        <Field label="Enabled" inline>
+        <Field
+          label="Enabled"
+          description="Uncheck to pre-provision the account without granting immediate access."
+          inline
+        >
           <Controller
             control={control}
             name="enabled"

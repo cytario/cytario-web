@@ -144,7 +144,7 @@ function buildColumns(
     },
     {
       id: "enabled",
-      header: "Enabled",
+      header: "Status",
       size: 120,
       enableSorting: true,
       sortingFn: "alphanumeric" as const,
@@ -162,7 +162,7 @@ function buildColumns(
       adminGroups,
       adminGroupCounts,
       totalCount,
-      { defaultVisible: false, pillVisibleCount: 2 },
+      { pillVisibleCount: 2 },
     ),
     buildGroupColumn(
       "groups",

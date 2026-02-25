@@ -30,8 +30,14 @@ export function GroupPill({ path, visibleCount = 1 }: GroupPillProps) {
   const dotSegments = segments.slice(0, dotCount);
   const visibleSegments = segments.slice(dotCount);
 
+  const fullPath = segments.join(" / ");
+
   return (
-    <div className="relative flex" style={{ marginLeft: dotCount * 6 }}>
+    <div
+      className="relative flex"
+      style={{ marginLeft: dotCount * 6 }}
+      title={dotCount > 0 ? fullPath : undefined}
+    >
       {dotSegments.map((_, i) => {
         const name = dotSegments[dotCount - 1 - i];
         return (

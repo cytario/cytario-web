@@ -84,8 +84,24 @@ export const UpdateUserForm = ({
       );
     }
 
+    const addedAdminGroups = groups.filter(
+      (g) => g.isAdmin && !groupPaths.has(g.path) && memberGroupIds.has(g.id),
+    );
+    if (addedAdminGroups.length > 0) {
+      const names = addedAdminGroups.map((g) => g.path).join(", ");
+      changes.push(`Grant admin access: ${names}`);
+    }
+
+    const removedAdminGroups = groups.filter(
+      (g) => g.isAdmin && groupPaths.has(g.path) && !memberGroupIds.has(g.id),
+    );
+    if (removedAdminGroups.length > 0) {
+      const names = removedAdminGroups.map((g) => g.path).join(", ");
+      changes.push(`Revoke admin access: ${names}`);
+    }
+
     const removedGroups = groups.filter(
-      (g) => groupPaths.has(g.path) && !memberGroupIds.has(g.id),
+      (g) => !g.isAdmin && groupPaths.has(g.path) && !memberGroupIds.has(g.id),
     );
     if (removedGroups.length > 0) {
       const names = removedGroups.map((g) => g.path).join(", ");
@@ -135,18 +151,6 @@ export const UpdateUserForm = ({
     <>
       <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
         <Fieldset>
-          <Field label="Enabled" inline>
-            <Controller
-              control={control}
-              name="enabled"
-              render={({ field }) => (
-                <Checkbox
-                  checked={field.value}
-                  onChange={() => field.onChange(!field.value)}
-                />
-              )}
-            />
-          </Field>
           <Field label="Email" error={errors.email}>
             <Input
               {...register("email")}
@@ -160,6 +164,18 @@ export const UpdateUserForm = ({
           </Field>
           <Field label="Last name" error={errors.lastName}>
             <Input {...register("lastName")} scale="large" theme="light" />
+          </Field>
+          <Field label="Enabled" inline>
+            <Controller
+              control={control}
+              name="enabled"
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value}
+                  onChange={() => field.onChange(!field.value)}
+                />
+              )}
+            />
           </Field>
         </Fieldset>
 

@@ -37,7 +37,7 @@ export default function UserModal() {
 
   return (
     <RouteModal
-      title="Edit User"
+      title={`Edit User \u2014 ${match.user.firstName} ${match.user.lastName}`}
       footer={
         <>
           <Button onClick={() => navigate(-1)} theme="white">
