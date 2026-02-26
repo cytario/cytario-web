@@ -98,8 +98,8 @@ describe("getWellKnownEndpoints", () => {
       await freshGet();
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
-      // Advance past 1-hour TTL
-      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+      // Advance past 4-hour TTL
+      vi.advanceTimersByTime(4 * 60 * 60 * 1000 + 1);
 
       await freshGet();
       expect(mockFetch).toHaveBeenCalledTimes(2);

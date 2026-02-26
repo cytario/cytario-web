@@ -123,48 +123,52 @@ export const authMiddleware: MiddlewareFunction = async (
     if (isRefreshTokenValid(authTokens.refreshToken)) {
       console.info(`${label} Fetch new tokens and credentials`);
 
-      const newAuthTokens = await refreshAccessTokenWithLock(
-        session.id,
-        authTokens.refreshToken,
-      );
-      session.set("authTokens", newAuthTokens);
-
-      // Fetch new credentials with refreshed tokens
       try {
-        const newCredentials = await getSessionCredentials(
-          { ...updatedSessionData, authTokens: newAuthTokens },
-          provider,
-          bucketName,
-          pathName,
+        const newAuthTokens = await refreshAccessTokenWithLock(
+          session.id,
+          authTokens.refreshToken,
         );
+        session.set("authTokens", newAuthTokens);
 
-        updatedSessionData = {
-          ...updatedSessionData,
-          authTokens: newAuthTokens,
-          credentials: newCredentials,
-        };
-      } catch (error) {
-        console.error(
-          `${label} Failed to fetch credentials after token refresh:`,
-          error,
-        );
-        updatedSessionData = {
-          ...updatedSessionData,
-          authTokens: newAuthTokens,
-        };
-        if (bucketName) {
-          session.set("notification", {
-            status: "error",
-            message: `Unable to access bucket "${bucketName}". Temporary credentials could not be obtained.`,
-          });
+        // Fetch new credentials with refreshed tokens
+        try {
+          const newCredentials = await getSessionCredentials(
+            { ...updatedSessionData, authTokens: newAuthTokens },
+            provider,
+            bucketName,
+            pathName,
+          );
+
+          updatedSessionData = {
+            ...updatedSessionData,
+            authTokens: newAuthTokens,
+            credentials: newCredentials,
+          };
+        } catch (error) {
+          console.error(
+            `${label} Failed to fetch credentials after token refresh:`,
+            error,
+          );
+          updatedSessionData = {
+            ...updatedSessionData,
+            authTokens: newAuthTokens,
+          };
+          if (bucketName) {
+            session.set("notification", {
+              status: "error",
+              message: `Unable to access bucket "${bucketName}". Temporary credentials could not be obtained.`,
+            });
+          }
         }
-      }
 
-      const setCookieHeader = await sessionStorage.commitSession(session);
-      context.set(authContext, updatedSessionData);
-      const response = (await next()) as Response;
-      response.headers.append("Set-Cookie", setCookieHeader);
-      return response;
+        const setCookieHeader = await sessionStorage.commitSession(session);
+        context.set(authContext, updatedSessionData);
+        const response = (await next()) as Response;
+        response.headers.append("Set-Cookie", setCookieHeader);
+        return response;
+      } catch (error) {
+        console.error(`${label} Token refresh failed:`, error);
+      }
     }
   }
 

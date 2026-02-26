@@ -403,6 +403,9 @@ describe("authMiddleware", () => {
       vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
         new Error("Failed to acquire refresh lock after maximum retries"),
       );
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
 
       const args = createMiddlewareArgs();
 
@@ -414,6 +417,47 @@ describe("authMiddleware", () => {
       ).rejects.toThrow();
 
       expect(mockNext).not.toHaveBeenCalled();
+      expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
+      expect(redirect).toHaveBeenCalledWith(
+        expect.stringContaining("/login?redirect="),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "Set-Cookie": "destroy-cookie",
+          }),
+        }),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    test("redirects to login when token refresh fails with Keycloak error", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
+        new Error("invalid_grant: Token is not active"),
+      );
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const args = createMiddlewareArgs();
+
+      await expect(
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
+      ).rejects.toThrow();
+
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
+      expect(redirect).toHaveBeenCalledWith(
+        expect.stringContaining("/login?redirect="),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "Set-Cookie": "destroy-cookie",
+          }),
+        }),
+      );
+      consoleSpy.mockRestore();
     });
   });
 
