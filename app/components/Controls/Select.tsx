@@ -56,7 +56,11 @@ export const Select = ({
         )}
       >
         <span className="min-w-0 flex-1 px-2">
-          <TooltipSpan>{selectedOption?.label ?? value}</TooltipSpan>
+          {renderOption && selectedOption ? (
+            <span className="flex items-center">{renderOption(selectedOption)}</span>
+          ) : (
+            <TooltipSpan>{selectedOption?.label ?? value}</TooltipSpan>
+          )}
         </span>
         <Icon
           icon="ChevronDown"

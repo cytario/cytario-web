@@ -133,6 +133,12 @@ export const fileColumns: ColumnConfig[] = [
       { label: "TIFF", value: "TIFF" },
       { label: "Unknown", value: "Unknown" },
     ],
+    filterRender: (option) => (
+      <Pill
+        name={option.value || option.label}
+        className={option.value ? undefined : "bg-slate-200 text-slate-600"}
+      />
+    ),
   },
   {
     id: "last_modified",

@@ -63,6 +63,7 @@ export function FilterSidebar({
                 options={col.filterOptions ?? []}
                 value={filterValue}
                 onChange={(value) => setFilter(col.id, value || undefined)}
+                renderOption={col.filterRender}
                 aria-label={`Filter by ${col.header}`}
               />
             ) : (

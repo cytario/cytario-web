@@ -15,7 +15,7 @@ import {
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
-import { Container } from "~/components/Container";
+import { Section, SectionHeader } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
 import { Icon } from "~/components/Controls/Button/Icon";
 import { Pill } from "~/components/Pill/Pill";
@@ -161,6 +161,22 @@ function buildColumns(
         { label: "Active", value: "true" },
         { label: "Disabled", value: "false" },
       ],
+      filterRender: (option) => (
+        <Pill
+          name={
+            option.value === "true"
+              ? "Active"
+              : option.value === "false"
+                ? "Disabled"
+                : option.label
+          }
+          className={
+            option.value === "true"
+              ? "bg-emerald-100 text-emerald-800"
+              : "bg-slate-200 text-slate-600"
+          }
+        />
+      ),
     },
     buildGroupColumn(
       "adminGroups",
@@ -195,7 +211,7 @@ const cellRenderers: CellRenderers<UserRow> = {
       className={
         row.enabled === "true"
           ? "bg-emerald-100 text-emerald-800"
-          : "bg-slate-100 text-slate-500"
+          : "bg-slate-200 text-slate-600"
       }
     />
   ),
@@ -276,26 +292,25 @@ export default function AdminUsersRoute() {
   );
 
   return (
-    <>
-      <Container>
-        <div className="mb-4 flex items-center gap-3">
-          <span className="text-sm text-slate-500 mr-auto">
-            {data.length} {data.length === 1 ? "user" : "users"}
-          </span>
-          <ButtonLink
-            to={`invite?scope=${encodeURIComponent(scope)}`}
-            theme="white"
-          >
-            <Icon icon="UserPlus" size={16} /> Invite User
-          </ButtonLink>
-          <ButtonLink
-            to={`bulk-invite?scope=${encodeURIComponent(scope)}`}
-            theme="white"
-          >
-            <Icon icon="UsersRound" size={16} /> Bulk Invite
-          </ButtonLink>
-        </div>
-      </Container>
+    <Section>
+      <SectionHeader name={scope}>
+        <span className="text-sm text-slate-500">
+          {data.length} {data.length === 1 ? "user" : "users"}
+        </span>
+        <ButtonLink
+          to={`invite?scope=${encodeURIComponent(scope)}`}
+          theme="white"
+        >
+          <Icon icon="UserPlus" size={16} /> Invite User
+        </ButtonLink>
+        <ButtonLink
+          to={`bulk-invite?scope=${encodeURIComponent(scope)}`}
+          theme="white"
+        >
+          <Icon icon="UsersRound" size={16} /> Bulk Invite
+        </ButtonLink>
+      </SectionHeader>
+
       {data.length > 0 ? (
         <Table
           columns={columns}
@@ -306,6 +321,7 @@ export default function AdminUsersRoute() {
           rowSelection={rowSelection}
           onRowSelectionChange={setRowSelection}
           getRowId={(row) => row.userId}
+          showFilters
         />
       ) : (
         <Placeholder
@@ -338,6 +354,6 @@ export default function AdminUsersRoute() {
         </SelectionFooter>
       )}
       <Outlet context={{ scope, users, groups }} />
-    </>
+    </Section>
   );
 }
