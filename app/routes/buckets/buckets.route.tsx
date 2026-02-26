@@ -12,23 +12,17 @@ import { useLoaderData } from "react-router";
 
 import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
-import { getS3Client } from "~/.server/auth/getS3Client";
 import { getSession } from "~/.server/auth/getSession";
-import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
-import { SessionCredentials, sessionStorage } from "~/.server/auth/sessionStorage";
+import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
+import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
-import { getObjects } from "~/utils/getObjects";
-import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
@@ -52,68 +46,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const middleware = [authMiddleware];
 
-const fetchPreviewObject = async (
-  config: BucketConfig,
-  credentials: SessionCredentials,
-  userId: string,
-): Promise<ObjectPresignedUrl | undefined> => {
-  const creds = credentials[config.name];
-  if (!creds) return undefined;
-  const s3 = await getS3Client(config, creds, userId);
-  const objects = await getObjects(
-    config,
-    s3,
-    null,
-    config.prefix || undefined,
-    100,
-  );
-  const preview = objects.find((obj) => isOmeTiff(obj.Key ?? ""));
-  if (!preview?.Key) return undefined;
-  const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
-  return { ...preview, presignedUrl } as ObjectPresignedUrl;
-};
-
 export const loader: LoaderFunction = async ({ context }) => {
-  const { bucketConfigs, credentials, user, authTokens } =
-    context.get(authContext);
-  const userId = user.sub;
-
-  const [previews, adminScopes] = await Promise.all([
-    Promise.allSettled(
-      bucketConfigs.map((config) =>
-        fetchPreviewObject(config, credentials, userId),
-      ),
-    ),
-    getManageableScopes(user, authTokens.accessToken).catch((error) => {
-      console.error("Failed to fetch manageable scopes:", error);
-      return [] as string[];
-    }),
-  ]);
-
-  const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
-    const result = previews[i];
-    const previewObj = result.status === "fulfilled" ? result.value : undefined;
-
-    const prefixLastSegment = config.prefix
-      ?.replace(/\/$/, "")
-      .split("/")
-      .pop();
-    const displayName = config.prefix
-      ? `${config.name}/${prefixLastSegment}`
-      : config.name;
-
-    return {
-      bucketName: config.name,
-      name: displayName,
-      type: "bucket" as const,
-      provider: config.provider,
-      pathName: config.prefix || undefined,
-      children: [],
-      _Object: previewObj,
-    };
-  });
-
-  return { nodes, adminScopes, userId, credentials, bucketConfigs };
+  return loadBucketNodes(context);
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -238,10 +172,16 @@ export default function BucketsRoute() {
         showAllHref="/recent?filter=files"
       />
 
-      <Section>
-        {nodes.length > 0 ? (
-          <DirectoryView nodes={nodes} name={title} bucketName="" isAdmin={adminScopes.length > 0} />
-        ) : (
+      <DashboardSection
+        title={title}
+        nodes={nodes}
+        viewMode="grid-md"
+        maxItems={100}
+        showAllHref="/buckets"
+      />
+
+      {nodes.length === 0 && (
+        <Section>
           <Placeholder
             icon="FileSearch"
             title="Start exploring your data"
@@ -252,8 +192,8 @@ export default function BucketsRoute() {
               </ButtonLink>
             }
           />
-        )}
-      </Section>
+        </Section>
+      )}
 
       <Outlet context={{ adminScopes, userId }} />
     </>

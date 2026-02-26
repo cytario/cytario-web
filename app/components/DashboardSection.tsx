@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { Link } from "react-router";
 
+import { ButtonLink, Icon } from "./Controls";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
@@ -39,27 +39,23 @@ export function DashboardSection({
           <H2>{title}</H2>
           <div className="flex items-center gap-3">
             {actions}
-            {hasMore && showAllHref && (
-              <Link
-                to={showAllHref}
-                className="text-sm text-cytario-turquoise-700 hover:underline"
-              >
-                Show all ({nodes.length})
-              </Link>
+            {showAllHref && (
+              <ButtonLink to={showAllHref} theme="white">
+                {hasMore ? `Show all (${nodes.length})` : "View all"}
+                <Icon icon="ArrowRight" size={16} />
+              </ButtonLink>
             )}
           </div>
         </div>
       </Container>
       <div className="mt-8">
-        {viewMode === "list" ? (
-          <Container>
+        <Container wide={viewMode === "list-wide"}>
+          {viewMode === "list" || viewMode === "list-wide" ? (
             <DirectoryViewTable nodes={visible} />
-          </Container>
-        ) : (
-          <Container>
+          ) : (
             <DirectoryViewGrid nodes={visible} viewMode={viewMode} />
-          </Container>
-        )}
+          )}
+        </Container>
       </div>
     </Section>
   );

@@ -22,8 +22,15 @@ export function Section({
   );
 }
 
-export const Container = ({ children }: LayoutWrapperProps) => {
-  return <div className="container mx-auto px-4"> {children}</div>;
+export const Container = ({
+  children,
+  wide,
+}: LayoutWrapperProps & { wide?: boolean }) => {
+  return (
+    <div className={wide ? "mx-auto px-4" : "container mx-auto px-4"}>
+      {children}
+    </div>
+  );
 };
 
 // export function Column({ children }: SectionProps) {

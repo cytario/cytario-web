@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-export type ViewMode = "list" | "grid-sm" | "grid-md" | "grid-lg";
+export type ViewMode = "list" | "list-wide" | "grid-sm" | "grid-md" | "grid-lg";
 
 interface DirectoryStore {
   viewMode: ViewMode;

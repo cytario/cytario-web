@@ -3,7 +3,10 @@ import { type MetaFunction, useSearchParams } from "react-router";
 
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import { DirectoryViewTable } from "~/components/DirectoryView/DirectoryViewTable";
+import { useDirectoryStore } from "~/components/DirectoryView/useDirectoryStore";
+import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { H1 } from "~/components/Fonts";
 import { Placeholder } from "~/components/Placeholder";
 import { getFileType } from "~/utils/fileType";
@@ -42,6 +45,7 @@ function filterNodes(nodes: TreeNode[], filter: FilterType): TreeNode[] {
 function RecentContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = (searchParams.get("filter") as FilterType) || "all";
+  const { viewMode } = useDirectoryStore();
   const allItems = useRecentlyViewedStore((state) => state.items);
 
   const filtered = useMemo(
@@ -54,7 +58,10 @@ function RecentContent() {
   return (
     <Section>
       <Container>
-        <H1>{filterLabels[filter]}</H1>
+        <div className="flex items-center justify-between">
+          <H1>{filterLabels[filter]}</H1>
+          <ViewModeToggle />
+        </div>
         <nav className="mt-4 flex gap-2" aria-label="Filter recent items">
           {filters.map((f) => (
             <button
@@ -82,7 +89,15 @@ function RecentContent() {
 
       {filtered.length > 0 ? (
         <div className="mt-8">
-          <DirectoryViewTable nodes={filtered} />
+          {viewMode === "list" || viewMode === "list-wide" ? (
+            <Container wide={viewMode === "list-wide"}>
+              <DirectoryViewTable nodes={filtered} />
+            </Container>
+          ) : (
+            <Container>
+              <DirectoryViewGrid nodes={filtered} viewMode={viewMode} />
+            </Container>
+          )}
         </div>
       ) : (
         <Placeholder

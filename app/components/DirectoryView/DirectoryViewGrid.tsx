@@ -6,6 +6,7 @@ import { type ViewMode } from "./useDirectoryStore";
 
 const gridSizeClasses: Record<ViewMode, string> = {
   list: "",
+  "list-wide": "",
   "grid-sm": "w-6/12 sm:w-4/12 md:w-3/12 lg:w-2/12 xl:w-2/12 2xl:w-1/12",
   "grid-md": "w-6/12 sm:w-6/12 md:w-4/12 lg:w-3/12 xl:w-3/12 2xl:w-2/12",
   "grid-lg": "w-6/12 sm:w-6/12 md:w-6/12 lg:w-4/12 xl:w-4/12 2xl:w-3/12",
