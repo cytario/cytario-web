@@ -90,7 +90,7 @@ export function NodeLink({
             }
           }}
         >
-          <NodeLinkIcon node={node} />
+          {viewMode === "list" && <NodeLinkIcon node={node} />}
           <TooltipSpan>{node.name}</TooltipSpan>
 
           {/* Context menu */}

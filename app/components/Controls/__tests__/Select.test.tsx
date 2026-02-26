@@ -1,44 +1,36 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { Select } from "~/components/Controls";
 
+const options = [
+  { value: "option1", label: "Option 1" },
+  { value: "option2", label: "Option 2" },
+  { value: "option3", label: "Option 3" },
+];
+
 describe("Select", () => {
-  test("should render select element with children", () => {
+  test("should render listbox with selected option", () => {
     render(
-      <Select>
-        <option value="option1">Option 1</option>
-        <option value="option2">Option 2</option>
-      </Select>,
+      <Select options={options} value="option1" onChange={vi.fn()} />,
     );
 
-    const select = screen.getByRole("combobox");
-    expect(select).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveTextContent("Option 1");
   });
 
-  test("should forward props to HeadlessUI Select", () => {
+  test("should render as disabled", () => {
     render(
-      <Select data-testid="custom-select" disabled>
-        <option value="test">Test Option</option>
-      </Select>,
+      <Select options={options} value="option1" onChange={vi.fn()} disabled />,
     );
 
-    const select = screen.getByTestId("custom-select");
-    expect(select).toBeInTheDocument();
-    expect(select).toBeDisabled();
+    expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  test("should render multiple options", () => {
+  test("should display the label of the selected value", () => {
     render(
-      <Select>
-        <option value="option1">Option 1</option>
-        <option value="option2">Option 2</option>
-        <option value="option3">Option 3</option>
-      </Select>,
+      <Select options={options} value="option2" onChange={vi.fn()} />,
     );
 
-    expect(screen.getByText("Option 1")).toBeInTheDocument();
-    expect(screen.getByText("Option 2")).toBeInTheDocument();
-    expect(screen.getByText("Option 3")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveTextContent("Option 2");
   });
 });

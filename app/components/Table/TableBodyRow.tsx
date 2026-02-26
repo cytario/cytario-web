@@ -1,12 +1,11 @@
 import { Row, flexRender } from "@tanstack/react-table";
 import { twMerge } from "tailwind-merge";
 
-import { TableRowData } from "./Table";
 import { ColumnConfig } from "./types";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableBodyRowProps {
-  row: Row<TableRowData>;
+  row: Row<unknown>;
   rowIndex: number;
   columns: ColumnConfig[];
   className?: string;
@@ -31,10 +30,18 @@ export function TableBodyRow({
         const isIndexColumn = cell.column.id === "index";
         const columnConfig = columns.find((col) => col.id === cell.column.id);
 
+        const isRight = columnConfig?.align === "right";
+        const alignClass = isRight
+          ? "text-right"
+          : columnConfig?.align === "center"
+            ? "text-center"
+            : "text-left";
         const cxCell = twMerge(
-          "px-2 pr-4",
-          isIndexColumn ? "text-right" : `text-${columnConfig?.align}`,
-          (columnConfig?.monospace || isIndexColumn) && "tabular-nums",
+          "px-4 py-2",
+          isIndexColumn ? "text-right" : alignClass,
+          columnConfig?.monospace && "font-mono font-light",
+          (isRight || isIndexColumn) && "tabular-nums",
+          !columnConfig?.anchor && !isIndexColumn && "text-sm",
         );
 
         const style = {
@@ -43,18 +50,35 @@ export function TableBodyRow({
           maxWidth: cell.column.getSize(),
         };
 
-        // For index column, use visual row number instead of stored index
+        // For index column, use visual row number instead of stored index.
+        // For middle ellipsis, pass the raw string value so TooltipSpan
+        // can do JS-based truncation (flexRender wraps values in React elements).
+        const rawValue = cell.getValue();
+        const useRawString =
+          columnConfig?.ellipsis === "middle" && typeof rawValue === "string";
+
         const content = isIndexColumn
           ? rowIndex + 1
-          : flexRender(cell.column.columnDef.cell, cell.getContext());
+          : useRawString
+            ? rawValue
+            : flexRender(cell.column.columnDef.cell, cell.getContext());
+
+        const copyValue =
+          columnConfig?.copyable && typeof rawValue === "string"
+            ? rawValue
+            : undefined;
 
         return isIndexColumn ? (
           <th key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan>{content}</TooltipSpan>
+            <TooltipSpan ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
+              {content}
+            </TooltipSpan>
           </th>
         ) : (
           <td key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan>{content}</TooltipSpan>
+            <TooltipSpan ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
+              {content}
+            </TooltipSpan>
           </td>
         );
       })}

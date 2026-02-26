@@ -1,4 +1,4 @@
-import { PointerEventHandler, ReactNode } from "react";
+import { forwardRef, PointerEventHandler, ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import {
@@ -13,29 +13,43 @@ interface ButtonProps {
   children: ReactNode;
   className?: string;
   type?: "button" | "submit" | "reset";
+  form?: string;
   scale?: keyof typeof buttonScaleStyles;
   theme?: keyof typeof buttonThemeStyles;
 }
 
-export function Button({
-  onClick,
-  disabled,
-  children,
-  className,
-  type = "button",
-  scale = "medium",
-  theme = "default",
-}: ButtonProps) {
-  const cx = twMerge(
-    buttonBaseStyles,
-    buttonScaleStyles[scale],
-    buttonThemeStyles[theme],
-    className,
-  );
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    {
+      onClick,
+      disabled,
+      children,
+      className,
+      type = "button",
+      form,
+      scale = "medium",
+      theme = "default",
+    },
+    ref,
+  ) {
+    const cx = twMerge(
+      buttonBaseStyles,
+      buttonScaleStyles[scale],
+      buttonThemeStyles[theme],
+      className,
+    );
 
-  return (
-    <button className={cx} onClick={onClick} disabled={disabled} type={type}>
-      {children}
-    </button>
-  );
-}
+    return (
+      <button
+        ref={ref}
+        className={cx}
+        onClick={onClick}
+        disabled={disabled}
+        type={type}
+        form={form}
+      >
+        {children}
+      </button>
+    );
+  },
+);

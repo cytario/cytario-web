@@ -21,7 +21,17 @@ export default {
       colors: {
         cytario: {
           purple: {
-            500: "#5c2483",
+            50: "#F8F4FB",
+            100: "#EEDCF6",
+            200: "#D9B4EB",
+            300: "#C088DF",
+            400: "#9650BF",
+            500: "#5C2483", // Logo color - exact
+            600: "#4D1F6F",
+            700: "#3E195B", // Text color - accessible
+            800: "#301347",
+            900: "#220D33", // Hover/emphasis - high contrast
+            950: "#140820",
           },
           turquoise: {
             50: "#F0FAFA",
@@ -40,6 +50,7 @@ export default {
       },
       fontFamily: {
         montserrat: ["Montserrat", "sans-serif"],
+        mono: ["Fira Code", "ui-monospace", "monospace"],
       },
       animation: {
         "fade-in": "fadeIn .3s ease-in forwards",

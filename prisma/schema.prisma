@@ -9,15 +9,16 @@ generator client {
 }
 
 model BucketConfig {
-  id       Int     @id @default(autoincrement())
-  userId   String
-  name     String
-  provider String  // "aws" for AWS S3, user-defined for others (e.g., "minio")
-  endpoint String  // Required - AWS endpoint or custom (MinIO)
-  roleArn  String? // Optional - only needed for AWS
-  region   String? // Optional - only needed for AWS
-  prefix   String  @default("")  
+  id         Int     @id @default(autoincrement())
+  ownerScope String
+  createdBy  String
+  name       String
+  provider   String  // "aws" for AWS S3, user-defined for others (e.g., "minio")
+  endpoint   String  // Required - AWS endpoint or custom (MinIO)
+  roleArn    String? // Optional - only needed for AWS
+  region     String? // Optional - only needed for AWS
+  prefix     String  @default("")
 
-  @@unique([userId, provider, name, prefix])  // Updated unique constraint
-
+  @@unique([ownerScope, provider, name, prefix])
+  @@index([ownerScope])
 }

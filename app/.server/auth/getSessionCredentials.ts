@@ -6,8 +6,20 @@ import {
 
 import { type SessionData, type SessionCredentials } from "./sessionStorage";
 import { BucketConfig } from "~/.generated/client";
-import { getBucketConfigByPath } from "~/utils/bucketConfig";
+import { createLabel } from "~/.server/logging";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
+
+const label = createLabel("credentials", "cyan");
+
+export const isValidCredentials = (
+  credentials?: { Expiration?: Date },
+): boolean => {
+  if (!credentials?.Expiration) return false;
+
+  // Check if credentials are expired (with 5 minute buffer)
+  const bufferMs = 5 * 60 * 1000; // 5 minutes
+  return Date.now() < new Date(credentials.Expiration).getTime() - bufferMs;
+};
 
 /**
  * Sanitizes a string for use as an AWS STS RoleSessionName.
@@ -59,39 +71,60 @@ const fetchTemporaryCredentials = async (
 };
 
 /**
- * Retrieves or refreshes session credentials for a specific bucket.
- * @param pathName - The path within the bucket (used to find configs with prefixes)
- * @returns SessionCredentials
+ * Fetches credentials for all bucket configs in parallel.
+ * Deduplicates by bucket name (multiple prefix configs share STS credentials).
+ * Only fetches for buckets with missing or expired credentials.
  */
-export const getSessionCredentials = async (
+export const getAllSessionCredentials = async (
   sessionData: SessionData,
-  provider?: string,
-  bucketName?: string,
-  pathName?: string,
+  bucketConfigs: BucketConfig[],
 ): Promise<SessionCredentials> => {
-  if (!provider || !bucketName) {
+  // Deduplicate: one STS call per unique bucket name
+  const uniqueBuckets = new Map<string, BucketConfig>();
+  for (const config of bucketConfigs) {
+    if (!uniqueBuckets.has(config.name)) {
+      uniqueBuckets.set(config.name, config);
+    }
+  }
+
+  // Filter to only buckets needing credential refresh
+  const bucketsNeedingCredentials = Array.from(uniqueBuckets.entries()).filter(
+    ([name]) => !isValidCredentials(sessionData.credentials[name]),
+  );
+
+  if (bucketsNeedingCredentials.length === 0) {
     return sessionData.credentials;
   }
 
-  const bucketConfig = await getBucketConfigByPath(
-    sessionData.user.sub,
-    provider,
-    bucketName,
-    pathName ?? "",
+  console.info(
+    `${label} Fetching credentials for ${bucketsNeedingCredentials.length} bucket(s)`,
   );
 
-  if (!bucketConfig) {
-    throw new Error(
-      `Bucket config not found for bucket: ${provider}/${bucketName}/${pathName ?? ""}`,
-    );
+  const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
+
+  // Fetch all in parallel — one failure doesn't block others
+  const results = await Promise.allSettled(
+    bucketsNeedingCredentials.map(async ([name, config]) => ({
+      name,
+      credentials: await fetchTemporaryCredentials(
+        config,
+        sessionData.authTokens.idToken,
+        roleSessionName,
+      ),
+    })),
+  );
+
+  const newCredentials = { ...sessionData.credentials };
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      newCredentials[result.value.name] = result.value.credentials;
+    } else {
+      console.warn(
+        `${label} Failed to fetch credentials for a bucket:`,
+        result.reason,
+      );
+    }
   }
 
-  return {
-    ...sessionData.credentials,
-    [bucketName]: await fetchTemporaryCredentials(
-      bucketConfig,
-      sessionData.authTokens.idToken,
-      sanitizeRoleSessionName(sessionData.user.name),
-    ),
-  };
+  return newCredentials;
 };

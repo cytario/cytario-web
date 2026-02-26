@@ -2,112 +2,110 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
+  getFilteredRowModel,
+  getFacetedUniqueValues,
   ColumnDef,
+  SortingFn,
 } from "@tanstack/react-table";
 import { ReactNode, useMemo } from "react";
 
 import { TableBodyRow } from "./TableBodyRow";
 import { TableHeaderRow } from "./TableHeaderRow";
-import { SortingAccessor, TableProps as TablePropsType } from "./types";
+import { CellRenderers, TableProps as TablePropsType } from "./types";
+import { useColumnFilters } from "./useColumnFilters";
+import { useColumnVisibility } from "./useColumnVisibility";
 import { useColumnWidths } from "./useColumnWidths";
 import { useTableSorting } from "./useTableSorting";
 
 // Re-export types for external use
-export type { ColumnConfig, TableProps } from "./types";
+export type { ColumnConfig, TableProps, CellRenderers } from "./types";
 
-export type TableRowData = {
-  index: number;
-} & Record<string, string | ReactNode>;
+const booleanSortingFn: SortingFn<unknown> = (rowA, rowB, columnId) => {
+  const a = rowA.getValue<boolean>(columnId) ? 1 : 0;
+  const b = rowB.getValue<boolean>(columnId) ? 1 : 0;
+  return a - b;
+};
 
-export function Table({ columns, data, tableId = "default" }: TablePropsType) {
+export function Table<TData extends Record<string, unknown>>({
+  columns,
+  data,
+  cellRenderers = {} as CellRenderers<TData>,
+  tableId = "default",
+}: TablePropsType<TData>) {
   const { columnSizing, setColumnSizing } = useColumnWidths(columns, tableId);
-  const { sorting, setSorting } = useTableSorting(tableId);
+  const anchorColumnId = columns.find((c) => c.anchor)?.id ?? columns[0]?.id;
+  const { sorting, setSorting } = useTableSorting(tableId, anchorColumnId);
+  const {
+    columnVisibility,
+    setColumnVisibility,
+    toggleableColumns,
+    toggleColumn,
+  } = useColumnVisibility(columns, tableId);
+  const { columnFilters, setColumnFilters } = useColumnFilters(tableId);
 
-  // Transform data into row objects with an index
-  const tableData: TableRowData[] = useMemo(
-    () =>
-      data.map((row, index) => ({
-        index: index + 1,
-        ...row.reduce(
-          (acc, cell, i) => {
-            acc[`col_${i}`] = cell;
-            return acc;
-          },
-          {} as Record<string, string | ReactNode>,
-        ),
-      })),
-    [data],
-  );
-
-  // Create column definitions with proper IDs matching ColumnConfig
-  const columnDefs: ColumnDef<TableRowData>[] = useMemo(() => {
-    const indexColumn: ColumnDef<TableRowData> = {
+  const columnDefs: ColumnDef<TData>[] = useMemo(() => {
+    const indexColumn: ColumnDef<TData> = {
       id: "index",
       header: "",
-      accessorKey: "index",
-      cell: (info) => info.getValue() as ReactNode,
+      cell: (info) => info.row.index + 1,
       enableResizing: false,
+      enableSorting: false,
+      enableColumnFilter: false,
       size: 48,
       minSize: 48,
       maxSize: 48,
     };
 
-    const dataColumns = columns.map(
-      (columnConfig, i): ColumnDef<TableRowData> => ({
-        id: columnConfig.id,
-        header: columnConfig.header,
-        accessorKey: `col_${i}`,
-        cell: (info) => info.getValue() as ReactNode,
-        enableResizing: columnConfig.enableResizing !== false,
-        enableSorting: columnConfig.enableSorting ?? false,
+    const dataColumns = columns.map((colConfig): ColumnDef<TData> => {
+      const renderer = cellRenderers[colConfig.id];
+
+      return {
+        id: colConfig.id,
+        accessorKey: colConfig.id as string & keyof TData,
+        header: colConfig.header,
+        cell: renderer
+          ? (info) => renderer(info.row.original)
+          : (info) => info.getValue() as ReactNode,
+        enableResizing: colConfig.enableResizing !== false,
+        enableSorting: colConfig.enableSorting ?? false,
+        enableColumnFilter: colConfig.enableColumnFilter ?? false,
+        ...(colConfig.filterFn && {
+          filterFn: colConfig.filterFn as typeof colConfig.filterFn & {},
+        }),
         sortingFn:
-          typeof columnConfig.sortingFn === "function"
-            ? (rowA, rowB) => {
-                const accessor = columnConfig.sortingFn as SortingAccessor;
-                const valueA = accessor(rowA.original.index - 1);
-                const valueB = accessor(rowB.original.index - 1);
-
-                // Handle null/undefined
-                if (valueA == null && valueB == null) return 0;
-                if (valueA == null) return 1;
-                if (valueB == null) return -1;
-
-                // Compare based on type
-                if (typeof valueA === "number" && typeof valueB === "number") {
-                  return valueA - valueB;
-                }
-
-                if (valueA instanceof Date && valueB instanceof Date) {
-                  return valueA.getTime() - valueB.getTime();
-                }
-
-                // Default to string comparison
-                return String(valueA).localeCompare(String(valueB));
-              }
-            : (columnConfig.sortingFn ?? "alphanumeric"),
-        size: columnSizing[columnConfig.id] ?? columnConfig.size ?? 150,
-        minSize: columnConfig.minSize ?? 48,
-        maxSize: columnConfig.maxSize ?? Number.MAX_SAFE_INTEGER,
-      }),
-    );
+          colConfig.sortingFn === "boolean"
+            ? booleanSortingFn
+            : (colConfig.sortingFn ?? "alphanumeric"),
+        size: columnSizing[colConfig.id] ?? colConfig.size ?? 150,
+        minSize: colConfig.minSize ?? 48,
+        maxSize: colConfig.maxSize ?? Number.MAX_SAFE_INTEGER,
+      };
+    });
 
     return [indexColumn, ...dataColumns];
-  }, [columns, columnSizing]);
+  }, [columns, cellRenderers, columnSizing]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
-    data: tableData,
+    data,
     columns: columnDefs,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    enableSortingRemoval: true,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
     state: {
       columnSizing,
       sorting,
+      columnVisibility,
+      columnFilters,
     },
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnFiltersChange: setColumnFilters,
   });
 
   return (
@@ -119,19 +117,33 @@ export function Table({ columns, data, tableId = "default" }: TablePropsType) {
             headerGroup={headerGroup}
             columns={columns}
             tableId={tableId}
+            toggleableColumns={toggleableColumns}
+            columnVisibility={columnVisibility}
+            toggleColumn={toggleColumn}
           />
         ))}
       </thead>
 
       <tbody>
-        {table.getRowModel().rows.map((row, index) => (
-          <TableBodyRow
-            key={row.id}
-            row={row}
-            rowIndex={index}
-            columns={columns}
-          />
-        ))}
+        {table.getRowModel().rows.length === 0 && data.length > 0 ? (
+          <tr>
+            <td
+              colSpan={columns.length + 1}
+              className="text-center text-slate-400 py-8"
+            >
+              No results match your filters
+            </td>
+          </tr>
+        ) : (
+          table.getRowModel().rows.map((row, index) => (
+            <TableBodyRow
+              key={row.id}
+              row={row}
+              rowIndex={index}
+              columns={columns}
+            />
+          ))
+        )}
       </tbody>
     </table>
   );

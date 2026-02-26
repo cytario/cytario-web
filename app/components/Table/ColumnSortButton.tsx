@@ -1,26 +1,39 @@
 import { Header } from "@tanstack/react-table";
 
-import { TableRowData } from "./Table";
-import { IconButton } from "../Controls";
+import { Icon } from "../Controls";
 
 export const ColumnSortButton = ({
   header,
 }: {
-  header: Header<TableRowData, unknown>;
+  header: Header<unknown, unknown>;
 }) => {
+  const sortDirection = header.column.getIsSorted();
+
+  if (sortDirection === "asc") {
+    return (
+      <Icon
+        icon="ChevronDown"
+        size={14}
+        className="shrink-0 text-slate-700 group-hover/header:text-slate-900"
+      />
+    );
+  }
+
+  if (sortDirection === "desc") {
+    return (
+      <Icon
+        icon="ChevronUp"
+        size={14}
+        className="shrink-0 text-slate-700 group-hover/header:text-slate-900"
+      />
+    );
+  }
+
   return (
-    <IconButton
-      icon={
-        header.column.getIsSorted() === "asc"
-          ? "ArrowUp"
-          : header.column.getIsSorted() === "desc"
-            ? "ArrowDown"
-            : "ArrowUpDown"
-      }
-      onClick={header.column.getToggleSortingHandler() ?? (() => {})}
-      theme="transparent"
-      label={`Sort by ${header.column.columnDef.header}`}
-      className="border-none"
+    <Icon
+      icon="ChevronDown"
+      size={14}
+      className="shrink-0 opacity-0 group-hover/header:opacity-100 text-slate-300"
     />
   );
 };

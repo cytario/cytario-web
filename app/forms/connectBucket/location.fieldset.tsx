@@ -1,14 +1,21 @@
-import { UseFormRegister, FieldErrors } from "react-hook-form";
+import {
+  Control,
+  Controller,
+  FieldErrors,
+  UseFormRegister,
+} from "react-hook-form";
 
 import AWS_REGIONS from "./awsRegions.json";
 import { ConnectBucketFormData } from "./connectBucket.schema";
 import { Field, Fieldset, Input, Select } from "~/components/Controls";
 
 export const LocationFieldset = ({
+  control,
   register,
   errors,
   isAWS,
 }: {
+  control: Control<ConnectBucketFormData>;
   register: UseFormRegister<ConnectBucketFormData>;
   errors: FieldErrors<ConnectBucketFormData>;
   isAWS: boolean;
@@ -34,13 +41,21 @@ export const LocationFieldset = ({
           description="The AWS region where this bucket is located."
           error={errors.bucketRegion}
         >
-          <Select {...register("bucketRegion")}>
-            {AWS_REGIONS.map((region) => (
-              <option key={region.value} value={region.value}>
-                {region.value}
-              </option>
-            ))}
-          </Select>
+          <Controller
+            name="bucketRegion"
+            control={control}
+            render={({ field }) => (
+              <Select
+                options={AWS_REGIONS.map(({ value }) => ({
+                  label: value,
+                  value,
+                }))}
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                name={field.name}
+              />
+            )}
+          />
         </Field>
       )}
     </Fieldset>

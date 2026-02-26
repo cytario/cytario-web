@@ -29,6 +29,7 @@ export const parseS3Uri = (
 
 // Combined schema for final submission - AWS provider
 const awsFormSchema = z.object({
+  ownerScope: z.string().min(1, "Scope is required"),
   providerType: z.literal("aws"),
   provider: z.string().default(""),
   s3Uri: s3UriSchema,
@@ -39,6 +40,7 @@ const awsFormSchema = z.object({
 
 // Combined schema for final submission - Other provider
 const otherFormSchema = z.object({
+  ownerScope: z.string().min(1, "Scope is required"),
   providerType: z.literal("other"),
   provider: z.string().min(1, "Provider name is required"),
   s3Uri: s3UriSchema,
@@ -57,6 +59,7 @@ export type ConnectBucketFormData = z.input<typeof connectBucketSchema>;
 
 // Default values for the form
 export const defaultFormValues: ConnectBucketFormData = {
+  ownerScope: "",
   providerType: "aws",
   provider: "",
   s3Uri: "",

@@ -2,19 +2,20 @@ import { redirect } from "react-router";
 
 import { authMiddleware, authContext } from "../authMiddleware";
 import { getSessionData } from "../getSession";
-import { getSessionCredentials } from "../getSessionCredentials";
+import { getAllSessionCredentials } from "../getSessionCredentials";
 import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
+import { getBucketConfigs } from "~/utils/bucketConfig";
 
 vi.mock("../getSession", () => ({
   getSessionData: vi.fn(),
 }));
 
 vi.mock("../getSessionCredentials", () => ({
-  getSessionCredentials: vi.fn(),
+  getAllSessionCredentials: vi.fn(),
 }));
 
 vi.mock("../refreshAuthTokens", () => ({
@@ -26,6 +27,10 @@ vi.mock("../sessionStorage", () => ({
     commitSession: vi.fn(),
     destroySession: vi.fn(),
   },
+}));
+
+vi.mock("~/utils/bucketConfig", () => ({
+  getBucketConfigs: vi.fn(),
 }));
 
 vi.mock("../verifyIdToken", () => ({
@@ -47,6 +52,7 @@ vi.mock("react-router", async (importOriginal) => {
 describe("authMiddleware", () => {
   const mockNext = vi.fn();
   const mockSession = mock.session();
+  const mockBucketConfigs = [mock.bucketConfig()];
 
   // Valid JWT payload (from verifyIdToken)
   const validIdTokenPayload = {
@@ -102,7 +108,11 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.destroySession).mockResolvedValue(
       "destroy-cookie",
     );
-    vi.mocked(getSessionCredentials).mockResolvedValue({});
+    vi.mocked(getBucketConfigs).mockResolvedValue(mockBucketConfigs);
+    // Return the same credentials by default (no change = no session commit)
+    vi.mocked(getAllSessionCredentials).mockImplementation(
+      async (sessionData) => sessionData.credentials,
+    );
     vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
       accessToken: "new-access-token",
       idToken: "new-id-token",
@@ -138,7 +148,7 @@ describe("authMiddleware", () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
-    test("sets authContext with session data", async () => {
+    test("sets authContext with session data and bucket configs", async () => {
       const args = createMiddlewareArgs();
 
       await authMiddleware(
@@ -151,6 +161,7 @@ describe("authMiddleware", () => {
         expect.objectContaining({
           user: expect.any(Object),
           authTokens: expect.any(Object),
+          bucketConfigs: mockBucketConfigs,
         }),
       );
     });
@@ -168,135 +179,72 @@ describe("authMiddleware", () => {
   });
 
   describe("Credential Fetching", () => {
-    test("fetches credentials when bucketName provided and credentials missing", async () => {
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
+    test("fetches all bucket configs and credentials", async () => {
+      const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
         mockNext,
       );
 
-      expect(getSessionCredentials).toHaveBeenCalledWith(
+      expect(getBucketConfigs).toHaveBeenCalledWith(mockSessionData.user);
+      expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
-        "aws",
-        "test-bucket",
-        undefined,
+        mockBucketConfigs,
       );
     });
 
-    test("fetches credentials when existing credentials are expired", async () => {
-      const expiredCreds = mock.credentials({
-        Expiration: new Date(Date.now() - 3600000), // 1 hour ago
-      });
-
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        credentials: { "test-bucket": expiredCreds },
-      });
-
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
+    test("fetches credentials regardless of route params", async () => {
+      // Even without bucketName in params, credentials are fetched for all buckets
+      const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
         mockNext,
       );
 
-      expect(getSessionCredentials).toHaveBeenCalled();
+      expect(getAllSessionCredentials).toHaveBeenCalled();
     });
 
-    test("skips credential fetch when credentials are valid", async () => {
-      const validCreds = mock.credentials({
-        Expiration: new Date(Date.now() + 3600000), // 1 hour from now
-      });
-
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        credentials: { "test-bucket": validCreds },
-      });
-
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
+    test("does not commit session when credentials unchanged", async () => {
+      const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
         mockNext,
       );
 
-      expect(getSessionCredentials).not.toHaveBeenCalled();
+      expect(sessionStorage.commitSession).not.toHaveBeenCalled();
     });
 
-    test("commits session after fetching new credentials", async () => {
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
+    test("commits session when credentials changed", async () => {
+      const newCredentials = { "new-bucket": mock.credentials() };
+      vi.mocked(getAllSessionCredentials).mockResolvedValue(newCredentials);
+
+      const args = createMiddlewareArgs();
 
       await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
         mockNext,
       );
 
+      expect(mockSession.set).toHaveBeenCalledWith("credentials", newCredentials);
       expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
     });
 
-    test("appends Set-Cookie header to response after credential fetch", async () => {
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
-
-      const response = (await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      )) as Response;
-
-      expect(response.headers.get("Set-Cookie")).toBe("session-cookie");
-    });
-
-    test("continues without crashing when credential fetch fails", async () => {
-      vi.mocked(getSessionCredentials).mockRejectedValue(
+    test("propagates error when credential fetch fails", async () => {
+      vi.mocked(getAllSessionCredentials).mockRejectedValue(
         new Error("STS service unavailable"),
       );
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
 
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
+      const args = createMiddlewareArgs();
 
-      const response = (await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      )) as Response;
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(response).toBeDefined();
-      consoleSpy.mockRestore();
-    });
-
-    test("uses append (not set) for Set-Cookie to preserve downstream cookies", async () => {
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
-
-      const response = (await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      )) as Response;
-
-      // Verify append was used (Set-Cookie header is present)
-      expect(response.headers.get("Set-Cookie")).toBe("session-cookie");
+      await expect(
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
+      ).rejects.toThrow("STS service unavailable");
     });
   });
 
@@ -361,41 +309,40 @@ describe("authMiddleware", () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
-    test("appends Set-Cookie header to response after token refresh", async () => {
+    test("fetches credentials with refreshed tokens", async () => {
       vi.mocked(verifyIdToken).mockResolvedValue(null);
 
       const args = createMiddlewareArgs();
 
-      const response = (await authMiddleware(
+      await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
         mockNext,
-      )) as Response;
+      );
 
-      expect(response.headers.get("Set-Cookie")).toBe("session-cookie");
+      expect(getAllSessionCredentials).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authTokens: expect.objectContaining({
+            accessToken: "new-access-token",
+          }),
+        }),
+        mockBucketConfigs,
+      );
     });
 
-    test("continues without crashing when credential fetch fails after refresh", async () => {
+    test("propagates error when credential fetch fails after refresh", async () => {
       vi.mocked(verifyIdToken).mockResolvedValue(null);
-      vi.mocked(getSessionCredentials).mockRejectedValue(
+      vi.mocked(getAllSessionCredentials).mockRejectedValue(
         new Error("STS service unavailable"),
       );
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
 
-      const args = createMiddlewareArgs({
-        provider: "aws",
-        bucketName: "test-bucket",
-      });
+      const args = createMiddlewareArgs();
 
-      const response = (await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      )) as Response;
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(response).toBeDefined();
-      consoleSpy.mockRestore();
+      await expect(
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
+      ).rejects.toThrow("STS service unavailable");
     });
 
     test("redirects to login when refresh lock exhaustion throws", async () => {

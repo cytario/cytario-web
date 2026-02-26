@@ -2,6 +2,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 import { BucketConfig, PrismaClient } from "~/.generated/client";
+import { canModify, canSee, filterVisible } from "~/.server/auth/authorization";
+import type { UserProfile } from "~/.server/auth/getUserInfo";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -9,37 +11,41 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-// Get all bucket configs for a user
-export async function getBucketConfigsForUser(
-  userId: string,
+// Get all bucket configs visible to the user
+export async function getBucketConfigs(
+  user: UserProfile,
 ): Promise<BucketConfig[]> {
-  return prisma.bucketConfig.findMany({ where: { userId } });
+  const allConfigs = await prisma.bucketConfig.findMany();
+  return filterVisible(user, allConfigs);
 }
 
 // Get a specific bucket config by provider, name, and exact prefix
 export async function getBucketConfigByName(
-  userId: string,
+  user: UserProfile,
   provider: string,
   name: string,
   prefix: string = "",
 ): Promise<BucketConfig | null> {
-  return prisma.bucketConfig.findUnique({
-    where: { userId_provider_name_prefix: { userId, provider, name, prefix } },
+  const configs = await prisma.bucketConfig.findMany({
+    where: { provider, name, prefix },
   });
+  const visible = configs.filter((c) => canSee(user, c.ownerScope));
+  return visible[0] ?? null;
 }
 
 // Find the best matching bucket config for a given path
 // This handles the case where multiple configs exist for the same bucket with different prefixes
+// TODO: Introduce unique alias
 export async function getBucketConfigByPath(
-  userId: string,
+  user: UserProfile,
   provider: string,
   name: string,
   pathName: string = "",
 ): Promise<BucketConfig | null> {
-  // Get all configs for this bucket
-  const configs = await prisma.bucketConfig.findMany({
-    where: { userId, provider, name },
+  const allConfigs = await prisma.bucketConfig.findMany({
+    where: { provider, name },
   });
+  const configs = allConfigs.filter((c) => canSee(user, c.ownerScope));
 
   if (configs.length === 0) return null;
   if (configs.length === 1) return configs[0];
@@ -61,13 +67,14 @@ export async function getBucketConfigByPath(
 
   // Return the most specific match (longest prefix)
   return matchingConfigs.reduce((best, current) =>
-    (current.prefix?.length ?? 0) > (best.prefix?.length ?? 0) ? current : best
+    (current.prefix?.length ?? 0) > (best.prefix?.length ?? 0) ? current : best,
   );
 }
 
 // Upsert a bucket config
 export async function upsertBucketConfig(
-  userId: string,
+  ownerScope: string,
+  createdBy: string,
   config: {
     name: string;
     provider: string;
@@ -80,8 +87,8 @@ export async function upsertBucketConfig(
   const prefix = config.prefix ?? "";
   return prisma.bucketConfig.upsert({
     where: {
-      userId_provider_name_prefix: {
-        userId,
+      ownerScope_provider_name_prefix: {
+        ownerScope,
         provider: config.provider,
         name: config.name,
         prefix,
@@ -89,21 +96,34 @@ export async function upsertBucketConfig(
     },
     update: { ...config, prefix },
     create: {
-      userId,
+      ownerScope,
+      createdBy,
       ...config,
       prefix,
     },
   });
 }
 
-// Delete a bucket config
+// Delete a bucket config (with authorization check)
 export async function deleteBucketConfig(
-  userId: string,
+  user: UserProfile,
   provider: string,
   name: string,
   prefix: string = "",
 ) {
-  return prisma.bucketConfig.delete({
-    where: { userId_provider_name_prefix: { userId, provider, name, prefix } },
+  const configs = await prisma.bucketConfig.findMany({
+    where: { provider, name, prefix },
   });
+
+  const config = configs.find((c) => canSee(user, c.ownerScope));
+
+  if (!config) {
+    throw new Error("Bucket config not found");
+  }
+
+  if (!canModify(user, config.ownerScope)) {
+    throw new Error("Not authorized to delete this bucket config");
+  }
+
+  return prisma.bucketConfig.delete({ where: { id: config.id } });
 }

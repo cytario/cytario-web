@@ -10,7 +10,6 @@ export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
-  const { sub: userId } = user;
 
   const { provider, bucketName } = params;
 
@@ -22,7 +21,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Bucket name is required", { status: 400 });
   }
 
-  const bucketConfig = await getBucketConfigByName(userId, provider, bucketName);
+  const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
 
   if (!bucketConfig) {
     return new Response("Bucket configuration not found", { status: 404 });

@@ -17,7 +17,15 @@ import {
 
 const STEP_LABELS = ["Storage Provider", "Data Location", "Access"];
 
-export const ConnectBucketForm = () => {
+interface ConnectBucketFormProps {
+  adminScopes: string[];
+  userId: string;
+}
+
+export const ConnectBucketForm = ({
+  adminScopes,
+  userId,
+}: ConnectBucketFormProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -31,7 +39,10 @@ export const ConnectBucketForm = () => {
     formState: { errors },
   } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectBucketSchema),
-    defaultValues: defaultFormValues,
+    defaultValues: {
+      ...defaultFormValues,
+      ownerScope: userId,
+    },
     mode: "onBlur",
   });
 
@@ -43,8 +54,8 @@ export const ConnectBucketForm = () => {
 
     if (currentStep === 0) {
       fieldsToValidate = isAWS
-        ? ["providerType"]
-        : ["providerType", "provider"];
+        ? ["ownerScope", "providerType"]
+        : ["ownerScope", "providerType", "provider"];
     } else if (currentStep === 1) {
       fieldsToValidate = ["s3Uri"];
     } else if (currentStep === 2) {
@@ -100,12 +111,14 @@ export const ConnectBucketForm = () => {
             register={register}
             errors={errors}
             isAWS={isAWS}
+            adminScopes={adminScopes}
+            userId={userId}
           />
         )}
 
         {/* Step 2: Location */}
         {currentStep === 1 && (
-          <LocationFieldset register={register} errors={errors} isAWS={isAWS} />
+          <LocationFieldset control={control} register={register} errors={errors} isAWS={isAWS} />
         )}
 
         {/* Step 3: Access */}

@@ -1,7 +1,10 @@
+import { Credentials } from "@aws-sdk/client-sts";
+import { useEffect } from "react";
 import {
   ActionFunction,
   type LoaderFunction,
   type MetaFunction,
+  type ShouldRevalidateFunction,
   Outlet,
   redirect,
 } from "react-router";
@@ -12,8 +15,8 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { getSession } from "~/.server/auth/getSession";
-import { getSessionCredentials } from "~/.server/auth/getSessionCredentials";
-import { SessionData, sessionStorage } from "~/.server/auth/sessionStorage";
+import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
+import { SessionCredentials, sessionStorage } from "~/.server/auth/sessionStorage";
 import { ClientOnly } from "~/components/ClientOnly";
 import { Section } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
@@ -22,10 +25,8 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
 import { RecentlyViewed } from "~/components/RecentlyViewed/RecentlyViewed";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
-import {
-  getBucketConfigsForUser,
-  deleteBucketConfig,
-} from "~/utils/bucketConfig";
+import { deleteBucketConfig } from "~/utils/bucketConfig";
+import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getObjects } from "~/utils/getObjects";
 
 const title = "Your Storage Connections";
@@ -33,23 +34,28 @@ const title = "Your Storage Connections";
 export const meta: MetaFunction = () => {
   return [
     { title },
-    { name: "description", content: "Manage your data connections" },
+    { name: "description", content: "Manage your storage connections" },
   ];
+};
+
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  formAction,
+  defaultShouldRevalidate,
+}) => {
+  if (formAction) return defaultShouldRevalidate;
+  return false;
 };
 
 export const middleware = [authMiddleware];
 
 const fetchPreviewObject = async (
-  sessionData: SessionData,
   config: BucketConfig,
+  credentials: SessionCredentials,
   userId: string,
 ): Promise<ObjectPresignedUrl | undefined> => {
-  const creds = await getSessionCredentials(
-    sessionData,
-    config.provider,
-    config.name,
-  );
-  const s3 = await getS3Client(config, creds[config.name], userId);
+  const creds = credentials[config.name];
+  if (!creds) return undefined;
+  const s3 = await getS3Client(config, creds, userId);
   const objects = await getObjects(
     config,
     s3,
@@ -64,16 +70,21 @@ const fetchPreviewObject = async (
 };
 
 export const loader: LoaderFunction = async ({ context }) => {
-  const sessionData = context.get(authContext) as SessionData;
-  const { sub: userId } = sessionData.user;
+  const { bucketConfigs, credentials, user, authTokens } =
+    context.get(authContext);
+  const userId = user.sub;
 
-  const bucketConfigs = await getBucketConfigsForUser(userId);
-
-  const previews = await Promise.allSettled(
-    bucketConfigs.map((config) =>
-      fetchPreviewObject(sessionData, config, userId),
+  const [previews, adminScopes] = await Promise.all([
+    Promise.allSettled(
+      bucketConfigs.map((config) =>
+        fetchPreviewObject(config, credentials, userId),
+      ),
     ),
-  );
+    getManageableScopes(user, authTokens.accessToken).catch((error) => {
+      console.error("Failed to fetch manageable scopes:", error);
+      return [] as string[];
+    }),
+  ]);
 
   const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
     const result = previews[i];
@@ -98,12 +109,11 @@ export const loader: LoaderFunction = async ({ context }) => {
     };
   });
 
-  return { nodes };
+  return { nodes, adminScopes, userId, credentials, bucketConfigs };
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { sub: userId } = user;
 
   if (request.method.toLowerCase() === "delete") {
     const formData = await request.formData();
@@ -119,13 +129,13 @@ export const action: ActionFunction = async ({ request, context }) => {
       return { error: "Bucket name is required" };
     }
 
-    await deleteBucketConfig(userId, provider, bucketName, prefix);
+    await deleteBucketConfig(user, provider, bucketName, prefix);
 
     const session = await getSession(request);
 
     session.set("notification", {
       status: "success",
-      message: "Data connection deleted.",
+      message: "Storage connection deleted.",
     });
 
     return redirect("/", {
@@ -137,7 +147,25 @@ export const action: ActionFunction = async ({ request, context }) => {
 };
 
 export default function BucketsRoute() {
-  const { nodes } = useLoaderData<{ nodes: TreeNode[] }>();
+  const { nodes, adminScopes, userId, credentials, bucketConfigs } =
+    useLoaderData<{
+      nodes: TreeNode[];
+      adminScopes: string[];
+      userId: string;
+      credentials: Record<string, Credentials>;
+      bucketConfigs: BucketConfig[];
+    }>();
+
+  const setConnection = useConnectionsStore(select.setConnection);
+
+  useEffect(() => {
+    for (const config of bucketConfigs) {
+      const creds = credentials[config.name];
+      if (creds) {
+        setConnection(`${config.provider}/${config.name}`, creds, config);
+      }
+    }
+  }, [credentials, bucketConfigs, setConnection]);
 
   return (
     <>
@@ -148,7 +176,7 @@ export default function BucketsRoute() {
           <Placeholder
             icon="FileSearch"
             title="Start exploring your data"
-            description="Add a data connection to view your cloud storage."
+            description="Add a storage connection to view your cloud storage."
             cta={
               <ButtonLink to="/connect-bucket" scale="large" theme="primary">
                 Connect Storage
@@ -162,7 +190,7 @@ export default function BucketsRoute() {
         <RecentlyViewed />
       </ClientOnly>
 
-      <Outlet />
+      <Outlet context={{ adminScopes, userId }} />
     </>
   );
 }

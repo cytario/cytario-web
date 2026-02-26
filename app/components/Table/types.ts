@@ -1,15 +1,14 @@
-import type { ColumnDefBase } from "@tanstack/react-table";
+import type { ColumnDefBase, FilterFn } from "@tanstack/react-table";
 import { ReactNode } from "react";
 
 // Behavior props aligned with TanStack naming
 type ColumnBehavior = Pick<ColumnDefBase<unknown>, "enableResizing">;
 
-// Sorting props (custom accessor or built-in algorithm name)
-export type SortingAccessor = (rowIndex: number) => string | number | Date | null;
-
+// Sorting props (built-in algorithm names only; with typed data, custom
+// SortingAccessor functions are no longer needed)
 interface ColumnSorting {
   enableSorting?: boolean;
-  sortingFn?: "alphanumeric" | "datetime" | "basic" | SortingAccessor;
+  sortingFn?: "alphanumeric" | "datetime" | "basic" | "boolean";
 }
 
 // Sizing props (aligned with TanStack naming)
@@ -23,19 +22,49 @@ interface ColumnSizing {
 interface ColumnDisplay {
   align?: "left" | "right" | "center";
   monospace?: boolean;
+  ellipsis?: "left" | "middle" | "right";
+  copyable?: boolean;
+}
+
+// Filtering props
+interface ColumnFiltering {
+  enableColumnFilter?: boolean;
+  filterType?: "text" | "select";
+  filterPlaceholder?: string;
+  filterOptions?: { label: string; value: string }[];
+  filterRender?: (option: { label: string; value: string }) => ReactNode;
+  filterFn?: FilterFn<unknown>;
+}
+
+// Visibility props
+interface ColumnVisibility {
+  defaultVisible?: boolean; // defaults to true if omitted
+  anchor?: boolean; // always visible, cannot be hidden
 }
 
 export interface ColumnConfig
   extends ColumnBehavior,
     ColumnSorting,
     ColumnSizing,
-    ColumnDisplay {
+    ColumnDisplay,
+    ColumnFiltering,
+    ColumnVisibility {
   id: string;
   header: string;
 }
 
-export interface TableProps {
+/**
+ * Maps column IDs to render functions. Each function receives the full typed
+ * row object and returns a ReactNode. Columns without a renderer display
+ * their raw accessor value.
+ */
+export type CellRenderers<TData> = Partial<
+  Record<string, (row: TData) => ReactNode>
+>;
+
+export interface TableProps<TData extends Record<string, unknown>> {
   columns: ColumnConfig[];
-  data: (string | ReactNode)[][];
+  data: TData[];
+  cellRenderers?: CellRenderers<TData>;
   tableId?: string;
 }

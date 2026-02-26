@@ -40,11 +40,11 @@ export const RadioButton = ({
       value={value}
       className={({ checked }) =>
         twMerge(
-          "group flex cursor-pointer items-center gap-1",
           buttonBaseStyles,
           buttonScaleStyles.large,
           checked ? buttonThemeStyles.primary : buttonThemeStyles.white,
           checked && "hover:bg-cytario-turquoise-500",
+          "group flex cursor-pointer items-center gap-1 w-full",
         )
       }
     >

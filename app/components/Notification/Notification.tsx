@@ -6,7 +6,7 @@ import { useNotificationStore } from "./Notification.store";
 import { IconButton } from "../Controls";
 import { InputGroup } from "../Controls/InputGroup";
 
-export type NotificationType = "success" | "error" | "info";
+export type NotificationType = "success" | "error" | "warning" | "info";
 
 export interface NotificationInput {
   message: string;
@@ -36,6 +36,7 @@ const getDefaultDuration = (status?: NotificationType) => {
 const colors = {
   success: "border-green-500/80",
   error: "border-rose-700/80",
+  warning: "border-amber-500/80",
   info: "border-slate-700/80",
 };
 

@@ -2,6 +2,9 @@ import { z } from "zod";
 
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 
+// TODO: pass via env
+const REALM_ADMIN_GROUP = "cytario/admins";
+
 const userProfileSchema = z.object({
   sub: z.string(),
   email_verified: z.boolean(),
@@ -14,8 +17,37 @@ const userProfileSchema = z.object({
   groups: z.array(z.string()),
 });
 
-export type UserProfile = z.infer<typeof userProfileSchema>;
+type UserProfileRaw = z.infer<typeof userProfileSchema>;
 
+export interface UserProfile extends UserProfileRaw {
+  groups: string[];
+  adminScopes: string[];
+  isRealmAdmin: boolean;
+}
+
+/** Removes leading slash from group name. */
+function normalizeGroup(group: string): string {
+  return group.replace(/^\//, "");
+}
+
+/** Enriches raw user profile with admin scopes and realm admin status. */
+function enrichUserProfile(raw: UserProfileRaw): UserProfile {
+  const allGroups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
+  const adminScopes = allGroups
+    .filter((g) => g.endsWith("/admins"))
+    .map((g) => g.replace(/\/admins$/, ""));
+  const isRealmAdmin = allGroups.includes(REALM_ADMIN_GROUP);
+  const groups = allGroups.filter((g) => !g.endsWith("/admins"));
+
+  return {
+    ...(raw as unknown as UserProfile),
+    groups,
+    adminScopes,
+    isRealmAdmin,
+  };
+}
+
+/** Retrieves and enriches user profile data from Keycloak. */
 export const getUserInfo = async (
   accessToken: string,
 ): Promise<UserProfile> => {
@@ -36,7 +68,8 @@ export const getUserInfo = async (
       );
     }
 
-    return userProfileSchema.parse(await response.json());
+    const raw = userProfileSchema.parse(await response.json());
+    return enrichUserProfile(raw);
   } catch (error) {
     console.error("Keycloak getUserInfo failed:", error);
     throw error;

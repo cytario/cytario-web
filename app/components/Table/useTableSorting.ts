@@ -1,5 +1,5 @@
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useStore } from "zustand";
 
 import { useTableStore } from "./state/useTableStore";
@@ -7,57 +7,41 @@ import { useTableStore } from "./state/useTableStore";
 /**
  * Manages sorting state for a table with persistence.
  *
- * The table store acts as the single source of truth for sorting state, enabling
- * sorting preferences to persist across page navigation and browser sessions.
- *
- * @param tableId - Unique identifier for the table (used as key in store)
- * @returns Object containing:
- *   - `sorting` - Current sorting state array
- *   - `setSorting` - Function to update sorting (compatible with TanStack Table)
- *   - `resetSorting` - Function to clear all sorting for this table
- *
- * @example
- * ```tsx
- * const { sorting, setSorting } = useTableSorting("files-table");
- *
- * const table = useReactTable({
- *   state: { sorting },
- *   onSortingChange: setSorting,
- * });
- * ```
+ * When no stored sorting exists, falls back to sorting by
+ * `defaultSortColumnId` ascending (typically the anchor column).
  */
-export function useTableSorting(tableId: string) {
+export function useTableSorting(
+  tableId: string,
+  defaultSortColumnId?: string,
+) {
   const store = useTableStore(tableId);
 
-  // Subscribe to sorting from the table store
-  const sorting = useStore(store, (state) => state.sorting);
+  const storedSorting = useStore(store, (state) => state.sorting);
   const setSortingStore = useStore(store, (state) => state.setSorting);
-  const reset = useStore(store, (state) => state.reset);
 
-  // Update store when sorting changes
+  const defaultSorting: SortingState = useMemo(
+    () =>
+      defaultSortColumnId ? [{ id: defaultSortColumnId, desc: false }] : [],
+    [defaultSortColumnId],
+  );
+
+  const sorting =
+    storedSorting.length > 0 ? storedSorting : defaultSorting;
+
   const setSorting: OnChangeFn<SortingState> = useCallback(
     (updaterOrValue) => {
-      // Read fresh state from store
       const currentSorting = store.getState().sorting;
+      const current = currentSorting.length > 0 ? currentSorting : defaultSorting;
 
       const next =
         typeof updaterOrValue === "function"
-          ? updaterOrValue(currentSorting)
+          ? updaterOrValue(current)
           : updaterOrValue;
 
       setSortingStore(next);
     },
-    [store, setSortingStore],
+    [store, setSortingStore, defaultSorting],
   );
 
-  // Reset sorting to default (empty)
-  const resetSorting = useCallback(() => {
-    reset();
-  }, [reset]);
-
-  return {
-    sorting,
-    setSorting,
-    resetSorting,
-  };
+  return { sorting, setSorting };
 }

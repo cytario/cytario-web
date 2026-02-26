@@ -1,45 +1,91 @@
-import { Select as HeadlessSelect } from "@headlessui/react";
-import { forwardRef, ReactNode } from "react";
+import {
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+} from "@headlessui/react";
+import { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
 import { Icon } from "./Button/Icon";
+import {
+  baseStyle,
+  heightStyles,
+  listboxButtonStyle,
+  listboxChevronSizes,
+  listboxOptionStyle,
+  listboxOptionsStyle,
+  textStyles,
+} from "./styles";
+import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
-type SelectProps = React.ComponentProps<typeof HeadlessSelect> &
-  React.SelectHTMLAttributes<HTMLSelectElement> & {
-    children: ReactNode;
-  };
+type SelectOption = { label: string; value: string };
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ children, ...props }, ref) => {
-    return (
-      <div className="relative w-full ">
-        <HeadlessSelect
-          ref={ref}
-          className={`
-            h-12 text-lg
-            border-slate-300
-            flex w-full border rounded-sm
-            transition duration-100 ease-in
-            disabled:opacity-50 disabled:cursor-not-allowed
-            appearance-none
-            pl-2 pr-12
-          `}
-          {...props}
-        >
-          {children}
-        </HeadlessSelect>
+type SelectProps = {
+  options: SelectOption[];
+  value: string;
+  onChange: (value: string) => void;
+  name?: string;
+  disabled?: boolean;
+  scale?: "small" | "medium" | "large";
+  className?: string;
+  renderOption?: (option: SelectOption) => ReactNode;
+};
+
+export const Select = ({
+  options,
+  value,
+  onChange,
+  name,
+  disabled,
+  scale = "large",
+  className,
+  renderOption,
+}: SelectProps) => {
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <Listbox value={value} onChange={onChange} name={name} disabled={disabled}>
+      <ListboxButton
+        className={twMerge(
+          baseStyle,
+          heightStyles[scale],
+          textStyles[scale],
+          listboxButtonStyle,
+          className,
+        )}
+      >
+        <span className="min-w-0 flex-1 px-2">
+          <TooltipSpan>{selectedOption?.label ?? value}</TooltipSpan>
+        </span>
         <Icon
           icon="ChevronDown"
-          size={20}
-          className={`
-            pointer-events-none
-            absolute top-0 right-0
-            flex items-center justify-center
-            w-12 h-12 
-          `}
+          size={listboxChevronSizes[scale].size}
+          className={twMerge(
+            "flex items-center justify-center h-full",
+            listboxChevronSizes[scale].className,
+          )}
         />
-      </div>
-    );
-  },
-);
+      </ListboxButton>
 
-Select.displayName = "Select";
+      <ListboxOptions
+        anchor="bottom start"
+        className={twMerge(listboxOptionsStyle, textStyles[scale])}
+      >
+        {options.map((option) => (
+          <ListboxOption
+            key={option.value}
+            value={option.value}
+            className={listboxOptionStyle}
+          >
+            {renderOption ? (
+              <span className="flex w-full items-center">{renderOption(option)}</span>
+            ) : (
+              option.label
+            )}
+          </ListboxOption>
+        ))}
+      </ListboxOptions>
+    </Listbox>
+  );
+};

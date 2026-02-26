@@ -16,25 +16,25 @@ export const loader = async ({
   context,
 }: ActionFunctionArgs): Promise<Response> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { sub: userId } = user;
   const { provider, bucketName } = params;
   const pathName = params["*"] as string;
+
+  if (!provider) throw new Error("Provider is required");
   if (!bucketName) throw new Error("Bucket name is required");
 
   console.info(`${label} Presign route: ${provider}/${bucketName}/${pathName}`);
 
-  const credentials = bucketName && bucketsCredentials[bucketName];
+  const credentials = bucketsCredentials[bucketName];
+  if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
-  if (!provider) throw new Error("Provider is required");
-
-  const bucketConfig = await getBucketConfigByName(userId, provider, bucketName);
+  const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
 
   if (!bucketConfig) {
     throw new Error("Bucket configuration not found");
   }
 
   try {
-    const s3Client = await getS3Client(bucketConfig, credentials, userId);
+    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
     const presignedUrl = await getPresignedUrl(
       bucketConfig,
       s3Client,

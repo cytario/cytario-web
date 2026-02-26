@@ -12,10 +12,12 @@ import { IconButton } from "./Controls";
 export function RouteModal({
   title,
   children,
+  footer,
   onClose,
 }: Readonly<{
   title: string;
   children: ReactNode;
+  footer?: ReactNode;
   onClose?: () => void;
 }>) {
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ export function RouteModal({
   const action = onClose ?? goBack;
 
   return (
-    <Dialog open={true} onClose={action} className="relative z-50">
+    <Dialog open={true} onClose={action} className="relative z-40">
       <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto ">
@@ -52,6 +54,11 @@ export function RouteModal({
             />
           </header>
           <div className="space-y-8 p-4 overflow-y-auto flex-1">{children}</div>
+          {footer && (
+            <footer className="p-4 border-t border-slate-300 flex-shrink-0 flex gap-3 justify-end">
+              {footer}
+            </footer>
+          )}
         </DialogPanel>
       </div>
     </Dialog>

@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import { Radio } from "@headlessui/react";
 import { twMerge } from "tailwind-merge";
+import colors from "tailwindcss/colors";
 
 import { ColorPicker, rgb } from "./ColorPicker";
 import { Switch } from "../../../../Controls";
@@ -117,6 +118,7 @@ export function ChannelsControllerItem({
             checked={isVisible}
             onChange={toggleChannelVisibility}
             disabled={disabled}
+            color={colors.slate[500]}
           />
         </Tooltip>
       </div>

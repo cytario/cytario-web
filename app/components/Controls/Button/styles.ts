@@ -31,6 +31,11 @@ export const buttonThemeStyles = {
     bg-cytario-turquoise-500 hover:bg-cytario-turquoise-700
     border border-cytario-turquoise-500 border-t-cytario-turquoise-300 border-b-cytario-turquoise-700
   `,
+  secondary: `
+    text-white
+    bg-cytario-purple-500 hover:bg-cytario-purple-700
+    border border-cytario-purple-500 border-t-cytario-purple-300 border-b-cytario-purple-700
+  `,
   error: `
     text-white
     bg-rose-700 hover:bg-rose-500 
@@ -46,16 +51,21 @@ export const buttonThemeStyles = {
     bg-slate-700 hover:bg-slate-500
     border border-slate-500 border-t-slate-300 border-b-slate-900
   `,
+  warning: `
+    text-white
+    bg-amber-600 hover:bg-amber-500
+    border border-amber-500 border-t-amber-300 border-b-amber-700
+  `,
 };
 
 export const iconButtonBaseStyles = `
   flex place-items-center place-content-center flex-shrink-0
-  rounded-sm border border-slate-500 text-white
+  rounded-sm
   disabled:opacity-50 disabled:cursor-not-allowed
 `;
 
 export const iconButtonScaleStyles = {
-  small: "w-4 h-4",
+  small: "w-6 h-6",
   medium: "w-8 h-8",
   large: "w-12 h-12",
 };
