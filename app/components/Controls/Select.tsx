@@ -38,7 +38,7 @@ export const Select = ({
   onChange,
   name,
   disabled,
-  scale = "large",
+  scale = "medium",
   className,
   renderOption,
 }: SelectProps) => {

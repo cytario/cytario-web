@@ -100,6 +100,34 @@ function buildDirectoryTreeRecursive(
  * //   { name: "readme.txt", type: "file", children: [] }
  * // ]
  */
+/** Recursively compute the total size of a directory node. */
+export function computeDirectorySize(node: TreeNode): number {
+  if (node.type === "file") return node._Object?.Size ?? 0;
+  if (node.children.length === 0) return node._Object?.Size ?? 0;
+  return node.children.reduce(
+    (sum, child) => sum + computeDirectorySize(child),
+    0,
+  );
+}
+
+/** Recursively compute the latest LastModified timestamp of a directory node. */
+export function computeDirectoryLastModified(node: TreeNode): number {
+  if (node.type === "file") {
+    return node._Object?.LastModified
+      ? new Date(node._Object.LastModified).getTime()
+      : 0;
+  }
+  if (node.children.length === 0) {
+    return node._Object?.LastModified
+      ? new Date(node._Object.LastModified).getTime()
+      : 0;
+  }
+  return node.children.reduce(
+    (max, child) => Math.max(max, computeDirectoryLastModified(child)),
+    0,
+  );
+}
+
 export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],

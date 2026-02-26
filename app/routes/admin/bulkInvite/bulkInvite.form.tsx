@@ -6,8 +6,16 @@ import {
   bulkInviteRowSchema,
   bulkInviteSchema,
 } from "./bulkInvite.schema";
-import { Button, Checkbox, Field, Icon, IconButton, Input, Select } from "~/components/Controls";
-import { GroupPill } from "~/routes/admin/users/GroupPill";
+import {
+  Button,
+  Checkbox,
+  Field,
+  Icon,
+  IconButton,
+  Input,
+  Select,
+} from "~/components/Controls";
+import { GroupPill } from "~/components/Pill/GroupPill";
 
 interface BulkInviteFormProps {
   scope: string;
@@ -29,7 +37,11 @@ function isRowEmpty(row: RowState): boolean {
   return !row.email && !row.firstName && !row.lastName;
 }
 
-export function BulkInviteForm({ scope, groupOptions, onNonEmptyCountChange }: BulkInviteFormProps) {
+export function BulkInviteForm({
+  scope,
+  groupOptions,
+  onNonEmptyCountChange,
+}: BulkInviteFormProps) {
   const submit = useSubmit();
 
   const [groupPath, setGroupPath] = useState(scope);
@@ -47,7 +59,11 @@ export function BulkInviteForm({ scope, groupOptions, onNonEmptyCountChange }: B
       setRows((prev) =>
         prev.map((row, i) =>
           i === index
-            ? { ...row, [field]: value, errors: { ...row.errors, [field]: undefined } }
+            ? {
+                ...row,
+                [field]: value,
+                errors: { ...row.errors, [field]: undefined },
+              }
             : row,
         ),
       );
@@ -56,7 +72,9 @@ export function BulkInviteForm({ scope, groupOptions, onNonEmptyCountChange }: B
   );
 
   const removeRow = useCallback((index: number) => {
-    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+    setRows((prev) =>
+      prev.length <= 1 ? prev : prev.filter((_, i) => i !== index),
+    );
   }, []);
 
   const addRow = useCallback(() => {
@@ -240,7 +258,6 @@ export function BulkInviteForm({ scope, groupOptions, onNonEmptyCountChange }: B
           Add Row
         </Button>
       </div>
-
     </form>
   );
 }

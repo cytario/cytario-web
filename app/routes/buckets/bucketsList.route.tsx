@@ -13,6 +13,7 @@ import { Section } from "~/components/Container";
 import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { Placeholder } from "~/components/Placeholder";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
@@ -37,6 +38,7 @@ export const loader: LoaderFunction = async ({ context }) => {
 };
 
 export default function BucketsListRoute() {
+  const viewMode = useLayoutStore((state) => state.viewMode);
   const { nodes, credentials, bucketConfigs } = useLoaderData<{
     nodes: TreeNode[];
     credentials: Record<string, Credentials>;
@@ -73,6 +75,7 @@ export default function BucketsListRoute() {
 
   return (
     <DirectoryView
+      viewMode={viewMode}
       nodes={nodes}
       name={title}
       bucketName=""

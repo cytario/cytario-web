@@ -36,7 +36,7 @@ export const listboxChevronSizes = {
 };
 
 export const listboxButtonStyle =
-  "items-center border-slate-300 text-left overflow-hidden min-w-0";
+  "items-center bg-white border-slate-300 text-left overflow-hidden min-w-0";
 
 export const listboxOptionsStyle =
   "z-20 min-w-[var(--button-width)] w-max p-1 border border-slate-300 bg-white rounded-sm shadow-lg";

@@ -1,9 +1,16 @@
+import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { useMemo } from "react";
 
-import { TreeNode, TreeNodeType } from "./buildDirectoryTree";
+import {
+  TreeNode,
+  TreeNodeType,
+  computeDirectorySize,
+  computeDirectoryLastModified,
+} from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
-import { Pill } from "~/components/Pill";
+import { useLayoutStore } from "./useLayoutStore";
+import { Pill } from "~/components/Pill/Pill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
@@ -23,7 +30,7 @@ interface BucketRow {
   _node: TreeNode;
 }
 
-const bucketColumns: ColumnConfig[] = [
+export const bucketColumns: ColumnConfig[] = [
   {
     id: "name",
     header: "Name",
@@ -97,27 +104,7 @@ interface FileRow {
   _node: TreeNode;
 }
 
-function computeDirectorySize(node: TreeNode): number {
-  if (node.type === "file") return node._Object?.Size ?? 0;
-  return node.children.reduce(
-    (sum, child) => sum + computeDirectorySize(child),
-    0,
-  );
-}
-
-function computeDirectoryLastModified(node: TreeNode): number {
-  if (node.type === "file") {
-    return node._Object?.LastModified
-      ? new Date(node._Object.LastModified).getTime()
-      : 0;
-  }
-  return node.children.reduce(
-    (max, child) => Math.max(max, computeDirectoryLastModified(child)),
-    0,
-  );
-}
-
-const fileColumns: ColumnConfig[] = [
+export const fileColumns: ColumnConfig[] = [
   {
     id: "name",
     header: "Name",
@@ -135,6 +122,18 @@ const fileColumns: ColumnConfig[] = [
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
+    filterOptions: [
+      { label: "All", value: "" },
+      { label: "CSV", value: "CSV" },
+      { label: "Directory", value: "Directory" },
+      { label: "JPEG", value: "JPEG" },
+      { label: "JSON", value: "JSON" },
+      { label: "OME-TIFF", value: "OME-TIFF" },
+      { label: "PNG", value: "PNG" },
+      { label: "Parquet", value: "Parquet" },
+      { label: "TIFF", value: "TIFF" },
+      { label: "Unknown", value: "Unknown" },
+    ],
   },
   {
     id: "last_modified",
@@ -166,8 +165,19 @@ const fileCellRenderers: CellRenderers<FileRow> = {
 
 export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
 
-export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
+interface DirectoryViewTableProps {
+  nodes: TreeNode[];
+  columnFilters?: ColumnFiltersState;
+  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
+}
+
+export function DirectoryViewTable({
+  nodes,
+  columnFilters,
+  onColumnFiltersChange,
+}: DirectoryViewTableProps) {
   const connections = useConnectionsStore((state) => state.connections);
+  const showFilters = useLayoutStore((state) => state.showFilters);
 
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";
@@ -198,13 +208,11 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
         name: node.name,
         file_type: isFile ? getFileType(node.name) : "Directory",
         last_modified: isFile
-          ? (node._Object?.LastModified
-              ? new Date(node._Object.LastModified).getTime()
-              : 0)
+          ? node._Object?.LastModified
+            ? new Date(node._Object.LastModified).getTime()
+            : 0
           : computeDirectoryLastModified(node),
-        size: isFile
-          ? (node._Object?.Size ?? 0)
-          : computeDirectorySize(node),
+        size: isFile ? (node._Object?.Size ?? 0) : computeDirectorySize(node),
         _node: node,
       };
     });
@@ -218,6 +226,7 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
         cellRenderers={bucketCellRenderers}
         tableId="bucket"
         ariaLabel="Storage connections"
+        showFilters={showFilters}
       />
     );
   }
@@ -229,6 +238,9 @@ export function DirectoryViewTable({ nodes }: { nodes: TreeNode[] }) {
       cellRenderers={fileCellRenderers}
       tableId="directory"
       ariaLabel="Files and folders"
+      columnFilters={columnFilters}
+      onColumnFiltersChange={onColumnFiltersChange}
+      showFilters={showFilters}
     />
   );
 }

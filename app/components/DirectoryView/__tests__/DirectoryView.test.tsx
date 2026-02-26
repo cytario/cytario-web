@@ -1,41 +1,13 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { act } from "react";
+import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
-import { Mock } from "vitest";
 
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryView } from "../DirectoryView";
-import { useDirectoryStore } from "../useDirectoryStore";
 import mock from "~/utils/__tests__/__mocks__";
-
-vi.mock("../useDirectoryStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../useDirectoryStore")>()),
-  useDirectoryStore: vi.fn(),
-}));
 
 vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(),
 }));
-
-const mockSetViewMode = vi.fn();
-
-const mockStoreDefaults = {
-  viewMode: "list" as const,
-  setViewMode: mockSetViewMode,
-  setBucketName: vi.fn(),
-  setPathName: vi.fn(),
-  setProvider: vi.fn(),
-  tableColumns: {},
-  setColumnWidth: vi.fn(),
-  resetTableConfig: vi.fn(),
-  tableSorting: {},
-  setTableSorting: vi.fn(),
-};
-
-beforeEach(() => {
-  // Reset Zustand store mock before each test
-  (useDirectoryStore as unknown as Mock).mockReturnValue(mockStoreDefaults);
-});
 
 describe("DirectoryView Component", () => {
   const mockNodes: TreeNode[] = [
@@ -49,6 +21,7 @@ describe("DirectoryView Component", () => {
         path: "/",
         Component: () => (
           <DirectoryView
+            viewMode="list"
             nodes={mockNodes}
             bucketName="test-bucket"
             pathName="/test"
@@ -69,6 +42,7 @@ describe("DirectoryView Component", () => {
         path: "/",
         Component: () => (
           <DirectoryView
+            viewMode="list"
             nodes={[]}
             bucketName="test-bucket"
             pathName="/test"
@@ -80,38 +54,7 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    expect(screen.getByText("[Placeholder: No items]")).toBeInTheDocument();
-  });
-
-  test("renders the toggle buttons and switches view mode", () => {
-    const RemixStub = createRoutesStub([
-      {
-        path: "/",
-        Component: () => (
-          <DirectoryView
-            nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
-            name="Test Directory"
-          />
-        ),
-      },
-    ]);
-
-    render(<RemixStub initialEntries={["/"]} />);
-
-    // Check that the toggle buttons are rendered
-    expect(screen.getByRole("button", { name: /List View/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Small Grid/i })).toBeInTheDocument();
-
-    // Simulate switching to grid
-    const gridButton = screen.getByRole("button", { name: /Small Grid/i });
-    act(() => {
-      fireEvent.click(gridButton);
-    });
-
-    // Verify that the view mode is updated in the Zustand store
-    expect(mockSetViewMode).toHaveBeenCalledWith("grid-sm");
+    expect(screen.getByText("No items found")).toBeInTheDocument();
   });
 
   test("renders the DirectoryTable in list mode", () => {
@@ -120,6 +63,7 @@ describe("DirectoryView Component", () => {
         path: "/",
         Component: () => (
           <DirectoryView
+            viewMode="list"
             nodes={mockNodes}
             bucketName="test-bucket"
             pathName="/test"
@@ -142,6 +86,7 @@ describe("DirectoryView Component", () => {
         path: "/",
         Component: () => (
           <DirectoryView
+            viewMode="grid-sm"
             nodes={mockNodes}
             bucketName="test-bucket"
             pathName="/test"
@@ -150,11 +95,6 @@ describe("DirectoryView Component", () => {
         ),
       },
     ]);
-
-    (useDirectoryStore as unknown as Mock).mockReturnValue({
-      ...mockStoreDefaults,
-      viewMode: "grid-sm",
-    });
 
     render(<RemixStub initialEntries={["/"]} />);
 

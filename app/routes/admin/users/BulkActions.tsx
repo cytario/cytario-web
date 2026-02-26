@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
-import { GroupPill } from "./GroupPill";
-import { type GroupInfo, type UserWithGroups } from "~/.server/auth/keycloakAdmin";
+import { GroupPill } from "../../../components/Pill/GroupPill";
+import {
+  type GroupInfo,
+  type UserWithGroups,
+} from "~/.server/auth/keycloakAdmin";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { Button, Icon, Select } from "~/components/Controls";
 
@@ -89,9 +92,11 @@ export function BulkActions({
   );
 
   const getGroupOptions = (i: BulkIntent) =>
-    i === "removeFromGroup" ? removeGroupOptions :
-    i === "addToGroup" ? addGroupOptions :
-    allGroupOptions;
+    i === "removeFromGroup"
+      ? removeGroupOptions
+      : i === "addToGroup"
+        ? addGroupOptions
+        : allGroupOptions;
 
   const openDialog = (newIntent: BulkIntent) => {
     setIntent(newIntent);
@@ -176,26 +181,27 @@ export function BulkActions({
         >
           <p className="text-sm text-slate-600">
             This will affect{" "}
-            <span className="font-medium text-slate-900">{count}</span>{" "}
-            user{count !== 1 ? "s" : ""}.
+            <span className="font-medium text-slate-900">{count}</span> user
+            {count !== 1 ? "s" : ""}.
           </p>
-          {config.needsGroup && (() => {
-            const options = getGroupOptions(intent!);
-            return options.length > 0 ? (
-              <div className="mt-3">
-                <Select
-                  options={options}
-                  value={selectedGroupId}
-                  onChange={setSelectedGroupId}
-                  renderOption={(option) => (
-                    <GroupPill path={option.label} />
-                  )}
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-rose-600 mt-2">No groups available.</p>
-            );
-          })()}
+          {config.needsGroup &&
+            (() => {
+              const options = getGroupOptions(intent!);
+              return options.length > 0 ? (
+                <div className="mt-3">
+                  <Select
+                    options={options}
+                    value={selectedGroupId}
+                    onChange={setSelectedGroupId}
+                    renderOption={(option) => <GroupPill path={option.label} />}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-rose-600 mt-2">
+                  No groups available.
+                </p>
+              );
+            })()}
         </ConfirmDialog>
       )}
     </>

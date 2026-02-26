@@ -15,9 +15,9 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
-import { ButtonLink } from "~/components/Controls";
-import { DashboardSection } from "~/components/DashboardSection";
+import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
@@ -84,6 +84,23 @@ export const action: ActionFunction = async ({ request, context }) => {
   return null;
 };
 
+function ShowAllLink({
+  href,
+  total,
+  maxItems,
+}: {
+  href: string;
+  total: number;
+  maxItems: number;
+}) {
+  return (
+    <ButtonLink to={href} theme="white">
+      {total > maxItems ? `Show all (${total})` : "View all"}
+      <Icon icon="ArrowRight" size={16} />
+    </ButtonLink>
+  );
+}
+
 export default function BucketsRoute() {
   const { nodes, adminScopes, userId, credentials, bucketConfigs } =
     useLoaderData<{
@@ -138,47 +155,77 @@ export default function BucketsRoute() {
         name: pin.displayName,
         type: "directory" as const,
         children: [],
+        _Object:
+          pin.totalSize != null || pin.lastModified != null
+            ? ({
+                Size: pin.totalSize,
+                LastModified: pin.lastModified
+                  ? new Date(pin.lastModified)
+                  : undefined,
+              } as TreeNode["_Object"])
+            : undefined,
       })),
     [pinnedItems],
   );
 
   return (
     <>
-      <DashboardSection
-        title="Recently Viewed"
-        nodes={recentImages}
-        viewMode="grid-lg"
-        maxItems={4}
-        showAllHref="/recent?filter=images"
-      />
-      <DashboardSection
-        title="Pinned"
-        nodes={pinnedNodes}
-        viewMode="list"
-        maxItems={10}
-      />
-      <DashboardSection
-        title="Recently Browsed"
-        nodes={recentDirs}
-        viewMode="list"
-        maxItems={5}
-        showAllHref="/recent?filter=directories"
-      />
-      <DashboardSection
-        title="Recent Files"
-        nodes={recentFiles}
-        viewMode="grid-sm"
-        maxItems={6}
-        showAllHref="/recent?filter=files"
-      />
+      {recentImages.length > 0 && (
+        <DirectoryView
+          viewMode="grid-lg"
+          nodes={recentImages.slice(0, 4)}
+          name="Recently Viewed"
+          bucketName=""
+        >
+          <ShowAllLink
+            href="/recent"
+            total={recentImages.length}
+            maxItems={4}
+          />
+        </DirectoryView>
+      )}
 
-      <DashboardSection
-        title={title}
-        nodes={nodes}
-        viewMode="grid-md"
-        maxItems={100}
-        showAllHref="/buckets"
-      />
+      {pinnedNodes.length > 0 && (
+        <DirectoryView
+          viewMode="list"
+          nodes={pinnedNodes.slice(0, 10)}
+          name="Pinned"
+          bucketName=""
+        />
+      )}
+
+      {recentDirs.length > 0 && (
+        <DirectoryView
+          viewMode="list"
+          nodes={recentDirs.slice(0, 5)}
+          name="Recently Browsed"
+          bucketName=""
+        >
+          <ShowAllLink href="/recent" total={recentDirs.length} maxItems={5} />
+        </DirectoryView>
+      )}
+
+      {recentFiles.length > 0 && (
+        <DirectoryView
+          viewMode="grid-sm"
+          nodes={recentFiles.slice(0, 6)}
+          name="Recent Files"
+          bucketName=""
+        >
+          <ShowAllLink href="/recent" total={recentFiles.length} maxItems={6} />
+        </DirectoryView>
+      )}
+
+      {nodes.length > 0 && (
+        <DirectoryView
+          viewMode="grid-md"
+          nodes={nodes.slice(0, 100)}
+          name={title}
+          bucketName=""
+        >
+          <ShowAllLink href="/buckets" total={nodes.length} maxItems={100} />
+        </DirectoryView>
+      )}
 
       {nodes.length === 0 && (
         <Section>

@@ -7,7 +7,7 @@ import { ThumbnailLabel, type ThumbnailMeta } from "./ThumbnailLabel";
 import { ThumbnailSheets } from "./ThumbnailSheets";
 import { ClientOnly } from "~/components/ClientOnly";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { type ViewMode } from "~/components/DirectoryView/useDirectoryStore";
+import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { formatShortDate } from "~/utils/formatHumanReadableDate";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";

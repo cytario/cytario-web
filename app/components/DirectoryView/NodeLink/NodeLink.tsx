@@ -7,7 +7,7 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { IconButton } from "../../Controls";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { type ViewMode } from "~/components/DirectoryView/useDirectoryStore";
+import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
 import { createResourceId } from "~/utils/resourceId";
 
 export interface NodeLinkProps {

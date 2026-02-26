@@ -1,12 +1,13 @@
 import { twMerge } from "tailwind-merge";
 
-import { pillColorClass } from "~/components/Pill";
+import { pillColorClass } from "~/components/Pill/Pill";
 
 interface GroupPillProps {
   path: string;
   visibleCount?: number;
 }
 
+/** Displays a group path as stacked, overlapping pill segments with collapsed leading segments shown as colored dots. */
 export function GroupPill({ path, visibleCount }: GroupPillProps) {
   const segments = path.split("/").filter(Boolean);
   const effectiveVisibleCount =

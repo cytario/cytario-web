@@ -19,7 +19,7 @@ export const ColumnResizeHandle = ({
         bg-transparent hover:bg-slate-300 active:bg-cytario-turquoise-500
       `}
     >
-      <div className="w-0.5 h-full bg-slate-300" />
+      <div className="w-[1px] h-full bg-slate-300" />
     </button>
   );
 };

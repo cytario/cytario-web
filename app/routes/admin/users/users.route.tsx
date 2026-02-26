@@ -9,7 +9,7 @@ import {
 } from "react-router";
 
 import { BulkActions } from "./BulkActions";
-import { GroupPill } from "./GroupPill";
+import { GroupPill } from "../../../components/Pill/GroupPill";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   type UserWithGroups,
@@ -18,7 +18,7 @@ import {
 import { Container } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
 import { Icon } from "~/components/Controls/Button/Icon";
-import { Pill } from "~/components/Pill";
+import { Pill } from "~/components/Pill/Pill";
 import { Placeholder } from "~/components/Placeholder";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import {
@@ -63,7 +63,10 @@ function buildGroupColumn(
   allGroups: GroupInfo[],
   counts: Map<string, number>,
   totalCount: number,
-  { pillVisibleCount, ...extra }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
+  {
+    pillVisibleCount,
+    ...extra
+  }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
 ): ColumnConfig {
   const options = [
     { label: "All", value: "" },
@@ -83,9 +86,7 @@ function buildGroupColumn(
       return paths.includes(filterValue);
     },
     filterRender: (option) => {
-      const count = option.value
-        ? counts.get(option.value) ?? 0
-        : totalCount;
+      const count = option.value ? (counts.get(option.value) ?? 0) : totalCount;
       const pill = option.value ? (
         <GroupPill path={option.value} visibleCount={pillVisibleCount} />
       ) : (
@@ -189,7 +190,14 @@ const cellRenderers: CellRenderers<UserRow> = {
     </Link>
   ),
   enabled: (row) => (
-    <Pill name={row.enabled === "true" ? "Active" : "Disabled"} />
+    <Pill
+      name={row.enabled === "true" ? "Active" : "Disabled"}
+      className={
+        row.enabled === "true"
+          ? "bg-emerald-100 text-emerald-800"
+          : "bg-slate-100 text-slate-500"
+      }
+    />
   ),
   adminGroups: (row) => (
     <div className="flex flex-wrap gap-1">

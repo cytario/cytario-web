@@ -5,7 +5,7 @@ import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import { DirectoryViewTable } from "~/components/DirectoryView/DirectoryViewTable";
-import { type ViewMode } from "~/components/DirectoryView/useDirectoryStore";
+import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
 import { H2 } from "~/components/Fonts";
 
 interface DashboardSectionProps {
@@ -48,15 +48,13 @@ export function DashboardSection({
           </div>
         </div>
       </Container>
-      <div className="mt-8">
-        <Container wide={viewMode === "list-wide"}>
-          {viewMode === "list" || viewMode === "list-wide" ? (
-            <DirectoryViewTable nodes={visible} />
-          ) : (
-            <DirectoryViewGrid nodes={visible} viewMode={viewMode} />
-          )}
-        </Container>
-      </div>
+      <Container wide={viewMode === "list-wide"}>
+        {viewMode === "list" || viewMode === "list-wide" ? (
+          <DirectoryViewTable nodes={visible} />
+        ) : (
+          <DirectoryViewGrid nodes={visible} viewMode={viewMode} />
+        )}
+      </Container>
     </Section>
   );
 }

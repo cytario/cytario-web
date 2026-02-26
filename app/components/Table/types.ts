@@ -1,5 +1,6 @@
 import type {
   ColumnDefBase,
+  ColumnFiltersState,
   FilterFn,
   OnChangeFn,
   RowSelectionState,
@@ -77,4 +78,7 @@ export interface TableProps<TData extends Record<string, unknown>> {
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   getRowId?: (row: TData) => string;
+  columnFilters?: ColumnFiltersState;
+  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
+  showFilters?: boolean;
 }

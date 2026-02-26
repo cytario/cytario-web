@@ -1,7 +1,7 @@
 import { Radio, RadioGroup } from "@headlessui/react";
 
 import { Icon, LucideIconsType } from "../Controls";
-import { useDirectoryStore, ViewMode } from "./useDirectoryStore";
+import { useLayoutStore, ViewMode } from "./useLayoutStore";
 import { Tooltip } from "../Tooltip/Tooltip";
 
 const modes: { mode: ViewMode; icon: LucideIconsType; label: string }[] = [
@@ -13,7 +13,7 @@ const modes: { mode: ViewMode; icon: LucideIconsType; label: string }[] = [
 ];
 
 export function ViewModeToggle() {
-  const { viewMode, setViewMode } = useDirectoryStore();
+  const { viewMode, setViewMode } = useLayoutStore();
 
   return (
     <RadioGroup

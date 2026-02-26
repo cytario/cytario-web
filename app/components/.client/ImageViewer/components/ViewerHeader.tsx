@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { select } from "../state/selectors";
 import { ViewerStore, ViewState } from "../state/types";
 import { useViewerStore } from "../state/ViewerStoreContext";
-import { useDirectoryStore } from "~/components/DirectoryView/useDirectoryStore";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 
 export const ViewerHeader = ({
   children,
@@ -14,7 +14,7 @@ export const ViewerHeader = ({
     setViewStateActive: (viewState: ViewState) => void;
   }) => JSX.Element;
 }) => {
-  const setHeaderSlot = useDirectoryStore((s) => s.setHeaderSlot);
+  const setHeaderSlot = useLayoutStore((s) => s.setHeaderSlot);
 
   const metadata = useViewerStore(select.metadata);
   const viewStateActive = useViewerStore(select.viewStateActive);

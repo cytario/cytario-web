@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
 
+import { H2 } from "./Fonts";
+
 interface LayoutWrapperProps {
   children: ReactNode;
   // theme?: "white"; //
@@ -32,6 +34,25 @@ export const Container = ({
     </div>
   );
 };
+
+export function SectionHeader({
+  name,
+  children,
+}: {
+  name: string;
+  children?: ReactNode;
+}) {
+  return (
+    <Container>
+      <header className="flex flex-col justify-between mb-8 gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {name && <H2 className="flex-grow">{name}</H2>}
+          {children}
+        </div>
+      </header>
+    </Container>
+  );
+}
 
 // export function Column({ children }: SectionProps) {
 //   return (

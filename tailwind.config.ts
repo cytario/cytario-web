@@ -1,3 +1,4 @@
+import containerQueries from "@tailwindcss/container-queries";
 import type { Config } from "tailwindcss";
 
 export default {
@@ -83,6 +84,6 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [containerQueries],
   darkMode: "class", //"media",
 } satisfies Config;

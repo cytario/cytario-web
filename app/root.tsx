@@ -23,7 +23,7 @@ import {
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
 import { Section } from "./components/Container";
-import { useDirectoryStore } from "./components/DirectoryView/useDirectoryStore";
+import { useLayoutStore } from "./components/DirectoryView/useLayoutStore";
 import { H1 } from "./components/Fonts";
 import { GlobalSearch } from "./components/GlobalSearch";
 import {
@@ -87,7 +87,7 @@ export const loader = async ({
 };
 
 const AppHeader = () => {
-  const headerSlot = useDirectoryStore((s) => s.headerSlot);
+  const headerSlot = useLayoutStore((s) => s.headerSlot);
   const data = useRouteLoaderData<RootLoaderResponse>("root");
 
   return (
@@ -151,7 +151,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-slate-100">
+      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-white">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-cytario-turquoise-700"
@@ -171,7 +171,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {data?.user && <AppHeader />}
 
-        <main id="main-content" className="min-h-full outline-none">
+        <main
+          id="main-content"
+          className="relative flex-1 min-h-0 outline-none"
+        >
           {children}
         </main>
 

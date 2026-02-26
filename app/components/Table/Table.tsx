@@ -38,6 +38,9 @@ export function Table<TData extends Record<string, unknown>>({
   rowSelection,
   onRowSelectionChange,
   getRowId,
+  columnFilters: controlledColumnFilters,
+  onColumnFiltersChange,
+  showFilters = true,
 }: TablePropsType<TData>) {
   const { columnSizing, setColumnSizing } = useColumnWidths(columns, tableId);
   const anchorColumnId = columns.find((c) => c.anchor)?.id ?? columns[0]?.id;
@@ -48,8 +51,11 @@ export function Table<TData extends Record<string, unknown>>({
     toggleableColumns,
     toggleColumn,
   } = useColumnVisibility(columns, tableId);
-  const { columnFilters, setColumnFilters, resetFilters } =
-    useColumnFilters(tableId);
+  const { columnFilters, setColumnFilters, resetFilters } = useColumnFilters({
+    tableId,
+    controlledFilters: controlledColumnFilters,
+    onControlledFiltersChange: onColumnFiltersChange,
+  });
 
   const indexColumnSize = enableRowSelection ? 80 : 48;
 
@@ -128,19 +134,16 @@ export function Table<TData extends Record<string, unknown>>({
   const bodyRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
 
-  const handleScroll =
-    (source: "header" | "body") => () => {
-      if (isSyncing.current) return;
-      isSyncing.current = true;
-      const from =
-        source === "header" ? headerRef.current : bodyRef.current;
-      const to =
-        source === "header" ? bodyRef.current : headerRef.current;
-      if (from && to) to.scrollLeft = from.scrollLeft;
-      requestAnimationFrame(() => {
-        isSyncing.current = false;
-      });
-    };
+  const handleScroll = (source: "header" | "body") => () => {
+    if (isSyncing.current) return;
+    isSyncing.current = true;
+    const from = source === "header" ? headerRef.current : bodyRef.current;
+    const to = source === "header" ? bodyRef.current : headerRef.current;
+    if (from && to) to.scrollLeft = from.scrollLeft;
+    requestAnimationFrame(() => {
+      isSyncing.current = false;
+    });
+  };
 
   const filteredCount = table.getRowModel().rows.length;
   const totalCount = data.length;
@@ -150,15 +153,13 @@ export function Table<TData extends Record<string, unknown>>({
     <>
       {/* Screen-reader announcement for filter changes */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {isFiltered
-          ? `Showing ${filteredCount} of ${totalCount} rows`
-          : ""}
+        {isFiltered ? `Showing ${filteredCount} of ${totalCount} rows` : ""}
       </div>
 
       {/* Sticky header — sticks vertically, scrolls horizontally (hidden scrollbar) */}
       <div
         ref={headerRef}
-        className="sticky top-0 z-10 bg-white border-b border-slate-200 overflow-x-auto"
+        className="sticky top-0 z-10 bg-white border-b border-slate-300 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
         onScroll={handleScroll("header")}
       >
@@ -174,6 +175,9 @@ export function Table<TData extends Record<string, unknown>>({
                 columnVisibility={columnVisibility}
                 toggleColumn={toggleColumn}
                 enableRowSelection={!!enableRowSelection}
+                hasFilters={columnFilters.length > 0}
+                onClearAllFilters={resetFilters}
+                showFilters={showFilters}
               />
             ))}
           </thead>
@@ -190,9 +194,7 @@ export function Table<TData extends Record<string, unknown>>({
           <tbody>
             {table.getRowModel().rows.length === 0 && data.length > 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length + 1}
-                >
+                <td colSpan={columns.length + 1}>
                   <Placeholder
                     icon="SearchX"
                     title="No results"
@@ -207,15 +209,17 @@ export function Table<TData extends Record<string, unknown>>({
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row, index) => (
-                <TableBodyRow
-                  key={row.id}
-                  row={row}
-                  rowIndex={index}
-                  columns={columns}
-                  enableRowSelection={!!enableRowSelection}
-                />
-              ))
+              table
+                .getRowModel()
+                .rows.map((row, index) => (
+                  <TableBodyRow
+                    key={row.id}
+                    row={row}
+                    rowIndex={index}
+                    columns={columns}
+                    enableRowSelection={!!enableRowSelection}
+                  />
+                ))
             )}
           </tbody>
         </table>

@@ -25,6 +25,7 @@ interface PillProps {
   className?: string;
 }
 
+/** Colored label badge with a deterministic hash-based background. */
 export function Pill({ name, className }: PillProps) {
   return (
     <span

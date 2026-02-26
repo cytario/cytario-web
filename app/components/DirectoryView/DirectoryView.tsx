@@ -1,13 +1,24 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useMemo } from "react";
 
+import {
+  computeDirectoryLastModified,
+  computeDirectorySize,
+  TreeNode,
+} from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
-import { DirectoryViewTable } from "./DirectoryViewTable";
+import {
+  bucketColumns,
+  DirectoryViewTable,
+  fileColumns,
+} from "./DirectoryViewTable";
+import { filterNodes } from "./filterNodes";
+import { FilterSidebar } from "./FilterSidebar";
 import { NodeInfoModal } from "./NodeInfoModal";
-import { H1 } from "../Fonts";
-import { useDirectoryStore } from "./useDirectoryStore";
-import { Container, Section } from "~/components/Container";
-import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { type ViewMode } from "./useLayoutStore";
+import { Container, Section, SectionHeader } from "~/components/Container";
 import { Placeholder } from "~/components/Placeholder";
+import { SidebarPortal } from "~/components/SidebarPortal";
+import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 export interface DirectoryViewBaseProps {
@@ -18,11 +29,13 @@ export interface DirectoryViewBaseProps {
 }
 
 interface DirectoryViewProps extends DirectoryViewBaseProps {
+  viewMode: ViewMode;
   name: string;
   children?: ReactNode;
 }
 
 export function DirectoryView({
+  viewMode,
   nodes,
   name,
   provider,
@@ -30,37 +43,45 @@ export function DirectoryView({
   pathName,
   children,
 }: DirectoryViewProps) {
-  const { viewMode, setProvider, setBucketName, setPathName } =
-    useDirectoryStore();
+  const isBucket = nodes.length > 0 && nodes[0].type === "bucket";
+  const columns = isBucket ? bucketColumns : fileColumns;
+  const tableId = isBucket ? "bucket" : "directory";
+  const isGrid = viewMode !== "list" && viewMode !== "list-wide";
+
+  const { columnFilters, setColumnFilters } = useColumnFilters({ tableId });
+
+  const filteredNodes = useMemo(
+    () =>
+      isGrid ? filterNodes(nodes, columnFilters, columns, isBucket) : nodes,
+    [isGrid, nodes, columnFilters, columns, isBucket],
+  );
 
   const { addItem } = useRecentlyViewedStore();
 
   useEffect(() => {
-    if (provider) setProvider(provider);
-    setBucketName(bucketName);
-    setPathName(pathName);
+    if (!provider || !bucketName || !pathName) return;
 
-    // Track browsed directories (skip bucket-level landing page)
-    if (provider && bucketName && pathName) {
-      addItem({
-        provider,
-        bucketName,
-        pathName,
-        name,
-        type: "directory",
-        children: [],
-      });
-    }
-  }, [
-    provider,
-    bucketName,
-    pathName,
-    name,
-    setProvider,
-    setBucketName,
-    setPathName,
-    addItem,
-  ]);
+    const totalSize = nodes.reduce(
+      (sum, child) => sum + computeDirectorySize(child),
+      0,
+    );
+    const latestModified = nodes.reduce(
+      (max, child) => Math.max(max, computeDirectoryLastModified(child)),
+      0,
+    );
+    addItem({
+      provider,
+      bucketName,
+      pathName,
+      name,
+      type: "directory",
+      children: [],
+      _Object: {
+        Size: totalSize || undefined,
+        LastModified: latestModified ? new Date(latestModified) : undefined,
+      } as TreeNode["_Object"],
+    });
+  }, [provider, bucketName, pathName, name, addItem, nodes]);
 
   if (nodes.length === 0) {
     return (
@@ -76,22 +97,27 @@ export function DirectoryView({
 
   return (
     <Section>
-      <Container>
-        <header className="flex flex-col justify-between mb-8 gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {name && <H1 className="flex-grow">{name}</H1>}
-            {children}
-          </div>
-        </header>
-      </Container>
+      <SectionHeader name={name}>{children}</SectionHeader>
 
-      <Container wide={viewMode === "list-wide"}>
-        {viewMode === "list" || viewMode === "list-wide" ? (
+      {isGrid && (
+        <SidebarPortal>
+          <FilterSidebar
+            columns={columns}
+            columnFilters={columnFilters}
+            setColumnFilters={setColumnFilters}
+          />
+        </SidebarPortal>
+      )}
+
+      {isGrid ? (
+        <Container>
+          <DirectoryViewGrid nodes={filteredNodes} viewMode={viewMode} />
+        </Container>
+      ) : (
+        <Container wide={viewMode === "list-wide"}>
           <DirectoryViewTable nodes={nodes} />
-        ) : (
-          <DirectoryViewGrid nodes={nodes} viewMode={viewMode} />
-        )}
-      </Container>
+        </Container>
+      )}
 
       <NodeInfoModal />
     </Section>

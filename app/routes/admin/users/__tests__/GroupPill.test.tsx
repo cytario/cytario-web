@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 
-import { GroupPill } from "../GroupPill";
+import { GroupPill } from "../../../../components/Pill/GroupPill";
 
 describe("GroupPill", () => {
   describe("segment rendering", () => {
@@ -49,18 +49,14 @@ describe("GroupPill", () => {
 
   describe("tooltip", () => {
     test("shows full path tooltip when dots are present", () => {
-      const { container } = render(
-        <GroupPill path="cytario/lab/team-a" />,
-      );
+      const { container } = render(<GroupPill path="cytario/lab/team-a" />);
 
       const wrapper = container.firstElementChild as HTMLElement;
       expect(wrapper).toHaveAttribute("title", "cytario / lab / team-a");
     });
 
     test("does not show tooltip when all segments are visible", () => {
-      const { container } = render(
-        <GroupPill path="team-a" />,
-      );
+      const { container } = render(<GroupPill path="team-a" />);
 
       const wrapper = container.firstElementChild as HTMLElement;
       expect(wrapper).not.toHaveAttribute("title");
@@ -78,9 +74,7 @@ describe("GroupPill", () => {
 
   describe("color consistency", () => {
     test("same segment name always gets the same color class", () => {
-      const { container: container1 } = render(
-        <GroupPill path="team-a" />,
-      );
+      const { container: container1 } = render(<GroupPill path="team-a" />);
       const { container: container2 } = render(
         <GroupPill path="other/team-a" />,
       );

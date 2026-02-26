@@ -3,12 +3,15 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
+import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
 import {
-  type InviteUserFormData,
-  inviteUserSchema,
-} from "./inviteUser.schema";
-import { Checkbox, Field, Fieldset, Input, Select } from "~/components/Controls";
-import { GroupPill } from "~/routes/admin/users/GroupPill";
+  Checkbox,
+  Field,
+  Fieldset,
+  Input,
+  Select,
+} from "~/components/Controls";
+import { GroupPill } from "~/components/Pill/GroupPill";
 
 interface InviteUserFormProps {
   scope: string;
@@ -17,7 +20,12 @@ interface InviteUserFormProps {
   actionData?: { success?: boolean; message?: string };
 }
 
-export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData }: InviteUserFormProps) {
+export function InviteUserForm({
+  scope,
+  groupOptions,
+  inviteAnother,
+  actionData,
+}: InviteUserFormProps) {
   const submit = useSubmit();
 
   const {
@@ -40,7 +48,13 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
 
   useEffect(() => {
     if (actionData?.success === true) {
-      reset({ email: "", firstName: "", lastName: "", groupPath: scope, enabled: true });
+      reset({
+        email: "",
+        firstName: "",
+        lastName: "",
+        groupPath: scope,
+        enabled: true,
+      });
     }
   }, [actionData, reset, scope]);
 
@@ -56,7 +70,11 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
   };
 
   return (
-    <form id="invite-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form
+      id="invite-form"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4"
+    >
       <Fieldset>
         <Field
           label="Email"
@@ -104,9 +122,7 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
                   value={field.value}
                   onChange={field.onChange}
                   name={field.name}
-                  renderOption={(option) => (
-                    <GroupPill path={option.value} />
-                  )}
+                  renderOption={(option) => <GroupPill path={option.value} />}
                 />
               )}
             />
@@ -125,10 +141,7 @@ export function InviteUserForm({ scope, groupOptions, inviteAnother, actionData 
             control={control}
             name="enabled"
             render={({ field }) => (
-              <Checkbox
-                checked={field.value}
-                onChange={field.onChange}
-              />
+              <Checkbox checked={field.value} onChange={field.onChange} />
             )}
           />
         </Field>

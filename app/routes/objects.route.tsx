@@ -19,9 +19,12 @@ import { Button, ButtonLink, Icon } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
+  computeDirectoryLastModified,
+  computeDirectorySize,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
@@ -232,6 +235,7 @@ export default function ObjectsRoute() {
     bucketConfig,
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
+  const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const setConnection = useConnectionsStore(select.setConnection);
 
@@ -288,19 +292,30 @@ export default function ObjectsRoute() {
     if (isPinned) {
       removePin(id);
     } else {
+      const totalSize = nodes.reduce(
+        (sum, node) => sum + computeDirectorySize(node),
+        0,
+      );
+      const lastModified = nodes.reduce(
+        (max, node) => Math.max(max, computeDirectoryLastModified(node)),
+        0,
+      );
       addPin({
         provider,
         bucketName,
         pathName: pathName ?? "",
         displayName: pathName ? getName(pathName, bucketName) : bucketName,
+        totalSize,
+        lastModified: lastModified || undefined,
       });
     }
-  }, [provider, bucketName, pathName, isPinned, addPin, removePin]);
+  }, [provider, bucketName, pathName, isPinned, addPin, removePin, nodes]);
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
       <DirectoryView
+        viewMode={viewMode}
         name={name}
         nodes={nodes}
         provider={bucketConfig.provider}

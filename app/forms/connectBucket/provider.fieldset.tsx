@@ -15,7 +15,7 @@ import {
   RadioButton,
   Select,
 } from "~/components/Controls";
-import { GroupPill } from "~/routes/admin/users/GroupPill";
+import { GroupPill } from "~/components/Pill/GroupPill";
 
 export const ProviderFieldset = ({
   control,

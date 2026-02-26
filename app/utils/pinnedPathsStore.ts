@@ -10,6 +10,10 @@ export interface PinnedPath {
   bucketName: string;
   pathName: string;
   displayName: string;
+  /** Aggregated total size (bytes) of all objects under the pinned path. */
+  totalSize?: number;
+  /** Aggregated latest LastModified timestamp (epoch ms) under the pinned path. */
+  lastModified?: number;
 }
 
 interface PinnedPathsStore {
