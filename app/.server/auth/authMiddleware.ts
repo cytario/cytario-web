@@ -114,24 +114,32 @@ export const authMiddleware: MiddlewareFunction = async (
     if (isRefreshTokenValid(authTokens.refreshToken)) {
       console.info(`${label} Fetch new tokens and credentials`);
 
-      const newAuthTokens = await refreshAccessTokenWithLock(
-        session.id,
-        authTokens.refreshToken,
-      );
-      session.set("authTokens", newAuthTokens);
+      let newAuthTokens;
+      try {
+        newAuthTokens = await refreshAccessTokenWithLock(
+          session.id,
+          authTokens.refreshToken,
+        );
+      } catch (error) {
+        console.error(`${label} Token refresh failed:`, error);
+      }
 
-      const { sessionData: withCredentials, bucketConfigs } =
-        await fetchAllCredentials({
-          ...updatedSessionData,
-          authTokens: newAuthTokens,
-        });
-      updatedSessionData = withCredentials;
+      if (newAuthTokens) {
+        session.set("authTokens", newAuthTokens);
 
-      session.set("credentials", updatedSessionData.credentials);
-      await sessionStorage.commitSession(session);
+        const { sessionData: withCredentials, bucketConfigs } =
+          await fetchAllCredentials({
+            ...updatedSessionData,
+            authTokens: newAuthTokens,
+          });
+        updatedSessionData = withCredentials;
 
-      context.set(authContext, { ...updatedSessionData, bucketConfigs });
-      return next();
+        session.set("credentials", updatedSessionData.credentials);
+        await sessionStorage.commitSession(session);
+
+        context.set(authContext, { ...updatedSessionData, bucketConfigs });
+        return next();
+      }
     }
   }
 
