@@ -1,5 +1,5 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -17,20 +17,23 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { getSession } from "~/.server/auth/getSession";
 import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
 import { SessionCredentials, sessionStorage } from "~/.server/auth/sessionStorage";
-import { ClientOnly } from "~/components/ClientOnly";
 import { Section } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
+import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
-import { RecentlyViewed } from "~/components/RecentlyViewed/RecentlyViewed";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
+import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
+import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
+import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 const title = "Storage Connections";
+const IMAGE_TYPES = new Set(["TIFF", "OME-TIFF", "PNG", "JPEG"]);
 
 export const meta: MetaFunction = () => {
   return [
@@ -168,11 +171,72 @@ export default function BucketsRoute() {
     }
   }, [credentials, bucketConfigs, setConnection]);
 
+  const allRecentItems = useRecentlyViewedStore((state) => state.items);
+  const pinnedItems = usePinnedPathsStore((state) => state.items);
+
+  const recentImages = useMemo(
+    () =>
+      allRecentItems.filter(
+        (n) => n.type === "file" && IMAGE_TYPES.has(getFileType(n.name)),
+      ),
+    [allRecentItems],
+  );
+
+  const recentDirs = useMemo(
+    () => allRecentItems.filter((n) => n.type === "directory"),
+    [allRecentItems],
+  );
+
+  const recentFiles = useMemo(
+    () =>
+      allRecentItems.filter(
+        (n) => n.type === "file" && !IMAGE_TYPES.has(getFileType(n.name)),
+      ),
+    [allRecentItems],
+  );
+
+  const pinnedNodes: TreeNode[] = useMemo(
+    () =>
+      pinnedItems.map((pin) => ({
+        provider: pin.provider,
+        bucketName: pin.bucketName,
+        pathName: pin.pathName,
+        name: pin.displayName,
+        type: "directory" as const,
+        children: [],
+      })),
+    [pinnedItems],
+  );
+
   return (
     <>
-      <ClientOnly>
-        <RecentlyViewed />
-      </ClientOnly>
+      <DashboardSection
+        title="Recently Viewed"
+        nodes={recentImages}
+        viewMode="grid-lg"
+        maxItems={4}
+        showAllHref="/recent?filter=images"
+      />
+      <DashboardSection
+        title="Pinned"
+        nodes={pinnedNodes}
+        viewMode="list"
+        maxItems={10}
+      />
+      <DashboardSection
+        title="Recently Browsed"
+        nodes={recentDirs}
+        viewMode="list"
+        maxItems={5}
+        showAllHref="/recent?filter=directories"
+      />
+      <DashboardSection
+        title="Recent Files"
+        nodes={recentFiles}
+        viewMode="grid-sm"
+        maxItems={6}
+        showAllHref="/recent?filter=files"
+      />
 
       <Section>
         {nodes.length > 0 ? (

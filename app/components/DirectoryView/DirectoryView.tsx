@@ -1,15 +1,21 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
 import { ViewModeToggle } from "./ViewModeToggle";
-import { ButtonLink, Icon } from "../Controls";
+import { Button, ButtonLink, Icon } from "../Controls";
 import { H1 } from "../Fonts";
 import { useDirectoryStore } from "./useDirectoryStore";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { Placeholder } from "~/components/Placeholder";
+import { getName } from "~/utils/pathUtils";
+import {
+  selectIsPinned,
+  usePinnedPathsStore,
+} from "~/utils/pinnedPathsStore";
+import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
@@ -34,11 +40,44 @@ export function DirectoryView({
   const { viewMode, setProvider, setBucketName, setPathName } =
     useDirectoryStore();
 
+  const { addItem } = useRecentlyViewedStore();
+  const isPinned = usePinnedPathsStore(
+    selectIsPinned(provider ?? "", bucketName, pathName ?? ""),
+  );
+  const { addPin, removePin } = usePinnedPathsStore();
+
+  const togglePin = useCallback(() => {
+    if (!provider || !bucketName) return;
+    const id = `${provider}/${bucketName}/${pathName ?? ""}`;
+    if (isPinned) {
+      removePin(id);
+    } else {
+      addPin({
+        provider,
+        bucketName,
+        pathName: pathName ?? "",
+        displayName: pathName ? getName(pathName, bucketName) : bucketName,
+      });
+    }
+  }, [provider, bucketName, pathName, isPinned, addPin, removePin]);
+
   useEffect(() => {
     if (provider) setProvider(provider);
     setBucketName(bucketName);
     setPathName(pathName);
-  }, [provider, bucketName, pathName, setProvider, setBucketName, setPathName]);
+
+    // Track browsed directories (skip bucket-level landing page)
+    if (provider && bucketName && pathName) {
+      addItem({
+        provider,
+        bucketName,
+        pathName,
+        name,
+        type: "directory",
+        children: [],
+      });
+    }
+  }, [provider, bucketName, pathName, name, setProvider, setBucketName, setPathName, addItem]);
 
   if (nodes.length === 0) {
     return (
@@ -60,7 +99,7 @@ export function DirectoryView({
             {name && <H1 className="flex-grow">{name}</H1>}
             <ViewModeToggle />
           </div>
-          <div>
+          <div className="flex gap-2">
             {!bucketName && isAdmin && (
               <ButtonLink to="/connect-bucket" theme="white">
                 <Icon icon="Plug" size={16} /> Connect Storage
@@ -68,14 +107,28 @@ export function DirectoryView({
             )}
 
             {bucketName && (
-              <ButtonLink
-                to="?action=cyberduck"
-                theme="white"
-                className="gap-2"
-              >
-                <Icon icon="Download" size={16} />
-                Access with Cyberduck
-              </ButtonLink>
+              <>
+                <Button
+                  onClick={togglePin}
+                  theme="white"
+                  className="gap-2"
+                  aria-label={isPinned ? "Unpin directory" : "Pin directory"}
+                >
+                  <Icon
+                    icon={isPinned ? "BookmarkCheck" : "Bookmark"}
+                    size={16}
+                  />
+                  {isPinned ? "Pinned" : "Pin"}
+                </Button>
+                <ButtonLink
+                  to="?action=cyberduck"
+                  theme="white"
+                  className="gap-2"
+                >
+                  <Icon icon="Download" size={16} />
+                  Access with Cyberduck
+                </ButtonLink>
+              </>
             )}
           </div>
         </header>

@@ -254,10 +254,10 @@ export default function ObjectsRoute() {
     }
   }, [bucketName, credentials, bucketConfig, setConnection]);
 
-  // Track recently viewed images
+  // Track recently viewed files
   const { addItem } = useRecentlyViewedStore();
   useEffect(() => {
-    if (url && (fileType === "TIFF" || fileType === "OME-TIFF")) {
+    if (url) {
       addItem({
         provider: bucketConfig.provider,
         bucketName: bucketConfig.name,

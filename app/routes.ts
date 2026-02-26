@@ -29,6 +29,10 @@ const protectedRoutes = [
       ],
     },
     {
+      path: "/recent",
+      file: "routes/recent.route.tsx",
+    },
+    {
       path: "/search",
       file: "routes/search.route.tsx",
     },
