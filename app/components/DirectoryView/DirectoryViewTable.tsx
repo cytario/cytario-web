@@ -9,7 +9,6 @@ import {
   computeDirectoryLastModified,
 } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
-import { useLayoutStore } from "./useLayoutStore";
 import { Pill } from "~/components/Pill/Pill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
@@ -167,17 +166,18 @@ export type TableType = Extract<TreeNodeType, "bucket" | "directory">;
 
 interface DirectoryViewTableProps {
   nodes: TreeNode[];
+  showFilters?: boolean;
   columnFilters?: ColumnFiltersState;
   onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
 }
 
 export function DirectoryViewTable({
   nodes,
+  showFilters = false,
   columnFilters,
   onColumnFiltersChange,
 }: DirectoryViewTableProps) {
   const connections = useConnectionsStore((state) => state.connections);
-  const showFilters = useLayoutStore((state) => state.showFilters);
 
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";

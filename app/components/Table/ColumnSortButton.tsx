@@ -5,8 +5,8 @@ import { Icon } from "../Controls";
 
 /** Returns the chevron icon name based on current sort direction. Unsorted shows up (first click = ascending). */
 function getIcon(sortDirection: false | SortDirection) {
-  if (sortDirection === "desc") return "ChevronDown";
-  return "ChevronUp";
+  if (sortDirection === "desc") return "ChevronUp";
+  return "ChevronDown";
 }
 
 /** Returns Tailwind classes — visible when sorted, hidden until header hover when unsorted. */

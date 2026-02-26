@@ -317,6 +317,7 @@ export default function ObjectsRoute() {
       <DirectoryView
         viewMode={viewMode}
         name={name}
+        showFilters
         nodes={nodes}
         provider={bucketConfig.provider}
         bucketName={bucketName}

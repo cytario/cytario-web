@@ -31,6 +31,7 @@ export interface DirectoryViewBaseProps {
 interface DirectoryViewProps extends DirectoryViewBaseProps {
   viewMode: ViewMode;
   name: string;
+  showFilters?: boolean;
   children?: ReactNode;
 }
 
@@ -38,6 +39,7 @@ export function DirectoryView({
   viewMode,
   nodes,
   name,
+  showFilters = false,
   provider,
   bucketName,
   pathName,
@@ -99,7 +101,7 @@ export function DirectoryView({
     <Section>
       <SectionHeader name={name}>{children}</SectionHeader>
 
-      {isGrid && (
+      {showFilters && isGrid && (
         <SidebarPortal>
           <FilterSidebar
             columns={columns}
@@ -115,7 +117,7 @@ export function DirectoryView({
         </Container>
       ) : (
         <Container wide={viewMode === "list-wide"}>
-          <DirectoryViewTable nodes={nodes} />
+          <DirectoryViewTable nodes={nodes} showFilters={showFilters} />
         </Container>
       )}
 

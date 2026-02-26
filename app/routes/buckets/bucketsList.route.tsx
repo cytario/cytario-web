@@ -78,6 +78,7 @@ export default function BucketsListRoute() {
       viewMode={viewMode}
       nodes={nodes}
       name={title}
+      showFilters
       bucketName=""
     >
       <ViewModeToggle />

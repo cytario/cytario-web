@@ -55,6 +55,7 @@ function RecentContent() {
             <Container wide={viewMode === "list-wide"}>
               <DirectoryViewTable
                 nodes={allItems}
+                showFilters
                 columnFilters={columnFilters}
                 onColumnFiltersChange={setColumnFilters}
               />
