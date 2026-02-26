@@ -101,6 +101,39 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     expect(redirectCall).toContain("code_challenge=test-challenge");
     expect(redirectCall).toContain("code_challenge_method=S256");
     expect(redirectCall).toContain("nonce=test-nonce");
+    expect(redirectCall).toContain(
+      "redirect_uri=" + encodeURIComponent("https://app.example.com/auth/callback"),
+    );
+  });
+
+  test("uses static WEB_HOST for redirect_uri, not the request URL", async () => {
+    const mockSession = {
+      get: vi.fn(() => null),
+      set: vi.fn(),
+    };
+
+    (getSession as Mock).mockResolvedValue(mockSession);
+    (generateOAuthState as Mock).mockResolvedValue({
+      state: "state-proxy",
+      codeChallenge: "challenge",
+      nonce: "nonce",
+    });
+    (getWellKnownEndpoints as Mock).mockResolvedValue({
+      authorization_endpoint: "https://keycloak.example.com/auth",
+    });
+
+    // Simulate request arriving via reverse proxy with plain HTTP
+    // (TLS terminated at Traefik, so internal request uses http://)
+    const request = new Request("http://internal-host:3000/login");
+    await loader({ request } as LoaderFunctionArgs);
+
+    const redirectCall = (redirect as Mock).mock.calls[0][0];
+    // redirect_uri must use the configured WEB_HOST (https://app.example.com),
+    // NOT the internal request origin (http://internal-host:3000)
+    expect(redirectCall).toContain(
+      "redirect_uri=" + encodeURIComponent("https://app.example.com/auth/callback"),
+    );
+    expect(redirectCall).not.toContain("internal-host");
   });
 
   test("calls validateRedirectTo on redirect param", async () => {

@@ -214,6 +214,24 @@ describe("callback loader", () => {
     consoleSpy.mockRestore();
   });
 
+  test("uses static WEB_HOST for redirect_uri, not the request URL", async () => {
+    // Simulate request arriving via reverse proxy with plain HTTP
+    // (TLS terminated at Traefik, so internal request uses http://)
+    const request = new Request(
+      "http://internal-host:3000/auth/callback?code=auth-code&state=valid-state",
+    );
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    // exchangeAuthCode must receive the configured WEB_HOST origin,
+    // NOT the internal request origin
+    expect(exchangeAuthCode).toHaveBeenCalledWith(
+      "auth-code",
+      "https://app.example.com/auth/callback",
+      "test-code-verifier",
+    );
+  });
+
   test("includes Set-Cookie header on all responses", async () => {
     const request = new Request(
       "http://localhost/auth/callback?code=auth-code&state=valid-state",
