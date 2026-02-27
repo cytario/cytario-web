@@ -4,11 +4,12 @@ import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
   ActionFunctionArgs,
   MetaFunction,
+  useFetcher,
   useLoaderData,
   useNavigate,
 } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
@@ -30,14 +31,13 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
-import { getBucketConfigByPath } from "~/utils/bucketConfig";
+import { getConnectionByPath } from "~/utils/connectionConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
-import { usePinnedPathsStore, selectIsPinned } from "~/utils/pinnedPathsStore";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
+import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { createConnectionKey, createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -62,7 +62,7 @@ export const handle = {
     const provider = params.provider ?? "";
     const bucketName = params.bucketName ?? "";
     const pathName = params["*"] ?? "";
-    const prefix = data?.bucketConfig?.prefix ?? "";
+    const prefix = data?.connectionConfig?.prefix ?? "";
 
     // Calculate the relative path (path after the storage connection prefix)
     const normalizedPrefix = prefix.endsWith("/")
@@ -112,7 +112,8 @@ export interface BucketRouteLoaderResponse {
   fileLastModified?: string;
   notification?: NotificationInput;
   credentials: Credentials;
-  bucketConfig: BucketConfig;
+  connectionConfig: ConnectionConfig;
+  isPinned: boolean;
 }
 
 export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
@@ -134,22 +135,20 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const bucketConfig = await getBucketConfigByPath(
-    user,
-    provider,
-    bucketName,
-    pathName,
-  );
+  const [connectionConfig, isPinned] = await Promise.all([
+    getConnectionByPath(user, provider, bucketName, pathName),
+    checkIsPinnedPath(user.sub, provider, bucketName, pathName),
+  ]);
 
-  if (!bucketConfig) {
+  if (!connectionConfig) {
     throw new Error("Bucket configuration not found");
   }
 
   try {
-    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
+    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
 
     const objects: Readonly<_Object>[] = await getObjects(
-      bucketConfig,
+      connectionConfig,
       s3Client,
       undefined,
       prefix,
@@ -159,42 +158,43 @@ export const loader = async ({
       const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
         objects.map(async (obj) => ({
           ...obj,
-          presignedUrl: await getPresignedUrl(bucketConfig, s3Client, obj.Key!),
+          presignedUrl: await getPresignedUrl(connectionConfig, s3Client, obj.Key!),
         })),
       );
 
       const nodes = buildDirectoryTree(
         bucketName,
         objectsWithUrls,
-        bucketConfig.provider,
+        connectionConfig.provider,
         prefix,
       );
 
       return {
         credentials,
-        bucketConfig,
+        connectionConfig,
         name,
         nodes,
         bucketName,
         pathName,
+        isPinned,
       };
     }
 
     const offsetKey = getOffsetKeyForOmeTiff(pathName);
 
     const [url, offsetsUrl, head] = await Promise.all([
-      getPresignedUrl(bucketConfig, s3Client, pathName),
+      getPresignedUrl(connectionConfig, s3Client, pathName),
       offsetKey
-        ? getPresignedUrl(bucketConfig, s3Client, offsetKey)
+        ? getPresignedUrl(connectionConfig, s3Client, offsetKey)
         : undefined,
       s3Client.send(
-        new HeadObjectCommand({ Bucket: bucketConfig.name, Key: pathName }),
+        new HeadObjectCommand({ Bucket: connectionConfig.name, Key: pathName }),
       ),
     ]);
 
     return {
       credentials,
-      bucketConfig,
+      connectionConfig,
       name,
       nodes: [],
       bucketName,
@@ -203,16 +203,18 @@ export const loader = async ({
       offsetsUrl,
       fileSize: head.ContentLength,
       fileLastModified: head.LastModified?.toISOString(),
+      isPinned,
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
     return {
       credentials,
-      bucketConfig,
+      connectionConfig,
       name,
       nodes: [],
       bucketName,
       pathName,
+      isPinned,
       notification: {
         message:
           "We couldn't load the objects for this bucket. Please check your connection or try again later.",
@@ -227,73 +229,70 @@ export default function ObjectsRoute() {
     name,
     url,
     offsetsUrl,
-    fileSize,
-    fileLastModified,
     nodes,
     pathName,
     bucketName,
     credentials,
-    bucketConfig,
+    connectionConfig,
+    isPinned: loaderIsPinned,
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const setConnection = useConnectionsStore(select.setConnection);
 
-  const { provider } = bucketConfig;
+  const { provider } = connectionConfig;
 
   const resourceId = createResourceId(
-    bucketConfig.provider,
-    bucketConfig.name,
+    connectionConfig.provider,
+    connectionConfig.name,
     pathName,
   );
   const fileType = getFileType(resourceId);
 
   // Store credentials and bucket config in Zustand store when they're available
   useEffect(() => {
-    if (credentials && bucketName && bucketConfig) {
+    if (credentials && bucketName && connectionConfig) {
       const connKey = createConnectionKey(
-        bucketConfig.provider,
+        connectionConfig.provider,
         bucketName,
-        bucketConfig.prefix,
+        connectionConfig.prefix,
       );
-      setConnection(connKey, credentials, bucketConfig);
+      setConnection(connKey, credentials, connectionConfig);
     }
-  }, [bucketName, credentials, bucketConfig, setConnection]);
+  }, [bucketName, credentials, connectionConfig, setConnection]);
 
   // Track recently viewed files
-  const { addItem } = useRecentlyViewedStore();
+  const recentFetcher = useFetcher();
   useEffect(() => {
     if (url) {
-      addItem({
-        provider: bucketConfig.provider,
-        bucketName: bucketConfig.name,
-        pathName,
-        name,
-        type: "file",
-        children: [],
-        _Object: {
-          Key: pathName,
-          Size: fileSize,
-          LastModified: fileLastModified
-            ? new Date(fileLastModified)
-            : undefined,
-          presignedUrl: url,
+      recentFetcher.submit(
+        {
+          provider: connectionConfig.provider,
+          bucketName: connectionConfig.name,
+          pathName,
+          name,
+          type: "file",
         },
-      });
+        { method: "post", action: "/api/recently-viewed" },
+      );
     }
   }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isPinned = usePinnedPathsStore(
-    selectIsPinned(provider ?? "", bucketName, pathName ?? ""),
-  );
-  const { addPin, removePin } = usePinnedPathsStore();
+  const pinFetcher = useFetcher();
+  // Optimistic isPinned: flip while the pin request is in-flight
+  let isPinned = loaderIsPinned;
+  if (pinFetcher.state === "submitting") {
+    isPinned = pinFetcher.formMethod?.toLowerCase() === "post";
+  }
 
   const togglePin = useCallback(() => {
     if (!provider || !bucketName) return;
-    const id = `${provider}/${bucketName}/${pathName ?? ""}`;
     if (isPinned) {
-      removePin(id);
+      pinFetcher.submit(
+        { provider, bucketName, pathName: pathName ?? "" },
+        { method: "delete", action: "/api/pinned" },
+      );
     } else {
       const totalSize = nodes.reduce(
         (sum, node) => sum + computeDirectorySize(node),
@@ -303,16 +302,19 @@ export default function ObjectsRoute() {
         (max, node) => Math.max(max, computeDirectoryLastModified(node)),
         0,
       );
-      addPin({
-        provider,
-        bucketName,
-        pathName: pathName ?? "",
-        displayName: pathName ? getName(pathName, bucketName) : bucketName,
-        totalSize,
-        lastModified: lastModified || undefined,
-      });
+      pinFetcher.submit(
+        {
+          provider,
+          bucketName,
+          pathName: pathName ?? "",
+          displayName: pathName ? getName(pathName, bucketName) : bucketName,
+          totalSize: String(totalSize),
+          lastModified: lastModified ? String(lastModified) : "",
+        },
+        { method: "post", action: "/api/pinned" },
+      );
     }
-  }, [provider, bucketName, pathName, isPinned, addPin, removePin, nodes]);
+  }, [provider, bucketName, pathName, isPinned, nodes, pinFetcher]);
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
@@ -322,7 +324,7 @@ export default function ObjectsRoute() {
         name={name}
         showFilters
         nodes={nodes}
-        provider={bucketConfig.provider}
+        provider={connectionConfig.provider}
         bucketName={bucketName}
         pathName={pathName}
       >
@@ -340,9 +342,9 @@ export default function ObjectsRoute() {
           Access with Cyberduck
         </ButtonLink>
         <IndexStatus
-          provider={bucketConfig.provider}
+          provider={connectionConfig.provider}
           bucketName={bucketName}
-          prefix={bucketConfig.prefix}
+          prefix={connectionConfig.prefix}
         />
         <ViewModeToggle />
       </DirectoryView>

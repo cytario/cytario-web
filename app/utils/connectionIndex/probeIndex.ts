@@ -1,7 +1,7 @@
 import { useConnectionsStore } from "~/utils/connectionsStore";
 
 /**
- * Probes whether a bucket index Parquet file exists by calling the server-side
+ * Probes whether a connection index Parquet file exists by calling the server-side
  * index-status endpoint (uses HeadObjectCommand — fast, no DuckDB init needed).
  * Does NOT trigger a rebuild — that's a separate user action.
  */
@@ -12,13 +12,13 @@ export async function probeIndex(
   prefix: string,
 ): Promise<void> {
   const state = useConnectionsStore.getState();
-  const current = state.connections[connectionKey]?.bucketIndex;
+  const current = state.connections[connectionKey]?.connectionIndex;
 
   if (current && (current.status === "ready" || current.status === "loading")) {
     return;
   }
 
-  state.setBucketIndex(connectionKey, {
+  state.setConnectionIndex(connectionKey, {
     status: "loading",
     objectCount: 0,
     builtAt: null,
@@ -34,7 +34,7 @@ export async function probeIndex(
     );
 
     if (!res.ok) {
-      useConnectionsStore.getState().setBucketIndex(connectionKey, {
+      useConnectionsStore.getState().setConnectionIndex(connectionKey, {
         status: "error",
         objectCount: 0,
         builtAt: null,
@@ -47,20 +47,20 @@ export async function probeIndex(
       | { exists: false };
 
     if (data.exists) {
-      useConnectionsStore.getState().setBucketIndex(connectionKey, {
+      useConnectionsStore.getState().setConnectionIndex(connectionKey, {
         status: "ready",
         objectCount: data.objectCount,
         builtAt: data.builtAt,
       });
     } else {
-      useConnectionsStore.getState().setBucketIndex(connectionKey, {
+      useConnectionsStore.getState().setConnectionIndex(connectionKey, {
         status: "missing",
         objectCount: 0,
         builtAt: null,
       });
     }
   } catch {
-    useConnectionsStore.getState().setBucketIndex(connectionKey, {
+    useConnectionsStore.getState().setConnectionIndex(connectionKey, {
       status: "error",
       objectCount: 0,
       builtAt: null,

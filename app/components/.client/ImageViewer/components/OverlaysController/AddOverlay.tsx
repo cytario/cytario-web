@@ -67,7 +67,7 @@ export const AddOverlay = ({
             const storeKey = `${node.provider}/${node.bucketName}`;
             const conn = useConnectionsStore.getState().connections[storeKey];
             const credentials = conn?.credentials;
-            const bucketConfig = conn?.bucketConfig;
+            const bucketConfig = conn?.connectionConfig;
 
             if (!bucketConfig) {
               throw new Error("Bucket configuration not found");

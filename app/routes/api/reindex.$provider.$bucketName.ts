@@ -6,7 +6,7 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { buildIndexParquet } from "~/.server/reindex/buildIndex";
 import { listAllObjects } from "~/.server/reindex/listAllObjects";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getConnectionByName } from "~/utils/connectionConfig";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
@@ -32,17 +32,17 @@ export const action = async ({
   const formData = await request.formData();
   const prefix = (formData.get("prefix") as string) ?? "";
 
-  const bucketConfig = await getBucketConfigByName(
+  const connectionConfig = await getConnectionByName(
     user,
     provider,
     bucketName,
     prefix,
   );
-  if (!bucketConfig) {
-    return new Response("Bucket configuration not found", { status: 404 });
+  if (!connectionConfig) {
+    return new Response("Connection configuration not found", { status: 404 });
   }
 
-  const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
+  const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
 
   const objects = await listAllObjects(s3Client, bucketName, prefix);
 

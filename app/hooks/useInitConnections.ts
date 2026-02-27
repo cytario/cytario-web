@@ -1,8 +1,8 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { useEffect } from "react";
 
-import { BucketConfig } from "~/.generated/client";
-import { probeIndex } from "~/utils/bucketIndex";
+import { ConnectionConfig } from "~/.generated/client";
+import { probeIndex } from "~/utils/connectionIndex";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { createConnectionKey } from "~/utils/resourceId";
 
@@ -12,7 +12,7 @@ import { createConnectionKey } from "~/utils/resourceId";
  * connection is already loading or ready.
  */
 export function useInitConnections(
-  bucketConfigs: BucketConfig[],
+  bucketConfigs: ConnectionConfig[],
   credentials: Record<string, Credentials>,
 ) {
   const setConnection = useConnectionsStore(select.setConnection);

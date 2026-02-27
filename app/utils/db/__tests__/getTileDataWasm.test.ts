@@ -83,7 +83,7 @@ describe("getTileDataWasm", () => {
   test("passes bucket config to createDatabase", async () => {
     const mockTable = { numRows: 5 };
     mockQuery.mockResolvedValue(mockTable);
-    const bucketConfig = mock.bucketConfig({
+    const bucketConfig = mock.connectionConfig({
       endpoint: "https://minio.local:9000",
     });
 

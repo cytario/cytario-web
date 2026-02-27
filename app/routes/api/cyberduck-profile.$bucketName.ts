@@ -3,7 +3,7 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getConnectionByName } from "~/utils/connectionConfig";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
@@ -21,16 +21,16 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Bucket name is required", { status: 400 });
   }
 
-  const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
+  const connectionConfig = await getConnectionByName(user, provider, bucketName);
 
-  if (!bucketConfig) {
-    return new Response("Bucket configuration not found", { status: 404 });
+  if (!connectionConfig) {
+    return new Response("Connection configuration not found", { status: 404 });
   }
 
   const { auth, endpoints } = cytarioConfig;
 
-  const actualRegion = bucketConfig.region ?? "eu-central-1";
-  const providerConfig = getS3ProviderConfig(bucketConfig.endpoint, actualRegion);
+  const actualRegion = connectionConfig.region ?? "eu-central-1";
+  const providerConfig = getS3ProviderConfig(connectionConfig.endpoint, actualRegion);
 
   // Derive a unique vendor ID from the webapp hostname (e.g. "cytario.com" → "cytario-com")
   const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
@@ -39,7 +39,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const profile = generateCyberduckProfile({
     vendor,
     bucketName,
-    roleArn: bucketConfig.roleArn,
+    roleArn: connectionConfig.roleArn,
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
     stsEndpoint: providerConfig.stsEndpoint,

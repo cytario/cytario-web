@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { createResourceId } from "~/utils/resourceId";
@@ -21,46 +21,40 @@ function getNodeId(node: TreeNode) {
 
 export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
   devtools(
-    persist(
-      (set) => ({
-        items: [],
+    (set) => ({
+      items: [],
 
-        addItem: (node) => {
-          const id = getNodeId(node);
-          set(
-            (state) => {
-              const filtered = state.items.filter(
-                (item) => getNodeId(item) !== id,
-              );
-              return {
-                items: [node, ...filtered].slice(0, MAX_ITEMS),
-              };
-            },
-            false,
-            "addItem",
-          );
-        },
-
-        removeItem: (node) => {
-          const id = getNodeId(node);
-          set(
-            (state) => ({
-              items: state.items.filter((item) => getNodeId(item) !== id),
-            }),
-            false,
-            "removeItem",
-          );
-        },
-
-        clearAll: () => {
-          set({ items: [] }, false, "clearAll");
-        },
-      }),
-      {
-        name: "recently-viewed-storage",
-        storage: createJSONStorage(() => localStorage),
+      addItem: (node) => {
+        const id = getNodeId(node);
+        set(
+          (state) => {
+            const filtered = state.items.filter(
+              (item) => getNodeId(item) !== id,
+            );
+            return {
+              items: [node, ...filtered].slice(0, MAX_ITEMS),
+            };
+          },
+          false,
+          "addItem",
+        );
       },
-    ),
+
+      removeItem: (node) => {
+        const id = getNodeId(node);
+        set(
+          (state) => ({
+            items: state.items.filter((item) => getNodeId(item) !== id),
+          }),
+          false,
+          "removeItem",
+        );
+      },
+
+      clearAll: () => {
+        set({ items: [] }, false, "clearAll");
+      },
+    }),
     { name },
   ),
 );

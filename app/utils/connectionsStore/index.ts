@@ -1,6 +1,6 @@
 export { useConnectionsStore } from "./useConnectionsStore";
 export type {
-  BucketIndex,
+  ConnectionIndex,
   ConnectionRecord,
   ConnectionsStore,
 } from "./useConnectionsStore";
@@ -8,6 +8,6 @@ export {
   select,
   selectConnection,
   selectCredentials,
-  selectBucketConfig,
-  selectBucketIndex,
+  selectConnectionConfig,
+  selectConnectionIndex,
 } from "./selectors";

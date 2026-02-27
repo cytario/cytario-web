@@ -121,7 +121,7 @@ describe("createDatabase", () => {
   });
 
   test("uses bucket config region when provided", async () => {
-    const bucketConfig = mock.bucketConfig({ region: "us-west-2" });
+    const bucketConfig = mock.connectionConfig({ region: "us-west-2" });
 
     await createDatabase("test-resource-region", credentials, bucketConfig);
 
@@ -129,7 +129,7 @@ describe("createDatabase", () => {
   });
 
   test("configures endpoint from bucket config", async () => {
-    const bucketConfig = mock.bucketConfig({
+    const bucketConfig = mock.connectionConfig({
       endpoint: "https://minio.local:9000",
     });
     vi.mocked(getEndpointHostname).mockReturnValue("minio.local:9000");

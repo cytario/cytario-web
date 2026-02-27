@@ -1,8 +1,17 @@
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { type MetaFunction } from "react-router";
+import {
+  type ActionFunction,
+  type LoaderFunction,
+  type MetaFunction,
+  useFetcher,
+  useLoaderData,
+} from "react-router";
 
+import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
+import { Button, Icon } from "~/components/Controls";
+import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import {
   DirectoryViewTable,
@@ -15,14 +24,67 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { H1 } from "~/components/Fonts";
 import { Placeholder } from "~/components/Placeholder";
 import { SidebarPortal } from "~/components/SidebarPortal";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
+import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
+export const middleware = [authMiddleware];
+
+export const action: ActionFunction = async ({ request, context }) => {
+  const { user } = context.get(authContext);
+  if (request.method.toUpperCase() === "DELETE") {
+    await clearAllRecentlyViewed(user.sub);
+    return { ok: true };
+  }
+  return null;
+};
+
+export const loader: LoaderFunction = async ({ context }) => {
+  const { user } = context.get(authContext);
+  const raw = await getRecentlyViewed(user.sub, 50);
+  return {
+    recentlyViewed: raw.map((item) => ({
+      id: item.id,
+      provider: item.provider,
+      bucketName: item.bucketName,
+      pathName: item.pathName,
+      name: item.name,
+      type: item.type,
+      viewedAt: item.viewedAt.toISOString(),
+    })),
+  };
+};
+
+type RecentLoaderData = {
+  recentlyViewed: Array<{
+    id: number;
+    provider: string;
+    bucketName: string;
+    pathName: string;
+    name: string;
+    type: string;
+    viewedAt: string;
+  }>;
+};
+
 function RecentContent() {
+  const { recentlyViewed } = useLoaderData<RecentLoaderData>();
   const { viewMode } = useLayoutStore();
-  const allItems = useRecentlyViewedStore((state) => state.items);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const clearFetcher = useFetcher();
+
+  const allItems: TreeNode[] = useMemo(
+    () =>
+      recentlyViewed.map((item) => ({
+        provider: item.provider,
+        bucketName: item.bucketName,
+        pathName: item.pathName,
+        name: item.name,
+        type: item.type as TreeNode["type"],
+        children: [],
+      })),
+    [recentlyViewed],
+  );
 
   const isGrid = viewMode !== "list" && viewMode !== "list-wide";
   const filteredNodes = useMemo(
@@ -45,7 +107,21 @@ function RecentContent() {
       <Container>
         <div className="flex items-center justify-between">
           <H1>Recent</H1>
-          <ViewModeToggle />
+          <div className="flex items-center gap-2">
+            {allItems.length > 0 && (
+              <Button
+                theme="white"
+                className="gap-2"
+                onClick={() =>
+                  clearFetcher.submit({}, { method: "delete" })
+                }
+              >
+                <Icon icon="Trash2" size={16} />
+                Clear history
+              </Button>
+            )}
+            <ViewModeToggle />
+          </div>
         </div>
       </Container>
 

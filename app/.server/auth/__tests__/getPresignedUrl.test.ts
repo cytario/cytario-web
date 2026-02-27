@@ -14,7 +14,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 }));
 
 describe("getPresignedUrl", () => {
-  const mockBucketConfig = mock.bucketConfig({
+  const mockBucketConfig = mock.connectionConfig({
     name: "test-bucket",
     region: "us-west-2",
   });
@@ -84,7 +84,7 @@ describe("getPresignedUrl", () => {
   });
 
   test("handles different bucket names", async () => {
-    const differentBucket = mock.bucketConfig({
+    const differentBucket = mock.connectionConfig({
       name: "another-bucket",
     });
 

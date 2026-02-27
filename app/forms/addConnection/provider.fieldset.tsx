@@ -7,7 +7,7 @@ import {
   UseFormRegister,
 } from "react-hook-form";
 
-import { ConnectBucketFormData } from "./connectBucket.schema";
+import { ConnectBucketFormData } from "./addConnection.schema";
 import {
   Field,
   Fieldset,

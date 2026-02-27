@@ -2,7 +2,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 
 import { createDatabase } from "./createDatabase";
 import { toS3Uri } from "../resourceId";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
 
 /**
@@ -14,7 +14,7 @@ import { MarkerInfo } from "~/components/.client/ImageViewer/components/Overlays
 export async function getMarkerInfoWasm(
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: BucketConfig | null,
+  bucketConfig?: ConnectionConfig | null,
 ): Promise<MarkerInfo> {
   const connection = await createDatabase(
     resourceId,

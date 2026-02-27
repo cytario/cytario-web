@@ -10,12 +10,12 @@ import {
   sessionStorage,
 } from "./sessionStorage";
 import { verifyIdToken } from "./verifyIdToken";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
-import { getBucketConfigs } from "~/utils/bucketConfig";
+import { getConnectionConfigs } from "~/utils/connectionConfig";
 
 export interface AuthContextData extends SessionData {
-  bucketConfigs: BucketConfig[];
+  bucketConfigs: ConnectionConfig[];
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -49,8 +49,8 @@ const label = createLabel("authorize", "green");
  */
 const fetchAllCredentials = async (
   sessionData: SessionData,
-): Promise<{ sessionData: SessionData; bucketConfigs: BucketConfig[] }> => {
-  const bucketConfigs = await getBucketConfigs(sessionData.user);
+): Promise<{ sessionData: SessionData; bucketConfigs: ConnectionConfig[] }> => {
+  const bucketConfigs = await getConnectionConfigs(sessionData.user);
 
   const newCredentials = await getAllSessionCredentials(
     sessionData,

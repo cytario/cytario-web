@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 
 import { createResourceId } from "~/utils/resourceId";
 
@@ -31,45 +31,39 @@ function getPinId(pin: PinnedPath) {
 
 export const usePinnedPathsStore = create<PinnedPathsStore>()(
   devtools(
-    persist(
-      (set) => ({
-        items: [],
+    (set) => ({
+      items: [],
 
-        addPin: (pin) => {
-          const id = getPinId(pin);
-          set(
-            (state) => {
-              const filtered = state.items.filter(
-                (item) => getPinId(item) !== id,
-              );
-              return {
-                items: [pin, ...filtered].slice(0, MAX_ITEMS),
-              };
-            },
-            false,
-            "addPin",
-          );
-        },
-
-        removePin: (id) => {
-          set(
-            (state) => ({
-              items: state.items.filter((item) => getPinId(item) !== id),
-            }),
-            false,
-            "removePin",
-          );
-        },
-
-        clearAll: () => {
-          set({ items: [] }, false, "clearAll");
-        },
-      }),
-      {
-        name: "pinned-paths-storage",
-        storage: createJSONStorage(() => localStorage),
+      addPin: (pin) => {
+        const id = getPinId(pin);
+        set(
+          (state) => {
+            const filtered = state.items.filter(
+              (item) => getPinId(item) !== id,
+            );
+            return {
+              items: [pin, ...filtered].slice(0, MAX_ITEMS),
+            };
+          },
+          false,
+          "addPin",
+        );
       },
-    ),
+
+      removePin: (id) => {
+        set(
+          (state) => ({
+            items: state.items.filter((item) => getPinId(item) !== id),
+          }),
+          false,
+          "removePin",
+        );
+      },
+
+      clearAll: () => {
+        set({ items: [] }, false, "clearAll");
+      },
+    }),
     { name },
   ),
 );

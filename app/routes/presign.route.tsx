@@ -5,7 +5,7 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getConnectionByName } from "~/utils/connectionConfig";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -27,16 +27,16 @@ export const loader = async ({
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
-  const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
+  const connectionConfig = await getConnectionByName(user, provider, bucketName);
 
-  if (!bucketConfig) {
-    throw new Error("Bucket configuration not found");
+  if (!connectionConfig) {
+    throw new Error("Connection configuration not found");
   }
 
   try {
-    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
+    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
     const presignedUrl = await getPresignedUrl(
-      bucketConfig,
+      connectionConfig,
       s3Client,
       pathName
     );

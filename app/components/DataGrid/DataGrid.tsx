@@ -44,7 +44,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   useEffect(() => {
     const fetchData = async () => {
       const credentials = connection?.credentials;
-      const bucketConfig = connection?.bucketConfig;
+      const connectionConfig = connection?.connectionConfig;
 
       if (!credentials) {
         setError(`No credentials available for bucket: ${storeKey}`);
@@ -54,8 +54,8 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
 
       try {
         const [schema, data] = await Promise.all([
-          getParquetSchema(resourceId, credentials, bucketConfig),
-          getParquetRows(resourceId, credentials, PAGE_SIZE, 0, bucketConfig),
+          getParquetSchema(resourceId, credentials, connectionConfig),
+          getParquetRows(resourceId, credentials, PAGE_SIZE, 0, connectionConfig),
         ]);
         setColumns(schema);
         setRows(data);
@@ -75,7 +75,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     if (isFetchingMore || !hasMore) return;
 
     const credentials = connection?.credentials;
-    const bucketConfig = connection?.bucketConfig;
+    const connectionConfig = connection?.connectionConfig;
     if (!credentials) return;
 
     setIsFetchingMore(true);
@@ -85,7 +85,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
         credentials,
         PAGE_SIZE,
         rows.length,
-        bucketConfig,
+        connectionConfig,
       );
       setRows((prev) => [...prev, ...newRows]);
       setHasMore(newRows.length === PAGE_SIZE);

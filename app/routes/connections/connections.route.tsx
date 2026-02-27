@@ -10,7 +10,7 @@ import {
 } from "react-router";
 import { useLoaderData } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
@@ -20,11 +20,13 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
-import { deleteBucketConfig } from "~/utils/bucketConfig";
+import {
+  loadConnectionNodes,
+  type SerializedPinnedPath,
+  type SerializedRecentlyViewed,
+} from "~/routes/connections/loadConnectionNodes";
+import { deleteConnectionConfig } from "~/utils/connectionConfig";
 import { getFileType } from "~/utils/fileType";
-import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 const title = "Storage Connections";
 const IMAGE_TYPES = new Set(["TIFF", "OME-TIFF", "PNG", "JPEG"]);
@@ -47,7 +49,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
-  return loadBucketNodes(context);
+  return loadConnectionNodes(context);
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -67,7 +69,7 @@ export const action: ActionFunction = async ({ request, context }) => {
       return { error: "Bucket name is required" };
     }
 
-    await deleteBucketConfig(user, provider, bucketName, prefix);
+    await deleteConnectionConfig(user, provider, bucketName, prefix);
 
     const session = await getSession(request);
 
@@ -102,19 +104,38 @@ function ShowAllLink({
 }
 
 export default function BucketsRoute() {
-  const { nodes, adminScopes, userId, credentials, bucketConfigs } =
-    useLoaderData<{
-      nodes: TreeNode[];
-      adminScopes: string[];
-      userId: string;
-      credentials: Record<string, Credentials>;
-      bucketConfigs: BucketConfig[];
-    }>();
+  const {
+    nodes,
+    adminScopes,
+    userId,
+    credentials,
+    bucketConfigs,
+    recentlyViewed,
+    pinnedPaths,
+  } = useLoaderData<{
+    nodes: TreeNode[];
+    adminScopes: string[];
+    userId: string;
+    credentials: Record<string, Credentials>;
+    bucketConfigs: ConnectionConfig[];
+    recentlyViewed: SerializedRecentlyViewed[];
+    pinnedPaths: SerializedPinnedPath[];
+  }>();
 
   useInitConnections(bucketConfigs, credentials);
 
-  const allRecentItems = useRecentlyViewedStore((state) => state.items);
-  const pinnedItems = usePinnedPathsStore((state) => state.items);
+  const allRecentItems: TreeNode[] = useMemo(
+    () =>
+      recentlyViewed.map((item) => ({
+        provider: item.provider,
+        bucketName: item.bucketName,
+        pathName: item.pathName,
+        name: item.name,
+        type: item.type as TreeNode["type"],
+        children: [],
+      })),
+    [recentlyViewed],
+  );
 
   const recentImages = useMemo(
     () =>
@@ -139,7 +160,7 @@ export default function BucketsRoute() {
 
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
-      pinnedItems.map((pin) => ({
+      pinnedPaths.map((pin) => ({
         provider: pin.provider,
         bucketName: pin.bucketName,
         pathName: pin.pathName,
@@ -149,14 +170,14 @@ export default function BucketsRoute() {
         _Object:
           pin.totalSize != null || pin.lastModified != null
             ? ({
-                Size: pin.totalSize,
+                Size: pin.totalSize ?? undefined,
                 LastModified: pin.lastModified
                   ? new Date(pin.lastModified)
                   : undefined,
               } as TreeNode["_Object"])
             : undefined,
       })),
-    [pinnedItems],
+    [pinnedPaths],
   );
 
   return (

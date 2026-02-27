@@ -3,7 +3,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 import crypto from "crypto";
 import { LRUCache } from "lru-cache";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { isAwsS3Endpoint } from "~/utils/s3Provider";
 
 interface CacheEntry {
@@ -42,7 +42,7 @@ const createCacheKey = (
 };
 
 export const getS3Client = async (
-  bucketConfig: BucketConfig,
+  bucketConfig: ConnectionConfig,
   credentials: Credentials,
   userId: string
 ): Promise<S3Client> => {

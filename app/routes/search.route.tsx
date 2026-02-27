@@ -40,23 +40,23 @@ export const loader: LoaderFunction = async ({
   } = context.get(authContext);
 
   // Key format: provider/bucketName to match resourceId format
-  const files = await bucketConfigs.reduce(async (acc, bucketConfig) => {
-    const credentials = bucketsCredentials[bucketConfig.name];
+  const files = await bucketConfigs.reduce(async (acc, connectionConfig) => {
+    const credentials = bucketsCredentials[connectionConfig.name];
     if (!credentials) {
-      console.warn(`No credentials for bucket: ${bucketConfig.name}`);
+      console.warn(`No credentials for bucket: ${connectionConfig.name}`);
       return acc;
     }
 
-    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
+    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
     const _files =
-      (await getObjects(bucketConfig, s3Client, searchQuery)) ?? [];
+      (await getObjects(connectionConfig, s3Client, searchQuery)) ?? [];
 
     // Do not return bucket names w/o files
     if (_files.length === 0) {
       return acc;
     }
 
-    const key = `${bucketConfig.provider}/${bucketConfig.name}`;
+    const key = `${connectionConfig.provider}/${connectionConfig.name}`;
     return { ...(await acc), [key]: _files };
   }, {} as Promise<BucketFiles>);
 

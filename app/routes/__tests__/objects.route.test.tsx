@@ -67,7 +67,7 @@ describe("Bucket Route", () => {
         loader: () => {
           return {
             credentials: mock.credentials(),
-            bucketConfig: mock.bucketConfig(),
+            connectionConfig: mock.connectionConfig(),
             user: mock.user(),
             nodes: [
               mock.treeNode({ name: "First Test Directory" }),
@@ -97,7 +97,7 @@ describe("Bucket Route", () => {
         loader: () => {
           return {
             credentials: mock.credentials(),
-            bucketConfig: mock.bucketConfig(),
+            connectionConfig: mock.connectionConfig(),
             user: mock.user(),
             nodes: [],
             pathName: "test/path/to/file.ome.tiff",

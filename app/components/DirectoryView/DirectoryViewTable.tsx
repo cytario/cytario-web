@@ -192,7 +192,7 @@ export function DirectoryViewTable({
     if (tableType !== "bucket") return [];
     return nodes.map((node) => {
       const storeKey = `${node.provider}/${node.bucketName}`;
-      const config = connections[storeKey]?.bucketConfig;
+      const config = connections[storeKey]?.connectionConfig;
       return {
         name: node.name,
         provider: config?.provider ?? "",

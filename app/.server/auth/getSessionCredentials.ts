@@ -5,7 +5,7 @@ import {
 } from "@aws-sdk/client-sts";
 
 import { type SessionData, type SessionCredentials } from "./sessionStorage";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
@@ -36,7 +36,7 @@ export const sanitizeRoleSessionName = (name: string): string => {
 };
 
 const fetchTemporaryCredentials = async (
-  bucketConfig: BucketConfig,
+  bucketConfig: ConnectionConfig,
   idToken: string,
   roleSessionName: string,
 ): Promise<Credentials> => {
@@ -77,10 +77,10 @@ const fetchTemporaryCredentials = async (
  */
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
-  bucketConfigs: BucketConfig[],
+  bucketConfigs: ConnectionConfig[],
 ): Promise<SessionCredentials> => {
   // Deduplicate: one STS call per unique bucket name
-  const uniqueBuckets = new Map<string, BucketConfig>();
+  const uniqueBuckets = new Map<string, ConnectionConfig>();
   for (const config of bucketConfigs) {
     if (!uniqueBuckets.has(config.name)) {
       uniqueBuckets.set(config.name, config);

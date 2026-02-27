@@ -81,7 +81,7 @@ export const OverlaysLayer = ({
       // Use getState() to access store outside of React component render
       const conn = useConnectionsStore.getState().connections[storeKey];
       const credentials = conn?.credentials;
-      const bucketConfig = conn?.bucketConfig;
+      const bucketConfig = conn?.connectionConfig;
 
       if (!credentials) {
         throw new Error(`No credentials found for bucket: ${storeKey}`);

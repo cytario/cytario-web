@@ -20,11 +20,11 @@ const protectedRoutes = [
   layout("routes/layouts/scrollview.layout.tsx", [
     {
       path: "/",
-      file: "routes/buckets/buckets.route.tsx",
+      file: "routes/connections/connections.route.tsx",
       children: [
         {
           path: "connect-bucket",
-          file: "routes/buckets/connectBucket.modal.tsx",
+          file: "routes/connections/addConnection.modal.tsx",
         },
       ],
     },
@@ -42,7 +42,7 @@ const protectedRoutes = [
     },
     {
       path: "/buckets",
-      file: "routes/buckets/bucketsList.route.tsx",
+      file: "routes/connections/connectionsList.route.tsx",
     },
     {
       path: "/buckets/:provider/:bucketName/*",
@@ -87,6 +87,14 @@ const apiRoutes = [
   {
     path: "/presign/:provider/:bucketName/*",
     file: "routes/presign.route.tsx",
+  },
+  {
+    path: "/api/recently-viewed",
+    file: "routes/api/recently-viewed.ts",
+  },
+  {
+    path: "/api/pinned",
+    file: "routes/api/pinned.ts",
   },
 ];
 

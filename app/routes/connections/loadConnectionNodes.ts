@@ -1,6 +1,6 @@
 import { ActionFunctionArgs } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
@@ -10,9 +10,11 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { getObjects } from "~/utils/getObjects";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
+import { getPinnedPaths } from "~/utils/pinnedPaths.server";
+import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 const fetchPreviewObject = async (
-  config: BucketConfig,
+  config: ConnectionConfig,
   credentials: SessionCredentials,
   userId: string,
 ): Promise<ObjectPresignedUrl | undefined> => {
@@ -32,22 +34,45 @@ const fetchPreviewObject = async (
   return { ...preview, presignedUrl } as ObjectPresignedUrl;
 };
 
-export async function loadBucketNodes(context: ActionFunctionArgs["context"]) {
+export type SerializedRecentlyViewed = {
+  id: number;
+  provider: string;
+  bucketName: string;
+  pathName: string;
+  name: string;
+  type: string;
+  viewedAt: string;
+};
+
+export type SerializedPinnedPath = {
+  id: number;
+  provider: string;
+  bucketName: string;
+  pathName: string;
+  displayName: string;
+  totalSize: number | null;
+  lastModified: string | null;
+};
+
+export async function loadConnectionNodes(context: ActionFunctionArgs["context"]) {
   const { bucketConfigs, credentials, user, authTokens } =
     context.get(authContext);
   const userId = user.sub;
 
-  const [previews, adminScopes] = await Promise.all([
-    Promise.allSettled(
-      bucketConfigs.map((config) =>
-        fetchPreviewObject(config, credentials, userId),
+  const [previews, adminScopes, recentlyViewedRaw, pinnedPathsRaw] =
+    await Promise.all([
+      Promise.allSettled(
+        bucketConfigs.map((config) =>
+          fetchPreviewObject(config, credentials, userId),
+        ),
       ),
-    ),
-    getManageableScopes(user, authTokens.accessToken).catch((error) => {
-      console.error("Failed to fetch manageable scopes:", error);
-      return [] as string[];
-    }),
-  ]);
+      getManageableScopes(user, authTokens.accessToken).catch((error) => {
+        console.error("Failed to fetch manageable scopes:", error);
+        return [] as string[];
+      }),
+      getRecentlyViewed(userId, 20),
+      getPinnedPaths(userId),
+    ]);
 
   const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
     const result = previews[i];
@@ -72,5 +97,35 @@ export async function loadBucketNodes(context: ActionFunctionArgs["context"]) {
     };
   });
 
-  return { nodes, adminScopes, userId, credentials, bucketConfigs };
+  const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
+    (item) => ({
+      id: item.id,
+      provider: item.provider,
+      bucketName: item.bucketName,
+      pathName: item.pathName,
+      name: item.name,
+      type: item.type,
+      viewedAt: item.viewedAt.toISOString(),
+    }),
+  );
+
+  const pinnedPaths: SerializedPinnedPath[] = pinnedPathsRaw.map((pin) => ({
+    id: pin.id,
+    provider: pin.provider,
+    bucketName: pin.bucketName,
+    pathName: pin.pathName,
+    displayName: pin.displayName,
+    totalSize: pin.totalSize != null ? Number(pin.totalSize) : null,
+    lastModified: pin.lastModified ? pin.lastModified.toISOString() : null,
+  }));
+
+  return {
+    nodes,
+    adminScopes,
+    userId,
+    credentials,
+    bucketConfigs,
+    recentlyViewed,
+    pinnedPaths,
+  };
 }

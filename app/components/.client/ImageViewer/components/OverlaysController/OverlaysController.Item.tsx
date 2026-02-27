@@ -75,7 +75,7 @@ export const OverlaysControllerItem = ({
         const markerInfo = await getMarkerInfoWasm(
           resourceId,
           connection.credentials,
-          connection.bucketConfig,
+          connection.connectionConfig,
         );
         if (markerInfo && Object.keys(markerInfo).length > 0) {
           const newOverlayState = getOverlayState(markerInfo);

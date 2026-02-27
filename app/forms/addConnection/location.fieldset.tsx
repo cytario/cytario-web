@@ -5,8 +5,8 @@ import {
   UseFormRegister,
 } from "react-hook-form";
 
+import { ConnectBucketFormData } from "./addConnection.schema";
 import AWS_REGIONS from "./awsRegions.json";
-import { ConnectBucketFormData } from "./connectBucket.schema";
 import { Field, Fieldset, Input, Select } from "~/components/Controls";
 
 export const LocationFieldset = ({

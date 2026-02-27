@@ -1,7 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-import { BucketConfig, PrismaClient } from "~/.generated/client";
+import { ConnectionConfig, PrismaClient } from "~/.generated/client";
 import { canModify, canSee, filterVisible } from "~/.server/auth/authorization";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 
@@ -11,38 +11,40 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-// Get all bucket configs visible to the user
-export async function getBucketConfigs(
+export type { ConnectionConfig };
+
+// Get all connection configs visible to the user
+export async function getConnectionConfigs(
   user: UserProfile,
-): Promise<BucketConfig[]> {
-  const allConfigs = await prisma.bucketConfig.findMany();
+): Promise<ConnectionConfig[]> {
+  const allConfigs = await prisma.connectionConfig.findMany();
   return filterVisible(user, allConfigs);
 }
 
-// Get a specific bucket config by provider, name, and exact prefix
-export async function getBucketConfigByName(
+// Get a specific connection config by provider, name, and exact prefix
+export async function getConnectionByName(
   user: UserProfile,
   provider: string,
   name: string,
   prefix: string = "",
-): Promise<BucketConfig | null> {
-  const configs = await prisma.bucketConfig.findMany({
+): Promise<ConnectionConfig | null> {
+  const configs = await prisma.connectionConfig.findMany({
     where: { provider, name, prefix },
   });
   const visible = configs.filter((c) => canSee(user, c.ownerScope));
   return visible[0] ?? null;
 }
 
-// Find the best matching bucket config for a given path
+// Find the best matching connection config for a given path
 // This handles the case where multiple configs exist for the same bucket with different prefixes
 // TODO: Introduce unique alias
-export async function getBucketConfigByPath(
+export async function getConnectionByPath(
   user: UserProfile,
   provider: string,
   name: string,
   pathName: string = "",
-): Promise<BucketConfig | null> {
-  const allConfigs = await prisma.bucketConfig.findMany({
+): Promise<ConnectionConfig | null> {
+  const allConfigs = await prisma.connectionConfig.findMany({
     where: { provider, name },
   });
   const configs = allConfigs.filter((c) => canSee(user, c.ownerScope));
@@ -71,8 +73,8 @@ export async function getBucketConfigByPath(
   );
 }
 
-// Upsert a bucket config
-export async function upsertBucketConfig(
+// Upsert a connection config
+export async function upsertConnectionConfig(
   ownerScope: string,
   createdBy: string,
   config: {
@@ -85,7 +87,7 @@ export async function upsertBucketConfig(
   },
 ) {
   const prefix = config.prefix ?? "";
-  return prisma.bucketConfig.upsert({
+  return prisma.connectionConfig.upsert({
     where: {
       ownerScope_provider_name_prefix: {
         ownerScope,
@@ -104,26 +106,30 @@ export async function upsertBucketConfig(
   });
 }
 
-// Delete a bucket config (with authorization check)
-export async function deleteBucketConfig(
+// Delete a connection config (with authorization check) and cascade-delete related recents/pins
+export async function deleteConnectionConfig(
   user: UserProfile,
   provider: string,
   name: string,
   prefix: string = "",
 ) {
-  const configs = await prisma.bucketConfig.findMany({
+  const configs = await prisma.connectionConfig.findMany({
     where: { provider, name, prefix },
   });
 
   const config = configs.find((c) => canSee(user, c.ownerScope));
 
   if (!config) {
-    throw new Error("Bucket config not found");
+    throw new Error("Connection config not found");
   }
 
   if (!canModify(user, config.ownerScope)) {
-    throw new Error("Not authorized to delete this bucket config");
+    throw new Error("Not authorized to delete this connection config");
   }
 
-  return prisma.bucketConfig.delete({ where: { id: config.id } });
+  await prisma.$transaction([
+    prisma.recentlyViewed.deleteMany({ where: { provider, bucketName: name } }),
+    prisma.pinnedPath.deleteMany({ where: { provider, bucketName: name } }),
+    prisma.connectionConfig.delete({ where: { id: config.id } }),
+  ]);
 }

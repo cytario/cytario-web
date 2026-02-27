@@ -2,9 +2,9 @@ import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
 import { Button, Icon } from "~/components/Controls";
-import { probeIndex } from "~/utils/bucketIndex";
+import { probeIndex } from "~/utils/connectionIndex";
 import {
-  selectBucketIndex,
+  selectConnectionIndex,
   useConnectionsStore,
 } from "~/utils/connectionsStore";
 import { createConnectionKey } from "~/utils/resourceId";
@@ -18,8 +18,8 @@ interface IndexStatusProps {
 export function IndexStatus({ provider, bucketName, prefix }: IndexStatusProps) {
   const connKey = createConnectionKey(provider, bucketName, prefix);
 
-  const bucketIndex = useConnectionsStore(selectBucketIndex(connKey));
-  const setBucketIndex = useConnectionsStore((s) => s.setBucketIndex);
+  const bucketIndex = useConnectionsStore(selectConnectionIndex(connKey));
+  const setConnectionIndex = useConnectionsStore((s) => s.setConnectionIndex);
 
   const fetcher = useFetcher();
 
@@ -32,13 +32,13 @@ export function IndexStatus({ provider, bucketName, prefix }: IndexStatusProps) 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
       const data = fetcher.data as { objectCount: number; builtAt: string };
-      setBucketIndex(connKey, {
+      setConnectionIndex(connKey, {
         status: "ready",
         objectCount: data.objectCount,
         builtAt: data.builtAt,
       });
     }
-  }, [fetcher.state, fetcher.data, connKey, setBucketIndex]);
+  }, [fetcher.state, fetcher.data, connKey, setConnectionIndex]);
 
   const handleRebuild = () => {
     const formData = new FormData();

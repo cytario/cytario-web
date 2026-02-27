@@ -6,7 +6,7 @@ import {
 } from "react-router";
 import { useLoaderData } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { ButtonLink, Icon } from "~/components/Controls";
@@ -16,7 +16,7 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { Placeholder } from "~/components/Placeholder";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
+import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
 
 const title = "Storage Connections";
 
@@ -33,7 +33,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
-  return loadBucketNodes(context);
+  return loadConnectionNodes(context);
 };
 
 export default function BucketsListRoute() {
@@ -41,7 +41,7 @@ export default function BucketsListRoute() {
   const { nodes, credentials, bucketConfigs } = useLoaderData<{
     nodes: TreeNode[];
     credentials: Record<string, Credentials>;
-    bucketConfigs: BucketConfig[];
+    bucketConfigs: ConnectionConfig[];
   }>();
 
   useInitConnections(bucketConfigs, credentials);

@@ -1,10 +1,10 @@
 import { _Object, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 
 import { filterObjects } from "./filterObjects";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 
 export const getObjects = async (
-  bucketConfig: BucketConfig,
+  bucketConfig: ConnectionConfig,
   s3Client: S3Client,
   query?: string | null,
   prefix?: string,

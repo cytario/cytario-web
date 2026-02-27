@@ -13,7 +13,7 @@ import {
   type ConnectBucketFormData,
   connectBucketSchema,
   defaultFormValues,
-} from "~/forms/connectBucket/connectBucket.schema";
+} from "~/forms/addConnection/addConnection.schema";
 
 const STEP_LABELS = ["Storage Provider", "Data Location", "Access"];
 
@@ -22,7 +22,7 @@ interface ConnectBucketFormProps {
   userId: string;
 }
 
-export const ConnectBucketForm = ({
+export const AddConnectionForm = ({
   adminScopes,
   userId,
 }: ConnectBucketFormProps) => {

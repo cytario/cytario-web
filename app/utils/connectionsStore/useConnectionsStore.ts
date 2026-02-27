@@ -2,9 +2,9 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/utils/connectionConfig";
 
-export interface BucketIndex {
+export interface ConnectionIndex {
   status: "unknown" | "loading" | "ready" | "missing" | "error";
   objectCount: number;
   builtAt: string | null;
@@ -12,8 +12,8 @@ export interface BucketIndex {
 
 export interface ConnectionRecord {
   credentials: Credentials;
-  bucketConfig?: BucketConfig;
-  bucketIndex?: BucketIndex;
+  connectionConfig?: ConnectionConfig;
+  connectionIndex?: ConnectionIndex;
 }
 
 /**
@@ -23,7 +23,7 @@ export interface ConnectionRecord {
  * not the full file path. Connections are per-bucket, not per-file.
  *
  * Example:
- * - Correct: setConnection("aws/my-bucket", credentials, bucketConfig)
+ * - Correct: setConnection("aws/my-bucket", credentials, connectionConfig)
  * - Incorrect: setConnection("aws/my-bucket/path/to/file.csv", credentials)
  */
 export interface ConnectionsStore {
@@ -31,9 +31,9 @@ export interface ConnectionsStore {
   setConnection: (
     key: string,
     credentials: Credentials,
-    bucketConfig?: BucketConfig,
+    connectionConfig?: ConnectionConfig,
   ) => void;
-  setBucketIndex: (key: string, bucketIndex: BucketIndex) => void;
+  setConnectionIndex: (key: string, connectionIndex: ConnectionIndex) => void;
   clearConnection: (key: string) => void;
   clearAll: () => void;
 }
@@ -49,7 +49,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         setConnection: (
           key: string,
           credentials: Credentials,
-          bucketConfig?: BucketConfig,
+          connectionConfig?: ConnectionConfig,
         ) => {
           set(
             (state) => ({
@@ -58,7 +58,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
                 [key]: {
                   ...state.connections[key],
                   credentials,
-                  ...(bucketConfig && { bucketConfig }),
+                  ...(connectionConfig && { connectionConfig }),
                 },
               },
             }),
@@ -67,19 +67,19 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           );
         },
 
-        setBucketIndex: (key: string, bucketIndex: BucketIndex) => {
+        setConnectionIndex: (key: string, connectionIndex: ConnectionIndex) => {
           set(
             (state) => ({
               connections: {
                 ...state.connections,
                 [key]: {
                   ...state.connections[key],
-                  bucketIndex,
+                  connectionIndex,
                 },
               },
             }),
             false,
-            "setBucketIndex",
+            "setConnectionIndex",
           );
         },
 
@@ -106,7 +106,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           connections: Object.fromEntries(
             Object.entries(state.connections).map(([key, record]) => [
               key,
-              { credentials: record.credentials, bucketConfig: record.bucketConfig },
+              { credentials: record.credentials, connectionConfig: record.connectionConfig },
             ]),
           ),
         }),

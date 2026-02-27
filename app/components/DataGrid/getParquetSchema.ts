@@ -3,7 +3,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
 import { toS3Uri } from "../../utils/resourceId";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 
 export interface ParquetColumn {
   name: string;
@@ -20,7 +20,7 @@ export interface ParquetColumn {
 export async function getParquetSchema(
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: BucketConfig | null,
+  bucketConfig?: ConnectionConfig | null,
 ): Promise<ParquetColumn[]> {
   const connection = await createDatabase(
     resourceId,

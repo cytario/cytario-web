@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import {
@@ -15,7 +15,7 @@ import {
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 const mock = {
-  bucketConfig: (data: Partial<BucketConfig> = {}): BucketConfig => ({
+  connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
     name: "mock-bucket",
     id: 0,
     ownerScope: "org1/lab",

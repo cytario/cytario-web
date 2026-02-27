@@ -30,8 +30,8 @@ const EMPTY_ARRAY: ThumbnailMeta[] = [];
 
 function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
   const connections = useConnectionsStore((state) => state.connections);
-  const getBucketConfig = (key: string) =>
-    connections[key]?.bucketConfig ?? null;
+  const getConnectionConfig = (key: string) =>
+    connections[key]?.connectionConfig ?? null;
   // const gridSize = viewMode ? getGridSize(viewMode) : undefined;
 
   switch (viewMode) {
@@ -42,7 +42,7 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
     case "grid-lg":
     default: {
       const storeKey = `${node.provider}/${node.bucketName}`;
-      const config = getBucketConfig(storeKey);
+      const config = getConnectionConfig(storeKey);
       if (!config) return EMPTY_ARRAY;
 
       switch (node.type) {

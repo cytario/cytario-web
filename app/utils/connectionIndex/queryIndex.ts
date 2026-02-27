@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/utils/connectionConfig";
 import { createDatabase } from "~/utils/db/createDatabase";
 import { toIndexS3Key } from "~/utils/resourceId";
 
@@ -12,7 +12,7 @@ export interface IndexSearchResult {
 }
 
 /**
- * Search the bucket index for keys matching a query string (case-insensitive).
+ * Search the connection index for keys matching a query string (case-insensitive).
  */
 export async function searchIndex(
   query: string,
@@ -20,13 +20,13 @@ export async function searchIndex(
   bucketName: string,
   prefix: string,
   credentials: Credentials,
-  bucketConfig: BucketConfig,
+  connectionConfig: ConnectionConfig,
   limit = 50,
 ): Promise<IndexSearchResult[]> {
   const connection = await createDatabase(
     connectionKey,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
   const s3Uri = `s3://${bucketName}/${toIndexS3Key(prefix)}`;
 
@@ -44,7 +44,7 @@ export async function searchIndex(
 }
 
 /**
- * List objects under a path prefix from the bucket index.
+ * List objects under a path prefix from the connection index.
  */
 export async function listPrefix(
   connectionKey: string,
@@ -52,13 +52,13 @@ export async function listPrefix(
   indexPrefix: string,
   listPath: string,
   credentials: Credentials,
-  bucketConfig: BucketConfig,
+  connectionConfig: ConnectionConfig,
   limit = 1000,
 ): Promise<IndexSearchResult[]> {
   const connection = await createDatabase(
     connectionKey,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
   const s3Uri = `s3://${bucketName}/${toIndexS3Key(indexPrefix)}`;
 
@@ -76,19 +76,19 @@ export async function listPrefix(
 }
 
 /**
- * Get total object count from the bucket index.
+ * Get total object count from the connection index.
  */
 export async function getIndexCount(
   connectionKey: string,
   bucketName: string,
   prefix: string,
   credentials: Credentials,
-  bucketConfig: BucketConfig,
+  connectionConfig: ConnectionConfig,
 ): Promise<number> {
   const connection = await createDatabase(
     connectionKey,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
   const s3Uri = `s3://${bucketName}/${toIndexS3Key(prefix)}`;
 

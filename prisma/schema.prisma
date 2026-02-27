@@ -8,7 +8,7 @@ generator client {
   moduleFormat = "esm"
 }
 
-model BucketConfig {
+model ConnectionConfig {
   id         Int     @id @default(autoincrement())
   ownerScope String
   createdBy  String
@@ -19,6 +19,35 @@ model BucketConfig {
   region     String? // Optional - only needed for AWS
   prefix     String  @default("")
 
+  @@map("BucketConfig")
   @@unique([ownerScope, provider, name, prefix])
   @@index([ownerScope])
+}
+
+model RecentlyViewed {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  provider   String
+  bucketName String
+  pathName   String
+  name       String
+  type       String   // "file" | "directory"
+  viewedAt   DateTime @default(now())
+
+  @@unique([userId, provider, bucketName, pathName])
+  @@index([userId])
+}
+
+model PinnedPath {
+  id           Int       @id @default(autoincrement())
+  userId       String
+  provider     String
+  bucketName   String
+  pathName     String
+  displayName  String
+  totalSize    BigInt?
+  lastModified DateTime?
+
+  @@unique([userId, provider, bucketName, pathName])
+  @@index([userId])
 }

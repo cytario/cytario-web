@@ -1,6 +1,6 @@
 import { UseFormRegister, FieldErrors } from "react-hook-form";
 
-import { ConnectBucketFormData } from "./connectBucket.schema";
+import { ConnectBucketFormData } from "./addConnection.schema";
 import { Field, Fieldset, Input } from "~/components/Controls";
 
 export const AccessFieldset = ({

@@ -12,12 +12,12 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { BreadcrumbLink } from "~/components/Breadcrumbs/BreadcrumbLink";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { RouteModal } from "~/components/RouteModal";
-import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
+import { AddConnectionForm } from "~/forms/addConnection/addConnection.form";
 import {
   connectBucketSchema,
   parseS3Uri,
-} from "~/forms/connectBucket/connectBucket.schema";
-import { upsertBucketConfig } from "~/utils/bucketConfig";
+} from "~/forms/addConnection/addConnection.schema";
+import { upsertConnectionConfig } from "~/utils/connectionConfig";
 
 const title = "Connect Storage";
 
@@ -87,7 +87,7 @@ export const action: ActionFunction = async ({ request, context }) => {
       prefix,
     };
 
-    await upsertBucketConfig(data.ownerScope, user.sub, newConfig);
+    await upsertConnectionConfig(data.ownerScope, user.sub, newConfig);
 
     session.set("notification", {
       status: "success",
@@ -124,7 +124,7 @@ export default function ConnectBucketModal() {
 
   return (
     <RouteModal title={title}>
-      <ConnectBucketForm adminScopes={adminScopes} userId={userId} />
+      <AddConnectionForm adminScopes={adminScopes} userId={userId} />
     </RouteModal>
   );
 }

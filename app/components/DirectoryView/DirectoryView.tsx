@@ -1,10 +1,7 @@
 import { ReactNode, useEffect, useMemo } from "react";
+import { useFetcher } from "react-router";
 
-import {
-  computeDirectoryLastModified,
-  computeDirectorySize,
-  TreeNode,
-} from "./buildDirectoryTree";
+import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
   bucketColumns,
@@ -19,7 +16,6 @@ import { Container, Section, SectionHeader } from "~/components/Container";
 import { Placeholder } from "~/components/Placeholder";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
@@ -58,32 +54,16 @@ export function DirectoryView({
     [isGrid, nodes, columnFilters, columns, isBucket],
   );
 
-  const { addItem } = useRecentlyViewedStore();
+  const recentFetcher = useFetcher();
 
   useEffect(() => {
     if (!provider || !bucketName || !pathName) return;
 
-    const totalSize = nodes.reduce(
-      (sum, child) => sum + computeDirectorySize(child),
-      0,
+    recentFetcher.submit(
+      { provider, bucketName, pathName, name, type: "directory" },
+      { method: "post", action: "/api/recently-viewed" },
     );
-    const latestModified = nodes.reduce(
-      (max, child) => Math.max(max, computeDirectoryLastModified(child)),
-      0,
-    );
-    addItem({
-      provider,
-      bucketName,
-      pathName,
-      name,
-      type: "directory",
-      children: [],
-      _Object: {
-        Size: totalSize || undefined,
-        LastModified: latestModified ? new Date(latestModified) : undefined,
-      } as TreeNode["_Object"],
-    });
-  }, [provider, bucketName, pathName, name, addItem, nodes]);
+  }, [provider, bucketName, pathName, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (nodes.length === 0) {
     return (
