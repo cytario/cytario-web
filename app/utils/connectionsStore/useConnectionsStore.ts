@@ -102,6 +102,14 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
+        partialize: (state) => ({
+          connections: Object.fromEntries(
+            Object.entries(state.connections).map(([key, record]) => [
+              key,
+              { credentials: record.credentials, bucketConfig: record.bucketConfig },
+            ]),
+          ),
+        }),
       },
     ),
     { name },

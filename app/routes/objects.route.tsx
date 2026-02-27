@@ -38,7 +38,7 @@ import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { usePinnedPathsStore, selectIsPinned } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
-import { createResourceId } from "~/utils/resourceId";
+import { createConnectionKey, createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -250,12 +250,14 @@ export default function ObjectsRoute() {
   const fileType = getFileType(resourceId);
 
   // Store credentials and bucket config in Zustand store when they're available
-  // Connections are per-bucket, not per-file
-  // Key format: provider/bucketName to avoid collisions across providers
   useEffect(() => {
     if (credentials && bucketName && bucketConfig) {
-      const storeKey = `${bucketConfig.provider}/${bucketName}`;
-      setConnection(storeKey, credentials, bucketConfig);
+      const connKey = createConnectionKey(
+        bucketConfig.provider,
+        bucketName,
+        bucketConfig.prefix,
+      );
+      setConnection(connKey, credentials, bucketConfig);
     }
   }, [bucketName, credentials, bucketConfig, setConnection]);
 

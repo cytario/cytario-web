@@ -1,5 +1,4 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import { useEffect } from "react";
 import {
   type LoaderFunction,
   type MetaFunction,
@@ -16,8 +15,8 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { Placeholder } from "~/components/Placeholder";
+import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
 
 const title = "Storage Connections";
 
@@ -45,16 +44,7 @@ export default function BucketsListRoute() {
     bucketConfigs: BucketConfig[];
   }>();
 
-  const setConnection = useConnectionsStore(select.setConnection);
-
-  useEffect(() => {
-    for (const config of bucketConfigs) {
-      const creds = credentials[config.name];
-      if (creds) {
-        setConnection(`${config.provider}/${config.name}`, creds, config);
-      }
-    }
-  }, [credentials, bucketConfigs, setConnection]);
+  useInitConnections(bucketConfigs, credentials);
 
   if (nodes.length === 0) {
     return (

@@ -5,8 +5,6 @@ import { Button, Icon } from "~/components/Controls";
 import { probeIndex } from "~/utils/bucketIndex";
 import {
   selectBucketIndex,
-  selectCredentials,
-  selectBucketConfig,
   useConnectionsStore,
 } from "~/utils/connectionsStore";
 import { createConnectionKey } from "~/utils/resourceId";
@@ -19,21 +17,16 @@ interface IndexStatusProps {
 
 export function IndexStatus({ provider, bucketName, prefix }: IndexStatusProps) {
   const connKey = createConnectionKey(provider, bucketName, prefix);
-  const credentialsKey = `${provider}/${bucketName}`;
 
   const bucketIndex = useConnectionsStore(selectBucketIndex(connKey));
-  const credentials = useConnectionsStore(selectCredentials(credentialsKey));
-  const bucketConfig = useConnectionsStore(selectBucketConfig(credentialsKey));
   const setBucketIndex = useConnectionsStore((s) => s.setBucketIndex);
 
   const fetcher = useFetcher();
 
   // Probe index on mount
   useEffect(() => {
-    if (credentials && bucketConfig) {
-      probeIndex(connKey, bucketName, prefix, credentials, bucketConfig);
-    }
-  }, [connKey, bucketName, prefix, credentials, bucketConfig]);
+    probeIndex(connKey, provider, bucketName, prefix);
+  }, [connKey, provider, bucketName, prefix]);
 
   // Update store when rebuild completes
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -19,9 +19,9 @@ import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
+import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
@@ -111,16 +111,7 @@ export default function BucketsRoute() {
       bucketConfigs: BucketConfig[];
     }>();
 
-  const setConnection = useConnectionsStore(select.setConnection);
-
-  useEffect(() => {
-    for (const config of bucketConfigs) {
-      const creds = credentials[config.name];
-      if (creds) {
-        setConnection(`${config.provider}/${config.name}`, creds, config);
-      }
-    }
-  }, [credentials, bucketConfigs, setConnection]);
+  useInitConnections(bucketConfigs, credentials);
 
   const allRecentItems = useRecentlyViewedStore((state) => state.items);
   const pinnedItems = usePinnedPathsStore((state) => state.items);

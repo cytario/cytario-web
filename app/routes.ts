@@ -81,6 +81,10 @@ const apiRoutes = [
     file: "routes/api/reindex.$provider.$bucketName.ts",
   },
   {
+    path: "/api/index-status/:provider/:bucketName",
+    file: "routes/api/index-status.$provider.$bucketName.ts",
+  },
+  {
     path: "/presign/:provider/:bucketName/*",
     file: "routes/presign.route.tsx",
   },
