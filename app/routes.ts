@@ -77,6 +77,10 @@ const apiRoutes = [
     file: "routes/api/cyberduck-profile.$bucketName.ts",
   },
   {
+    path: "/api/reindex/:provider/:bucketName",
+    file: "routes/api/reindex.$provider.$bucketName.ts",
+  },
+  {
     path: "/presign/:provider/:bucketName/*",
     file: "routes/presign.route.tsx",
   },

@@ -24,6 +24,7 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { IndexStatus } from "~/components/DirectoryView/IndexStatus";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { NotificationInput } from "~/components/Notification/Notification";
@@ -336,6 +337,11 @@ export default function ObjectsRoute() {
           <Icon icon="Download" size={16} />
           Access with Cyberduck
         </ButtonLink>
+        <IndexStatus
+          provider={bucketConfig.provider}
+          bucketName={bucketName}
+          prefix={bucketConfig.prefix}
+        />
         <ViewModeToggle />
       </DirectoryView>
     );

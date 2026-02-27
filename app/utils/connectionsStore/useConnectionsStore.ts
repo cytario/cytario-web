@@ -4,9 +4,16 @@ import { createJSONStorage, devtools, persist } from "zustand/middleware";
 
 import { BucketConfig } from "~/.generated/client";
 
+export interface BucketIndex {
+  status: "unknown" | "loading" | "ready" | "missing" | "error";
+  objectCount: number;
+  builtAt: string | null;
+}
+
 export interface ConnectionRecord {
   credentials: Credentials;
   bucketConfig?: BucketConfig;
+  bucketIndex?: BucketIndex;
 }
 
 /**
@@ -26,6 +33,7 @@ export interface ConnectionsStore {
     credentials: Credentials,
     bucketConfig?: BucketConfig,
   ) => void;
+  setBucketIndex: (key: string, bucketIndex: BucketIndex) => void;
   clearConnection: (key: string) => void;
   clearAll: () => void;
 }
@@ -56,6 +64,22 @@ export const useConnectionsStore = create<ConnectionsStore>()(
             }),
             false,
             "setConnection",
+          );
+        },
+
+        setBucketIndex: (key: string, bucketIndex: BucketIndex) => {
+          set(
+            (state) => ({
+              connections: {
+                ...state.connections,
+                [key]: {
+                  ...state.connections[key],
+                  bucketIndex,
+                },
+              },
+            }),
+            false,
+            "setBucketIndex",
           );
         },
 
