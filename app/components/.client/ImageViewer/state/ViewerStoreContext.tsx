@@ -7,7 +7,7 @@ import { devtools } from "zustand/middleware";
 import { createViewerStore } from "./createViewerStore";
 import { loadBioformatsZarrWithCredentials } from "./loadBioformatsZarrWithCredentials";
 import { ViewerStore } from "./types";
-import type { ClientBucketConfig } from "~/utils/credentialsStore/useCredentialsStore";
+import type { BucketConfig } from "~/.generated/client";
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -16,7 +16,7 @@ interface RegisterViewerOptions {
   url: string;
   offsetsUrl?: string;
   credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
 }
 
 interface ViewerRegistryStore {
@@ -127,7 +127,7 @@ interface ViewerStoreProviderProps {
   url: string;
   offsetsUrl?: string;
   credentials?: Credentials;
-  bucketConfig?: ClientBucketConfig;
+  bucketConfig?: BucketConfig;
   children: ReactNode;
 }
 

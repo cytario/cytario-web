@@ -17,7 +17,8 @@ describe("CredentialedHTTPStore", () => {
   const mockBucketConfig = {
     id: 1,
     name: "test-bucket",
-    userId: "user-1",
+    ownerScope: "org-1",
+    createdBy: "user-1",
     provider: "aws",
     endpoint: "https://s3.us-west-2.amazonaws.com",
     roleArn: null,
