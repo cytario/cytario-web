@@ -1,6 +1,6 @@
 import { StorageConnectionCard } from "@cytario/design";
 import { ReactNode, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 import { BucketConfig } from "~/.generated/client";
 import { Container, Section, SectionHeader } from "~/components/Container";
@@ -38,14 +38,15 @@ function StorageConnectionCardItem({
   }, [resourceId, location.pathname, location.search, navigate]);
 
   return (
-    <StorageConnectionCard
-      name={node.name}
-      provider={node.provider}
-      region={config?.region ?? undefined}
-      status="connected"
-      href={href}
-      onInfo={openNodeInfoModal}
-    />
+    <Link to={href} className="no-underline">
+      <StorageConnectionCard
+        name={node.name}
+        provider={node.provider}
+        region={config?.region ?? undefined}
+        status="connected"
+        onInfo={openNodeInfoModal}
+      />
+    </Link>
   );
 }
 
@@ -77,12 +78,12 @@ export function StorageConnectionsGrid({
       <Container>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {nodes.map((node) => {
-            const key = `${node.provider}/${node.bucketName}`;
+            const key = `${node.provider}/${node.bucketName}/${node.pathName ?? ""}`;
             return (
               <StorageConnectionCardItem
                 key={key}
                 node={node}
-                config={configByKey.get(key)}
+                config={configByKey.get(`${node.provider}/${node.bucketName}`)}
               />
             );
           })}
