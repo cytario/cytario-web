@@ -1,13 +1,18 @@
 import { H2 } from "@cytario/design";
 import { ReactNode } from "react";
 
-interface LayoutWrapperProps {
+interface SectionProps {
   children: ReactNode;
+  className?: string;
+  /** When true, omit default vertical padding (useful inside gap-based layouts) */
+  flush?: boolean;
 }
 
-export function Section({ children }: LayoutWrapperProps) {
+export function Section({ children, className, flush }: SectionProps) {
   return (
-    <section className="flex-grow bg-white py-8 sm:py-12 lg:py-16">
+    <section
+      className={`flex-grow bg-white ${flush ? "" : "py-8 sm:py-12 lg:py-16"} ${className ?? ""}`}
+    >
       {children}
     </section>
   );
@@ -16,7 +21,7 @@ export function Section({ children }: LayoutWrapperProps) {
 export const Container = ({
   children,
   wide,
-}: LayoutWrapperProps & { wide?: boolean }) => {
+}: { children: ReactNode; wide?: boolean }) => {
   return (
     <div className={wide ? "mx-auto px-4" : "container mx-auto px-4"}>
       {children}

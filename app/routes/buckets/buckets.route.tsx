@@ -175,13 +175,14 @@ export default function BucketsRoute() {
   );
 
   return (
-    <>
+    <div className="flex flex-col gap-8 py-8 sm:gap-12 sm:py-12 lg:gap-16 lg:py-16">
       {recentImages.length > 0 && (
         <DirectoryView
           viewMode="grid-lg"
           nodes={recentImages.slice(0, MAX_RECENT_IMAGES)}
           name="Recently Viewed"
           bucketName=""
+          flush
         >
           <ShowAllLink
             href="/recent"
@@ -197,6 +198,7 @@ export default function BucketsRoute() {
           nodes={pinnedNodes.slice(0, MAX_PINNED)}
           name="Pinned"
           bucketName=""
+          flush
         />
       )}
 
@@ -206,6 +208,7 @@ export default function BucketsRoute() {
           nodes={recentDirs.slice(0, MAX_RECENT_DIRS)}
           name="Recently Browsed"
           bucketName=""
+          flush
         >
           <ShowAllLink
             href="/recent"
@@ -221,6 +224,7 @@ export default function BucketsRoute() {
           nodes={recentFiles.slice(0, MAX_RECENT_FILES)}
           name="Recent Files"
           bucketName=""
+          flush
         >
           <ShowAllLink
             href="/recent"
@@ -235,6 +239,7 @@ export default function BucketsRoute() {
           nodes={nodes.slice(0, MAX_CONNECTIONS)}
           bucketConfigs={bucketConfigs}
           name={title}
+          flush
         >
           <ShowAllLink
             href="/buckets"
@@ -245,7 +250,7 @@ export default function BucketsRoute() {
       )}
 
       {nodes.length === 0 && (
-        <Section>
+        <Section flush>
           <EmptyState
             icon={FileSearch}
             title="Start exploring your data"
@@ -260,6 +265,6 @@ export default function BucketsRoute() {
       )}
 
       <Outlet context={{ adminScopes, userId }} />
-    </>
+    </div>
   );
 }
