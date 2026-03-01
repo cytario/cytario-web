@@ -1,9 +1,34 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import AdminUsersRoute from "../users.route";
 import { type GroupInfo, type UserWithGroups } from "~/.server/auth/keycloakAdmin";
+
+vi.mock("~/.server/auth/authMiddleware", () => ({
+  authContext: {},
+  authMiddleware: vi.fn(),
+}));
+vi.mock("~/.server/auth/keycloakAdmin", () => ({
+  adminFetch: vi.fn(),
+  flattenGroups: vi.fn(),
+  findGroupByPath: vi.fn(),
+  getManageableScopes: vi.fn(),
+  getGroupWithMembers: vi.fn(),
+  flattenGroupsWithIds: vi.fn(),
+  collectAllUsers: vi.fn(),
+  inviteUser: vi.fn(),
+  updateUser: vi.fn(),
+  addUserToGroup: vi.fn(),
+  removeUserFromGroup: vi.fn(),
+  setUserEnabled: vi.fn(),
+}));
+vi.mock("~/.server/auth/getSession", () => ({
+  getSession: vi.fn(),
+}));
+vi.mock("~/.server/auth/sessionStorage", () => ({
+  sessionStorage: { commitSession: vi.fn() },
+}));
 
 const mockUsers: UserWithGroups[] = [
   {
@@ -83,8 +108,11 @@ describe("AdminUsersRoute", () => {
   test("renders Active/Disabled status badges", async () => {
     renderRoute();
 
-    expect(await screen.findByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("Disabled")).toBeInTheDocument();
+    // "Active" and "Disabled" appear both as filter options and as row pills
+    const activeElements = await screen.findAllByText("Active");
+    expect(activeElements.length).toBeGreaterThanOrEqual(1);
+    const disabledElements = screen.getAllByText("Disabled");
+    expect(disabledElements.length).toBeGreaterThanOrEqual(1);
   });
 
   test("renders Invite User button", async () => {
