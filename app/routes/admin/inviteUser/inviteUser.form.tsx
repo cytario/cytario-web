@@ -93,26 +93,26 @@ export function InviteUserForm({
         >
           <Input {...register("lastName")} scale="large" theme="light" />
         </Field>
-        <Field label="Group Membership">
-          {groupOptions.length > 0 ? (
-            <Controller
-              control={control}
-              name="groupPath"
-              render={({ field }) => (
-                <Select
-                  label="Group Membership"
-                  items={groupOptions.map((p) => ({ id: p, name: p }))}
-                  selectedKey={field.value}
-                  onSelectionChange={(key) => field.onChange(key as string)}
-                />
-              )}
-            />
-          ) : (
+        {groupOptions.length > 0 ? (
+          <Controller
+            control={control}
+            name="groupPath"
+            render={({ field }) => (
+              <Select
+                label="Group Membership"
+                items={groupOptions.map((p) => ({ id: p, name: p }))}
+                selectedKey={field.value}
+                onSelectionChange={(key) => field.onChange(key as string)}
+              />
+            )}
+          />
+        ) : (
+          <Field label="Group Membership">
             <p className="text-sm text-slate-400">
               No groups available in this scope.
             </p>
-          )}
-        </Field>
+          </Field>
+        )}
         <div className="flex items-center gap-2">
           <Controller
             control={control}
