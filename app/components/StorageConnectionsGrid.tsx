@@ -1,6 +1,6 @@
 import { StorageConnectionCard } from "@cytario/design";
 import { ReactNode, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import { BucketConfig } from "~/.generated/client";
 import { Container, Section, SectionHeader } from "~/components/Container";
@@ -27,6 +27,10 @@ function StorageConnectionCardItem({
   );
   const href = `/buckets/${resourceId}`.replace(/\/$/, "");
 
+  const handlePress = useCallback(() => {
+    navigate(href);
+  }, [navigate, href]);
+
   const openNodeInfoModal = useCallback(() => {
     const search = new URLSearchParams(location.search);
     search.set("bucket", resourceId);
@@ -38,15 +42,14 @@ function StorageConnectionCardItem({
   }, [resourceId, location.pathname, location.search, navigate]);
 
   return (
-    <Link to={href} className="no-underline">
-      <StorageConnectionCard
-        name={node.name}
-        provider={node.provider}
-        region={config?.region ?? undefined}
-        status="connected"
-        onInfo={openNodeInfoModal}
-      />
-    </Link>
+    <StorageConnectionCard
+      name={node.name}
+      provider={node.provider}
+      region={config?.region ?? undefined}
+      status="connected"
+      onPress={handlePress}
+      onInfo={openNodeInfoModal}
+    />
   );
 }
 
