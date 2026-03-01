@@ -22,7 +22,7 @@ export const middleware = [authMiddleware];
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
-function RecentContent() {
+export default function RecentRoute() {
   const { viewMode } = useLayoutStore();
   const allItems = useRecentlyViewedStore((state) => state.items);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -78,8 +78,4 @@ function RecentContent() {
       )}
     </Section>
   );
-}
-
-export default function RecentRoute() {
-  return <RecentContent />;
 }

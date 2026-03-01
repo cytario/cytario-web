@@ -22,12 +22,17 @@ import { Placeholder } from "~/components/Placeholder";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
-import { getFileType } from "~/utils/fileType";
+import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 const title = "Storage Connections";
-const IMAGE_TYPES = new Set(["TIFF", "OME-TIFF", "PNG", "JPEG"]);
+
+const MAX_RECENT_IMAGES = 4;
+const MAX_PINNED = 10;
+const MAX_RECENT_DIRS = 5;
+const MAX_RECENT_FILES = 6;
+const MAX_CONNECTIONS = 100;
 
 export const meta: MetaFunction = () => {
   return [
@@ -128,7 +133,7 @@ export default function BucketsRoute() {
   const recentImages = useMemo(
     () =>
       allRecentItems.filter(
-        (n) => n.type === "file" && IMAGE_TYPES.has(getFileType(n.name)),
+        (n) => n.type === "file" && IMAGE_FILE_TYPES.has(getFileType(n.name)),
       ),
     [allRecentItems],
   );
@@ -141,7 +146,7 @@ export default function BucketsRoute() {
   const recentFiles = useMemo(
     () =>
       allRecentItems.filter(
-        (n) => n.type === "file" && !IMAGE_TYPES.has(getFileType(n.name)),
+        (n) => n.type === "file" && !IMAGE_FILE_TYPES.has(getFileType(n.name)),
       ),
     [allRecentItems],
   );
@@ -173,14 +178,14 @@ export default function BucketsRoute() {
       {recentImages.length > 0 && (
         <DirectoryView
           viewMode="grid-lg"
-          nodes={recentImages.slice(0, 4)}
+          nodes={recentImages.slice(0, MAX_RECENT_IMAGES)}
           name="Recently Viewed"
           bucketName=""
         >
           <ShowAllLink
             href="/recent"
             total={recentImages.length}
-            maxItems={4}
+            maxItems={MAX_RECENT_IMAGES}
           />
         </DirectoryView>
       )}
@@ -188,7 +193,7 @@ export default function BucketsRoute() {
       {pinnedNodes.length > 0 && (
         <DirectoryView
           viewMode="list"
-          nodes={pinnedNodes.slice(0, 10)}
+          nodes={pinnedNodes.slice(0, MAX_PINNED)}
           name="Pinned"
           bucketName=""
         />
@@ -197,33 +202,45 @@ export default function BucketsRoute() {
       {recentDirs.length > 0 && (
         <DirectoryView
           viewMode="list"
-          nodes={recentDirs.slice(0, 5)}
+          nodes={recentDirs.slice(0, MAX_RECENT_DIRS)}
           name="Recently Browsed"
           bucketName=""
         >
-          <ShowAllLink href="/recent" total={recentDirs.length} maxItems={5} />
+          <ShowAllLink
+            href="/recent"
+            total={recentDirs.length}
+            maxItems={MAX_RECENT_DIRS}
+          />
         </DirectoryView>
       )}
 
       {recentFiles.length > 0 && (
         <DirectoryView
           viewMode="grid-sm"
-          nodes={recentFiles.slice(0, 6)}
+          nodes={recentFiles.slice(0, MAX_RECENT_FILES)}
           name="Recent Files"
           bucketName=""
         >
-          <ShowAllLink href="/recent" total={recentFiles.length} maxItems={6} />
+          <ShowAllLink
+            href="/recent"
+            total={recentFiles.length}
+            maxItems={MAX_RECENT_FILES}
+          />
         </DirectoryView>
       )}
 
       {nodes.length > 0 && (
         <DirectoryView
           viewMode="grid-md"
-          nodes={nodes.slice(0, 100)}
+          nodes={nodes.slice(0, MAX_CONNECTIONS)}
           name={title}
           bucketName=""
         >
-          <ShowAllLink href="/buckets" total={nodes.length} maxItems={100} />
+          <ShowAllLink
+            href="/buckets"
+            total={nodes.length}
+            maxItems={MAX_CONNECTIONS}
+          />
         </DirectoryView>
       )}
 

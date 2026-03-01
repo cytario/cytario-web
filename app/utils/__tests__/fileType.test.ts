@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { getFileType, getFileTypeIcon } from "../fileType";
+import { getFileType, getFileTypeIcon, IMAGE_FILE_TYPES } from "../fileType";
 
 describe("getFileType", () => {
   test("identifies OME-TIFF files (takes precedence over TIFF)", () => {
@@ -45,6 +45,22 @@ describe("getFileType", () => {
 
   test("returns Unknown for files without extension", () => {
     expect(getFileType("Makefile")).toBe("Unknown");
+  });
+});
+
+describe("IMAGE_FILE_TYPES", () => {
+  test("contains all image types", () => {
+    expect(IMAGE_FILE_TYPES.has("TIFF")).toBe(true);
+    expect(IMAGE_FILE_TYPES.has("OME-TIFF")).toBe(true);
+    expect(IMAGE_FILE_TYPES.has("PNG")).toBe(true);
+    expect(IMAGE_FILE_TYPES.has("JPEG")).toBe(true);
+  });
+
+  test("does not contain non-image types", () => {
+    expect(IMAGE_FILE_TYPES.has("CSV")).toBe(false);
+    expect(IMAGE_FILE_TYPES.has("Parquet")).toBe(false);
+    expect(IMAGE_FILE_TYPES.has("JSON")).toBe(false);
+    expect(IMAGE_FILE_TYPES.has("Unknown")).toBe(false);
   });
 });
 
