@@ -1,12 +1,13 @@
 import {
-  Checkbox,
   IconButton,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  Menu,
+  MenuCheckboxItem,
+  MenuItem,
+  MenuSeparator,
 } from "@cytario/design";
 import type { VisibilityState } from "@tanstack/react-table";
 import { Columns3 } from "lucide-react";
+import type { Selection } from "react-aria-components";
 
 import { useTableStore } from "./state/useTableStore";
 import { ColumnConfig } from "./types";
@@ -26,40 +27,52 @@ export function TableMenu({
 }: TableMenuProps) {
   const store = useTableStore(tableId);
 
+  const selectedKeys = new Set(
+    toggleableColumns
+      .filter((col) => columnVisibility[col.id] !== false)
+      .map((col) => col.id),
+  );
+
+  function handleSelectionChange(keys: Selection) {
+    const newKeys =
+      keys === "all"
+        ? new Set(toggleableColumns.map((c) => c.id))
+        : keys;
+
+    for (const col of toggleableColumns) {
+      const wasSelected = columnVisibility[col.id] !== false;
+      const isNowSelected = newKeys.has(col.id);
+      if (wasSelected !== isNowSelected) {
+        toggleColumn(col.id);
+      }
+    }
+  }
+
   return (
-    <Popover>
-      <PopoverTrigger>
-        <IconButton
-          icon={Columns3}
-          variant="ghost"
-          size="sm"
-          aria-label="Column settings"
-        />
-      </PopoverTrigger>
-      <PopoverContent placement="bottom start" className="min-w-48 p-1">
-        {toggleableColumns.map((col) => (
-          <button
-            key={col.id}
-            type="button"
-            onClick={() => toggleColumn(col.id)}
-            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100 rounded"
-          >
-            <Checkbox
-              isSelected={columnVisibility[col.id] !== false}
-              slot={null}
-            />
-            {col.header}
-          </button>
-        ))}
-        <div className="my-1 h-px bg-slate-200" />
-        <button
-          type="button"
-          onClick={() => store.getState().reset()}
-          className="flex w-full items-center px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 rounded"
-        >
-          Reset all
-        </button>
-      </PopoverContent>
-    </Popover>
+    <Menu
+      selectionMode="multiple"
+      selectedKeys={selectedKeys}
+      onSelectionChange={handleSelectionChange}
+      content={
+        <>
+          {toggleableColumns.map((col) => (
+            <MenuCheckboxItem key={col.id} id={col.id}>
+              {col.header}
+            </MenuCheckboxItem>
+          ))}
+          <MenuSeparator />
+          <MenuItem id="reset-all" onAction={() => store.getState().reset()}>
+            Reset all
+          </MenuItem>
+        </>
+      }
+    >
+      <IconButton
+        icon={Columns3}
+        variant="ghost"
+        size="sm"
+        aria-label="Column settings"
+      />
+    </Menu>
   );
 }
