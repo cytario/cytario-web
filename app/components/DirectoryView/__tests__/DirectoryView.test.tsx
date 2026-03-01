@@ -40,7 +40,7 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("Test Directory")).toBeInTheDocument();
   });
 
-  test("renders nothing when there are no nodes", () => {
+  test("renders empty state when there are no nodes", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -59,6 +59,12 @@ describe("DirectoryView Component", () => {
     render(<RemixStub initialEntries={["/"]} />);
 
     expect(screen.queryByText("Empty Directory")).not.toBeInTheDocument();
+    expect(screen.getByText("Empty directory")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This folder is empty or you may not have permission to view its contents.",
+      ),
+    ).toBeInTheDocument();
   });
 
   test("renders the DirectoryTable in list mode", () => {
