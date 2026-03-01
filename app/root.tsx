@@ -119,7 +119,7 @@ const AppHeader = () => {
         <Breadcrumbs />
       </div>
 
-      <div className="hidden xl:block">{headerSlot}</div>
+      <div className="hidden xl:block" data-theme="dark">{headerSlot}</div>
 
       <div className="h-full flex-none flex gap-2 p-2">
         <GlobalSearch />
