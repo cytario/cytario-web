@@ -27,12 +27,12 @@ export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
             overflow-hidden
             bg-white/80 backdrop-blur-lg
             text-black
-            shadow-lg rounded-sm border
+            shadow-lg rounded-sm border border-slate-200
           `}
         >
           {nodes.length > 0 ? (
             <>
-              <header className="flex-shrink-0 p-4 border-b">
+              <header className="flex-shrink-0 p-4 border-b border-slate-200">
                 <H2>All Results</H2>
               </header>
               <div className="overflow-y-auto flex-1">
