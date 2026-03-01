@@ -13,7 +13,7 @@ export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
 
   const color = selectedChannel
     ? rgb(selectedChannel.color)
-    : "#94a3b8"; // slate-400
+    : "var(--color-text-tertiary)";
 
   return (
     <div className="h-0">
@@ -31,12 +31,12 @@ export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
           }}
           styles={{
             rail: { backgroundColor: "transparent", height: 1 },
-            track: { backgroundColor: "white", height: 1 },
+            track: { backgroundColor: "var(--color-surface-default)", height: 1 },
             handle: {
               width: 16,
               height: 16,
               backgroundColor: color,
-              borderColor: "white",
+              borderColor: "var(--color-surface-default)",
               borderWidth: 2,
               boxShadow: "none",
               opacity: 1,
