@@ -1,5 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
@@ -35,6 +34,9 @@ vi.mock("~/utils/getObjects", () => ({
 }));
 vi.mock("~/.generated/client", () => ({
   BucketConfig: {},
+}));
+vi.mock("~/.server/auth/keycloakAdmin", () => ({
+  getManageableScopes: vi.fn(),
 }));
 vi.mock("~/routes/objects.route", () => ({
   ObjectPresignedUrl: {},
@@ -93,18 +95,6 @@ function createNode(overrides: Partial<TreeNode> = {}): TreeNode {
   };
 }
 
-function createNodeWithPreview(
-  overrides: Partial<TreeNode> = {},
-): TreeNode {
-  return createNode({
-    _Object: {
-      Key: "sample.ome.tif",
-      presignedUrl: "https://example.com/presigned",
-    },
-    ...overrides,
-  });
-}
-
 /* ------------------------------------------------------------------ */
 /*  Render helper                                                      */
 /* ------------------------------------------------------------------ */
@@ -124,7 +114,22 @@ function renderBuckets(nodes: TreeNode[]) {
   return render(
     <Stub
       initialEntries={["/"]}
-      hydrationData={{ loaderData: { "0": { nodes } } }}
+      hydrationData={{
+        loaderData: {
+          "0": {
+            nodes,
+            adminScopes: [],
+            userId: "test-user",
+            credentials: {},
+            bucketConfigs: nodes.map((n) => ({
+              id: n.bucketName,
+              name: n.bucketName,
+              provider: n.provider,
+              region: "us-east-1",
+            })),
+          },
+        },
+      }}
     />,
   );
 }
@@ -148,16 +153,15 @@ describe("BucketsRoute", () => {
   });
 
   describe("empty state", () => {
-    test("renders empty state heading and description", () => {
+    test("renders empty state title and description", () => {
       renderBuckets([]);
 
-      expect(screen.getByText("Your Data Sources")).toBeInTheDocument();
       expect(
-        screen.getByText("No data sources connected"),
+        screen.getByText("Start exploring your data"),
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          "Connect your first cloud storage bucket to start exploring imaging data.",
+          "Add a storage connection to view your cloud storage.",
         ),
       ).toBeInTheDocument();
     });
@@ -177,108 +181,31 @@ describe("BucketsRoute", () => {
         bucketName: "research-data",
         provider: "aws",
       }),
-      createNodeWithPreview({
+      createNode({
         name: "pathology-archive",
         bucketName: "pathology-archive",
         provider: "minio",
       }),
     ];
 
-    test("renders page title and Connect Storage link", () => {
-      renderBuckets(nodes);
-
-      expect(screen.getByText("Your Data Sources")).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: /Connect Storage/i }),
-      ).toHaveAttribute("href", "/connect-bucket");
-    });
-
-    test("renders view mode segmented control with three options", () => {
-      renderBuckets(nodes);
-
-      expect(
-        screen.getByRole("radiogroup", { name: "View mode" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("radio", { name: "Large grid" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("radio", { name: "Small grid" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("radio", { name: "Table view" }),
-      ).toBeInTheDocument();
-    });
-
-    test("renders bucket names in default grid view", () => {
+    test("renders storage connection cards with bucket names", () => {
       renderBuckets(nodes);
 
       expect(screen.getByText("research-data")).toBeInTheDocument();
       expect(screen.getByText("pathology-archive")).toBeInTheDocument();
     });
 
-    test("renders info buttons for each connection in grid view", () => {
+    test("renders Storage Connections section heading", () => {
       renderBuckets(nodes);
 
-      const infoButtons = screen.getAllByRole("button", {
-        name: "Connection info",
-      });
-      expect(infoButtons).toHaveLength(2);
-    });
-
-    test("switches to table view and renders table with data", async () => {
-      renderBuckets(nodes);
-
-      await userEvent.click(
-        screen.getByRole("radio", { name: "Table view" }),
-      );
-
-      const table = screen.getByRole("grid", { name: "Data sources" });
-      expect(table).toBeInTheDocument();
-      expect(within(table).getByText("research-data")).toBeInTheDocument();
       expect(
-        within(table).getByText("pathology-archive"),
+        screen.getByText("Storage Connections"),
       ).toBeInTheDocument();
-    });
-
-    test("switches to small grid view", async () => {
-      renderBuckets(nodes);
-
-      await userEvent.click(
-        screen.getByRole("radio", { name: "Small grid" }),
-      );
-
-      expect(screen.getByText("research-data")).toBeInTheDocument();
-      expect(screen.getByText("pathology-archive")).toBeInTheDocument();
-    });
-
-    test("table view shows provider badges", async () => {
-      renderBuckets(nodes);
-
-      await userEvent.click(
-        screen.getByRole("radio", { name: "Table view" }),
-      );
-
-      expect(screen.getByText("AWS")).toBeInTheDocument();
-      expect(screen.getByText("MinIO")).toBeInTheDocument();
-    });
-
-    test("table view has info action buttons", async () => {
-      renderBuckets(nodes);
-
-      await userEvent.click(
-        screen.getByRole("radio", { name: "Table view" }),
-      );
-
-      const infoButtons = screen.getAllByRole("button", {
-        name: "Connection info",
-      });
-      expect(infoButtons).toHaveLength(2);
     });
   });
 
   describe("recently viewed", () => {
-    test("renders section when recently viewed items exist", () => {
+    test("renders section when recently viewed image items exist", () => {
       const recentNodes = [
         createNode({
           name: "recent-file.ome.tif",
@@ -307,7 +234,7 @@ describe("BucketsRoute", () => {
       expect(screen.getByText("recent-file.ome.tif")).toBeInTheDocument();
     });
 
-    test("does not render section when no recently viewed items", () => {
+    test("does not render recently viewed section when no recent items", () => {
       renderBuckets([
         createNode({ name: "test-bucket", bucketName: "test-bucket" }),
       ]);
