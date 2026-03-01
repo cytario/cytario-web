@@ -1,5 +1,5 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -12,24 +12,22 @@ import { useLoaderData } from "react-router";
 
 import { BucketConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
-import { getS3Client } from "~/.server/auth/getS3Client";
 import { getSession } from "~/.server/auth/getSession";
-import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
-import { SessionCredentials, sessionStorage } from "~/.server/auth/sessionStorage";
-import { ClientOnly } from "~/components/ClientOnly";
+import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
-import { ButtonLink } from "~/components/Controls";
+import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { Placeholder } from "~/components/Placeholder";
-import { RecentlyViewed } from "~/components/RecentlyViewed/RecentlyViewed";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
+import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
-import { getObjects } from "~/utils/getObjects";
+import { getFileType } from "~/utils/fileType";
+import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
+import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
-const title = "Your Storage Connections";
+const title = "Storage Connections";
+const IMAGE_TYPES = new Set(["TIFF", "OME-TIFF", "PNG", "JPEG"]);
 
 export const meta: MetaFunction = () => {
   return [
@@ -48,68 +46,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const middleware = [authMiddleware];
 
-const fetchPreviewObject = async (
-  config: BucketConfig,
-  credentials: SessionCredentials,
-  userId: string,
-): Promise<ObjectPresignedUrl | undefined> => {
-  const creds = credentials[config.name];
-  if (!creds) return undefined;
-  const s3 = await getS3Client(config, creds, userId);
-  const objects = await getObjects(
-    config,
-    s3,
-    null,
-    config.prefix || undefined,
-    100,
-  );
-  const preview = objects.find((obj) => obj.Key?.endsWith(".ome.tif"));
-  if (!preview?.Key) return undefined;
-  const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
-  return { ...preview, presignedUrl } as ObjectPresignedUrl;
-};
-
 export const loader: LoaderFunction = async ({ context }) => {
-  const { bucketConfigs, credentials, user, authTokens } =
-    context.get(authContext);
-  const userId = user.sub;
-
-  const [previews, adminScopes] = await Promise.all([
-    Promise.allSettled(
-      bucketConfigs.map((config) =>
-        fetchPreviewObject(config, credentials, userId),
-      ),
-    ),
-    getManageableScopes(user, authTokens.accessToken).catch((error) => {
-      console.error("Failed to fetch manageable scopes:", error);
-      return [] as string[];
-    }),
-  ]);
-
-  const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
-    const result = previews[i];
-    const previewObj = result.status === "fulfilled" ? result.value : undefined;
-
-    const prefixLastSegment = config.prefix
-      ?.replace(/\/$/, "")
-      .split("/")
-      .pop();
-    const displayName = config.prefix
-      ? `${config.name}/${prefixLastSegment}`
-      : config.name;
-
-    return {
-      bucketName: config.name,
-      name: displayName,
-      type: "bucket" as const,
-      provider: config.provider,
-      pathName: config.prefix || undefined,
-      children: [],
-      _Object: previewObj,
-    };
-  });
-
-  return { nodes, adminScopes, userId, credentials, bucketConfigs };
+  return loadBucketNodes(context);
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -146,6 +84,23 @@ export const action: ActionFunction = async ({ request, context }) => {
   return null;
 };
 
+function ShowAllLink({
+  href,
+  total,
+  maxItems,
+}: {
+  href: string;
+  total: number;
+  maxItems: number;
+}) {
+  return (
+    <ButtonLink to={href} theme="white">
+      {total > maxItems ? `Show all (${total})` : "View all"}
+      <Icon icon="ArrowRight" size={16} />
+    </ButtonLink>
+  );
+}
+
 export default function BucketsRoute() {
   const { nodes, adminScopes, userId, credentials, bucketConfigs } =
     useLoaderData<{
@@ -167,12 +122,113 @@ export default function BucketsRoute() {
     }
   }, [credentials, bucketConfigs, setConnection]);
 
+  const allRecentItems = useRecentlyViewedStore((state) => state.items);
+  const pinnedItems = usePinnedPathsStore((state) => state.items);
+
+  const recentImages = useMemo(
+    () =>
+      allRecentItems.filter(
+        (n) => n.type === "file" && IMAGE_TYPES.has(getFileType(n.name)),
+      ),
+    [allRecentItems],
+  );
+
+  const recentDirs = useMemo(
+    () => allRecentItems.filter((n) => n.type === "directory"),
+    [allRecentItems],
+  );
+
+  const recentFiles = useMemo(
+    () =>
+      allRecentItems.filter(
+        (n) => n.type === "file" && !IMAGE_TYPES.has(getFileType(n.name)),
+      ),
+    [allRecentItems],
+  );
+
+  const pinnedNodes: TreeNode[] = useMemo(
+    () =>
+      pinnedItems.map((pin) => ({
+        provider: pin.provider,
+        bucketName: pin.bucketName,
+        pathName: pin.pathName,
+        name: pin.displayName,
+        type: "directory" as const,
+        children: [],
+        _Object:
+          pin.totalSize != null || pin.lastModified != null
+            ? ({
+                Size: pin.totalSize,
+                LastModified: pin.lastModified
+                  ? new Date(pin.lastModified)
+                  : undefined,
+              } as TreeNode["_Object"])
+            : undefined,
+      })),
+    [pinnedItems],
+  );
+
   return (
     <>
-      <Section>
-        {nodes.length > 0 ? (
-          <DirectoryView viewMode="grid-md" nodes={nodes} name={title} bucketName="" />
-        ) : (
+      {recentImages.length > 0 && (
+        <DirectoryView
+          viewMode="grid-lg"
+          nodes={recentImages.slice(0, 4)}
+          name="Recently Viewed"
+          bucketName=""
+        >
+          <ShowAllLink
+            href="/recent"
+            total={recentImages.length}
+            maxItems={4}
+          />
+        </DirectoryView>
+      )}
+
+      {pinnedNodes.length > 0 && (
+        <DirectoryView
+          viewMode="list"
+          nodes={pinnedNodes.slice(0, 10)}
+          name="Pinned"
+          bucketName=""
+        />
+      )}
+
+      {recentDirs.length > 0 && (
+        <DirectoryView
+          viewMode="list"
+          nodes={recentDirs.slice(0, 5)}
+          name="Recently Browsed"
+          bucketName=""
+        >
+          <ShowAllLink href="/recent" total={recentDirs.length} maxItems={5} />
+        </DirectoryView>
+      )}
+
+      {recentFiles.length > 0 && (
+        <DirectoryView
+          viewMode="grid-sm"
+          nodes={recentFiles.slice(0, 6)}
+          name="Recent Files"
+          bucketName=""
+        >
+          <ShowAllLink href="/recent" total={recentFiles.length} maxItems={6} />
+        </DirectoryView>
+      )}
+
+      {nodes.length > 0 && (
+        <DirectoryView
+          viewMode="grid-md"
+          nodes={nodes.slice(0, 100)}
+          name={title}
+          bucketName=""
+        >
+          <ShowAllLink href="/buckets" total={nodes.length} maxItems={100} />
+        </DirectoryView>
+      )}
+
+      {nodes.length === 0 && (
+        <Section>
           <Placeholder
             icon="FileSearch"
             title="Start exploring your data"
@@ -183,12 +239,8 @@ export default function BucketsRoute() {
               </ButtonLink>
             }
           />
-        )}
-      </Section>
-
-      <ClientOnly>
-        <RecentlyViewed />
-      </ClientOnly>
+        </Section>
+      )}
 
       <Outlet context={{ adminScopes, userId }} />
     </>

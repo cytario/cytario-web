@@ -29,12 +29,20 @@ const protectedRoutes = [
       ],
     },
     {
+      path: "/recent",
+      file: "routes/recent.route.tsx",
+    },
+    {
       path: "/search",
       file: "routes/search.route.tsx",
     },
     {
       path: "/config",
       file: "routes/config.route.tsx",
+    },
+    {
+      path: "/buckets",
+      file: "routes/buckets/bucketsList.route.tsx",
     },
     {
       path: "/buckets/:provider/:bucketName/*",

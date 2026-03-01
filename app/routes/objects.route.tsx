@@ -1,6 +1,6 @@
 import { _Object, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
   ActionFunctionArgs,
   MetaFunction,
@@ -15,27 +15,29 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
-import { Section } from "~/components/Container";
-import { Button } from "~/components/Controls";
+import { Button, ButtonLink, Icon } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
+  computeDirectoryLastModified,
+  computeDirectorySize,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
+import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { NotificationInput } from "~/components/Notification/Notification";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { Placeholder } from "~/components/Placeholder";
 import { getBucketConfigByPath } from "~/utils/bucketConfig";
-import {
-  select,
-  useConnectionsStore,
-} from "~/utils/connectionsStore";
+import { select, useConnectionsStore } from "~/utils/connectionsStore";
+import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
+import { usePinnedPathsStore, selectIsPinned } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
-import { createResourceId, matchesExtension } from "~/utils/resourceId";
+import { createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -233,14 +235,18 @@ export default function ObjectsRoute() {
     bucketConfig,
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
+  const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const setConnection = useConnectionsStore(select.setConnection);
+
+  const { provider } = bucketConfig;
 
   const resourceId = createResourceId(
     bucketConfig.provider,
     bucketConfig.name,
     pathName,
   );
+  const fileType = getFileType(resourceId);
 
   // Store credentials and bucket config in Zustand store when they're available
   // Connections are per-bucket, not per-file
@@ -252,10 +258,10 @@ export default function ObjectsRoute() {
     }
   }, [bucketName, credentials, bucketConfig, setConnection]);
 
-  // Track recently viewed images
+  // Track recently viewed files
   const { addItem } = useRecentlyViewedStore();
   useEffect(() => {
-    if (url && matchesExtension(resourceId, /\.(tif|tiff)$/i)) {
+    if (url) {
       addItem({
         provider: bucketConfig.provider,
         bucketName: bucketConfig.name,
@@ -275,35 +281,76 @@ export default function ObjectsRoute() {
     }
   }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isPinned = usePinnedPathsStore(
+    selectIsPinned(provider, bucketName, pathName),
+  );
+  const { addPin, removePin } = usePinnedPathsStore();
+
+  const togglePin = useCallback(() => {
+    if (!provider || !bucketName) return;
+    const id = createResourceId(provider, bucketName, pathName);
+    if (isPinned) {
+      removePin(id);
+    } else {
+      const totalSize = nodes.reduce(
+        (sum, node) => sum + computeDirectorySize(node),
+        0,
+      );
+      const lastModified = nodes.reduce(
+        (max, node) => Math.max(max, computeDirectoryLastModified(node)),
+        0,
+      );
+      addPin({
+        provider,
+        bucketName,
+        pathName,
+        displayName: pathName ? getName(pathName, bucketName) : bucketName,
+        totalSize,
+        lastModified: lastModified || undefined,
+      });
+    }
+  }, [provider, bucketName, pathName, isPinned, addPin, removePin, nodes]);
+
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
-      <Section>
-        <DirectoryView
-          viewMode="list"
-          name={name}
-          nodes={nodes}
-          provider={bucketConfig.provider}
-          bucketName={bucketName}
-          pathName={pathName}
-        />
-      </Section>
+      <DirectoryView
+        viewMode={viewMode}
+        name={name}
+        showFilters
+        nodes={nodes}
+        provider={bucketConfig.provider}
+        bucketName={bucketName}
+        pathName={pathName}
+      >
+        <Button
+          onClick={togglePin}
+          theme="white"
+          className="gap-2"
+          aria-label={isPinned ? "Unpin directory" : "Pin directory"}
+        >
+          <Icon icon={isPinned ? "BookmarkCheck" : "Bookmark"} size={16} />
+          {isPinned ? "Pinned" : "Pin"}
+        </Button>
+        <ButtonLink to="?action=cyberduck" theme="white" className="gap-2">
+          <Icon icon="Download" size={16} />
+          Access with Cyberduck
+        </ButtonLink>
+        <ViewModeToggle />
+      </DirectoryView>
     );
   }
 
   // Open file viewer when a single file is selected
   if (url) {
-    const isCsv = matchesExtension(resourceId, /\.csv$/i);
-    const isTabularFile = matchesExtension(
-      resourceId,
-      /\.(csv|parquet|json|ndjson)$/i,
-    );
+    const isCsv = fileType === "CSV";
+    const isTabularFile = ["CSV", "Parquet", "JSON"].includes(fileType);
 
     if (isTabularFile) {
       return (
         <div className="flex flex-col h-full">
           {isCsv && (
-            <header className="flex items-center justify-between p-4 bg-rose-300">
+            <header className="flex items-center justify-between p-4 bg-amber-100 border-b border-amber-300 text-amber-900">
               <div className="flex items-center gap-2">
                 <span className="text-sm">
                   CSV files are slow to query. Convert to Parquet for better
@@ -320,7 +367,7 @@ export default function ObjectsRoute() {
       );
     }
 
-    if (matchesExtension(resourceId, /\.(tif|tiff)$/i)) {
+    if (fileType === "TIFF" || fileType === "OME-TIFF") {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
