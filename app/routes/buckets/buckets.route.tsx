@@ -19,6 +19,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { StorageConnectionsGrid } from "~/components/StorageConnectionsGrid";
 import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
 import { deleteBucketConfig } from "~/utils/bucketConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
@@ -230,18 +231,17 @@ export default function BucketsRoute() {
       )}
 
       {nodes.length > 0 && (
-        <DirectoryView
-          viewMode="grid-md"
+        <StorageConnectionsGrid
           nodes={nodes.slice(0, MAX_CONNECTIONS)}
+          bucketConfigs={bucketConfigs}
           name={title}
-          bucketName=""
         >
           <ShowAllLink
             href="/buckets"
             total={nodes.length}
             maxItems={MAX_CONNECTIONS}
           />
-        </DirectoryView>
+        </StorageConnectionsGrid>
       )}
 
       {nodes.length === 0 && (
