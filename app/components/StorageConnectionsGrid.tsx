@@ -1,12 +1,25 @@
 import { StorageConnectionCard } from "@cytario/design";
-import { ReactNode, useCallback } from "react";
+import { lazy, ReactNode, Suspense, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { BucketConfig } from "~/.generated/client";
+import { ClientOnly } from "~/components/ClientOnly";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeInfoModal } from "~/components/DirectoryView/NodeInfoModal";
+import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId } from "~/utils/resourceId";
+
+const ViewerStoreProvider = lazy(() =>
+  import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
+    (mod) => ({ default: mod.ViewerStoreProvider }),
+  ),
+);
+const ImagePreview = lazy(() =>
+  import(
+    "~/components/.client/ImageViewer/components/Image/ImagePreview"
+  ).then((mod) => ({ default: mod.ImagePreview })),
+);
 
 interface StorageConnectionCardItemProps {
   node: TreeNode;
@@ -41,6 +54,10 @@ function StorageConnectionCardItem({
     });
   }, [resourceId, location.pathname, location.search, navigate]);
 
+  const key = node._Object?.Key;
+  const url = node._Object?.presignedUrl;
+  const hasPreview = !!url && !!key && isOmeTiff(key);
+
   return (
     <StorageConnectionCard
       name={node.name}
@@ -49,7 +66,24 @@ function StorageConnectionCardItem({
       status="connected"
       onPress={handlePress}
       onInfo={openNodeInfoModal}
-    />
+    >
+      {hasPreview && (
+        <ClientOnly>
+          <Suspense
+            fallback={
+              <div className="animate-pulse w-full h-full bg-slate-200" />
+            }
+          >
+            <ViewerStoreProvider
+              resourceId={createResourceId(node.provider, node.bucketName, key)}
+              url={url}
+            >
+              <ImagePreview />
+            </ViewerStoreProvider>
+          </Suspense>
+        </ClientOnly>
+      )}
+    </StorageConnectionCard>
   );
 }
 
