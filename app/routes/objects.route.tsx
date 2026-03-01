@@ -38,7 +38,7 @@ import { getName, getPrefix } from "~/utils/pathUtils";
 import { usePinnedPathsStore, selectIsPinned } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 import { createResourceId } from "~/utils/resourceId";
-
+import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -112,6 +112,7 @@ export interface BucketRouteLoaderResponse {
   notification?: NotificationInput;
   credentials: Credentials;
   bucketConfig: BucketConfig;
+  isZarr?: boolean;
 }
 
 export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
@@ -146,6 +147,23 @@ export const loader = async ({
 
   try {
     const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
+
+    // Check for zarr before listing objects — zarr directories can contain
+    // thousands of chunk files, so we skip the expensive ListObjects call.
+    const isZarr = isZarrPath(pathName);
+    if (isZarr) {
+      const zarrUrl = constructS3Url(bucketConfig, pathName);
+      return {
+        credentials,
+        bucketConfig,
+        name,
+        nodes: [],
+        bucketName,
+        pathName,
+        url: zarrUrl,
+        isZarr: true,
+      };
+    }
 
     const objects: Readonly<_Object>[] = await getObjects(
       bucketConfig,
@@ -233,6 +251,7 @@ export default function ObjectsRoute() {
     bucketName,
     credentials,
     bucketConfig,
+    isZarr,
   } = useLoaderData<BucketRouteLoaderResponse>();
   useBackendNotification();
   const viewMode = useLayoutStore((state) => state.viewMode);
@@ -372,6 +391,22 @@ export default function ObjectsRoute() {
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
             <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    // Check for bioformats2raw zarr images — use direct S3 access with credentials
+    if (isZarr) {
+      return (
+        <ClientOnly>
+          <Suspense fallback={<div>Loading viewer...</div>}>
+            <Viewer
+              resourceId={resourceId}
+              url={url}
+              credentials={credentials}
+              bucketConfig={bucketConfig}
+            />
           </Suspense>
         </ClientOnly>
       );
