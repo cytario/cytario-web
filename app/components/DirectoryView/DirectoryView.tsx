@@ -1,3 +1,5 @@
+import { EmptyState } from "@cytario/design";
+import { FolderOpen } from "lucide-react";
 import { ReactNode, useEffect, useMemo } from "react";
 
 import {
@@ -85,7 +87,13 @@ export function DirectoryView({
   }, [provider, bucketName, pathName, name, addItem, nodes]);
 
   if (nodes.length === 0) {
-    return null;
+    return (
+      <EmptyState
+        icon={FolderOpen}
+        title="Empty directory"
+        description="This folder is empty or you may not have permission to view its contents."
+      />
+    );
   }
 
   return (
