@@ -50,6 +50,10 @@ const protectedRoutes = [
             file: "routes/admin/inviteUser/inviteUser.modal.tsx",
           },
           {
+            path: "bulk-invite",
+            file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
+          },
+          {
             path: ":userId",
             file: "routes/admin/updateUser/updateUser.modal.tsx",
           },

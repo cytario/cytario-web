@@ -4,20 +4,27 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 import { IconButton } from "./Controls";
+
+const sizeClasses = {
+  default: "max-w-lg",
+  wide: "max-w-2xl",
+} as const;
 
 export function RouteModal({
   title,
   children,
   footer,
+  size = "default",
   onClose,
 }: Readonly<{
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  size?: keyof typeof sizeClasses;
   onClose?: () => void;
 }>) {
   const navigate = useNavigate();
@@ -31,7 +38,7 @@ export function RouteModal({
       <div className="fixed inset-0 flex items-center justify-center p-4 overflow-auto ">
         <DialogPanel
           className={`
-            w-full max-w-lg bg-white rounded-xl border-slate-300 shadow-2xl
+            w-full ${sizeClasses[size]} bg-white rounded-xl border-slate-300 shadow-2xl
             max-h-full flex flex-col
             overflow-hidden border text-slate-900
           `}

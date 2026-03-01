@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { type RowSelectionState } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
 import {
   type MetaFunction,
   type ShouldRevalidateFunction,
@@ -7,16 +8,19 @@ import {
   useLoaderData,
 } from "react-router";
 
+import { BulkActions } from "./BulkActions";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   type UserWithGroups,
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
-import { Container } from "~/components/Container";
+import { Section, SectionHeader } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
 import { Icon } from "~/components/Controls/Button/Icon";
 import { GroupPill } from "~/components/Pill/GroupPill";
+import { Pill } from "~/components/Pill/Pill";
 import { Placeholder } from "~/components/Placeholder";
+import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import {
   type CellRenderers,
   type ColumnConfig,
@@ -27,6 +31,7 @@ export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
 
 export const middleware = [authMiddleware];
 
+export { bulkUsersAction as action } from "./bulkUsers.action";
 export { usersLoader as loader } from "./users.loader";
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
@@ -58,7 +63,10 @@ function buildGroupColumn(
   allGroups: GroupInfo[],
   counts: Map<string, number>,
   totalCount: number,
-  { pillVisibleCount, ...extra }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
+  {
+    pillVisibleCount,
+    ...extra
+  }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
 ): ColumnConfig {
   const options = [
     { label: "All", value: "" },
@@ -78,9 +86,7 @@ function buildGroupColumn(
       return paths.includes(filterValue);
     },
     filterRender: (option) => {
-      const count = option.value
-        ? counts.get(option.value) ?? 0
-        : totalCount;
+      const count = option.value ? (counts.get(option.value) ?? 0) : totalCount;
       const pill = option.value ? (
         <GroupPill path={option.value} visibleCount={pillVisibleCount} />
       ) : (
@@ -155,6 +161,22 @@ function buildColumns(
         { label: "Active", value: "true" },
         { label: "Disabled", value: "false" },
       ],
+      filterRender: (option) => (
+        <Pill
+          name={
+            option.value === "true"
+              ? "Active"
+              : option.value === "false"
+                ? "Disabled"
+                : option.label
+          }
+          className={
+            option.value === "true"
+              ? "bg-emerald-100 text-emerald-800"
+              : "bg-slate-200 text-slate-600"
+          }
+        />
+      ),
     },
     buildGroupColumn(
       "adminGroups",
@@ -184,15 +206,14 @@ const cellRenderers: CellRenderers<UserRow> = {
     </Link>
   ),
   enabled: (row) => (
-    <span
-      className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
+    <Pill
+      name={row.enabled === "true" ? "Active" : "Disabled"}
+      className={
         row.enabled === "true"
-          ? "bg-green-100 text-green-700"
-          : "bg-slate-100 text-slate-500"
-      }`}
-    >
-      {row.enabled === "true" ? "Active" : "Disabled"}
-    </span>
+          ? "bg-emerald-100 text-emerald-800"
+          : "bg-slate-200 text-slate-600"
+      }
+    />
   ),
   adminGroups: (row) => (
     <div className="flex flex-wrap gap-1">
@@ -224,6 +245,8 @@ export default function AdminUsersRoute() {
   }>();
 
   const tableId = `admin-users-${scope}`;
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const selectedCount = Object.keys(rowSelection).length;
 
   const data: UserRow[] = useMemo(
     () =>
@@ -269,26 +292,37 @@ export default function AdminUsersRoute() {
   );
 
   return (
-    <>
-      <Container>
-        <div className="mb-6">
-          <ButtonLink
-            to={`invite?scope=${encodeURIComponent(scope)}`}
-            theme="white"
-          >
-            <Icon icon="UserPlus" size={16} /> Invite User
-          </ButtonLink>
-        </div>
-      </Container>
+    <Section>
+      <SectionHeader name={scope}>
+        <span className="text-sm text-slate-500">
+          {data.length} {data.length === 1 ? "user" : "users"}
+        </span>
+        <ButtonLink
+          to={`invite?scope=${encodeURIComponent(scope)}`}
+          theme="white"
+        >
+          <Icon icon="UserPlus" size={16} /> Invite User
+        </ButtonLink>
+        <ButtonLink
+          to={`bulk-invite?scope=${encodeURIComponent(scope)}`}
+          theme="white"
+        >
+          <Icon icon="UsersRound" size={16} /> Bulk Invite
+        </ButtonLink>
+      </SectionHeader>
+
       {data.length > 0 ? (
-        <div className="overflow-x-auto">
-          <Table
-            columns={columns}
-            data={data}
-            cellRenderers={cellRenderers}
-            tableId={tableId}
-          />
-        </div>
+        <Table
+          columns={columns}
+          data={data}
+          cellRenderers={cellRenderers}
+          tableId={tableId}
+          enableRowSelection
+          rowSelection={rowSelection}
+          onRowSelectionChange={setRowSelection}
+          getRowId={(row) => row.userId}
+          showFilters
+        />
       ) : (
         <Placeholder
           icon="Users"
@@ -305,7 +339,21 @@ export default function AdminUsersRoute() {
           }
         />
       )}
+      {selectedCount > 0 && (
+        <SelectionFooter
+          selectedCount={selectedCount}
+          totalCount={data.length}
+          onReset={() => setRowSelection({})}
+        >
+          <BulkActions
+            selectedUserIds={Object.keys(rowSelection)}
+            users={users}
+            groups={groups}
+            onSuccess={() => setRowSelection({})}
+          />
+        </SelectionFooter>
+      )}
       <Outlet context={{ scope, users, groups }} />
-    </>
+    </Section>
   );
 }

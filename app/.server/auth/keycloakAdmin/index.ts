@@ -17,4 +17,5 @@ export {
   updateUser,
   addUserToGroup,
   removeUserFromGroup,
+  setUserEnabled,
 } from "./users";
