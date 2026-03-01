@@ -92,6 +92,8 @@ interface StorageConnectionsGridProps {
   bucketConfigs: BucketConfig[];
   name: string;
   children?: ReactNode;
+  /** Omit default section padding (for gap-based layouts) */
+  flush?: boolean;
 }
 
 export function StorageConnectionsGrid({
@@ -99,6 +101,7 @@ export function StorageConnectionsGrid({
   bucketConfigs,
   name,
   children,
+  flush,
 }: StorageConnectionsGridProps) {
   if (nodes.length === 0) {
     return null;
@@ -109,7 +112,7 @@ export function StorageConnectionsGrid({
   );
 
   return (
-    <Section>
+    <Section flush={flush}>
       <SectionHeader name={name}>{children}</SectionHeader>
 
       <Container>

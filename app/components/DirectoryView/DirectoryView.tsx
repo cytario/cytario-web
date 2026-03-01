@@ -34,6 +34,8 @@ interface DirectoryViewProps extends DirectoryViewBaseProps {
   name: string;
   showFilters?: boolean;
   children?: ReactNode;
+  /** Omit default section padding (for gap-based layouts) */
+  flush?: boolean;
 }
 
 export function DirectoryView({
@@ -45,6 +47,7 @@ export function DirectoryView({
   bucketName,
   pathName,
   children,
+  flush,
 }: DirectoryViewProps) {
   const isBucket = nodes.length > 0 && nodes[0].type === "bucket";
   const columns = isBucket ? bucketColumns : fileColumns;
@@ -97,7 +100,7 @@ export function DirectoryView({
   }
 
   return (
-    <Section>
+    <Section flush={flush}>
       <SectionHeader name={name}>{children}</SectionHeader>
 
       {showFilters && isGrid && (
