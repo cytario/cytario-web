@@ -1,3 +1,4 @@
+import containerQueries from "@tailwindcss/container-queries";
 import type { Config } from "tailwindcss";
 
 export default {
@@ -55,8 +56,14 @@ export default {
       animation: {
         "fade-in": "fadeIn .3s ease-in forwards",
         "pulse-once": "pulse .1s ease-in-out 1 forwards",
+        "progress-bar": "progressBar 1.5s ease-in-out infinite",
       },
       keyframes: {
+        progressBar: {
+          "0%": { width: "0%", marginLeft: "0%" },
+          "50%": { width: "60%", marginLeft: "20%" },
+          "100%": { width: "0%", marginLeft: "100%" },
+        },
         fadeIn: {
           "0%": {
             filter: "blur(12px)",
@@ -77,6 +84,6 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [containerQueries],
   darkMode: "class", //"media",
 } satisfies Config;

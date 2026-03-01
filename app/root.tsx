@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -6,6 +6,8 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
+  useNavigation,
   useRouteError,
   useRouteLoaderData,
   type LinksFunction,
@@ -21,7 +23,7 @@ import {
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
 import { Section } from "./components/Container";
-import { useDirectoryStore } from "./components/DirectoryView/useDirectoryStore";
+import { useLayoutStore } from "./components/DirectoryView/useLayoutStore";
 import { H1 } from "./components/Fonts";
 import { GlobalSearch } from "./components/GlobalSearch";
 import {
@@ -85,7 +87,7 @@ export const loader = async ({
 };
 
 const AppHeader = () => {
-  const headerSlot = useDirectoryStore((s) => s.headerSlot);
+  const headerSlot = useLayoutStore((s) => s.headerSlot);
   const data = useRouteLoaderData<RootLoaderResponse>("root");
 
   return (
@@ -111,6 +113,9 @@ const AppHeader = () => {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
+  const location = useLocation();
+  const navigation = useNavigation();
+  const isInitialRender = useRef(true);
 
   useEffect(() => {
     if (data?.notification) {
@@ -123,6 +128,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
     useFileStore.getState().hydrate();
   }, []);
 
+  // Move focus to main content on route change (skip initial render)
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    const main = document.getElementById("main-content");
+    if (main) {
+      main.tabIndex = -1;
+      main.focus({ preventScroll: true });
+    }
+  }, [location.pathname]);
+
+  const isNavigating = navigation.state === "loading";
+
   return (
     <html lang="en">
       <head>
@@ -131,10 +151,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-slate-100">
+      <body className="flex flex-col h-screen text-slate-700 overflow-hidden font-montserrat bg-white">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-cytario-turquoise-700"
+        >
+          Skip to content
+        </a>
+
+        {isNavigating && (
+          <div
+            role="progressbar"
+            aria-label="Loading page"
+            className="fixed top-0 left-0 right-0 z-50 h-1 bg-cytario-turquoise-700/30"
+          >
+            <div className="h-full bg-cytario-turquoise-700 animate-progress-bar" />
+          </div>
+        )}
+
         {data?.user && <AppHeader />}
 
-        {children}
+        <main
+          id="main-content"
+          className="relative flex-1 min-h-0 outline-none"
+        >
+          {children}
+        </main>
 
         <div id="modal" />
         <div id="tooltip" />

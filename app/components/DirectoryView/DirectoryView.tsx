@@ -1,12 +1,10 @@
-import { useEffect } from "react";
-
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTable } from "./DirectoryViewTable";
 import { NodeInfoModal } from "./NodeInfoModal";
 import { ViewModeToggle } from "./ViewModeToggle";
 import { ButtonLink, Icon } from "../Controls";
 import { H1 } from "../Fonts";
-import { useDirectoryStore } from "./useDirectoryStore";
+import { useLayoutStore } from "./useLayoutStore";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
@@ -24,18 +22,9 @@ interface DirectoryViewProps extends DirectoryViewBaseProps {
 export function DirectoryView({
   nodes,
   name,
-  provider,
   bucketName,
-  pathName,
 }: DirectoryViewProps) {
-  const { viewMode, setProvider, setBucketName, setPathName } =
-    useDirectoryStore();
-
-  useEffect(() => {
-    if (provider) setProvider(provider);
-    setBucketName(bucketName);
-    setPathName(pathName);
-  }, [provider, bucketName, pathName, setProvider, setBucketName, setPathName]);
+  const viewMode = useLayoutStore((state) => state.viewMode);
 
   if (nodes.length === 0) {
     return (
@@ -74,7 +63,7 @@ export function DirectoryView({
         </header>
       </Container>
 
-      {viewMode === "list" ? (
+      {viewMode === "list" || viewMode === "list-wide" ? (
         <DirectoryViewTable nodes={nodes} />
       ) : (
         <Container>
