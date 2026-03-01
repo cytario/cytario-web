@@ -135,6 +135,11 @@ import { cytarioConfig } from "~/config";
 - Custom design tokens: `cytario-purple-500`, `cytario-turquoise-*`
 - Custom font: Montserrat
 - Use `motion` library for animations
+- **No hardcoded color values** — never use hex (`#94a3b8`), named (`"white"`), or rgb literals in TypeScript/TSX. Use design tokens from `@cytario/design` instead:
+  - Tailwind classes: `text-slate-400`, `bg-neutral-0`, `border-slate-200`
+  - CSS variables in inline styles: `var(--color-slate-400)`, `var(--color-text-secondary)`
+  - Semantic tokens preferred over raw scales: `--color-text-tertiary` over `--color-slate-400`
+  - Exceptions: SVG visualization code (deck.gl overlays, scientific imaging palettes) where raw RGBA arrays are required by the rendering API
 
 ### Testing
 - **Every change must have test coverage** — unit and/or integration tests

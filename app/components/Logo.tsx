@@ -1,9 +1,5 @@
+import { ColorBrandAccent, ColorBrandPrimary } from "@cytario/design";
 import { motion } from "framer-motion";
-
-const cytarioColors = {
-  purple: { 500: "#5c2483" },
-  turquoise: { 500: "#35B7B8" },
-};
 
 const W = 56;
 const H = 20;
@@ -27,7 +23,7 @@ const pathVariants = {
 
 export const Logo = ({
   color = "white",
-  highlightColor = cytarioColors.turquoise[500],
+  highlightColor = ColorBrandAccent,
   scale = 1,
   className,
 }: {
@@ -54,7 +50,7 @@ export const Logo = ({
       width={width}
       height={height}
       viewBox={`0 0 ${W} ${H}`}
-      fill={color ?? cytarioColors.purple[500]}
+      fill={color ?? ColorBrandPrimary}
       className={className}
       variants={containerVariants}
       initial="hidden"
