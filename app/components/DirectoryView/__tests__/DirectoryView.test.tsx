@@ -5,12 +5,12 @@ import { Mock } from "vitest";
 
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryView } from "../DirectoryView";
-import { useDirectoryStore } from "../useDirectoryStore";
+import { useLayoutStore } from "../useLayoutStore";
 import mock from "~/utils/__tests__/__mocks__";
 
-vi.mock("../useDirectoryStore", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../useDirectoryStore")>()),
-  useDirectoryStore: vi.fn(),
+vi.mock("../useLayoutStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../useLayoutStore")>()),
+  useLayoutStore: vi.fn(),
 }));
 
 vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
@@ -22,19 +22,13 @@ const mockSetViewMode = vi.fn();
 const mockStoreDefaults = {
   viewMode: "list" as const,
   setViewMode: mockSetViewMode,
-  setBucketName: vi.fn(),
-  setPathName: vi.fn(),
-  setProvider: vi.fn(),
-  tableColumns: {},
-  setColumnWidth: vi.fn(),
-  resetTableConfig: vi.fn(),
-  tableSorting: {},
-  setTableSorting: vi.fn(),
+  headerSlot: null,
+  setHeaderSlot: vi.fn(),
 };
 
 beforeEach(() => {
   // Reset Zustand store mock before each test
-  (useDirectoryStore as unknown as Mock).mockReturnValue(mockStoreDefaults);
+  (useLayoutStore as unknown as Mock).mockReturnValue(mockStoreDefaults);
 });
 
 describe("DirectoryView Component", () => {
@@ -100,14 +94,13 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Check that the toggle buttons are rendered
-    expect(screen.getByRole("button", { name: /List View/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Small Grid/i })).toBeInTheDocument();
+    // Check that the view mode radio group is rendered
+    expect(screen.getByRole("radiogroup", { name: /View mode/i })).toBeInTheDocument();
 
-    // Simulate switching to grid
-    const gridButton = screen.getByRole("button", { name: /Small Grid/i });
+    // Simulate switching to grid via the radio group
+    const gridRadios = screen.getAllByRole("radio", { name: /Small Grid/i });
     act(() => {
-      fireEvent.click(gridButton);
+      fireEvent.click(gridRadios[0]);
     });
 
     // Verify that the view mode is updated in the Zustand store
@@ -151,7 +144,7 @@ describe("DirectoryView Component", () => {
       },
     ]);
 
-    (useDirectoryStore as unknown as Mock).mockReturnValue({
+    (useLayoutStore as unknown as Mock).mockReturnValue({
       ...mockStoreDefaults,
       viewMode: "grid-sm",
     });
