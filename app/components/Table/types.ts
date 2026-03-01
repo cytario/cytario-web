@@ -1,4 +1,10 @@
-import type { ColumnDefBase, FilterFn } from "@tanstack/react-table";
+import type {
+  ColumnDefBase,
+  ColumnFiltersState,
+  FilterFn,
+  OnChangeFn,
+  RowSelectionState,
+} from "@tanstack/react-table";
 import { ReactNode } from "react";
 
 // Behavior props aligned with TanStack naming
@@ -67,4 +73,12 @@ export interface TableProps<TData extends Record<string, unknown>> {
   data: TData[];
   cellRenderers?: CellRenderers<TData>;
   tableId?: string;
+  ariaLabel?: string;
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (row: TData) => string;
+  columnFilters?: ColumnFiltersState;
+  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
+  showFilters?: boolean;
 }
