@@ -7,7 +7,6 @@ import {
   useLoaderData,
 } from "react-router";
 
-import { GroupPill } from "./GroupPill";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   type UserWithGroups,
@@ -16,6 +15,7 @@ import {
 import { Container } from "~/components/Container";
 import { ButtonLink } from "~/components/Controls";
 import { Icon } from "~/components/Controls/Button/Icon";
+import { GroupPill } from "~/components/Pill/GroupPill";
 import { Placeholder } from "~/components/Placeholder";
 import {
   type CellRenderers,

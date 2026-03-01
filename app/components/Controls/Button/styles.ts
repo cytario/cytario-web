@@ -24,7 +24,7 @@ export const buttonThemeStyles = {
   white: `
     text-inherit
     bg-white hover:bg-slate-50
-    border border-inherit
+    border border-slate-300
   `,
   primary: `
     text-white
