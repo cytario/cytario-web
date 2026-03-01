@@ -84,6 +84,11 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
     return axis?.unit ?? "µm";
   };
 
+  // dtype comes from zarrita (e.g. "Uint16") — cast to string for the
+  // OME-TIFF Image type which uses lowercase variants ("uint16").
+  // TODO: remove cast once viv aligns SupportedDtype across loaders.
+  const pixelType = (loader[0]?.dtype as string) ?? "uint16";
+
   return {
     ID: "Image:0",
     Name: omero?.name,
@@ -91,7 +96,7 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
     Pixels: {
       ID: "Pixels:0",
       DimensionOrder: "XYZCT",
-      Type: "uint16",
+      Type: pixelType,
       SizeT,
       SizeC,
       SizeZ,
@@ -103,7 +108,7 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
       PhysicalSizeXUnit: axisUnit("x"),
       PhysicalSizeYUnit: axisUnit("y"),
       PhysicalSizeZUnit: axisUnit("z"),
-      Channels: channels.map((ch, i) => ({
+      Channels: channels.map((ch: { label: string; color: string }, i: number) => ({
         ID: `Channel:0:${i}`,
         Name: ch.label,
         Color: parseOmeroColor(ch.color),
@@ -112,7 +117,7 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
     format: () => ({
       "Acquisition Date": "",
       "Dimensions (XY)": `${SizeX} x ${SizeY}`,
-      "Pixels Type": "uint16",
+      "Pixels Type": pixelType,
       "Pixels Size (XYZ)": PhysicalSizeX
         ? `${PhysicalSizeX} x ${PhysicalSizeY} ${axisUnit("x")}`
         : "-",
@@ -142,7 +147,7 @@ export function extractPhysicalSizes(
   }
 
   const resolvedAxes =
-    axes.map((a) => (typeof a === "string" ? a : a.name)) ?? [];
+    axes.map((a: string | { name: string }) => (typeof a === "string" ? a : a.name)) ?? [];
 
   const scaleForAxis = (name: string): number | undefined => {
     const idx = resolvedAxes.indexOf(name);

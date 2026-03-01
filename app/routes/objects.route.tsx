@@ -38,24 +38,7 @@ import { getName, getPrefix } from "~/utils/pathUtils";
 import { usePinnedPathsStore, selectIsPinned } from "~/utils/pinnedPathsStore";
 import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 import { createResourceId } from "~/utils/resourceId";
-
-/**
- * Construct an S3 URL from bucket config and path.
- * Used for zarr files that need direct S3 access with credentials.
- */
-function constructS3Url(bucketConfig: BucketConfig, pathName: string): string {
-  const bucket = bucketConfig.name;
-
-  // Handle custom endpoints (MinIO, R2, etc.)
-  if (bucketConfig.endpoint) {
-    const endpoint = bucketConfig.endpoint.replace(/\/$/, "");
-    return `${endpoint}/${bucket}/${pathName}`;
-  }
-
-  // Default to AWS S3 virtual-hosted style URL
-  const region = bucketConfig.region || "us-east-1";
-  return `https://${bucket}.s3.${region}.amazonaws.com/${pathName}`;
-}
+import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -165,6 +148,23 @@ export const loader = async ({
   try {
     const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
 
+    // Check for zarr before listing objects — zarr directories can contain
+    // thousands of chunk files, so we skip the expensive ListObjects call.
+    const isZarr = isZarrPath(pathName);
+    if (isZarr) {
+      const zarrUrl = constructS3Url(bucketConfig, pathName);
+      return {
+        credentials,
+        bucketConfig,
+        name,
+        nodes: [],
+        bucketName,
+        pathName,
+        url: zarrUrl,
+        isZarr: true,
+      };
+    }
+
     const objects: Readonly<_Object>[] = await getObjects(
       bucketConfig,
       s3Client,
@@ -173,24 +173,6 @@ export const loader = async ({
     );
 
     if (objects.length > 0) {
-      // Check if this is a zarr directory by .zarr extension
-      const isZarr = pathName.includes(".zarr");
-
-      if (isZarr) {
-        // Treat as a zarr image - return empty nodes to trigger viewer
-        const zarrUrl = constructS3Url(bucketConfig, pathName);
-        return {
-          credentials,
-          bucketConfig,
-          name,
-          nodes: [],
-          bucketName,
-          pathName,
-          url: zarrUrl,
-          isZarr: true,
-        };
-      }
-
       const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
         objects.map(async (obj) => ({
           ...obj,

@@ -8,6 +8,7 @@ import { createViewerStore } from "./createViewerStore";
 import { loadBioformatsZarrWithCredentials } from "./loadBioformatsZarrWithCredentials";
 import { ViewerStore } from "./types";
 import type { BucketConfig } from "~/.generated/client";
+import { isZarrPath } from "~/utils/zarrUtils";
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -24,14 +25,6 @@ interface ViewerRegistryStore {
   registerViewer: (options: RegisterViewerOptions) => ViewerStoreApi;
 }
 
-/**
- * Check if the URL points to a bioformats2raw zarr image.
- * Matches URLs containing .zarr (with or without trailing slash).
- */
-function isBioformatsZarr(url: string): boolean {
-  return url.includes(".zarr");
-}
-
 const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
     (set, get) => ({
@@ -43,7 +36,7 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
         const viewerStore = createViewerStore(id);
         const viewerState = viewerStore.getState();
 
-        const isZarr = isBioformatsZarr(url);
+        const isZarr = isZarrPath(url);
 
         if (isZarr && credentials) {
           // Load bioformats2raw zarr with credentials

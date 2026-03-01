@@ -11,8 +11,9 @@ import type { Loader } from "../ome.tif.types";
 function createMockLoader(
   shape: number[],
   labels: string[],
+  dtype = "uint16",
 ): Loader {
-  return [{ shape, labels }] as unknown as Loader;
+  return [{ shape, labels, dtype }] as unknown as Loader;
 }
 
 // Helper to create minimal RootAttrs
@@ -261,6 +262,29 @@ describe("rootAttrsToImage", () => {
     expect(result.Pixels.SizeZ).toBe(1);
     expect(result.Pixels.SizeT).toBe(1);
     expect(result.Pixels.SizeC).toBe(1);
+  });
+
+  test("uses loader dtype for pixel type", () => {
+    const rootAttrs = createRootAttrs();
+    const loader = createMockLoader(
+      [1, 1, 1, 512, 512],
+      ["t", "c", "z", "y", "x"],
+      "float32",
+    );
+
+    const result = rootAttrsToImage(rootAttrs, loader);
+
+    expect(result.Pixels.Type).toBe("float32");
+    expect(result.format()["Pixels Type"]).toBe("float32");
+  });
+
+  test("defaults pixel type to uint16 when loader has no dtype", () => {
+    const rootAttrs = createRootAttrs();
+    const loader = [{ shape: [1, 1, 1, 512, 512], labels: ["t", "c", "z", "y", "x"] }] as unknown as Loader;
+
+    const result = rootAttrsToImage(rootAttrs, loader);
+
+    expect(result.Pixels.Type).toBe("uint16");
   });
 
   test("format() returns formatted metadata object", () => {
