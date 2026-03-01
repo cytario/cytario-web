@@ -154,20 +154,20 @@ export function BulkInviteForm({
       }}
     >
       <div className="space-y-4 mb-6">
-        <Field label="Group Membership">
-          {selectItems.length > 0 ? (
-            <Select
-              label="Group Membership"
-              items={selectItems}
-              selectedKey={groupPath}
-              onSelectionChange={(key) => setGroupPath(key as string)}
-            />
-          ) : (
+        {selectItems.length > 0 ? (
+          <Select
+            label="Group Membership"
+            items={selectItems}
+            selectedKey={groupPath}
+            onSelectionChange={(key) => setGroupPath(key as string)}
+          />
+        ) : (
+          <Field label="Group Membership">
             <p className="text-sm text-slate-400">
               No groups available in this scope.
             </p>
-          )}
-        </Field>
+          </Field>
+        )}
         <div className="flex items-center gap-2">
           <Checkbox isSelected={enabled} onChange={setEnabled}>
             Enabled

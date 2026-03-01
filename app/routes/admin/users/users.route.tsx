@@ -297,14 +297,14 @@ export default function AdminUsersRoute() {
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>
         <ButtonLink
-          href={`invite?scope=${encodeURIComponent(scope)}`}
+          href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`}
           variant="secondary"
           iconLeft={UserPlus}
         >
           Invite User
         </ButtonLink>
         <ButtonLink
-          href={`bulk-invite?scope=${encodeURIComponent(scope)}`}
+          href={`/admin/users/bulk-invite?scope=${encodeURIComponent(scope)}`}
           variant="secondary"
           iconLeft={UsersRound}
         >
@@ -331,7 +331,7 @@ export default function AdminUsersRoute() {
           description="Invite team members to get started."
           action={
             <ButtonLink
-              href={`invite?scope=${encodeURIComponent(scope)}`}
+              href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`}
               size="lg"
             >
               Invite User
