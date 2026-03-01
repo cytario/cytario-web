@@ -171,7 +171,7 @@ export default function BucketsRoute() {
     <>
       <Section>
         {nodes.length > 0 ? (
-          <DirectoryView nodes={nodes} name={title} bucketName="" />
+          <DirectoryView viewMode="grid-md" nodes={nodes} name={title} bucketName="" />
         ) : (
           <Placeholder
             icon="FileSearch"

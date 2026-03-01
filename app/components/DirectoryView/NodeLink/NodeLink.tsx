@@ -1,4 +1,4 @@
-import { PointerEventHandler, useCallback } from "react";
+import { KeyboardEventHandler, PointerEventHandler, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { twMerge } from "tailwind-merge";
 
@@ -23,6 +23,7 @@ const style = `
   h-full min-w-0 gap-1
   text-cytario-turquoise-700 hover:text-cytario-turquoise-900
   group-hover:underline
+  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cytario-turquoise-700 focus-visible:ring-offset-1 rounded-sm
 `;
 
 export function NodeLink({
@@ -62,6 +63,17 @@ export function NodeLink({
     [resourceId, location.pathname, location.search, navigate, nodeType],
   );
 
+  // Activate link with Space key (links natively only respond to Enter)
+  const handleKeyDown: KeyboardEventHandler = useCallback(
+    (event) => {
+      if (event.key === " ") {
+        event.preventDefault();
+        navigate(to);
+      }
+    },
+    [navigate, to],
+  );
+
   // Merge class names
   const cx = twMerge(style, className);
 
@@ -71,6 +83,8 @@ export function NodeLink({
       {viewMode !== "list" && (
         <Link
           to={to}
+          tabIndex={-1}
+          aria-hidden
           className="flex items-center justify-center w-full flex-1 min-h-0"
         >
           <NodeThumbnail node={node} viewMode={viewMode} />
@@ -82,6 +96,7 @@ export function NodeLink({
         <Link
           to={to}
           className={cx}
+          onKeyDown={handleKeyDown}
           onClick={(event) => {
             if (onClick) {
               event.preventDefault();
@@ -91,7 +106,9 @@ export function NodeLink({
           }}
         >
           {viewMode === "list" && <NodeLinkIcon node={node} />}
-          <TooltipSpan>{node.name}</TooltipSpan>
+          <TooltipSpan ellipsis={viewMode === "list" ? "middle" : undefined}>
+            {node.name}
+          </TooltipSpan>
 
           {/* Context menu */}
           {showInfoButton && (

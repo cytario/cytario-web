@@ -54,7 +54,7 @@ describe("DirectoryViewTable", () => {
       },
     ];
 
-    test("renders bucket columns: Name, Provider, Region, Scope visible; Endpoint, Created By, RoleARN hidden", () => {
+    test("renders bucket columns: Name, Provider, Region visible; Scope, Endpoint, Created By, RoleARN hidden", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
@@ -67,8 +67,8 @@ describe("DirectoryViewTable", () => {
       expect(screen.getByText("Name")).toBeInTheDocument();
       expect(screen.getByText("Provider")).toBeInTheDocument();
       expect(screen.getByText("Region")).toBeInTheDocument();
-      expect(screen.getByText("Scope")).toBeInTheDocument();
-      // Endpoint, Created By, and RoleARN are hidden by default
+      // Scope, Endpoint, Created By, and RoleARN are hidden by default
+      expect(screen.queryByText("Scope")).not.toBeInTheDocument();
       expect(screen.queryByText("Endpoint")).not.toBeInTheDocument();
       expect(screen.queryByText("Created By")).not.toBeInTheDocument();
       expect(screen.queryByText("RoleARN")).not.toBeInTheDocument();
