@@ -1,4 +1,4 @@
-import { ToggleButton } from "@cytario/design";
+import { ToggleButtonGroup, ToggleButtonGroupItem } from "@cytario/design";
 import { Grid2x2, Grid3x3, List, Rows3, Square } from "lucide-react";
 
 import { useLayoutStore, ViewMode } from "./useLayoutStore";
@@ -19,20 +19,22 @@ export function ViewModeToggle() {
   const { viewMode, setViewMode } = useLayoutStore();
 
   return (
-    <div className="flex gap-1" role="radiogroup" aria-label="View mode">
+    <ToggleButtonGroup
+      value={viewMode}
+      onChange={(value) => setViewMode(value as ViewMode)}
+      aria-label="View mode"
+      size="sm"
+    >
       {modes.map(({ mode, icon, label }) => (
-        <ToggleButton
+        <ToggleButtonGroupItem
           key={mode}
+          value={mode}
           aria-label={label}
-          variant="outlined"
-          isSquare
-          size="sm"
-          isSelected={viewMode === mode}
-          onChange={() => setViewMode(mode)}
+          isIconOnly
         >
           {icon}
-        </ToggleButton>
+        </ToggleButtonGroupItem>
       ))}
-    </div>
+    </ToggleButtonGroup>
   );
 }
