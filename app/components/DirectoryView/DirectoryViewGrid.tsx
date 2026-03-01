@@ -7,9 +7,12 @@ import { type ViewMode } from "./useLayoutStore";
 const gridSizeClasses: Record<ViewMode, string> = {
   list: "",
   "list-wide": "",
-  "grid-sm": "w-6/12 sm:w-4/12 md:w-3/12 lg:w-2/12 xl:w-2/12 2xl:w-1/12",
-  "grid-md": "w-6/12 sm:w-6/12 md:w-4/12 lg:w-3/12 xl:w-3/12 2xl:w-2/12",
-  "grid-lg": "w-6/12 sm:w-6/12 md:w-6/12 lg:w-4/12 xl:w-4/12 2xl:w-3/12",
+  "grid-sm":
+    "w-6/12 @[640px]:w-4/12 @[768px]:w-3/12 @[1024px]:w-2/12 @[1536px]:w-1/12",
+  "grid-md":
+    "w-6/12 @[768px]:w-4/12 @[1024px]:w-3/12 @[1536px]:w-2/12",
+  "grid-lg":
+    "w-6/12 @[1024px]:w-4/12 @[1536px]:w-3/12",
 };
 
 export function DirectoryViewGrid({
@@ -25,12 +28,17 @@ export function DirectoryViewGrid({
   );
 
   return (
-    <div className="flex flex-wrap -m-2">
-      {nodes.map((node) => (
-        <div key={node.name} className={cx}>
-          <NodeLink key={node.name} node={node} viewMode={viewMode} />
-        </div>
-      ))}
+    <div className="@container">
+      <div className="flex flex-wrap -m-2">
+        {nodes.map((node) => {
+          const key = `${node.provider}/${node.bucketName}/${node.pathName ?? node.name}`;
+          return (
+            <div key={key} className={cx}>
+              <NodeLink node={node} viewMode={viewMode} />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

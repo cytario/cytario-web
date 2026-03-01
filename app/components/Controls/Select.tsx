@@ -25,6 +25,7 @@ type SelectProps = {
   options: SelectOption[];
   value: string;
   onChange: (value: string) => void;
+  id?: string;
   name?: string;
   disabled?: boolean;
   scale?: "small" | "medium" | "large";
@@ -36,6 +37,7 @@ export const Select = ({
   options,
   value,
   onChange,
+  id,
   name,
   disabled,
   scale = "medium",
@@ -47,6 +49,7 @@ export const Select = ({
   return (
     <Listbox value={value} onChange={onChange} name={name} disabled={disabled}>
       <ListboxButton
+        id={id}
         className={twMerge(
           baseStyle,
           heightStyles[scale],

@@ -1,4 +1,5 @@
 import { ObjectPresignedUrl } from "~/routes/objects.route";
+import { isOmeTiff } from "~/utils/omeTiffOffsets";
 
 /** Represents the type of node in the directory tree hierarchy. */
 export type TreeNodeType = "bucket" | "directory" | "file";
@@ -61,8 +62,8 @@ function buildDirectoryTreeRecursive(
       };
       currentDir.push(existingDir);
     } else if (
-      obj.Key?.endsWith(".ome.tif") &&
-      !existingDir._Object?.Key?.endsWith(".ome.tif")
+      isOmeTiff(obj.Key ?? "") &&
+      !isOmeTiff(existingDir._Object?.Key ?? "")
     ) {
       existingDir._Object = obj;
     }
@@ -99,6 +100,34 @@ function buildDirectoryTreeRecursive(
  * //   { name: "readme.txt", type: "file", children: [] }
  * // ]
  */
+/** Recursively compute the total size of a directory node. */
+export function computeDirectorySize(node: TreeNode): number {
+  if (node.type === "file") return node._Object?.Size ?? 0;
+  if (node.children.length === 0) return node._Object?.Size ?? 0;
+  return node.children.reduce(
+    (sum, child) => sum + computeDirectorySize(child),
+    0,
+  );
+}
+
+/** Recursively compute the latest LastModified timestamp of a directory node. */
+export function computeDirectoryLastModified(node: TreeNode): number {
+  if (node.type === "file") {
+    return node._Object?.LastModified
+      ? new Date(node._Object.LastModified).getTime()
+      : 0;
+  }
+  if (node.children.length === 0) {
+    return node._Object?.LastModified
+      ? new Date(node._Object.LastModified).getTime()
+      : 0;
+  }
+  return node.children.reduce(
+    (max, child) => Math.max(max, computeDirectoryLastModified(child)),
+    0,
+  );
+}
+
 export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],

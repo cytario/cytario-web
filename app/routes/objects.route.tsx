@@ -280,6 +280,7 @@ export default function ObjectsRoute() {
     return (
       <Section>
         <DirectoryView
+          viewMode="list"
           name={name}
           nodes={nodes}
           provider={bucketConfig.provider}
