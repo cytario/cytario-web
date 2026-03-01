@@ -215,7 +215,7 @@ export default function App() {
 
   return (
     <RouterProvider navigate={navigate} useHref={useHref}>
-      <ToastProvider bridge={toastBridge}>
+      <ToastProvider bridge={toastBridge} placement="top-center">
         <Outlet />
       </ToastProvider>
     </RouterProvider>
