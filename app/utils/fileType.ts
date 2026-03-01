@@ -32,6 +32,14 @@ const FILE_TYPE_REGISTRY: FileTypeEntry[] = [
   { pattern: /\.jpe?g$/i, type: "JPEG", icon: "Image" },
 ];
 
+/** Set of file types that represent viewable images. */
+export const IMAGE_FILE_TYPES: ReadonlySet<FileType> = new Set([
+  "TIFF",
+  "OME-TIFF",
+  "PNG",
+  "JPEG",
+]);
+
 /** Returns a human-readable file type label from a file path or key. */
 export function getFileType(path: string): FileType {
   for (const entry of FILE_TYPE_REGISTRY) {
