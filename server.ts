@@ -40,6 +40,11 @@ app.use(express.static("public", { maxAge: "1h" }));
 
 app.use(morgan("tiny"));
 
+// Kubernetes readiness/liveness probe
+app.get("/healthz", (_req, res) => {
+  res.status(200).send("ok");
+});
+
 app.all(
   "*",
   createRequestHandler({
@@ -56,11 +61,27 @@ const server = app.listen(port, host, () => {
 });
 
 // Graceful shutdown on SIGTERM/SIGINT
+const SHUTDOWN_DELAY_MS = 5_000;
+const DRAIN_TIMEOUT_MS = 15_000;
+
 for (const signal of ["SIGTERM", "SIGINT"]) {
   process.once(signal, () => {
-    server.close((err) => {
-      if (err) console.error(err);
-      process.exit(err ? 1 : 0);
-    });
+    console.log(`[cytario-web] ${signal} received, shutting down gracefully`);
+
+    // Wait for load balancer to deregister the pod before closing connections
+    setTimeout(() => {
+      console.log("[cytario-web] closing server to new connections");
+      server.close((err) => {
+        if (err) console.error("[cytario-web] error during close:", err);
+        console.log("[cytario-web] all connections drained, exiting");
+        process.exit(err ? 1 : 0);
+      });
+
+      // Force exit if connections don't drain in time
+      setTimeout(() => {
+        console.error("[cytario-web] drain timeout, forcing exit");
+        process.exit(1);
+      }, DRAIN_TIMEOUT_MS).unref();
+    }, SHUTDOWN_DELAY_MS);
   });
 }
