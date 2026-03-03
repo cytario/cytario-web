@@ -18,6 +18,18 @@ app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
 
+let isShuttingDown = false;
+
+// Kubernetes readiness/liveness probe — before all middleware so it's fast and
+// never blocked by compression, static-file serving, or request logging.
+app.get("/healthz", (_req, res) => {
+  if (isShuttingDown) {
+    res.status(503).send("shutting down");
+  } else {
+    res.status(200).send("ok");
+  }
+});
+
 app.use(compression());
 
 // Vite-fingerprinted assets — immutable, cache forever
@@ -39,11 +51,6 @@ app.use(
 app.use(express.static("public", { maxAge: "1h" }));
 
 app.use(morgan("tiny"));
-
-// Kubernetes readiness/liveness probe
-app.get("/healthz", (_req, res) => {
-  res.status(200).send("ok");
-});
 
 app.all(
   "*",
@@ -67,13 +74,17 @@ const DRAIN_TIMEOUT_MS = 15_000;
 for (const signal of ["SIGTERM", "SIGINT"]) {
   process.once(signal, () => {
     console.log(`[cytario-web] ${signal} received, shutting down gracefully`);
+    isShuttingDown = true;
 
     // Wait for load balancer to deregister the pod before closing connections
     setTimeout(() => {
       console.log("[cytario-web] closing server to new connections");
       server.close((err) => {
-        if (err) console.error("[cytario-web] error during close:", err);
-        console.log("[cytario-web] all connections drained, exiting");
+        if (err) {
+          console.error("[cytario-web] error during close:", err);
+        } else {
+          console.log("[cytario-web] all connections drained, exiting");
+        }
         process.exit(err ? 1 : 0);
       });
 
