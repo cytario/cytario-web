@@ -12,7 +12,10 @@ import {
   type SessionData,
   sessionStorage,
 } from "./sessionStorage";
-import { verifyIdToken } from "./verifyIdToken";
+import {
+  IdTokenVerificationError,
+  verifyIdToken,
+} from "./verifyIdToken";
 import { BucketConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getBucketConfigs } from "~/utils/bucketConfig";
@@ -101,7 +104,16 @@ export const authMiddleware: MiddlewareFunction = async (
     const { authTokens } = updatedSessionData;
 
     // Verify idToken signature via JWKS
-    const idTokenPayload = await verifyIdToken(authTokens.idToken);
+    let idTokenPayload;
+    try {
+      idTokenPayload = await verifyIdToken(authTokens.idToken);
+    } catch (error) {
+      if (error instanceof IdTokenVerificationError && error.retryable) {
+        console.error(`${label} JWKS verification failed (transient):`, error);
+        throw new Response("Service temporarily unavailable", { status: 503 });
+      }
+      throw error;
+    }
 
     if (idTokenPayload) {
       const { sessionData: withCredentials, bucketConfigs } =
@@ -135,6 +147,9 @@ export const authMiddleware: MiddlewareFunction = async (
             status: 503,
           });
         }
+        // Non-retryable error (e.g., invalid_grant, revoked token):
+        // session is unrecoverable, force logout immediately.
+        await logout(request.url, session);
       }
 
       if (newAuthTokens) {

@@ -1,6 +1,21 @@
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import {
+  createRemoteJWKSet,
+  errors,
+  jwtVerify,
+  type JWTPayload,
+} from "jose";
 
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
+
+export class IdTokenVerificationError extends Error {
+  readonly retryable: boolean;
+
+  constructor(message: string, retryable: boolean, cause?: unknown) {
+    super(message, { cause });
+    this.name = "IdTokenVerificationError";
+    this.retryable = retryable;
+  }
+}
 
 let remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
@@ -14,7 +29,12 @@ const getJwks = async () => {
 
 /**
  * Verifies an ID token's signature using the JWKS from the OIDC provider.
- * Validates issuer and clock tolerance. Returns the verified payload or null on failure.
+ * Validates issuer and clock tolerance. Returns the verified payload or null
+ * when the token itself is invalid (expired, bad signature, wrong issuer).
+ *
+ * Throws {@link IdTokenVerificationError} for transient infrastructure errors
+ * (JWKS fetch timeout, network failure) so the caller can return 503 instead
+ * of incorrectly treating it as an invalid token.
  *
  * Note: `audience` validation is omitted — Keycloak's ID token `aud` claim
  * behavior varies by client configuration. Add after confirming the actual
@@ -31,7 +51,30 @@ export const verifyIdToken = async (
       clockTolerance: 30,
     });
     return payload;
-  } catch {
-    return null;
+  } catch (error) {
+    // JWKS timeout is transient — the OIDC provider may be temporarily unreachable
+    if (error instanceof errors.JWKSTimeout) {
+      remoteJwks = null; // Reset so next request recreates the JWKS fetcher
+      throw new IdTokenVerificationError(
+        "JWKS fetch timed out",
+        true,
+        error,
+      );
+    }
+
+    // All other jose errors are token validation failures (expired, bad signature,
+    // wrong issuer, invalid claims) — return null to trigger the refresh flow
+    if (error instanceof errors.JOSEError) {
+      return null;
+    }
+
+    // Non-jose errors (network failures from fetch inside createRemoteJWKSet,
+    // DNS resolution errors, etc.) are transient infrastructure issues
+    remoteJwks = null; // Reset so next request recreates the JWKS fetcher
+    throw new IdTokenVerificationError(
+      `JWKS verification infrastructure error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      true,
+      error,
+    );
   }
 };

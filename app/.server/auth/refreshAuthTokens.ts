@@ -74,6 +74,8 @@ const LOCK_PREFIX = "refresh_lock:";
 const LOCK_TTL_SECONDS = 15;
 const MAX_RETRIES = 10;
 const RETRY_DELAY_MS = 100;
+const REFRESH_MAX_RETRIES = 3;
+const REFRESH_BASE_DELAY_MS = 200;
 
 /**
  * Lua script for atomic check-and-delete.
@@ -90,17 +92,29 @@ const RELEASE_LOCK_SCRIPT = `
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Reads the current session auth tokens directly from Redis,
+ * Reads the current session data directly from Redis,
  * bypassing the in-memory LRU cache to get the freshest data.
  */
-async function readSessionTokensFromStore(
+async function readSessionDataFromStore(
   sessionId: string,
-): Promise<AuthTokens | null> {
+): Promise<Partial<SessionData> | null> {
   const data = await redis.hget(sessionId, "data");
   if (!data) return null;
 
-  const parsed = JSON.parse(data) as Partial<SessionData>;
-  return parsed.authTokens ?? null;
+  return JSON.parse(data) as Partial<SessionData>;
+}
+
+/**
+ * Writes updated auth tokens into the existing session data in Redis.
+ * Reads the current session, merges in the new tokens, and writes back.
+ */
+async function writeSessionTokensToStore(
+  sessionId: string,
+  authTokens: AuthTokens,
+): Promise<void> {
+  const sessionData = await readSessionDataFromStore(sessionId);
+  const updated = { ...sessionData, authTokens };
+  await redis.hset(sessionId, "data", JSON.stringify(updated));
 }
 
 /**
@@ -132,7 +146,8 @@ export async function refreshAccessTokenWithLock(
       try {
         // Re-read session from Redis to check if tokens were already refreshed
         // by a previous lock holder (handles refresh token rotation)
-        const currentTokens = await readSessionTokensFromStore(sessionId);
+        const currentData = await readSessionDataFromStore(sessionId);
+        const currentTokens = currentData?.authTokens ?? null;
 
         if (
           currentTokens &&
@@ -141,7 +156,35 @@ export async function refreshAccessTokenWithLock(
           return currentTokens;
         }
 
-        return await refreshAccessToken(refreshToken);
+        // Retry transient Keycloak errors with exponential backoff,
+        // staying inside the lock to avoid release/re-acquire overhead.
+        let lastError: TokenRefreshError | undefined;
+        for (let retry = 0; retry < REFRESH_MAX_RETRIES; retry++) {
+          try {
+            const newTokens = await refreshAccessToken(refreshToken);
+
+            // Write refreshed tokens to Redis while still holding the lock,
+            // so concurrent requests waiting for the lock will read the new tokens
+            // and skip the Keycloak call (rotation detection).
+            await writeSessionTokensToStore(sessionId, newTokens);
+
+            return newTokens;
+          } catch (error) {
+            if (
+              error instanceof TokenRefreshError &&
+              error.retryable &&
+              retry < REFRESH_MAX_RETRIES - 1
+            ) {
+              lastError = error;
+              await delay(REFRESH_BASE_DELAY_MS * 2 ** retry);
+              continue;
+            }
+            throw error;
+          }
+        }
+
+        // Unreachable: loop always returns or throws on last iteration
+        throw lastError!;
       } finally {
         await redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockValue);
       }

@@ -1,12 +1,19 @@
-import { jwtVerify, createRemoteJWKSet } from "jose";
+import { errors, jwtVerify, createRemoteJWKSet } from "jose";
 
-import { verifyIdToken } from "../verifyIdToken";
+import {
+  IdTokenVerificationError,
+  verifyIdToken,
+} from "../verifyIdToken";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
 
-vi.mock("jose", () => ({
-  jwtVerify: vi.fn(),
-  createRemoteJWKSet: vi.fn(() => "mock-jwks-function"),
-}));
+vi.mock("jose", async () => {
+  const actual = await vi.importActual<typeof import("jose")>("jose");
+  return {
+    ...actual,
+    jwtVerify: vi.fn(),
+    createRemoteJWKSet: vi.fn(() => "mock-jwks-function"),
+  };
+});
 
 vi.mock("../wellKnownEndpoints", () => ({
   getWellKnownEndpoints: vi.fn(),
@@ -50,7 +57,7 @@ describe("verifyIdToken", () => {
 
   test("returns null for an invalid signature", async () => {
     vi.mocked(jwtVerify).mockRejectedValue(
-      new Error("signature verification failed"),
+      new errors.JWSSignatureVerificationFailed(),
     );
 
     const result = await verifyIdToken("tampered-token");
@@ -60,7 +67,7 @@ describe("verifyIdToken", () => {
 
   test("returns null for an expired token", async () => {
     vi.mocked(jwtVerify).mockRejectedValue(
-      new Error('"exp" claim timestamp check failed'),
+      new errors.JWTExpired("token expired", {}),
     );
 
     const result = await verifyIdToken("expired-token");
@@ -70,7 +77,7 @@ describe("verifyIdToken", () => {
 
   test("returns null for wrong issuer", async () => {
     vi.mocked(jwtVerify).mockRejectedValue(
-      new Error('"iss" claim check failed'),
+      new errors.JWTClaimValidationFailed('"iss" claim check failed', {}),
     );
 
     const result = await verifyIdToken("wrong-issuer-token");
@@ -78,18 +85,48 @@ describe("verifyIdToken", () => {
     expect(result).toBeNull();
   });
 
-  test("returns null when JWKS fetch fails", async () => {
+  test("throws IdTokenVerificationError on JWKS timeout", async () => {
+    vi.mocked(jwtVerify).mockRejectedValue(
+      new errors.JWKSTimeout(),
+    );
+
+    await expect(verifyIdToken("some-token")).rejects.toThrow(
+      IdTokenVerificationError,
+    );
+    await expect(verifyIdToken("some-token")).rejects.toMatchObject({
+      retryable: true,
+      message: "JWKS fetch timed out",
+    });
+  });
+
+  test("throws IdTokenVerificationError on network failure", async () => {
+    vi.mocked(jwtVerify).mockRejectedValue(
+      new TypeError("fetch failed"),
+    );
+
+    await expect(verifyIdToken("some-token")).rejects.toThrow(
+      IdTokenVerificationError,
+    );
+    await expect(verifyIdToken("some-token")).rejects.toMatchObject({
+      retryable: true,
+    });
+  });
+
+  test("throws IdTokenVerificationError when JWKS endpoint is unreachable during setup", async () => {
     vi.mocked(createRemoteJWKSet).mockImplementation(() => {
       throw new Error("JWKS endpoint unreachable");
     });
 
-    // Reset the cached JWKS by re-importing
+    // Reset the cached JWKS by re-importing — this creates a fresh module
+    // instance, so instanceof checks against the top-level import won't work.
+    // Use name + retryable matching instead.
     vi.resetModules();
     const { verifyIdToken: freshVerify } = await import("../verifyIdToken");
 
-    const result = await freshVerify("some-token");
-
-    expect(result).toBeNull();
+    await expect(freshVerify("some-token")).rejects.toMatchObject({
+      name: "IdTokenVerificationError",
+      retryable: true,
+    });
   });
 
   test("uses issuer from OIDC discovery for verification", async () => {

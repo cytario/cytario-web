@@ -25,6 +25,7 @@ vi.mock("../../db/redis", () => ({
     set: vi.fn(),
     eval: vi.fn(),
     hget: vi.fn(),
+    hset: vi.fn(),
   },
 }));
 
@@ -212,7 +213,7 @@ describe("refreshAccessTokenWithLock", () => {
     vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(sessionData));
   });
 
-  test("acquires lock, refreshes token, and releases lock", async () => {
+  test("acquires lock, refreshes token, writes to Redis, and releases lock", async () => {
     vi.mocked(redis.set).mockResolvedValue("OK");
     vi.mocked(redis.eval).mockResolvedValue(1);
 
@@ -239,6 +240,13 @@ describe("refreshAccessTokenWithLock", () => {
     );
     expect(mockFetch).toHaveBeenCalled();
 
+    // Refreshed tokens written to Redis before lock release
+    expect(redis.hset).toHaveBeenCalledWith(
+      "session-123",
+      "data",
+      expect.any(String),
+    );
+
     // Lock released via Lua script
     expect(redis.eval).toHaveBeenCalledWith(
       expect.stringContaining("redis.call"),
@@ -246,6 +254,26 @@ describe("refreshAccessTokenWithLock", () => {
       "refresh_lock:session-123",
       expect.any(String),
     );
+  });
+
+  test("writes refreshed tokens to Redis before releasing the lock", async () => {
+    vi.mocked(redis.set).mockResolvedValue("OK");
+    vi.mocked(redis.eval).mockResolvedValue(1);
+
+    const callOrder: string[] = [];
+    vi.mocked(redis.hset).mockImplementation(async () => {
+      callOrder.push("hset");
+      return 1;
+    });
+    vi.mocked(redis.eval).mockImplementation(async () => {
+      callOrder.push("eval");
+      return 1;
+    });
+
+    await refreshAccessTokenWithLock("session-123", "refresh-token");
+
+    // hset (write tokens) must happen before eval (release lock)
+    expect(callOrder).toEqual(["hset", "eval"]);
   });
 
   test("returns already-refreshed tokens when refresh token was rotated", async () => {
@@ -352,7 +380,7 @@ describe("refreshAccessTokenWithLock", () => {
     );
   });
 
-  test("throws after exhausting all retries", async () => {
+  test("throws after exhausting all lock retries", async () => {
     // All attempts fail to acquire lock
     vi.mocked(redis.set).mockResolvedValue(null as never);
 
@@ -365,5 +393,75 @@ describe("refreshAccessTokenWithLock", () => {
     expect(redis.set).toHaveBeenCalledTimes(10);
     // No lock to release since it was never acquired
     expect(redis.eval).not.toHaveBeenCalled();
+  });
+
+  test("retries transient Keycloak errors with backoff inside the lock", async () => {
+    vi.mocked(redis.set).mockResolvedValue("OK");
+    vi.mocked(redis.eval).mockResolvedValue(1);
+
+    // First two calls: 503 (retryable), third call: success
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mock.tokenReponse()),
+      });
+
+    const result = await refreshAccessTokenWithLock(
+      "session-123",
+      "refresh-token",
+    );
+
+    // Should have called Keycloak 3 times (2 retries + 1 success)
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(result).toEqual(
+      expect.objectContaining({ accessToken: expect.any(String) }),
+    );
+
+    // Tokens written to Redis and lock released
+    expect(redis.hset).toHaveBeenCalled();
+    expect(redis.eval).toHaveBeenCalled();
+  });
+
+  test("does not retry non-retryable Keycloak errors", async () => {
+    vi.mocked(redis.set).mockResolvedValue("OK");
+    vi.mocked(redis.eval).mockResolvedValue(1);
+
+    // 401 is non-retryable
+    mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+    await expect(
+      refreshAccessTokenWithLock("session-123", "refresh-token"),
+    ).rejects.toSatisfy((error: TokenRefreshError) => {
+      expect(error).toBeInstanceOf(TokenRefreshError);
+      expect(error.retryable).toBe(false);
+      return true;
+    });
+
+    // Should only call Keycloak once — no retry for 4xx
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("throws after exhausting all Keycloak retries", async () => {
+    vi.mocked(redis.set).mockResolvedValue("OK");
+    vi.mocked(redis.eval).mockResolvedValue(1);
+
+    // All 3 attempts return 503
+    mockFetch.mockResolvedValue({ ok: false, status: 503 });
+
+    await expect(
+      refreshAccessTokenWithLock("session-123", "refresh-token"),
+    ).rejects.toSatisfy((error: TokenRefreshError) => {
+      expect(error).toBeInstanceOf(TokenRefreshError);
+      expect(error.retryable).toBe(true);
+      return true;
+    });
+
+    // Should have tried 3 times (initial + 2 retries)
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    // Lock should still be released
+    expect(redis.eval).toHaveBeenCalled();
   });
 });

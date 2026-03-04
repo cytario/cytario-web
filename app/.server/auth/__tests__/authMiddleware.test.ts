@@ -9,7 +9,10 @@ import {
 } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
-import { verifyIdToken } from "../verifyIdToken";
+import {
+  IdTokenVerificationError,
+  verifyIdToken,
+} from "../verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
 import { getBucketConfigs } from "~/utils/bucketConfig";
 
@@ -47,9 +50,20 @@ vi.mock("~/utils/bucketConfig", () => ({
   getBucketConfigs: vi.fn(),
 }));
 
-vi.mock("../verifyIdToken", () => ({
-  verifyIdToken: vi.fn(),
-}));
+vi.mock("../verifyIdToken", () => {
+  class IdTokenVerificationError extends Error {
+    readonly retryable: boolean;
+    constructor(message: string, retryable: boolean, cause?: unknown) {
+      super(message, { cause });
+      this.name = "IdTokenVerificationError";
+      this.retryable = retryable;
+    }
+  }
+  return {
+    verifyIdToken: vi.fn(),
+    IdTokenVerificationError,
+  };
+});
 
 vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router")>();
@@ -548,6 +562,74 @@ describe("authMiddleware", () => {
 
     test("isRefreshTokenValid returns false for undefined token", () => {
       expect(isRefreshTokenValid(undefined)).toBe(false);
+    });
+  });
+
+  describe("JWKS Verification Errors", () => {
+    test("returns 503 when verifyIdToken throws retryable IdTokenVerificationError", async () => {
+      vi.mocked(verifyIdToken).mockRejectedValue(
+        new IdTokenVerificationError("JWKS fetch timed out", true),
+      );
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const args = createMiddlewareArgs();
+
+      try {
+        await authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        );
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(503);
+      }
+
+      // Should NOT attempt token refresh — this is an infrastructure error, not an expired token
+      expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+      // Should NOT destroy the session — transient errors are not auth failures
+      expect(sessionStorage.destroySession).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    test("re-throws non-retryable IdTokenVerificationError", async () => {
+      const error = new IdTokenVerificationError(
+        "Unexpected verification error",
+        false,
+      );
+      vi.mocked(verifyIdToken).mockRejectedValue(error);
+
+      const args = createMiddlewareArgs();
+
+      await expect(
+        authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        ),
+      ).rejects.toThrow(error);
+
+      expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test("verifyIdToken returning null still triggers refresh flow", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(
+        mockSession.id,
+        validRefreshToken,
+      );
+      expect(mockNext).toHaveBeenCalled();
     });
   });
 
