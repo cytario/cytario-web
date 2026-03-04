@@ -15,6 +15,16 @@ export interface AuthTokensResponse {
   scope: string;
 }
 
+export class TokenRefreshError extends Error {
+  readonly retryable: boolean;
+
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.name = "TokenRefreshError";
+    this.retryable = retryable;
+  }
+}
+
 /**
  * Refreshes the access token using the provided refresh token.
  */
@@ -23,17 +33,31 @@ export async function refreshAccessToken(
 ): Promise<AuthTokens> {
   const wellKnownEndpoints = await getWellKnownEndpoints();
 
-  const response = await fetch(wellKnownEndpoints.token_endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: cytarioConfig.auth.clientId,
-      client_secret: cytarioConfig.auth.clientSecret,
-      refresh_token: refreshToken,
-    }),
-  });
-  if (!response.ok) throw new Error("Failed to refresh token");
+  let response: Response;
+  try {
+    response = await fetch(wellKnownEndpoints.token_endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: cytarioConfig.auth.clientId,
+        client_secret: cytarioConfig.auth.clientSecret,
+        refresh_token: refreshToken,
+      }),
+    });
+  } catch (error) {
+    throw new TokenRefreshError(
+      `Failed to refresh token: ${error instanceof Error ? error.message : "Network error"}`,
+      true,
+    );
+  }
+  if (!response.ok) {
+    const retryable = response.status >= 500;
+    throw new TokenRefreshError(
+      `Failed to refresh token (HTTP ${response.status})`,
+      retryable,
+    );
+  }
   const { access_token, id_token, refresh_token } =
     (await response.json()) as AuthTokensResponse;
 

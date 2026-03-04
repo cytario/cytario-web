@@ -2,6 +2,7 @@ import { redis } from "../../db/redis";
 import {
   refreshAccessToken,
   refreshAccessTokenWithLock,
+  TokenRefreshError,
 } from "../refreshAuthTokens";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
 import mock from "~/utils/__tests__/__mocks__";
@@ -136,22 +137,48 @@ describe("refreshAccessToken", () => {
   });
 
   describe("Error Cases", () => {
-    test("throws on non-200 response", async () => {
+    test("throws non-retryable TokenRefreshError on 4xx response", async () => {
       mockFetch.mockResolvedValue({
         ok: false,
-        status: 401,
+        status: 400,
       });
 
-      await expect(refreshAccessToken("expired-token")).rejects.toThrow(
-        "Failed to refresh token",
+      await expect(refreshAccessToken("expired-token")).rejects.toSatisfy(
+        (error: TokenRefreshError) => {
+          expect(error).toBeInstanceOf(TokenRefreshError);
+          expect(error.retryable).toBe(false);
+          expect(error.message).toContain("HTTP 400");
+          return true;
+        },
       );
     });
 
-    test("throws on network failure", async () => {
-      mockFetch.mockRejectedValue(new Error("Network error"));
+    test("throws retryable TokenRefreshError on 5xx response", async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 503,
+      });
 
-      await expect(refreshAccessToken("test-refresh-token")).rejects.toThrow(
-        "Network error",
+      await expect(refreshAccessToken("test-refresh-token")).rejects.toSatisfy(
+        (error: TokenRefreshError) => {
+          expect(error).toBeInstanceOf(TokenRefreshError);
+          expect(error.retryable).toBe(true);
+          expect(error.message).toContain("HTTP 503");
+          return true;
+        },
+      );
+    });
+
+    test("throws retryable TokenRefreshError on network failure", async () => {
+      mockFetch.mockRejectedValue(new Error("fetch failed"));
+
+      await expect(refreshAccessToken("test-refresh-token")).rejects.toSatisfy(
+        (error: TokenRefreshError) => {
+          expect(error).toBeInstanceOf(TokenRefreshError);
+          expect(error.retryable).toBe(true);
+          expect(error.message).toContain("fetch failed");
+          return true;
+        },
       );
     });
   });
@@ -301,7 +328,7 @@ describe("refreshAccessTokenWithLock", () => {
 
     await expect(
       refreshAccessTokenWithLock("session-123", "refresh-token"),
-    ).rejects.toThrow("Failed to refresh token");
+    ).rejects.toThrow(TokenRefreshError);
 
     // Lock should still be released in finally block
     expect(redis.eval).toHaveBeenCalled();

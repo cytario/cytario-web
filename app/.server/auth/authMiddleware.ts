@@ -2,7 +2,10 @@ import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
-import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
+import {
+  refreshAccessTokenWithLock,
+  TokenRefreshError,
+} from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import {
   type CytarioSession,
@@ -20,17 +23,22 @@ export interface AuthContextData extends SessionData {
 
 export const authContext = createContext<AuthContextData>();
 
+const CLOCK_TOLERANCE_SECONDS = 30;
+
 /**
  * Lightweight expiry check for refresh tokens (opaque to clients).
  * Only checks the `exp` claim — no signature verification needed.
+ * Includes a 30-second clock tolerance to avoid edge-case expiry races.
  */
-const isRefreshTokenValid = (token?: string): boolean => {
+export const isRefreshTokenValid = (token?: string): boolean => {
   if (!token) return false;
 
   try {
     const payload = token.split(".")[1];
     const decoded = JSON.parse(atob(payload));
-    return Math.floor(Date.now() / 1000) < decoded.exp;
+    return (
+      Math.floor(Date.now() / 1000) < decoded.exp + CLOCK_TOLERANCE_SECONDS
+    );
   } catch {
     return false;
   }
@@ -122,6 +130,11 @@ export const authMiddleware: MiddlewareFunction = async (
         );
       } catch (error) {
         console.error(`${label} Token refresh failed:`, error);
+        if (error instanceof TokenRefreshError && error.retryable) {
+          throw new Response("Service temporarily unavailable", {
+            status: 503,
+          });
+        }
       }
 
       if (newAuthTokens) {

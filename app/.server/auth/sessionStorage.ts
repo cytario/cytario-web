@@ -95,9 +95,9 @@ export const sessionStorage = createSessionStorage<
     console.info(`${label} Update: ${id}`);
 
     await redis.hset(id, "data", JSON.stringify(data));
-    if (expires) {
-      await setSessionExpiry(id, expires);
-    }
+    const effectiveExpires =
+      expires ?? new Date(Date.now() + (cytarioConfig.cookie.maxAge ?? 86400) * 1000);
+    await setSessionExpiry(id, effectiveExpires);
 
     // Update cache to keep it in sync
     if (data.user && data.authTokens && data.credentials) {

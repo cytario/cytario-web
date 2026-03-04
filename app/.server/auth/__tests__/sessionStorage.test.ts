@@ -18,6 +18,7 @@ vi.mock("~/config", () => ({
       httpOnly: true,
       secure: true,
       sameSite: "lax",
+      maxAge: 86400, // 1 day in seconds
     },
   },
 }));
@@ -164,6 +165,49 @@ describe("sessionStorage", () => {
 
       // Session exists but has no data
       expect(session.data).toEqual({});
+    });
+  });
+
+  describe("updateData", () => {
+    test("renews Redis TTL from cookie.maxAge when expires is not provided", async () => {
+      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
+
+      // Get a session with a known ID by simulating a cookie
+      const session = await sessionStorage.getSession("__session=session-id");
+
+      // Set session data so commitSession triggers updateData
+      session.set("user", mockUser);
+      session.set("authTokens", mockSessionData.authTokens);
+      session.set("credentials", {});
+
+      // commitSession without expires triggers updateData without expires
+      await sessionStorage.commitSession(session);
+
+      // expireat should still be called (TTL renewed from maxAge)
+      expect(redis.expireat).toHaveBeenCalled();
+      const expiryTimestamp = vi.mocked(redis.expireat).mock.calls[0][1] as number;
+      const expectedMin = Math.floor((Date.now() + 86400 * 1000) / 1000) - 2;
+      const expectedMax = Math.floor((Date.now() + 86400 * 1000) / 1000) + 2;
+      expect(expiryTimestamp).toBeGreaterThanOrEqual(expectedMin);
+      expect(expiryTimestamp).toBeLessThanOrEqual(expectedMax);
+    });
+
+    test("uses explicit expires when provided", async () => {
+      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
+
+      const session = await sessionStorage.getSession("__session=session-id");
+
+      session.set("user", mockUser);
+      session.set("authTokens", mockSessionData.authTokens);
+      session.set("credentials", {});
+
+      const explicitExpires = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+      await sessionStorage.commitSession(session, { expires: explicitExpires });
+
+      expect(redis.expireat).toHaveBeenCalledWith(
+        expect.anything(),
+        Math.floor(explicitExpires.getTime() / 1000),
+      );
     });
   });
 

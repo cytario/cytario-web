@@ -1,9 +1,12 @@
 import { redirect } from "react-router";
 
-import { authMiddleware, authContext } from "../authMiddleware";
+import { authMiddleware, authContext, isRefreshTokenValid } from "../authMiddleware";
 import { getSessionData } from "../getSession";
 import { getAllSessionCredentials } from "../getSessionCredentials";
-import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
+import {
+  refreshAccessTokenWithLock,
+  TokenRefreshError,
+} from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
@@ -18,9 +21,20 @@ vi.mock("../getSessionCredentials", () => ({
   getAllSessionCredentials: vi.fn(),
 }));
 
-vi.mock("../refreshAuthTokens", () => ({
-  refreshAccessTokenWithLock: vi.fn(),
-}));
+vi.mock("../refreshAuthTokens", () => {
+  class TokenRefreshError extends Error {
+    readonly retryable: boolean;
+    constructor(message: string, retryable: boolean) {
+      super(message);
+      this.name = "TokenRefreshError";
+      this.retryable = retryable;
+    }
+  }
+  return {
+    refreshAccessTokenWithLock: vi.fn(),
+    TokenRefreshError,
+  };
+});
 
 vi.mock("../sessionStorage", () => ({
   sessionStorage: {
@@ -345,10 +359,10 @@ describe("authMiddleware", () => {
       ).rejects.toThrow("STS service unavailable");
     });
 
-    test("redirects to login when refresh lock exhaustion throws", async () => {
+    test("returns 503 when retryable TokenRefreshError is thrown", async () => {
       vi.mocked(verifyIdToken).mockResolvedValue(null);
       vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
-        new Error("Failed to acquire refresh lock after maximum retries"),
+        new TokenRefreshError("Failed to acquire refresh lock", true),
       );
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -356,30 +370,26 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await expect(
-        authMiddleware(
+      try {
+        await authMiddleware(
           args as unknown as Parameters<typeof authMiddleware>[0],
           mockNext,
-        ),
-      ).rejects.toThrow();
+        );
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(503);
+      }
 
       expect(mockNext).not.toHaveBeenCalled();
-      expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
-      expect(redirect).toHaveBeenCalledWith(
-        expect.stringContaining("/login?redirect="),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            "Set-Cookie": "destroy-cookie",
-          }),
-        }),
-      );
+      expect(sessionStorage.destroySession).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
 
-    test("redirects to login when token refresh fails with Keycloak error", async () => {
+    test("redirects to login when non-retryable TokenRefreshError is thrown", async () => {
       vi.mocked(verifyIdToken).mockResolvedValue(null);
       vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
-        new Error("invalid_grant: Token is not active"),
+        new TokenRefreshError("Failed to refresh token (HTTP 400)", false),
       );
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -510,6 +520,34 @@ describe("authMiddleware", () => {
         `/login?redirect=${encodeURIComponent("/protected/page?query=test")}`,
         expect.any(Object),
       );
+    });
+  });
+
+  describe("Clock Tolerance", () => {
+    test("isRefreshTokenValid returns true for token expiring within 30s tolerance", () => {
+      // Token that expired 15 seconds ago — within 30s tolerance
+      const token = mock.idToken({
+        exp: Math.floor(Date.now() / 1000) - 15,
+      });
+      expect(isRefreshTokenValid(token)).toBe(true);
+    });
+
+    test("isRefreshTokenValid returns false for token expired beyond 30s tolerance", () => {
+      const token = mock.idToken({
+        exp: Math.floor(Date.now() / 1000) - 60,
+      });
+      expect(isRefreshTokenValid(token)).toBe(false);
+    });
+
+    test("isRefreshTokenValid returns true for token not yet expired", () => {
+      const token = mock.idToken({
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      expect(isRefreshTokenValid(token)).toBe(true);
+    });
+
+    test("isRefreshTokenValid returns false for undefined token", () => {
+      expect(isRefreshTokenValid(undefined)).toBe(false);
     });
   });
 
