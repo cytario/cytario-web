@@ -52,7 +52,7 @@ export async function refreshAccessToken(
     );
   }
   if (!response.ok) {
-    const retryable = response.status >= 500;
+    const retryable = response.status >= 500 || response.status === 429;
     throw new TokenRefreshError(
       `Failed to refresh token (HTTP ${response.status})`,
       retryable,
@@ -106,14 +106,15 @@ async function readSessionDataFromStore(
 
 /**
  * Writes updated auth tokens into the existing session data in Redis.
- * Reads the current session, merges in the new tokens, and writes back.
+ * Accepts the already-read session data to avoid a redundant Redis read
+ * (the caller reads it for rotation detection before calling this).
  */
 async function writeSessionTokensToStore(
   sessionId: string,
   authTokens: AuthTokens,
+  existingData: Partial<SessionData> | null,
 ): Promise<void> {
-  const sessionData = await readSessionDataFromStore(sessionId);
-  const updated = { ...sessionData, authTokens };
+  const updated = { ...existingData, authTokens };
   await redis.hset(sessionId, "data", JSON.stringify(updated));
 }
 
@@ -158,7 +159,6 @@ export async function refreshAccessTokenWithLock(
 
         // Retry transient Keycloak errors with exponential backoff,
         // staying inside the lock to avoid release/re-acquire overhead.
-        let lastError: TokenRefreshError | undefined;
         for (let retry = 0; retry < REFRESH_MAX_RETRIES; retry++) {
           try {
             const newTokens = await refreshAccessToken(refreshToken);
@@ -166,25 +166,27 @@ export async function refreshAccessTokenWithLock(
             // Write refreshed tokens to Redis while still holding the lock,
             // so concurrent requests waiting for the lock will read the new tokens
             // and skip the Keycloak call (rotation detection).
-            await writeSessionTokensToStore(sessionId, newTokens);
+            await writeSessionTokensToStore(sessionId, newTokens, currentData);
 
             return newTokens;
           } catch (error) {
+            const isLastAttempt = retry === REFRESH_MAX_RETRIES - 1;
             if (
-              error instanceof TokenRefreshError &&
-              error.retryable &&
-              retry < REFRESH_MAX_RETRIES - 1
+              !(error instanceof TokenRefreshError) ||
+              !error.retryable ||
+              isLastAttempt
             ) {
-              lastError = error;
-              await delay(REFRESH_BASE_DELAY_MS * 2 ** retry);
-              continue;
+              throw error;
             }
-            throw error;
+            await delay(REFRESH_BASE_DELAY_MS * 2 ** retry);
           }
         }
 
         // Unreachable: loop always returns or throws on last iteration
-        throw lastError!;
+        throw new TokenRefreshError(
+          "Exhausted all Keycloak retry attempts",
+          true,
+        );
       } finally {
         await redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockValue);
       }
@@ -193,5 +195,8 @@ export async function refreshAccessTokenWithLock(
     await delay(RETRY_DELAY_MS);
   }
 
-  throw new Error("Failed to acquire refresh lock after maximum retries");
+  throw new TokenRefreshError(
+    "Failed to acquire refresh lock after maximum retries",
+    true,
+  );
 }

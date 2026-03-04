@@ -18,6 +18,8 @@ export class IdTokenVerificationError extends Error {
 }
 
 let remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let lastJwksReset = 0;
+const JWKS_RESET_COOLDOWN_MS = 30_000;
 
 const getJwks = async () => {
   if (!remoteJwks) {
@@ -25,6 +27,18 @@ const getJwks = async () => {
     remoteJwks = createRemoteJWKSet(new URL(jwks_uri));
   }
   return remoteJwks;
+};
+
+/**
+ * Resets the cached JWKS fetcher so the next request recreates it.
+ * Rate-limited to once per 30 seconds to prevent amplification attacks
+ * that could force repeated JWKS endpoint fetches.
+ */
+const resetJwks = () => {
+  if (Date.now() - lastJwksReset > JWKS_RESET_COOLDOWN_MS) {
+    remoteJwks = null;
+    lastJwksReset = Date.now();
+  }
 };
 
 /**
@@ -54,7 +68,7 @@ export const verifyIdToken = async (
   } catch (error) {
     // JWKS timeout is transient — the OIDC provider may be temporarily unreachable
     if (error instanceof errors.JWKSTimeout) {
-      remoteJwks = null; // Reset so next request recreates the JWKS fetcher
+      resetJwks();
       throw new IdTokenVerificationError(
         "JWKS fetch timed out",
         true,
@@ -70,7 +84,7 @@ export const verifyIdToken = async (
 
     // Non-jose errors (network failures from fetch inside createRemoteJWKSet,
     // DNS resolution errors, etc.) are transient infrastructure issues
-    remoteJwks = null; // Reset so next request recreates the JWKS fetcher
+    resetJwks();
     throw new IdTokenVerificationError(
       `JWKS verification infrastructure error: ${error instanceof Error ? error.message : "Unknown error"}`,
       true,

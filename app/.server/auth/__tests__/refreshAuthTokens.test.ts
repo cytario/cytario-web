@@ -170,6 +170,22 @@ describe("refreshAccessToken", () => {
       );
     });
 
+    test("throws retryable TokenRefreshError on 429 rate limit", async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 429,
+      });
+
+      await expect(refreshAccessToken("test-refresh-token")).rejects.toSatisfy(
+        (error: TokenRefreshError) => {
+          expect(error).toBeInstanceOf(TokenRefreshError);
+          expect(error.retryable).toBe(true);
+          expect(error.message).toContain("HTTP 429");
+          return true;
+        },
+      );
+    });
+
     test("throws retryable TokenRefreshError on network failure", async () => {
       mockFetch.mockRejectedValue(new Error("fetch failed"));
 
@@ -380,15 +396,20 @@ describe("refreshAccessTokenWithLock", () => {
     );
   });
 
-  test("throws after exhausting all lock retries", async () => {
+  test("throws retryable TokenRefreshError after exhausting all lock retries", async () => {
     // All attempts fail to acquire lock
     vi.mocked(redis.set).mockResolvedValue(null as never);
 
     await expect(
       refreshAccessTokenWithLock("session-123", "refresh-token"),
-    ).rejects.toThrow(
-      "Failed to acquire refresh lock after maximum retries",
-    );
+    ).rejects.toSatisfy((error: TokenRefreshError) => {
+      expect(error).toBeInstanceOf(TokenRefreshError);
+      expect(error.retryable).toBe(true);
+      expect(error.message).toBe(
+        "Failed to acquire refresh lock after maximum retries",
+      );
+      return true;
+    });
 
     expect(redis.set).toHaveBeenCalledTimes(10);
     // No lock to release since it was never acquired
