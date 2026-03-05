@@ -59,6 +59,11 @@ export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
       {
         name: "recently-viewed-storage",
         storage: createJSONStorage(() => localStorage),
+        version: 1,
+        onRehydrateStorage: () => (_state, error) => {
+          if (error)
+            console.error("[RecentlyViewedStore] Rehydration failed:", error);
+        },
       },
     ),
     { name },

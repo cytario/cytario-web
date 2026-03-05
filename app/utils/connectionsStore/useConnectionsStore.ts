@@ -78,6 +78,11 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
+        version: 1,
+        onRehydrateStorage: () => (_state, error) => {
+          if (error)
+            console.error("[ConnectionsStore] Rehydration failed:", error);
+        },
       },
     ),
     { name },

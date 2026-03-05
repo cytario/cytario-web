@@ -68,6 +68,11 @@ export const usePinnedPathsStore = create<PinnedPathsStore>()(
       {
         name: "pinned-paths-storage",
         storage: createJSONStorage(() => localStorage),
+        version: 1,
+        onRehydrateStorage: () => (_state, error) => {
+          if (error)
+            console.error("[PinnedPathsStore] Rehydration failed:", error);
+        },
       },
     ),
     { name },
