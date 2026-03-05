@@ -12,7 +12,10 @@ export function RouteModal({
   title: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
-  /** Whether the modal can be dismissed by clicking outside or pressing Escape. */
+  /**
+   * Whether the modal can be dismissed by clicking outside (backdrop click).
+   * Pressing Escape always closes the modal regardless of this setting.
+   */
   isDismissable?: boolean;
   onClose?: () => void;
 }>) {
@@ -22,9 +25,9 @@ export function RouteModal({
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
-      if (!isOpen && isDismissable) handleClose();
+      if (!isOpen) handleClose();
     },
-    [isDismissable, handleClose],
+    [handleClose],
   );
 
   return (
