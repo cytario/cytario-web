@@ -6,14 +6,6 @@ import { RouteModal } from "../RouteModal";
 
 const onClose = vi.fn();
 
-vi.mock("@cytario/design", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@cytario/design")>();
-  return {
-    ...actual,
-  };
-});
-
 function createStub(isDismissable?: boolean) {
   return createRoutesStub([
     {
@@ -57,15 +49,39 @@ describe("RouteModal", () => {
     render(<Stub initialEntries={["/connect-bucket"]} />);
 
     await userEvent.keyboard("{Escape}");
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test("calls onClose when clicking close button", async () => {
+    const Stub = createStub();
+    render(<Stub initialEntries={["/connect-bucket"]} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   describe("isDismissable={false}", () => {
-    test("does not call onClose when pressing Escape key", async () => {
+    test("calls onClose when pressing Escape key", async () => {
       const Stub = createStub(false);
       render(<Stub initialEntries={["/connect-bucket"]} />);
 
       await userEvent.keyboard("{Escape}");
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    test("calls onClose when clicking close button", async () => {
+      const Stub = createStub(false);
+      render(<Stub initialEntries={["/connect-bucket"]} />);
+
+      await userEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    test("does not call onClose when clicking inside dialog content", async () => {
+      const Stub = createStub(false);
+      render(<Stub initialEntries={["/connect-bucket"]} />);
+
+      await userEvent.click(screen.getByText("Modal Content"));
       expect(onClose).not.toHaveBeenCalled();
     });
 
