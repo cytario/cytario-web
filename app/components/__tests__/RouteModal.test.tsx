@@ -61,11 +61,27 @@ describe("RouteModal", () => {
   });
 
   describe("isDismissable={false}", () => {
-    test("does not call onClose when pressing Escape key", async () => {
+    test("calls onClose when pressing Escape key", async () => {
       const Stub = createStub(false);
       render(<Stub initialEntries={["/connect-bucket"]} />);
 
       await userEvent.keyboard("{Escape}");
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    test("calls onClose when clicking close button", async () => {
+      const Stub = createStub(false);
+      render(<Stub initialEntries={["/connect-bucket"]} />);
+
+      await userEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    test("does not call onClose when clicking inside dialog content", async () => {
+      const Stub = createStub(false);
+      render(<Stub initialEntries={["/connect-bucket"]} />);
+
+      await userEvent.click(screen.getByText("Modal Content"));
       expect(onClose).not.toHaveBeenCalled();
     });
 
