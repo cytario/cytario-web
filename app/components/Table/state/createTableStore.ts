@@ -6,6 +6,8 @@ import type {
 import { createStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { createMigrate } from "~/utils/persistMigration";
+
 export interface TableStore {
   tableId: string;
 
@@ -70,6 +72,27 @@ export const createTableStore = (tableId: string) =>
       ),
       {
         name: `TableStore-${tableId}`,
+        version: 1,
+        migrate: createMigrate(
+          {
+            0: () => ({
+              columnWidths: {},
+              sorting: [],
+              columnVisibility: {},
+              columnFilters: [],
+            }),
+          },
+          {
+            columnWidths: {},
+            sorting: [],
+            columnVisibility: {},
+            columnFilters: [],
+          },
+        ),
+        onRehydrateStorage: () => (_state, error) => {
+          if (error)
+            console.error(`[TableStore-${tableId}] Rehydration failed:`, error);
+        },
       },
     ),
   );
