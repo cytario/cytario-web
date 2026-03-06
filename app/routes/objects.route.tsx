@@ -216,7 +216,6 @@ export default function ObjectsRoute() {
     nodes,
     urlPath,
     pathName,
-    bucketName,
     credentials,
     connectionConfig,
     isPinned: loaderIsPinned,
@@ -306,9 +305,8 @@ export default function ObjectsRoute() {
         name={name}
         showFilters
         nodes={nodes}
-        provider={connectionConfig.provider}
-        bucketName={bucketName}
-        pathName={pathName}
+        alias={alias}
+        urlPath={urlPath}
       >
         <Button
           onPress={togglePin}

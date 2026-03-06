@@ -3,11 +3,7 @@ import { FolderOpen } from "lucide-react";
 import { ReactNode, useEffect, useMemo } from "react";
 import { useFetcher } from "react-router";
 
-import {
-  computeDirectoryLastModified,
-  computeDirectorySize,
-  TreeNode,
-} from "./buildDirectoryTree";
+import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
   bucketColumns,
@@ -24,9 +20,10 @@ import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
-  provider?: string;
-  bucketName: string;
-  pathName?: string;
+  /** Connection alias — when provided, the directory is tracked as recently viewed */
+  alias?: string;
+  /** URL path relative to connection root */
+  urlPath?: string;
 }
 
 interface DirectoryViewProps extends DirectoryViewBaseProps {
@@ -43,9 +40,8 @@ export function DirectoryView({
   nodes,
   name,
   showFilters = false,
-  provider,
-  bucketName,
-  pathName,
+  alias,
+  urlPath,
   children,
   flush,
 }: DirectoryViewProps) {
@@ -65,32 +61,13 @@ export function DirectoryView({
   const recentFetcher = useFetcher();
 
   useEffect(() => {
-    if (!provider || !bucketName || !pathName) return;
-
-    const totalSize = nodes.reduce(
-      (sum, child) => sum + computeDirectorySize(child),
-      0,
-    );
-    const latestModified = nodes.reduce(
-      (max, child) => Math.max(max, computeDirectoryLastModified(child)),
-      0,
-    );
+    if (!alias || !urlPath) return;
 
     recentFetcher.submit(
-      {
-        provider,
-        bucketName,
-        pathName,
-        name,
-        type: "directory",
-        ...(totalSize ? { totalSize: String(totalSize) } : {}),
-        ...(latestModified
-          ? { lastModified: new Date(latestModified).toISOString() }
-          : {}),
-      },
+      { alias, pathName: urlPath, name, type: "directory" },
       { method: "post", action: "/api/recently-viewed" },
     );
-  }, [provider, bucketName, pathName, name]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [alias, urlPath, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (nodes.length === 0) {
     return (

@@ -23,8 +23,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="list"
             nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Test Directory"
           />
         ),
@@ -44,8 +42,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="list"
             nodes={[]}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Empty Directory"
           />
         ),
@@ -71,8 +67,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="list"
             nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Test Directory"
           />
         ),
@@ -93,8 +87,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="grid-sm"
             nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Test Directory"
           />
         ),

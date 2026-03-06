@@ -73,7 +73,7 @@ export default function ConnectionsListRoute() {
       nodes={nodes}
       name={title}
       showFilters
-      bucketName=""
+
     >
       <ViewModeToggle />
       <ButtonLink href="/connect-bucket" variant="secondary">

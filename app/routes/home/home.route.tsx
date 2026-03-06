@@ -199,7 +199,6 @@ export default function HomeRoute() {
           viewMode="grid-lg"
           nodes={recentImages.slice(0, 4)}
           name="Recently Viewed"
-          bucketName=""
           flush
         >
           <ShowAllLink
@@ -215,7 +214,6 @@ export default function HomeRoute() {
           viewMode="list"
           nodes={pinnedNodes.slice(0, 10)}
           name="Pinned"
-          bucketName=""
           flush
         />
       )}
@@ -225,7 +223,6 @@ export default function HomeRoute() {
           viewMode="list"
           nodes={recentDirs.slice(0, 5)}
           name="Recently Browsed"
-          bucketName=""
           flush
         >
           <ShowAllLink href="/recent" total={recentDirs.length} maxItems={5} />
@@ -237,7 +234,6 @@ export default function HomeRoute() {
           viewMode="grid-sm"
           nodes={recentFiles.slice(0, 6)}
           name="Recent Files"
-          bucketName=""
           flush
         >
           <ShowAllLink href="/recent" total={recentFiles.length} maxItems={6} />
@@ -249,7 +245,6 @@ export default function HomeRoute() {
           viewMode="grid-md"
           nodes={nodes.slice(0, 100)}
           name={title}
-          bucketName=""
           flush
         >
           <ShowAllLink href="/connections" total={nodes.length} maxItems={100} />
