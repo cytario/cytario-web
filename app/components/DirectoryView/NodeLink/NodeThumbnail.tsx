@@ -8,6 +8,7 @@ import { ThumbnailSheets } from "./ThumbnailSheets";
 import { ClientOnly } from "~/components/ClientOnly";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
+import { formatScopeLabel } from "~/components/Pill/Pill";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { formatShortDate } from "~/utils/formatHumanReadableDate";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
@@ -48,6 +49,7 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
       switch (node.type) {
         case "bucket": {
           return [
+            { key: "scope", value: formatScopeLabel(config.ownerScope) },
             { key: "provider", value: config.provider },
             { key: "region", value: config.region ?? "" },
           ];

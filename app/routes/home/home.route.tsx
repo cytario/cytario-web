@@ -247,7 +247,11 @@ export default function HomeRoute() {
           name={title}
           flush
         >
-          <ShowAllLink href="/connections" total={nodes.length} maxItems={100} />
+          <ShowAllLink
+            href="/connections"
+            total={nodes.length}
+            maxItems={100}
+          />
         </DirectoryView>
       )}
 
