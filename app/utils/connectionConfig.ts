@@ -1,15 +1,7 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-
-import { ConnectionConfig, PrismaClient } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { canModify, canSee, filterVisible } from "~/.server/auth/authorization";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { prisma } from "~/.server/db/prisma";
 
 export type { ConnectionConfig };
 

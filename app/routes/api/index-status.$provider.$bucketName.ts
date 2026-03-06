@@ -1,4 +1,4 @@
-import { HeadObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, NotFound } from "@aws-sdk/client-s3";
 import { LoaderFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
@@ -60,7 +60,7 @@ export const loader = async ({
       builtAt: head.LastModified?.toISOString() ?? null,
     });
   } catch (error) {
-    if (error instanceof NoSuchKey) {
+    if (error instanceof NotFound) {
       return Response.json({ exists: false });
     }
     throw error;

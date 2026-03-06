@@ -36,7 +36,7 @@ export const loader: LoaderFunction = async ({ context }) => {
   return loadConnectionNodes(context);
 };
 
-export default function BucketsListRoute() {
+export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
   const { nodes, credentials, bucketConfigs } = useLoaderData<{
     nodes: TreeNode[];

@@ -103,7 +103,7 @@ function ShowAllLink({
   );
 }
 
-export default function BucketsRoute() {
+export default function ConnectionsRoute() {
   const {
     nodes,
     adminScopes,
@@ -181,7 +181,7 @@ export default function BucketsRoute() {
   );
 
   return (
-    <>
+    <div className="flex flex-col gap-8 py-8 sm:gap-12 sm:py-12 lg:gap-16 lg:py-16">
       {recentImages.length > 0 && (
         <DirectoryView
           viewMode="grid-lg"
@@ -260,6 +260,6 @@ export default function BucketsRoute() {
       )}
 
       <Outlet context={{ adminScopes, userId }} />
-    </>
+    </div>
   );
 }

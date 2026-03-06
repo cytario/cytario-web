@@ -1,13 +1,5 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-
-import { PinnedPath, PrismaClient } from "~/.generated/client";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { PinnedPath } from "~/.generated/client";
+import { prisma } from "~/.server/db/prisma";
 
 export type { PinnedPath };
 

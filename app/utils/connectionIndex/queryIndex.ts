@@ -30,15 +30,14 @@ export async function searchIndex(
   );
   const s3Uri = `s3://${bucketName}/${toIndexS3Key(prefix)}`;
 
-  const escapedQuery = query.replace(/'/g, "''");
-
-  const result = await connection.query(`
+  const stmt = await connection.prepare(`
     SELECT key, size, last_modified, etag
     FROM read_parquet('${s3Uri}')
-    WHERE key ILIKE '%${escapedQuery}%'
+    WHERE key ILIKE $1
     ORDER BY key
-    LIMIT ${limit}
+    LIMIT $2
   `);
+  const result = await stmt.query(`%${query}%`, limit);
 
   return extractRows(result);
 }
@@ -62,15 +61,14 @@ export async function listPrefix(
   );
   const s3Uri = `s3://${bucketName}/${toIndexS3Key(indexPrefix)}`;
 
-  const escapedPath = listPath.replace(/'/g, "''");
-
-  const result = await connection.query(`
+  const stmt = await connection.prepare(`
     SELECT key, size, last_modified, etag
     FROM read_parquet('${s3Uri}')
-    WHERE key LIKE '${escapedPath}%'
+    WHERE key LIKE $1
     ORDER BY key
-    LIMIT ${limit}
+    LIMIT $2
   `);
+  const result = await stmt.query(`${listPath}%`, limit);
 
   return extractRows(result);
 }

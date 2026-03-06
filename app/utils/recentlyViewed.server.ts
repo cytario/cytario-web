@@ -1,13 +1,5 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-
-import { PrismaClient, RecentlyViewed } from "~/.generated/client";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { RecentlyViewed } from "~/.generated/client";
+import { prisma } from "~/.server/db/prisma";
 
 export type { RecentlyViewed };
 
