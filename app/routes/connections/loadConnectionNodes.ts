@@ -78,18 +78,10 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
     const result = previews[i];
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
-    const prefixLastSegment = config.prefix
-      ?.replace(/\/$/, "")
-      .split("/")
-      .pop();
-    const displayName = config.prefix
-      ? `${config.name}/${prefixLastSegment}`
-      : config.name;
-
     return {
       alias: config.alias,
       bucketName: config.name,
-      name: displayName,
+      name: config.alias,
       type: "bucket" as const,
       provider: config.provider,
       pathName: config.prefix || undefined,
