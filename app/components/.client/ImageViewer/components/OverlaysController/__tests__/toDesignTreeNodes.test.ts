@@ -9,6 +9,7 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 const makeNode = (
   overrides: Partial<TreeNode> & Pick<TreeNode, "name">,
 ): TreeNode => ({
+  alias: "aws-test-bucket",
   provider: "aws",
   bucketName: "test-bucket",
   type: "file",

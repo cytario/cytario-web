@@ -8,7 +8,7 @@ describe("FeatureBar", () => {
   test("renders all main sections", () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/buckets/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
+        path: "/connections/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
         Component: () => (
           <ViewerStoreProvider
             resourceId={"vericura-image-data/lab/USL-2024-58461-31.ome.tif"}
@@ -23,7 +23,7 @@ describe("FeatureBar", () => {
     render(
       <RemixStub
         initialEntries={[
-          "/buckets/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
+          "/connections/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
         ]}
       />
     );

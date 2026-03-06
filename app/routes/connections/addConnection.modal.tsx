@@ -11,12 +11,12 @@ import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { useBackendNotification } from "~/components/Notification/Notification.store";
 import { RouteModal } from "~/components/RouteModal";
-import { ConnectBucketForm } from "~/forms/connectBucket/connectBucket.form";
+import { AddConnectionForm } from "~/forms/addConnection/addConnection.form";
 import {
   connectBucketSchema,
   parseS3Uri,
-} from "~/forms/connectBucket/connectBucket.schema";
-import { upsertBucketConfig } from "~/utils/bucketConfig";
+} from "~/forms/addConnection/addConnection.schema";
+import { upsertConnectionConfig } from "~/utils/connectionConfig";
 
 const title = "Connect Storage";
 
@@ -36,6 +36,7 @@ export const action: ActionFunction = async ({ request, context }) => {
   const formData = await request.formData();
 
   const rawData = {
+    alias: formData.get("alias") as string,
     ownerScope: formData.get("ownerScope") as string,
     providerType: formData.get("providerType") as string,
     provider: formData.get("provider") as string,
@@ -74,6 +75,7 @@ export const action: ActionFunction = async ({ request, context }) => {
         : data.bucketEndpoint;
 
     const newConfig = {
+      alias: data.alias,
       name: bucketName,
       provider,
       roleArn: data.providerType === "aws" ? data.roleArn : null,
@@ -82,21 +84,29 @@ export const action: ActionFunction = async ({ request, context }) => {
       prefix,
     };
 
-    await upsertBucketConfig(data.ownerScope, user.sub, newConfig);
+    await upsertConnectionConfig(data.ownerScope, user.sub, newConfig);
 
     session.set("notification", {
       status: "success",
       message: "Storage connection added successfully.",
     });
 
-    const redirectPath = prefix
-      ? `/buckets/${provider}/${bucketName}/${prefix}`
-      : `/buckets/${provider}/${bucketName}`;
-
-    return redirect(redirectPath, {
+    return redirect(`/connections/${data.alias}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
+    // Handle unique constraint violation on alias
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "P2002"
+    ) {
+      return {
+        errors: { alias: ["This alias is already taken. Please choose another."] },
+        status: "error",
+      };
+    }
+
     console.error("Error upserting bucket config:", error);
 
     session.set("notification", {
@@ -119,7 +129,7 @@ export default function ConnectBucketModal() {
 
   return (
     <RouteModal title={title}>
-      <ConnectBucketForm adminScopes={adminScopes} userId={userId} />
+      <AddConnectionForm adminScopes={adminScopes} userId={userId} />
     </RouteModal>
   );
 }

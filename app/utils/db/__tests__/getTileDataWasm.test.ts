@@ -80,10 +80,10 @@ describe("getTileDataWasm", () => {
     );
   });
 
-  test("passes bucket config to createDatabase", async () => {
+  test("passes connection config to createDatabase", async () => {
     const mockTable = { numRows: 5 };
     mockQuery.mockResolvedValue(mockTable);
-    const bucketConfig = mock.bucketConfig({
+    const connectionConfig = mock.connectionConfig({
       endpoint: "https://minio.local:9000",
     });
 
@@ -92,13 +92,13 @@ describe("getTileDataWasm", () => {
       defaultTileIndex,
       credentials,
       [],
-      bucketConfig,
+      connectionConfig,
     );
 
     expect(createDatabase).toHaveBeenCalledWith(
       "bucket/path",
       credentials,
-      bucketConfig,
+      connectionConfig,
     );
   });
 

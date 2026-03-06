@@ -1,3 +1,4 @@
+import { useConnectionsStore } from "../connectionsStore";
 import {
   useFileStore,
   type DownloadProgress,
@@ -59,12 +60,33 @@ async function downloadFileWithProgress(
 }
 
 /**
+ * Find the connection alias for a provider/bucketName pair from the store.
+ */
+function findAlias(provider: string, bucketName: string): string | undefined {
+  const { connections } = useConnectionsStore.getState();
+  for (const [key, record] of Object.entries(connections)) {
+    if (
+      record.connectionConfig?.provider === provider &&
+      record.connectionConfig?.name === bucketName
+    ) {
+      return key; // key is the alias
+    }
+  }
+  return undefined;
+}
+
+/**
  * Get presigned URL for a given resourceId
  */
 async function getPresignedUrl(resourceId: string): Promise<string> {
   const { provider, bucketName, pathName } = parseResourceId(resourceId);
+  const alias = findAlias(provider, bucketName);
 
-  const response = await fetch(`/presign/${provider}/${bucketName}/${pathName}`);
+  if (!alias) {
+    throw new Error(`No connection alias found for ${provider}/${bucketName}`);
+  }
+
+  const response = await fetch(`/presign/${alias}/${pathName}`);
   const data = await response.json();
 
   return data.url;

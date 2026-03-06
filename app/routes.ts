@@ -20,11 +20,11 @@ const protectedRoutes = [
   layout("routes/layouts/scrollview.layout.tsx", [
     {
       path: "/",
-      file: "routes/buckets/buckets.route.tsx",
+      file: "routes/home/home.route.tsx",
       children: [
         {
           path: "connect-bucket",
-          file: "routes/buckets/connectBucket.modal.tsx",
+          file: "routes/connections/addConnection.modal.tsx",
         },
       ],
     },
@@ -41,11 +41,11 @@ const protectedRoutes = [
       file: "routes/config.route.tsx",
     },
     {
-      path: "/buckets",
-      file: "routes/buckets/bucketsList.route.tsx",
+      path: "/connections",
+      file: "routes/connections/connectionsList.route.tsx",
     },
     {
-      path: "/buckets/:provider/:bucketName/*",
+      path: "/connections/:alias/*",
       file: "routes/objects.route.tsx",
     },
     layout("routes/admin/admin.layout.tsx", [
@@ -73,12 +73,28 @@ const protectedRoutes = [
 
 const apiRoutes = [
   {
-    path: "/api/cyberduck-profile/:provider/:bucketName",
-    file: "routes/api/cyberduck-profile.$bucketName.ts",
+    path: "/api/cyberduck-profile/:alias",
+    file: "routes/api/cyberduck-profile.$alias.ts",
   },
   {
-    path: "/presign/:provider/:bucketName/*",
+    path: "/api/reindex/:alias",
+    file: "routes/api/reindex.$alias.ts",
+  },
+  {
+    path: "/api/index-status/:alias",
+    file: "routes/api/index-status.$alias.ts",
+  },
+  {
+    path: "/presign/:alias/*",
     file: "routes/presign.route.tsx",
+  },
+  {
+    path: "/api/recently-viewed",
+    file: "routes/api/recently-viewed.ts",
+  },
+  {
+    path: "/api/pinned",
+    file: "routes/api/pinned.ts",
   },
 ];
 

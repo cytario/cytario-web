@@ -57,10 +57,7 @@ export const GlobalSearch = () => {
   }, []);
 
   return (
-    <div
-      ref={parentRef}
-      className={`relative flex items-center flex-grow max-w-md`}
-    >
+    <div ref={parentRef} className={`relative flex items-center grow max-w-md`}>
       <SearchBar
         value={query}
         onChange={handleInputChange}

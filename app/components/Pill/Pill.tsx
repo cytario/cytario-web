@@ -39,3 +39,18 @@ export function Pill({ name, className }: PillProps) {
     </span>
   );
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Format an ownerScope value into a human-readable label. */
+export function formatScopeLabel(ownerScope: string): string {
+  if (!ownerScope || UUID_RE.test(ownerScope)) return "Personal";
+  const segments = ownerScope.split("/").filter(Boolean);
+  return segments[segments.length - 1] ?? ownerScope;
+}
+
+/** Scope badge that renders "Personal" for user IDs or the group name for group scopes. */
+export function ScopePill({ ownerScope, className }: { ownerScope: string; className?: string }) {
+  const label = formatScopeLabel(ownerScope);
+  return <Pill name={label} className={className} />;
+}

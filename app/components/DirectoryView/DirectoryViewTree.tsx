@@ -6,7 +6,7 @@ import { type TreeNode } from "./buildDirectoryTree";
 import { getFileIcon } from "./fileTypeHelpers";
 import { NodeLinkIcon } from "./NodeLink/NodeLinkIcon";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
-import { createResourceId } from "~/utils/resourceId";
+import { nodeToPath } from "~/utils/resourceId";
 
 /* ------------------------------------------------------------------ */
 /*  Tree node conversion                                               */
@@ -87,10 +87,7 @@ export function DirectoryViewTree({
           const original = findOriginalNode(nodes, designNode.id);
           if (!original) return;
 
-          const to = `/buckets/${createResourceId(original.provider, original.bucketName, original.pathName)}`.replace(
-            /\/$/,
-            "",
-          );
+          const to = nodeToPath(original);
           navigate(to);
         }}
       />
@@ -118,12 +115,7 @@ export function DirectoryTree({
   return (
     <ul className="pl-6">
       {nodes.map((node) => {
-        const resourceId = createResourceId(
-          node.provider,
-          node.bucketName,
-          node.pathName,
-        );
-        const to = `/buckets/${resourceId}`.replace(/\/$/, "");
+        const to = nodeToPath(node);
 
         return (
           <li key={node.name}>

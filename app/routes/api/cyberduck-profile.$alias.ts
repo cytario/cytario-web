@@ -3,34 +3,29 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
+  const { alias } = params;
 
-  const { provider, bucketName } = params;
-
-  if (!provider) {
-    return new Response("Provider is required", { status: 400 });
+  if (!alias) {
+    return new Response("Connection alias is required", { status: 400 });
   }
 
-  if (!bucketName) {
-    return new Response("Bucket name is required", { status: 400 });
+  const connectionConfig = await getConnectionByAlias(user, alias);
+  if (!connectionConfig) {
+    return new Response("Connection configuration not found", { status: 404 });
   }
 
-  const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
-
-  if (!bucketConfig) {
-    return new Response("Bucket configuration not found", { status: 404 });
-  }
-
+  const { name: bucketName } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
-  const actualRegion = bucketConfig.region ?? "eu-central-1";
-  const providerConfig = getS3ProviderConfig(bucketConfig.endpoint, actualRegion);
+  const actualRegion = connectionConfig.region ?? "eu-central-1";
+  const providerConfig = getS3ProviderConfig(connectionConfig.endpoint, actualRegion);
 
   // Derive a unique vendor ID from the webapp hostname (e.g. "cytario.com" → "cytario-com")
   const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
@@ -39,7 +34,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const profile = generateCyberduckProfile({
     vendor,
     bucketName,
-    roleArn: bucketConfig.roleArn,
+    roleArn: connectionConfig.roleArn,
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
     stsEndpoint: providerConfig.stsEndpoint,

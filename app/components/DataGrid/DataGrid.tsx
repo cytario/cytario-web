@@ -35,27 +35,30 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const { provider, bucketName } = parseResourceId(resourceId);
-  const storeKey = `${provider}/${bucketName}`;
-  const connection = useConnectionsStore(
-    (state) => state.connections[storeKey],
+  const connection = useConnectionsStore((state) =>
+    Object.values(state.connections).find(
+      (r) =>
+        r.connectionConfig?.provider === provider &&
+        r.connectionConfig?.name === bucketName,
+    ),
   );
 
   // Initial data fetch
   useEffect(() => {
     const fetchData = async () => {
       const credentials = connection?.credentials;
-      const bucketConfig = connection?.bucketConfig;
+      const connectionConfig = connection?.connectionConfig;
 
       if (!credentials) {
-        setError(`No credentials available for bucket: ${storeKey}`);
+        setError(`No credentials available for bucket: ${bucketName}`);
         setLoading(false);
         return;
       }
 
       try {
         const [schema, data] = await Promise.all([
-          getParquetSchema(resourceId, credentials, bucketConfig),
-          getParquetRows(resourceId, credentials, PAGE_SIZE, 0, bucketConfig),
+          getParquetSchema(resourceId, credentials, connectionConfig),
+          getParquetRows(resourceId, credentials, PAGE_SIZE, 0, connectionConfig),
         ]);
         setColumns(schema);
         setRows(data);
@@ -68,14 +71,14 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     };
 
     fetchData();
-  }, [resourceId, storeKey, connection]);
+  }, [resourceId, connection, bucketName]);
 
   // Fetch more rows
   const fetchMore = useCallback(async () => {
     if (isFetchingMore || !hasMore) return;
 
     const credentials = connection?.credentials;
-    const bucketConfig = connection?.bucketConfig;
+    const connectionConfig = connection?.connectionConfig;
     if (!credentials) return;
 
     setIsFetchingMore(true);
@@ -85,7 +88,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
         credentials,
         PAGE_SIZE,
         rows.length,
-        bucketConfig,
+        connectionConfig,
       );
       setRows((prev) => [...prev, ...newRows]);
       setHasMore(newRows.length === PAGE_SIZE);

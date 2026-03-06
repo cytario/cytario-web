@@ -92,14 +92,14 @@ export function Table<TData extends Record<string, unknown>>({
           colConfig.sortingFn === "boolean"
             ? booleanSortingFn
             : (colConfig.sortingFn ?? "alphanumeric"),
-        size: columnSizing[colConfig.id] ?? colConfig.size ?? 150,
+        size: colConfig.size ?? 150,
         minSize: colConfig.minSize ?? 48,
         maxSize: colConfig.maxSize ?? Number.MAX_SAFE_INTEGER,
       };
     });
 
     return [indexColumn, ...dataColumns];
-  }, [columns, cellRenderers, columnSizing, indexColumnSize]);
+  }, [columns, cellRenderers, indexColumnSize]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({

@@ -1,7 +1,7 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { ButtonLink, EmptyState } from "@cytario/design";
 import { ArrowRight, FileSearch } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ActionFunction,
   type LoaderFunction,
@@ -12,28 +12,24 @@ import {
 } from "react-router";
 import { useLoaderData } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { StorageConnectionsGrid } from "~/components/StorageConnectionsGrid";
-import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
-import { deleteBucketConfig } from "~/utils/bucketConfig";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
-import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
-import { usePinnedPathsStore } from "~/utils/pinnedPathsStore";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
+import { useInitConnections } from "~/hooks/useInitConnections";
+import {
+  loadConnectionNodes,
+  type SerializedPinnedPath,
+  type SerializedRecentlyViewed,
+} from "~/routes/connections/loadConnectionNodes";
+import { deleteConnectionConfig } from "~/utils/connectionConfig";
+import { getFileType } from "~/utils/fileType";
 
 const title = "Storage Connections";
-
-const MAX_RECENT_IMAGES = 4;
-const MAX_PINNED = 10;
-const MAX_RECENT_DIRS = 5;
-const MAX_RECENT_FILES = 6;
-const MAX_CONNECTIONS = 100;
+const IMAGE_TYPES = new Set(["TIFF", "OME-TIFF", "PNG", "JPEG"]);
 
 export const meta: MetaFunction = () => {
   return [
@@ -44,16 +40,20 @@ export const meta: MetaFunction = () => {
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
   formAction,
+  currentUrl,
+  nextUrl,
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
+  // Revalidate when navigating back to home from another page
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
   return false;
 };
 
 export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
-  return loadBucketNodes(context);
+  return loadConnectionNodes(context);
 };
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -61,19 +61,13 @@ export const action: ActionFunction = async ({ request, context }) => {
 
   if (request.method.toLowerCase() === "delete") {
     const formData = await request.formData();
-    const provider = formData.get("provider") as string;
-    const bucketName = formData.get("bucketName") as string;
-    const prefix = (formData.get("prefix") as string) ?? "";
+    const alias = formData.get("alias") as string;
 
-    if (!provider) {
-      return { error: "Provider is required" };
+    if (!alias) {
+      return { error: "Connection alias is required" };
     }
 
-    if (!bucketName) {
-      return { error: "Bucket name is required" };
-    }
-
-    await deleteBucketConfig(user, provider, bucketName, prefix);
+    await deleteConnectionConfig(user, alias);
 
     const session = await getSession(request);
 
@@ -107,34 +101,56 @@ function ShowAllLink({
   );
 }
 
-export default function BucketsRoute() {
-  const { nodes, adminScopes, userId, credentials, bucketConfigs } =
-    useLoaderData<{
-      nodes: TreeNode[];
-      adminScopes: string[];
-      userId: string;
-      credentials: Record<string, Credentials>;
-      bucketConfigs: BucketConfig[];
-    }>();
+export default function HomeRoute() {
+  const {
+    nodes,
+    adminScopes,
+    userId,
+    credentials,
+    connectionConfigs,
+    recentlyViewed,
+    pinnedPaths,
+  } = useLoaderData<{
+    nodes: TreeNode[];
+    adminScopes: string[];
+    userId: string;
+    credentials: Record<string, Credentials>;
+    connectionConfigs: ConnectionConfig[];
+    recentlyViewed: SerializedRecentlyViewed[];
+    pinnedPaths: SerializedPinnedPath[];
+  }>();
 
-  const setConnection = useConnectionsStore(select.setConnection);
+  useInitConnections(connectionConfigs, credentials);
 
-  useEffect(() => {
-    for (const config of bucketConfigs) {
-      const creds = credentials[config.name];
-      if (creds) {
-        setConnection(`${config.provider}/${config.name}`, creds, config);
-      }
-    }
-  }, [credentials, bucketConfigs, setConnection]);
+  const configByAlias = useMemo(() => {
+    const map = new Map<string, ConnectionConfig>();
+    for (const c of connectionConfigs) map.set(c.alias, c);
+    return map;
+  }, [connectionConfigs]);
 
-  const allRecentItems = useRecentlyViewedStore((state) => state.items);
-  const pinnedItems = usePinnedPathsStore((state) => state.items);
+  const allRecentItems: TreeNode[] = useMemo(
+    () =>
+      recentlyViewed
+        .filter((item) => configByAlias.has(item.alias))
+        .map((item) => {
+          const config = configByAlias.get(item.alias)!;
+          return {
+            alias: item.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: item.pathName,
+            name: item.name,
+            type: item.type as TreeNode["type"],
+            children: [],
+          };
+        }),
+    [recentlyViewed, configByAlias],
+  );
 
   const recentImages = useMemo(
     () =>
       allRecentItems.filter(
-        (n) => n.type === "file" && IMAGE_FILE_TYPES.has(getFileType(n.name)),
+        (n) => n.type === "file" && IMAGE_TYPES.has(getFileType(n.name)),
       ),
     [allRecentItems],
   );
@@ -147,31 +163,37 @@ export default function BucketsRoute() {
   const recentFiles = useMemo(
     () =>
       allRecentItems.filter(
-        (n) => n.type === "file" && !IMAGE_FILE_TYPES.has(getFileType(n.name)),
+        (n) => n.type === "file" && !IMAGE_TYPES.has(getFileType(n.name)),
       ),
     [allRecentItems],
   );
 
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
-      pinnedItems.map((pin) => ({
-        provider: pin.provider,
-        bucketName: pin.bucketName,
-        pathName: pin.pathName,
-        name: pin.displayName,
-        type: "directory" as const,
-        children: [],
-        _Object:
-          pin.totalSize != null || pin.lastModified != null
-            ? ({
-                Size: pin.totalSize,
-                LastModified: pin.lastModified
-                  ? new Date(pin.lastModified)
-                  : undefined,
-              } as TreeNode["_Object"])
-            : undefined,
-      })),
-    [pinnedItems],
+      pinnedPaths
+        .filter((pin) => configByAlias.has(pin.alias))
+        .map((pin) => {
+          const config = configByAlias.get(pin.alias)!;
+          return {
+            alias: pin.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: pin.pathName,
+            name: pin.displayName,
+            type: "directory" as const,
+            children: [],
+            _Object:
+              pin.totalSize != null || pin.lastModified != null
+                ? ({
+                    Size: pin.totalSize ?? undefined,
+                    LastModified: pin.lastModified
+                      ? new Date(pin.lastModified)
+                      : undefined,
+                  } as TreeNode["_Object"])
+                : undefined,
+          };
+        }),
+    [pinnedPaths, configByAlias],
   );
 
   return (
@@ -179,15 +201,14 @@ export default function BucketsRoute() {
       {recentImages.length > 0 && (
         <DirectoryView
           viewMode="grid-lg"
-          nodes={recentImages.slice(0, MAX_RECENT_IMAGES)}
+          nodes={recentImages.slice(0, 4)}
           name="Recently Viewed"
-          bucketName=""
           flush
         >
           <ShowAllLink
             href="/recent"
             total={recentImages.length}
-            maxItems={MAX_RECENT_IMAGES}
+            maxItems={4}
           />
         </DirectoryView>
       )}
@@ -195,9 +216,8 @@ export default function BucketsRoute() {
       {pinnedNodes.length > 0 && (
         <DirectoryView
           viewMode="list"
-          nodes={pinnedNodes.slice(0, MAX_PINNED)}
+          nodes={pinnedNodes.slice(0, 10)}
           name="Pinned"
-          bucketName=""
           flush
         />
       )}
@@ -205,48 +225,38 @@ export default function BucketsRoute() {
       {recentDirs.length > 0 && (
         <DirectoryView
           viewMode="list"
-          nodes={recentDirs.slice(0, MAX_RECENT_DIRS)}
+          nodes={recentDirs.slice(0, 5)}
           name="Recently Browsed"
-          bucketName=""
           flush
         >
-          <ShowAllLink
-            href="/recent"
-            total={recentDirs.length}
-            maxItems={MAX_RECENT_DIRS}
-          />
+          <ShowAllLink href="/recent" total={recentDirs.length} maxItems={5} />
         </DirectoryView>
       )}
 
       {recentFiles.length > 0 && (
         <DirectoryView
           viewMode="grid-sm"
-          nodes={recentFiles.slice(0, MAX_RECENT_FILES)}
+          nodes={recentFiles.slice(0, 6)}
           name="Recent Files"
-          bucketName=""
           flush
         >
-          <ShowAllLink
-            href="/recent"
-            total={recentFiles.length}
-            maxItems={MAX_RECENT_FILES}
-          />
+          <ShowAllLink href="/recent" total={recentFiles.length} maxItems={6} />
         </DirectoryView>
       )}
 
       {nodes.length > 0 && (
-        <StorageConnectionsGrid
-          nodes={nodes.slice(0, MAX_CONNECTIONS)}
-          bucketConfigs={bucketConfigs}
+        <DirectoryView
+          viewMode="grid-md"
+          nodes={nodes.slice(0, 100)}
           name={title}
           flush
         >
           <ShowAllLink
-            href="/buckets"
+            href="/connections"
             total={nodes.length}
-            maxItems={MAX_CONNECTIONS}
+            maxItems={100}
           />
-        </StorageConnectionsGrid>
+        </DirectoryView>
       )}
 
       {nodes.length === 0 && (

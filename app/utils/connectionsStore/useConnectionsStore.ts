@@ -2,30 +2,33 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/utils/connectionConfig";
+
+export interface ConnectionIndex {
+  status: "unknown" | "loading" | "ready" | "missing" | "error";
+  objectCount: number;
+  builtAt: string | null;
+}
 
 export interface ConnectionRecord {
   credentials: Credentials;
-  bucketConfig?: BucketConfig;
+  connectionConfig?: ConnectionConfig;
+  connectionIndex?: ConnectionIndex;
 }
 
 /**
  * Connections store for managing S3 bucket connections (credentials, config).
  *
- * IMPORTANT: The key used in this store should be "provider/bucketName",
- * not the full file path. Connections are per-bucket, not per-file.
- *
- * Example:
- * - Correct: setConnection("aws/my-bucket", credentials, bucketConfig)
- * - Incorrect: setConnection("aws/my-bucket/path/to/file.csv", credentials)
+ * Keys are connection aliases (globally unique, e.g. "my-bucket" or "my-bucket-deliverables").
  */
 export interface ConnectionsStore {
   connections: Record<string, ConnectionRecord>;
   setConnection: (
     key: string,
     credentials: Credentials,
-    bucketConfig?: BucketConfig,
+    connectionConfig?: ConnectionConfig,
   ) => void;
+  setConnectionIndex: (key: string, connectionIndex: ConnectionIndex) => void;
   clearConnection: (key: string) => void;
   clearAll: () => void;
 }
@@ -41,7 +44,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         setConnection: (
           key: string,
           credentials: Credentials,
-          bucketConfig?: BucketConfig,
+          connectionConfig?: ConnectionConfig,
         ) => {
           set(
             (state) => ({
@@ -50,12 +53,28 @@ export const useConnectionsStore = create<ConnectionsStore>()(
                 [key]: {
                   ...state.connections[key],
                   credentials,
-                  ...(bucketConfig && { bucketConfig }),
+                  ...(connectionConfig && { connectionConfig }),
                 },
               },
             }),
             false,
             "setConnection",
+          );
+        },
+
+        setConnectionIndex: (key: string, connectionIndex: ConnectionIndex) => {
+          set(
+            (state) => ({
+              connections: {
+                ...state.connections,
+                [key]: {
+                  ...state.connections[key],
+                  connectionIndex,
+                },
+              },
+            }),
+            false,
+            "setConnectionIndex",
           );
         },
 
@@ -78,7 +97,16 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
-        version: 1,
+        version: 2,
+        migrate: () => ({ connections: {} }),
+        partialize: (state) => ({
+          connections: Object.fromEntries(
+            Object.entries(state.connections).map(([key, record]) => [
+              key,
+              { credentials: record.credentials, connectionConfig: record.connectionConfig },
+            ]),
+          ),
+        }),
         onRehydrateStorage: () => (_state, error) => {
           if (error)
             console.error("[ConnectionsStore] Rehydration failed:", error);

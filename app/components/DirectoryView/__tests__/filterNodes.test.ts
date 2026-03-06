@@ -6,6 +6,7 @@ import { filterNodes } from "../filterNodes";
 import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
+  alias: "aws-bucket",
   name: "file.csv",
   type: "file",
   bucketName: "bucket",

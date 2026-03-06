@@ -13,7 +13,7 @@ import {
   type ConnectBucketFormData,
   connectBucketSchema,
   defaultFormValues,
-} from "~/forms/connectBucket/connectBucket.schema";
+} from "~/forms/addConnection/addConnection.schema";
 
 const STEP_LABELS = ["Storage Provider", "Data Location", "Access"];
 
@@ -22,7 +22,7 @@ interface ConnectBucketFormProps {
   userId: string;
 }
 
-export const ConnectBucketForm = ({
+export const AddConnectionForm = ({
   adminScopes,
   userId,
 }: ConnectBucketFormProps) => {
@@ -35,6 +35,7 @@ export const ConnectBucketForm = ({
     control,
     trigger,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectBucketSchema),
@@ -56,7 +57,7 @@ export const ConnectBucketForm = ({
         ? ["ownerScope", "providerType"]
         : ["ownerScope", "providerType", "provider"];
     } else if (currentStep === 1) {
-      fieldsToValidate = ["s3Uri"];
+      fieldsToValidate = ["s3Uri", "alias"];
     } else if (currentStep === 2) {
       fieldsToValidate = isAWS
         ? ["bucketRegion", "roleArn"]
@@ -116,7 +117,7 @@ export const ConnectBucketForm = ({
 
         {/* Step 2: Location */}
         {currentStep === 1 && (
-          <LocationFieldset control={control} errors={errors} isAWS={isAWS} />
+          <LocationFieldset control={control} errors={errors} isAWS={isAWS} setValue={setValue} />
         )}
 
         {/* Step 3: Access */}

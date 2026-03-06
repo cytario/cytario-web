@@ -29,6 +29,7 @@
     "@deck.gl/react": "~9.1.15",
     "@deck.gl/widgets": "~9.1.15",
     "@duckdb/duckdb-wasm": "^1.31.1-dev31.0",
+    "@duckdb/node-api": "^1.4.4-r.1",
     "@hms-dbmi/viv": "^0.18.0",
     "@hookform/resolvers": "^5.2.2",
     "@loaders.gl/core": "^4.3.4",

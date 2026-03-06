@@ -8,6 +8,7 @@ import { ThumbnailSheets } from "./ThumbnailSheets";
 import { ClientOnly } from "~/components/ClientOnly";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
+import { formatScopeLabel } from "~/components/Pill/Pill";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { formatShortDate } from "~/utils/formatHumanReadableDate";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
@@ -30,8 +31,8 @@ const EMPTY_ARRAY: ThumbnailMeta[] = [];
 
 function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
   const connections = useConnectionsStore((state) => state.connections);
-  const getBucketConfig = (key: string) =>
-    connections[key]?.bucketConfig ?? null;
+  const getConnectionConfig = (key: string) =>
+    connections[key]?.connectionConfig ?? null;
   // const gridSize = viewMode ? getGridSize(viewMode) : undefined;
 
   switch (viewMode) {
@@ -42,13 +43,13 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
     case "grid-md":
     case "grid-lg":
     default: {
-      const storeKey = `${node.provider}/${node.bucketName}`;
-      const config = getBucketConfig(storeKey);
+      const config = getConnectionConfig(node.alias);
       if (!config) return EMPTY_ARRAY;
 
       switch (node.type) {
         case "bucket": {
           return [
+            { key: "scope", value: formatScopeLabel(config.ownerScope) },
             { key: "provider", value: config.provider },
             { key: "region", value: config.region ?? "" },
           ];

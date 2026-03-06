@@ -94,19 +94,22 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
         originalNode.pathName,
       );
 
-      // Get connection from the store using provider/bucketName key
-      // Use getState() to access store outside of React component render
-      const storeKey = `${originalNode.provider}/${originalNode.bucketName}`;
-      const conn = useConnectionsStore.getState().connections[storeKey];
+      // Find connection record matching this node's provider/bucketName
+      const { connections } = useConnectionsStore.getState();
+      const conn = Object.values(connections).find(
+        (r) =>
+          r.connectionConfig?.provider === originalNode.provider &&
+          r.connectionConfig?.name === originalNode.bucketName,
+      );
       const credentials = conn?.credentials;
-      const bucketConfig = conn?.bucketConfig;
+      const connectionConfig = conn?.connectionConfig;
 
-      if (!bucketConfig) {
-        throw new Error("Bucket configuration not found");
+      if (!connectionConfig) {
+        throw new Error("Connection configuration not found");
       }
 
       if (!credentials) {
-        throw new Error(`No credentials found for bucket: ${storeKey}`);
+        throw new Error(`No credentials found for bucket: ${originalNode.bucketName}`);
       }
 
       if (extension === "csv") {

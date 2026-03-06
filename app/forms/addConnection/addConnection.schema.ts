@@ -1,5 +1,19 @@
 import { z } from "zod";
 
+// Connection alias: 2-60 chars, lowercase alphanumeric + hyphens, no leading/trailing hyphens
+const aliasSchema = z
+  .string()
+  .min(2, "Alias must be at least 2 characters")
+  .max(60, "Alias must be at most 60 characters")
+  .regex(
+    /^[a-z0-9][a-z0-9-]*[a-z0-9]$/,
+    "Alias must be lowercase alphanumeric with hyphens, no leading/trailing hyphens",
+  )
+  .refine(
+    (val) => !val.includes("--"),
+    "Alias must not contain consecutive hyphens",
+  );
+
 // AWS ARN pattern validation
 const arnPattern = /^arn:aws:iam::\d{12}:role\/[\w+=,.@-]+$/;
 
@@ -17,6 +31,22 @@ const s3UriSchema = z
     { message: "Invalid S3 URI - bucket name must be 3-63 characters" },
   );
 
+/** Auto-suggest an alias from an S3 URI (e.g. "s3://my-bucket/path" → "my-bucket"). */
+export function suggestAlias(s3Uri: string): string {
+  const { bucketName, prefix } = parseS3Uri(s3Uri);
+  const lastSegment = prefix
+    .replace(/\/$/, "")
+    .split("/")
+    .filter(Boolean)
+    .pop();
+  const base = lastSegment ? `${bucketName}-${lastSegment}` : bucketName;
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 // Helper to parse S3 URI into bucket name and prefix
 export const parseS3Uri = (
   uri: string,
@@ -29,6 +59,7 @@ export const parseS3Uri = (
 
 // Combined schema for final submission - AWS provider
 const awsFormSchema = z.object({
+  alias: aliasSchema,
   ownerScope: z.string().min(1, "Scope is required"),
   providerType: z.literal("aws"),
   provider: z.string().default(""),
@@ -40,6 +71,7 @@ const awsFormSchema = z.object({
 
 // Combined schema for final submission - Other provider
 const otherFormSchema = z.object({
+  alias: aliasSchema,
   ownerScope: z.string().min(1, "Scope is required"),
   providerType: z.literal("other"),
   provider: z.string().min(1, "Provider name is required"),
@@ -59,6 +91,7 @@ export type ConnectBucketFormData = z.input<typeof connectBucketSchema>;
 
 // Default values for the form
 export const defaultFormValues: ConnectBucketFormData = {
+  alias: "",
   ownerScope: "",
   providerType: "aws",
   provider: "",

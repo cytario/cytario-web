@@ -5,7 +5,7 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getBucketConfigByName } from "~/utils/bucketConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -16,27 +16,26 @@ export const loader = async ({
   context,
 }: ActionFunctionArgs): Promise<Response> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { provider, bucketName } = params;
+  const { alias } = params;
   const pathName = params["*"] as string;
 
-  if (!provider) throw new Error("Provider is required");
-  if (!bucketName) throw new Error("Bucket name is required");
+  if (!alias) throw new Error("Connection alias is required");
 
+  const connectionConfig = await getConnectionByAlias(user, alias);
+  if (!connectionConfig) {
+    throw new Error("Connection configuration not found");
+  }
+
+  const { provider, name: bucketName } = connectionConfig;
   console.info(`${label} Presign route: ${provider}/${bucketName}/${pathName}`);
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
-  const bucketConfig = await getBucketConfigByName(user, provider, bucketName);
-
-  if (!bucketConfig) {
-    throw new Error("Bucket configuration not found");
-  }
-
   try {
-    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
+    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
     const presignedUrl = await getPresignedUrl(
-      bucketConfig,
+      connectionConfig,
       s3Client,
       pathName
     );

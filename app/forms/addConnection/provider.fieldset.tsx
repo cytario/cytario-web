@@ -1,7 +1,7 @@
 import { Field, Fieldset, Input, RadioButton, RadioGroup, Select } from "@cytario/design";
 import { Control, Controller, FieldErrors } from "react-hook-form";
 
-import { ConnectBucketFormData } from "./connectBucket.schema";
+import { ConnectBucketFormData } from "./addConnection.schema";
 
 export const ProviderFieldset = ({
   control,

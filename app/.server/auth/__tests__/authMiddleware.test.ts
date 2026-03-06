@@ -8,7 +8,7 @@ import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
-import { getBucketConfigs } from "~/utils/bucketConfig";
+import { getConnectionConfigs } from "~/utils/connectionConfig";
 
 vi.mock("../getSession", () => ({
   getSessionData: vi.fn(),
@@ -29,8 +29,8 @@ vi.mock("../sessionStorage", () => ({
   },
 }));
 
-vi.mock("~/utils/bucketConfig", () => ({
-  getBucketConfigs: vi.fn(),
+vi.mock("~/utils/connectionConfig", () => ({
+  getConnectionConfigs: vi.fn(),
 }));
 
 vi.mock("../verifyIdToken", () => ({
@@ -52,7 +52,7 @@ vi.mock("react-router", async (importOriginal) => {
 describe("authMiddleware", () => {
   const mockNext = vi.fn();
   const mockSession = mock.session();
-  const mockBucketConfigs = [mock.bucketConfig()];
+  const mockConnectionConfigs = [mock.connectionConfig()];
 
   // Valid JWT payload (from verifyIdToken)
   const validIdTokenPayload = {
@@ -108,7 +108,7 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.destroySession).mockResolvedValue(
       "destroy-cookie",
     );
-    vi.mocked(getBucketConfigs).mockResolvedValue(mockBucketConfigs);
+    vi.mocked(getConnectionConfigs).mockResolvedValue(mockConnectionConfigs);
     // Return the same credentials by default (no change = no session commit)
     vi.mocked(getAllSessionCredentials).mockImplementation(
       async (sessionData) => sessionData.credentials,
@@ -161,7 +161,7 @@ describe("authMiddleware", () => {
         expect.objectContaining({
           user: expect.any(Object),
           authTokens: expect.any(Object),
-          bucketConfigs: mockBucketConfigs,
+          connectionConfigs: mockConnectionConfigs,
         }),
       );
     });
@@ -187,10 +187,10 @@ describe("authMiddleware", () => {
         mockNext,
       );
 
-      expect(getBucketConfigs).toHaveBeenCalledWith(mockSessionData.user);
+      expect(getConnectionConfigs).toHaveBeenCalledWith(mockSessionData.user);
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
-        mockBucketConfigs,
+        mockConnectionConfigs,
       );
     });
 
@@ -325,7 +325,7 @@ describe("authMiddleware", () => {
             accessToken: "new-access-token",
           }),
         }),
-        mockBucketConfigs,
+        mockConnectionConfigs,
       );
     });
 
