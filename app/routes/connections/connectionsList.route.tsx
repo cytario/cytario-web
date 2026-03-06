@@ -30,6 +30,10 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
+export const handle = {
+  breadcrumb: () => ({ label: "Connections", to: "/connections" }),
+};
+
 export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {

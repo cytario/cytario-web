@@ -36,8 +36,7 @@ const fetchPreviewObject = async (
 
 export type SerializedRecentlyViewed = {
   id: number;
-  provider: string;
-  bucketName: string;
+  alias: string;
   pathName: string;
   name: string;
   type: string;
@@ -46,8 +45,7 @@ export type SerializedRecentlyViewed = {
 
 export type SerializedPinnedPath = {
   id: number;
-  provider: string;
-  bucketName: string;
+  alias: string;
   pathName: string;
   displayName: string;
   totalSize: number | null;
@@ -93,8 +91,7 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
   const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
     (item) => ({
       id: item.id,
-      provider: item.provider,
-      bucketName: item.bucketName,
+      alias: item.alias,
       pathName: item.pathName,
       name: item.name,
       type: item.type,
@@ -104,8 +101,7 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
 
   const pinnedPaths: SerializedPinnedPath[] = pinnedPathsRaw.map((pin) => ({
     id: pin.id,
-    provider: pin.provider,
-    bucketName: pin.bucketName,
+    alias: pin.alias,
     pathName: pin.pathName,
     displayName: pin.displayName,
     totalSize: pin.totalSize != null ? Number(pin.totalSize) : null,

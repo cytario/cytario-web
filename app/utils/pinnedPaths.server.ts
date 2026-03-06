@@ -6,8 +6,7 @@ export type { PinnedPath };
 export async function addPinnedPath(
   userId: string,
   pin: {
-    provider: string;
-    bucketName: string;
+    alias: string;
     pathName: string;
     displayName: string;
     totalSize?: number;
@@ -16,10 +15,9 @@ export async function addPinnedPath(
 ): Promise<void> {
   await prisma.pinnedPath.upsert({
     where: {
-      userId_provider_bucketName_pathName: {
+      userId_alias_pathName: {
         userId,
-        provider: pin.provider,
-        bucketName: pin.bucketName,
+        alias: pin.alias,
         pathName: pin.pathName,
       },
     },
@@ -31,8 +29,7 @@ export async function addPinnedPath(
     },
     create: {
       userId,
-      provider: pin.provider,
-      bucketName: pin.bucketName,
+      alias: pin.alias,
       pathName: pin.pathName,
       displayName: pin.displayName,
       totalSize: pin.totalSize != null ? BigInt(pin.totalSize) : null,
@@ -44,12 +41,11 @@ export async function addPinnedPath(
 
 export async function removePinnedPath(
   userId: string,
-  provider: string,
-  bucketName: string,
+  alias: string,
   pathName: string,
 ): Promise<void> {
   await prisma.pinnedPath.deleteMany({
-    where: { userId, provider, bucketName, pathName },
+    where: { userId, alias, pathName },
   });
 }
 
@@ -62,12 +58,11 @@ export async function getPinnedPaths(userId: string): Promise<PinnedPath[]> {
 
 export async function checkIsPinnedPath(
   userId: string,
-  provider: string,
-  bucketName: string,
+  alias: string,
   pathName: string,
 ): Promise<boolean> {
   const count = await prisma.pinnedPath.count({
-    where: { userId, provider, bucketName, pathName },
+    where: { userId, alias, pathName },
   });
   return count > 0;
 }

@@ -77,12 +77,8 @@ export async function deleteConnectionConfig(
   }
 
   await prisma.$transaction([
-    prisma.recentlyViewed.deleteMany({
-      where: { provider: config.provider, bucketName: config.name },
-    }),
-    prisma.pinnedPath.deleteMany({
-      where: { provider: config.provider, bucketName: config.name },
-    }),
+    prisma.recentlyViewed.deleteMany({ where: { alias } }),
+    prisma.pinnedPath.deleteMany({ where: { alias } }),
     prisma.connectionConfig.delete({ where: { id: config.id } }),
   ]);
 }

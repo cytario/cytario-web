@@ -28,6 +28,10 @@ import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewe
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
+export const handle = {
+  breadcrumb: () => ({ label: "Recent", to: "/recent" }),
+};
+
 export const middleware = [authMiddleware];
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -46,8 +50,7 @@ export const loader: LoaderFunction = async ({ context }) => {
     connectionConfigs,
     recentlyViewed: raw.map((item) => ({
       id: item.id,
-      provider: item.provider,
-      bucketName: item.bucketName,
+      alias: item.alias,
       pathName: item.pathName,
       name: item.name,
       type: item.type,
@@ -60,8 +63,7 @@ type RecentLoaderData = {
   connectionConfigs: ConnectionConfig[];
   recentlyViewed: Array<{
     id: number;
-    provider: string;
-    bucketName: string;
+    alias: string;
     pathName: string;
     name: string;
     type: string;
@@ -76,26 +78,29 @@ export default function RecentRoute() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const clearFetcher = useFetcher();
 
-  const aliasLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of connectionConfigs) {
-      map.set(`${c.provider}/${c.name}`, c.alias);
-    }
+  const configByAlias = useMemo(() => {
+    const map = new Map<string, ConnectionConfig>();
+    for (const c of connectionConfigs) map.set(c.alias, c);
     return map;
   }, [connectionConfigs]);
 
   const allItems: TreeNode[] = useMemo(
     () =>
-      recentlyViewed.map((item) => ({
-        alias: aliasLookup.get(`${item.provider}/${item.bucketName}`) ?? "",
-        provider: item.provider,
-        bucketName: item.bucketName,
-        pathName: item.pathName,
-        name: item.name,
-        type: item.type as TreeNode["type"],
-        children: [],
-      })),
-    [recentlyViewed, aliasLookup],
+      recentlyViewed
+        .filter((item) => configByAlias.has(item.alias))
+        .map((item) => {
+          const config = configByAlias.get(item.alias)!;
+          return {
+            alias: item.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: item.pathName,
+            name: item.name,
+            type: item.type as TreeNode["type"],
+            children: [],
+          };
+        }),
+    [recentlyViewed, configByAlias],
   );
 
   const isGrid = viewMode !== "list" && viewMode !== "list-wide";

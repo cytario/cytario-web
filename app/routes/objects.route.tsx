@@ -65,10 +65,13 @@ export const handle = {
     const segments = pathName ? pathName.split("/") : [];
     const basePath = `/connections/${alias}`;
 
-    return getCrumbs(basePath, segments, {
-      dataConnectionName: alias,
-      dataConnectionPath: basePath,
-    });
+    return [
+      { label: "Connections", to: "/connections" },
+      ...getCrumbs(basePath, segments, {
+        dataConnectionName: alias,
+        dataConnectionPath: basePath,
+      }),
+    ];
   },
 };
 
@@ -76,6 +79,9 @@ export interface BucketRouteLoaderResponse {
   alias: string;
   nodes: TreeNode[];
   bucketName: string;
+  /** URL path segment after /connections/:alias/ (relative to connection root) */
+  urlPath: string;
+  /** Full S3 key (connection prefix + urlPath) */
   pathName: string;
   name: string;
   url?: string;
@@ -102,7 +108,7 @@ export const loader = async ({
     throw new Error("Connection configuration not found");
   }
 
-  const { provider, name: bucketName } = connectionConfig;
+  const { name: bucketName } = connectionConfig;
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
@@ -117,12 +123,7 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const isPinned = await checkIsPinnedPath(
-    user.sub,
-    provider,
-    bucketName,
-    pathName,
-  );
+  const isPinned = await checkIsPinnedPath(user.sub, alias, urlPath);
 
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
@@ -157,6 +158,7 @@ export const loader = async ({
         name,
         nodes,
         bucketName,
+        urlPath,
         pathName,
         isPinned,
       };
@@ -178,6 +180,7 @@ export const loader = async ({
       name,
       nodes: [],
       bucketName,
+      urlPath,
       pathName,
       url,
       offsetsUrl,
@@ -192,6 +195,7 @@ export const loader = async ({
       name,
       nodes: [],
       bucketName,
+      urlPath,
       pathName,
       isPinned,
       notification: {
@@ -210,6 +214,7 @@ export default function ObjectsRoute() {
     url,
     offsetsUrl,
     nodes,
+    urlPath,
     pathName,
     bucketName,
     credentials,
@@ -232,8 +237,6 @@ export default function ObjectsRoute() {
     }
   }, [notification]);
 
-  const { provider } = connectionConfig;
-
   const resourceId = createResourceId(
     connectionConfig.provider,
     connectionConfig.name,
@@ -253,13 +256,7 @@ export default function ObjectsRoute() {
   useEffect(() => {
     if (url) {
       recentFetcher.submit(
-        {
-          provider: connectionConfig.provider,
-          bucketName: connectionConfig.name,
-          pathName,
-          name,
-          type: "file",
-        },
+        { alias, pathName: urlPath, name, type: "file" },
         { method: "post", action: "/api/recently-viewed" },
       );
     }
@@ -274,10 +271,9 @@ export default function ObjectsRoute() {
   }
 
   const togglePin = useCallback(() => {
-    if (!provider || !bucketName) return;
     if (isPinned) {
       pinFetcher.submit(
-        { provider, bucketName, pathName: pathName ?? "" },
+        { alias, pathName: urlPath },
         { method: "delete", action: "/api/pinned" },
       );
     } else {
@@ -291,17 +287,16 @@ export default function ObjectsRoute() {
       );
       pinFetcher.submit(
         {
-          provider,
-          bucketName,
-          pathName: pathName ?? "",
-          displayName: pathName ? getName(pathName, bucketName) : bucketName,
+          alias,
+          pathName: urlPath,
+          displayName: urlPath ? getName(urlPath, alias) : alias,
           totalSize: String(totalSize),
           lastModified: lastModified ? String(lastModified) : "",
         },
         { method: "post", action: "/api/pinned" },
       );
     }
-  }, [provider, bucketName, pathName, isPinned, nodes, pinFetcher]);
+  }, [alias, urlPath, isPinned, nodes, pinFetcher]);
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {

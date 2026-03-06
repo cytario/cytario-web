@@ -6,8 +6,7 @@ export type { RecentlyViewed };
 export async function upsertRecentlyViewed(
   userId: string,
   item: {
-    provider: string;
-    bucketName: string;
+    alias: string;
     pathName: string;
     name: string;
     type: string;
@@ -15,10 +14,9 @@ export async function upsertRecentlyViewed(
 ): Promise<void> {
   await prisma.recentlyViewed.upsert({
     where: {
-      userId_provider_bucketName_pathName: {
+      userId_alias_pathName: {
         userId,
-        provider: item.provider,
-        bucketName: item.bucketName,
+        alias: item.alias,
         pathName: item.pathName,
       },
     },
@@ -44,11 +42,10 @@ export async function clearAllRecentlyViewed(userId: string): Promise<void> {
 
 export async function removeRecentlyViewed(
   userId: string,
-  provider: string,
-  bucketName: string,
+  alias: string,
   pathName: string,
 ): Promise<void> {
   await prisma.recentlyViewed.deleteMany({
-    where: { userId, provider, bucketName, pathName },
+    where: { userId, alias, pathName },
   });
 }

@@ -20,7 +20,7 @@ const protectedRoutes = [
   layout("routes/layouts/scrollview.layout.tsx", [
     {
       path: "/",
-      file: "routes/connections/connections.route.tsx",
+      file: "routes/home/home.route.tsx",
       children: [
         {
           path: "connect-bucket",

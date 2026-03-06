@@ -97,7 +97,7 @@ function ShowAllLink({
   );
 }
 
-export default function ConnectionsRoute() {
+export default function HomeRoute() {
   const {
     nodes,
     adminScopes,
@@ -118,27 +118,29 @@ export default function ConnectionsRoute() {
 
   useInitConnections(connectionConfigs, credentials);
 
-  // Build (provider/bucketName) → alias lookup from connection configs
-  const aliasLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of connectionConfigs) {
-      map.set(`${c.provider}/${c.name}`, c.alias);
-    }
+  const configByAlias = useMemo(() => {
+    const map = new Map<string, ConnectionConfig>();
+    for (const c of connectionConfigs) map.set(c.alias, c);
     return map;
   }, [connectionConfigs]);
 
   const allRecentItems: TreeNode[] = useMemo(
     () =>
-      recentlyViewed.map((item) => ({
-        alias: aliasLookup.get(`${item.provider}/${item.bucketName}`) ?? "",
-        provider: item.provider,
-        bucketName: item.bucketName,
-        pathName: item.pathName,
-        name: item.name,
-        type: item.type as TreeNode["type"],
-        children: [],
-      })),
-    [recentlyViewed, aliasLookup],
+      recentlyViewed
+        .filter((item) => configByAlias.has(item.alias))
+        .map((item) => {
+          const config = configByAlias.get(item.alias)!;
+          return {
+            alias: item.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: item.pathName,
+            name: item.name,
+            type: item.type as TreeNode["type"],
+            children: [],
+          };
+        }),
+    [recentlyViewed, configByAlias],
   );
 
   const recentImages = useMemo(
@@ -164,25 +166,30 @@ export default function ConnectionsRoute() {
 
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
-      pinnedPaths.map((pin) => ({
-        alias: aliasLookup.get(`${pin.provider}/${pin.bucketName}`) ?? "",
-        provider: pin.provider,
-        bucketName: pin.bucketName,
-        pathName: pin.pathName,
-        name: pin.displayName,
-        type: "directory" as const,
-        children: [],
-        _Object:
-          pin.totalSize != null || pin.lastModified != null
-            ? ({
-                Size: pin.totalSize ?? undefined,
-                LastModified: pin.lastModified
-                  ? new Date(pin.lastModified)
-                  : undefined,
-              } as TreeNode["_Object"])
-            : undefined,
-      })),
-    [pinnedPaths, aliasLookup],
+      pinnedPaths
+        .filter((pin) => configByAlias.has(pin.alias))
+        .map((pin) => {
+          const config = configByAlias.get(pin.alias)!;
+          return {
+            alias: pin.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: pin.pathName,
+            name: pin.displayName,
+            type: "directory" as const,
+            children: [],
+            _Object:
+              pin.totalSize != null || pin.lastModified != null
+                ? ({
+                    Size: pin.totalSize ?? undefined,
+                    LastModified: pin.lastModified
+                      ? new Date(pin.lastModified)
+                      : undefined,
+                  } as TreeNode["_Object"])
+                : undefined,
+          };
+        }),
+    [pinnedPaths, configByAlias],
   );
 
   return (

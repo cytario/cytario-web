@@ -10,19 +10,17 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   if (request.method.toUpperCase() === "POST") {
     const formData = await request.formData();
-    const provider = formData.get("provider") as string;
-    const bucketName = formData.get("bucketName") as string;
+    const alias = formData.get("alias") as string;
     const pathName = formData.get("pathName") as string;
     const name = formData.get("name") as string;
     const type = formData.get("type") as string;
 
-    if (!provider || !bucketName || pathName == null || !name || !type) {
+    if (!alias || pathName == null || !name || !type) {
       return new Response("Missing required fields", { status: 400 });
     }
 
     await upsertRecentlyViewed(user.sub, {
-      provider,
-      bucketName,
+      alias,
       pathName,
       name,
       type,

@@ -62,7 +62,7 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
 }));
 
 vi.mock("~/components/Breadcrumbs/getCrumbs", () => ({
-  getCrumbs: vi.fn(),
+  getCrumbs: vi.fn(() => []),
 }));
 
 describe("Bucket Route", () => {
@@ -79,8 +79,9 @@ describe("Bucket Route", () => {
       },
     } as unknown as ActionFunctionArgs;
 
-    handle.breadcrumb(mockArgs);
+    const result = handle.breadcrumb(mockArgs);
 
+    expect(result[0]).toEqual({ label: "Connections", to: "/connections" });
     expect(getCrumbs).toHaveBeenCalledWith(
       "/connections/aws-test-bucket",
       ["bucket", "folder", "file.ome.tiff"],

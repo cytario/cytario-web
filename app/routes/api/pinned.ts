@@ -9,11 +9,10 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
 
   const formData = await request.formData();
-  const provider = formData.get("provider") as string;
-  const bucketName = formData.get("bucketName") as string;
+  const alias = formData.get("alias") as string;
   const pathName = formData.get("pathName") as string;
 
-  if (!provider || !bucketName || pathName == null) {
+  if (!alias || pathName == null) {
     return new Response("Missing required fields", { status: 400 });
   }
 
@@ -27,8 +26,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     }
 
     await addPinnedPath(user.sub, {
-      provider,
-      bucketName,
+      alias,
       pathName,
       displayName,
       totalSize:
@@ -45,7 +43,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   }
 
   if (request.method.toUpperCase() === "DELETE") {
-    await removePinnedPath(user.sub, provider, bucketName, pathName);
+    await removePinnedPath(user.sub, alias, pathName);
     return Response.json({ ok: true });
   }
 

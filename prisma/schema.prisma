@@ -26,29 +26,27 @@ model ConnectionConfig {
 }
 
 model RecentlyViewed {
-  id         Int      @id @default(autoincrement())
-  userId     String
-  provider   String
-  bucketName String
-  pathName   String
-  name       String
-  type       String   // "file" | "directory"
-  viewedAt   DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  userId   String
+  alias    String
+  pathName String
+  name     String
+  type     String   // "file" | "directory"
+  viewedAt DateTime @default(now())
 
-  @@unique([userId, provider, bucketName, pathName])
+  @@unique([userId, alias, pathName])
   @@index([userId])
 }
 
 model PinnedPath {
   id           Int       @id @default(autoincrement())
   userId       String
-  provider     String
-  bucketName   String
+  alias        String
   pathName     String
   displayName  String
   totalSize    BigInt?
   lastModified DateTime?
 
-  @@unique([userId, provider, bucketName, pathName])
+  @@unique([userId, alias, pathName])
   @@index([userId])
 }
