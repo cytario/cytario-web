@@ -1,3 +1,5 @@
+import { Button, Checkbox, Field, Icon, IconButton, Select } from "@cytario/design";
+import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -6,16 +8,7 @@ import {
   bulkInviteRowSchema,
   bulkInviteSchema,
 } from "./bulkInvite.schema";
-import {
-  Button,
-  Checkbox,
-  Field,
-  Icon,
-  IconButton,
-  Input,
-  Select,
-} from "~/components/Controls";
-import { GroupPill } from "~/components/Pill/GroupPill";
+import { Input } from "~/components/Controls";
 
 interface BulkInviteFormProps {
   scope: string;
@@ -24,10 +17,14 @@ interface BulkInviteFormProps {
 }
 
 interface RowState extends BulkInviteRow {
+  id: string;
   errors?: Partial<Record<keyof BulkInviteRow, string>>;
 }
 
+let rowCounter = 0;
+
 const emptyRow = (): RowState => ({
+  id: String(++rowCounter),
   email: "",
   firstName: "",
   lastName: "",
@@ -46,6 +43,7 @@ export function BulkInviteForm({
 
   const [groupPath, setGroupPath] = useState(scope);
   const [enabled, setEnabled] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
   const [rows, setRows] = useState<RowState[]>([
     emptyRow(),
     emptyRow(),
@@ -133,7 +131,11 @@ export function BulkInviteForm({
     };
 
     const result = bulkInviteSchema.safeParse(payload);
-    if (!result.success) return;
+    if (!result.success) {
+      setFormError(result.error.issues[0]?.message ?? "Validation failed");
+      return;
+    }
+    setFormError(null);
 
     submit(JSON.stringify(payload), {
       method: "post",
@@ -141,7 +143,7 @@ export function BulkInviteForm({
     });
   };
 
-  const selectOptions = groupOptions.map((p) => ({ label: p, value: p }));
+  const selectItems = groupOptions.map((p) => ({ id: p, name: p }));
 
   return (
     <form
@@ -152,28 +154,33 @@ export function BulkInviteForm({
       }}
     >
       <div className="space-y-4 mb-6">
-        <Field label="Group Membership">
-          {selectOptions.length > 0 ? (
-            <Select
-              options={selectOptions}
-              value={groupPath}
-              onChange={setGroupPath}
-              renderOption={(option) => <GroupPill path={option.value} />}
-            />
-          ) : (
+        {selectItems.length > 0 ? (
+          <Select
+            label="Group Membership"
+            items={selectItems}
+            selectedKey={groupPath}
+            onSelectionChange={(key) => setGroupPath(key as string)}
+          />
+        ) : (
+          <Field label="Group Membership">
             <p className="text-sm text-slate-400">
               No groups available in this scope.
             </p>
-          )}
-        </Field>
-        <Field
-          label="Enabled"
-          description="Uncheck to pre-provision accounts without granting immediate access."
-          inline
-        >
-          <Checkbox checked={enabled} onChange={() => setEnabled((v) => !v)} />
-        </Field>
+          </Field>
+        )}
+        <div className="flex items-center gap-2">
+          <Checkbox isSelected={enabled} onChange={setEnabled}>
+            Enabled
+          </Checkbox>
+          <p className="text-sm text-slate-500">
+            Uncheck to pre-provision accounts without granting immediate access.
+          </p>
+        </div>
       </div>
+
+      {formError && (
+        <p className="text-sm text-rose-600 mb-4">{formError}</p>
+      )}
 
       <table ref={tableRef} className="w-full border-collapse">
         <thead>
@@ -186,75 +193,98 @@ export function BulkInviteForm({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}>
-              <td className="pr-2 py-1 text-sm text-slate-400 tabular-nums text-right">
-                {i + 1}
-              </td>
-              <td className="px-1 py-1">
-                <Input
-                  value={row.email}
-                  onChange={(e) => updateRow(i, "email", e.target.value)}
-                  placeholder="email@example.com"
-                  scale="small"
-                  theme="light"
-                  className={row.errors?.email ? "border-rose-500" : ""}
-                />
-                {row.errors?.email && (
-                  <p className="text-xs text-rose-600 mt-0.5">
-                    {row.errors.email}
-                  </p>
-                )}
-              </td>
-              <td className="px-1 py-1">
-                <Input
-                  value={row.firstName}
-                  onChange={(e) => updateRow(i, "firstName", e.target.value)}
-                  placeholder="First"
-                  scale="small"
-                  theme="light"
-                  className={row.errors?.firstName ? "border-rose-500" : ""}
-                />
-                {row.errors?.firstName && (
-                  <p className="text-xs text-rose-600 mt-0.5">
-                    {row.errors.firstName}
-                  </p>
-                )}
-              </td>
-              <td className="px-1 py-1">
-                <Input
-                  value={row.lastName}
-                  onChange={(e) => updateRow(i, "lastName", e.target.value)}
-                  placeholder="Last"
-                  scale="small"
-                  theme="light"
-                  className={row.errors?.lastName ? "border-rose-500" : ""}
-                />
-                {row.errors?.lastName && (
-                  <p className="text-xs text-rose-600 mt-0.5">
-                    {row.errors.lastName}
-                  </p>
-                )}
-              </td>
-              <td className="pl-1 py-1">
-                {rows.length > 1 && (
-                  <IconButton
-                    icon="X"
+          {rows.map((row, i) => {
+            const emailErrorId = `row-${row.id}-email-error`;
+            const firstNameErrorId = `row-${row.id}-firstName-error`;
+            const lastNameErrorId = `row-${row.id}-lastName-error`;
+            return (
+              <tr key={row.id}>
+                <td className="pr-2 py-1 text-sm text-slate-400 tabular-nums text-right">
+                  {i + 1}
+                </td>
+                <td className="px-1 py-1">
+                  <Input
+                    value={row.email}
+                    onChange={(e) => updateRow(i, "email", e.target.value)}
+                    placeholder="email@example.com"
                     scale="small"
-                    theme="transparent"
-                    onClick={() => removeRow(i)}
-                    label="Remove row"
+                    theme="light"
+                    className={row.errors?.email ? "border-rose-500" : ""}
+                    aria-invalid={!!row.errors?.email}
+                    aria-describedby={
+                      row.errors?.email ? emailErrorId : undefined
+                    }
                   />
-                )}
-              </td>
-            </tr>
-          ))}
+                  {row.errors?.email && (
+                    <p id={emailErrorId} className="text-xs text-rose-600 mt-0.5">
+                      {row.errors.email}
+                    </p>
+                  )}
+                </td>
+                <td className="px-1 py-1">
+                  <Input
+                    value={row.firstName}
+                    onChange={(e) => updateRow(i, "firstName", e.target.value)}
+                    placeholder="First"
+                    scale="small"
+                    theme="light"
+                    className={row.errors?.firstName ? "border-rose-500" : ""}
+                    aria-invalid={!!row.errors?.firstName}
+                    aria-describedby={
+                      row.errors?.firstName ? firstNameErrorId : undefined
+                    }
+                  />
+                  {row.errors?.firstName && (
+                    <p
+                      id={firstNameErrorId}
+                      className="text-xs text-rose-600 mt-0.5"
+                    >
+                      {row.errors.firstName}
+                    </p>
+                  )}
+                </td>
+                <td className="px-1 py-1">
+                  <Input
+                    value={row.lastName}
+                    onChange={(e) => updateRow(i, "lastName", e.target.value)}
+                    placeholder="Last"
+                    scale="small"
+                    theme="light"
+                    className={row.errors?.lastName ? "border-rose-500" : ""}
+                    aria-invalid={!!row.errors?.lastName}
+                    aria-describedby={
+                      row.errors?.lastName ? lastNameErrorId : undefined
+                    }
+                  />
+                  {row.errors?.lastName && (
+                    <p
+                      id={lastNameErrorId}
+                      className="text-xs text-rose-600 mt-0.5"
+                    >
+                      {row.errors.lastName}
+                    </p>
+                  )}
+                </td>
+                <td className="pl-1 py-1">
+                  {rows.length > 1 && (
+                    <IconButton
+                      icon={X}
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => removeRow(i)}
+                      aria-label="Remove row"
+                    />
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
       <div className="mt-2">
-        <Button theme="transparent" scale="small" onClick={addRow}>
-          <Icon icon="Plus" size={14} />
+        <Button variant="ghost" size="sm" onPress={addRow}>
+          <Icon icon={Plus} size="sm" />
           Add Row
         </Button>
       </div>

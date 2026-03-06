@@ -27,6 +27,7 @@ COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
 COPY --from=build /app/build ./build
+COPY server.ts ./
 
 # Copy static files directly from source
 COPY public ./public

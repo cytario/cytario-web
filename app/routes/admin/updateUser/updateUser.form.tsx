@@ -1,3 +1,4 @@
+import { Checkbox, Field, Fieldset, H3 } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -6,13 +7,7 @@ import { useSubmit } from "react-router";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { type KeycloakUser } from "~/.server/auth/keycloakAdmin/client";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import {
-  Checkbox,
-  Field,
-  Fieldset,
-  Input,
-} from "~/components/Controls";
-import { H3 } from "~/components/Fonts";
+import { Input } from "~/components/Controls";
 import {
   type UpdateUserFormData,
   updateUserSchema,
@@ -165,18 +160,20 @@ export const UpdateUserForm = ({
           <Field label="Last name" error={errors.lastName}>
             <Input {...register("lastName")} scale="large" theme="light" />
           </Field>
-          <Field label="Enabled" inline>
+          <div className="flex items-center gap-2">
             <Controller
               control={control}
               name="enabled"
               render={({ field }) => (
                 <Checkbox
-                  checked={field.value}
-                  onChange={() => field.onChange(!field.value)}
-                />
+                  isSelected={field.value}
+                  onChange={(isSelected) => field.onChange(isSelected)}
+                >
+                  Enabled
+                </Checkbox>
               )}
             />
-          </Field>
+          </div>
         </Fieldset>
 
         {groups.filter((g) => !g.isAdmin).length > 0 && (
@@ -185,12 +182,14 @@ export const UpdateUserForm = ({
             {groups
               .filter((g) => !g.isAdmin)
               .map((group) => (
-                <Field key={group.id} label={group.path} inline>
+                <div key={group.id} className="flex items-center gap-2">
                   <Checkbox
-                    checked={memberGroupIds.has(group.id)}
+                    isSelected={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
-                  />
-                </Field>
+                  >
+                    {group.path}
+                  </Checkbox>
+                </div>
               ))}
           </Fieldset>
         )}
@@ -201,12 +200,14 @@ export const UpdateUserForm = ({
             {groups
               .filter((g) => g.isAdmin)
               .map((group) => (
-                <Field key={group.id} label={group.path} inline>
+                <div key={group.id} className="flex items-center gap-2">
                   <Checkbox
-                    checked={memberGroupIds.has(group.id)}
+                    isSelected={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
-                  />
-                </Field>
+                  >
+                    {group.path}
+                  </Checkbox>
+                </div>
               ))}
           </Fieldset>
         )}
@@ -218,6 +219,7 @@ export const UpdateUserForm = ({
         onCancel={onCancelConfirm}
         title="Confirm Changes"
         confirmLabel="Save Changes"
+        confirmVariant="primary"
       >
         <p className="text-sm text-slate-600">
           You are about to make the following changes:

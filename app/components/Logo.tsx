@@ -1,8 +1,5 @@
+import { ColorBrandAccent, ColorBrandPrimary } from "@cytario/design";
 import { motion } from "framer-motion";
-
-import tailwindConfig from "tailwind.config";
-
-const { cytario } = tailwindConfig.theme.extend.colors;
 
 const W = 56;
 const H = 20;
@@ -26,7 +23,7 @@ const pathVariants = {
 
 export const Logo = ({
   color = "white",
-  highlightColor = cytario.turquoise[500],
+  highlightColor = ColorBrandAccent,
   scale = 1,
   className,
 }: {
@@ -53,7 +50,7 @@ export const Logo = ({
       width={width}
       height={height}
       viewBox={`0 0 ${W} ${H}`}
-      fill={color ?? cytario["purple"]}
+      fill={color ?? ColorBrandPrimary}
       className={className}
       variants={containerVariants}
       initial="hidden"

@@ -1,17 +1,11 @@
+import { Checkbox, Field, Fieldset, Select } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
-import {
-  Checkbox,
-  Field,
-  Fieldset,
-  Input,
-  Select,
-} from "~/components/Controls";
-import { GroupPill } from "~/components/Pill/GroupPill";
+import { Input } from "~/components/Controls";
 
 interface InviteUserFormProps {
   scope: string;
@@ -78,11 +72,7 @@ export function InviteUserForm({
       <Fieldset>
         <Field
           label="Email"
-          error={
-            errors.email?.message
-              ? { message: errors.email.message, type: "validation" }
-              : undefined
-          }
+          error={errors.email}
         >
           <Input
             {...register("email")}
@@ -93,58 +83,50 @@ export function InviteUserForm({
         </Field>
         <Field
           label="First name"
-          error={
-            errors.firstName?.message
-              ? { message: errors.firstName.message, type: "validation" }
-              : undefined
-          }
+          error={errors.firstName}
         >
           <Input {...register("firstName")} scale="large" theme="light" />
         </Field>
         <Field
           label="Last name"
-          error={
-            errors.lastName?.message
-              ? { message: errors.lastName.message, type: "validation" }
-              : undefined
-          }
+          error={errors.lastName}
         >
           <Input {...register("lastName")} scale="large" theme="light" />
         </Field>
-        <Field label="Group Membership">
-          {groupOptions.length > 0 ? (
-            <Controller
-              control={control}
-              name="groupPath"
-              render={({ field }) => (
-                <Select
-                  options={groupOptions.map((p) => ({ label: p, value: p }))}
-                  value={field.value}
-                  onChange={field.onChange}
-                  name={field.name}
-                  renderOption={(option) => <GroupPill path={option.value} />}
-                />
-              )}
-            />
-          ) : (
+        {groupOptions.length > 0 ? (
+          <Controller
+            control={control}
+            name="groupPath"
+            render={({ field }) => (
+              <Select
+                label="Group Membership"
+                items={groupOptions.map((p) => ({ id: p, name: p }))}
+                selectedKey={field.value}
+                onSelectionChange={(key) => field.onChange(key as string)}
+              />
+            )}
+          />
+        ) : (
+          <Field label="Group Membership">
             <p className="text-sm text-slate-400">
               No groups available in this scope.
             </p>
-          )}
-        </Field>
-        <Field
-          label="Enabled"
-          description="Uncheck to pre-provision the account without granting immediate access."
-          inline
-        >
+          </Field>
+        )}
+        <div className="flex items-center gap-2">
           <Controller
             control={control}
             name="enabled"
             render={({ field }) => (
-              <Checkbox checked={field.value} onChange={field.onChange} />
+              <Checkbox isSelected={field.value} onChange={field.onChange}>
+                Enabled
+              </Checkbox>
             )}
           />
-        </Field>
+          <p className="text-sm text-slate-500">
+            Uncheck to pre-provision the account without granting immediate access.
+          </p>
+        </div>
       </Fieldset>
     </form>
   );

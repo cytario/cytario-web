@@ -36,6 +36,7 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
 
   switch (viewMode) {
     case "list":
+    case "list-wide":
     case "grid-sm":
       return EMPTY_ARRAY;
     case "grid-md":

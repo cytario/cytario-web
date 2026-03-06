@@ -20,6 +20,8 @@ export default [
       "**/.react-router/**",
       "**/coverage/**",
       "**/devenv/**",
+      "**/e2e/**",
+      "playwright.config.ts",
     ],
   },
 

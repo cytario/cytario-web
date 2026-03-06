@@ -1,8 +1,13 @@
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { ReactNode } from "react";
-import { Link } from "react-router";
+import {
+  IconButton,
+  Menu,
+  MenuHeader,
+  MenuItem,
+  MenuSection,
+  MenuSeparator,
+} from "@cytario/design";
+import { LogOut, Settings, Shield, User, Users } from "lucide-react";
 
-import { ButtonLink, IconButton } from "./Controls";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 
 interface UserMenuProps {
@@ -10,79 +15,75 @@ interface UserMenuProps {
   accountSettingsUrl: string;
 }
 
-export function Card({ children }: { children: ReactNode }) {
-  return (
-    <div className="text-sm space-y-1 bg-slate-700 p-2 border border-slate-500 rounded-sm flex flex-col">
-      {children}
-    </div>
-  );
-}
-
 export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
   return (
-    <Menu>
-      <MenuButton as={IconButton} icon="User" label="User Menu" />
+    <Menu
+      content={
+        <>
+          <MenuHeader>
+            <div className="px-2 py-1 text-sm">
+              <div className="font-semibold">
+                {user.given_name} {user.family_name}
+              </div>
+              <div className="text-[var(--color-text-secondary)]">
+                {user.email}
+              </div>
+            </div>
+          </MenuHeader>
 
-      <MenuItems
-        anchor="top end"
-        className={`
-        z-20 min-w-80
-        space-y-2 p-2 mt-2
-        bg-slate-950 text-white 
-        rounded-b shadow-lg
-        focus:outline-none 
-      `}
-      >
-        {/* Name & Email */}
-        <div>
-          <div className="font-bold">
-            {user.given_name} {user.family_name}
-          </div>
+          <MenuSeparator />
 
-          <div>{user.email}</div>
-        </div>
+          {user.adminScopes.length > 0 && (
+            <>
+              <MenuSection header="Admin Groups">
+                {user.adminScopes.map((scope) => (
+                  <MenuItem
+                    key={scope}
+                    id={`admin-${scope}`}
+                    icon={Shield}
+                    href={`/admin/users?scope=${encodeURIComponent(scope)}`}
+                  >
+                    {scope.split("/").pop() || scope}
+                  </MenuItem>
+                ))}
+              </MenuSection>
+              <MenuSeparator />
+            </>
+          )}
 
-        {/* Admin Groups */}
-        {user.adminScopes.length > 0 && (
-          <Card>
-            <div className="font-bold">Admin Groups</div>
-            {user.adminScopes.map((scope) => (
-              <Link
-                key={scope}
-                to={`/admin/users?scope=${encodeURIComponent(scope)}`}
-                className="hover:underline"
-              >
-                {scope}
-              </Link>
-            ))}
-          </Card>
-        )}
+          {user.groups.length > 0 && (
+            <>
+              <MenuSection header="Groups">
+                {user.groups.map((group) => (
+                  <MenuItem key={group} id={`group-${group}`} icon={Users}>
+                    {group}
+                  </MenuItem>
+                ))}
+              </MenuSection>
+              <MenuSeparator />
+            </>
+          )}
 
-        {/* Groups*/}
-        <Card>
-          <div className="font-bold">Groups</div>
-          {user.groups.map((g) => (
-            <div key={g}>{g}</div>
-          ))}
-        </Card>
-
-        {/* Menu Items */}
-        <MenuItem
-          as={ButtonLink}
-          to={accountSettingsUrl}
-          className="w-full data-[focus]:bg-slate-700"
-        >
-          Account Settings
-        </MenuItem>
-
-        <MenuItem
-          as={ButtonLink}
-          to={"/logout"}
-          className="w-full data-[focus]:bg-slate-700"
-        >
-          Logout
-        </MenuItem>
-      </MenuItems>
+          <MenuItem
+            id="account-settings"
+            icon={Settings}
+            href={accountSettingsUrl}
+            target="_blank"
+          >
+            Account Settings
+          </MenuItem>
+          <MenuItem id="logout" icon={LogOut} href="/logout">
+            Logout
+          </MenuItem>
+        </>
+      }
+    >
+      <IconButton
+        icon={User}
+        aria-label="User menu"
+        variant="ghost"
+        className="flex-shrink-0 w-8 h-8 text-white hover:bg-white/15 pressed:bg-white/20"
+      />
     </Menu>
   );
 }

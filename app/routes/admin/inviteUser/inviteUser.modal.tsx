@@ -1,4 +1,4 @@
-import { Field as HuiField, Label } from "@headlessui/react";
+import { Button, Checkbox } from "@cytario/design";
 import { useEffect, useState } from "react";
 import {
   useActionData,
@@ -10,9 +10,8 @@ import {
 import { InviteUserForm } from "./inviteUser.form";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
-import { Button, Checkbox } from "~/components/Controls";
-import { useNotificationStore } from "~/components/Notification/Notification.store";
 import { RouteModal } from "~/components/RouteModal";
+import { toastBridge } from "~/toast-bridge";
 
 export { inviteUserAction as action } from "./inviteUser.action";
 
@@ -37,50 +36,41 @@ export default function InviteModal() {
     message?: string;
   }>();
 
-  const addNotification = useNotificationStore(
-    (state) => state.addNotification,
-  );
-
   useEffect(() => {
     if (actionData?.success === true) {
-      addNotification({ message: actionData.message!, status: "success" });
+      toastBridge.emit({ variant: "success", message: actionData.message! });
     } else if (actionData?.success === false) {
-      addNotification({ message: actionData.message!, status: "error" });
+      toastBridge.emit({ variant: "error", message: actionData.message! });
     }
-  }, [actionData, addNotification]);
+  }, [actionData]);
 
   return (
-    <RouteModal
-      title="Invite User"
-      footer={
-        <>
-          <HuiField className="flex items-center gap-2 text-sm text-slate-600 mr-auto cursor-pointer">
-            <Checkbox
-              checked={inviteAnother}
-              onChange={() => setInviteAnother((v) => !v)}
-            />
-            <Label>Invite another</Label>
-          </HuiField>
-          <Button onClick={() => navigate(-1)} theme="white">
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="invite-form"
-            theme="primary"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Inviting..." : "Send Invite"}
-          </Button>
-        </>
-      }
-    >
+    <RouteModal title="Invite User">
       <InviteUserForm
         scope={scope}
         groupOptions={groupOptions}
         inviteAnother={inviteAnother}
         actionData={actionData}
       />
+      <footer className="flex items-center gap-3 mt-6">
+        <Checkbox
+          isSelected={inviteAnother}
+          onChange={setInviteAnother}
+          className="mr-auto"
+        >
+          <span className="text-sm text-slate-600">Invite another</span>
+        </Checkbox>
+        <Button onPress={() => navigate(-1)} variant="secondary">
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          form="invite-form"
+          isDisabled={isSubmitting}
+        >
+          {isSubmitting ? "Inviting..." : "Send Invite"}
+        </Button>
+      </footer>
     </RouteModal>
   );
 }

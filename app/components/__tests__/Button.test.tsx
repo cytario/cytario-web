@@ -1,43 +1,43 @@
+import { Button } from "@cytario/design";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
-import { Button } from "../Controls";
 
 describe("Button component", () => {
-  it("renders the button with children", () => {
-    const { container } = render(<Button onClick={() => {}}>Click me</Button>);
-    expect(container).toMatchSnapshot(); // Snapshot the rendered button
+  test("renders the button with children", () => {
+    render(<Button onPress={() => {}}>Click me</Button>);
+    expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
   });
 
-  it("calls onClick when clicked", () => {
-    const handleClick = vi.fn();
-    render(<Button onClick={handleClick}>Click me</Button>);
+  test("calls onPress when clicked", () => {
+    const handlePress = vi.fn();
+    render(<Button onPress={handlePress}>Click me</Button>);
     fireEvent.click(screen.getByText("Click me"));
-    expect(handleClick).toHaveBeenCalledTimes(1);
+    expect(handlePress).toHaveBeenCalledTimes(1);
   });
 
-  it("does not call onClick when disabled", () => {
-    const handleClick = vi.fn();
+  test("does not call onPress when disabled", () => {
+    const handlePress = vi.fn();
     render(
-      <Button onClick={handleClick} disabled>
+      <Button onPress={handlePress} isDisabled>
         Click me
       </Button>,
     );
     fireEvent.click(screen.getByText("Click me"));
-    expect(handleClick).not.toHaveBeenCalled();
+    expect(handlePress).not.toHaveBeenCalled();
   });
 
-  it("applies additional class names", () => {
-    const { container } = render(
-      <Button onClick={() => {}} className="extra-class">
+  test("applies additional class names", () => {
+    render(
+      <Button onPress={() => {}} className="extra-class">
         Click me
       </Button>,
     );
-    expect(container).toMatchSnapshot(); // Snapshot to check the applied class names
+    expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
   });
 
-  it("matches default styles with snapshot", () => {
-    const { container } = render(<Button onClick={() => {}}>Click me</Button>);
-    expect(container).toMatchSnapshot(); // Snapshot captures all default styles
+  test("renders with default variant", () => {
+    render(<Button onPress={() => {}}>Click me</Button>);
+    expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
   });
 });

@@ -1,7 +1,8 @@
+import { Button } from "@cytario/design";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
-import { Button, Icon } from "~/components/Controls";
 import { probeIndex } from "~/utils/connectionIndex";
 import {
   selectConnectionIndex,
@@ -63,12 +64,17 @@ export function IndexStatus({ provider, bucketName, prefix }: IndexStatusProps) 
         <span className="text-rose-500">Index error</span>
       )}
 
-      <Button onClick={handleRebuild} disabled={isRebuilding} theme="white">
-        <Icon
-          icon={isRebuilding ? "LoaderCircle" : "RefreshCw"}
-          size={14}
-          className={isRebuilding ? "animate-spin" : undefined}
-        />
+      <Button
+        onPress={handleRebuild}
+        isDisabled={isRebuilding}
+        variant="secondary"
+        size="sm"
+      >
+        {isRebuilding ? (
+          <LoaderCircle size={14} className="animate-spin" />
+        ) : (
+          <RefreshCw size={14} />
+        )}
         {isRebuilding ? "Indexing..." : "Index"}
       </Button>
     </div>

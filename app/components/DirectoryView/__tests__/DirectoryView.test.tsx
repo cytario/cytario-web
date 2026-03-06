@@ -36,7 +36,7 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("Test Directory")).toBeInTheDocument();
   });
 
-  test("renders the placeholder when there are no nodes", () => {
+  test("renders empty state when there are no nodes", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -54,7 +54,13 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    expect(screen.getByText("No items found")).toBeInTheDocument();
+    expect(screen.queryByText("Empty Directory")).not.toBeInTheDocument();
+    expect(screen.getByText("Empty directory")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This folder is empty or you may not have permission to view its contents.",
+      ),
+    ).toBeInTheDocument();
   });
 
   test("renders the DirectoryTable in list mode", () => {
@@ -75,7 +81,6 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Verify that the DirectoryTable is rendered in list mode
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
     expect(screen.getByText("Folder1")).toBeInTheDocument();
   });
@@ -98,7 +103,6 @@ describe("DirectoryView Component", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Verify that the DirectoryViewGrid is rendered
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
     expect(screen.getByText("Folder1")).toBeInTheDocument();
   });

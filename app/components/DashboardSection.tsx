@@ -1,12 +1,12 @@
+import { ButtonLink, H2 } from "@cytario/design";
+import { ArrowRight } from "lucide-react";
 import { ReactNode } from "react";
 
-import { ButtonLink, Icon } from "./Controls";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import { DirectoryViewTable } from "~/components/DirectoryView/DirectoryViewTable";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
-import { H2 } from "~/components/Fonts";
 
 interface DashboardSectionProps {
   title: string;
@@ -40,9 +40,9 @@ export function DashboardSection({
           <div className="flex items-center gap-3">
             {actions}
             {showAllHref && (
-              <ButtonLink to={showAllHref} theme="white">
+              <ButtonLink href={showAllHref} variant="secondary">
                 {hasMore ? `Show all (${nodes.length})` : "View all"}
-                <Icon icon="ArrowRight" size={16} />
+                <ArrowRight size={16} />
               </ButtonLink>
             )}
           </div>

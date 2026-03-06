@@ -1,7 +1,7 @@
+import { IconButton, Input } from "@cytario/design";
 import { Column } from "@tanstack/react-table";
-import { ReactNode, useMemo } from "react";
-
-import { IconButton, Input, Select } from "../Controls";
+import { X } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
 
 interface ColumnFilterInputProps {
   column: Column<unknown, unknown>;
@@ -16,7 +16,6 @@ export function ColumnFilterInput({
   filterType,
   filterPlaceholder,
   filterOptions,
-  filterRender,
 }: ColumnFilterInputProps) {
   const filterValue = (column.getFilterValue() as string) ?? "";
 
@@ -43,30 +42,36 @@ export function ColumnFilterInput({
   return (
     <div className="flex items-center gap-1">
       {filterType === "select" ? (
-        <Select
-          scale="small"
-          options={sortedOptions}
-          value={filterValue}
-          onChange={setFilter}
-          renderOption={filterRender}
-          aria-label={`Filter by ${column.columnDef.header}`}
-        />
-      ) : (
-        <Input
-          scale="small"
+        <select
           value={filterValue}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder={filterPlaceholder ?? `Filter ${column.columnDef.header}...`}
           aria-label={`Filter by ${column.columnDef.header}`}
+          className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-cytario-turquoise-700 focus:outline-none focus:ring-1 focus:ring-cytario-turquoise-700"
+        >
+          {sortedOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <Input
+          value={filterValue}
+          onChange={setFilter}
+          placeholder={
+            filterPlaceholder ?? `Filter ${column.columnDef.header}...`
+          }
+          aria-label={`Filter by ${column.columnDef.header}`}
+          size="sm"
         />
       )}
       {filterValue && (
         <IconButton
-          icon="X"
-          scale="small"
-          theme="white"
-          onClick={clearFilter}
-          label="Clear filter"
+          icon={X}
+          size="sm"
+          variant="ghost"
+          onPress={clearFilter}
+          aria-label="Clear filter"
         />
       )}
     </div>

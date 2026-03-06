@@ -1,4 +1,4 @@
-import { TabGroup } from "@headlessui/react";
+import { Tab, TabList, Tabs } from "@cytario/design";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Mock } from "vitest";
@@ -113,16 +113,19 @@ describe("ChannelsController", () => {
     });
   });
 
-  const renderWithTabGroup = () => {
+  const renderWithTabs = () => {
     return render(
-      <TabGroup>
+      <Tabs selectedKey="0">
+        <TabList aria-label="Presets">
+          <Tab id="0">1</Tab>
+        </TabList>
         <ChannelsController />
-      </TabGroup>
+      </Tabs>
     );
   };
 
   test("renders the component", () => {
-    renderWithTabGroup();
+    renderWithTabs();
 
     const button = screen.getByRole("button", {
       name: "Channels",
@@ -136,7 +139,7 @@ describe("ChannelsController", () => {
   });
 
   test("renders the correct number of channels", () => {
-    renderWithTabGroup();
+    renderWithTabs();
     const radios = screen.getAllByRole("radio");
     expect(radios).toHaveLength(2);
     expect(screen.getByText("Red")).toBeInTheDocument();
@@ -144,22 +147,27 @@ describe("ChannelsController", () => {
   });
 
   test("selects a channel when clicked", () => {
-    renderWithTabGroup();
-    const greenChannel = screen.getByText("Green").closest("div");
-    expect(greenChannel).toBeInTheDocument();
+    renderWithTabs();
+    // Click the text element — React Aria Radio picks up the click on its children
+    const greenText = screen.getByText("Green");
+    expect(greenText).toBeInTheDocument();
 
-    if (greenChannel) {
-      fireEvent.click(greenChannel);
-      expect(mockSetSelectedChannelId).toHaveBeenCalledWith("Green");
-      expect(mockSetChannelVisibility).toHaveBeenCalledWith("Green", true);
-    }
+    fireEvent.click(greenText);
+    expect(mockSetSelectedChannelId).toHaveBeenCalledWith("Green");
+    expect(mockSetChannelVisibility).toHaveBeenCalledWith("Green", true);
+  });
+
+  test("renders channel count badge", () => {
+    renderWithTabs();
+    // Badge shows visible/total channel count
+    expect(screen.getByText("1/2")).toBeInTheDocument();
   });
 
   test("renders switches for channel visibility", () => {
-    renderWithTabGroup();
+    renderWithTabs();
     const switches = screen.getAllByRole("switch");
 
-    // Should have switches for Red and Green channels (2), plus FeatureItem toggle (1)
+    // Should have switches for Red and Green channels (2)
     expect(switches.length).toBeGreaterThanOrEqual(2);
   });
 });

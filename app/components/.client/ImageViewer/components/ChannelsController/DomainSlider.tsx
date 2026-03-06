@@ -1,5 +1,4 @@
 import Slider from "rc-slider";
-import colors from "tailwindcss/colors";
 
 import { rgb } from "./ColorPicker";
 import { select } from "../../state/selectors";
@@ -14,7 +13,7 @@ export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
 
   const color = selectedChannel
     ? rgb(selectedChannel.color)
-    : colors.slate[400];
+    : "var(--color-text-tertiary)";
 
   return (
     <div className="h-0">
@@ -31,13 +30,13 @@ export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
             setContrastLimits(value as ByteDomain);
           }}
           styles={{
-            rail: { backgroundColor: colors.transparent, height: 1 },
-            track: { backgroundColor: colors.white, height: 1 },
+            rail: { backgroundColor: "transparent", height: 1 },
+            track: { backgroundColor: "var(--color-surface-default)", height: 1 },
             handle: {
               width: 16,
               height: 16,
               backgroundColor: color,
-              borderColor: "white",
+              borderColor: "var(--color-surface-default)",
               borderWidth: 2,
               boxShadow: "none",
               opacity: 1,

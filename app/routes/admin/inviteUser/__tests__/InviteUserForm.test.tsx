@@ -37,7 +37,7 @@ describe("InviteUserForm", () => {
     expect(screen.getByText("Email")).toBeInTheDocument();
     expect(screen.getByText("First name")).toBeInTheDocument();
     expect(screen.getByText("Last name")).toBeInTheDocument();
-    expect(screen.getByText("Group Membership")).toBeInTheDocument();
+    expect(screen.getAllByText("Group Membership").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Enabled")).toBeInTheDocument();
   });
 

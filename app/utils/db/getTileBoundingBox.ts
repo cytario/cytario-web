@@ -1,5 +1,10 @@
 import { type BBox } from "geojson";
-import { type TileIndex } from "node_modules/@deck.gl/geo-layers/dist/tileset-2d/types";
+
+interface TileIndex {
+  x: number;
+  y: number;
+  z: number;
+}
 
 /**
  * Get tile bounding box in projected coordinates

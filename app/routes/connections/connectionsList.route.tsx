@@ -1,4 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
+import { ButtonLink, EmptyState } from "@cytario/design";
+import { FileSearch, Plug } from "lucide-react";
 import {
   type LoaderFunction,
   type MetaFunction,
@@ -9,12 +11,10 @@ import { useLoaderData } from "react-router";
 import { ConnectionConfig } from "~/.generated/client";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
-import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { Placeholder } from "~/components/Placeholder";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
 
@@ -49,12 +49,12 @@ export default function BucketsListRoute() {
   if (nodes.length === 0) {
     return (
       <Section>
-        <Placeholder
-          icon="FileSearch"
+        <EmptyState
+          icon={FileSearch}
           title="No storage connections"
           description="Add a storage connection to view your cloud storage."
-          cta={
-            <ButtonLink to="/connect-bucket" scale="large" theme="primary">
+          action={
+            <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
               Connect Storage
             </ButtonLink>
           }
@@ -72,8 +72,8 @@ export default function BucketsListRoute() {
       bucketName=""
     >
       <ViewModeToggle />
-      <ButtonLink to="/connect-bucket" theme="white">
-        <Icon icon="Plug" size={16} /> Connect Storage
+      <ButtonLink href="/connect-bucket" variant="secondary">
+        <Plug size={16} /> Connect Storage
       </ButtonLink>
     </DirectoryView>
   );

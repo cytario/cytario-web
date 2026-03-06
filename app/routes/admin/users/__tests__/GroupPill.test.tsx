@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 
-import { GroupPill } from "../../../../components/Pill/GroupPill";
+import { GroupPill } from "~/components/Pill/GroupPill";
 
 describe("GroupPill", () => {
   describe("segment rendering", () => {

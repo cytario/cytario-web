@@ -1,7 +1,13 @@
+import { EmptyState } from "@cytario/design";
+import { FolderOpen } from "lucide-react";
 import { ReactNode, useEffect, useMemo } from "react";
 import { useFetcher } from "react-router";
 
-import { TreeNode } from "./buildDirectoryTree";
+import {
+  computeDirectoryLastModified,
+  computeDirectorySize,
+  TreeNode,
+} from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
   bucketColumns,
@@ -13,7 +19,6 @@ import { FilterSidebar } from "./FilterSidebar";
 import { NodeInfoModal } from "./NodeInfoModal";
 import { type ViewMode } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
-import { Placeholder } from "~/components/Placeholder";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
@@ -29,6 +34,8 @@ interface DirectoryViewProps extends DirectoryViewBaseProps {
   name: string;
   showFilters?: boolean;
   children?: ReactNode;
+  /** Omit default section padding (for gap-based layouts) */
+  flush?: boolean;
 }
 
 export function DirectoryView({
@@ -40,6 +47,7 @@ export function DirectoryView({
   bucketName,
   pathName,
   children,
+  flush,
 }: DirectoryViewProps) {
   const isBucket = nodes.length > 0 && nodes[0].type === "bucket";
   const columns = isBucket ? bucketColumns : fileColumns;
@@ -59,26 +67,43 @@ export function DirectoryView({
   useEffect(() => {
     if (!provider || !bucketName || !pathName) return;
 
+    const totalSize = nodes.reduce(
+      (sum, child) => sum + computeDirectorySize(child),
+      0,
+    );
+    const latestModified = nodes.reduce(
+      (max, child) => Math.max(max, computeDirectoryLastModified(child)),
+      0,
+    );
+
     recentFetcher.submit(
-      { provider, bucketName, pathName, name, type: "directory" },
+      {
+        provider,
+        bucketName,
+        pathName,
+        name,
+        type: "directory",
+        ...(totalSize ? { totalSize: String(totalSize) } : {}),
+        ...(latestModified
+          ? { lastModified: new Date(latestModified).toISOString() }
+          : {}),
+      },
       { method: "post", action: "/api/recently-viewed" },
     );
   }, [provider, bucketName, pathName, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (nodes.length === 0) {
     return (
-      <Section>
-        <Placeholder
-          icon="FolderOpen"
-          title="No items found"
-          description="This folder is empty or you may not have permission to view its contents."
-        />
-      </Section>
+      <EmptyState
+        icon={FolderOpen}
+        title="Empty directory"
+        description="This folder is empty or you may not have permission to view its contents."
+      />
     );
   }
 
   return (
-    <Section>
+    <Section flush={flush}>
       <SectionHeader name={name}>{children}</SectionHeader>
 
       {showFilters && isGrid && (

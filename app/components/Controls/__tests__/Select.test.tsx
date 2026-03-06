@@ -1,36 +1,48 @@
+import { Select } from "@cytario/design";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
-import { Select } from "~/components/Controls";
-
-const options = [
-  { value: "option1", label: "Option 1" },
-  { value: "option2", label: "Option 2" },
-  { value: "option3", label: "Option 3" },
+const items = [
+  { id: "option1", name: "Option 1" },
+  { id: "option2", name: "Option 2" },
+  { id: "option3", name: "Option 3" },
 ];
 
 describe("Select", () => {
-  test("should render listbox with selected option", () => {
+  test("should render select with label", () => {
+    render(<Select label="Test Select" items={items} />);
+
+    expect(screen.getByText("Test Select")).toBeInTheDocument();
+  });
+
+  test("should render placeholder text", () => {
     render(
-      <Select options={options} value="option1" onChange={vi.fn()} />,
+      <Select
+        label="Test Select"
+        items={items}
+        placeholder="Choose an option"
+      />,
     );
 
-    expect(screen.getByRole("button")).toHaveTextContent("Option 1");
+    expect(screen.getByText("Choose an option")).toBeInTheDocument();
   });
 
   test("should render as disabled", () => {
-    render(
-      <Select options={options} value="option1" onChange={vi.fn()} disabled />,
-    );
+    render(<Select label="Test Select" items={items} isDisabled />);
 
-    expect(screen.getByRole("button")).toBeDisabled();
+    const trigger = screen.getByRole("button");
+    expect(trigger).toBeDisabled();
   });
 
-  test("should display the label of the selected value", () => {
+  test("should display error message", () => {
     render(
-      <Select options={options} value="option2" onChange={vi.fn()} />,
+      <Select
+        label="Test Select"
+        items={items}
+        errorMessage="Selection is required"
+      />,
     );
 
-    expect(screen.getByRole("button")).toHaveTextContent("Option 2");
+    expect(screen.getByText("Selection is required")).toBeInTheDocument();
   });
 });

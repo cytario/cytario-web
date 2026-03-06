@@ -1,22 +1,20 @@
-import {
-  Control,
-  Controller,
-  FieldErrors,
-  UseFormRegister,
-} from "react-hook-form";
+import { Field, Fieldset, Input, Select } from "@cytario/design";
+import { Control, Controller, FieldErrors } from "react-hook-form";
 
 import { ConnectBucketFormData } from "./addConnection.schema";
 import AWS_REGIONS from "./awsRegions.json";
-import { Field, Fieldset, Input, Select } from "~/components/Controls";
+
+const regionItems = AWS_REGIONS.map((region) => ({
+  id: region.value,
+  name: region.value,
+}));
 
 export const LocationFieldset = ({
   control,
-  register,
   errors,
   isAWS,
 }: {
   control: Control<ConnectBucketFormData>;
-  register: UseFormRegister<ConnectBucketFormData>;
   errors: FieldErrors<ConnectBucketFormData>;
   isAWS: boolean;
 }) => {
@@ -27,11 +25,20 @@ export const LocationFieldset = ({
         description="Enter the bucket name and optional path prefix where your whole-slide images are stored (e.g. my-bucket/data/images)."
         error={errors.s3Uri}
       >
-        <Input
-          {...register("s3Uri")}
-          placeholder="my-bucket/path/prefix"
-          prefix="s3://"
-          scale="large"
+        <Controller
+          name="s3Uri"
+          control={control}
+          render={({ field }) => (
+            <Input
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              name={field.name}
+              placeholder="my-bucket/path/prefix"
+              prefix="s3://"
+              size="lg"
+            />
+          )}
         />
       </Field>
 
@@ -46,13 +53,11 @@ export const LocationFieldset = ({
             control={control}
             render={({ field }) => (
               <Select
-                options={AWS_REGIONS.map(({ value }) => ({
-                  label: value,
-                  value,
-                }))}
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                name={field.name}
+                label="Region"
+                items={regionItems}
+                selectedKey={field.value}
+                onSelectionChange={(key) => field.onChange(key)}
+                errorMessage={errors.bucketRegion?.message}
               />
             )}
           />

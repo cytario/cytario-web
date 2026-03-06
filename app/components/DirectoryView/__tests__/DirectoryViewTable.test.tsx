@@ -7,9 +7,9 @@ import { DirectoryViewTable } from "../DirectoryViewTable";
 // Mock the connections store
 vi.mock("~/utils/connectionsStore", () => ({
   useConnectionsStore: vi.fn((selector) => {
-    const connections: Record<string, { bucketConfig: Record<string, unknown> }> = {
+    const connections: Record<string, { connectionConfig: Record<string, unknown> }> = {
       "aws/my-aws-bucket": {
-        bucketConfig: {
+        connectionConfig: {
           name: "my-aws-bucket",
           provider: "aws",
           endpoint: "",
@@ -20,7 +20,7 @@ vi.mock("~/utils/connectionsStore", () => ({
         },
       },
       "minio/minio-bucket": {
-        bucketConfig: {
+        connectionConfig: {
           name: "minio-bucket",
           provider: "minio",
           endpoint: "https://s3.cytar.io",
@@ -88,12 +88,11 @@ describe("DirectoryViewTable", () => {
       expect(screen.getByText("my-aws-bucket")).toBeInTheDocument();
       expect(screen.getByText("minio-bucket")).toBeInTheDocument();
 
-      // Provider values appear in both data cells and select filter options
-      expect(screen.getAllByText("aws").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText("minio").length).toBeGreaterThanOrEqual(1);
-
-      // Region values appear in data cells and select filter options
-      expect(screen.getAllByText("eu-central-1").length).toBeGreaterThanOrEqual(1);
+      // Provider and region values appear in body cells (inside aria-hidden table)
+      const body = document.body.textContent ?? "";
+      expect(body).toContain("aws");
+      expect(body).toContain("minio");
+      expect(body).toContain("eu-central-1");
     });
   });
 

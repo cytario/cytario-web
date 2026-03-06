@@ -1,7 +1,8 @@
+import { H3, IconButton } from "@cytario/design";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
+import { FilterX } from "lucide-react";
 
-import { IconButton, Input, Select } from "../Controls";
-import { H3 } from "../Fonts";
+import { Input } from "../Controls";
 import type { ColumnConfig } from "~/components/Table/types";
 
 interface FilterSidebarProps {
@@ -26,7 +27,7 @@ export function FilterSidebar({
     (columnFilters.find((f) => f.id === columnId)?.value as string) ?? "";
 
   const setFilter = (columnId: string, value: string | undefined) => {
-    setColumnFilters((prev) => {
+    setColumnFilters((prev: ColumnFiltersState) => {
       const without = prev.filter((f) => f.id !== columnId);
       if (!value) return without;
       return [...without, { id: columnId, value }];
@@ -38,42 +39,36 @@ export function FilterSidebar({
   return (
     <aside className="w-80 min-h-full shrink-0 space-y-3 border-r border-slate-300 bg-slate-50">
       <header className="flex items-center justify-between bg-slate-100 p-2 border-b border-slate-300">
-        <H3 className="">Filters</H3>
+        <H3>Filters</H3>
         {hasActiveFilters && (
           <IconButton
-            icon="FilterX"
-            scale="small"
-            theme="white"
-            onClick={clearAll}
-            label="Clear all filters"
+            icon={FilterX}
+            size="sm"
+            variant="secondary"
+            onPress={clearAll}
+            aria-label="Clear all filters"
           />
         )}
       </header>
 
       {filterableColumns.map((col) => {
         const filterValue = getFilterValue(col.id);
+        const inputId = `filter-${col.id}`;
 
         return (
           <div key={col.id} className="flex flex-col gap-1 p-2">
-            <label className="text-xs font-medium text-slate-500">
+            <label
+              htmlFor={inputId}
+              className="text-xs font-medium text-slate-500"
+            >
               {col.header}
             </label>
-            {col.filterType === "select" ? (
-              <Select
-                options={col.filterOptions ?? []}
-                value={filterValue}
-                onChange={(value) => setFilter(col.id, value || undefined)}
-                renderOption={col.filterRender}
-                aria-label={`Filter by ${col.header}`}
-              />
-            ) : (
-              <Input
-                value={filterValue}
-                onChange={(e) => setFilter(col.id, e.target.value || undefined)}
-                placeholder={col.filterPlaceholder ?? `Filter ${col.header}...`}
-                aria-label={`Filter by ${col.header}`}
-              />
-            )}
+            <Input
+              id={inputId}
+              value={filterValue}
+              onChange={(e) => setFilter(col.id, e.target.value || undefined)}
+              placeholder={col.filterPlaceholder ?? `Filter ${col.header}...`}
+            />
           </div>
         );
       })}

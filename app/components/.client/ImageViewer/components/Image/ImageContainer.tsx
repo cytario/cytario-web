@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
+import { ImageOff } from "lucide-react";
 import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -7,7 +8,6 @@ import { useResizeObserver } from "./useResizeObserver";
 import { select } from "../../state/selectors";
 import { ViewPort } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
-import { Icon } from "~/components/Controls";
 import { LavaLoader } from "~/components/LavaLoader";
 
 interface ViewContainerProps {
@@ -38,12 +38,12 @@ export function ImageContainer({
     overflow-hidden
   `;
 
-  let background = "bg-slate-900";
+  let background = "bg-[var(--color-surface-default)]";
   if (isPreview) background = "bg-black";
-  if (error) background = "bg-slate-100";
+  if (error) background = "bg-[var(--color-surface-muted)]";
 
-  let border = "border border-2 border-slate-500";
-  if (isActivePanel) border += " border-slate-300";
+  let border = "border border-2 border-[var(--color-border-strong)]";
+  if (isActivePanel) border += " border-[var(--color-text-secondary)]";
   if (isPreview) border += " border-none";
   if (error) background += " border-none";
 
@@ -54,7 +54,7 @@ export function ImageContainer({
     pointer-events-none w-full h-full 
     absolute top-0 left-0
     border-[16px]
-    box-border border-slate-300
+    box-border border-[var(--color-text-secondary)]
   `,
     isActivePanel ? "animate-pulse-once" : "border-none"
   );
@@ -76,7 +76,7 @@ export function ImageContainer({
           overflow-hidden gap-1 p-2 text-slate-500
         `}
           >
-            <Icon icon="ImageOff" size={isPreview ? 20 : 32} strokeWidth={1.5} />
+            <ImageOff size={isPreview ? 20 : 32} strokeWidth={1.5} />
             <div className="text-xs">Preview unavailable</div>
           </div>
         ) : (

@@ -33,7 +33,6 @@ export const AddConnectionForm = ({
 
   const {
     control,
-    register,
     trigger,
     handleSubmit,
     formState: { errors },
@@ -108,7 +107,6 @@ export const AddConnectionForm = ({
         {currentStep === 0 && (
           <ProviderFieldset
             control={control}
-            register={register}
             errors={errors}
             isAWS={isAWS}
             adminScopes={adminScopes}
@@ -118,12 +116,12 @@ export const AddConnectionForm = ({
 
         {/* Step 2: Location */}
         {currentStep === 1 && (
-          <LocationFieldset control={control} register={register} errors={errors} isAWS={isAWS} />
+          <LocationFieldset control={control} errors={errors} isAWS={isAWS} />
         )}
 
         {/* Step 3: Access */}
         {currentStep === 2 && (
-          <AccessFieldset register={register} errors={errors} isAWS={isAWS} />
+          <AccessFieldset control={control} errors={errors} isAWS={isAWS} />
         )}
 
         <FormWizardNav

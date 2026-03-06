@@ -1,5 +1,7 @@
 import { _Object, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
+import { Button, ButtonLink, EmptyState } from "@cytario/design";
+import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
   ActionFunctionArgs,
@@ -16,7 +18,6 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
-import { Button, ButtonLink, Icon } from "~/components/Controls";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
@@ -28,9 +29,8 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { IndexStatus } from "~/components/DirectoryView/IndexStatus";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { NotificationInput } from "~/components/Notification/Notification";
-import { useBackendNotification } from "~/components/Notification/Notification.store";
-import { Placeholder } from "~/components/Placeholder";
+import { type NotificationInput } from "~/components/Notification/Notification.store";
+import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { getConnectionByPath } from "~/utils/connectionConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
@@ -235,11 +235,22 @@ export default function ObjectsRoute() {
     credentials,
     connectionConfig,
     isPinned: loaderIsPinned,
+    notification,
   } = useLoaderData<BucketRouteLoaderResponse>();
-  useBackendNotification();
+
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const setConnection = useConnectionsStore(select.setConnection);
+
+  // Handle notifications from loader
+  useEffect(() => {
+    if (notification) {
+      toastBridge.emit({
+        variant: toToastVariant(notification.status ?? "info"),
+        message: notification.message,
+      });
+    }
+  }, [notification]);
 
   const { provider } = connectionConfig;
 
@@ -262,7 +273,7 @@ export default function ObjectsRoute() {
     }
   }, [bucketName, credentials, connectionConfig, setConnection]);
 
-  // Track recently viewed files
+  // Track recently viewed files (DB-backed via server action)
   const recentFetcher = useFetcher();
   useEffect(() => {
     if (url) {
@@ -279,6 +290,7 @@ export default function ObjectsRoute() {
     }
   }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Pinning (DB-backed via server action)
   const pinFetcher = useFetcher();
   // Optimistic isPinned: flip while the pin request is in-flight
   let isPinned = loaderIsPinned;
@@ -329,16 +341,15 @@ export default function ObjectsRoute() {
         pathName={pathName}
       >
         <Button
-          onClick={togglePin}
-          theme="white"
-          className="gap-2"
+          onPress={togglePin}
+          variant="secondary"
           aria-label={isPinned ? "Unpin directory" : "Pin directory"}
         >
-          <Icon icon={isPinned ? "BookmarkCheck" : "Bookmark"} size={16} />
+          {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
           {isPinned ? "Pinned" : "Pin"}
         </Button>
-        <ButtonLink to="?action=cyberduck" theme="white" className="gap-2">
-          <Icon icon="Download" size={16} />
+        <ButtonLink href="?action=cyberduck" variant="secondary">
+          <Download size={16} />
           Access with Cyberduck
         </ButtonLink>
         <IndexStatus
@@ -367,7 +378,7 @@ export default function ObjectsRoute() {
                   performance.
                 </span>
               </div>
-              <Button onClick={() => navigate(`?action=convert-overlay`)}>
+              <Button onPress={() => navigate(`?action=convert-overlay`)}>
                 Convert to Parquet
               </Button>
             </header>
@@ -388,13 +399,13 @@ export default function ObjectsRoute() {
     }
 
     return (
-      <Placeholder
+      <EmptyState
         title="Unsupported file format."
         description="The selected file format is not supported for viewing."
-        icon="Ban"
-        cta={
+        icon={Ban}
+        action={
           <Button
-            onClick={() => {
+            onPress={() => {
               navigate(-1);
             }}
           >
@@ -407,13 +418,13 @@ export default function ObjectsRoute() {
 
   // Render placeholder when no objects found
   return (
-    <Placeholder
+    <EmptyState
       title="No objects found in this bucket."
       description="Try uploading some files or check your permissions."
-      icon="Ban"
-      cta={
+      icon={Ban}
+      action={
         <Button
-          onClick={() => {
+          onPress={() => {
             navigate(-1);
           }}
         >

@@ -135,6 +135,11 @@ import { cytarioConfig } from "~/config";
 - Custom design tokens: `cytario-purple-500`, `cytario-turquoise-*`
 - Custom font: Montserrat
 - Use `motion` library for animations
+- **No hardcoded color values** — never use hex (`#94a3b8`), named (`"white"`), or rgb literals in TypeScript/TSX. Use design tokens from `@cytario/design` instead:
+  - Tailwind classes: `text-slate-400`, `bg-neutral-0`, `border-slate-200`
+  - CSS variables in inline styles: `var(--color-slate-400)`, `var(--color-text-secondary)`
+  - Semantic tokens preferred over raw scales: `--color-text-tertiary` over `--color-slate-400`
+  - Exceptions: SVG visualization code (deck.gl overlays, scientific imaging palettes) where raw RGBA arrays are required by the rendering API
 
 ### Testing
 - **Every change must have test coverage** — unit and/or integration tests
@@ -169,6 +174,12 @@ import { cytarioConfig } from "~/config";
 - STS `AssumeRoleWithWebIdentity` for temporary S3 credentials
 - httpOnly, secure, sameSite cookies for sessions
 - Never expose secrets to the client
+
+### Root-Cause Fixes Over Workarounds
+- Always fix problems at the source — if a dependency has a packaging bug, fix it in the dependency rather than adding workarounds in consumers
+- Do not pile on Vite config hacks, aliases, plugins, or shims to compensate for upstream issues. Fix upstream first, then the consumer code should be clean
+- If a workaround is temporarily unavoidable, document it as technical debt with a clear path to removal and open an issue in the upstream project
+- When debugging, identify the root cause before writing code. A correct diagnosis avoids cascading "fix the fix" patches
 
 ### Performance
 - SSR with React Router v7 for fast initial loads

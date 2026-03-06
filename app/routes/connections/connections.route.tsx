@@ -1,4 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
+import { ButtonLink, EmptyState } from "@cytario/design";
+import { ArrowRight, FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import {
   ActionFunction,
@@ -15,10 +17,8 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
-import { ButtonLink, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { Placeholder } from "~/components/Placeholder";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import {
   loadConnectionNodes,
@@ -96,9 +96,9 @@ function ShowAllLink({
   maxItems: number;
 }) {
   return (
-    <ButtonLink to={href} theme="white">
+    <ButtonLink href={href} variant="secondary">
       {total > maxItems ? `Show all (${total})` : "View all"}
-      <Icon icon="ArrowRight" size={16} />
+      <ArrowRight size={16} />
     </ButtonLink>
   );
 }
@@ -188,6 +188,7 @@ export default function BucketsRoute() {
           nodes={recentImages.slice(0, 4)}
           name="Recently Viewed"
           bucketName=""
+          flush
         >
           <ShowAllLink
             href="/recent"
@@ -203,6 +204,7 @@ export default function BucketsRoute() {
           nodes={pinnedNodes.slice(0, 10)}
           name="Pinned"
           bucketName=""
+          flush
         />
       )}
 
@@ -212,6 +214,7 @@ export default function BucketsRoute() {
           nodes={recentDirs.slice(0, 5)}
           name="Recently Browsed"
           bucketName=""
+          flush
         >
           <ShowAllLink href="/recent" total={recentDirs.length} maxItems={5} />
         </DirectoryView>
@@ -223,6 +226,7 @@ export default function BucketsRoute() {
           nodes={recentFiles.slice(0, 6)}
           name="Recent Files"
           bucketName=""
+          flush
         >
           <ShowAllLink href="/recent" total={recentFiles.length} maxItems={6} />
         </DirectoryView>
@@ -234,19 +238,20 @@ export default function BucketsRoute() {
           nodes={nodes.slice(0, 100)}
           name={title}
           bucketName=""
+          flush
         >
           <ShowAllLink href="/buckets" total={nodes.length} maxItems={100} />
         </DirectoryView>
       )}
 
       {nodes.length === 0 && (
-        <Section>
-          <Placeholder
-            icon="FileSearch"
+        <Section flush>
+          <EmptyState
+            icon={FileSearch}
             title="Start exploring your data"
             description="Add a storage connection to view your cloud storage."
-            cta={
-              <ButtonLink to="/connect-bucket" scale="large" theme="primary">
+            action={
+              <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
                 Connect Storage
               </ButtonLink>
             }

@@ -6,6 +6,35 @@ import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import ObjectsRoute, { handle } from "~/routes/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/authMiddleware", () => ({
+  authContext: {},
+  authMiddleware: vi.fn(),
+}));
+vi.mock("~/.server/auth/getPresignedUrl", () => ({
+  getPresignedUrl: vi.fn(),
+}));
+vi.mock("~/.server/auth/getS3Client", () => ({
+  getS3Client: vi.fn(),
+}));
+vi.mock("~/.server/requestDurationMiddleware", () => ({
+  requestDurationMiddleware: vi.fn(),
+}));
+vi.mock("~/utils/bucketConfig", () => ({
+  getBucketConfigByPath: vi.fn(),
+}));
+vi.mock("~/utils/getObjects", () => ({
+  getObjects: vi.fn(),
+}));
+
+vi.mock("@cytario/design", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@cytario/design")>();
+  return {
+    ...actual,
+    useToast: () => ({ toast: vi.fn(), toasts: [], removeToast: vi.fn() }),
+  };
+});
+
 vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   Viewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));

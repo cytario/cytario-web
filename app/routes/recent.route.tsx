@@ -1,4 +1,6 @@
+import { EmptyState, H1 } from "@cytario/design";
 import type { ColumnFiltersState } from "@tanstack/react-table";
+import { Clock, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   type ActionFunction,
@@ -10,7 +12,6 @@ import {
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
-import { Button, Icon } from "~/components/Controls";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import {
@@ -21,8 +22,6 @@ import { filterNodes } from "~/components/DirectoryView/filterNodes";
 import { FilterSidebar } from "~/components/DirectoryView/FilterSidebar";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { H1 } from "~/components/Fonts";
-import { Placeholder } from "~/components/Placeholder";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
@@ -67,7 +66,7 @@ type RecentLoaderData = {
   }>;
 };
 
-function RecentContent() {
+export default function RecentRoute() {
   const { recentlyViewed } = useLoaderData<RecentLoaderData>();
   const { viewMode } = useLayoutStore();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -109,16 +108,16 @@ function RecentContent() {
           <H1>Recent</H1>
           <div className="flex items-center gap-2">
             {allItems.length > 0 && (
-              <Button
-                theme="white"
-                className="gap-2"
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-md hover:bg-slate-50"
                 onClick={() =>
                   clearFetcher.submit({}, { method: "delete" })
                 }
               >
-                <Icon icon="Trash2" size={16} />
+                <Trash2 size={16} />
                 Clear history
-              </Button>
+              </button>
             )}
             <ViewModeToggle />
           </div>
@@ -143,16 +142,12 @@ function RecentContent() {
           )}
         </div>
       ) : (
-        <Placeholder
-          icon="Clock"
+        <EmptyState
+          icon={Clock}
           title="No recent items"
           description="Items you view or browse will appear here."
         />
       )}
     </Section>
   );
-}
-
-export default function RecentRoute() {
-  return <RecentContent />;
 }

@@ -1,11 +1,10 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { Radio } from "@headlessui/react";
+import { Switch } from "@cytario/design";
+import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
-import colors from "tailwindcss/colors";
 
 import { ColorPicker, rgb } from "./ColorPicker";
-import { Switch } from "../../../../Controls";
 import { select } from "../../state/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -28,7 +27,7 @@ interface ChannelsControllerItemProps {
   onColorChange?: (color: RGBA) => void;
 }
 
-/** Individual channel row in the ChannelsController. Displays color picker, name, pixel intensity bar, visibility toggle, and a loading overlay. */
+/** Individual channel row in the ChannelsController. Displays color dot, name, pixel value, visibility toggle, and a loading overlay. */
 export function ChannelsControllerItem({
   name,
   isVisible,
@@ -45,27 +44,21 @@ export function ChannelsControllerItem({
 
   const cx = twMerge(
     `
-      group/radio 
-      cursor-pointer 
-      relative 
-      flex flex-col items-center
-      focus:outline-none 
-      data-[focus]:outline-1 
-      data-[focus]:outline-white 
-      duration-100 ease-in
-      h-8
-      flex items-center justify-between
-      rounded-sm
-      overflow-hidden
-      px-2 gap-1
-      border-none
-      bg-slate-700 hover:bg-slate-600
-      text-slate-300
+      group/radio
+      cursor-pointer
+      relative
+      flex items-center gap-2
+      focus:outline-none
+      data-[focus]:outline-1
+      data-[focus]:outline-[var(--color-text-primary)]
+      py-2
+      border-b border-[var(--color-surface-subtle)]
+      text-[var(--color-text-secondary)]
       transition-colors
+      border-none
     `,
-    isVisible && "text-white",
-    isActive && "bg-slate-500",
-    "group-data-[checked]/radio:opacity-50",
+    isVisible && "text-[var(--color-text-primary)]",
+    isActive && "bg-[var(--color-surface-subtle)]",
   );
 
   const disabled = !isVisible && visibleChannelCount >= MAX_VISIBLE_CHANNELS;
@@ -77,10 +70,10 @@ export function ChannelsControllerItem({
   return (
     <Radio key={name} value={name} className={cx}>
       {/* Intensity Indicator */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 ">
+      <div className="absolute bottom-0 left-0 right-0 h-0.5">
         {isVisible && (
           <div
-            className="h-full border-r-2 border-white "
+            className="h-full"
             style={{
               width: `${(pixelValue / maxDomain) * 100}%`,
               backgroundColor: rgb(color),
@@ -89,39 +82,36 @@ export function ChannelsControllerItem({
         )}
       </div>
 
-      {/* Main Item */}
-      <div className="relative w-full flex items-center gap-2 h-full">
-        {/* Color Picker */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <ColorPicker
-            color={color}
-            onColorChange={onColorChange ?? (() => {})}
-          />
-        </div>
-
-        {/* Item Name & Count */}
-        <div className="grow">
-          <div className="flex grow justify-between text-sm">
-            <div className="font-bold">{name}</div>
-            {pixelValue > 0 && (
-              <span className="tabular-nums">{pixelValue}</span>
-            )}
-          </div>
-        </div>
-
-        {/* Visibility Toggle */}
-        <Tooltip content={tooltip}>
-          <Switch
-            checked={isVisible}
-            onChange={toggleChannelVisibility}
-            disabled={disabled}
-            color={colors.slate[500]}
-          />
-        </Tooltip>
+      {/* Color Picker (dot) */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <ColorPicker
+          color={color}
+          onColorChange={onColorChange ?? (() => {})}
+        />
       </div>
+
+      {/* Channel Name */}
+      <span className="flex-1 text-sm truncate">{name}</span>
+
+      {/* Pixel Value */}
+      {pixelValue > 0 && (
+        <span className="text-xs tabular-nums text-[var(--color-text-secondary)]">
+          {pixelValue}
+        </span>
+      )}
+
+      {/* Visibility Toggle */}
+      <Tooltip content={tooltip}>
+        <Switch
+          isSelected={isVisible}
+          onChange={() => toggleChannelVisibility()}
+          color={rgb(color)}
+          isDisabled={disabled}
+        />
+      </Tooltip>
 
       {isLoading && <LavaLoader absolute rows={1} cols={6} />}
     </Radio>

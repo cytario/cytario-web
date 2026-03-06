@@ -1,6 +1,7 @@
 import { type ActionFunction, redirect } from "react-router";
 
 import { bulkInviteSchema } from "./bulkInvite.schema";
+import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
@@ -11,14 +12,7 @@ export const bulkInviteAction: ActionFunction = async ({
   context,
 }) => {
   const { user, authTokens } = context.get(authContext);
-  const scope = new URL(request.url).searchParams.get("scope");
-  if (!scope) throw new Response("Missing scope", { status: 400 });
-  const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-  if (!isAdmin) throw new Response("Not authorized", { status: 403 });
+  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
 
   const json = await request.json();
   const result = bulkInviteSchema.safeParse(json);

@@ -42,7 +42,7 @@ export const Crosshair = () => {
             x2={0}
             y2={+size}
             strokeWidth={3}
-            className="stroke-slate-500"
+            className="stroke-[var(--color-text-tertiary)]"
           />
           <line
             x1={-size}
@@ -50,7 +50,7 @@ export const Crosshair = () => {
             x2={+size}
             y2={0}
             strokeWidth={3}
-            className="stroke-slate-500"
+            className="stroke-[var(--color-text-tertiary)]"
           />
         </g>
         <g>

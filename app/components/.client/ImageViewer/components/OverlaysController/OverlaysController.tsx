@@ -1,10 +1,12 @@
+import { ButtonLink, EmptyState } from "@cytario/design";
+import { Layers2 } from "lucide-react";
+
+
 import { OverlayInfoModal } from "./OverlayInfoModal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { FeatureItem } from "../FeatureBar/FeatureItem";
-import { ButtonLink } from "~/components/Controls";
-import { Placeholder } from "~/components/Placeholder";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
 /**
@@ -41,16 +43,17 @@ export const OverlaysController = () => {
         />
       ))}
 
-      <footer className="p-2">
+      <footer className="px-3 pb-3">
         {entries.length === 0 ? (
-          <Placeholder
+          <EmptyState
             title="Add Overlay"
             description="Add parquet cell detection files"
-            icon="Layers2"
-            cta={<ButtonLink to="?action=load-overlay">Add Overlay</ButtonLink>}
+            icon={Layers2}
+            className="py-6"
+            action={<ButtonLink href="?action=load-overlay" variant="secondary" size="sm">Add Overlay</ButtonLink>}
           />
         ) : (
-          <ButtonLink to="?action=load-overlay">Add Overlay</ButtonLink>
+          <ButtonLink href="?action=load-overlay" variant="secondary" size="sm">Add Overlay</ButtonLink>
         )}
       </footer>
 

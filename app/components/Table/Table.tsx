@@ -1,3 +1,4 @@
+import { Button, EmptyState } from "@cytario/design";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,13 +8,12 @@ import {
   ColumnDef,
   SortingFn,
 } from "@tanstack/react-table";
-import { ReactNode, useMemo, useRef } from "react";
+import { FilterX, SearchX } from "lucide-react";
+import { ReactNode, useCallback, useMemo, useRef } from "react";
 
 import { TableBodyRow } from "./TableBodyRow";
 import { TableHeaderRow } from "./TableHeaderRow";
 import { CellRenderers, TableProps as TablePropsType } from "./types";
-import { Button, Icon } from "../Controls";
-import { Placeholder } from "../Placeholder";
 import { useColumnFilters } from "./useColumnFilters";
 import { useColumnVisibility } from "./useColumnVisibility";
 import { useColumnWidths } from "./useColumnWidths";
@@ -134,16 +134,27 @@ export function Table<TData extends Record<string, unknown>>({
   const bodyRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
 
-  const handleScroll = (source: "header" | "body") => () => {
+  const handleHeaderScroll = useCallback(() => {
     if (isSyncing.current) return;
     isSyncing.current = true;
-    const from = source === "header" ? headerRef.current : bodyRef.current;
-    const to = source === "header" ? bodyRef.current : headerRef.current;
-    if (from && to) to.scrollLeft = from.scrollLeft;
+    if (headerRef.current && bodyRef.current) {
+      bodyRef.current.scrollLeft = headerRef.current.scrollLeft;
+    }
     requestAnimationFrame(() => {
       isSyncing.current = false;
     });
-  };
+  }, []);
+
+  const handleBodyScroll = useCallback(() => {
+    if (isSyncing.current) return;
+    isSyncing.current = true;
+    if (bodyRef.current && headerRef.current) {
+      headerRef.current.scrollLeft = bodyRef.current.scrollLeft;
+    }
+    requestAnimationFrame(() => {
+      isSyncing.current = false;
+    });
+  }, []);
 
   const filteredCount = table.getRowModel().rows.length;
   const totalCount = data.length;
@@ -161,7 +172,7 @@ export function Table<TData extends Record<string, unknown>>({
         ref={headerRef}
         className="sticky top-0 z-10 bg-white border-b border-slate-300 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
-        onScroll={handleScroll("header")}
+        onScroll={handleHeaderScroll}
       >
         <table className="min-w-full" aria-label={ariaLabel}>
           <thead className="w-full">
@@ -188,20 +199,23 @@ export function Table<TData extends Record<string, unknown>>({
       <div
         ref={bodyRef}
         className="overflow-x-auto"
-        onScroll={handleScroll("body")}
+        onScroll={handleBodyScroll}
       >
-        <table className="min-w-full" aria-label={ariaLabel}>
+        <table className="min-w-full" aria-hidden="true">
           <tbody>
             {table.getRowModel().rows.length === 0 && data.length > 0 ? (
               <tr>
                 <td colSpan={columns.length + 1}>
-                  <Placeholder
-                    icon="SearchX"
+                  <EmptyState
+                    icon={SearchX}
                     title="No results"
                     description="No results match your filters"
-                    cta={
-                      <Button theme="secondary" onClick={resetFilters}>
-                        <Icon icon="FilterX" size={16} />
+                    action={
+                      <Button
+                        variant="secondary"
+                        iconLeft={FilterX}
+                        onPress={resetFilters}
+                      >
                         Clear all filters
                       </Button>
                     }

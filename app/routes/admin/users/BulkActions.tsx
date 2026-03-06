@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { Button, Select } from "@cytario/design";
+import { Ban, Check, UserMinus, UserPlus } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
-import { GroupPill } from "../../../components/Pill/GroupPill";
 import {
   type GroupInfo,
   type UserWithGroups,
 } from "~/.server/auth/keycloakAdmin";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { Button, Icon, Select } from "~/components/Controls";
 
 type BulkIntent =
   | "addToGroup"
@@ -27,35 +27,59 @@ const dialogConfig: Record<
   {
     title: string;
     confirmLabel: string;
-    confirmTheme: "error" | "primary";
+    confirmVariant: "destructive" | "primary";
     needsGroup: boolean;
   }
 > = {
   addToGroup: {
     title: "Add to Group",
     confirmLabel: "Add to Group",
-    confirmTheme: "primary",
+    confirmVariant: "primary",
     needsGroup: true,
   },
   removeFromGroup: {
     title: "Remove from Group",
     confirmLabel: "Remove from Group",
-    confirmTheme: "error",
+    confirmVariant: "destructive",
     needsGroup: true,
   },
   enableAccounts: {
     title: "Enable Accounts",
     confirmLabel: "Enable",
-    confirmTheme: "primary",
+    confirmVariant: "primary",
     needsGroup: false,
   },
   disableAccounts: {
     title: "Disable Accounts",
     confirmLabel: "Disable",
-    confirmTheme: "error",
+    confirmVariant: "destructive",
     needsGroup: false,
   },
 };
+
+function GroupSelector({
+  options,
+  value,
+  onChange,
+}: {
+  options: { id: string; name: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  if (options.length === 0) {
+    return <p className="text-sm text-rose-600 mt-2">No groups available.</p>;
+  }
+  return (
+    <div className="mt-3">
+      <Select
+        label="Group"
+        items={options}
+        selectedKey={value}
+        onSelectionChange={(key) => onChange(key as string)}
+      />
+    </div>
+  );
+}
 
 export function BulkActions({
   selectedUserIds,
@@ -71,24 +95,35 @@ export function BulkActions({
   const [intent, setIntent] = useState<BulkIntent | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
-  const nonAdminGroups = groups.filter((g) => !g.isAdmin);
-  const allGroupOptions = nonAdminGroups.map((g) => ({
-    label: g.path,
-    value: g.id,
-  }));
+  const allGroupOptions = useMemo(
+    () =>
+      groups
+        .filter((g) => !g.isAdmin)
+        .map((g) => ({ id: g.id, name: g.path })),
+    [groups],
+  );
 
-  const selectedUsers = users.filter((u) =>
-    selectedUserIds.includes(u.user.id),
+  const selectedUsers = useMemo(
+    () => users.filter((u) => selectedUserIds.includes(u.user.id)),
+    [users, selectedUserIds],
   );
 
   // Remove: only groups at least one selected user is in
-  const removeGroupOptions = allGroupOptions.filter((o) =>
-    selectedUsers.some((u) => u.groupPaths.has(o.label)),
+  const removeGroupOptions = useMemo(
+    () =>
+      allGroupOptions.filter((o) =>
+        selectedUsers.some((u) => u.groupPaths.has(o.name)),
+      ),
+    [allGroupOptions, selectedUsers],
   );
 
   // Add: only groups where at least one selected user is NOT yet a member
-  const addGroupOptions = allGroupOptions.filter((o) =>
-    selectedUsers.some((u) => !u.groupPaths.has(o.label)),
+  const addGroupOptions = useMemo(
+    () =>
+      allGroupOptions.filter((o) =>
+        selectedUsers.some((u) => !u.groupPaths.has(o.name)),
+      ),
+    [allGroupOptions, selectedUsers],
   );
 
   const getGroupOptions = (i: BulkIntent) =>
@@ -100,7 +135,7 @@ export function BulkActions({
 
   const openDialog = (newIntent: BulkIntent) => {
     setIntent(newIntent);
-    setSelectedGroupId(getGroupOptions(newIntent)[0]?.value ?? "");
+    setSelectedGroupId(getGroupOptions(newIntent)[0]?.id ?? "");
     setDialogOpen(true);
   };
 
@@ -134,74 +169,61 @@ export function BulkActions({
   return (
     <>
       <Button
-        theme="white"
-        scale="small"
-        onClick={() => openDialog("addToGroup")}
-        disabled={isSubmitting}
+        variant="secondary"
+        size="sm"
+        onPress={() => openDialog("addToGroup")}
+        isDisabled={isSubmitting}
+        iconLeft={UserPlus}
       >
-        <Icon icon="UserPlus" size={14} />
         Add to group
       </Button>
       <Button
-        theme="white"
-        scale="small"
-        onClick={() => openDialog("removeFromGroup")}
-        disabled={isSubmitting}
+        variant="secondary"
+        size="sm"
+        onPress={() => openDialog("removeFromGroup")}
+        isDisabled={isSubmitting}
+        iconLeft={UserMinus}
       >
-        <Icon icon="UserMinus" size={14} />
         Remove from group
       </Button>
       <Button
-        theme="white"
-        scale="small"
-        onClick={() => openDialog("enableAccounts")}
-        disabled={isSubmitting}
+        variant="secondary"
+        size="sm"
+        onPress={() => openDialog("enableAccounts")}
+        isDisabled={isSubmitting}
+        iconLeft={Check}
       >
-        <Icon icon="Check" size={14} />
         Enable
       </Button>
       <Button
-        theme="error"
-        scale="small"
-        onClick={() => openDialog("disableAccounts")}
-        disabled={isSubmitting}
+        variant="destructive"
+        size="sm"
+        onPress={() => openDialog("disableAccounts")}
+        isDisabled={isSubmitting}
+        iconLeft={Ban}
       >
-        <Icon icon="Ban" size={14} />
         Disable
       </Button>
 
-      {config && (
+      {config && intent && (
         <ConfirmDialog
           open={dialogOpen}
           onConfirm={handleConfirm}
           onCancel={handleCancel}
           title={config.title}
           confirmLabel={config.confirmLabel}
-          confirmTheme={config.confirmTheme}
+          confirmVariant={config.confirmVariant}
         >
           <p className="text-sm text-slate-600">
             This will affect{" "}
             <span className="font-medium text-slate-900">{count}</span> user
             {count !== 1 ? "s" : ""}.
           </p>
-          {config.needsGroup &&
-            (() => {
-              const options = getGroupOptions(intent!);
-              return options.length > 0 ? (
-                <div className="mt-3">
-                  <Select
-                    options={options}
-                    value={selectedGroupId}
-                    onChange={setSelectedGroupId}
-                    renderOption={(option) => <GroupPill path={option.label} />}
-                  />
-                </div>
-              ) : (
-                <p className="text-sm text-rose-600 mt-2">
-                  No groups available.
-                </p>
-              );
-            })()}
+          {config.needsGroup && <GroupSelector
+            options={getGroupOptions(intent)}
+            value={selectedGroupId}
+            onChange={setSelectedGroupId}
+          />}
         </ConfirmDialog>
       )}
     </>

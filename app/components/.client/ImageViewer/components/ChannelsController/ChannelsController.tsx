@@ -1,4 +1,4 @@
-import { TabPanel, TabPanels } from "@headlessui/react";
+import { TabPanel } from "@cytario/design";
 
 import { ChannelsControllerItemList } from "./ChannelsControllerItemList";
 import { Histogram } from "./Histogram";
@@ -13,24 +13,27 @@ export function ChannelsController() {
   const setIsExpanded = useFeatureBarStore((state) => state.setIsExpanded);
   const channelsOpacity = useViewerStore(select.channelsOpacity);
   const setChannelsOpacity = useViewerStore(select.setChannelsOpacity);
+  const visibleChannelCount = useViewerStore(select.visibleChannelCount);
+  const channelIds = useViewerStore(select.channelIds);
+
+  const badge = `${visibleChannelCount}/${channelIds.length}`;
 
   return (
     <FeatureItem
       title="Channels"
+      badge={badge}
       header={<Histogram />}
       sliderValue={channelsOpacity}
       onSliderChange={setChannelsOpacity}
     >
-      <TabPanels>
-        {layersStates.map((_, index) => (
-          <TabPanel key={index}>
-            <ChannelsControllerItemList
-              isExpanded={isExpanded}
-              setIsExpanded={setIsExpanded}
-            />
-          </TabPanel>
-        ))}
-      </TabPanels>
+      {layersStates.map((_, index) => (
+        <TabPanel key={index} id={String(index)}>
+          <ChannelsControllerItemList
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+          />
+        </TabPanel>
+      ))}
     </FeatureItem>
   );
 }

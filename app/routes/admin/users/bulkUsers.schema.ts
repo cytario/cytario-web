@@ -8,8 +8,12 @@ export const bulkActionSchema = z
       "enableAccounts",
       "disableAccounts",
     ]),
-    userIds: z.string().transform((val) => val.split(",")),
-    groupId: z.string().optional(),
+    userIds: z
+      .string()
+      .min(1, "At least one user is required")
+      .transform((val) => val.split(","))
+      .pipe(z.array(z.string().uuid()).max(500)),
+    groupId: z.string().uuid().optional(),
   })
   .refine(
     (data) => {

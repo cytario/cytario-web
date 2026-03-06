@@ -1,15 +1,16 @@
 import {
+  IconButton,
   Menu,
-  MenuButton,
+  MenuCheckboxItem,
   MenuItem,
-  MenuItems,
   MenuSeparator,
-} from "@headlessui/react";
+} from "@cytario/design";
 import type { VisibilityState } from "@tanstack/react-table";
+import { Columns3 } from "lucide-react";
+import type { Selection } from "react-aria-components";
 
 import { useTableStore } from "./state/useTableStore";
 import { ColumnConfig } from "./types";
-import { Checkbox, IconButton } from "../Controls";
 
 interface TableMenuProps {
   toggleableColumns: ColumnConfig[];
@@ -26,42 +27,52 @@ export function TableMenu({
 }: TableMenuProps) {
   const store = useTableStore(tableId);
 
+  const selectedKeys = new Set(
+    toggleableColumns
+      .filter((col) => columnVisibility[col.id] !== false)
+      .map((col) => col.id),
+  );
+
+  function handleSelectionChange(keys: Selection) {
+    const newKeys =
+      keys === "all"
+        ? new Set(toggleableColumns.map((c) => c.id))
+        : keys;
+
+    for (const col of toggleableColumns) {
+      const wasSelected = columnVisibility[col.id] !== false;
+      const isNowSelected = newKeys.has(col.id);
+      if (wasSelected !== isNowSelected) {
+        toggleColumn(col.id);
+      }
+    }
+  }
+
   return (
-    <Menu>
-      <MenuButton
-        as={IconButton}
-        icon="Columns3"
-        theme="white"
-        label="Column settings"
-        scale="small"
-      />
-      <MenuItems
-        anchor="bottom start"
-        className="z-20 min-w-48 p-1 bg-white border border-slate-300 rounded-sm shadow-lg"
-      >
-        {toggleableColumns.map((col) => (
-          <MenuItem key={col.id} as="div">
-            <button
-              type="button"
-              onClick={() => toggleColumn(col.id)}
-              className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-slate-700 data-[focus]:bg-slate-100 rounded"
-            >
-              <Checkbox checked={columnVisibility[col.id] !== false} />
+    <Menu
+      selectionMode="multiple"
+      selectedKeys={selectedKeys}
+      onSelectionChange={handleSelectionChange}
+      content={
+        <>
+          {toggleableColumns.map((col) => (
+            <MenuCheckboxItem key={col.id} id={col.id}>
               {col.header}
-            </button>
-          </MenuItem>
-        ))}
-        <MenuSeparator className="my-1 h-px bg-slate-200" />
-        <MenuItem as="div">
-          <button
-            type="button"
-            onClick={() => store.getState().reset()}
-            className="flex w-full items-center px-2 py-1.5 text-sm text-slate-500 data-[focus]:bg-slate-100 rounded"
-          >
+            </MenuCheckboxItem>
+          ))}
+          <MenuSeparator />
+          <MenuItem id="reset-all" onAction={() => store.getState().reset()}>
             Reset all
-          </button>
-        </MenuItem>
-      </MenuItems>
+          </MenuItem>
+        </>
+      }
+    >
+      <IconButton
+        icon={Columns3}
+        variant="ghost"
+        size="sm"
+        aria-label="Column settings"
+      />
     </Menu>
   );
 }

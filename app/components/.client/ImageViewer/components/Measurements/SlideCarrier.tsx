@@ -59,7 +59,7 @@ const Size = ({
         h-4 
         origin-top-left 
         text-xs font-semibold
-      text-slate-300
+      text-[var(--color-text-secondary)]
         `}
       style={{
         width: vertical ? imageHeightScreen : imageWidthScreen,
