@@ -16,7 +16,7 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { CrumbsOptions, getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
+import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
@@ -60,44 +60,15 @@ export const handle = {
   }) => {
     const { params, data } = match;
     const alias = data?.alias ?? params.alias ?? "";
-    const bucketName = data?.bucketName ?? "";
     const pathName = params["*"] ?? "";
-    const prefix = data?.connectionConfig?.prefix ?? "";
 
-    // Calculate the relative path (path after the storage connection prefix)
-    const normalizedPrefix = prefix.endsWith("/")
-      ? prefix
-      : prefix
-        ? `${prefix}/`
-        : "";
-    const relativePath =
-      normalizedPrefix && pathName.startsWith(normalizedPrefix)
-        ? pathName.slice(normalizedPrefix.length)
-        : normalizedPrefix && pathName === prefix.replace(/\/$/, "")
-          ? ""
-          : prefix
-            ? pathName.slice(prefix.length).replace(/^\//, "")
-            : pathName;
+    const segments = pathName ? pathName.split("/") : [];
+    const basePath = `/connections/${alias}`;
 
-    const relativeSegments = relativePath ? relativePath.split("/") : [];
-
-    // Build the storage connection path using alias
-    const dataConnectionPath = prefix
-      ? `/connections/${alias}/${prefix.replace(/\/$/, "")}`
-      : `/connections/${alias}`;
-
-    // Display name: show bucket name, or bucket/lastPrefixSegment if prefix exists
-    const prefixLastSegment = prefix.replace(/\/$/, "").split("/").pop();
-    const dataConnectionName = prefix
-      ? `${bucketName}/${prefixLastSegment}`
-      : bucketName;
-
-    const options: CrumbsOptions = {
-      dataConnectionName,
-      dataConnectionPath,
-    };
-
-    return getCrumbs(`/connections/${alias}`, relativeSegments, options);
+    return getCrumbs(basePath, segments, {
+      dataConnectionName: alias,
+      dataConnectionPath: basePath,
+    });
   },
 };
 
@@ -136,7 +107,13 @@ export const loader = async ({
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
-  const pathName = params["*"] as string;
+  const urlPath = params["*"] as string;
+  const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";
+  const pathName = connPrefix
+    ? urlPath
+      ? `${connPrefix}/${urlPath}`
+      : connPrefix
+    : urlPath;
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 

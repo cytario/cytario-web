@@ -84,7 +84,7 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
       name: config.alias,
       type: "bucket" as const,
       provider: config.provider,
-      pathName: config.prefix || undefined,
+      pathName: undefined,
       children: [],
       _Object: previewObj,
     };

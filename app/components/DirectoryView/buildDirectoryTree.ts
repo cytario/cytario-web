@@ -121,7 +121,6 @@ export function buildDirectoryTree(
       bucketName,
       provider,
       alias,
-      prefix,
     );
   });
 

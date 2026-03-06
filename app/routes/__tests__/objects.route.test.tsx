@@ -85,7 +85,7 @@ describe("Bucket Route", () => {
       "/connections/aws-test-bucket",
       ["bucket", "folder", "file.ome.tiff"],
       {
-        dataConnectionName: "test-bucket",
+        dataConnectionName: "aws-test-bucket",
         dataConnectionPath: "/connections/aws-test-bucket",
       }
     );
