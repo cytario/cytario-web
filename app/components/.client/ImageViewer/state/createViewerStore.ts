@@ -16,6 +16,24 @@ import {
   RGB,
 } from "./types";
 import { getSelectionStats } from "../utils/getSelectionStats";
+import { createMigrate } from "~/utils/persistMigration";
+
+type PersistedViewerState = Pick<
+  ViewerStore,
+  | "selectedChannelId"
+  | "imagePanelIndex"
+  | "imagePanels"
+  | "layersStates"
+  | "viewStateActive"
+>;
+
+const VIEWER_FALLBACK_STATE: PersistedViewerState = {
+  selectedChannelId: null,
+  imagePanelIndex: -1,
+  imagePanels: [],
+  layersStates: [],
+  viewStateActive: null,
+};
 
 /**
  * Creates a Zustand store for managing the state of an image viewer instance.
@@ -603,6 +621,22 @@ export const createViewerStore = (id: string) =>
       ),
       {
         name: "ViewerStore-" + id,
+        version: 1,
+        migrate: createMigrate<PersistedViewerState>(
+          {
+            0: (state) => {
+              const s = state as Record<string, unknown>;
+              return {
+                selectedChannelId: null,
+                imagePanelIndex: -1,
+                imagePanels: [],
+                layersStates: [],
+                viewStateActive: s?.viewStateActive ?? null,
+              };
+            },
+          },
+          VIEWER_FALLBACK_STATE,
+        ),
         partialize: (state) => ({
           selectedChannelId: state.selectedChannelId,
           imagePanelIndex: state.imagePanelIndex,
@@ -610,6 +644,14 @@ export const createViewerStore = (id: string) =>
           layersStates: state.layersStates,
           viewStateActive: state.viewStateActive,
         }),
+        onRehydrateStorage: () => (_state, error) => {
+          if (error) {
+            console.error(
+              `[ViewerStore-${id}] Rehydration failed:`,
+              error,
+            );
+          }
+        },
       }
     )
   );

@@ -102,6 +102,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
+        version: 1,
         partialize: (state) => ({
           connections: Object.fromEntries(
             Object.entries(state.connections).map(([key, record]) => [
@@ -110,6 +111,10 @@ export const useConnectionsStore = create<ConnectionsStore>()(
             ]),
           ),
         }),
+        onRehydrateStorage: () => (_state, error) => {
+          if (error)
+            console.error("[ConnectionsStore] Rehydration failed:", error);
+        },
       },
     ),
     { name },

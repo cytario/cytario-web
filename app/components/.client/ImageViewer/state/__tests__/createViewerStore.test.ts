@@ -8,6 +8,7 @@ import {
   OverlaysState,
   ViewState,
 } from "../types";
+import { createMigrate } from "~/utils/persistMigration";
 
 vi.mock("../../utils/getSelectionStats");
 vi.mock("../getInitialChannelsState");
@@ -916,6 +917,90 @@ describe("createViewerStore", () => {
 
       expect(store.getState().layersStates).toHaveLength(2);
       expect(store.getState().imagePanels[0]).toBe(1);
+    });
+  });
+
+  describe("persist migration v0 -> v1", () => {
+    const fallback = {
+      selectedChannelId: null,
+      imagePanelIndex: -1,
+      imagePanels: [],
+      layersStates: [],
+      viewStateActive: null,
+    };
+
+    const migrate = createMigrate(
+      {
+        0: (state) => {
+          const s = state as Record<string, unknown>;
+          return {
+            selectedChannelId: null,
+            imagePanelIndex: -1,
+            imagePanels: [],
+            layersStates: [],
+            viewStateActive: s?.viewStateActive ?? null,
+          };
+        },
+      },
+      fallback,
+    );
+
+    test("clears layersStates and resets panel state from v0", () => {
+      const v0State = {
+        selectedChannelId: "Red",
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [createMockLayersState()],
+        viewStateActive: { zoom: -2, target: [100, 200] },
+      };
+
+      const result = migrate(v0State, 0);
+
+      expect(result).toEqual({
+        selectedChannelId: null,
+        imagePanelIndex: -1,
+        imagePanels: [],
+        layersStates: [],
+        viewStateActive: { zoom: -2, target: [100, 200] },
+      });
+    });
+
+    test("preserves viewStateActive from v0", () => {
+      const viewState = {
+        zoom: -3,
+        width: 1920,
+        height: 1080,
+        target: [500, 500],
+        rotationX: 0,
+        rotationOrbit: 0,
+      };
+
+      const result = migrate({ viewStateActive: viewState }, 0);
+      expect(result.viewStateActive).toEqual(viewState);
+    });
+
+    test("handles null viewStateActive in v0", () => {
+      const result = migrate({}, 0);
+      expect(result.viewStateActive).toBeNull();
+    });
+
+    test("handles null persisted state", () => {
+      const result = migrate(null, 0);
+      expect(result.viewStateActive).toBeNull();
+      expect(result.layersStates).toEqual([]);
+    });
+
+    test("returns state unchanged when already at v1", () => {
+      const v1State = {
+        selectedChannelId: "Blue",
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [createMockLayersState()],
+        viewStateActive: null,
+      };
+
+      const result = migrate(v1State, 1);
+      expect(result).toEqual(v1State);
     });
   });
 });

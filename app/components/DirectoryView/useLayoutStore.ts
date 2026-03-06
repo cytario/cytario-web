@@ -1,7 +1,17 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { createMigrate } from "~/utils/persistMigration";
+
 export type ViewMode = "list" | "list-wide" | "grid-sm" | "grid-md" | "grid-lg";
+
+const VALID_VIEW_MODES: ViewMode[] = [
+  "list",
+  "list-wide",
+  "grid-sm",
+  "grid-md",
+  "grid-lg",
+];
 
 interface LayoutStore {
   viewMode: ViewMode;
@@ -38,10 +48,27 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
+      version: 1,
+      migrate: createMigrate<{ viewMode: ViewMode }>(
+        {
+          0: (state) => {
+            const s = state as { viewMode?: string };
+            return {
+              viewMode: VALID_VIEW_MODES.includes(s?.viewMode as ViewMode)
+                ? (s.viewMode as ViewMode)
+                : "grid-md",
+            };
+          },
+        },
+        { viewMode: "grid-md" },
+      ),
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { headerSlot, setHeaderSlot, ...rest } = state;
         return rest;
+      },
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) console.error("[LayoutStore] Rehydration failed:", error);
       },
     },
   ),
