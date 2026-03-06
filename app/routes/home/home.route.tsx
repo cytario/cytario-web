@@ -40,9 +40,13 @@ export const meta: MetaFunction = () => {
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
   formAction,
+  currentUrl,
+  nextUrl,
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
+  // Revalidate when navigating back to home from another page
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
   return false;
 };
 

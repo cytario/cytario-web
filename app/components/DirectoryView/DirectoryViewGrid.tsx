@@ -24,7 +24,7 @@ const ImagePreview = lazy(() =>
 const gridClasses: Record<string, string> = {
   // prettier-ignore
   "grid-sm": "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3",
-  "grid-md": "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
+  "grid-md": "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4",
   "grid-lg": "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
