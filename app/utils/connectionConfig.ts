@@ -13,56 +13,16 @@ export async function getConnectionConfigs(
   return filterVisible(user, allConfigs);
 }
 
-// Get a specific connection config by provider, name, and exact prefix
-export async function getConnectionByName(
+// Get a connection config by its unique alias
+export async function getConnectionByAlias(
   user: UserProfile,
-  provider: string,
-  name: string,
-  prefix: string = "",
+  alias: string,
 ): Promise<ConnectionConfig | null> {
-  const configs = await prisma.connectionConfig.findMany({
-    where: { provider, name, prefix },
+  const config = await prisma.connectionConfig.findUnique({
+    where: { alias },
   });
-  const visible = configs.filter((c) => canSee(user, c.ownerScope));
-  return visible[0] ?? null;
-}
-
-// Find the best matching connection config for a given path
-// This handles the case where multiple configs exist for the same bucket with different prefixes
-// TODO: Introduce unique alias
-export async function getConnectionByPath(
-  user: UserProfile,
-  provider: string,
-  name: string,
-  pathName: string = "",
-): Promise<ConnectionConfig | null> {
-  const allConfigs = await prisma.connectionConfig.findMany({
-    where: { provider, name },
-  });
-  const configs = allConfigs.filter((c) => canSee(user, c.ownerScope));
-
-  if (configs.length === 0) return null;
-  if (configs.length === 1) return configs[0];
-
-  // Find configs where the path matches or starts with the prefix
-  // Normalize path for comparison
-  const normalizedPath = pathName.replace(/\/$/, "");
-
-  const matchingConfigs = configs.filter((config) => {
-    if (!config.prefix) return true; // Empty prefix matches all paths
-    const normalizedPrefix = config.prefix.replace(/\/$/, "");
-    return (
-      normalizedPath === normalizedPrefix ||
-      normalizedPath.startsWith(`${normalizedPrefix}/`)
-    );
-  });
-
-  if (matchingConfigs.length === 0) return null;
-
-  // Return the most specific match (longest prefix)
-  return matchingConfigs.reduce((best, current) =>
-    (current.prefix?.length ?? 0) > (best.prefix?.length ?? 0) ? current : best,
-  );
+  if (!config) return null;
+  return canSee(user, config.ownerScope) ? config : null;
 }
 
 // Upsert a connection config
@@ -70,6 +30,7 @@ export async function upsertConnectionConfig(
   ownerScope: string,
   createdBy: string,
   config: {
+    alias: string;
     name: string;
     provider: string;
     roleArn: string | null;
@@ -98,20 +59,16 @@ export async function upsertConnectionConfig(
   });
 }
 
-// Delete a connection config (with authorization check) and cascade-delete related recents/pins
+// Delete a connection config by alias (with authorization check) and cascade-delete related recents/pins
 export async function deleteConnectionConfig(
   user: UserProfile,
-  provider: string,
-  name: string,
-  prefix: string = "",
+  alias: string,
 ) {
-  const configs = await prisma.connectionConfig.findMany({
-    where: { provider, name, prefix },
+  const config = await prisma.connectionConfig.findUnique({
+    where: { alias },
   });
 
-  const config = configs.find((c) => canSee(user, c.ownerScope));
-
-  if (!config) {
+  if (!config || !canSee(user, config.ownerScope)) {
     throw new Error("Connection config not found");
   }
 
@@ -120,8 +77,12 @@ export async function deleteConnectionConfig(
   }
 
   await prisma.$transaction([
-    prisma.recentlyViewed.deleteMany({ where: { provider, bucketName: name } }),
-    prisma.pinnedPath.deleteMany({ where: { provider, bucketName: name } }),
+    prisma.recentlyViewed.deleteMany({
+      where: { provider: config.provider, bucketName: config.name },
+    }),
+    prisma.pinnedPath.deleteMany({
+      where: { provider: config.provider, bucketName: config.name },
+    }),
     prisma.connectionConfig.delete({ where: { id: config.id } }),
   ]);
 }

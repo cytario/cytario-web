@@ -55,14 +55,14 @@ export type SerializedPinnedPath = {
 };
 
 export async function loadConnectionNodes(context: ActionFunctionArgs["context"]) {
-  const { bucketConfigs, credentials, user, authTokens } =
+  const { connectionConfigs, credentials, user, authTokens } =
     context.get(authContext);
   const userId = user.sub;
 
   const [previews, adminScopes, recentlyViewedRaw, pinnedPathsRaw] =
     await Promise.all([
       Promise.allSettled(
-        bucketConfigs.map((config) =>
+        connectionConfigs.map((config) =>
           fetchPreviewObject(config, credentials, userId),
         ),
       ),
@@ -74,7 +74,7 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
       getPinnedPaths(userId),
     ]);
 
-  const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
+  const nodes: TreeNode[] = connectionConfigs.map((config, i) => {
     const result = previews[i];
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
@@ -87,6 +87,7 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
       : config.name;
 
     return {
+      alias: config.alias,
       bucketName: config.name,
       name: displayName,
       type: "bucket" as const,
@@ -124,7 +125,7 @@ export async function loadConnectionNodes(context: ActionFunctionArgs["context"]
     adminScopes,
     userId,
     credentials,
-    bucketConfigs,
+    connectionConfigs,
     recentlyViewed,
     pinnedPaths,
   };

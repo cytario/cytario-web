@@ -17,7 +17,7 @@ vi.mock("~/utils/s3Provider", () => ({
 }));
 
 describe("getS3Client", () => {
-  const mockBucketConfig = mock.connectionConfig({
+  const mockConnectionConfig = mock.connectionConfig({
     name: "test-bucket",
     region: "us-west-2",
     endpoint: "https://s3.us-west-2.amazonaws.com",
@@ -35,7 +35,7 @@ describe("getS3Client", () => {
 
   describe("Client Creation", () => {
     test("creates S3Client with correct credentials", async () => {
-      await getS3Client(mockBucketConfig, mockCredentials, "user-1");
+      await getS3Client(mockConnectionConfig, mockCredentials, "user-1");
 
       expect(S3Client).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -49,7 +49,7 @@ describe("getS3Client", () => {
     });
 
     test("creates S3Client with correct region", async () => {
-      await getS3Client(mockBucketConfig, mockCredentials, "user-2");
+      await getS3Client(mockConnectionConfig, mockCredentials, "user-2");
 
       expect(S3Client).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -75,7 +75,7 @@ describe("getS3Client", () => {
 
     test("returns S3Client instance", async () => {
       const client = await getS3Client(
-        mockBucketConfig,
+        mockConnectionConfig,
         mockCredentials,
         "user-4"
       );
@@ -93,10 +93,10 @@ describe("getS3Client", () => {
         SecretAccessKey: "cache-secret",
       });
 
-      const client1 = await getS3Client(mockBucketConfig, creds, "cache-user");
+      const client1 = await getS3Client(mockConnectionConfig, creds, "cache-user");
       const callCount1 = vi.mocked(S3Client).mock.calls.length;
 
-      const client2 = await getS3Client(mockBucketConfig, creds, "cache-user");
+      const client2 = await getS3Client(mockConnectionConfig, creds, "cache-user");
       const callCount2 = vi.mocked(S3Client).mock.calls.length;
 
       // Should be the same instance
@@ -115,10 +115,10 @@ describe("getS3Client", () => {
         SecretAccessKey: "secret2",
       });
 
-      await getS3Client(mockBucketConfig, creds1, "changing-user");
+      await getS3Client(mockConnectionConfig, creds1, "changing-user");
       const callCount1 = vi.mocked(S3Client).mock.calls.length;
 
-      await getS3Client(mockBucketConfig, creds2, "changing-user");
+      await getS3Client(mockConnectionConfig, creds2, "changing-user");
       const callCount2 = vi.mocked(S3Client).mock.calls.length;
 
       // Should create a new client
@@ -131,10 +131,10 @@ describe("getS3Client", () => {
         SecretAccessKey: "shared-secret",
       });
 
-      await getS3Client(mockBucketConfig, sharedCreds, "user-a");
+      await getS3Client(mockConnectionConfig, sharedCreds, "user-a");
       const callCount1 = vi.mocked(S3Client).mock.calls.length;
 
-      await getS3Client(mockBucketConfig, sharedCreds, "user-b");
+      await getS3Client(mockConnectionConfig, sharedCreds, "user-b");
       const callCount2 = vi.mocked(S3Client).mock.calls.length;
 
       // Different users should get different cache entries
@@ -168,7 +168,7 @@ describe("getS3Client", () => {
       });
 
       await expect(
-        getS3Client(mockBucketConfig, invalidCreds, "error-user")
+        getS3Client(mockConnectionConfig, invalidCreds, "error-user")
       ).rejects.toThrow("No Credentials");
     });
 
@@ -178,13 +178,13 @@ describe("getS3Client", () => {
       });
 
       await expect(
-        getS3Client(mockBucketConfig, invalidCreds, "error-user")
+        getS3Client(mockConnectionConfig, invalidCreds, "error-user")
       ).rejects.toThrow("No Credentials");
     });
 
     test("throws when userId is empty", async () => {
       await expect(
-        getS3Client(mockBucketConfig, mockCredentials, "")
+        getS3Client(mockConnectionConfig, mockCredentials, "")
       ).rejects.toThrow("User ID is required for S3Client cache");
     });
   });

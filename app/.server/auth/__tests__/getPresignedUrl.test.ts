@@ -14,7 +14,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 }));
 
 describe("getPresignedUrl", () => {
-  const mockBucketConfig = mock.connectionConfig({
+  const mockConnectionConfig = mock.connectionConfig({
     name: "test-bucket",
     region: "us-west-2",
   });
@@ -29,7 +29,7 @@ describe("getPresignedUrl", () => {
   });
 
   test("creates GetObjectCommand with correct bucket and key", async () => {
-    await getPresignedUrl(mockBucketConfig, mockS3Client, "path/to/file.txt");
+    await getPresignedUrl(mockConnectionConfig, mockS3Client, "path/to/file.txt");
 
     expect(GetObjectCommand).toHaveBeenCalledWith({
       Bucket: "test-bucket",
@@ -38,7 +38,7 @@ describe("getPresignedUrl", () => {
   });
 
   test("calls getSignedUrl with S3 client and command", async () => {
-    await getPresignedUrl(mockBucketConfig, mockS3Client, "test-key");
+    await getPresignedUrl(mockConnectionConfig, mockS3Client, "test-key");
 
     expect(getSignedUrl).toHaveBeenCalledWith(
       mockS3Client,
@@ -55,7 +55,7 @@ describe("getPresignedUrl", () => {
     vi.mocked(getSignedUrl).mockResolvedValue(expectedUrl);
 
     const result = await getPresignedUrl(
-      mockBucketConfig,
+      mockConnectionConfig,
       mockS3Client,
       "my-file.pdf"
     );
@@ -64,7 +64,7 @@ describe("getPresignedUrl", () => {
   });
 
   test("sets 1 hour expiration", async () => {
-    await getPresignedUrl(mockBucketConfig, mockS3Client, "test-key");
+    await getPresignedUrl(mockConnectionConfig, mockS3Client, "test-key");
 
     const [, , options] = vi.mocked(getSignedUrl).mock.calls[0];
     expect(options?.expiresIn).toBe(60 * 60 * 1);
@@ -72,7 +72,7 @@ describe("getPresignedUrl", () => {
 
   test("handles keys with special characters", async () => {
     await getPresignedUrl(
-      mockBucketConfig,
+      mockConnectionConfig,
       mockS3Client,
       "folder/sub folder/file (1).txt"
     );
@@ -100,7 +100,7 @@ describe("getPresignedUrl", () => {
     vi.mocked(getSignedUrl).mockRejectedValue(new Error("Signing failed"));
 
     await expect(
-      getPresignedUrl(mockBucketConfig, mockS3Client, "test-key")
+      getPresignedUrl(mockConnectionConfig, mockS3Client, "test-key")
     ).rejects.toThrow("Signing failed");
   });
 });

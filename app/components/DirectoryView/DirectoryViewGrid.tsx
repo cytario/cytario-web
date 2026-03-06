@@ -7,7 +7,7 @@ import { TreeNode } from "./buildDirectoryTree";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
-import { createResourceId } from "~/utils/resourceId";
+import { createResourceId, nodeToPath } from "~/utils/resourceId";
 
 const ViewerStoreProvider = lazy(() =>
   import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
@@ -52,7 +52,8 @@ function FileCardGridItem({
     node.bucketName,
     node.pathName,
   );
-  const to = `/buckets/${resourceId}`.replace(/\/$/, "");
+  const to = nodeToPath(node);
+  const nodeId = node.pathName ?? node.name;
 
   const handlePress = useCallback(() => {
     navigate(to);
@@ -60,12 +61,12 @@ function FileCardGridItem({
 
   const handleInfo = useCallback(() => {
     const search = new URLSearchParams(location.search);
-    search.set(node.type, resourceId);
+    search.set(node.type, nodeId);
     navigate({
       pathname: location.pathname,
       search: `?${search.toString()}`,
     });
-  }, [resourceId, location.pathname, location.search, navigate, node.type]);
+  }, [nodeId, location.pathname, location.search, navigate, node.type]);
 
   const cardType = node.type === "file" ? "file" : "directory";
   const extension =

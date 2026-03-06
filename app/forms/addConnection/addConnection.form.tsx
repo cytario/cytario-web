@@ -35,6 +35,7 @@ export const AddConnectionForm = ({
     control,
     trigger,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectBucketSchema),
@@ -56,7 +57,7 @@ export const AddConnectionForm = ({
         ? ["ownerScope", "providerType"]
         : ["ownerScope", "providerType", "provider"];
     } else if (currentStep === 1) {
-      fieldsToValidate = ["s3Uri"];
+      fieldsToValidate = ["s3Uri", "alias"];
     } else if (currentStep === 2) {
       fieldsToValidate = isAWS
         ? ["bucketRegion", "roleArn"]
@@ -116,7 +117,7 @@ export const AddConnectionForm = ({
 
         {/* Step 2: Location */}
         {currentStep === 1 && (
-          <LocationFieldset control={control} errors={errors} isAWS={isAWS} />
+          <LocationFieldset control={control} errors={errors} isAWS={isAWS} setValue={setValue} />
         )}
 
         {/* Step 3: Access */}

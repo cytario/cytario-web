@@ -1,22 +1,10 @@
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
 
-/** Represents the type of node in the directory tree hierarchy. */
 export type TreeNodeType = "bucket" | "directory" | "file";
 
-/**
- * Represents a node in a hierarchical directory tree structure.
- * Used to display S3 bucket contents in a navigable tree view.
- *
- * @property provider - Cloud storage provider (e.g., "aws", "minio").
- * @property bucketName - Name of the S3 bucket this node belongs to.
- * @property name - Display name of this node (file name or directory name).
- * @property type - Type of node: "bucket" for root, "directory" for folders, "file" for objects.
- * @property pathName - Full path from bucket root to this node (e.g., "folder/subfolder/file.txt").
- * @property children - Child nodes (empty array for files, populated for directories/buckets).
- * @property _Object - Original S3 object metadata, present for file and directory nodes.
- */
 export interface TreeNode {
+  alias: string;
   provider: string;
   bucketName: string;
   name: string;
@@ -32,6 +20,7 @@ function buildDirectoryTreeRecursive(
   obj: ObjectPresignedUrl,
   bucketName: string,
   provider: string,
+  alias: string,
   parentPath: string = "",
 ) {
   const name = keyParts[0];
@@ -40,6 +29,7 @@ function buildDirectoryTreeRecursive(
 
   if (keyParts.length === 1) {
     currentDir.push({
+      alias,
       type: "file",
       name,
       pathName,
@@ -52,6 +42,7 @@ function buildDirectoryTreeRecursive(
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
+        alias,
         type: "directory",
         name,
         pathName,
@@ -74,33 +65,13 @@ function buildDirectoryTreeRecursive(
       obj,
       bucketName,
       provider,
+      alias,
       pathName,
     );
   }
 }
 
-/**
- * Transforms a flat list of S3 objects into a hierarchical tree structure.
- *
- * @param bucketName - Name of the S3 bucket containing these objects.
- * @param objects - Flat array of S3 objects with Key paths (e.g., "folder/file.txt").
- * @param provider - Cloud storage provider identifier (e.g., "aws", "gcp").
- * @param prefix - Optional path prefix to strip from object keys before building the tree.
- * @returns Array of root-level TreeNode objects representing the directory structure.
- *
- * @example
- * const objects = [
- *   { Key: "images/photo.jpg" },
- *   { Key: "images/icons/logo.png" },
- *   { Key: "readme.txt" }
- * ];
- * const tree = buildDirectoryTree("my-bucket", objects, "aws");
- * // Returns: [
- * //   { name: "images", type: "directory", children: [...] },
- * //   { name: "readme.txt", type: "file", children: [] }
- * // ]
- */
-/** Recursively compute the total size of a directory node. */
+/** Total size of all files under a directory node. */
 export function computeDirectorySize(node: TreeNode): number {
   if (node.type === "file") return node._Object?.Size ?? 0;
   if (node.children.length === 0) return node._Object?.Size ?? 0;
@@ -110,7 +81,7 @@ export function computeDirectorySize(node: TreeNode): number {
   );
 }
 
-/** Recursively compute the latest LastModified timestamp of a directory node. */
+/** Latest LastModified timestamp under a directory node. */
 export function computeDirectoryLastModified(node: TreeNode): number {
   if (node.type === "file") {
     return node._Object?.LastModified
@@ -132,6 +103,7 @@ export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],
   provider: string,
+  alias: string,
   prefix?: string,
 ): TreeNode[] {
   const root: TreeNode[] = [];
@@ -148,6 +120,7 @@ export function buildDirectoryTree(
       obj,
       bucketName,
       provider,
+      alias,
       prefix,
     );
   });

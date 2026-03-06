@@ -13,8 +13,6 @@ import {
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { getObjects } from "~/utils/getObjects";
 
-type BucketFiles = Record<string, _Object[]>;
-
 export interface SearchRouteLoaderResponse {
   searchQuery: string;
   nodes: TreeNode[];
@@ -36,46 +34,41 @@ export const loader: LoaderFunction = async ({
   const {
     user,
     credentials: bucketsCredentials,
-    bucketConfigs,
+    connectionConfigs,
   } = context.get(authContext);
 
-  // Key format: provider/bucketName to match resourceId format
-  const files = await bucketConfigs.reduce(async (acc, connectionConfig) => {
+  type ConfigFiles = { config: typeof connectionConfigs[number]; files: _Object[] };
+  const results: ConfigFiles[] = [];
+
+  for (const connectionConfig of connectionConfigs) {
     const credentials = bucketsCredentials[connectionConfig.name];
     if (!credentials) {
       console.warn(`No credentials for bucket: ${connectionConfig.name}`);
-      return acc;
+      continue;
     }
 
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
     const _files =
       (await getObjects(connectionConfig, s3Client, searchQuery)) ?? [];
 
-    // Do not return bucket names w/o files
-    if (_files.length === 0) {
-      return acc;
+    if (_files.length > 0) {
+      results.push({ config: connectionConfig, files: _files });
     }
+  }
 
-    const key = `${connectionConfig.provider}/${connectionConfig.name}`;
-    return { ...(await acc), [key]: _files };
-  }, {} as Promise<BucketFiles>);
-
-  // Build tree nodes with provider info from key format
-  const nodes: TreeNode[] = Object.keys(files).map((key) => {
-    const [provider, bucketName] = key.split("/");
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      provider,
-      children: buildDirectoryTree(
-        bucketName,
-        files[key] as ObjectPresignedUrl[],
-        provider,
-        "",
-      ),
-    };
-  });
+  const nodes: TreeNode[] = results.map(({ config, files: configFiles }) => ({
+    alias: config.alias,
+    bucketName: config.name,
+    name: config.name,
+    type: "bucket" as const,
+    provider: config.provider,
+    children: buildDirectoryTree(
+      config.name,
+      configFiles as ObjectPresignedUrl[],
+      config.provider,
+      config.alias,
+    ),
+  }));
 
   return { searchQuery, nodes };
 };

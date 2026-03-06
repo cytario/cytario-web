@@ -9,17 +9,17 @@ import { MarkerInfo } from "~/components/.client/ImageViewer/components/Overlays
  * Extract marker information from DuckDB-WASM database.
  * @param resourceId - S3 resource identifier (bucketName/pathName)
  * @param credentials - AWS credentials with access to the S3 bucket
- * @param bucketConfig - Optional bucket configuration for S3-compatible services
+ * @param connectionConfig - Optional connection configuration for S3-compatible services
  */
 export async function getMarkerInfoWasm(
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: ConnectionConfig | null,
+  connectionConfig?: ConnectionConfig | null,
 ): Promise<MarkerInfo> {
   const connection = await createDatabase(
     resourceId,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
 
   try {

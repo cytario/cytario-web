@@ -10,6 +10,7 @@ import {
   useLoaderData,
 } from "react-router";
 
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -39,9 +40,10 @@ export const action: ActionFunction = async ({ request, context }) => {
 };
 
 export const loader: LoaderFunction = async ({ context }) => {
-  const { user } = context.get(authContext);
+  const { user, connectionConfigs } = context.get(authContext);
   const raw = await getRecentlyViewed(user.sub, 50);
   return {
+    connectionConfigs,
     recentlyViewed: raw.map((item) => ({
       id: item.id,
       provider: item.provider,
@@ -55,6 +57,7 @@ export const loader: LoaderFunction = async ({ context }) => {
 };
 
 type RecentLoaderData = {
+  connectionConfigs: ConnectionConfig[];
   recentlyViewed: Array<{
     id: number;
     provider: string;
@@ -67,14 +70,24 @@ type RecentLoaderData = {
 };
 
 export default function RecentRoute() {
-  const { recentlyViewed } = useLoaderData<RecentLoaderData>();
+  const { connectionConfigs, recentlyViewed } =
+    useLoaderData<RecentLoaderData>();
   const { viewMode } = useLayoutStore();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const clearFetcher = useFetcher();
 
+  const aliasLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of connectionConfigs) {
+      map.set(`${c.provider}/${c.name}`, c.alias);
+    }
+    return map;
+  }, [connectionConfigs]);
+
   const allItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed.map((item) => ({
+        alias: aliasLookup.get(`${item.provider}/${item.bucketName}`) ?? "",
         provider: item.provider,
         bucketName: item.bucketName,
         pathName: item.pathName,
@@ -82,7 +95,7 @@ export default function RecentRoute() {
         type: item.type as TreeNode["type"],
         children: [],
       })),
-    [recentlyViewed],
+    [recentlyViewed, aliasLookup],
   );
 
   const isGrid = viewMode !== "list" && viewMode !== "list-wide";

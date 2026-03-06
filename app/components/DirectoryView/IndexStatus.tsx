@@ -8,46 +8,38 @@ import {
   selectConnectionIndex,
   useConnectionsStore,
 } from "~/utils/connectionsStore";
-import { createConnectionKey } from "~/utils/resourceId";
 
 interface IndexStatusProps {
-  provider: string;
-  bucketName: string;
-  prefix: string;
+  alias: string;
 }
 
-export function IndexStatus({ provider, bucketName, prefix }: IndexStatusProps) {
-  const connKey = createConnectionKey(provider, bucketName, prefix);
-
-  const bucketIndex = useConnectionsStore(selectConnectionIndex(connKey));
+export function IndexStatus({ alias }: IndexStatusProps) {
+  const bucketIndex = useConnectionsStore(selectConnectionIndex(alias));
   const setConnectionIndex = useConnectionsStore((s) => s.setConnectionIndex);
 
   const fetcher = useFetcher();
 
   // Probe index on mount
   useEffect(() => {
-    probeIndex(connKey, provider, bucketName, prefix);
-  }, [connKey, provider, bucketName, prefix]);
+    probeIndex(alias);
+  }, [alias]);
 
   // Update store when rebuild completes
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
       const data = fetcher.data as { objectCount: number; builtAt: string };
-      setConnectionIndex(connKey, {
+      setConnectionIndex(alias, {
         status: "ready",
         objectCount: data.objectCount,
         builtAt: data.builtAt,
       });
     }
-  }, [fetcher.state, fetcher.data, connKey, setConnectionIndex]);
+  }, [fetcher.state, fetcher.data, alias, setConnectionIndex]);
 
   const handleRebuild = () => {
-    const formData = new FormData();
-    formData.set("prefix", prefix);
-
-    fetcher.submit(formData, {
+    fetcher.submit(null, {
       method: "POST",
-      action: `/api/reindex/${provider}/${bucketName}`,
+      action: `/api/reindex/${alias}`,
     });
   };
 

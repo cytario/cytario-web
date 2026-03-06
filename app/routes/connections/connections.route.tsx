@@ -57,19 +57,13 @@ export const action: ActionFunction = async ({ request, context }) => {
 
   if (request.method.toLowerCase() === "delete") {
     const formData = await request.formData();
-    const provider = formData.get("provider") as string;
-    const bucketName = formData.get("bucketName") as string;
-    const prefix = (formData.get("prefix") as string) ?? "";
+    const alias = formData.get("alias") as string;
 
-    if (!provider) {
-      return { error: "Provider is required" };
+    if (!alias) {
+      return { error: "Connection alias is required" };
     }
 
-    if (!bucketName) {
-      return { error: "Bucket name is required" };
-    }
-
-    await deleteConnectionConfig(user, provider, bucketName, prefix);
+    await deleteConnectionConfig(user, alias);
 
     const session = await getSession(request);
 
@@ -109,7 +103,7 @@ export default function ConnectionsRoute() {
     adminScopes,
     userId,
     credentials,
-    bucketConfigs,
+    connectionConfigs,
     recentlyViewed,
     pinnedPaths,
   } = useLoaderData<{
@@ -117,16 +111,26 @@ export default function ConnectionsRoute() {
     adminScopes: string[];
     userId: string;
     credentials: Record<string, Credentials>;
-    bucketConfigs: ConnectionConfig[];
+    connectionConfigs: ConnectionConfig[];
     recentlyViewed: SerializedRecentlyViewed[];
     pinnedPaths: SerializedPinnedPath[];
   }>();
 
-  useInitConnections(bucketConfigs, credentials);
+  useInitConnections(connectionConfigs, credentials);
+
+  // Build (provider/bucketName) → alias lookup from connection configs
+  const aliasLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of connectionConfigs) {
+      map.set(`${c.provider}/${c.name}`, c.alias);
+    }
+    return map;
+  }, [connectionConfigs]);
 
   const allRecentItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed.map((item) => ({
+        alias: aliasLookup.get(`${item.provider}/${item.bucketName}`) ?? "",
         provider: item.provider,
         bucketName: item.bucketName,
         pathName: item.pathName,
@@ -134,7 +138,7 @@ export default function ConnectionsRoute() {
         type: item.type as TreeNode["type"],
         children: [],
       })),
-    [recentlyViewed],
+    [recentlyViewed, aliasLookup],
   );
 
   const recentImages = useMemo(
@@ -161,6 +165,7 @@ export default function ConnectionsRoute() {
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
       pinnedPaths.map((pin) => ({
+        alias: aliasLookup.get(`${pin.provider}/${pin.bucketName}`) ?? "",
         provider: pin.provider,
         bucketName: pin.bucketName,
         pathName: pin.pathName,
@@ -177,7 +182,7 @@ export default function ConnectionsRoute() {
               } as TreeNode["_Object"])
             : undefined,
       })),
-    [pinnedPaths],
+    [pinnedPaths, aliasLookup],
   );
 
   return (
@@ -240,7 +245,7 @@ export default function ConnectionsRoute() {
           bucketName=""
           flush
         >
-          <ShowAllLink href="/buckets" total={nodes.length} maxItems={100} />
+          <ShowAllLink href="/connections" total={nodes.length} maxItems={100} />
         </DirectoryView>
       )}
 

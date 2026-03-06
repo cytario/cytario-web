@@ -4,14 +4,14 @@ import { filterObjects } from "./filterObjects";
 import { ConnectionConfig } from "~/.generated/client";
 
 export const getObjects = async (
-  bucketConfig: ConnectionConfig,
+  connectionConfig: ConnectionConfig,
   s3Client: S3Client,
   query?: string | null,
   prefix?: string,
   maxKeys?: number,
 ): Promise<_Object[]> => {
   const listObjectsCommand = new ListObjectsV2Command({
-    Bucket: bucketConfig.name,
+    Bucket: connectionConfig.name,
     Prefix: prefix,
     ...(maxKeys ? { MaxKeys: maxKeys } : {}),
   });

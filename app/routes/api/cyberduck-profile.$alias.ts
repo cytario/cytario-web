@@ -3,30 +3,25 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
-import { getConnectionByName } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
+  const { alias } = params;
 
-  const { provider, bucketName } = params;
-
-  if (!provider) {
-    return new Response("Provider is required", { status: 400 });
+  if (!alias) {
+    return new Response("Connection alias is required", { status: 400 });
   }
 
-  if (!bucketName) {
-    return new Response("Bucket name is required", { status: 400 });
-  }
-
-  const connectionConfig = await getConnectionByName(user, provider, bucketName);
-
+  const connectionConfig = await getConnectionByAlias(user, alias);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }
 
+  const { name: bucketName } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
   const actualRegion = connectionConfig.region ?? "eu-central-1";

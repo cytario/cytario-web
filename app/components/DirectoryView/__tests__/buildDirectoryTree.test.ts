@@ -23,6 +23,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
     ],
     [
       {
+        alias: "test-alias",
         type: "directory",
         name: "folder1",
         bucketName: "test-bucket",
@@ -30,6 +31,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         provider: "test-provider",
         children: [
           {
+            alias: "test-alias",
             type: "file",
             name: "file1.txt",
             pathName: "folder1/file1.txt",
@@ -42,6 +44,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             },
           },
           {
+            alias: "test-alias",
             type: "file",
             name: "file2.txt",
             bucketName: "test-bucket",
@@ -60,6 +63,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         },
       },
       {
+        alias: "test-alias",
         type: "directory",
         name: "folder2",
         bucketName: "test-bucket",
@@ -67,6 +71,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         provider: "test-provider",
         children: [
           {
+            alias: "test-alias",
             type: "file",
             name: "file3.txt",
             bucketName: "test-bucket",
@@ -79,6 +84,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             },
           },
           {
+            alias: "test-alias",
             type: "directory",
             name: "subfolder1",
             pathName: "folder2/subfolder1/",
@@ -86,6 +92,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             provider: "test-provider",
             children: [
               {
+                alias: "test-alias",
                 type: "file",
                 name: "file4.txt",
                 bucketName: "test-bucket",
@@ -154,7 +161,7 @@ describe("buildDirectoryTree", () => {
   test.each(testCases)(
     "should correctly build a directory tree from a flat list of objects",
     (objects, expectedTree) => {
-      const tree = buildDirectoryTree("test-bucket", objects, "test-provider");
+      const tree = buildDirectoryTree("test-bucket", objects, "test-provider", "test-alias");
       expect(tree).toEqual(expectedTree);
     }
   );

@@ -22,20 +22,20 @@ export interface PointRow extends Record<string, unknown> {
  * @param tileIndex - Tile index (z, x, y)
  * @param credentials - AWS credentials with access to the S3 bucket
  * @param markerColumns - Optional list of marker columns to include
- * @param bucketConfig - Optional bucket configuration for S3-compatible services
+ * @param connectionConfig - Optional connection configuration for S3-compatible services
  */
 export async function getTileDataWasm(
   resourceId: string,
   tileIndex: TileIndex,
   credentials: Credentials,
   markerColumns: string[] = [],
-  bucketConfig?: ConnectionConfig | null,
+  connectionConfig?: ConnectionConfig | null,
 ): Promise<Table | null> {
   try {
     const connection = await createDatabase(
       resourceId,
       credentials,
-      bucketConfig,
+      connectionConfig,
     );
     const tileQuery = getGeomQuery(resourceId, tileIndex, markerColumns);
     const arrowTable = await connection.query(tileQuery);

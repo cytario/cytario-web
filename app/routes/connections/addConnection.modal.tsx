@@ -36,6 +36,7 @@ export const action: ActionFunction = async ({ request, context }) => {
   const formData = await request.formData();
 
   const rawData = {
+    alias: formData.get("alias") as string,
     ownerScope: formData.get("ownerScope") as string,
     providerType: formData.get("providerType") as string,
     provider: formData.get("provider") as string,
@@ -74,6 +75,7 @@ export const action: ActionFunction = async ({ request, context }) => {
         : data.bucketEndpoint;
 
     const newConfig = {
+      alias: data.alias,
       name: bucketName,
       provider,
       roleArn: data.providerType === "aws" ? data.roleArn : null,
@@ -89,14 +91,22 @@ export const action: ActionFunction = async ({ request, context }) => {
       message: "Storage connection added successfully.",
     });
 
-    const redirectPath = prefix
-      ? `/buckets/${provider}/${bucketName}/${prefix}`
-      : `/buckets/${provider}/${bucketName}`;
-
-    return redirect(redirectPath, {
+    return redirect(`/connections/${data.alias}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
+    // Handle unique constraint violation on alias
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "P2002"
+    ) {
+      return {
+        errors: { alias: ["This alias is already taken. Please choose another."] },
+        status: "error",
+      };
+    }
+
     console.error("Error upserting bucket config:", error);
 
     session.set("notification", {

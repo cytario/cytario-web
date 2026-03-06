@@ -35,9 +35,12 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const { provider, bucketName } = parseResourceId(resourceId);
-  const storeKey = `${provider}/${bucketName}`;
-  const connection = useConnectionsStore(
-    (state) => state.connections[storeKey],
+  const connection = useConnectionsStore((state) =>
+    Object.values(state.connections).find(
+      (r) =>
+        r.connectionConfig?.provider === provider &&
+        r.connectionConfig?.name === bucketName,
+    ),
   );
 
   // Initial data fetch
@@ -47,7 +50,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
       const connectionConfig = connection?.connectionConfig;
 
       if (!credentials) {
-        setError(`No credentials available for bucket: ${storeKey}`);
+        setError(`No credentials available for bucket: ${bucketName}`);
         setLoading(false);
         return;
       }
@@ -68,7 +71,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     };
 
     fetchData();
-  }, [resourceId, storeKey, connection]);
+  }, [resourceId, connection, bucketName]);
 
   // Fetch more rows
   const fetchMore = useCallback(async () => {

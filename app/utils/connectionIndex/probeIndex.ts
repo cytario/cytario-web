@@ -5,36 +5,25 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
  * index-status endpoint (uses HeadObjectCommand — fast, no DuckDB init needed).
  * Does NOT trigger a rebuild — that's a separate user action.
  */
-export async function probeIndex(
-  connectionKey: string,
-  provider: string,
-  bucketName: string,
-  prefix: string,
-): Promise<void> {
+export async function probeIndex(alias: string): Promise<void> {
   const state = useConnectionsStore.getState();
-  const current = state.connections[connectionKey]?.connectionIndex;
+  const current = state.connections[alias]?.connectionIndex;
 
   if (current && (current.status === "ready" || current.status === "loading")) {
     return;
   }
 
-  state.setConnectionIndex(connectionKey, {
+  state.setConnectionIndex(alias, {
     status: "loading",
     objectCount: 0,
     builtAt: null,
   });
 
   try {
-    const params = new URLSearchParams();
-    if (prefix) params.set("prefix", prefix);
-    const qs = params.size > 0 ? `?${params.toString()}` : "";
-
-    const res = await fetch(
-      `/api/index-status/${provider}/${bucketName}${qs}`,
-    );
+    const res = await fetch(`/api/index-status/${alias}`);
 
     if (!res.ok) {
-      useConnectionsStore.getState().setConnectionIndex(connectionKey, {
+      useConnectionsStore.getState().setConnectionIndex(alias, {
         status: "error",
         objectCount: 0,
         builtAt: null,
@@ -47,20 +36,20 @@ export async function probeIndex(
       | { exists: false };
 
     if (data.exists) {
-      useConnectionsStore.getState().setConnectionIndex(connectionKey, {
+      useConnectionsStore.getState().setConnectionIndex(alias, {
         status: "ready",
         objectCount: data.objectCount,
         builtAt: data.builtAt,
       });
     } else {
-      useConnectionsStore.getState().setConnectionIndex(connectionKey, {
+      useConnectionsStore.getState().setConnectionIndex(alias, {
         status: "missing",
         objectCount: 0,
         builtAt: null,
       });
     }
   } catch {
-    useConnectionsStore.getState().setConnectionIndex(connectionKey, {
+    useConnectionsStore.getState().setConnectionIndex(alias, {
       status: "error",
       objectCount: 0,
       builtAt: null,

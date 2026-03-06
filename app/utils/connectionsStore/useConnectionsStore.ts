@@ -19,12 +19,7 @@ export interface ConnectionRecord {
 /**
  * Connections store for managing S3 bucket connections (credentials, config).
  *
- * IMPORTANT: The key used in this store should be "provider/bucketName",
- * not the full file path. Connections are per-bucket, not per-file.
- *
- * Example:
- * - Correct: setConnection("aws/my-bucket", credentials, connectionConfig)
- * - Incorrect: setConnection("aws/my-bucket/path/to/file.csv", credentials)
+ * Keys are connection aliases (globally unique, e.g. "my-bucket" or "my-bucket-deliverables").
  */
 export interface ConnectionsStore {
   connections: Record<string, ConnectionRecord>;
@@ -102,7 +97,8 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
-        version: 1,
+        version: 2,
+        migrate: () => ({ connections: {} }),
         partialize: (state) => ({
           connections: Object.fromEntries(
             Object.entries(state.connections).map(([key, record]) => [

@@ -38,13 +38,13 @@ export const loader: LoaderFunction = async ({ context }) => {
 
 export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
-  const { nodes, credentials, bucketConfigs } = useLoaderData<{
+  const { nodes, credentials, connectionConfigs } = useLoaderData<{
     nodes: TreeNode[];
     credentials: Record<string, Credentials>;
-    bucketConfigs: ConnectionConfig[];
+    connectionConfigs: ConnectionConfig[];
   }>();
 
-  useInitConnections(bucketConfigs, credentials);
+  useInitConnections(connectionConfigs, credentials);
 
   if (nodes.length === 0) {
     return (

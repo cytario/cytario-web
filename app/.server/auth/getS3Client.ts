@@ -42,11 +42,11 @@ const createCacheKey = (
 };
 
 export const getS3Client = async (
-  bucketConfig: ConnectionConfig,
+  connectionConfig: ConnectionConfig,
   credentials: Credentials,
   userId: string
 ): Promise<S3Client> => {
-  const { name: bucketName, region, endpoint } = bucketConfig;
+  const { name: bucketName, region, endpoint } = connectionConfig;
   const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
 
   if (!AccessKeyId || !SecretAccessKey) throw Error("No Credentials");

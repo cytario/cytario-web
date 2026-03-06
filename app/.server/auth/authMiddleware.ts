@@ -15,7 +15,7 @@ import { createLabel } from "~/.server/logging";
 import { getConnectionConfigs } from "~/utils/connectionConfig";
 
 export interface AuthContextData extends SessionData {
-  bucketConfigs: ConnectionConfig[];
+  connectionConfigs: ConnectionConfig[];
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -43,18 +43,18 @@ const isComplete = (data: Partial<SessionData>): boolean => {
 const label = createLabel("authorize", "green");
 
 /**
- * Fetches all bucket configs and credentials for the user.
- * Only fetches credentials for buckets with missing or expired credentials.
- * Returns updated session data and bucket configs.
+ * Fetches all connection configs and credentials for the user.
+ * Only fetches credentials for connections with missing or expired credentials.
+ * Returns updated session data and connection configs.
  */
 const fetchAllCredentials = async (
   sessionData: SessionData,
-): Promise<{ sessionData: SessionData; bucketConfigs: ConnectionConfig[] }> => {
-  const bucketConfigs = await getConnectionConfigs(sessionData.user);
+): Promise<{ sessionData: SessionData; connectionConfigs: ConnectionConfig[] }> => {
+  const connectionConfigs = await getConnectionConfigs(sessionData.user);
 
   const newCredentials = await getAllSessionCredentials(
     sessionData,
-    bucketConfigs,
+    connectionConfigs,
   );
 
   return {
@@ -62,13 +62,13 @@ const fetchAllCredentials = async (
       ...sessionData,
       credentials: newCredentials,
     },
-    bucketConfigs,
+    connectionConfigs,
   };
 };
 
 /**
  * Middleware that validates and refreshes authentication tokens.
- * Fetches bucket configs and credentials for all visible buckets.
+ * Fetches connection configs and credentials for all visible connections.
  * Sets validated session data in authContext for downstream use.
  * Export this from protected routes that require authentication.
  */
@@ -96,7 +96,7 @@ export const authMiddleware: MiddlewareFunction = async (
     const idTokenPayload = await verifyIdToken(authTokens.idToken);
 
     if (idTokenPayload) {
-      const { sessionData: withCredentials, bucketConfigs } =
+      const { sessionData: withCredentials, connectionConfigs } =
         await fetchAllCredentials(updatedSessionData);
       updatedSessionData = withCredentials;
 
@@ -106,7 +106,7 @@ export const authMiddleware: MiddlewareFunction = async (
         await sessionStorage.commitSession(session);
       }
 
-      context.set(authContext, { ...updatedSessionData, bucketConfigs });
+      context.set(authContext, { ...updatedSessionData, connectionConfigs });
       return next();
     }
 
@@ -127,7 +127,7 @@ export const authMiddleware: MiddlewareFunction = async (
       if (newAuthTokens) {
         session.set("authTokens", newAuthTokens);
 
-        const { sessionData: withCredentials, bucketConfigs } =
+        const { sessionData: withCredentials, connectionConfigs } =
           await fetchAllCredentials({
             ...updatedSessionData,
             authTokens: newAuthTokens,
@@ -137,7 +137,7 @@ export const authMiddleware: MiddlewareFunction = async (
         session.set("credentials", updatedSessionData.credentials);
         await sessionStorage.commitSession(session);
 
-        context.set(authContext, { ...updatedSessionData, bucketConfigs });
+        context.set(authContext, { ...updatedSessionData, connectionConfigs });
         return next();
       }
     }

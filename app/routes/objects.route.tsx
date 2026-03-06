@@ -1,4 +1,4 @@
-import { _Object, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 import { Button, ButtonLink, EmptyState } from "@cytario/design";
 import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
@@ -31,14 +31,14 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { getConnectionByPath } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
-import { createConnectionKey, createResourceId } from "~/utils/resourceId";
+import { createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -59,8 +59,8 @@ export const handle = {
     data?: BucketRouteLoaderResponse;
   }) => {
     const { params, data } = match;
-    const provider = params.provider ?? "";
-    const bucketName = params.bucketName ?? "";
+    const alias = data?.alias ?? params.alias ?? "";
+    const bucketName = data?.bucketName ?? "";
     const pathName = params["*"] ?? "";
     const prefix = data?.connectionConfig?.prefix ?? "";
 
@@ -81,10 +81,10 @@ export const handle = {
 
     const relativeSegments = relativePath ? relativePath.split("/") : [];
 
-    // Build the storage connection path (bucket + prefix as atomic unit)
+    // Build the storage connection path using alias
     const dataConnectionPath = prefix
-      ? `/buckets/${provider}/${bucketName}/${prefix.replace(/\/$/, "")}`
-      : `/buckets/${provider}/${bucketName}`;
+      ? `/connections/${alias}/${prefix.replace(/\/$/, "")}`
+      : `/connections/${alias}`;
 
     // Display name: show bucket name, or bucket/lastPrefixSegment if prefix exists
     const prefixLastSegment = prefix.replace(/\/$/, "").split("/").pop();
@@ -97,19 +97,18 @@ export const handle = {
       dataConnectionPath,
     };
 
-    return getCrumbs(`/buckets/${provider}`, relativeSegments, options);
+    return getCrumbs(`/connections/${alias}`, relativeSegments, options);
   },
 };
 
 export interface BucketRouteLoaderResponse {
+  alias: string;
   nodes: TreeNode[];
   bucketName: string;
   pathName: string;
   name: string;
   url?: string;
   offsetsUrl?: string;
-  fileSize?: number;
-  fileLastModified?: string;
   notification?: NotificationInput;
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
@@ -123,10 +122,16 @@ export const loader = async ({
   context,
 }: ActionFunctionArgs): Promise<BucketRouteLoaderResponse> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { provider, bucketName } = params;
+  const { alias } = params;
 
-  if (!provider) throw new Error("Provider is required");
-  if (!bucketName) throw new Error("Bucket name is required");
+  if (!alias) throw new Error("Connection alias is required");
+
+  const connectionConfig = await getConnectionByAlias(user, alias);
+  if (!connectionConfig) {
+    throw new Error("Connection configuration not found");
+  }
+
+  const { provider, name: bucketName } = connectionConfig;
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
@@ -135,14 +140,12 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const [connectionConfig, isPinned] = await Promise.all([
-    getConnectionByPath(user, provider, bucketName, pathName),
-    checkIsPinnedPath(user.sub, provider, bucketName, pathName),
-  ]);
-
-  if (!connectionConfig) {
-    throw new Error("Bucket configuration not found");
-  }
+  const isPinned = await checkIsPinnedPath(
+    user.sub,
+    provider,
+    bucketName,
+    pathName,
+  );
 
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
@@ -166,10 +169,12 @@ export const loader = async ({
         bucketName,
         objectsWithUrls,
         connectionConfig.provider,
+        alias,
         prefix,
       );
 
       return {
+        alias,
         credentials,
         connectionConfig,
         name,
@@ -182,17 +187,15 @@ export const loader = async ({
 
     const offsetKey = getOffsetKeyForOmeTiff(pathName);
 
-    const [url, offsetsUrl, head] = await Promise.all([
+    const [url, offsetsUrl] = await Promise.all([
       getPresignedUrl(connectionConfig, s3Client, pathName),
       offsetKey
         ? getPresignedUrl(connectionConfig, s3Client, offsetKey)
         : undefined,
-      s3Client.send(
-        new HeadObjectCommand({ Bucket: connectionConfig.name, Key: pathName }),
-      ),
     ]);
 
     return {
+      alias,
       credentials,
       connectionConfig,
       name,
@@ -201,13 +204,12 @@ export const loader = async ({
       pathName,
       url,
       offsetsUrl,
-      fileSize: head.ContentLength,
-      fileLastModified: head.LastModified?.toISOString(),
       isPinned,
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
     return {
+      alias,
       credentials,
       connectionConfig,
       name,
@@ -226,6 +228,7 @@ export const loader = async ({
 
 export default function ObjectsRoute() {
   const {
+    alias,
     name,
     url,
     offsetsUrl,
@@ -261,17 +264,12 @@ export default function ObjectsRoute() {
   );
   const fileType = getFileType(resourceId);
 
-  // Store credentials and bucket config in Zustand store when they're available
+  // Store credentials and bucket config in Zustand store (keyed by alias)
   useEffect(() => {
-    if (credentials && bucketName && connectionConfig) {
-      const connKey = createConnectionKey(
-        connectionConfig.provider,
-        bucketName,
-        connectionConfig.prefix,
-      );
-      setConnection(connKey, credentials, connectionConfig);
+    if (credentials && connectionConfig) {
+      setConnection(alias, credentials, connectionConfig);
     }
-  }, [bucketName, credentials, connectionConfig, setConnection]);
+  }, [alias, credentials, connectionConfig, setConnection]);
 
   // Track recently viewed files (DB-backed via server action)
   const recentFetcher = useFetcher();
@@ -352,11 +350,7 @@ export default function ObjectsRoute() {
           <Download size={16} />
           Access with Cyberduck
         </ButtonLink>
-        <IndexStatus
-          provider={connectionConfig.provider}
-          bucketName={bucketName}
-          prefix={connectionConfig.prefix}
-        />
+        <IndexStatus alias={alias} />
         <ViewModeToggle />
       </DirectoryView>
     );

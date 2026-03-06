@@ -12,19 +12,19 @@ import { ConnectionConfig } from "~/.generated/client";
  * @param credentials AWS credentials with access to the S3 bucket
  * @param limit Maximum number of rows to fetch (default: 100)
  * @param offset Number of rows to skip (default: 0)
- * @param bucketConfig Optional bucket configuration for S3-compatible services
+ * @param connectionConfig Optional connection configuration for S3-compatible services
  */
 export async function getParquetRows(
   resourceId: string,
   credentials: Credentials,
   limit = 100,
   offset = 0,
-  bucketConfig?: ConnectionConfig | null,
+  connectionConfig?: ConnectionConfig | null,
 ): Promise<Record<string, unknown>[]> {
   const connection = await createDatabase(
     resourceId,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
   const fileType = getFileType(resourceId);
   const s3Path = toS3Uri(resourceId);

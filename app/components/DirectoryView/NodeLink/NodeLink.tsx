@@ -9,7 +9,7 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
-import { createResourceId } from "~/utils/resourceId";
+import { nodeToPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
   node: TreeNode;
@@ -38,25 +38,19 @@ export function NodeLink({
   const navigate = useNavigate();
 
   const nodeType = node.type;
-  const resourceId = createResourceId(
-    node.provider,
-    node.bucketName,
-    node.pathName,
-  );
+  const to = nodeToPath(node);
 
-  // Strip trailing slash from URL to ensure consistent routing (breadcrumb matching)
-  const to = `/buckets/${resourceId}`.replace(/\/$/, "");
-
-  // Open info modal
+  // Open info modal — use pathName as the search param value to identify the node
+  const nodeId = node.pathName ?? node.name;
   const openNodeInfoModal = useCallback(() => {
     const search = new URLSearchParams(location.search);
-    search.set(nodeType, resourceId);
+    search.set(nodeType, nodeId);
 
     navigate({
       pathname: location.pathname,
       search: `?${search.toString()}`,
     });
-  }, [resourceId, location.pathname, location.search, navigate, nodeType]);
+  }, [nodeId, location.pathname, location.search, navigate, nodeType]);
 
   // Activate link with Space key (links natively only respond to Enter)
   const handleKeyDown: KeyboardEventHandler = useCallback(

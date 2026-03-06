@@ -10,6 +10,7 @@ generator client {
 
 model ConnectionConfig {
   id         Int     @id @default(autoincrement())
+  alias      String  @unique
   ownerScope String
   createdBy  String
   name       String

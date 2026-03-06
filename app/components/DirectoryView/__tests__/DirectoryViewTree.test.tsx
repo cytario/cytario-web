@@ -19,6 +19,7 @@ vi.mock("react-arborist", () => ({
 
 const mockNodes: TreeNode[] = [
   {
+    alias: "aws-test-bucket",
     type: "directory",
     name: "results",
     bucketName: "test-bucket",
@@ -26,6 +27,7 @@ const mockNodes: TreeNode[] = [
     provider: "aws",
     children: [
       {
+        alias: "aws-test-bucket",
         type: "file",
         name: "output.ome.tif",
         bucketName: "test-bucket",
@@ -36,6 +38,7 @@ const mockNodes: TreeNode[] = [
     ],
   },
   {
+    alias: "aws-test-bucket",
     type: "file",
     name: "analysis.csv",
     bucketName: "test-bucket",
@@ -117,7 +120,7 @@ describe("DirectoryTree (lightweight)", () => {
     const csvLink = screen.getByText("analysis.csv").closest("a");
     expect(csvLink).toHaveAttribute(
       "href",
-      "/buckets/aws/test-bucket/analysis.csv",
+      "/connections/aws-test-bucket/analysis.csv",
     );
   });
 

@@ -132,7 +132,7 @@ export function TableHeaderRow({
             ) : (
               <div className="flex flex-col gap-2 pb-2">
                 {header.column.getCanSort() ? (
-                  /*  Sortable Header */
+                  // Sortable Header
                   <button
                     type="button"
                     className={twMerge(

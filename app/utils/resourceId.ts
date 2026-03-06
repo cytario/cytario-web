@@ -1,3 +1,5 @@
+import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+
 export interface ResourceIdParts {
   provider: string;
   bucketName: string;
@@ -14,23 +16,6 @@ export function createResourceId(
   pathName = "",
 ): string {
   return `${provider}/${bucketName}/${pathName}`;
-}
-
-/**
- * Creates a connection key for a BucketConfig, used as the Zustand store key.
- * Unlike createResourceId, the empty-prefix form omits the trailing slash so
- * it stays compatible with existing "provider/bucketName" store entries.
- * Format: "provider/bucketName" (no prefix) or "provider/bucketName/prefix" (with prefix).
- */
-export function createConnectionKey(
-  provider: string,
-  bucketName: string,
-  prefix = "",
-): string {
-  const normalized = prefix.replace(/\/$/, "");
-  return normalized
-    ? `${provider}/${bucketName}/${normalized}`
-    : `${provider}/${bucketName}`;
 }
 
 /**
@@ -104,4 +89,12 @@ export function getFileName(resourceId: string): string {
 /** Returns true if the resourceId's path matches the given extension pattern. */
 export function matchesExtension(resourceId: string, pattern: RegExp): boolean {
   return pattern.test(resourceId);
+}
+
+/** Builds a URL path for a TreeNode using its alias. */
+export function nodeToPath(node: TreeNode): string {
+  const path = node.pathName
+    ? `/connections/${node.alias}/${node.pathName}`
+    : `/connections/${node.alias}`;
+  return path.replace(/\/$/, "");
 }

@@ -1,7 +1,8 @@
 import { Field, Fieldset, Input, Select } from "@cytario/design";
-import { Control, Controller, FieldErrors } from "react-hook-form";
+import { useEffect, useRef } from "react";
+import { Control, Controller, FieldErrors, useWatch } from "react-hook-form";
 
-import { ConnectBucketFormData } from "./addConnection.schema";
+import { ConnectBucketFormData, suggestAlias } from "./addConnection.schema";
 import AWS_REGIONS from "./awsRegions.json";
 
 const regionItems = AWS_REGIONS.map((region) => ({
@@ -13,11 +14,23 @@ export const LocationFieldset = ({
   control,
   errors,
   isAWS,
+  setValue,
 }: {
   control: Control<ConnectBucketFormData>;
   errors: FieldErrors<ConnectBucketFormData>;
   isAWS: boolean;
+  setValue: (name: keyof ConnectBucketFormData, value: string) => void;
 }) => {
+  const s3Uri = useWatch({ control, name: "s3Uri" });
+  const userEditedAlias = useRef(false);
+
+  // Auto-suggest alias when S3 URI changes (unless user manually edited it)
+  useEffect(() => {
+    if (!userEditedAlias.current && s3Uri) {
+      setValue("alias", suggestAlias(s3Uri));
+    }
+  }, [s3Uri, setValue]);
+
   return (
     <Fieldset>
       <Field
@@ -36,6 +49,30 @@ export const LocationFieldset = ({
               name={field.name}
               placeholder="my-bucket/path/prefix"
               prefix="s3://"
+              size="lg"
+            />
+          )}
+        />
+      </Field>
+
+      <Field
+        label="Connection Alias"
+        description="A unique, URL-friendly identifier for this connection (e.g. my-bucket or my-bucket-deliverables)."
+        error={errors.alias}
+      >
+        <Controller
+          name="alias"
+          control={control}
+          render={({ field }) => (
+            <Input
+              value={field.value}
+              onChange={(val) => {
+                userEditedAlias.current = true;
+                field.onChange(val);
+              }}
+              onBlur={field.onBlur}
+              name={field.name}
+              placeholder="my-connection-alias"
               size="lg"
             />
           )}

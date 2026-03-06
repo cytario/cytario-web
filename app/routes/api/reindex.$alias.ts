@@ -6,40 +6,30 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { buildIndexParquet } from "~/.server/reindex/buildIndex";
 import { listAllObjects } from "~/.server/reindex/listAllObjects";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByName } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const action = async ({
   params,
-  request,
   context,
 }: ActionFunctionArgs) => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { provider, bucketName } = params;
+  const { alias } = params;
 
-  if (!provider) return new Response("Provider is required", { status: 400 });
-  if (!bucketName) {
-    return new Response("Bucket name is required", { status: 400 });
+  if (!alias) return new Response("Connection alias is required", { status: 400 });
+
+  const connectionConfig = await getConnectionByAlias(user, alias);
+  if (!connectionConfig) {
+    return new Response("Connection configuration not found", { status: 404 });
   }
+
+  const { provider, name: bucketName, prefix } = connectionConfig;
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) {
     return new Response("No credentials for bucket", { status: 401 });
-  }
-
-  const formData = await request.formData();
-  const prefix = (formData.get("prefix") as string) ?? "";
-
-  const connectionConfig = await getConnectionByName(
-    user,
-    provider,
-    bucketName,
-    prefix,
-  );
-  if (!connectionConfig) {
-    return new Response("Connection configuration not found", { status: 404 });
   }
 
   const s3Client = await getS3Client(connectionConfig, credentials, user.sub);

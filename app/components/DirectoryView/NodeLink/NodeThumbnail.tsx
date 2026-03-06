@@ -42,8 +42,7 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
     case "grid-md":
     case "grid-lg":
     default: {
-      const storeKey = `${node.provider}/${node.bucketName}`;
-      const config = getConnectionConfig(storeKey);
+      const config = getConnectionConfig(node.alias);
       if (!config) return EMPTY_ARRAY;
 
       switch (node.type) {

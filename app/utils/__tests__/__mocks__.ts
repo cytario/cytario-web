@@ -18,6 +18,7 @@ const mock = {
   connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
     name: "mock-bucket",
     id: 0,
+    alias: "aws-mock-bucket",
     ownerScope: "org1/lab",
     createdBy: "mock-user-id",
     provider: "aws",
@@ -72,6 +73,7 @@ const mock = {
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => ({
+    alias: "test-provider-test-bucket",
     name: "mockName",
     type: "directory",
     bucketName: "test-bucket",

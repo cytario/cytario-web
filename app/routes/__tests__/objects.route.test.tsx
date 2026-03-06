@@ -19,8 +19,8 @@ vi.mock("~/.server/auth/getS3Client", () => ({
 vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
-vi.mock("~/utils/bucketConfig", () => ({
-  getBucketConfigByPath: vi.fn(),
+vi.mock("~/utils/connectionConfig", () => ({
+  getConnectionByAlias: vi.fn(),
 }));
 vi.mock("~/utils/getObjects", () => ({
   getObjects: vi.fn(),
@@ -69,20 +69,24 @@ describe("Bucket Route", () => {
   test("handle calls `getCrumbs` with correct arguments", () => {
     const mockArgs = {
       params: {
-        provider: "aws",
-        bucketName: "test-bucket",
+        alias: "aws-test-bucket",
         "*": "bucket/folder/file.ome.tiff",
+      },
+      data: {
+        alias: "aws-test-bucket",
+        bucketName: "test-bucket",
+        connectionConfig: mock.connectionConfig({ prefix: "" }),
       },
     } as unknown as ActionFunctionArgs;
 
     handle.breadcrumb(mockArgs);
 
     expect(getCrumbs).toHaveBeenCalledWith(
-      "/buckets/aws",
+      "/connections/aws-test-bucket",
       ["bucket", "folder", "file.ome.tiff"],
       {
         dataConnectionName: "test-bucket",
-        dataConnectionPath: "/buckets/aws/test-bucket",
+        dataConnectionPath: "/connections/aws-test-bucket",
       }
     );
   });
@@ -90,11 +94,12 @@ describe("Bucket Route", () => {
   test("renders `DirectoryView`, if there are multiple nodes", async () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/buckets/:provider/:bucketName",
+        path: "/connections/:alias",
         Component: ObjectsRoute,
         handle,
         loader: () => {
           return {
+            alias: "aws-test-bucket",
             credentials: mock.credentials(),
             connectionConfig: mock.connectionConfig(),
             user: mock.user(),
@@ -105,12 +110,13 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             pathName: "",
             name: "test-bucket",
+            isPinned: false,
           };
         },
       },
     ]);
 
-    render(<RemixStub initialEntries={["/buckets/aws/test-bucket"]} />);
+    render(<RemixStub initialEntries={["/connections/aws-test-bucket"]} />);
 
     expect(
       await screen.findByText(/Second Test Directory/i)
@@ -120,11 +126,12 @@ describe("Bucket Route", () => {
   test("renders `Viewer` for given `pathName`", async () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/buckets/:provider/:bucketName/*",
+        path: "/connections/:alias/*",
         Component: ObjectsRoute,
         handle,
         loader: () => {
           return {
+            alias: "aws-test-bucket",
             credentials: mock.credentials(),
             connectionConfig: mock.connectionConfig(),
             user: mock.user(),
@@ -134,6 +141,7 @@ describe("Bucket Route", () => {
             name: "file.ome.tiff",
             url: "https://example.com/test/path/to/file.ome.tiff",
             offsetsUrl: "https://example.com/test/path/to/file.offsets.json",
+            isPinned: false,
           };
         },
       },
@@ -141,7 +149,7 @@ describe("Bucket Route", () => {
 
     const { container } = render(
       <RemixStub
-        initialEntries={["/buckets/aws/test-bucket/test-file.ome.tiff"]}
+        initialEntries={["/connections/aws-test-bucket/test-file.ome.tiff"]}
       />
     );
 

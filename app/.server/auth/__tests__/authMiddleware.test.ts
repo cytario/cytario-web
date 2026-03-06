@@ -52,7 +52,7 @@ vi.mock("react-router", async (importOriginal) => {
 describe("authMiddleware", () => {
   const mockNext = vi.fn();
   const mockSession = mock.session();
-  const mockBucketConfigs = [mock.connectionConfig()];
+  const mockConnectionConfigs = [mock.connectionConfig()];
 
   // Valid JWT payload (from verifyIdToken)
   const validIdTokenPayload = {
@@ -108,7 +108,7 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.destroySession).mockResolvedValue(
       "destroy-cookie",
     );
-    vi.mocked(getConnectionConfigs).mockResolvedValue(mockBucketConfigs);
+    vi.mocked(getConnectionConfigs).mockResolvedValue(mockConnectionConfigs);
     // Return the same credentials by default (no change = no session commit)
     vi.mocked(getAllSessionCredentials).mockImplementation(
       async (sessionData) => sessionData.credentials,
@@ -161,7 +161,7 @@ describe("authMiddleware", () => {
         expect.objectContaining({
           user: expect.any(Object),
           authTokens: expect.any(Object),
-          bucketConfigs: mockBucketConfigs,
+          connectionConfigs: mockConnectionConfigs,
         }),
       );
     });
@@ -190,7 +190,7 @@ describe("authMiddleware", () => {
       expect(getConnectionConfigs).toHaveBeenCalledWith(mockSessionData.user);
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
-        mockBucketConfigs,
+        mockConnectionConfigs,
       );
     });
 
@@ -325,7 +325,7 @@ describe("authMiddleware", () => {
             accessToken: "new-access-token",
           }),
         }),
-        mockBucketConfigs,
+        mockConnectionConfigs,
       );
     });
 
