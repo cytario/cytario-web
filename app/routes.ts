@@ -85,6 +85,14 @@ const apiRoutes = [
     file: "routes/api/pinned.ts",
   },
   {
+    path: "/api/reindex/:alias",
+    file: "routes/api/reindex.$alias.ts",
+  },
+  {
+    path: "/api/index-status/:alias",
+    file: "routes/api/index-status.$alias.ts",
+  },
+  {
     path: "/presign/:alias/*",
     file: "routes/presign.route.tsx",
   },
