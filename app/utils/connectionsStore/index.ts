@@ -4,5 +4,5 @@ export {
   select,
   selectConnection,
   selectCredentials,
-  selectBucketConfig,
+  selectConnectionConfig,
 } from "./selectors";

@@ -2,24 +2,24 @@ import { Credentials } from "@aws-sdk/client-sts";
 
 import { createDatabase } from "./createDatabase";
 import { toS3Uri } from "../resourceId";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
 
 /**
  * Extract marker information from DuckDB-WASM database.
  * @param resourceId - S3 resource identifier (bucketName/pathName)
  * @param credentials - AWS credentials with access to the S3 bucket
- * @param bucketConfig - Optional bucket configuration for S3-compatible services
+ * @param connectionConfig - Optional bucket configuration for S3-compatible services
  */
 export async function getMarkerInfoWasm(
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: BucketConfig | null,
+  connectionConfig?: ConnectionConfig | null,
 ): Promise<MarkerInfo> {
   const connection = await createDatabase(
     resourceId,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
 
   try {
