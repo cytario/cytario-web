@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import { ConnectionConfig } from "~/utils/connectionConfig";
+import type { ConnectionConfig } from "~/utils/connectionConfig.server";
 import { createDatabase } from "~/utils/db/createDatabase";
 import { toIndexS3Key } from "~/utils/resourceId";
 
@@ -12,12 +12,26 @@ export interface IndexSearchResult {
 }
 
 /**
+ * Build a validated S3 URI for use in DuckDB's read_parquet().
+ *
+ * DuckDB's read_parquet() does not support parameterized file paths, so the URI
+ * must be interpolated into the SQL string. The URI components come from
+ * server-provided ConnectionConfig, not user input. We assert no single quotes
+ * to prevent accidental SQL breakage.
+ */
+function buildParquetUri(bucketName: string, prefix: string): string {
+  const s3Uri = `s3://${bucketName}/${toIndexS3Key(prefix)}`;
+  if (s3Uri.includes("'")) {
+    throw new Error("Invalid S3 URI for DuckDB query: contains single quote");
+  }
+  return s3Uri;
+}
+
+/**
  * Search the connection index for keys matching a query string (case-insensitive).
  *
- * NOTE on SQL injection: The S3 URI in `read_parquet()` is constructed from server-provided
- * config values (bucketName and prefix), not from user input. DuckDB's `read_parquet()`
- * does not support parameterized file paths. The actual user-provided search terms
- * are passed via `$1`/`$2` parameterized query parameters.
+ * The actual user-provided search terms are passed via `$1`/`$2` parameterized
+ * query parameters, so only the file path (validated by buildParquetUri) is interpolated.
  */
 export async function searchIndex(
   query: string,
@@ -33,7 +47,7 @@ export async function searchIndex(
     credentials,
     connectionConfig,
   );
-  const s3Uri = `s3://${bucketName}/${toIndexS3Key(prefix)}`;
+  const s3Uri = buildParquetUri(bucketName, prefix);
 
   const stmt = await connection.prepare(`
     SELECT key, size, last_modified, etag
@@ -64,7 +78,7 @@ export async function listPrefix(
     credentials,
     connectionConfig,
   );
-  const s3Uri = `s3://${bucketName}/${toIndexS3Key(indexPrefix)}`;
+  const s3Uri = buildParquetUri(bucketName, indexPrefix);
 
   const stmt = await connection.prepare(`
     SELECT key, size, last_modified, etag
@@ -93,7 +107,7 @@ export async function getIndexCount(
     credentials,
     connectionConfig,
   );
-  const s3Uri = `s3://${bucketName}/${toIndexS3Key(prefix)}`;
+  const s3Uri = buildParquetUri(bucketName, prefix);
 
   const result = await connection.query(
     `SELECT COUNT(*) as count FROM read_parquet('${s3Uri}')`,

@@ -29,7 +29,7 @@ vi.mock("~/.server/reindex/listAllObjects", () => ({
 vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
-vi.mock("~/utils/connectionConfig", () => ({
+vi.mock("~/utils/connectionConfig.server", () => ({
   getConnectionByAlias: (...args: unknown[]) =>
     mockGetConnectionByAlias(...args),
 }));

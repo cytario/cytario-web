@@ -1,7 +1,5 @@
 export { probeIndex } from "./probeIndex";
-export {
-  searchIndex,
-  listPrefix,
-  getIndexCount,
-  type IndexSearchResult,
-} from "./queryIndex";
+// queryIndex functions (searchIndex, listPrefix, getIndexCount) are imported
+// directly from ./queryIndex when needed, not through this barrel.
+// This avoids pulling server-only connectionConfig.server dependencies
+// into client bundles via the barrel re-export.

@@ -4,7 +4,7 @@ import { LoaderFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
