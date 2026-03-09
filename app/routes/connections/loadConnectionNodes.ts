@@ -11,6 +11,8 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { getObjects } from "~/utils/getObjects";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
+import { getPinnedPaths } from "~/utils/pinnedPaths.server";
+import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 const fetchPreviewObject = async (
   config: ConnectionConfig,
@@ -33,32 +35,55 @@ const fetchPreviewObject = async (
   return { ...preview, presignedUrl } as ObjectPresignedUrl;
 };
 
+export type SerializedRecentlyViewed = {
+  id: number;
+  alias: string;
+  pathName: string;
+  name: string;
+  type: string;
+  viewedAt: string;
+};
+
+export type SerializedPinnedPath = {
+  id: number;
+  alias: string;
+  pathName: string;
+  displayName: string;
+  totalSize: number | null;
+  lastModified: string | null;
+};
+
 export interface LoaderData {
   nodes: TreeNode[];
   adminScopes: string[];
   userId: string;
   credentials: Record<string, Credentials>;
   connectionConfigs: ConnectionConfig[];
+  recentlyViewed: SerializedRecentlyViewed[];
+  pinnedPaths: SerializedPinnedPath[];
 }
 
 export async function loadConnectionNodes(
   context: ActionFunctionArgs["context"],
-): Promise<LoaderData> {
+) {
   const { connectionConfigs, credentials, user, authTokens } =
     context.get(authContext);
   const userId = user.sub;
 
-  const [previews, adminScopes] = await Promise.all([
-    Promise.allSettled(
-      connectionConfigs.map((config) =>
-        fetchPreviewObject(config, credentials, userId),
+  const [previews, adminScopes, recentlyViewedRaw, pinnedPathsRaw] =
+    await Promise.all([
+      Promise.allSettled(
+        connectionConfigs.map((config) =>
+          fetchPreviewObject(config, credentials, userId),
+        ),
       ),
-    ),
-    getManageableScopes(user, authTokens.accessToken).catch((error) => {
-      console.error("Failed to fetch manageable scopes:", error);
-      return [] as string[];
-    }),
-  ]);
+      getManageableScopes(user, authTokens.accessToken).catch((error) => {
+        console.error("Failed to fetch manageable scopes:", error);
+        return [] as string[];
+      }),
+      getRecentlyViewed(userId, 20),
+      getPinnedPaths(userId),
+    ]);
 
   const nodes: TreeNode[] = connectionConfigs.map((config, i) => {
     const result = previews[i];
@@ -76,5 +101,33 @@ export async function loadConnectionNodes(
     };
   });
 
-  return { nodes, adminScopes, userId, credentials, connectionConfigs };
+  const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
+    (item) => ({
+      id: item.id,
+      alias: item.alias,
+      pathName: item.pathName,
+      name: item.name,
+      type: item.type,
+      viewedAt: item.viewedAt.toISOString(),
+    }),
+  );
+
+  const pinnedPaths: SerializedPinnedPath[] = pinnedPathsRaw.map((pin) => ({
+    id: pin.id,
+    alias: pin.alias,
+    pathName: pin.pathName,
+    displayName: pin.displayName,
+    totalSize: pin.totalSize != null ? Number(pin.totalSize) : null,
+    lastModified: pin.lastModified ? pin.lastModified.toISOString() : null,
+  }));
+
+  return {
+    nodes,
+    adminScopes,
+    userId,
+    credentials,
+    connectionConfigs,
+    recentlyViewed,
+    pinnedPaths,
+  };
 }

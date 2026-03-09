@@ -11,19 +11,25 @@ import {
   useLoaderData,
 } from "react-router";
 
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
+import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
+import {
+  loadConnectionNodes,
+  type SerializedPinnedPath,
+  type SerializedRecentlyViewed,
+} from "~/routes/connections/loadConnectionNodes";
 import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 const title = "Home";
 const MAX_RECENT_IMAGES = 4;
+const MAX_PINNED = 10;
 const MAX_RECENT_DIRS = 5;
 const MAX_RECENT_FILES = 6;
 const MAX_CONNECTIONS = 100;
@@ -99,12 +105,42 @@ function ShowAllLink({
 }
 
 export default function HomeRoute() {
-  const { nodes, adminScopes, userId, credentials, connectionConfigs } =
-    useLoaderData<typeof loader>();
+  const {
+    nodes,
+    adminScopes,
+    userId,
+    credentials,
+    connectionConfigs,
+    recentlyViewed,
+    pinnedPaths,
+  } = useLoaderData<typeof loader>();
 
   useInitConnections(connectionConfigs, credentials);
 
-  const allRecentItems = useRecentlyViewedStore((state) => state.items);
+  const configByAlias = useMemo(() => {
+    const map = new Map<string, ConnectionConfig>();
+    for (const c of connectionConfigs) map.set(c.alias, c);
+    return map;
+  }, [connectionConfigs]);
+
+  const allRecentItems: TreeNode[] = useMemo(
+    () =>
+      recentlyViewed
+        .filter((item: SerializedRecentlyViewed) => configByAlias.has(item.alias))
+        .map((item: SerializedRecentlyViewed) => {
+          const config = configByAlias.get(item.alias)!;
+          return {
+            alias: item.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: item.pathName,
+            name: item.name,
+            type: item.type as TreeNode["type"],
+            children: [],
+          };
+        }),
+    [recentlyViewed, configByAlias],
+  );
 
   const recentImages = useMemo(
     () =>
@@ -127,6 +163,34 @@ export default function HomeRoute() {
     [allRecentItems],
   );
 
+  const pinnedNodes: TreeNode[] = useMemo(
+    () =>
+      pinnedPaths
+        .filter((pin: SerializedPinnedPath) => configByAlias.has(pin.alias))
+        .map((pin: SerializedPinnedPath) => {
+          const config = configByAlias.get(pin.alias)!;
+          return {
+            alias: pin.alias,
+            provider: config.provider,
+            bucketName: config.name,
+            pathName: pin.pathName,
+            name: pin.displayName,
+            type: "directory" as const,
+            children: [],
+            _Object:
+              pin.totalSize != null || pin.lastModified != null
+                ? ({
+                    Size: pin.totalSize ?? undefined,
+                    LastModified: pin.lastModified
+                      ? new Date(pin.lastModified)
+                      : undefined,
+                  } as TreeNode["_Object"])
+                : undefined,
+          };
+        }),
+    [pinnedPaths, configByAlias],
+  );
+
   return (
     <div className="flex flex-col gap-8 py-8 sm:gap-12 sm:py-12 lg:gap-16 lg:py-16">
       {recentImages.length > 0 && (
@@ -142,6 +206,15 @@ export default function HomeRoute() {
             maxItems={MAX_RECENT_IMAGES}
           />
         </DirectoryView>
+      )}
+
+      {pinnedNodes.length > 0 && (
+        <DirectoryView
+          viewMode="list"
+          nodes={pinnedNodes.slice(0, MAX_PINNED)}
+          name="Pinned"
+          flush
+        />
       )}
 
       {recentDirs.length > 0 && (
@@ -178,7 +251,7 @@ export default function HomeRoute() {
         <DirectoryView
           viewMode="grid-md"
           nodes={nodes.slice(0, MAX_CONNECTIONS)}
-          name="Storage Connections"
+          name={title}
           flush
         >
           <ShowAllLink
