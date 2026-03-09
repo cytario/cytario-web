@@ -1,6 +1,7 @@
 import {
   selectConnection,
   selectConnectionConfig,
+  selectConnectionIndex,
   selectCredentials,
 } from "../selectors";
 import {
@@ -43,6 +44,82 @@ describe("useConnectionsStore", () => {
 
       const record = useConnectionsStore.getState().connections["test-conn"];
       expect(record.credentials.AccessKeyId).toBe("newKey");
+    });
+  });
+
+  describe("setConnectionIndex", () => {
+    test("sets connection index on an existing connection", () => {
+      useConnectionsStore
+        .getState()
+        .setConnection("my-conn", credentials, connectionConfig);
+
+      useConnectionsStore.getState().setConnectionIndex("my-conn", {
+        status: "ready",
+        objectCount: 500,
+        builtAt: "2025-06-15T12:00:00Z",
+      });
+
+      const state = useConnectionsStore.getState();
+      const index = state.connections["my-conn"]?.connectionIndex;
+
+      expect(index).toEqual({
+        status: "ready",
+        objectCount: 500,
+        builtAt: "2025-06-15T12:00:00Z",
+      });
+    });
+
+    test("preserves existing credentials when setting index", () => {
+      useConnectionsStore
+        .getState()
+        .setConnection("my-conn", credentials, connectionConfig);
+
+      useConnectionsStore.getState().setConnectionIndex("my-conn", {
+        status: "loading",
+        objectCount: 0,
+        builtAt: null,
+      });
+
+      const state = useConnectionsStore.getState();
+      expect(state.connections["my-conn"]?.credentials).toEqual(credentials);
+      expect(state.connections["my-conn"]?.connectionIndex?.status).toBe(
+        "loading",
+      );
+    });
+
+    test("updates existing index state", () => {
+      useConnectionsStore
+        .getState()
+        .setConnection("my-conn", credentials, connectionConfig);
+
+      useConnectionsStore.getState().setConnectionIndex("my-conn", {
+        status: "loading",
+        objectCount: 0,
+        builtAt: null,
+      });
+
+      useConnectionsStore.getState().setConnectionIndex("my-conn", {
+        status: "ready",
+        objectCount: 1000,
+        builtAt: "2025-06-15T12:00:00Z",
+      });
+
+      const state = useConnectionsStore.getState();
+      const index = state.connections["my-conn"]?.connectionIndex;
+
+      expect(index?.status).toBe("ready");
+      expect(index?.objectCount).toBe(1000);
+    });
+
+    test("does not create ghost entry for non-existent connection", () => {
+      useConnectionsStore.getState().setConnectionIndex("new-conn", {
+        status: "missing",
+        objectCount: 0,
+        builtAt: null,
+      });
+
+      const state = useConnectionsStore.getState();
+      expect(state.connections["new-conn"]).toBeUndefined();
     });
   });
 
@@ -139,17 +216,66 @@ describe("useConnectionsStore", () => {
         selectConnectionConfig("test-conn")(useConnectionsStore.getState()),
       ).toEqual(connectionConfig);
     });
+
+    test("selectConnectionIndex returns null when connection does not exist", () => {
+      const state = useConnectionsStore.getState();
+      const result = selectConnectionIndex("nonexistent")(state);
+
+      expect(result).toBeNull();
+    });
+
+    test("selectConnectionIndex returns null when connection exists but has no index", () => {
+      useConnectionsStore
+        .getState()
+        .setConnection("my-conn", credentials, connectionConfig);
+
+      const state = useConnectionsStore.getState();
+      const result = selectConnectionIndex("my-conn")(state);
+
+      expect(result).toBeNull();
+    });
+
+    test("selectConnectionIndex returns connection index when present", () => {
+      useConnectionsStore
+        .getState()
+        .setConnection("my-conn", credentials, connectionConfig);
+
+      useConnectionsStore.getState().setConnectionIndex("my-conn", {
+        status: "ready",
+        objectCount: 42,
+        builtAt: "2025-01-01T00:00:00Z",
+      });
+
+      const state = useConnectionsStore.getState();
+      const result = selectConnectionIndex("my-conn")(state);
+
+      expect(result).toEqual({
+        status: "ready",
+        objectCount: 42,
+        builtAt: "2025-01-01T00:00:00Z",
+      });
+    });
   });
 
   describe("partialize", () => {
-    test("only persists credentials and connectionConfig", () => {
+    test("only persists credentials and connectionConfig, excludes connectionIndex", () => {
       useConnectionsStore
         .getState()
         .setConnection("test-conn", credentials, connectionConfig);
 
+      useConnectionsStore.getState().setConnectionIndex("test-conn", {
+        status: "ready",
+        objectCount: 100,
+        builtAt: "2025-06-15T12:00:00Z",
+      });
+
       const persistConfig = (
         useConnectionsStore as unknown as {
-          persist: { getOptions: () => { partialize: (state: unknown) => unknown } };
+          persist: {
+            getOptions: () => {
+              partialize: (state: unknown) => unknown;
+            };
+          };
         }
       ).persist.getOptions();
 
@@ -161,6 +287,8 @@ describe("useConnectionsStore", () => {
       expect(record).toBeDefined();
       expect(record.credentials).toEqual(credentials);
       expect(record.connectionConfig).toEqual(connectionConfig);
+      // connectionIndex should not be persisted
+      expect(record).not.toHaveProperty("connectionIndex");
       // Should not include store methods
       expect(partialized).not.toHaveProperty("setConnection");
       expect(partialized).not.toHaveProperty("clearConnection");
