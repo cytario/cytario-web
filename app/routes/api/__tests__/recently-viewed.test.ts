@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockUpsertRecentlyViewed = vi.hoisted(() => vi.fn());
+const mockGetConnectionByAlias = vi.hoisted(() => vi.fn());
 
 vi.mock("~/utils/recentlyViewed.server", () => ({
   upsertRecentlyViewed: mockUpsertRecentlyViewed,
+}));
+
+vi.mock("~/utils/connectionConfig.server", () => ({
+  getConnectionByAlias: mockGetConnectionByAlias,
 }));
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -43,6 +48,11 @@ function createActionArgs(method: string, formData: FormData) {
 describe("POST /api/recently-viewed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetConnectionByAlias.mockResolvedValue({
+      alias: "my-bucket",
+      name: "my-bucket",
+      provider: "minio",
+    });
   });
 
   test("returns 200 with valid input", async () => {
@@ -142,5 +152,36 @@ describe("POST /api/recently-viewed", () => {
       name: "images",
       type: "directory",
     });
+  });
+
+  test("returns 404 when alias does not correspond to a visible connection", async () => {
+    mockGetConnectionByAlias.mockResolvedValue(null);
+
+    const formData = createFormData({
+      alias: "hidden-bucket",
+      pathName: "data/image.ome.tiff",
+      name: "image.ome.tiff",
+      type: "file",
+    });
+
+    const response = await action(createActionArgs("POST", formData));
+
+    expect((response as Response).status).toBe(404);
+    expect(mockUpsertRecentlyViewed).not.toHaveBeenCalled();
+  });
+
+  test("returns 500 when upsert throws", async () => {
+    mockUpsertRecentlyViewed.mockRejectedValue(new Error("DB connection lost"));
+
+    const formData = createFormData({
+      alias: "my-bucket",
+      pathName: "data/image.ome.tiff",
+      name: "image.ome.tiff",
+      type: "file",
+    });
+
+    const response = await action(createActionArgs("POST", formData));
+
+    expect((response as Response).status).toBe(500);
   });
 });

@@ -19,11 +19,7 @@ import { Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import {
-  loadConnectionNodes,
-  type SerializedPinnedPath,
-  type SerializedRecentlyViewed,
-} from "~/routes/connections/loadConnectionNodes";
+import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
 import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
@@ -118,7 +114,7 @@ export default function HomeRoute() {
   useInitConnections(connectionConfigs, credentials);
 
   const configByAlias = useMemo(() => {
-    const map = new Map<string, ConnectionConfig>();
+    const map = new Map<string, (typeof connectionConfigs)[number]>();
     for (const c of connectionConfigs) map.set(c.alias, c);
     return map;
   }, [connectionConfigs]);
@@ -142,26 +138,17 @@ export default function HomeRoute() {
     [recentlyViewed, configByAlias],
   );
 
-  const recentImages = useMemo(
-    () =>
-      allRecentItems.filter(
-        (n) => n.type === "file" && IMAGE_FILE_TYPES.has(getFileType(n.name)),
-      ),
-    [allRecentItems],
-  );
-
-  const recentDirs = useMemo(
-    () => allRecentItems.filter((n) => n.type === "directory"),
-    [allRecentItems],
-  );
-
-  const recentFiles = useMemo(
-    () =>
-      allRecentItems.filter(
-        (n) => n.type === "file" && !IMAGE_FILE_TYPES.has(getFileType(n.name)),
-      ),
-    [allRecentItems],
-  );
+  const { recentImages, recentDirs, recentFiles } = useMemo(() => {
+    const images: TreeNode[] = [];
+    const dirs: TreeNode[] = [];
+    const files: TreeNode[] = [];
+    for (const n of allRecentItems) {
+      if (n.type === "directory") dirs.push(n);
+      else if (IMAGE_FILE_TYPES.has(getFileType(n.name))) images.push(n);
+      else files.push(n);
+    }
+    return { recentImages: images, recentDirs: dirs, recentFiles: files };
+  }, [allRecentItems]);
 
   const pinnedNodes: TreeNode[] = useMemo(
     () =>

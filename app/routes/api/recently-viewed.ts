@@ -2,6 +2,7 @@ import { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 import { upsertRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 const recentlyViewedSchema = z.object({
@@ -29,8 +30,18 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    await upsertRecentlyViewed(user.sub, parsed.data);
-    return Response.json({ ok: true });
+    const connection = await getConnectionByAlias(user, parsed.data.alias);
+    if (!connection) {
+      return new Response("Connection not found", { status: 404 });
+    }
+
+    try {
+      await upsertRecentlyViewed(user.sub, parsed.data);
+      return Response.json({ ok: true });
+    } catch (error) {
+      console.error("[recently-viewed] Failed to upsert:", error);
+      return new Response("Internal server error", { status: 500 });
+    }
   }
 
   return new Response("Method not allowed", { status: 405 });
