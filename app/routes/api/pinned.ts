@@ -2,6 +2,7 @@ import { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 import { addPinnedPath, removePinnedPath } from "~/utils/pinnedPaths.server";
 
 const pinSchema = z.object({
@@ -37,8 +38,18 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    await addPinnedPath(user.sub, parsed.data);
-    return Response.json({ ok: true });
+    const connection = await getConnectionByAlias(user, parsed.data.alias);
+    if (!connection) {
+      return new Response("Connection not found", { status: 404 });
+    }
+
+    try {
+      await addPinnedPath(user.sub, parsed.data);
+      return Response.json({ ok: true });
+    } catch (error) {
+      console.error("[pinned] Failed to add pin:", error);
+      return new Response("Internal server error", { status: 500 });
+    }
   }
 
   if (request.method.toUpperCase() === "DELETE") {
@@ -51,8 +62,18 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    await removePinnedPath(user.sub, parsed.data.alias, parsed.data.pathName);
-    return Response.json({ ok: true });
+    const connection = await getConnectionByAlias(user, parsed.data.alias);
+    if (!connection) {
+      return new Response("Connection not found", { status: 404 });
+    }
+
+    try {
+      await removePinnedPath(user.sub, parsed.data.alias, parsed.data.pathName);
+      return Response.json({ ok: true });
+    } catch (error) {
+      console.error("[pinned] Failed to remove pin:", error);
+      return new Response("Internal server error", { status: 500 });
+    }
   }
 
   return new Response("Method not allowed", { status: 405 });

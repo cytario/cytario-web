@@ -1,16 +1,15 @@
-import { EmptyState, H1 } from "@cytario/design";
+import { Button, EmptyState, H1 } from "@cytario/design";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import { Clock, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-  type ActionFunction,
-  type LoaderFunction,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
   type MetaFunction,
   useFetcher,
   useLoaderData,
 } from "react-router";
 
-import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -37,7 +36,7 @@ export const handle = {
 
 export const middleware = [authMiddleware];
 
-export const action: ActionFunction = async ({ request, context }) => {
+export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
   if (request.method.toUpperCase() === "DELETE") {
     await clearAllRecentlyViewed(user.sub);
@@ -46,7 +45,7 @@ export const action: ActionFunction = async ({ request, context }) => {
   return null;
 };
 
-export const loader: LoaderFunction = async ({ context }) => {
+export const loader = async ({ context }: LoaderFunctionArgs) => {
   const { user, connectionConfigs } = context.get(authContext);
   const raw = await getRecentlyViewed(user.sub, 50);
   return {
@@ -62,27 +61,15 @@ export const loader: LoaderFunction = async ({ context }) => {
   };
 };
 
-type RecentLoaderData = {
-  connectionConfigs: ConnectionConfig[];
-  recentlyViewed: Array<{
-    id: number;
-    alias: string;
-    pathName: string;
-    name: string;
-    type: string;
-    viewedAt: string;
-  }>;
-};
-
 export default function RecentRoute() {
   const { connectionConfigs, recentlyViewed } =
-    useLoaderData<RecentLoaderData>();
+    useLoaderData<typeof loader>();
   const { viewMode } = useLayoutStore();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const clearFetcher = useFetcher();
 
   const configByAlias = useMemo(() => {
-    const map = new Map<string, ConnectionConfig>();
+    const map = new Map<string, (typeof connectionConfigs)[number]>();
     for (const c of connectionConfigs) map.set(c.alias, c);
     return map;
   }, [connectionConfigs]);
@@ -129,16 +116,15 @@ export default function RecentRoute() {
           <H1>Recent</H1>
           <div className="flex items-center gap-2">
             {allItems.length > 0 && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-md hover:bg-slate-50"
-                onClick={() =>
+              <Button
+                variant="secondary"
+                onPress={() =>
                   clearFetcher.submit({}, { method: "delete" })
                 }
               >
                 <Trash2 size={16} />
                 Clear history
-              </button>
+              </Button>
             )}
             <ViewModeToggle />
           </div>

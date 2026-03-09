@@ -4,8 +4,8 @@ import { Button, ButtonLink, EmptyState } from "@cytario/design";
 import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
-  ActionFunctionArgs,
-  MetaFunction,
+  type LoaderFunctionArgs,
+  type MetaFunction,
   useFetcher,
   useLoaderData,
   useNavigate,
@@ -93,7 +93,7 @@ export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
 export const loader = async ({
   params,
   context,
-}: ActionFunctionArgs): Promise<BucketRouteLoaderResponse> => {
+}: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
   const { alias } = params;
 
@@ -217,7 +217,7 @@ export default function ObjectsRoute() {
     connectionConfig,
     isPinned: loaderIsPinned,
     notification,
-  } = useLoaderData<BucketRouteLoaderResponse>();
+  } = useLoaderData<typeof loader>();
 
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
@@ -256,13 +256,17 @@ export default function ObjectsRoute() {
         { method: "post", action: "/api/recently-viewed" },
       );
     }
-  }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Intentionally depends only on resourceId — it is derived from alias + pathName + provider,
+    // so a resourceId change guarantees the captured values are fresh. Other deps (recentFetcher,
+    // alias, urlPath, name) are stable within the same resourceId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resourceId]);
 
   // Pinning (DB-backed via server action)
   const pinFetcher = useFetcher();
   // Optimistic isPinned: flip while the pin request is in-flight
   let isPinned = loaderIsPinned;
-  if (pinFetcher.state === "submitting") {
+  if (pinFetcher.state !== "idle") {
     isPinned = pinFetcher.formMethod?.toLowerCase() === "post";
   }
 
