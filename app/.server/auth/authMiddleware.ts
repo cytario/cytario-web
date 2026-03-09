@@ -12,7 +12,7 @@ import {
 import { verifyIdToken } from "./verifyIdToken";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
-import { getConnectionConfigs } from "~/utils/connectionConfig";
+import { getConnectionConfigs } from "~/utils/connectionConfig.server";
 
 export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfig[];

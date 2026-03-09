@@ -3,7 +3,7 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
-import { getConnectionByAlias } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];

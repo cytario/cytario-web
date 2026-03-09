@@ -27,7 +27,7 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { getConnectionByAlias } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
@@ -107,7 +107,7 @@ export const loader = async ({
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
 
-  const urlPath = params["*"] as string;
+  const urlPath = params["*"] ?? "";
   const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";
   const pathName = connPrefix
     ? urlPath

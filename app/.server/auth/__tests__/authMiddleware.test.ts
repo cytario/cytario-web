@@ -8,7 +8,7 @@ import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
-import { getConnectionConfigs } from "~/utils/connectionConfig";
+import { getConnectionConfigs } from "~/utils/connectionConfig.server";
 
 vi.mock("../getSession", () => ({
   getSessionData: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock("../sessionStorage", () => ({
   },
 }));
 
-vi.mock("~/utils/connectionConfig", () => ({
+vi.mock("~/utils/connectionConfig.server", () => ({
   getConnectionConfigs: vi.fn(),
 }));
 
