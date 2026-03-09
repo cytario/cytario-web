@@ -1,5 +1,5 @@
 import { H1, RouterProvider, ToastProvider } from "@cytario/design";
-import { type CSSProperties, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -24,12 +24,9 @@ import {
   sessionMiddleware,
 } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
-import { Breadcrumbs } from "./components/Breadcrumbs/Breadcrumbs";
+import { AppHeader } from "./components/AppHeader";
 import { Section } from "./components/Container";
-import { useLayoutStore } from "./components/DirectoryView/useLayoutStore";
-import { GlobalSearch } from "./components/GlobalSearch";
 import { type NotificationInput } from "./components/Notification/Notification.store";
-import { UserMenu } from "./components/UserMenu";
 import { cytarioConfig } from "./config";
 import { toastBridge, toToastVariant } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
@@ -38,25 +35,6 @@ import "@cytario/design/tokens/variables.css";
 import "@cytario/design/tokens/variables-dark.css";
 import "./tailwind.css";
 import "rc-slider/assets/index.css";
-
-/**
- * CSS custom property overrides that recontextualize design tokens for rendering
- * on the dark navy (slate-900) header. Design system components inside this scope
- * (Breadcrumbs, Button, IconButton, Input) automatically get light text, transparent
- * surfaces, and appropriate border/hover colors without per-component className hacks.
- */
-const darkSurfaceTokens = {
-  "--color-text-primary": "var(--color-neutral-0)",
-  "--color-text-secondary": "var(--color-slate-400)",
-  "--color-surface-default": "transparent",
-  "--color-border-default": "var(--color-slate-700)",
-  "--color-border-strong": "var(--color-slate-600)",
-  "--color-border-focus": "var(--color-neutral-0)",
-  "--color-neutral-100": "var(--color-slate-800)",
-  "--color-neutral-200": "var(--color-slate-700)",
-  "--color-neutral-300": "var(--color-slate-600)",
-  "--color-neutral-400": "var(--color-slate-500)",
-} as CSSProperties;
 
 export const links: LinksFunction = () => [
   {
@@ -104,34 +82,6 @@ export const loader = async ({
     : undefined;
 
   return { user, notification, accountSettingsUrl };
-};
-
-const AppHeader = () => {
-  const headerSlot = useLayoutStore((s) => s.headerSlot);
-  const data = useRouteLoaderData<RootLoaderResponse>("root");
-
-  return (
-    <header
-      className="z-20 flex justify-between items-center h-12 bg-slate-900 top-0 left-0 right-0"
-      style={darkSurfaceTokens}
-    >
-      <div className="h-full flex-shrink min-w-0">
-        <Breadcrumbs />
-      </div>
-
-      <div className="hidden xl:block" data-theme="dark">{headerSlot}</div>
-
-      <div className="h-full flex-none flex gap-2 p-2">
-        <GlobalSearch />
-        {data?.accountSettingsUrl && data.user && (
-          <UserMenu
-            user={data.user}
-            accountSettingsUrl={data.accountSettingsUrl}
-          />
-        )}
-      </div>
-    </header>
-  );
 };
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -242,7 +192,10 @@ export function ErrorBoundary() {
       <div role="alert">
         <H1>{title}</H1>
         <p>{message}</p>
-        <a href="/" className="text-cytario-purple-500 underline mt-4 inline-block">
+        <a
+          href="/"
+          className="text-cytario-purple-500 underline mt-4 inline-block"
+        >
           Go home
         </a>
       </div>

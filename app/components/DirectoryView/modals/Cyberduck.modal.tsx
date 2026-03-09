@@ -9,7 +9,7 @@ import { RouteModal } from "~/components/RouteModal";
  * CyberduckModal component provides information and a download link for a Cyberduck connection profile.
  */
 export function CyberduckModal() {
-  const { provider, bucketName } = useParams();
+  const { alias } = useParams();
 
   return (
     <RouteModal title="Access with Cyberduck">
@@ -20,7 +20,7 @@ export function CyberduckModal() {
 
       <p className="text-slate-700">
         Download a pre-configured connection profile for{" "}
-        <strong>{bucketName}</strong> that will automatically set up your
+        <strong>{alias}</strong> that will automatically set up your
         authentication and bucket access in Cyberduck.
       </p>
 
@@ -46,7 +46,7 @@ export function CyberduckModal() {
       </div>
 
       <ButtonLink
-        href={`/api/cyberduck-profile/${provider}/${bucketName}`}
+        href={`/api/cyberduck-profile/${alias}`}
         variant="primary"
         size="lg"
         iconLeft={Download}

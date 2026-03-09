@@ -1,10 +1,9 @@
 import { Button, ButtonLink } from "@cytario/design";
-import { Form } from "react-router";
+import { Form, useParams } from "react-router";
 
 import { RouteModal } from "../RouteModal";
 import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";
-import { parseResourceId } from "~/utils/resourceId";
 
 const PATTERN = /bucket|directory|file|action/;
 
@@ -13,35 +12,38 @@ const PATTERN = /bucket|directory|file|action/;
  */
 export function NodeInfoModal() {
   const [infoModal, closeInfoModal] = useNodeInfoModal(PATTERN);
+  const params = useParams();
+  const alias = params.alias;
 
   if (!infoModal) return null;
 
   switch (infoModal.type) {
     case "action":
       return <CyberduckModal />;
-    case "directory":
+    case "directory": {
+      const href = alias
+        ? `/connections/${alias}/${infoModal.name}`.replace(/\/$/, "")
+        : "#";
+
       return (
         <RouteModal title={infoModal.name} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
-            <ButtonLink
-              href={`/buckets/${infoModal.name}`}
-              variant="secondary"
-              size="lg"
-            >
+            <ButtonLink href={href} variant="secondary" size="lg">
               Open {infoModal.type}
             </ButtonLink>
           </div>
         </RouteModal>
       );
-    case "file":
+    }
+    case "file": {
+      const href = alias
+        ? `/connections/${alias}/${infoModal.name}`.replace(/\/$/, "")
+        : "#";
+
       return (
         <RouteModal title={infoModal.name} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
-            <ButtonLink
-              href={`/buckets/${infoModal.name}`}
-              variant="secondary"
-              size="lg"
-            >
+            <ButtonLink href={href} variant="secondary" size="lg">
               Open {infoModal.type}
             </ButtonLink>
 
@@ -51,18 +53,16 @@ export function NodeInfoModal() {
           </div>
         </RouteModal>
       );
+    }
     case "bucket": {
-      const {
-        provider,
-        bucketName,
-        pathName: prefix,
-      } = parseResourceId(infoModal.name);
+      // infoModal.name is the connection alias
+      const bucketAlias = infoModal.name;
 
       return (
-        <RouteModal title={bucketName} onClose={closeInfoModal}>
+        <RouteModal title={bucketAlias} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
             <ButtonLink
-              href={`/buckets/${infoModal.name}`}
+              href={`/connections/${bucketAlias}`}
               variant="secondary"
               size="lg"
             >
@@ -70,9 +70,7 @@ export function NodeInfoModal() {
             </ButtonLink>
 
             <Form method="delete" action="/">
-              <input type="hidden" name="provider" value={provider} />
-              <input type="hidden" name="bucketName" value={bucketName} />
-              <input type="hidden" name="prefix" value={prefix} />
+              <input type="hidden" name="alias" value={bucketAlias} />
               <Button type="submit" variant="destructive" size="lg">
                 Remove Storage Connection
               </Button>

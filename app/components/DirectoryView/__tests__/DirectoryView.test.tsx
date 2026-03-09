@@ -9,10 +9,6 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(),
 }));
 
-vi.mock("~/utils/recentlyViewedStore/useRecentlyViewedStore", () => ({
-  useRecentlyViewedStore: () => ({ addItem: vi.fn() }),
-}));
-
 describe("DirectoryView Component", () => {
   const mockNodes: TreeNode[] = [
     mock.treeNode({ name: "File1.txt", type: "file" }),
@@ -27,8 +23,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="list"
             nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Test Directory"
           />
         ),
@@ -48,8 +42,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="list"
             nodes={[]}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Empty Directory"
           />
         ),
@@ -75,8 +67,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="list"
             nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Test Directory"
           />
         ),
@@ -97,8 +87,6 @@ describe("DirectoryView Component", () => {
           <DirectoryView
             viewMode="grid-sm"
             nodes={mockNodes}
-            bucketName="test-bucket"
-            pathName="/test"
             name="Test Directory"
           />
         ),

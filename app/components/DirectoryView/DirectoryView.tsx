@@ -1,12 +1,8 @@
 import { EmptyState } from "@cytario/design";
 import { FolderOpen } from "lucide-react";
-import { ReactNode, useEffect, useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 
-import {
-  computeDirectoryLastModified,
-  computeDirectorySize,
-  TreeNode,
-} from "./buildDirectoryTree";
+import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
   bucketColumns,
@@ -20,13 +16,13 @@ import { type ViewMode } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
-  provider?: string;
-  bucketName: string;
-  pathName?: string;
+  /** Connection alias for breadcrumb context */
+  alias?: string;
+  /** URL path relative to connection root */
+  urlPath?: string;
 }
 
 interface DirectoryViewProps extends DirectoryViewBaseProps {
@@ -43,9 +39,6 @@ export function DirectoryView({
   nodes,
   name,
   showFilters = false,
-  provider,
-  bucketName,
-  pathName,
   children,
   flush,
 }: DirectoryViewProps) {
@@ -61,33 +54,6 @@ export function DirectoryView({
       isGrid ? filterNodes(nodes, columnFilters, columns, isBucket) : nodes,
     [isGrid, nodes, columnFilters, columns, isBucket],
   );
-
-  const { addItem } = useRecentlyViewedStore();
-
-  useEffect(() => {
-    if (!provider || !bucketName || !pathName) return;
-
-    const totalSize = nodes.reduce(
-      (sum, child) => sum + computeDirectorySize(child),
-      0,
-    );
-    const latestModified = nodes.reduce(
-      (max, child) => Math.max(max, computeDirectoryLastModified(child)),
-      0,
-    );
-    addItem({
-      provider,
-      bucketName,
-      pathName,
-      name,
-      type: "directory",
-      children: [],
-      _Object: {
-        Size: totalSize || undefined,
-        LastModified: latestModified ? new Date(latestModified) : undefined,
-      } as TreeNode["_Object"],
-    });
-  }, [provider, bucketName, pathName, name, addItem, nodes]);
 
   if (nodes.length === 0) {
     return (

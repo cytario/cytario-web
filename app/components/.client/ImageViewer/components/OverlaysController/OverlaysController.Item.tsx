@@ -55,13 +55,20 @@ export const OverlaysControllerItem = ({
     1, // Prevent division by zero
   );
 
-  // Parse resourceId to get store key (provider/bucketName)
+  // Find connection record matching this resourceId's provider/bucketName
   const { provider, bucketName } = parseResourceId(resourceId);
-  const storeKey = `${provider}/${bucketName}`;
-
-  const connection = useConnectionsStore(
-    (state) => state.connections[storeKey],
-  );
+  const connection = useConnectionsStore((state) => {
+    for (const record of Object.values(state.connections)) {
+      if (
+        record.connectionConfig?.provider === provider &&
+        record.connectionConfig?.name === bucketName
+      ) {
+        return record;
+      }
+    }
+    return undefined;
+  });
+  const connectionAlias = connection?.connectionConfig?.alias;
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
@@ -71,13 +78,13 @@ export const OverlaysControllerItem = ({
       setIsLoading(true);
       try {
         if (!connection?.credentials) {
-          throw new Error(`No credentials found for bucket: ${storeKey}`);
+          throw new Error(`No credentials found for bucket: ${bucketName}`);
         }
 
         const markerInfo = await getMarkerInfoWasm(
           resourceId,
           connection.credentials,
-          connection.bucketConfig,
+          connection.connectionConfig,
         );
         if (markerInfo && Object.keys(markerInfo).length > 0) {
           const newOverlayState = getOverlayState(markerInfo);
@@ -107,7 +114,7 @@ export const OverlaysControllerItem = ({
     toast,
     fileName,
     connection,
-    storeKey,
+    bucketName,
   ]);
 
   return (
@@ -123,7 +130,7 @@ export const OverlaysControllerItem = ({
         </button>
 
         <IconButtonLink
-          href={`/buckets/${resourceId}`}
+          href={connectionAlias ? `/connections/${connectionAlias}/${parseResourceId(resourceId).pathName}` : `#`}
           icon={ExternalLink}
           aria-label="Open file"
           variant="ghost"
