@@ -7,7 +7,7 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { buildIndexParquet } from "~/.server/reindex/buildIndex";
 import { listAllObjects } from "~/.server/reindex/listAllObjects";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];

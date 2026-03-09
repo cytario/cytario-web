@@ -2,12 +2,18 @@ import { Button } from "@cytario/design";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
+import { z } from "zod";
 
 import { probeIndex } from "~/utils/connectionIndex";
 import {
   selectConnectionIndex,
   useConnectionsStore,
 } from "~/utils/connectionsStore";
+
+const reindexResponseSchema = z.object({
+  objectCount: z.number(),
+  builtAt: z.string(),
+});
 
 interface IndexStatusProps {
   alias: string;
@@ -25,12 +31,14 @@ export function IndexStatus({ alias }: IndexStatusProps) {
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
-      const data = fetcher.data as { objectCount: number; builtAt: string };
-      setConnectionIndex(alias, {
-        status: "ready",
-        objectCount: data.objectCount,
-        builtAt: data.builtAt,
-      });
+      const parsed = reindexResponseSchema.safeParse(fetcher.data);
+      if (parsed.success) {
+        setConnectionIndex(alias, {
+          status: "ready",
+          objectCount: parsed.data.objectCount,
+          builtAt: parsed.data.builtAt,
+        });
+      }
     }
   }, [fetcher.state, fetcher.data, alias, setConnectionIndex]);
 

@@ -3,6 +3,9 @@ import mock from "~/utils/__tests__/__mocks__";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 
 describe("probeIndex", () => {
+  const credentials = mock.credentials();
+  const connectionConfig = mock.connectionConfig({ alias: "test-alias" });
+
   beforeEach(() => {
     useConnectionsStore.setState({ connections: {} });
     vi.restoreAllMocks();
@@ -20,8 +23,10 @@ describe("probeIndex", () => {
       ),
     );
 
-    // Set initial credentials so connection record exists
-    useConnectionsStore.getState().setConnection("test-alias", mock.credentials());
+    // Set initial connection so setConnectionIndex has a valid target
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
 
     await probeIndex("test-alias");
 
@@ -38,6 +43,11 @@ describe("probeIndex", () => {
       new Response(JSON.stringify({ exists: false }), { status: 200 }),
     );
 
+    // Connection must exist for setConnectionIndex to work
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
+
     await probeIndex("test-alias");
 
     const state = useConnectionsStore.getState();
@@ -52,6 +62,10 @@ describe("probeIndex", () => {
       new Response("Server error", { status: 500 }),
     );
 
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
+
     await probeIndex("test-alias");
 
     const state = useConnectionsStore.getState();
@@ -65,6 +79,10 @@ describe("probeIndex", () => {
       new Error("Network failure"),
     );
 
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
+
     await probeIndex("test-alias");
 
     const state = useConnectionsStore.getState();
@@ -75,6 +93,10 @@ describe("probeIndex", () => {
 
   test("skips probe when status is already ready", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
 
     useConnectionsStore.getState().setConnectionIndex("test-alias", {
       status: "ready",
@@ -89,6 +111,10 @@ describe("probeIndex", () => {
 
   test("skips probe when status is already loading", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
 
     useConnectionsStore.getState().setConnectionIndex("test-alias", {
       status: "loading",
@@ -108,6 +134,10 @@ describe("probeIndex", () => {
         { status: 200 },
       ),
     );
+
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
 
     useConnectionsStore.getState().setConnectionIndex("test-alias", {
       status: "error",
@@ -132,6 +162,10 @@ describe("probeIndex", () => {
       ),
     );
 
+    useConnectionsStore
+      .getState()
+      .setConnection("test-alias", credentials, connectionConfig);
+
     useConnectionsStore.getState().setConnectionIndex("test-alias", {
       status: "missing",
       objectCount: 0,
@@ -144,5 +178,24 @@ describe("probeIndex", () => {
     const index = state.connections["test-alias"]?.connectionIndex;
 
     expect(index?.status).toBe("ready");
+  });
+
+  test("does not create ghost entry when connection does not exist", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          exists: true,
+          objectCount: 100,
+          builtAt: "2025-06-15T12:00:00Z",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    // Do NOT set a connection -- probeIndex should not create a ghost entry
+    await probeIndex("nonexistent-alias");
+
+    const state = useConnectionsStore.getState();
+    expect(state.connections["nonexistent-alias"]).toBeUndefined();
   });
 });

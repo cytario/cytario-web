@@ -16,6 +16,13 @@ export async function buildIndexParquet(objects: _Object[]): Promise<Buffer> {
   const id = randomUUID();
   const parquetPath = join(tmpdir(), `cytario-${id}.parquet`);
 
+  // Temp paths use randomUUID() and are not user-controlled, but assert for defense-in-depth.
+  if (parquetPath.includes("'")) {
+    throw new Error(
+      "Temp file path contains single quote — cannot safely interpolate into SQL",
+    );
+  }
+
   try {
     const instance = await DuckDBInstance.create();
     const connection = await instance.connect();
@@ -31,6 +38,13 @@ export async function buildIndexParquet(objects: _Object[]): Promise<Buffer> {
 
     if (objects.length > 0) {
       const jsonPath = join(tmpdir(), `cytario-${id}.json`);
+
+      if (jsonPath.includes("'")) {
+        throw new Error(
+          "Temp file path contains single quote — cannot safely interpolate into SQL",
+        );
+      }
+
       try {
         const jsonData = objects.map((obj) => ({
           key: obj.Key ?? "",
