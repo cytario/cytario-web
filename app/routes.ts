@@ -77,6 +77,14 @@ const apiRoutes = [
     file: "routes/api/cyberduck-profile.$alias.ts",
   },
   {
+    path: "/api/recently-viewed",
+    file: "routes/api/recently-viewed.ts",
+  },
+  {
+    path: "/api/pinned",
+    file: "routes/api/pinned.ts",
+  },
+  {
     path: "/presign/:alias/*",
     file: "routes/presign.route.tsx",
   },
