@@ -1,26 +1,23 @@
-import { Credentials } from "@aws-sdk/client-sts";
 import { ButtonLink, EmptyState } from "@cytario/design";
 import { ArrowRight, FileSearch } from "lucide-react";
 import {
-  ActionFunction,
-  type LoaderFunction,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
   Outlet,
   redirect,
+  useLoaderData,
 } from "react-router";
-import { useLoaderData } from "react-router";
 
-import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
-import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
-import { deleteConnectionConfig } from "~/utils/connectionConfig";
+import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 
 const title = "Home";
 const MAX_CONNECTIONS = 100;
@@ -46,16 +43,16 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const middleware = [authMiddleware];
 
-export const loader: LoaderFunction = async ({ context }) => {
+export const loader = async ({ context }: LoaderFunctionArgs) => {
   return loadConnectionNodes(context);
 };
 
-export const action: ActionFunction = async ({ request, context }) => {
+export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
 
   if (request.method.toLowerCase() === "delete") {
     const formData = await request.formData();
-    const alias = formData.get("alias") as string;
+    const alias = String(formData.get("alias") ?? "");
 
     if (!alias) {
       return { error: "Connection alias is required" };
@@ -80,13 +77,7 @@ export const action: ActionFunction = async ({ request, context }) => {
 
 export default function HomeRoute() {
   const { nodes, adminScopes, userId, credentials, connectionConfigs } =
-    useLoaderData<{
-      nodes: TreeNode[];
-      adminScopes: string[];
-      userId: string;
-      credentials: Record<string, Credentials>;
-      connectionConfigs: ConnectionConfig[];
-    }>();
+    useLoaderData<typeof loader>();
 
   useInitConnections(connectionConfigs, credentials);
 

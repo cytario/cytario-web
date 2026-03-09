@@ -1,6 +1,6 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { H1 } from "@cytario/design";
-import { LoaderFunction, useLoaderData } from "react-router";
+import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 
 import { ObjectPresignedUrl } from "./objects.route";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
@@ -26,10 +26,10 @@ export const handle = {
   breadcrumb: () => ({ label: "Search", to: "/search" }),
 };
 
-export const loader: LoaderFunction = async ({
+export const loader = async ({
   request,
   context,
-}): Promise<SearchRouteLoaderResponse> => {
+}: LoaderFunctionArgs): Promise<SearchRouteLoaderResponse> => {
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get("query") ?? "";
 
@@ -88,7 +88,7 @@ export const loader: LoaderFunction = async ({
 };
 
 export default function SearchRoute() {
-  const { searchQuery, nodes } = useLoaderData<SearchRouteLoaderResponse>();
+  const { searchQuery, nodes } = useLoaderData<typeof loader>();
 
   return (
     <Section>

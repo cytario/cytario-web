@@ -1,12 +1,14 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 
-import { ConnectionConfig } from "~/utils/connectionConfig";
+import type { ConnectionConfig } from "~/utils/connectionConfig.server";
+import { createMigrate } from "~/utils/persistMigration";
 
 export interface ConnectionRecord {
   credentials: Credentials;
-  connectionConfig?: ConnectionConfig;
+  connectionConfig: ConnectionConfig;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface ConnectionsStore {
   setConnection: (
     key: string,
     credentials: Credentials,
-    connectionConfig?: ConnectionConfig,
+    connectionConfig: ConnectionConfig,
   ) => void;
   clearConnection: (key: string) => void;
   clearAll: () => void;
@@ -27,28 +29,27 @@ export interface ConnectionsStore {
 
 const name = "ConnectionsStore";
 
+const FALLBACK_STATE = { connections: {} };
+
 export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
     persist(
-      (set) => ({
+      immer((set) => ({
         connections: {},
 
         setConnection: (
           key: string,
           credentials: Credentials,
-          connectionConfig?: ConnectionConfig,
+          connectionConfig: ConnectionConfig,
         ) => {
           set(
-            (state) => ({
-              connections: {
-                ...state.connections,
-                [key]: {
-                  ...state.connections[key],
-                  credentials,
-                  ...(connectionConfig && { connectionConfig }),
-                },
-              },
-            }),
+            (state) => {
+              state.connections[key] = {
+                ...state.connections[key],
+                credentials,
+                connectionConfig,
+              };
+            },
             false,
             "setConnection",
           );
@@ -57,9 +58,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         clearConnection: (key: string) => {
           set(
             (state) => {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { [key]: _, ...rest } = state.connections;
-              return { connections: rest };
+              delete state.connections[key];
             },
             false,
             "clearConnection",
@@ -67,14 +66,25 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         },
 
         clearAll: () => {
-          set({ connections: {} }, false, "clearAll");
+          set(
+            (state) => {
+              state.connections = {};
+            },
+            false,
+            "clearAll",
+          );
         },
-      }),
+      })),
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
         version: 2,
-        migrate: () => ({ connections: {} }),
+        migrate: createMigrate<Pick<ConnectionsStore, "connections">>(
+          {
+            1: () => FALLBACK_STATE,
+          },
+          FALLBACK_STATE,
+        ),
         partialize: (state) => ({
           connections: Object.fromEntries(
             Object.entries(state.connections).map(([key, record]) => [

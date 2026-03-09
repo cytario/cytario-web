@@ -1,9 +1,9 @@
 import {
-  type ActionFunction,
+  type ActionFunctionArgs,
   type MetaFunction,
   redirect,
+  useOutletContext,
 } from "react-router";
-import { useOutletContext } from "react-router";
 
 import { Prisma } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
@@ -17,7 +17,7 @@ import {
   connectBucketSchema,
   parseS3Uri,
 } from "~/forms/addConnection/addConnection.schema";
-import { upsertConnectionConfig } from "~/utils/connectionConfig";
+import { upsertConnectionConfig } from "~/utils/connectionConfig.server";
 
 const title = "Connect Storage";
 
@@ -31,20 +31,20 @@ export const handle = {
 
 export const middleware = [authMiddleware];
 
-export const action: ActionFunction = async ({ request, context }) => {
+export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
 
   const formData = await request.formData();
 
   const rawData = {
-    alias: formData.get("alias") as string,
-    ownerScope: formData.get("ownerScope") as string,
-    providerType: formData.get("providerType") as string,
-    provider: formData.get("provider") as string,
-    s3Uri: formData.get("s3Uri") as string,
-    bucketRegion: formData.get("bucketRegion") as string,
-    roleArn: formData.get("roleArn") as string,
-    bucketEndpoint: formData.get("bucketEndpoint") as string,
+    alias: String(formData.get("alias") ?? ""),
+    ownerScope: String(formData.get("ownerScope") ?? ""),
+    providerType: String(formData.get("providerType") ?? ""),
+    provider: String(formData.get("provider") ?? ""),
+    s3Uri: String(formData.get("s3Uri") ?? ""),
+    bucketRegion: String(formData.get("bucketRegion") ?? ""),
+    roleArn: String(formData.get("roleArn") ?? ""),
+    bucketEndpoint: String(formData.get("bucketEndpoint") ?? ""),
   };
 
   const result = connectBucketSchema.safeParse(rawData);

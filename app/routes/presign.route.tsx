@@ -5,7 +5,7 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig";
+import { getConnectionByAlias } from "~/utils/connectionConfig.server";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -17,7 +17,7 @@ export const loader = async ({
 }: ActionFunctionArgs): Promise<Response> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
   const { alias } = params;
-  const pathName = params["*"] as string;
+  const pathName = params["*"] ?? "";
 
   if (!alias) throw new Error("Connection alias is required");
 
