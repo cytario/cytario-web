@@ -18,11 +18,7 @@ import { Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import {
-  loadConnectionNodes,
-  type SerializedPinnedPath,
-  type SerializedRecentlyViewed,
-} from "~/routes/connections/loadConnectionNodes";
+import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
 import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
