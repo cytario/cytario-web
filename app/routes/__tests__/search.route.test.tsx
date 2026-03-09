@@ -47,7 +47,7 @@ describe("SearchRoute", () => {
             credentials: {
               "mock-bucket": mock.credentials(),
             },
-            bucketConfigs: [mock.bucketConfig()],
+            connectionConfigs: [mock.connectionConfig()],
           };
         }
         return undefined;

@@ -7,7 +7,7 @@ import { Presets } from "../Presets";
 function renderPresets() {
   const RemixStub = createRoutesStub([
     {
-      path: "/buckets/test-bucket/test.ome.tif",
+      path: "/connections/test-bucket/test.ome.tif",
       Component: () => (
         <ViewerStoreProvider
           resourceId={"test-bucket/test.ome.tif"}
@@ -22,7 +22,7 @@ function renderPresets() {
   ]);
 
   return render(
-    <RemixStub initialEntries={["/buckets/test-bucket/test.ome.tif"]} />
+    <RemixStub initialEntries={["/connections/test-bucket/test.ome.tif"]} />
   );
 }
 
