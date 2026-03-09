@@ -132,6 +132,7 @@ export function TableHeaderRow({
             ) : (
               <div className="flex flex-col gap-2 pb-2">
                 {header.column.getCanSort() ? (
+                  // Sortable Header
                   <button
                     type="button"
                     className={twMerge(
@@ -156,6 +157,7 @@ export function TableHeaderRow({
                     <ColumnSortButton header={header} />
                   </button>
                 ) : (
+                  // Non-Sortable Header
                   <div className={tableHeadCx}>
                     <div className="min-w-0">
                       <TooltipSpan>

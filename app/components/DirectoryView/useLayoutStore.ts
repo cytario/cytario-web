@@ -16,6 +16,8 @@ const VALID_VIEW_MODES: ViewMode[] = [
 interface LayoutStore {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  showFilters: boolean;
+  toggleShowFilters: () => void;
   headerSlot: React.ReactNode;
   setHeaderSlot: (slot: React.ReactNode) => void;
 }
@@ -23,7 +25,7 @@ interface LayoutStore {
 const name = "LayoutStore";
 
 /**
- * Zustand store to manage layout state such as view mode.
+ * Zustand store to manage layout state such as view mode and filter visibility.
  * The store is persisted in local storage except for the header slot.
  */
 export const useLayoutStore = create<LayoutStore>()(
@@ -32,6 +34,13 @@ export const useLayoutStore = create<LayoutStore>()(
       (set) => ({
         viewMode: "grid-md",
         setViewMode: (mode) => set({ viewMode: mode }, false, "setViewMode"),
+        showFilters: true,
+        toggleShowFilters: () =>
+          set(
+            (state) => ({ showFilters: !state.showFilters }),
+            false,
+            "toggleShowFilters",
+          ),
         headerSlot: null,
         setHeaderSlot: (headerSlot) => set({ headerSlot }),
       }),

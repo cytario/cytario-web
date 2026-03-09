@@ -3,7 +3,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
 import { toS3Uri } from "../../utils/resourceId";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 
 export interface ParquetColumn {
   name: string;
@@ -15,17 +15,17 @@ export interface ParquetColumn {
  * Supports: parquet, csv, json
  * @param resourceId Resource identifier (provider/bucketName/pathName)
  * @param credentials AWS credentials with access to the S3 bucket
- * @param bucketConfig Optional bucket configuration for S3-compatible services
+ * @param connectionConfig Optional bucket configuration for S3-compatible services
  */
 export async function getParquetSchema(
   resourceId: string,
   credentials: Credentials,
-  bucketConfig?: BucketConfig | null,
+  connectionConfig?: ConnectionConfig | null,
 ): Promise<ParquetColumn[]> {
   const connection = await createDatabase(
     resourceId,
     credentials,
-    bucketConfig,
+    connectionConfig,
   );
   const fileType = getFileType(resourceId);
   const s3Path = toS3Uri(resourceId);

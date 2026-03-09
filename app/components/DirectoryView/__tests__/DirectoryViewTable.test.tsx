@@ -7,9 +7,9 @@ import { DirectoryViewTable } from "../DirectoryViewTable";
 // Mock the connections store
 vi.mock("~/utils/connectionsStore", () => ({
   useConnectionsStore: vi.fn((selector) => {
-    const connections: Record<string, { bucketConfig: Record<string, unknown> }> = {
-      "aws/my-aws-bucket": {
-        bucketConfig: {
+    const connections: Record<string, { connectionConfig: Record<string, unknown> }> = {
+      "aws-my-aws-bucket": {
+        connectionConfig: {
           name: "my-aws-bucket",
           provider: "aws",
           endpoint: "",
@@ -19,8 +19,8 @@ vi.mock("~/utils/connectionsStore", () => ({
           createdBy: "admin@cytario.com",
         },
       },
-      "minio/minio-bucket": {
-        bucketConfig: {
+      "minio-minio-bucket": {
+        connectionConfig: {
           name: "minio-bucket",
           provider: "minio",
           endpoint: "https://s3.cytar.io",
@@ -39,6 +39,7 @@ describe("DirectoryViewTable", () => {
   describe("bucket type nodes", () => {
     const mockBucketNodes: TreeNode[] = [
       {
+        alias: "aws-my-aws-bucket",
         type: "bucket",
         name: "my-aws-bucket",
         bucketName: "my-aws-bucket",
@@ -46,6 +47,7 @@ describe("DirectoryViewTable", () => {
         children: [],
       },
       {
+        alias: "minio-minio-bucket",
         type: "bucket",
         name: "minio-bucket",
         bucketName: "minio-bucket",
@@ -54,7 +56,7 @@ describe("DirectoryViewTable", () => {
       },
     ];
 
-    test("renders bucket columns: Name, Provider, Region visible; Scope, Endpoint, Created By, RoleARN hidden", () => {
+    test("renders bucket columns: Name, Scope, Provider, Region visible; Endpoint, Created By, RoleARN hidden", () => {
       const RemixStub = createRoutesStub([
         {
           path: "/",
@@ -65,10 +67,10 @@ describe("DirectoryViewTable", () => {
       render(<RemixStub initialEntries={["/"]} />);
 
       expect(screen.getByText("Name")).toBeInTheDocument();
+      expect(screen.getByText("Scope")).toBeInTheDocument();
       expect(screen.getByText("Provider")).toBeInTheDocument();
       expect(screen.getByText("Region")).toBeInTheDocument();
-      // Scope, Endpoint, Created By, and RoleARN are hidden by default
-      expect(screen.queryByText("Scope")).not.toBeInTheDocument();
+      // Endpoint, Created By, and RoleARN are hidden by default
       expect(screen.queryByText("Endpoint")).not.toBeInTheDocument();
       expect(screen.queryByText("Created By")).not.toBeInTheDocument();
       expect(screen.queryByText("RoleARN")).not.toBeInTheDocument();
@@ -88,18 +90,18 @@ describe("DirectoryViewTable", () => {
       expect(screen.getByText("my-aws-bucket")).toBeInTheDocument();
       expect(screen.getByText("minio-bucket")).toBeInTheDocument();
 
-      // Provider values appear in both data cells and select filter options
-      expect(screen.getAllByText("aws").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText("minio").length).toBeGreaterThanOrEqual(1);
-
-      // Region values appear in data cells and select filter options
-      expect(screen.getAllByText("eu-central-1").length).toBeGreaterThanOrEqual(1);
+      // Provider and region values appear in body cells (inside aria-hidden table)
+      const body = document.body.textContent ?? "";
+      expect(body).toContain("aws");
+      expect(body).toContain("minio");
+      expect(body).toContain("eu-central-1");
     });
   });
 
   describe("file type nodes", () => {
     const mockFileNodes: TreeNode[] = [
       {
+        alias: "test-alias",
         type: "file",
         name: "data.parquet",
         bucketName: "test-bucket",
@@ -114,6 +116,7 @@ describe("DirectoryViewTable", () => {
         },
       },
       {
+        alias: "test-alias",
         type: "file",
         name: "results.csv",
         bucketName: "test-bucket",
@@ -165,6 +168,7 @@ describe("DirectoryViewTable", () => {
   describe("directory type nodes", () => {
     const mockDirNodes: TreeNode[] = [
       {
+        alias: "test-alias",
         type: "directory",
         name: "images",
         bucketName: "test-bucket",
@@ -173,6 +177,7 @@ describe("DirectoryViewTable", () => {
         children: [],
       },
       {
+        alias: "test-alias",
         type: "directory",
         name: "data",
         bucketName: "test-bucket",

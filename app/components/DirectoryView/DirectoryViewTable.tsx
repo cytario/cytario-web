@@ -9,7 +9,7 @@ import {
   computeDirectoryLastModified,
 } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
-import { Pill } from "~/components/Pill/Pill";
+import { Pill, formatScopeLabel } from "~/components/Pill/Pill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
@@ -39,6 +39,14 @@ export const bucketColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "text",
     filterPlaceholder: "Filter by name...",
+  },
+  {
+    id: "ownerScope",
+    header: "Scope",
+    size: 160,
+    enableSorting: true,
+    enableColumnFilter: true,
+    filterType: "select",
   },
   {
     id: "provider",
@@ -71,15 +79,6 @@ export const bucketColumns: ColumnConfig[] = [
     defaultVisible: false,
   },
   {
-    id: "ownerScope",
-    header: "Scope",
-    size: 160,
-    enableSorting: true,
-    enableColumnFilter: true,
-    filterType: "select",
-    defaultVisible: false,
-  },
-  {
     id: "createdBy",
     header: "Created By",
     size: 280,
@@ -90,6 +89,7 @@ export const bucketColumns: ColumnConfig[] = [
 
 const bucketCellRenderers: CellRenderers<BucketRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
+  ownerScope: (row) => <Pill name={row.ownerScope} />,
 };
 
 // --- File/directory view ---
@@ -191,15 +191,14 @@ export function DirectoryViewTable({
   const bucketData: BucketRow[] = useMemo(() => {
     if (tableType !== "bucket") return [];
     return nodes.map((node) => {
-      const storeKey = `${node.provider}/${node.bucketName}`;
-      const config = connections[storeKey]?.bucketConfig;
+      const config = connections[node.alias]?.connectionConfig;
       return {
         name: node.name,
         provider: config?.provider ?? "",
         endpoint: config?.endpoint ?? "",
         region: config?.region ?? "",
         rolearn: config?.roleArn ?? "",
-        ownerScope: config?.ownerScope ?? "",
+        ownerScope: formatScopeLabel(config?.ownerScope ?? ""),
         createdBy: config?.createdBy ?? "",
         _node: node,
       };

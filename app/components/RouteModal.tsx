@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 export function RouteModal({
   title,
   children,
-  size,
+  size = "md",
   isDismissable = true,
   onClose,
 }: Readonly<{

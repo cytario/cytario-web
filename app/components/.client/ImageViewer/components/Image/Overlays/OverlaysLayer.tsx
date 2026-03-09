@@ -71,18 +71,19 @@ export const OverlaysLayer = ({
     loadTile(id);
 
     try {
-      // Extract provider and bucket name from resourceId (format: provider/bucketName/path/to/file.csv)
+      // Find connection record matching this resourceId's provider/bucketName
       const { provider, bucketName } = parseResourceId(resourceId);
-      const storeKey = `${provider}/${bucketName}`;
-
-      // Get connection from the store using provider/bucketName key
-      // Use getState() to access store outside of React component render
-      const conn = useConnectionsStore.getState().connections[storeKey];
+      const { connections } = useConnectionsStore.getState();
+      const conn = Object.values(connections).find(
+        (r) =>
+          r.connectionConfig?.provider === provider &&
+          r.connectionConfig?.name === bucketName,
+      );
       const credentials = conn?.credentials;
-      const bucketConfig = conn?.bucketConfig;
+      const connectionConfig = conn?.connectionConfig;
 
       if (!credentials) {
-        throw new Error(`No credentials found for bucket: ${storeKey}`);
+        throw new Error(`No credentials found for bucket: ${bucketName}`);
       }
 
       // Get ALL marker column names (not just enabled ones)
@@ -93,7 +94,7 @@ export const OverlaysLayer = ({
         index,
         credentials,
         allMarkerKeys,
-        bucketConfig
+        connectionConfig
       );
 
       return data;
