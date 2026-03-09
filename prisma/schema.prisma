@@ -20,7 +20,40 @@ model ConnectionConfig {
   region     String? // Optional - only needed for AWS
   prefix     String  @default("")
 
+  recentlyViewed RecentlyViewed[] @relation("RecentlyViewedConnection")
+  pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
+
   @@map("BucketConfig")
   @@unique([ownerScope, provider, name, prefix])
   @@index([ownerScope])
+}
+
+model RecentlyViewed {
+  id       Int      @id @default(autoincrement())
+  userId   String
+  alias    String
+  pathName String
+  name     String
+  type     String   // "file" | "directory"
+  viewedAt DateTime @default(now())
+
+  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [alias], references: [alias], onDelete: Cascade)
+
+  @@unique([userId, alias, pathName])
+  @@index([userId])
+}
+
+model PinnedPath {
+  id           Int       @id @default(autoincrement())
+  userId       String
+  alias        String
+  pathName     String
+  displayName  String
+  totalSize    BigInt?
+  lastModified DateTime?
+
+  connection ConnectionConfig @relation("PinnedPathConnection", fields: [alias], references: [alias], onDelete: Cascade)
+
+  @@unique([userId, alias, pathName])
+  @@index([userId])
 }
