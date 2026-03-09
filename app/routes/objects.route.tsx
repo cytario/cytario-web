@@ -26,6 +26,7 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { IndexStatus } from "~/components/DirectoryView/IndexStatus";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
@@ -309,6 +310,7 @@ export default function ObjectsRoute() {
         alias={alias}
         urlPath={urlPath}
       >
+        <IndexStatus alias={alias} />
         <Button
           onPress={togglePin}
           variant="secondary"
