@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import {
@@ -15,9 +15,10 @@ import {
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 const mock = {
-  bucketConfig: (data: Partial<BucketConfig> = {}): BucketConfig => ({
+  connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
     name: "mock-bucket",
     id: 0,
+    alias: "aws-mock-bucket",
     ownerScope: "org1/lab",
     createdBy: "mock-user-id",
     provider: "aws",
@@ -72,6 +73,7 @@ const mock = {
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => ({
+    alias: "test-provider-test-bucket",
     name: "mockName",
     type: "directory",
     bucketName: "test-bucket",

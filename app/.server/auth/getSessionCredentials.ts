@@ -5,7 +5,7 @@ import {
 } from "@aws-sdk/client-sts";
 
 import { type SessionData, type SessionCredentials } from "./sessionStorage";
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
@@ -36,11 +36,11 @@ export const sanitizeRoleSessionName = (name: string): string => {
 };
 
 const fetchTemporaryCredentials = async (
-  bucketConfig: BucketConfig,
+  connectionConfig: ConnectionConfig,
   idToken: string,
   roleSessionName: string,
 ): Promise<Credentials> => {
-  const { region, endpoint, roleArn } = bucketConfig;
+  const { region, endpoint, roleArn } = connectionConfig;
 
   const actualRegion = region ?? "eu-central-1";
   const providerConfig = getS3ProviderConfig(endpoint, actualRegion);
@@ -71,17 +71,17 @@ const fetchTemporaryCredentials = async (
 };
 
 /**
- * Fetches credentials for all bucket configs in parallel.
+ * Fetches credentials for all connection configs in parallel.
  * Deduplicates by bucket name (multiple prefix configs share STS credentials).
- * Only fetches for buckets with missing or expired credentials.
+ * Only fetches for connections with missing or expired credentials.
  */
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
-  bucketConfigs: BucketConfig[],
+  connectionConfigs: ConnectionConfig[],
 ): Promise<SessionCredentials> => {
   // Deduplicate: one STS call per unique bucket name
-  const uniqueBuckets = new Map<string, BucketConfig>();
-  for (const config of bucketConfigs) {
+  const uniqueBuckets = new Map<string, ConnectionConfig>();
+  for (const config of connectionConfigs) {
     if (!uniqueBuckets.has(config.name)) {
       uniqueBuckets.set(config.name, config);
     }

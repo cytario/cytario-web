@@ -13,5 +13,6 @@ export const selectConnection = (key: string) => (state: ConnectionsStore) =>
 export const selectCredentials = (key: string) => (state: ConnectionsStore) =>
   state.connections[key]?.credentials ?? null;
 
-export const selectBucketConfig = (key: string) => (state: ConnectionsStore) =>
-  state.connections[key]?.bucketConfig ?? null;
+export const selectConnectionConfig =
+  (key: string) => (state: ConnectionsStore) =>
+    state.connections[key]?.connectionConfig ?? null;
