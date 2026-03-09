@@ -1,11 +1,12 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 import { Button, ButtonLink, EmptyState } from "@cytario/design";
-import { Ban, Download } from "lucide-react";
-import { lazy, Suspense, useEffect } from "react";
+import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
   ActionFunctionArgs,
   MetaFunction,
+  useFetcher,
   useLoaderData,
   useNavigate,
 } from "react-router";
@@ -20,6 +21,8 @@ import { ClientOnly } from "~/components/ClientOnly";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
   buildDirectoryTree,
+  computeDirectoryLastModified,
+  computeDirectorySize,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -33,7 +36,7 @@ import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
+import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -82,6 +85,7 @@ export interface BucketRouteLoaderResponse {
   notification?: NotificationInput;
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
+  isPinned: boolean;
 }
 
 export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
@@ -114,6 +118,8 @@ export const loader = async ({
     : urlPath;
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
+
+  const isPinned = await checkIsPinnedPath(user.sub, alias, urlPath);
 
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
@@ -151,6 +157,7 @@ export const loader = async ({
         bucketName,
         urlPath,
         pathName,
+        isPinned,
       };
     }
 
@@ -174,6 +181,7 @@ export const loader = async ({
       pathName,
       url,
       offsetsUrl,
+      isPinned,
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
@@ -186,6 +194,7 @@ export const loader = async ({
       bucketName,
       urlPath,
       pathName,
+      isPinned,
       notification: {
         message:
           "We couldn't load the objects for this bucket. Please check your connection or try again later.",
@@ -206,6 +215,7 @@ export default function ObjectsRoute() {
     pathName,
     credentials,
     connectionConfig,
+    isPinned: loaderIsPinned,
     notification,
   } = useLoaderData<BucketRouteLoaderResponse>();
 
@@ -237,25 +247,52 @@ export default function ObjectsRoute() {
     }
   }, [alias, credentials, connectionConfig, setConnection]);
 
-  // Track recently viewed files
-  const { addItem } = useRecentlyViewedStore();
+  // Track recently viewed files (DB-backed via server action)
+  const recentFetcher = useFetcher();
   useEffect(() => {
     if (url) {
-      addItem({
-        alias,
-        provider: connectionConfig.provider,
-        bucketName: connectionConfig.name,
-        pathName: urlPath,
-        name,
-        type: "file",
-        children: [],
-        _Object: {
-          Key: pathName,
-          presignedUrl: url,
-        } as TreeNode["_Object"],
-      });
+      recentFetcher.submit(
+        { alias, pathName: urlPath, name, type: "file" },
+        { method: "post", action: "/api/recently-viewed" },
+      );
     }
   }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pinning (DB-backed via server action)
+  const pinFetcher = useFetcher();
+  // Optimistic isPinned: flip while the pin request is in-flight
+  let isPinned = loaderIsPinned;
+  if (pinFetcher.state === "submitting") {
+    isPinned = pinFetcher.formMethod?.toLowerCase() === "post";
+  }
+
+  const togglePin = useCallback(() => {
+    if (isPinned) {
+      pinFetcher.submit(
+        { alias, pathName: urlPath },
+        { method: "delete", action: "/api/pinned" },
+      );
+    } else {
+      const totalSize = nodes.reduce(
+        (sum, node) => sum + computeDirectorySize(node),
+        0,
+      );
+      const lastModified = nodes.reduce(
+        (max, node) => Math.max(max, computeDirectoryLastModified(node)),
+        0,
+      );
+      pinFetcher.submit(
+        {
+          alias,
+          pathName: urlPath,
+          displayName: urlPath ? getName(urlPath, alias) : alias,
+          totalSize: String(totalSize),
+          lastModified: lastModified ? String(lastModified) : "",
+        },
+        { method: "post", action: "/api/pinned" },
+      );
+    }
+  }, [alias, urlPath, isPinned, nodes, pinFetcher]);
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
@@ -268,6 +305,14 @@ export default function ObjectsRoute() {
         alias={alias}
         urlPath={urlPath}
       >
+        <Button
+          onPress={togglePin}
+          variant="secondary"
+          aria-label={isPinned ? "Unpin directory" : "Pin directory"}
+        >
+          {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+          {isPinned ? "Pinned" : "Pin"}
+        </Button>
         <ButtonLink href="?action=cyberduck" variant="secondary">
           <Download size={16} />
           Access with Cyberduck
