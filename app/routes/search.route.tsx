@@ -36,46 +36,53 @@ export const loader: LoaderFunction = async ({
   const {
     user,
     credentials: bucketsCredentials,
-    bucketConfigs,
+    connectionConfigs,
   } = context.get(authContext);
 
-  // Key format: provider/bucketName to match resourceId format
-  const files = await bucketConfigs.reduce(async (acc, bucketConfig) => {
-    const credentials = bucketsCredentials[bucketConfig.name];
-    if (!credentials) {
-      console.warn(`No credentials for bucket: ${bucketConfig.name}`);
-      return acc;
-    }
+  // Key format: alias to match connection store keys
+  const files = await connectionConfigs.reduce(
+    async (acc, connectionConfig) => {
+      const credentials = bucketsCredentials[connectionConfig.name];
+      if (!credentials) {
+        console.warn(`No credentials for bucket: ${connectionConfig.name}`);
+        return acc;
+      }
 
-    const s3Client = await getS3Client(bucketConfig, credentials, user.sub);
-    const _files =
-      (await getObjects(bucketConfig, s3Client, searchQuery)) ?? [];
+      const s3Client = await getS3Client(
+        connectionConfig,
+        credentials,
+        user.sub,
+      );
+      const _files =
+        (await getObjects(connectionConfig, s3Client, searchQuery)) ?? [];
 
-    // Do not return bucket names w/o files
-    if (_files.length === 0) {
-      return acc;
-    }
+      // Do not return bucket names w/o files
+      if (_files.length === 0) {
+        return acc;
+      }
 
-    const key = `${bucketConfig.provider}/${bucketConfig.name}`;
-    return { ...(await acc), [key]: _files };
-  }, {} as Promise<BucketFiles>);
+      return { ...(await acc), [connectionConfig.alias]: _files };
+    },
+    {} as Promise<BucketFiles>,
+  );
 
-  // Build tree nodes with provider info from key format
-  const nodes: TreeNode[] = Object.keys(files).map((key) => {
-    const [provider, bucketName] = key.split("/");
-    return {
-      bucketName,
-      name: bucketName,
-      type: "bucket",
-      provider,
+  // Build tree nodes using alias
+  const nodes: TreeNode[] = connectionConfigs
+    .filter((config) => files[config.alias])
+    .map((config) => ({
+      alias: config.alias,
+      bucketName: config.name,
+      name: config.alias,
+      type: "bucket" as const,
+      provider: config.provider,
       children: buildDirectoryTree(
-        bucketName,
-        files[key] as ObjectPresignedUrl[],
-        provider,
+        config.name,
+        files[config.alias] as ObjectPresignedUrl[],
+        config.provider,
+        config.alias,
         "",
       ),
-    };
-  });
+    }));
 
   return { searchQuery, nodes };
 };

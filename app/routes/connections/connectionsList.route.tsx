@@ -1,7 +1,5 @@
-import { Credentials } from "@aws-sdk/client-sts";
 import { ButtonLink, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
-import { useEffect } from "react";
 import {
   type LoaderFunction,
   type MetaFunction,
@@ -9,15 +7,16 @@ import {
 } from "react-router";
 import { useLoaderData } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
-import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { loadBucketNodes } from "~/routes/buckets/loadBucketNodes";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
+import { useInitConnections } from "~/hooks/useInitConnections";
+import {
+  loadConnectionNodes,
+  type LoaderData,
+} from "~/routes/connections/loadConnectionNodes";
 
 const title = "Storage Connections";
 
@@ -31,30 +30,22 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
+export const handle = {
+  breadcrumb: () => ({ label: "Connections", to: "/connections" }),
+};
+
 export const middleware = [authMiddleware];
 
 export const loader: LoaderFunction = async ({ context }) => {
-  return loadBucketNodes(context);
+  return loadConnectionNodes(context);
 };
 
-export default function BucketsListRoute() {
+export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
-  const { nodes, credentials, bucketConfigs } = useLoaderData<{
-    nodes: TreeNode[];
-    credentials: Record<string, Credentials>;
-    bucketConfigs: BucketConfig[];
-  }>();
+  const { nodes, credentials, connectionConfigs } =
+    useLoaderData<LoaderData>();
 
-  const setConnection = useConnectionsStore(select.setConnection);
-
-  useEffect(() => {
-    for (const config of bucketConfigs) {
-      const creds = credentials[config.name];
-      if (creds) {
-        setConnection(`${config.provider}/${config.name}`, creds, config);
-      }
-    }
-  }, [credentials, bucketConfigs, setConnection]);
+  useInitConnections(connectionConfigs, credentials);
 
   if (nodes.length === 0) {
     return (
@@ -64,7 +55,7 @@ export default function BucketsListRoute() {
           title="No storage connections"
           description="Add a storage connection to view your cloud storage."
           action={
-            <ButtonLink href="/connect-bucket" size="lg" variant="primary">
+            <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
               Connect Storage
             </ButtonLink>
           }
@@ -79,7 +70,6 @@ export default function BucketsListRoute() {
       nodes={nodes}
       name={title}
       showFilters
-      bucketName=""
     >
       <ViewModeToggle />
       <ButtonLink href="/connect-bucket" variant="secondary">

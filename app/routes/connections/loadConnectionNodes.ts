@@ -1,6 +1,7 @@
+import { Credentials } from "@aws-sdk/client-sts";
 import { ActionFunctionArgs } from "react-router";
 
-import { BucketConfig } from "~/.generated/client";
+import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
@@ -12,7 +13,7 @@ import { getObjects } from "~/utils/getObjects";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
 
 const fetchPreviewObject = async (
-  config: BucketConfig,
+  config: ConnectionConfig,
   credentials: SessionCredentials,
   userId: string,
 ): Promise<ObjectPresignedUrl | undefined> => {
@@ -32,14 +33,24 @@ const fetchPreviewObject = async (
   return { ...preview, presignedUrl } as ObjectPresignedUrl;
 };
 
-export async function loadBucketNodes(context: ActionFunctionArgs["context"]) {
-  const { bucketConfigs, credentials, user, authTokens } =
+export interface LoaderData {
+  nodes: TreeNode[];
+  adminScopes: string[];
+  userId: string;
+  credentials: Record<string, Credentials>;
+  connectionConfigs: ConnectionConfig[];
+}
+
+export async function loadConnectionNodes(
+  context: ActionFunctionArgs["context"],
+): Promise<LoaderData> {
+  const { connectionConfigs, credentials, user, authTokens } =
     context.get(authContext);
   const userId = user.sub;
 
   const [previews, adminScopes] = await Promise.all([
     Promise.allSettled(
-      bucketConfigs.map((config) =>
+      connectionConfigs.map((config) =>
         fetchPreviewObject(config, credentials, userId),
       ),
     ),
@@ -49,28 +60,21 @@ export async function loadBucketNodes(context: ActionFunctionArgs["context"]) {
     }),
   ]);
 
-  const nodes: TreeNode[] = bucketConfigs.map((config, i) => {
+  const nodes: TreeNode[] = connectionConfigs.map((config, i) => {
     const result = previews[i];
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
-    const prefixLastSegment = config.prefix
-      ?.replace(/\/$/, "")
-      .split("/")
-      .pop();
-    const displayName = config.prefix
-      ? `${config.name}/${prefixLastSegment}`
-      : config.name;
-
     return {
+      alias: config.alias,
       bucketName: config.name,
-      name: displayName,
+      name: config.alias,
       type: "bucket" as const,
       provider: config.provider,
-      pathName: config.prefix || undefined,
+      pathName: undefined,
       children: [],
       _Object: previewObj,
     };
   });
 
-  return { nodes, adminScopes, userId, credentials, bucketConfigs };
+  return { nodes, adminScopes, userId, credentials, connectionConfigs };
 }
