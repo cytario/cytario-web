@@ -11,7 +11,6 @@ import {
   useLoaderData,
 } from "react-router";
 
-import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
@@ -19,11 +18,15 @@ import { Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
+import {
+  loadConnectionNodes,
+  type SerializedPinnedPath,
+  type SerializedRecentlyViewed,
+} from "~/routes/connections/loadConnectionNodes";
 import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
-const title = "Home";
+const title = "Storage Connections";
 const MAX_RECENT_IMAGES = 4;
 const MAX_PINNED = 10;
 const MAX_RECENT_DIRS = 5;
@@ -133,6 +136,13 @@ export default function HomeRoute() {
             name: item.name,
             type: item.type as TreeNode["type"],
             children: [],
+            _Object:
+              item.s3Key && item.presignedUrl
+                ? ({
+                    Key: item.s3Key,
+                    presignedUrl: item.presignedUrl,
+                  } as TreeNode["_Object"])
+                : undefined,
           };
         }),
     [recentlyViewed, configByAlias],
