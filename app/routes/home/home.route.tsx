@@ -1,5 +1,5 @@
 import { ButtonLink, EmptyState } from "@cytario/design";
-import { ArrowRight, FileSearch } from "lucide-react";
+import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import {
   type ActionFunctionArgs,
@@ -15,8 +15,8 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
+import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import {
   loadConnectionNodes,
@@ -85,23 +85,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   return null;
 };
-
-function ShowAllLink({
-  href,
-  total,
-  maxItems,
-}: {
-  href: string;
-  total: number;
-  maxItems: number;
-}) {
-  return (
-    <ButtonLink href={href} variant="secondary">
-      {total > maxItems ? `Show all (${total})` : "View all"}
-      <ArrowRight size={16} />
-    </ButtonLink>
-  );
-}
 
 export default function HomeRoute() {
   const {
@@ -190,74 +173,44 @@ export default function HomeRoute() {
 
   return (
     <div className="flex flex-col gap-8 py-8 sm:gap-12 sm:py-12 lg:gap-16 lg:py-16">
-      {recentImages.length > 0 && (
-        <DirectoryView
-          viewMode="grid-lg"
-          nodes={recentImages.slice(0, MAX_RECENT_IMAGES)}
-          name="Recently Viewed"
-          flush
-        >
-          <ShowAllLink
-            href="/recent"
-            total={recentImages.length}
-            maxItems={MAX_RECENT_IMAGES}
-          />
-        </DirectoryView>
-      )}
+      <DashboardSection
+        title="Recently Viewed"
+        nodes={recentImages}
+        viewMode="grid-lg"
+        maxItems={MAX_RECENT_IMAGES}
+        showAllHref="/recent"
+      />
 
-      {pinnedNodes.length > 0 && (
-        <DirectoryView
-          viewMode="list"
-          nodes={pinnedNodes.slice(0, MAX_PINNED)}
-          name="Pinned"
-          flush
-        />
-      )}
+      <DashboardSection
+        title="Pinned"
+        nodes={pinnedNodes}
+        viewMode="list"
+        maxItems={MAX_PINNED}
+      />
 
-      {recentDirs.length > 0 && (
-        <DirectoryView
-          viewMode="list"
-          nodes={recentDirs.slice(0, MAX_RECENT_DIRS)}
-          name="Recently Browsed"
-          flush
-        >
-          <ShowAllLink
-            href="/recent"
-            total={recentDirs.length}
-            maxItems={MAX_RECENT_DIRS}
-          />
-        </DirectoryView>
-      )}
+      <DashboardSection
+        title="Recently Browsed"
+        nodes={recentDirs}
+        viewMode="list"
+        maxItems={MAX_RECENT_DIRS}
+        showAllHref="/recent"
+      />
 
-      {recentFiles.length > 0 && (
-        <DirectoryView
-          viewMode="grid-sm"
-          nodes={recentFiles.slice(0, MAX_RECENT_FILES)}
-          name="Recent Files"
-          flush
-        >
-          <ShowAllLink
-            href="/recent"
-            total={recentFiles.length}
-            maxItems={MAX_RECENT_FILES}
-          />
-        </DirectoryView>
-      )}
+      <DashboardSection
+        title="Recent Files"
+        nodes={recentFiles}
+        viewMode="grid-sm"
+        maxItems={MAX_RECENT_FILES}
+        showAllHref="/recent"
+      />
 
-      {nodes.length > 0 && (
-        <DirectoryView
-          viewMode="grid-md"
-          nodes={nodes.slice(0, MAX_CONNECTIONS)}
-          name={title}
-          flush
-        >
-          <ShowAllLink
-            href="/connections"
-            total={nodes.length}
-            maxItems={MAX_CONNECTIONS}
-          />
-        </DirectoryView>
-      )}
+      <DashboardSection
+        title={title}
+        nodes={nodes}
+        viewMode="grid-md"
+        maxItems={MAX_CONNECTIONS}
+        showAllHref="/connections"
+      />
 
       {nodes.length === 0 && (
         <Section flush>
