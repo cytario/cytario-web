@@ -21,11 +21,10 @@ const ImagePreview = lazy(() =>
   ),
 );
 
-const gridClasses: Record<string, string> = {
+const gridClasses: Partial<Record<ViewMode, string>> = {
   // prettier-ignore
-  "grid-sm": "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3",
-  "grid-md": "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4",
-  "grid-lg": "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
+  "grid-compact": "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3",
+  grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
 /** Extract the file extension from a filename (e.g. "sample.ome.tif" -> "ome.tif"). */
@@ -165,13 +164,13 @@ function FileCardGridItem({
 
 export function DirectoryViewGrid({
   nodes,
-  viewMode = "grid-sm",
+  viewMode = "grid",
 }: {
   nodes: TreeNode[];
   viewMode?: ViewMode;
 }) {
-  const compact = viewMode === "grid-sm";
-  const gridClass = gridClasses[viewMode] ?? gridClasses["grid-md"];
+  const compact = viewMode === "grid-compact";
+  const gridClass = gridClasses[viewMode] ?? gridClasses["grid"];
 
   return (
     <div className={gridClass}>

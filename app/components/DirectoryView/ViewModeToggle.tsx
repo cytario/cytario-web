@@ -1,40 +1,38 @@
-import { ToggleButtonGroup, ToggleButtonGroupItem } from "@cytario/design";
-import { Grid2x2, Grid3x3, List, Rows3, Square } from "lucide-react";
+import { SegmentedControl, SegmentedControlItem } from "@cytario/design";
+import { FolderTree, Grid3x3, LayoutGrid, List } from "lucide-react";
 
-import { useLayoutStore, ViewMode } from "./useLayoutStore";
+import { useLayoutStore, type ViewMode } from "./useLayoutStore";
 
 const modes: {
-  mode: ViewMode;
-  icon: React.ReactNode;
+  id: ViewMode;
   label: string;
+  Icon: typeof List;
 }[] = [
-  { mode: "list-wide", icon: <Rows3 size={16} />, label: "Wide List View" },
-  { mode: "list", icon: <List size={16} />, label: "List View" },
-  { mode: "grid-sm", icon: <Grid3x3 size={16} />, label: "Small Grid" },
-  { mode: "grid-md", icon: <Grid2x2 size={16} />, label: "Medium Grid" },
-  { mode: "grid-lg", icon: <Square size={16} />, label: "Large Grid" },
+  { id: "list", label: "List view", Icon: List },
+  { id: "grid", label: "Grid view", Icon: LayoutGrid },
+  { id: "grid-compact", label: "Compact grid", Icon: Grid3x3 },
+  { id: "tree", label: "Tree view", Icon: FolderTree },
 ];
 
 export function ViewModeToggle() {
   const { viewMode, setViewMode } = useLayoutStore();
 
   return (
-    <ToggleButtonGroup
-      value={viewMode}
-      onChange={(value) => setViewMode(value as ViewMode)}
-      aria-label="View mode"
+    <SegmentedControl
+      selectedKeys={new Set([viewMode])}
+      onSelectionChange={(keys) => {
+        const key = [...keys][0];
+        if (key) setViewMode(key as ViewMode);
+      }}
+      selectionMode="single"
       size="sm"
+      aria-label="View mode"
     >
-      {modes.map(({ mode, icon, label }) => (
-        <ToggleButtonGroupItem
-          key={mode}
-          value={mode}
-          aria-label={label}
-          isIconOnly
-        >
-          {icon}
-        </ToggleButtonGroupItem>
+      {modes.map(({ id, label, Icon }) => (
+        <SegmentedControlItem key={id} id={id} aria-label={label}>
+          <Icon size={16} />
+        </SegmentedControlItem>
       ))}
-    </ToggleButtonGroup>
+    </SegmentedControl>
   );
 }

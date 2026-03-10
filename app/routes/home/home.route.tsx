@@ -177,7 +177,7 @@ export default function HomeRoute() {
       <DashboardSection
         title="Recently Viewed"
         nodes={recentImages}
-        viewMode="grid-lg"
+        viewMode="grid"
         maxItems={MAX_RECENT_IMAGES}
         showAllHref="/recent"
       />
@@ -200,7 +200,7 @@ export default function HomeRoute() {
       <DashboardSection
         title="Recent Files"
         nodes={recentFiles}
-        viewMode="grid-sm"
+        viewMode="grid-compact"
         maxItems={MAX_RECENT_FILES}
         showAllHref="/recent"
       />
@@ -208,7 +208,7 @@ export default function HomeRoute() {
       <DashboardSection
         title={title}
         nodes={nodes}
-        viewMode="grid-md"
+        viewMode="grid"
         maxItems={MAX_CONNECTIONS}
         showAllHref="/connections"
       />
