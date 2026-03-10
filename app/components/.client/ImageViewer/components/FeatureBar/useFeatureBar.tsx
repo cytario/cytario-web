@@ -59,7 +59,7 @@ export const useFeatureBarStore = create<ControlBarStore>()(
         setIsExpanded: (isExpanded: boolean) =>
           set({ isExpanded }, false, "setIsExpanded"),
       }),
-      { name, actionsBlacklist: ["setPixelValues"] }
+      { name }
     ),
     { name }
   )
