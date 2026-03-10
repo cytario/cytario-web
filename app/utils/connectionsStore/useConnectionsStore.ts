@@ -7,7 +7,7 @@ import type { ConnectionConfig } from "~/utils/connectionConfig.server";
 import { createMigrate } from "~/utils/persistMigration";
 
 export interface ConnectionIndex {
-  status: "loading" | "ready" | "missing" | "error";
+  status: "unknown" | "loading" | "ready" | "missing" | "error";
   objectCount: number;
   builtAt: string | null;
 }
@@ -109,7 +109,12 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         ),
         partialize: (state) => ({
           connections: Object.fromEntries(
-            Object.entries(state.connections).map(([key, record]) => [
+            (
+              Object.entries(state.connections) as [
+                string,
+                ConnectionRecord,
+              ][]
+            ).map(([key, record]) => [
               key,
               {
                 credentials: record.credentials,
