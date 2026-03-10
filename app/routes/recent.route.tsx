@@ -20,6 +20,7 @@ import {
 } from "~/components/DirectoryView/DirectoryViewTable";
 import { filterNodes } from "~/components/DirectoryView/filterNodes";
 import { FilterSidebar } from "~/components/DirectoryView/FilterSidebar";
+import { NodeInfoModal } from "~/components/DirectoryView/NodeInfoModal";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { SidebarPortal } from "~/components/SidebarPortal";
@@ -154,6 +155,7 @@ export default function RecentRoute() {
           description="Items you view or browse will appear here."
         />
       )}
+      <NodeInfoModal />
     </Section>
   );
 }
