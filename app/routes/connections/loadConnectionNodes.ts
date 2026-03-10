@@ -42,6 +42,9 @@ export type SerializedRecentlyViewed = {
   name: string;
   type: string;
   viewedAt: string;
+  /** Full S3 key (connection prefix + pathName) */
+  s3Key?: string;
+  presignedUrl?: string;
 };
 
 export type SerializedPinnedPath = {
@@ -101,14 +104,40 @@ export async function loadConnectionNodes(
     };
   });
 
-  const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
-    (item) => ({
-      id: item.id,
-      alias: item.alias,
-      pathName: item.pathName,
-      name: item.name,
-      type: item.type,
-      viewedAt: item.viewedAt.toISOString(),
+  const configByAlias = new Map<string, ConnectionConfig>();
+  for (const c of connectionConfigs) configByAlias.set(c.alias, c);
+
+  const recentlyViewed: SerializedRecentlyViewed[] = await Promise.all(
+    recentlyViewedRaw.map(async (item) => {
+      const base: SerializedRecentlyViewed = {
+        id: item.id,
+        alias: item.alias,
+        pathName: item.pathName,
+        name: item.name,
+        type: item.type,
+        viewedAt: item.viewedAt.toISOString(),
+      };
+
+      // Generate presigned URL for file items so previews work on the home page
+      if (item.type !== "file") return base;
+      const config = configByAlias.get(item.alias);
+      if (!config) return base;
+      const creds = credentials[config.name];
+      if (!creds) return base;
+
+      try {
+        const connPrefix = config.prefix?.replace(/\/$/, "") ?? "";
+        const s3Key = connPrefix
+          ? item.pathName
+            ? `${connPrefix}/${item.pathName}`
+            : connPrefix
+          : item.pathName;
+        const s3 = await getS3Client(config, creds, userId);
+        const presignedUrl = await getPresignedUrl(config, s3, s3Key);
+        return { ...base, s3Key, presignedUrl };
+      } catch {
+        return base;
+      }
     }),
   );
 

@@ -1,12 +1,9 @@
 import { EmptyState } from "@cytario/design";
 import { FolderOpen } from "lucide-react";
 import { ReactNode, useEffect, useMemo } from "react";
+import { useFetcher } from "react-router";
 
-import {
-  computeDirectoryLastModified,
-  computeDirectorySize,
-  TreeNode,
-} from "./buildDirectoryTree";
+import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
   bucketColumns,
@@ -20,7 +17,6 @@ import { type ViewMode } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { SidebarPortal } from "~/components/SidebarPortal";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
-import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
@@ -62,35 +58,16 @@ export function DirectoryView({
     [isGrid, nodes, columnFilters, columns, isBucket],
   );
 
-  // Track recently viewed directories
-  const { addItem } = useRecentlyViewedStore();
+  // Track recently viewed directories (DB-backed via server action)
+  const recentFetcher = useFetcher();
   useEffect(() => {
     if (!alias || !urlPath) return;
-    const firstNode = nodes[0];
-    if (!firstNode) return;
-
-    const totalSize = nodes.reduce(
-      (sum, child) => sum + computeDirectorySize(child),
-      0,
+    recentFetcher.submit(
+      { alias, pathName: urlPath, name, type: "directory" },
+      { method: "post", action: "/api/recently-viewed" },
     );
-    const latestModified = nodes.reduce(
-      (max, child) => Math.max(max, computeDirectoryLastModified(child)),
-      0,
-    );
-    addItem({
-      alias,
-      provider: firstNode.provider,
-      bucketName: firstNode.bucketName,
-      pathName: urlPath,
-      name,
-      type: "directory",
-      children: [],
-      _Object: {
-        Size: totalSize || undefined,
-        LastModified: latestModified ? new Date(latestModified) : undefined,
-      } as TreeNode["_Object"],
-    });
-  }, [alias, urlPath, name, addItem, nodes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alias, urlPath, name]);
 
   if (nodes.length === 0) {
     return (
