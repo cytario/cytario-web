@@ -102,15 +102,14 @@ export default function RecentRoute() {
 
   return (
     <Section>
-      {isGrid && (
-        <SidebarPortal>
-          <FilterSidebar
-            columns={fileColumns}
-            columnFilters={columnFilters}
-            setColumnFilters={setColumnFilters}
-          />
-        </SidebarPortal>
-      )}
+      <SidebarPortal>
+        <FilterSidebar
+          columns={fileColumns}
+          columnFilters={columnFilters}
+          setColumnFilters={setColumnFilters}
+          showColumnFilters={isGrid}
+        />
+      </SidebarPortal>
       <Container>
         <div className="flex items-center justify-between">
           <H1>Recent</H1>

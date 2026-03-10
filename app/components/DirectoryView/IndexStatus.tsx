@@ -66,7 +66,6 @@ export function IndexStatus({ alias }: IndexStatusProps) {
         onPress={handleRebuild}
         isDisabled={isRebuilding}
         variant="secondary"
-        size="sm"
       >
         {isRebuilding ? (
           <LoaderCircle size={14} className="animate-spin" />

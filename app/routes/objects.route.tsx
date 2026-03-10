@@ -26,7 +26,6 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { IndexStatus } from "~/components/DirectoryView/IndexStatus";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
@@ -309,8 +308,8 @@ export default function ObjectsRoute() {
         nodes={nodes}
         alias={alias}
         urlPath={urlPath}
+        secondaryActions={<ViewModeToggle />}
       >
-        <IndexStatus alias={alias} />
         <Button
           onPress={togglePin}
           variant="secondary"
@@ -323,7 +322,6 @@ export default function ObjectsRoute() {
           <Download size={16} />
           Access with Cyberduck
         </ButtonLink>
-        <ViewModeToggle />
       </DirectoryView>
     );
   }
