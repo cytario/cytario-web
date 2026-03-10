@@ -96,28 +96,37 @@ describe("DashboardSection", () => {
     expect(screen.queryByTestId("directory-view-grid")).not.toBeInTheDocument();
   });
 
-  test("renders DirectoryViewTable for list-wide viewMode", () => {
+  test("renders DirectoryViewGrid for grid viewMode", () => {
     renderWithRouter(
       <DashboardSection
         title="Files"
         nodes={[makeNode("a.csv")]}
-        viewMode="list-wide"
-        maxItems={10}
-      />,
-    );
-    expect(screen.getByTestId("directory-view-table")).toBeInTheDocument();
-  });
-
-  test("renders DirectoryViewGrid for grid viewModes", () => {
-    renderWithRouter(
-      <DashboardSection
-        title="Files"
-        nodes={[makeNode("a.csv")]}
-        viewMode="grid-md"
+        viewMode="grid"
         maxItems={10}
       />,
     );
     expect(screen.getByTestId("directory-view-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("directory-view-grid")).toHaveAttribute(
+      "data-view-mode",
+      "grid",
+    );
+    expect(screen.queryByTestId("directory-view-table")).not.toBeInTheDocument();
+  });
+
+  test("renders DirectoryViewGrid for grid-compact viewMode", () => {
+    renderWithRouter(
+      <DashboardSection
+        title="Files"
+        nodes={[makeNode("a.csv")]}
+        viewMode="grid-compact"
+        maxItems={10}
+      />,
+    );
+    expect(screen.getByTestId("directory-view-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("directory-view-grid")).toHaveAttribute(
+      "data-view-mode",
+      "grid-compact",
+    );
     expect(screen.queryByTestId("directory-view-table")).not.toBeInTheDocument();
   });
 

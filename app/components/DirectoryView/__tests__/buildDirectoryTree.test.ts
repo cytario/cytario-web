@@ -191,6 +191,41 @@ describe("buildDirectoryTree", () => {
     ]);
   });
 
+  test("should skip S3 folder marker objects (keys ending with /)", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "czi/", presignedUrl: "" },
+      { Key: "czi/ULT-2022-16901-457_V1.czi", presignedUrl: "https://example.com/file.czi" },
+    ];
+
+    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-alias");
+
+    // The "czi/" folder marker should only create the directory,
+    // not a phantom empty-name file child.
+    expect(tree).toHaveLength(1);
+    expect(tree[0].type).toBe("directory");
+    expect(tree[0].name).toBe("czi");
+    expect(tree[0].children).toHaveLength(1);
+    expect(tree[0].children[0].name).toBe("ULT-2022-16901-457_V1.czi");
+    expect(tree[0].children[0].type).toBe("file");
+  });
+
+  test("should handle nested folder markers without creating phantom nodes", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "a/", presignedUrl: "" },
+      { Key: "a/b/", presignedUrl: "" },
+      { Key: "a/b/file.txt", presignedUrl: "https://example.com/file.txt" },
+    ];
+
+    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-alias");
+
+    expect(tree).toHaveLength(1);
+    expect(tree[0].name).toBe("a");
+    expect(tree[0].children).toHaveLength(1);
+    expect(tree[0].children[0].name).toBe("b");
+    expect(tree[0].children[0].children).toHaveLength(1);
+    expect(tree[0].children[0].children[0].name).toBe("file.txt");
+  });
+
   test("should produce paths relative to connection root without urlPath", () => {
     const objects: ObjectPresignedUrl[] = [
       { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },

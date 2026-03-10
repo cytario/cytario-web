@@ -80,6 +80,65 @@ describe("filterHiddenNodes", () => {
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("visible-dir");
   });
+
+  test("recursively filters hidden children inside visible directories", () => {
+    const nodes = [
+      makeNode({
+        name: "results",
+        type: "directory",
+        children: [
+          makeNode({ name: ".DS_Store" }),
+          makeNode({ name: "output.csv" }),
+          makeNode({
+            name: "nested",
+            type: "directory",
+            children: [
+              makeNode({ name: ".hidden-deep" }),
+              makeNode({ name: "data.parquet" }),
+            ],
+          }),
+        ],
+      }),
+    ];
+    const result = filterHiddenNodes(nodes, false);
+    expect(result).toHaveLength(1);
+    expect(result[0].children).toHaveLength(2);
+    expect(result[0].children[0].name).toBe("output.csv");
+    expect(result[0].children[1].name).toBe("nested");
+    expect(result[0].children[1].children).toHaveLength(1);
+    expect(result[0].children[1].children[0].name).toBe("data.parquet");
+  });
+
+  test("preserves children when showHidden is true", () => {
+    const nodes = [
+      makeNode({
+        name: "dir",
+        type: "directory",
+        children: [
+          makeNode({ name: ".hidden" }),
+          makeNode({ name: "visible.csv" }),
+        ],
+      }),
+    ];
+    const result = filterHiddenNodes(nodes, true);
+    expect(result[0].children).toHaveLength(2);
+  });
+
+  test("does not mutate original nodes when filtering children", () => {
+    const hidden = makeNode({ name: ".secret" });
+    const visible = makeNode({ name: "ok.csv" });
+    const dir = makeNode({
+      name: "dir",
+      type: "directory",
+      children: [hidden, visible],
+    });
+    const nodes = [dir];
+    const result = filterHiddenNodes(nodes, false);
+    // Original still has both children
+    expect(dir.children).toHaveLength(2);
+    // Result has only the visible one
+    expect(result[0].children).toHaveLength(1);
+  });
 });
 
 describe("filterNodes", () => {
