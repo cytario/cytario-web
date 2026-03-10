@@ -14,6 +14,17 @@ describe("aliasSchema", () => {
     expect(aliasSchema.safeParse("a-b-c").success).toBe(true);
   });
 
+  test("accepts aliases with spaces", () => {
+    expect(aliasSchema.safeParse("my bucket").success).toBe(true);
+    expect(aliasSchema.safeParse("vericura internal").success).toBe(true);
+    expect(aliasSchema.safeParse("lab 1 data").success).toBe(true);
+  });
+
+  test("accepts aliases with uppercase characters", () => {
+    expect(aliasSchema.safeParse("MyBucket").success).toBe(true);
+    expect(aliasSchema.safeParse("Vericura Internal").success).toBe(true);
+  });
+
   test("rejects aliases shorter than 2 characters", () => {
     const result = aliasSchema.safeParse("a");
     expect(result.success).toBe(false);
@@ -24,14 +35,14 @@ describe("aliasSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  test("rejects aliases with leading hyphens", () => {
-    const result = aliasSchema.safeParse("-my-bucket");
-    expect(result.success).toBe(false);
+  test("rejects aliases with leading hyphens or spaces", () => {
+    expect(aliasSchema.safeParse("-my-bucket").success).toBe(false);
+    expect(aliasSchema.safeParse(" my-bucket").success).toBe(false);
   });
 
-  test("rejects aliases with trailing hyphens", () => {
-    const result = aliasSchema.safeParse("my-bucket-");
-    expect(result.success).toBe(false);
+  test("rejects aliases with trailing hyphens or spaces", () => {
+    expect(aliasSchema.safeParse("my-bucket-").success).toBe(false);
+    expect(aliasSchema.safeParse("my-bucket ").success).toBe(false);
   });
 
   test("rejects aliases with consecutive hyphens", () => {
@@ -39,8 +50,8 @@ describe("aliasSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  test("rejects aliases with uppercase characters", () => {
-    const result = aliasSchema.safeParse("MyBucket");
+  test("rejects aliases with consecutive spaces", () => {
+    const result = aliasSchema.safeParse("my  bucket");
     expect(result.success).toBe(false);
   });
 
@@ -60,29 +71,30 @@ describe("suggestAlias", () => {
   });
 
   test("derives alias from bucket name and last path segment", () => {
-    expect(suggestAlias("my-bucket/data/images")).toBe("my-bucket-images");
+    expect(suggestAlias("my-bucket/data/images")).toBe("my-bucket images");
   });
 
   test("derives alias from s3:// URI with last path segment", () => {
     expect(suggestAlias("s3://my-bucket/path/prefix")).toBe(
-      "my-bucket-prefix",
+      "my-bucket prefix",
     );
   });
 
-  test("normalizes uppercase to lowercase", () => {
-    expect(suggestAlias("MyBucket")).toBe("mybucket");
+  test("preserves case", () => {
+    expect(suggestAlias("MyBucket")).toBe("MyBucket");
   });
 
-  test("replaces special characters with hyphens", () => {
-    expect(suggestAlias("my_bucket.test")).toBe("my-bucket-test");
+  test("replaces special characters with spaces", () => {
+    expect(suggestAlias("my_bucket.test")).toBe("my bucket test");
   });
 
   test("collapses consecutive hyphens", () => {
     expect(suggestAlias("my---bucket")).toBe("my-bucket");
   });
 
-  test("trims leading and trailing hyphens", () => {
+  test("trims leading and trailing hyphens and spaces", () => {
     expect(suggestAlias("-my-bucket-")).toBe("my-bucket");
+    expect(suggestAlias(" my bucket ")).toBe("my bucket");
   });
 
   test("returns empty string for empty input", () => {
