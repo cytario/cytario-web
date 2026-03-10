@@ -16,17 +16,26 @@ const VALID_VIEW_MODES: ViewMode[] = [
 interface LayoutStore {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  showFilters: boolean;
-  toggleShowFilters: () => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  showHiddenFiles: boolean;
+  toggleShowHiddenFiles: () => void;
   headerSlot: React.ReactNode;
   setHeaderSlot: (slot: React.ReactNode) => void;
+}
+
+interface PersistedLayoutState {
+  viewMode: ViewMode;
+  sidebarOpen: boolean;
+  showHiddenFiles: boolean;
 }
 
 const name = "LayoutStore";
 
 /**
- * Zustand store to manage layout state such as view mode and filter visibility.
- * The store is persisted in local storage except for the header slot.
+ * Zustand store to manage layout state such as view mode, sidebar, and
+ * hidden-file visibility. The store is persisted in local storage except
+ * for the header slot.
  */
 export const useLayoutStore = create<LayoutStore>()(
   persist(
@@ -34,12 +43,15 @@ export const useLayoutStore = create<LayoutStore>()(
       (set) => ({
         viewMode: "grid-md",
         setViewMode: (mode) => set({ viewMode: mode }, false, "setViewMode"),
-        showFilters: true,
-        toggleShowFilters: () =>
+        sidebarOpen: false,
+        setSidebarOpen: (open) =>
+          set({ sidebarOpen: open }, false, "setSidebarOpen"),
+        showHiddenFiles: false,
+        toggleShowHiddenFiles: () =>
           set(
-            (state) => ({ showFilters: !state.showFilters }),
+            (state) => ({ showHiddenFiles: !state.showHiddenFiles }),
             false,
-            "toggleShowFilters",
+            "toggleShowHiddenFiles",
           ),
         headerSlot: null,
         setHeaderSlot: (headerSlot) => set({ headerSlot }),
@@ -48,8 +60,8 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
-      version: 1,
-      migrate: createMigrate<{ viewMode: ViewMode }>(
+      version: 2,
+      migrate: createMigrate<PersistedLayoutState>(
         {
           0: (state) => {
             const s = state as { viewMode?: string };
@@ -59,14 +71,24 @@ export const useLayoutStore = create<LayoutStore>()(
                 : "grid-md",
             };
           },
+          1: (state) => {
+            const s = state as { viewMode?: ViewMode };
+            return {
+              viewMode: VALID_VIEW_MODES.includes(s?.viewMode as ViewMode)
+                ? (s.viewMode as ViewMode)
+                : "grid-md",
+              sidebarOpen: false,
+              showHiddenFiles: false,
+            };
+          },
         },
-        { viewMode: "grid-md" },
+        { viewMode: "grid-md", sidebarOpen: false, showHiddenFiles: false },
       ),
-      partialize: (state) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { headerSlot, setHeaderSlot, ...rest } = state;
-        return rest;
-      },
+      partialize: (state) => ({
+        viewMode: state.viewMode,
+        sidebarOpen: state.sidebarOpen,
+        showHiddenFiles: state.showHiddenFiles,
+      }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) console.error("[LayoutStore] Rehydration failed:", error);
       },

@@ -35,9 +35,11 @@ export const Container = ({
 export function SectionHeader({
   name,
   children,
+  secondaryActions,
 }: {
   name: string;
   children?: ReactNode;
+  secondaryActions?: ReactNode;
 }) {
   return (
     <Container>
@@ -46,6 +48,9 @@ export function SectionHeader({
           {name && <H2 className="grow">{name}</H2>}
           {children}
         </div>
+        {secondaryActions && (
+          <div className="flex items-center gap-2">{secondaryActions}</div>
+        )}
       </header>
     </Container>
   );

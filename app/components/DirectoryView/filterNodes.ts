@@ -18,6 +18,16 @@ const bucketAccessors: Record<string, NodeAccessor> = {
 };
 
 /**
+ * Filters hidden files (names starting with ".") unless showHidden is true.
+ */
+export function filterHiddenNodes(
+  nodes: TreeNode[],
+  showHidden: boolean,
+): TreeNode[] {
+  return showHidden ? nodes : nodes.filter((node) => !node.name.startsWith("."));
+}
+
+/**
  * Filters TreeNode[] using the same column filter semantics as the Table.
  * Text filters use case-insensitive substring matching; select filters use
  * exact match. Columns without a matching accessor are skipped.

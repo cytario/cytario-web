@@ -67,8 +67,8 @@ export default function ConnectionsListRoute() {
       nodes={nodes}
       name={title}
       showFilters
+      secondaryActions={<ViewModeToggle />}
     >
-      <ViewModeToggle />
       <ButtonLink href="/connect-bucket" variant="secondary">
         <Plug size={16} /> Connect Storage
       </ButtonLink>
