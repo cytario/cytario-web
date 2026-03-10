@@ -165,4 +165,43 @@ describe("buildDirectoryTree", () => {
       expect(tree).toEqual(expectedTree);
     }
   );
+
+  test("should prepend urlPath to node pathNames when navigating into a subdirectory", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },
+    ];
+
+    // Simulate navigating into "subdir/" within a connection:
+    // S3 prefix "subdir/" is stripped, but urlPath "subdir" anchors paths to connection root
+    const tree = buildDirectoryTree(
+      "my-bucket", objects, "aws", "my-alias", "subdir/", "subdir",
+    );
+
+    expect(tree).toEqual([
+      {
+        alias: "my-alias",
+        type: "file",
+        name: "file.tif",
+        pathName: "subdir/file.tif",
+        bucketName: "my-bucket",
+        provider: "aws",
+        children: [],
+        _Object: { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },
+      },
+    ]);
+  });
+
+  test("should produce paths relative to connection root without urlPath", () => {
+    const objects: ObjectPresignedUrl[] = [
+      { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },
+    ];
+
+    // At connection root (no urlPath), paths are relative to root
+    const tree = buildDirectoryTree(
+      "my-bucket", objects, "aws", "my-alias",
+    );
+
+    expect(tree[0].pathName).toBe("subdir/");
+    expect(tree[0].children[0].pathName).toBe("subdir/file.tif");
+  });
 });

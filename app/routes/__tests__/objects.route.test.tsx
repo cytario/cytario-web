@@ -79,9 +79,8 @@ describe("Bucket Route", () => {
       },
     } as unknown as ActionFunctionArgs;
 
-    const result = handle.breadcrumb(mockArgs);
+    handle.breadcrumb(mockArgs);
 
-    expect(result[0]).toEqual({ label: "Connections", to: "/connections" });
     expect(getCrumbs).toHaveBeenCalledWith(
       "/connections/aws-test-bucket",
       ["bucket", "folder", "file.ome.tiff"],

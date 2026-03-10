@@ -107,7 +107,7 @@ function FileCardGridItem({
   const resourceId = createResourceId(
     node.provider,
     node.bucketName,
-    node.pathName,
+    node._Object?.Key ?? node.pathName,
   );
   const to = nodeToPath(node);
   const nodeId = node.pathName ?? node.name;
