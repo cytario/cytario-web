@@ -61,13 +61,10 @@ export const handle = {
     const segments = pathName ? pathName.split("/") : [];
     const basePath = `/connections/${alias}`;
 
-    return [
-      { label: "Connections", to: "/connections" },
-      ...getCrumbs(basePath, segments, {
-        dataConnectionName: alias,
-        dataConnectionPath: basePath,
-      }),
-    ];
+    return getCrumbs(basePath, segments, {
+      dataConnectionName: alias,
+      dataConnectionPath: basePath,
+    });
   },
 };
 
@@ -142,6 +139,7 @@ export const loader = async ({
         connectionConfig.provider,
         alias,
         prefix,
+        urlPath,
       );
 
       return {
@@ -247,7 +245,7 @@ export default function ObjectsRoute() {
         alias,
         provider: connectionConfig.provider,
         bucketName: connectionConfig.name,
-        pathName,
+        pathName: urlPath,
         name,
         type: "file",
         children: [],

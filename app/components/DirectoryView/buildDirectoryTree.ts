@@ -99,14 +99,23 @@ export function computeDirectoryLastModified(node: TreeNode): number {
   );
 }
 
+/**
+ * Build a directory tree from S3 objects.
+ *
+ * @param prefix  S3 listing prefix to strip from object keys
+ * @param urlPath Path relative to the connection root (prepended to node
+ *                pathNames so they stay routable via `/connections/:alias/*`)
+ */
 export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],
   provider: string,
   alias: string,
   prefix?: string,
+  urlPath?: string,
 ): TreeNode[] {
   const root: TreeNode[] = [];
+  const basePath = urlPath ? (urlPath.endsWith("/") ? urlPath : `${urlPath}/`) : "";
 
   objects.forEach((obj) => {
     if (!obj.Key) return;
@@ -121,6 +130,7 @@ export function buildDirectoryTree(
       bucketName,
       provider,
       alias,
+      basePath,
     );
   });
 
