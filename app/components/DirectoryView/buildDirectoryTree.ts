@@ -28,6 +28,11 @@ function buildDirectoryTreeRecursive(
   if (keyParts.length > 1) pathName += "/";
 
   if (keyParts.length === 1) {
+    // Skip empty-name leaf nodes produced by S3 folder markers (keys ending
+    // in "/").  The parent directory was already created by the recursive
+    // call, so there is nothing to add.
+    if (name === "") return;
+
     currentDir.push({
       alias,
       type: "file",
