@@ -19,12 +19,22 @@ const bucketAccessors: Record<string, NodeAccessor> = {
 
 /**
  * Filters hidden files (names starting with ".") unless showHidden is true.
+ * Filtering is applied recursively so that hidden children inside visible
+ * directories are also removed (required for the tree view).
  */
 export function filterHiddenNodes(
   nodes: TreeNode[],
   showHidden: boolean,
 ): TreeNode[] {
-  return showHidden ? nodes : nodes.filter((node) => !node.name.startsWith("."));
+  if (showHidden) return nodes;
+
+  return nodes
+    .filter((node) => !node.name.startsWith("."))
+    .map((node) =>
+      node.children.length > 0
+        ? { ...node, children: filterHiddenNodes(node.children, false) }
+        : node,
+    );
 }
 
 /**
