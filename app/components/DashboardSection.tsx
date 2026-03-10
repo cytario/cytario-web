@@ -48,8 +48,8 @@ export function DashboardSection({
           </div>
         </div>
       </Container>
-      <Container wide={viewMode === "list-wide"}>
-        {viewMode === "list" || viewMode === "list-wide" ? (
+      <Container>
+        {viewMode === "list" ? (
           <DirectoryViewTable nodes={visible} />
         ) : (
           <DirectoryViewGrid nodes={visible} viewMode={viewMode} />

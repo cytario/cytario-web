@@ -36,11 +36,10 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
 
   switch (viewMode) {
     case "list":
-    case "list-wide":
-    case "grid-sm":
+    case "grid-compact":
+    case "tree":
       return EMPTY_ARRAY;
-    case "grid-md":
-    case "grid-lg":
+    case "grid":
     default: {
       const config = getConnectionConfig(node.alias);
       if (!config) return EMPTY_ARRAY;

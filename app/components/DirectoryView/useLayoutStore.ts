@@ -3,21 +3,11 @@ import { devtools, persist } from "zustand/middleware";
 
 import { createMigrate } from "~/utils/persistMigration";
 
-export type ViewMode = "list" | "list-wide" | "grid-sm" | "grid-md" | "grid-lg";
-
-const VALID_VIEW_MODES: ViewMode[] = [
-  "list",
-  "list-wide",
-  "grid-sm",
-  "grid-md",
-  "grid-lg",
-];
+export type ViewMode = "list" | "grid" | "grid-compact" | "tree";
 
 interface LayoutStore {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
   showHiddenFiles: boolean;
   toggleShowHiddenFiles: () => void;
   headerSlot: React.ReactNode;
@@ -26,26 +16,22 @@ interface LayoutStore {
 
 interface PersistedLayoutState {
   viewMode: ViewMode;
-  sidebarOpen: boolean;
   showHiddenFiles: boolean;
 }
 
 const name = "LayoutStore";
 
 /**
- * Zustand store to manage layout state such as view mode, sidebar, and
- * hidden-file visibility. The store is persisted in local storage except
- * for the header slot.
+ * Zustand store to manage layout state such as view mode and hidden-file
+ * visibility. The store is persisted in local storage except for the
+ * header slot.
  */
 export const useLayoutStore = create<LayoutStore>()(
   persist(
     devtools(
       (set) => ({
-        viewMode: "grid-md",
+        viewMode: "grid",
         setViewMode: (mode) => set({ viewMode: mode }, false, "setViewMode"),
-        sidebarOpen: false,
-        setSidebarOpen: (open) =>
-          set({ sidebarOpen: open }, false, "setSidebarOpen"),
         showHiddenFiles: false,
         toggleShowHiddenFiles: () =>
           set(
@@ -60,33 +46,59 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
-      version: 2,
+      version: 3,
       migrate: createMigrate<PersistedLayoutState>(
         {
           0: (state) => {
             const s = state as { viewMode?: string };
+            const OLD_VALID = [
+              "list",
+              "list-wide",
+              "grid-sm",
+              "grid-md",
+              "grid-lg",
+            ];
             return {
-              viewMode: VALID_VIEW_MODES.includes(s?.viewMode as ViewMode)
-                ? (s.viewMode as ViewMode)
-                : "grid-md",
+              viewMode: OLD_VALID.includes(s?.viewMode ?? "")
+                ? (s.viewMode as string)
+                : "grid",
             };
           },
           1: (state) => {
-            const s = state as { viewMode?: ViewMode };
+            const s = state as { viewMode?: string };
+            const OLD_VALID = [
+              "list",
+              "list-wide",
+              "grid-sm",
+              "grid-md",
+              "grid-lg",
+            ];
             return {
-              viewMode: VALID_VIEW_MODES.includes(s?.viewMode as ViewMode)
-                ? (s.viewMode as ViewMode)
-                : "grid-md",
-              sidebarOpen: false,
+              viewMode: OLD_VALID.includes(s?.viewMode ?? "")
+                ? (s.viewMode as string)
+                : "grid",
               showHiddenFiles: false,
             };
           },
+          2: (state) => {
+            const s = state as { viewMode?: string; showHiddenFiles?: boolean };
+            const modeMap: Record<string, ViewMode> = {
+              list: "list",
+              "list-wide": "list",
+              "grid-sm": "grid-compact",
+              "grid-md": "grid",
+              "grid-lg": "grid",
+            };
+            return {
+              viewMode: modeMap[s?.viewMode ?? ""] ?? "grid",
+              showHiddenFiles: s?.showHiddenFiles ?? false,
+            };
+          },
         },
-        { viewMode: "grid-md", sidebarOpen: false, showHiddenFiles: false },
+        { viewMode: "grid", showHiddenFiles: false },
       ),
       partialize: (state) => ({
         viewMode: state.viewMode,
-        sidebarOpen: state.sidebarOpen,
         showHiddenFiles: state.showHiddenFiles,
       }),
       onRehydrateStorage: () => (_state, error) => {

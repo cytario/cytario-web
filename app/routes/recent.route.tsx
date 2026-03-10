@@ -1,4 +1,4 @@
-import { Button, EmptyState, H1 } from "@cytario/design";
+import { Button, EmptyState, H1, Input, Switch } from "@cytario/design";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import { Clock, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -18,12 +18,14 @@ import {
   DirectoryViewTable,
   fileColumns,
 } from "~/components/DirectoryView/DirectoryViewTable";
-import { filterNodes } from "~/components/DirectoryView/filterNodes";
-import { FilterSidebar } from "~/components/DirectoryView/FilterSidebar";
+import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
+import {
+  filterHiddenNodes,
+  filterNodes,
+} from "~/components/DirectoryView/filterNodes";
 import { NodeInfoModal } from "~/components/DirectoryView/NodeInfoModal";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { SidebarPortal } from "~/components/SidebarPortal";
 import {
   clearAllRecentlyViewed,
   getRecentlyViewed,
@@ -65,8 +67,10 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 export default function RecentRoute() {
   const { connectionConfigs, recentlyViewed } =
     useLoaderData<typeof loader>();
-  const { viewMode } = useLayoutStore();
+  const { viewMode, showHiddenFiles, toggleShowHiddenFiles } =
+    useLayoutStore();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [filterText, setFilterText] = useState("");
   const clearFetcher = useFetcher();
 
   const configByAlias = useMemo(() => {
@@ -94,23 +98,34 @@ export default function RecentRoute() {
     [recentlyViewed, configByAlias],
   );
 
-  const isGrid = viewMode !== "list" && viewMode !== "list-wide";
+  const isGrid = viewMode === "grid" || viewMode === "grid-compact";
+  const isTree = viewMode === "tree";
+
+  // Filter hidden (dot-prefixed) files first, then apply column filters
+  const visibleItems = useMemo(
+    () => filterHiddenNodes(allItems, showHiddenFiles),
+    [allItems, showHiddenFiles],
+  );
+
   const filteredNodes = useMemo(
     () =>
-      isGrid ? filterNodes(allItems, columnFilters, fileColumns) : allItems,
-    [isGrid, allItems, columnFilters],
+      isGrid
+        ? filterNodes(visibleItems, columnFilters, fileColumns)
+        : visibleItems,
+    [isGrid, visibleItems, columnFilters],
   );
+
+  // Apply inline text filter for grid and list modes
+  const displayNodes = useMemo(() => {
+    if (!filterText) return filteredNodes;
+    const term = filterText.toLowerCase();
+    return filteredNodes.filter((node) =>
+      node.name.toLowerCase().includes(term),
+    );
+  }, [filteredNodes, filterText]);
 
   return (
     <Section>
-      <SidebarPortal>
-        <FilterSidebar
-          columns={fileColumns}
-          columnFilters={columnFilters}
-          setColumnFilters={setColumnFilters}
-          showColumnFilters={isGrid}
-        />
-      </SidebarPortal>
       <Container>
         <div className="flex items-center justify-between">
           <H1>Recent</H1>
@@ -131,20 +146,46 @@ export default function RecentRoute() {
         </div>
       </Container>
 
+      {allItems.length > 0 && (
+        <Container>
+          <div className="mb-6 flex items-center justify-between gap-3 min-h-[40px]">
+            <Input
+              aria-label="Filter files"
+              placeholder="Filter files..."
+              size="sm"
+              value={filterText}
+              onChange={setFilterText}
+              className="w-64"
+            />
+            <Switch
+              isSelected={showHiddenFiles}
+              onChange={toggleShowHiddenFiles}
+              className="text-xs font-medium text-[var(--color-text-secondary)]"
+            >
+              Show hidden
+            </Switch>
+          </div>
+        </Container>
+      )}
+
       {allItems.length > 0 ? (
         <div className="mt-8">
-          {viewMode === "list" || viewMode === "list-wide" ? (
-            <Container wide={viewMode === "list-wide"}>
+          {isTree ? (
+            <Container>
+              <DirectoryViewTree nodes={visibleItems} searchTerm={filterText} />
+            </Container>
+          ) : isGrid ? (
+            <Container>
+              <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} />
+            </Container>
+          ) : (
+            <Container>
               <DirectoryViewTable
-                nodes={allItems}
+                nodes={displayNodes}
                 showFilters
                 columnFilters={columnFilters}
                 onColumnFiltersChange={setColumnFilters}
               />
-            </Container>
-          ) : (
-            <Container>
-              <DirectoryViewGrid nodes={filteredNodes} viewMode={viewMode} />
             </Container>
           )}
         </div>
