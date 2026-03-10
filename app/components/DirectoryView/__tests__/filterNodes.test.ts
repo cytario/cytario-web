@@ -2,7 +2,7 @@ import type { ColumnFiltersState } from "@tanstack/react-table";
 import { describe, expect, test } from "vitest";
 
 import type { TreeNode } from "../buildDirectoryTree";
-import { filterNodes } from "../filterNodes";
+import { filterHiddenNodes, filterNodes } from "../filterNodes";
 import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
@@ -24,6 +24,63 @@ const bucketColumns: ColumnConfig[] = [
   { id: "name", header: "Name", size: 200, enableColumnFilter: true, filterType: "text" },
   { id: "provider", header: "Provider", size: 100, enableColumnFilter: true, filterType: "select" },
 ];
+
+describe("filterHiddenNodes", () => {
+  test("removes dot-prefixed files when showHidden is false", () => {
+    const nodes = [
+      makeNode({ name: ".hidden" }),
+      makeNode({ name: "visible.csv" }),
+      makeNode({ name: ".env" }),
+    ];
+    const result = filterHiddenNodes(nodes, false);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("visible.csv");
+  });
+
+  test("keeps all nodes when showHidden is true", () => {
+    const nodes = [
+      makeNode({ name: ".hidden" }),
+      makeNode({ name: "visible.csv" }),
+      makeNode({ name: ".env" }),
+    ];
+    const result = filterHiddenNodes(nodes, true);
+    expect(result).toHaveLength(3);
+  });
+
+  test("returns empty array when all nodes are hidden and showHidden is false", () => {
+    const nodes = [
+      makeNode({ name: ".gitignore" }),
+      makeNode({ name: ".DS_Store" }),
+    ];
+    const result = filterHiddenNodes(nodes, false);
+    expect(result).toHaveLength(0);
+  });
+
+  test("returns all nodes when none are hidden and showHidden is false", () => {
+    const nodes = [
+      makeNode({ name: "readme.md" }),
+      makeNode({ name: "data.parquet" }),
+    ];
+    const result = filterHiddenNodes(nodes, false);
+    expect(result).toHaveLength(2);
+  });
+
+  test("handles empty node array", () => {
+    expect(filterHiddenNodes([], false)).toHaveLength(0);
+    expect(filterHiddenNodes([], true)).toHaveLength(0);
+  });
+
+  test("filters hidden directories the same as hidden files", () => {
+    const nodes = [
+      makeNode({ name: ".hidden-dir", type: "directory" }),
+      makeNode({ name: "visible-dir", type: "directory" }),
+      makeNode({ name: ".secret-file", type: "file" }),
+    ];
+    const result = filterHiddenNodes(nodes, false);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("visible-dir");
+  });
+});
 
 describe("filterNodes", () => {
   test("returns all nodes when no filters are active", () => {
