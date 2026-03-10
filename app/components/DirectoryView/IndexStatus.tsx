@@ -38,6 +38,12 @@ export function IndexStatus({ alias }: IndexStatusProps) {
           objectCount: parsed.data.objectCount,
           builtAt: parsed.data.builtAt,
         });
+      } else {
+        setConnectionIndex(alias, {
+          status: "error",
+          objectCount: 0,
+          builtAt: null,
+        });
       }
     }
   }, [fetcher.state, fetcher.data, alias, setConnectionIndex]);
