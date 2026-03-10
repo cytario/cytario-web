@@ -33,6 +33,7 @@ import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
+import { useRecentlyViewedStore } from "~/utils/recentlyViewedStore/useRecentlyViewedStore";
 import { createResourceId } from "~/utils/resourceId";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -237,6 +238,26 @@ export default function ObjectsRoute() {
       setConnection(alias, credentials, connectionConfig);
     }
   }, [alias, credentials, connectionConfig, setConnection]);
+
+  // Track recently viewed files
+  const { addItem } = useRecentlyViewedStore();
+  useEffect(() => {
+    if (url) {
+      addItem({
+        alias,
+        provider: connectionConfig.provider,
+        bucketName: connectionConfig.name,
+        pathName,
+        name,
+        type: "file",
+        children: [],
+        _Object: {
+          Key: pathName,
+          presignedUrl: url,
+        } as TreeNode["_Object"],
+      });
+    }
+  }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
