@@ -1,17 +1,22 @@
 import { z } from "zod";
 
-// Connection alias: 2-60 chars, lowercase alphanumeric + hyphens, no leading/trailing hyphens
+// Connection alias: 2-60 chars, alphanumeric + hyphens + spaces,
+// no leading/trailing hyphens or spaces, no consecutive hyphens or spaces
 export const aliasSchema = z
   .string()
   .min(2, "Alias must be at least 2 characters")
   .max(60, "Alias must be at most 60 characters")
   .regex(
-    /^[a-z0-9][a-z0-9-]*[a-z0-9]$/,
-    "Alias must be lowercase alphanumeric with hyphens, no leading/trailing hyphens",
+    /^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$/,
+    "Alias must be alphanumeric with hyphens or spaces, no leading/trailing hyphens or spaces",
   )
   .refine(
     (val) => !val.includes("--"),
     "Alias must not contain consecutive hyphens",
+  )
+  .refine(
+    (val) => !val.includes("  "),
+    "Alias must not contain consecutive spaces",
   );
 
 // AWS ARN pattern validation
@@ -39,12 +44,12 @@ export function suggestAlias(s3Uri: string): string {
     .split("/")
     .filter(Boolean)
     .pop();
-  const base = lastSegment ? `${bucketName}-${lastSegment}` : bucketName;
+  const base = lastSegment ? `${bucketName} ${lastSegment}` : bucketName;
   return base
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/[^a-zA-Z0-9 -]/g, " ")
+    .replace(/ +/g, " ")
     .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/^[- ]|[- ]$/g, "")
     .slice(0, 60);
 }
 
