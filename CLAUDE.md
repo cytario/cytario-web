@@ -198,6 +198,7 @@ import { cytarioConfig } from "~/config";
 ### Commit Messages
 - **Conventional Commits** enforced by commitlint: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, etc.
 - Commits are validated via Husky `commit-msg` hook
+- **Atomic commits** — each commit must be a single, self-contained logical change (one concern per commit). Never bundle unrelated changes into one commit. When implementing a feature or fix that touches multiple concerns, split into separate commits (e.g., schema change, route refactor, test additions).
 
 ### Pre-commit Checks
 - `npm run lint` — ESLint (must pass)
