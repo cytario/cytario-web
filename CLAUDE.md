@@ -212,6 +212,7 @@ import { cytarioConfig } from "~/config";
 ### Branching
 - `main` is the default and release branch
 - PRs target `main`, require passing CI
+- **Linear history** — always rebase feature branches onto `main` (or onto their base branch). Never merge `main` into a feature branch. Use `git rebase` to keep history clean and linear.
 
 ---
 
