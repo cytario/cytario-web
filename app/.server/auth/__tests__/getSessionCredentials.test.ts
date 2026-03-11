@@ -121,7 +121,7 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "bucket-a" }),
+      mock.connectionConfig({ bucketName: "bucket-a" }),
     ]);
 
     expect(result).toBe(validCredentials);
@@ -130,7 +130,7 @@ describe("getAllSessionCredentials", () => {
 
   test("fetches credentials for buckets with missing credentials", async () => {
     const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ name: "new-bucket" }),
+      mock.connectionConfig({ bucketName: "new-bucket" }),
     ]);
 
     expect(result).toEqual({ "new-bucket": mockCredentials });
@@ -148,7 +148,7 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "expired-bucket" }),
+      mock.connectionConfig({ bucketName: "expired-bucket" }),
     ]);
 
     expect(result).toEqual({ "expired-bucket": mockCredentials });
@@ -157,9 +157,9 @@ describe("getAllSessionCredentials", () => {
 
   test("deduplicates by bucket name (multiple prefix configs)", async () => {
     const configs = [
-      mock.connectionConfig({ name: "shared-bucket", prefix: "" }),
-      mock.connectionConfig({ name: "shared-bucket", prefix: "data/images" }),
-      mock.connectionConfig({ name: "shared-bucket", prefix: "data/tiles" }),
+      mock.connectionConfig({ bucketName: "shared-bucket", prefix: "" }),
+      mock.connectionConfig({ bucketName: "shared-bucket", prefix: "data/images" }),
+      mock.connectionConfig({ bucketName: "shared-bucket", prefix: "data/tiles" }),
     ];
 
     await getAllSessionCredentials(mockSessionData, configs);
@@ -170,8 +170,8 @@ describe("getAllSessionCredentials", () => {
 
   test("fetches multiple buckets in parallel", async () => {
     const configs = [
-      mock.connectionConfig({ name: "bucket-a" }),
-      mock.connectionConfig({ name: "bucket-b" }),
+      mock.connectionConfig({ bucketName: "bucket-a" }),
+      mock.connectionConfig({ bucketName: "bucket-b" }),
     ];
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
@@ -191,8 +191,8 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "existing-bucket" }),
-      mock.connectionConfig({ name: "new-bucket" }),
+      mock.connectionConfig({ bucketName: "existing-bucket" }),
+      mock.connectionConfig({ bucketName: "new-bucket" }),
     ]);
 
     expect(result["existing-bucket"]).toBe(existingCredentials);
@@ -207,8 +207,8 @@ describe("getAllSessionCredentials", () => {
       .mockRejectedValueOnce(new Error("STS service unavailable"));
 
     const configs = [
-      mock.connectionConfig({ name: "bucket-a" }),
-      mock.connectionConfig({ name: "bucket-b" }),
+      mock.connectionConfig({ bucketName: "bucket-a" }),
+      mock.connectionConfig({ bucketName: "bucket-b" }),
     ];
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
@@ -221,7 +221,7 @@ describe("getAllSessionCredentials", () => {
   test("calls STS with correct configuration", async () => {
     await getAllSessionCredentials(mockSessionData, [
       mock.connectionConfig({
-        name: "test-bucket",
+        bucketName: "test-bucket",
         roleArn: "arn:aws:iam::123456789012:role/test-role",
         region: "us-west-2",
       }),

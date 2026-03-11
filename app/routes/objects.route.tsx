@@ -104,7 +104,7 @@ export const loader = async ({
     throw new Error("Connection configuration not found");
   }
 
-  const { name: bucketName } = connectionConfig;
+  const { bucketName } = connectionConfig;
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
@@ -235,7 +235,7 @@ export default function ObjectsRoute() {
 
   const resourceId = createResourceId(
     connectionConfig.provider,
-    connectionConfig.name,
+    connectionConfig.bucketName,
     pathName,
   );
   const fileType = getFileType(resourceId);

@@ -12,7 +12,7 @@ import mock from "~/utils/__tests__/__mocks__";
 
 describe("useConnectionsStore", () => {
   const credentials = mock.credentials();
-  const connectionConfig = mock.connectionConfig({ alias: "test-conn" });
+  const connectionConfig = mock.connectionConfig({ name: "test-conn" });
 
   beforeEach(() => {
     useConnectionsStore.setState({ connections: {} });
@@ -133,7 +133,7 @@ describe("useConnectionsStore", () => {
         .setConnection(
           "conn-b",
           credentials,
-          mock.connectionConfig({ alias: "conn-b" }),
+          mock.connectionConfig({ name: "conn-b" }),
         );
 
       useConnectionsStore.getState().clearConnection("conn-a");
@@ -166,7 +166,7 @@ describe("useConnectionsStore", () => {
         .setConnection(
           "conn-b",
           credentials,
-          mock.connectionConfig({ alias: "conn-b" }),
+          mock.connectionConfig({ name: "conn-b" }),
         );
 
       useConnectionsStore.getState().clearAll();

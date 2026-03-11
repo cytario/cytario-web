@@ -31,7 +31,7 @@ export const action = async ({ params, context }: ActionFunctionArgs) => {
     });
   }
 
-  const { provider, name: bucketName, prefix } = connectionConfig;
+  const { provider, bucketName, prefix } = connectionConfig;
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) {

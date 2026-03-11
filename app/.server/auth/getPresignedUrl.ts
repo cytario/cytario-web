@@ -11,7 +11,7 @@ export const getPresignedUrl = async (
   s3Client: S3Client,
   key: string,
 ) => {
-  const command = new GetObjectCommand({ Bucket: connectionConfig.name, Key: key });
+  const command = new GetObjectCommand({ Bucket: connectionConfig.bucketName, Key: key });
 
   const url = await getSignedUrl(s3Client, command, {
     expiresIn: 60 * 60 * 1, // 1 hour

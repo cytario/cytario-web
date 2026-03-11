@@ -4,7 +4,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
 
 describe("probeIndex", () => {
   const credentials = mock.credentials();
-  const connectionConfig = mock.connectionConfig({ alias: "test-alias" });
+  const connectionConfig = mock.connectionConfig({ name: "test-alias" });
 
   beforeEach(() => {
     useConnectionsStore.setState({ connections: {} });

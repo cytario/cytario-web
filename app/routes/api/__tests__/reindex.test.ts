@@ -42,8 +42,8 @@ describe("reindex.$alias action", () => {
   const user = mock.user();
   const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
-    alias: "test-conn",
-    name: "test-bucket",
+    name: "test-conn",
+    bucketName: "test-bucket",
     provider: "aws",
     prefix: "data",
     ownerScope: "org1/lab",

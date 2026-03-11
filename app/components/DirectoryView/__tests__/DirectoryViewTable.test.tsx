@@ -10,7 +10,7 @@ vi.mock("~/utils/connectionsStore", () => ({
     const connections: Record<string, { connectionConfig: Record<string, unknown> }> = {
       "aws-my-aws-bucket": {
         connectionConfig: {
-          name: "my-aws-bucket",
+          bucketName: "my-aws-bucket",
           provider: "aws",
           endpoint: "",
           region: "eu-central-1",
@@ -21,7 +21,7 @@ vi.mock("~/utils/connectionsStore", () => ({
       },
       "minio-minio-bucket": {
         connectionConfig: {
-          name: "minio-bucket",
+          bucketName: "minio-bucket",
           provider: "minio",
           endpoint: "https://s3.cytar.io",
           region: null,

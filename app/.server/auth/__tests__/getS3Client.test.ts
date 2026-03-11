@@ -18,7 +18,7 @@ vi.mock("~/utils/s3Provider", () => ({
 
 describe("getS3Client", () => {
   const mockConnectionConfig = mock.connectionConfig({
-    name: "test-bucket",
+    bucketName: "test-bucket",
     region: "us-west-2",
     endpoint: "https://s3.us-west-2.amazonaws.com",
   });
@@ -60,7 +60,7 @@ describe("getS3Client", () => {
 
     test("uses default region when bucket config has no region", async () => {
       const configNoRegion = mock.connectionConfig({
-        name: "no-region-bucket",
+        bucketName: "no-region-bucket",
         region: null,
       });
 
@@ -147,8 +147,8 @@ describe("getS3Client", () => {
         SecretAccessKey: "bucket-secret",
       });
 
-      const bucket1 = mock.connectionConfig({ name: "bucket-1" });
-      const bucket2 = mock.connectionConfig({ name: "bucket-2" });
+      const bucket1 = mock.connectionConfig({ bucketName: "bucket-1" });
+      const bucket2 = mock.connectionConfig({ bucketName: "bucket-2" });
 
       await getS3Client(bucket1, creds, "bucket-user");
       const callCount1 = vi.mocked(S3Client).mock.calls.length;
@@ -192,7 +192,7 @@ describe("getS3Client", () => {
   describe("Non-AWS Endpoints", () => {
     test("sets endpoint for non-AWS S3 services", async () => {
       const minioConfig = mock.connectionConfig({
-        name: "minio-bucket",
+        bucketName: "minio-bucket",
         endpoint: "http://localhost:9000",
         region: "us-east-1",
       });
@@ -209,7 +209,7 @@ describe("getS3Client", () => {
 
     test("does not set endpoint for AWS S3", async () => {
       const awsConfig = mock.connectionConfig({
-        name: "aws-bucket",
+        bucketName: "aws-bucket",
         endpoint: "https://s3.us-west-2.amazonaws.com",
         region: "us-west-2",
       });

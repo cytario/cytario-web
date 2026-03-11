@@ -13,13 +13,13 @@ export async function getConnectionConfigs(
   return filterVisible(user, allConfigs);
 }
 
-// Get a connection config by its unique alias
+// Get a connection config by its unique name (alias in the URL)
 export async function getConnectionByAlias(
   user: UserProfile,
   alias: string,
 ): Promise<ConnectionConfig | null> {
   const config = await prisma.connectionConfig.findUnique({
-    where: { alias },
+    where: { name: alias },
   });
   if (!config) return null;
   return canSee(user, config.ownerScope) ? config : null;
@@ -30,8 +30,8 @@ export async function upsertConnectionConfig(
   ownerScope: string,
   createdBy: string,
   config: {
-    alias: string;
     name: string;
+    bucketName: string;
     provider: string;
     roleArn: string | null;
     region: string | null;
@@ -42,10 +42,10 @@ export async function upsertConnectionConfig(
   const prefix = config.prefix ?? "";
   return prisma.connectionConfig.upsert({
     where: {
-      ownerScope_provider_name_prefix: {
+      ownerScope_provider_bucketName_prefix: {
         ownerScope,
         provider: config.provider,
-        name: config.name,
+        bucketName: config.bucketName,
         prefix,
       },
     },
@@ -65,7 +65,7 @@ export async function deleteConnectionConfig(
   alias: string,
 ) {
   const config = await prisma.connectionConfig.findUnique({
-    where: { alias },
+    where: { name: alias },
   });
 
   if (!config || !canSee(user, config.ownerScope)) {

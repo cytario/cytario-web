@@ -21,7 +21,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Connection configuration not found", { status: 404 });
   }
 
-  const { name: bucketName } = connectionConfig;
+  const { bucketName } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
   const actualRegion = connectionConfig.region ?? "eu-central-1";

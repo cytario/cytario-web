@@ -82,14 +82,14 @@ export const getAllSessionCredentials = async (
   // Deduplicate: one STS call per unique bucket name
   const uniqueBuckets = new Map<string, ConnectionConfig>();
   for (const config of connectionConfigs) {
-    if (!uniqueBuckets.has(config.name)) {
-      uniqueBuckets.set(config.name, config);
+    if (!uniqueBuckets.has(config.bucketName)) {
+      uniqueBuckets.set(config.bucketName, config);
     }
   }
 
   // Filter to only buckets needing credential refresh
   const bucketsNeedingCredentials = Array.from(uniqueBuckets.entries()).filter(
-    ([name]) => !isValidCredentials(sessionData.credentials[name]),
+    ([bucketName]) => !isValidCredentials(sessionData.credentials[bucketName]),
   );
 
   if (bucketsNeedingCredentials.length === 0) {

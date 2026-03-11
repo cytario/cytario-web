@@ -27,8 +27,8 @@ describe("index-status.$alias loader", () => {
   const user = mock.user();
   const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
-    alias: "test-conn",
-    name: "test-bucket",
+    name: "test-conn",
+    bucketName: "test-bucket",
     prefix: "",
   });
 

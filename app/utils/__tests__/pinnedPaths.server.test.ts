@@ -39,11 +39,12 @@ describe("pinnedPaths.server", () => {
 
       expect(mockPrisma.pinnedPath.upsert).toHaveBeenCalledOnce();
       const call = mockPrisma.pinnedPath.upsert.mock.calls[0][0];
-      expect(call.where.userId_alias_pathName).toEqual({
+      expect(call.where.userId_connectionName_pathName).toEqual({
         userId: "user-1",
-        alias: "bucket-a",
+        connectionName: "bucket-a",
         pathName: "data/images/",
       });
+      expect(call.create.connectionName).toBe("bucket-a");
       expect(call.create.totalSize).toBe(BigInt(1024000));
       expect(call.create.lastModified).toBeInstanceOf(Date);
       expect(call.update.displayName).toBe("images");
@@ -73,7 +74,7 @@ describe("pinnedPaths.server", () => {
       await removePinnedPath("user-1", "bucket-a", "data/images/");
 
       expect(mockPrisma.pinnedPath.deleteMany).toHaveBeenCalledWith({
-        where: { userId: "user-1", alias: "bucket-a", pathName: "data/images/" },
+        where: { userId: "user-1", connectionName: "bucket-a", pathName: "data/images/" },
       });
     });
   });
@@ -84,7 +85,7 @@ describe("pinnedPaths.server", () => {
         {
           id: 3,
           userId: "user-1",
-          alias: "bucket-a",
+          connectionName: "bucket-a",
           pathName: "data/",
           displayName: "data",
           totalSize: BigInt(5000),
@@ -111,7 +112,7 @@ describe("pinnedPaths.server", () => {
 
       expect(result).toBe(true);
       expect(mockPrisma.pinnedPath.count).toHaveBeenCalledWith({
-        where: { userId: "user-1", alias: "bucket-a", pathName: "data/" },
+        where: { userId: "user-1", connectionName: "bucket-a", pathName: "data/" },
       });
     });
 

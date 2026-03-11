@@ -67,7 +67,7 @@ function findAlias(provider: string, bucketName: string): string | undefined {
   for (const [key, record] of Object.entries(connections)) {
     if (
       record.connectionConfig?.provider === provider &&
-      record.connectionConfig?.name === bucketName
+      record.connectionConfig?.bucketName === bucketName
     ) {
       return key; // key is the alias
     }

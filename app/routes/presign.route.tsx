@@ -26,7 +26,7 @@ export const loader = async ({
     throw new Error("Connection configuration not found");
   }
 
-  const { provider, name: bucketName } = connectionConfig;
+  const { provider, bucketName } = connectionConfig;
   console.info(`${label} Presign route: ${provider}/${bucketName}/${pathName}`);
 
   const credentials = bucketsCredentials[bucketName];

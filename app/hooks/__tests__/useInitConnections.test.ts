@@ -28,8 +28,8 @@ describe("useInitConnections", () => {
 
   test("calls setConnection for each config with matching credentials", () => {
     const configs: ConnectionConfig[] = [
-      mock.connectionConfig({ alias: "conn-1", name: "bucket-1" }),
-      mock.connectionConfig({ alias: "conn-2", name: "bucket-2" }),
+      mock.connectionConfig({ name: "conn-1", bucketName: "bucket-1" }),
+      mock.connectionConfig({ name: "conn-2", bucketName: "bucket-2" }),
     ];
 
     const creds1 = mock.credentials({ AccessKeyId: "key-1" });
@@ -49,8 +49,8 @@ describe("useInitConnections", () => {
 
   test("skips configs without matching credentials", () => {
     const configs: ConnectionConfig[] = [
-      mock.connectionConfig({ alias: "conn-1", name: "bucket-1" }),
-      mock.connectionConfig({ alias: "conn-2", name: "bucket-2" }),
+      mock.connectionConfig({ name: "conn-1", bucketName: "bucket-1" }),
+      mock.connectionConfig({ name: "conn-2", bucketName: "bucket-2" }),
     ];
 
     const credentials = {

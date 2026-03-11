@@ -35,7 +35,7 @@ describe("connectionConfig.server", () => {
 
   describe("getConnectionConfigs", () => {
     test("returns only visible configs", async () => {
-      const configs = [config, mock.connectionConfig({ alias: "other" })];
+      const configs = [config, mock.connectionConfig({ name: "other" })];
       vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue(configs);
       vi.mocked(filterVisible).mockReturnValue([config]);
 
@@ -55,7 +55,7 @@ describe("connectionConfig.server", () => {
       const result = await getConnectionByAlias(user, "aws-mock-bucket");
 
       expect(prisma.connectionConfig.findUnique).toHaveBeenCalledWith({
-        where: { alias: "aws-mock-bucket" },
+        where: { name: "aws-mock-bucket" },
       });
       expect(canSee).toHaveBeenCalledWith(user, config.ownerScope);
       expect(result).toEqual(config);
@@ -82,8 +82,8 @@ describe("connectionConfig.server", () => {
   describe("upsertConnectionConfig", () => {
     test("calls prisma.upsert with correct parameters", async () => {
       const newConfig = {
-        alias: "new-conn",
-        name: "my-bucket",
+        name: "new-conn",
+        bucketName: "my-bucket",
         provider: "aws",
         roleArn: "arn:aws:iam::123:role/test",
         region: "us-east-1",
@@ -99,10 +99,10 @@ describe("connectionConfig.server", () => {
 
       expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith({
         where: {
-          ownerScope_provider_name_prefix: {
+          ownerScope_provider_bucketName_prefix: {
             ownerScope: "org1/lab",
             provider: "aws",
-            name: "my-bucket",
+            bucketName: "my-bucket",
             prefix: "data/",
           },
         },
@@ -118,8 +118,8 @@ describe("connectionConfig.server", () => {
 
     test("defaults prefix to empty string when not provided", async () => {
       const newConfig = {
-        alias: "new-conn",
-        name: "my-bucket",
+        name: "new-conn",
+        bucketName: "my-bucket",
         provider: "aws",
         roleArn: null,
         region: null,
@@ -135,7 +135,7 @@ describe("connectionConfig.server", () => {
       expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            ownerScope_provider_name_prefix: expect.objectContaining({
+            ownerScope_provider_bucketName_prefix: expect.objectContaining({
               prefix: "",
             }),
           }),
