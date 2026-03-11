@@ -10,10 +10,10 @@ generator client {
 
 model ConnectionConfig {
   id         Int     @id @default(autoincrement())
-  name       String  @unique @map("alias")
+  name       String  @unique
   ownerScope String
   createdBy  String
-  bucketName String  @map("name")
+  bucketName String
   provider   String  // "aws" for AWS S3, "minio" for MinIO
   endpoint   String  // Required - AWS endpoint or custom (MinIO)
   roleArn    String? // Optional - only needed for AWS
@@ -23,7 +23,6 @@ model ConnectionConfig {
   recentlyViewed RecentlyViewed[] @relation("RecentlyViewedConnection")
   pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
 
-  @@map("BucketConfig")
   @@unique([ownerScope, provider, bucketName, prefix])
   @@index([ownerScope])
 }
@@ -31,7 +30,7 @@ model ConnectionConfig {
 model RecentlyViewed {
   id             Int      @id @default(autoincrement())
   userId         String
-  connectionName String   @map("alias")
+  connectionName String
   pathName       String
   name           String
   type           String   // "file" | "directory"
@@ -46,7 +45,7 @@ model RecentlyViewed {
 model PinnedPath {
   id             Int       @id @default(autoincrement())
   userId         String
-  connectionName String    @map("alias")
+  connectionName String
   pathName       String
   displayName    String
   totalSize      BigInt?
