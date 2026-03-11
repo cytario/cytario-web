@@ -19,7 +19,7 @@ const fetchPreviewObject = async (
   credentials: SessionCredentials,
   userId: string,
 ): Promise<ObjectPresignedUrl | undefined> => {
-  const creds = credentials[config.name];
+  const creds = credentials[config.bucketName];
   if (!creds) return undefined;
   const s3 = await getS3Client(config, creds, userId);
   const objects = await getObjects(
@@ -37,7 +37,7 @@ const fetchPreviewObject = async (
 
 export type SerializedRecentlyViewed = {
   id: number;
-  alias: string;
+  connectionName: string;
   pathName: string;
   name: string;
   type: string;
@@ -49,7 +49,7 @@ export type SerializedRecentlyViewed = {
 
 export type SerializedPinnedPath = {
   id: number;
-  alias: string;
+  connectionName: string;
   pathName: string;
   displayName: string;
   totalSize: number | null;
@@ -93,9 +93,9 @@ export async function loadConnectionNodes(
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
     return {
-      alias: config.alias,
-      bucketName: config.name,
-      name: config.alias,
+      alias: config.name,
+      bucketName: config.bucketName,
+      name: config.name,
       type: "bucket" as const,
       provider: config.provider,
       pathName: undefined,
@@ -105,13 +105,13 @@ export async function loadConnectionNodes(
   });
 
   const configByAlias = new Map<string, ConnectionConfig>();
-  for (const c of connectionConfigs) configByAlias.set(c.alias, c);
+  for (const c of connectionConfigs) configByAlias.set(c.name, c);
 
   const recentlyViewed: SerializedRecentlyViewed[] = await Promise.all(
     recentlyViewedRaw.map(async (item) => {
       const base: SerializedRecentlyViewed = {
         id: item.id,
-        alias: item.alias,
+        connectionName: item.connectionName,
         pathName: item.pathName,
         name: item.name,
         type: item.type,
@@ -120,9 +120,9 @@ export async function loadConnectionNodes(
 
       // Generate presigned URL for file items so previews work on the home page
       if (item.type !== "file") return base;
-      const config = configByAlias.get(item.alias);
+      const config = configByAlias.get(item.connectionName);
       if (!config) return base;
-      const creds = credentials[config.name];
+      const creds = credentials[config.bucketName];
       if (!creds) return base;
 
       try {
@@ -143,7 +143,7 @@ export async function loadConnectionNodes(
 
   const pinnedPaths: SerializedPinnedPath[] = pinnedPathsRaw.map((pin) => ({
     id: pin.id,
-    alias: pin.alias,
+    connectionName: pin.connectionName,
     pathName: pin.pathName,
     displayName: pin.displayName,
     totalSize: pin.totalSize != null ? Number(pin.totalSize) : null,

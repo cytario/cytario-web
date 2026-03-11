@@ -18,11 +18,11 @@ export function useInitConnections(
 
   useEffect(() => {
     for (const config of connectionConfigs) {
-      const creds = credentials[config.name];
+      const creds = credentials[config.bucketName];
       if (!creds) continue;
 
-      setConnection(config.alias, creds, config);
-      probeIndex(config.alias);
+      setConnection(config.name, creds, config);
+      probeIndex(config.name);
     }
   }, [credentials, connectionConfigs, setConnection]);
 }

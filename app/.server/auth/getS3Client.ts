@@ -46,7 +46,7 @@ export const getS3Client = async (
   credentials: Credentials,
   userId: string
 ): Promise<S3Client> => {
-  const { name: bucketName, region, endpoint } = connectionConfig;
+  const { bucketName, region, endpoint } = connectionConfig;
   const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
 
   if (!AccessKeyId || !SecretAccessKey) throw Error("No Credentials");

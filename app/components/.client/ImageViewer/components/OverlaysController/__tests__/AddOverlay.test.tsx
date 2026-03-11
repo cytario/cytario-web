@@ -31,7 +31,7 @@ vi.mock("~/utils/connectionsStore", () => ({
       connections: {
         "aws-test-bucket": {
           credentials: { accessKeyId: "key", secretAccessKey: "secret" },
-          connectionConfig: { name: "test-bucket", provider: "aws" },
+          connectionConfig: { bucketName: "test-bucket", provider: "aws" },
         },
       },
     })),

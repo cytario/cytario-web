@@ -49,8 +49,8 @@ describe("POST /api/recently-viewed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnectionByAlias.mockResolvedValue({
-      alias: "my-bucket",
       name: "my-bucket",
+      bucketName: "my-bucket",
       provider: "minio",
     });
   });

@@ -99,7 +99,7 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
       const conn = Object.values(connections).find(
         (r) =>
           r.connectionConfig?.provider === originalNode.provider &&
-          r.connectionConfig?.name === originalNode.bucketName,
+          r.connectionConfig?.bucketName === originalNode.bucketName,
       );
       const credentials = conn?.credentials;
       const connectionConfig = conn?.connectionConfig;

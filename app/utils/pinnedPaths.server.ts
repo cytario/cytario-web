@@ -16,9 +16,9 @@ export async function addPinnedPath(
 ): Promise<void> {
   await prisma.pinnedPath.upsert({
     where: {
-      userId_alias_pathName: {
+      userId_connectionName_pathName: {
         userId,
-        alias: pin.alias,
+        connectionName: pin.alias,
         pathName: pin.pathName,
       },
     },
@@ -29,7 +29,7 @@ export async function addPinnedPath(
     },
     create: {
       userId,
-      alias: pin.alias,
+      connectionName: pin.alias,
       pathName: pin.pathName,
       displayName: pin.displayName,
       totalSize: pin.totalSize != null ? BigInt(pin.totalSize) : null,
@@ -38,13 +38,13 @@ export async function addPinnedPath(
   });
 }
 
-/** Remove a pinned path for a user by alias and path. */
+/** Remove a pinned path for a user by connection name and path. */
 export async function removePinnedPath(
   userId: string,
-  alias: string,
+  connectionName: string,
   pathName: string,
 ): Promise<void> {
-  await prisma.pinnedPath.deleteMany({ where: { userId, alias, pathName } });
+  await prisma.pinnedPath.deleteMany({ where: { userId, connectionName, pathName } });
 }
 
 /** Get all pinned paths for a user, ordered newest-first. */
@@ -58,11 +58,11 @@ export async function getPinnedPaths(userId: string): Promise<PinnedPath[]> {
 /** Check if a specific path is pinned for a user. */
 export async function checkIsPinnedPath(
   userId: string,
-  alias: string,
+  connectionName: string,
   pathName: string,
 ): Promise<boolean> {
   const count = await prisma.pinnedPath.count({
-    where: { userId, alias, pathName },
+    where: { userId, connectionName, pathName },
   });
   return count > 0;
 }

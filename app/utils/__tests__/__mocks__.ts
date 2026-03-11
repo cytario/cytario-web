@@ -16,9 +16,9 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 const mock = {
   connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
-    name: "mock-bucket",
+    bucketName: "mock-bucket",
     id: 0,
-    alias: "aws-mock-bucket",
+    name: "aws-mock-bucket",
     ownerScope: "org1/lab",
     createdBy: "mock-user-id",
     provider: "aws",

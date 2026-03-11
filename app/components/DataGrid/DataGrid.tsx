@@ -39,7 +39,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     Object.values(state.connections).find(
       (r) =>
         r.connectionConfig?.provider === provider &&
-        r.connectionConfig?.name === bucketName,
+        r.connectionConfig?.bucketName === bucketName,
     ),
   );
 

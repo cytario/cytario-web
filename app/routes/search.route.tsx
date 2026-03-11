@@ -46,9 +46,9 @@ export const loader = async ({
   const results: ConfigFiles[] = [];
 
   for (const connectionConfig of connectionConfigs) {
-    const credentials = bucketsCredentials[connectionConfig.name];
+    const credentials = bucketsCredentials[connectionConfig.bucketName];
     if (!credentials) {
-      console.warn(`No credentials for bucket: ${connectionConfig.name}`);
+      console.warn(`No credentials for bucket: ${connectionConfig.bucketName}`);
       continue;
     }
 
@@ -66,16 +66,16 @@ export const loader = async ({
   }
 
   const nodes: TreeNode[] = results.map(({ config, files }) => ({
-    alias: config.alias,
-    bucketName: config.name,
-    name: config.alias,
+    alias: config.name,
+    bucketName: config.bucketName,
+    name: config.name,
     type: "bucket" as const,
     provider: config.provider,
     children: buildDirectoryTree(
-      config.name,
+      config.bucketName,
       files as ObjectPresignedUrl[],
       config.provider,
-      config.alias,
+      config.name,
       "",
     ),
   }));

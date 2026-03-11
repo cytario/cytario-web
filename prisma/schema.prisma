@@ -10,11 +10,11 @@ generator client {
 
 model ConnectionConfig {
   id         Int     @id @default(autoincrement())
-  alias      String  @unique
+  name       String  @unique @map("alias")
   ownerScope String
   createdBy  String
-  name       String
-  provider   String  // "aws" for AWS S3, user-defined for others (e.g., "minio")
+  bucketName String  @map("name")
+  provider   String  // "aws" for AWS S3, "minio" for MinIO
   endpoint   String  // Required - AWS endpoint or custom (MinIO)
   roleArn    String? // Optional - only needed for AWS
   region     String? // Optional - only needed for AWS
@@ -24,36 +24,36 @@ model ConnectionConfig {
   pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
 
   @@map("BucketConfig")
-  @@unique([ownerScope, provider, name, prefix])
+  @@unique([ownerScope, provider, bucketName, prefix])
   @@index([ownerScope])
 }
 
 model RecentlyViewed {
-  id       Int      @id @default(autoincrement())
-  userId   String
-  alias    String
-  pathName String
-  name     String
-  type     String   // "file" | "directory"
-  viewedAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  userId         String
+  connectionName String   @map("alias")
+  pathName       String
+  name           String
+  type           String   // "file" | "directory"
+  viewedAt       DateTime @default(now())
 
-  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [alias], references: [alias], onDelete: Cascade)
+  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionName], references: [name], onDelete: Cascade)
 
-  @@unique([userId, alias, pathName])
+  @@unique([userId, connectionName, pathName])
   @@index([userId])
 }
 
 model PinnedPath {
-  id           Int       @id @default(autoincrement())
-  userId       String
-  alias        String
-  pathName     String
-  displayName  String
-  totalSize    BigInt?
-  lastModified DateTime?
+  id             Int       @id @default(autoincrement())
+  userId         String
+  connectionName String    @map("alias")
+  pathName       String
+  displayName    String
+  totalSize      BigInt?
+  lastModified   DateTime?
 
-  connection ConnectionConfig @relation("PinnedPathConnection", fields: [alias], references: [alias], onDelete: Cascade)
+  connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionName], references: [name], onDelete: Cascade)
 
-  @@unique([userId, alias, pathName])
+  @@unique([userId, connectionName, pathName])
   @@index([userId])
 }

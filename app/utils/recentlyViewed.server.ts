@@ -10,14 +10,20 @@ export async function upsertRecentlyViewed(
 ): Promise<void> {
   await prisma.recentlyViewed.upsert({
     where: {
-      userId_alias_pathName: {
+      userId_connectionName_pathName: {
         userId,
-        alias: item.alias,
+        connectionName: item.alias,
         pathName: item.pathName,
       },
     },
     update: { name: item.name, type: item.type, viewedAt: new Date() },
-    create: { userId, ...item },
+    create: {
+      userId,
+      connectionName: item.alias,
+      pathName: item.pathName,
+      name: item.name,
+      type: item.type,
+    },
   });
 }
 
@@ -38,11 +44,11 @@ export async function clearAllRecentlyViewed(userId: string): Promise<void> {
   await prisma.recentlyViewed.deleteMany({ where: { userId } });
 }
 
-/** Delete a specific recently viewed item by user, alias, and path. */
+/** Delete a specific recently viewed item by user, connection name, and path. */
 export async function removeRecentlyViewed(
   userId: string,
-  alias: string,
+  connectionName: string,
   pathName: string,
 ): Promise<void> {
-  await prisma.recentlyViewed.deleteMany({ where: { userId, alias, pathName } });
+  await prisma.recentlyViewed.deleteMany({ where: { userId, connectionName, pathName } });
 }

@@ -22,7 +22,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     return new Response("Connection configuration not found", { status: 404 });
   }
 
-  const { name: bucketName, prefix } = connectionConfig;
+  const { bucketName, prefix } = connectionConfig;
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) {

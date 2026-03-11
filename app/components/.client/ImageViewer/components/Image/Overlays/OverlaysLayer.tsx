@@ -77,7 +77,7 @@ export const OverlaysLayer = ({
       const conn = Object.values(connections).find(
         (r) =>
           r.connectionConfig?.provider === provider &&
-          r.connectionConfig?.name === bucketName,
+          r.connectionConfig?.bucketName === bucketName,
       );
       const credentials = conn?.credentials;
       const connectionConfig = conn?.connectionConfig;

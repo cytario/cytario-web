@@ -37,16 +37,16 @@ describe("recentlyViewed.server", () => {
 
       expect(mockPrisma.recentlyViewed.upsert).toHaveBeenCalledOnce();
       const call = mockPrisma.recentlyViewed.upsert.mock.calls[0][0];
-      expect(call.where.userId_alias_pathName).toEqual({
+      expect(call.where.userId_connectionName_pathName).toEqual({
         userId: "user-1",
-        alias: "my-bucket",
+        connectionName: "my-bucket",
         pathName: "data/image.ome.tiff",
       });
       expect(call.update.name).toBe("image.ome.tiff");
       expect(call.update.type).toBe("file");
       expect(call.update.viewedAt).toBeInstanceOf(Date);
       expect(call.create.userId).toBe("user-1");
-      expect(call.create.alias).toBe("my-bucket");
+      expect(call.create.connectionName).toBe("my-bucket");
       expect(call.create.pathName).toBe("data/image.ome.tiff");
     });
   });
@@ -57,7 +57,7 @@ describe("recentlyViewed.server", () => {
         {
           id: 2,
           userId: "user-1",
-          alias: "bucket-a",
+          connectionName: "bucket-a",
           pathName: "b.tiff",
           name: "b.tiff",
           type: "file",
@@ -108,7 +108,7 @@ describe("recentlyViewed.server", () => {
       await removeRecentlyViewed("user-1", "my-bucket", "data/file.csv");
 
       expect(mockPrisma.recentlyViewed.deleteMany).toHaveBeenCalledWith({
-        where: { userId: "user-1", alias: "my-bucket", pathName: "data/file.csv" },
+        where: { userId: "user-1", connectionName: "my-bucket", pathName: "data/file.csv" },
       });
     });
   });

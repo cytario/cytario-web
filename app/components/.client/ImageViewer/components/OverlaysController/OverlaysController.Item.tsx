@@ -61,14 +61,14 @@ export const OverlaysControllerItem = ({
     for (const record of Object.values(state.connections)) {
       if (
         record.connectionConfig?.provider === provider &&
-        record.connectionConfig?.name === bucketName
+        record.connectionConfig?.bucketName === bucketName
       ) {
         return record;
       }
     }
     return undefined;
   });
-  const connectionAlias = connection?.connectionConfig?.alias;
+  const connectionAlias = connection?.connectionConfig?.name;
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {

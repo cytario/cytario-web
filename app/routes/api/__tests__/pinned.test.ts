@@ -54,8 +54,8 @@ describe("POST /api/pinned", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnectionByAlias.mockResolvedValue({
-      alias: "my-bucket",
       name: "my-bucket",
+      bucketName: "my-bucket",
       provider: "minio",
     });
   });
@@ -164,8 +164,8 @@ describe("DELETE /api/pinned", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnectionByAlias.mockResolvedValue({
-      alias: "my-bucket",
       name: "my-bucket",
+      bucketName: "my-bucket",
       provider: "minio",
     });
   });

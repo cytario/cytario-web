@@ -11,7 +11,7 @@ export const getObjects = async (
   maxKeys?: number,
 ): Promise<_Object[]> => {
   const listObjectsCommand = new ListObjectsV2Command({
-    Bucket: connectionConfig.name,
+    Bucket: connectionConfig.bucketName,
     Prefix: prefix,
     ...(maxKeys ? { MaxKeys: maxKeys } : {}),
   });

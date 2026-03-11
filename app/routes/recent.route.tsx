@@ -55,7 +55,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     connectionConfigs,
     recentlyViewed: raw.map((item) => ({
       id: item.id,
-      alias: item.alias,
+      connectionName: item.connectionName,
       pathName: item.pathName,
       name: item.name,
       type: item.type,
@@ -75,20 +75,20 @@ export default function RecentRoute() {
 
   const configByAlias = useMemo(() => {
     const map = new Map<string, (typeof connectionConfigs)[number]>();
-    for (const c of connectionConfigs) map.set(c.alias, c);
+    for (const c of connectionConfigs) map.set(c.name, c);
     return map;
   }, [connectionConfigs]);
 
   const allItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed
-        .filter((item) => configByAlias.has(item.alias))
+        .filter((item) => configByAlias.has(item.connectionName))
         .map((item) => {
-          const config = configByAlias.get(item.alias)!;
+          const config = configByAlias.get(item.connectionName)!;
           return {
-            alias: item.alias,
+            alias: item.connectionName,
             provider: config.provider,
-            bucketName: config.name,
+            bucketName: config.bucketName,
             pathName: item.pathName,
             name: item.name,
             type: item.type as TreeNode["type"],
