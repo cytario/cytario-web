@@ -100,7 +100,7 @@ export default function HomeRoute() {
 
   useInitConnections(connectionConfigs, credentials);
 
-  const configByAlias = useMemo(() => {
+  const configByName = useMemo(() => {
     const map = new Map<string, (typeof connectionConfigs)[number]>();
     for (const c of connectionConfigs) map.set(c.name, c);
     return map;
@@ -109,9 +109,9 @@ export default function HomeRoute() {
   const allRecentItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed
-        .filter((item: SerializedRecentlyViewed) => configByAlias.has(item.connectionName))
+        .filter((item: SerializedRecentlyViewed) => configByName.has(item.connectionName))
         .map((item: SerializedRecentlyViewed) => {
-          const config = configByAlias.get(item.connectionName)!;
+          const config = configByName.get(item.connectionName)!;
           return {
             connectionName: item.connectionName,
             provider: config.provider,
@@ -129,7 +129,7 @@ export default function HomeRoute() {
                 : undefined,
           };
         }),
-    [recentlyViewed, configByAlias],
+    [recentlyViewed, configByName],
   );
 
   const { recentImages, recentDirs, recentFiles } = useMemo(() => {
@@ -147,9 +147,9 @@ export default function HomeRoute() {
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
       pinnedPaths
-        .filter((pin: SerializedPinnedPath) => configByAlias.has(pin.connectionName))
+        .filter((pin: SerializedPinnedPath) => configByName.has(pin.connectionName))
         .map((pin: SerializedPinnedPath) => {
-          const config = configByAlias.get(pin.connectionName)!;
+          const config = configByName.get(pin.connectionName)!;
           return {
             connectionName: pin.connectionName,
             provider: config.provider,
@@ -169,7 +169,7 @@ export default function HomeRoute() {
                 : undefined,
           };
         }),
-    [pinnedPaths, configByAlias],
+    [pinnedPaths, configByName],
   );
 
   return (

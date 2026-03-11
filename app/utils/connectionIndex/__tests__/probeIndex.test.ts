@@ -4,7 +4,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
 
 describe("probeIndex", () => {
   const credentials = mock.credentials();
-  const connectionConfig = mock.connectionConfig({ name: "test-alias" });
+  const connectionConfig = mock.connectionConfig({ name: "test-connection" });
 
   beforeEach(() => {
     useConnectionsStore.setState({ connections: {} });
@@ -26,12 +26,12 @@ describe("probeIndex", () => {
     // Set initial connection so setConnectionIndex has a valid target
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     const state = useConnectionsStore.getState();
-    const index = state.connections["test-alias"]?.connectionIndex;
+    const index = state.connections["test-connection"]?.connectionIndex;
 
     expect(index?.status).toBe("ready");
     expect(index?.objectCount).toBe(100);
@@ -46,12 +46,12 @@ describe("probeIndex", () => {
     // Connection must exist for setConnectionIndex to work
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     const state = useConnectionsStore.getState();
-    const index = state.connections["test-alias"]?.connectionIndex;
+    const index = state.connections["test-connection"]?.connectionIndex;
 
     expect(index?.status).toBe("missing");
     expect(index?.objectCount).toBe(0);
@@ -64,12 +64,12 @@ describe("probeIndex", () => {
 
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     const state = useConnectionsStore.getState();
-    const index = state.connections["test-alias"]?.connectionIndex;
+    const index = state.connections["test-connection"]?.connectionIndex;
 
     expect(index?.status).toBe("error");
   });
@@ -81,12 +81,12 @@ describe("probeIndex", () => {
 
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     const state = useConnectionsStore.getState();
-    const index = state.connections["test-alias"]?.connectionIndex;
+    const index = state.connections["test-connection"]?.connectionIndex;
 
     expect(index?.status).toBe("error");
   });
@@ -96,15 +96,15 @@ describe("probeIndex", () => {
 
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    useConnectionsStore.getState().setConnectionIndex("test-alias", {
+    useConnectionsStore.getState().setConnectionIndex("test-connection", {
       status: "ready",
       objectCount: 50,
       builtAt: "2025-01-01T00:00:00Z",
     });
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -114,15 +114,15 @@ describe("probeIndex", () => {
 
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    useConnectionsStore.getState().setConnectionIndex("test-alias", {
+    useConnectionsStore.getState().setConnectionIndex("test-connection", {
       status: "loading",
       objectCount: 0,
       builtAt: null,
     });
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -137,18 +137,18 @@ describe("probeIndex", () => {
 
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    useConnectionsStore.getState().setConnectionIndex("test-alias", {
+    useConnectionsStore.getState().setConnectionIndex("test-connection", {
       status: "error",
       objectCount: 0,
       builtAt: null,
     });
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     const state = useConnectionsStore.getState();
-    const index = state.connections["test-alias"]?.connectionIndex;
+    const index = state.connections["test-connection"]?.connectionIndex;
 
     expect(index?.status).toBe("ready");
     expect(index?.objectCount).toBe(10);
@@ -164,18 +164,18 @@ describe("probeIndex", () => {
 
     useConnectionsStore
       .getState()
-      .setConnection("test-alias", credentials, connectionConfig);
+      .setConnection("test-connection", credentials, connectionConfig);
 
-    useConnectionsStore.getState().setConnectionIndex("test-alias", {
+    useConnectionsStore.getState().setConnectionIndex("test-connection", {
       status: "missing",
       objectCount: 0,
       builtAt: null,
     });
 
-    await probeIndex("test-alias");
+    await probeIndex("test-connection");
 
     const state = useConnectionsStore.getState();
-    const index = state.connections["test-alias"]?.connectionIndex;
+    const index = state.connections["test-connection"]?.connectionIndex;
 
     expect(index?.status).toBe("ready");
   });
@@ -193,9 +193,9 @@ describe("probeIndex", () => {
     );
 
     // Do NOT set a connection -- probeIndex should not create a ghost entry
-    await probeIndex("nonexistent-alias");
+    await probeIndex("nonexistent-connection");
 
     const state = useConnectionsStore.getState();
-    expect(state.connections["nonexistent-alias"]).toBeUndefined();
+    expect(state.connections["nonexistent-connection"]).toBeUndefined();
   });
 });

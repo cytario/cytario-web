@@ -101,7 +101,7 @@ describe("DirectoryViewTable", () => {
   describe("file type nodes", () => {
     const mockFileNodes: TreeNode[] = [
       {
-        connectionName: "test-alias",
+        connectionName: "test-connection",
         type: "file",
         name: "data.parquet",
         bucketName: "test-bucket",
@@ -116,7 +116,7 @@ describe("DirectoryViewTable", () => {
         },
       },
       {
-        connectionName: "test-alias",
+        connectionName: "test-connection",
         type: "file",
         name: "results.csv",
         bucketName: "test-bucket",
@@ -168,7 +168,7 @@ describe("DirectoryViewTable", () => {
   describe("directory type nodes", () => {
     const mockDirNodes: TreeNode[] = [
       {
-        connectionName: "test-alias",
+        connectionName: "test-connection",
         type: "directory",
         name: "images",
         bucketName: "test-bucket",
@@ -177,7 +177,7 @@ describe("DirectoryViewTable", () => {
         children: [],
       },
       {
-        connectionName: "test-alias",
+        connectionName: "test-connection",
         type: "directory",
         name: "data",
         bucketName: "test-bucket",

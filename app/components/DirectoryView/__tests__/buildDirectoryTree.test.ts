@@ -23,7 +23,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
     ],
     [
       {
-        connectionName: "test-alias",
+        connectionName: "test-connection",
         type: "directory",
         name: "folder1",
         bucketName: "test-bucket",
@@ -31,7 +31,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         provider: "test-provider",
         children: [
           {
-            connectionName: "test-alias",
+            connectionName: "test-connection",
             type: "file",
             name: "file1.txt",
             pathName: "folder1/file1.txt",
@@ -44,7 +44,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             },
           },
           {
-            connectionName: "test-alias",
+            connectionName: "test-connection",
             type: "file",
             name: "file2.txt",
             bucketName: "test-bucket",
@@ -63,7 +63,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         },
       },
       {
-        connectionName: "test-alias",
+        connectionName: "test-connection",
         type: "directory",
         name: "folder2",
         bucketName: "test-bucket",
@@ -71,7 +71,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
         provider: "test-provider",
         children: [
           {
-            connectionName: "test-alias",
+            connectionName: "test-connection",
             type: "file",
             name: "file3.txt",
             bucketName: "test-bucket",
@@ -84,7 +84,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             },
           },
           {
-            connectionName: "test-alias",
+            connectionName: "test-connection",
             type: "directory",
             name: "subfolder1",
             pathName: "folder2/subfolder1/",
@@ -92,7 +92,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             provider: "test-provider",
             children: [
               {
-                connectionName: "test-alias",
+                connectionName: "test-connection",
                 type: "file",
                 name: "file4.txt",
                 bucketName: "test-bucket",
@@ -161,7 +161,7 @@ describe("buildDirectoryTree", () => {
   test.each(testCases)(
     "should correctly build a directory tree from a flat list of objects",
     (objects, expectedTree) => {
-      const tree = buildDirectoryTree("test-bucket", objects, "test-provider", "test-alias");
+      const tree = buildDirectoryTree("test-bucket", objects, "test-provider", "test-connection");
       expect(tree).toEqual(expectedTree);
     }
   );
@@ -174,12 +174,12 @@ describe("buildDirectoryTree", () => {
     // Simulate navigating into "subdir/" within a connection:
     // S3 prefix "subdir/" is stripped, but urlPath "subdir" anchors paths to connection root
     const tree = buildDirectoryTree(
-      "my-bucket", objects, "aws", "my-alias", "subdir/", "subdir",
+      "my-bucket", objects, "aws", "my-connection", "subdir/", "subdir",
     );
 
     expect(tree).toEqual([
       {
-        connectionName: "my-alias",
+        connectionName: "my-connection",
         type: "file",
         name: "file.tif",
         pathName: "subdir/file.tif",
@@ -197,7 +197,7 @@ describe("buildDirectoryTree", () => {
       { Key: "czi/ULT-2022-16901-457_V1.czi", presignedUrl: "https://example.com/file.czi" },
     ];
 
-    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-alias");
+    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-connection");
 
     // The "czi/" folder marker should only create the directory,
     // not a phantom empty-name file child.
@@ -216,7 +216,7 @@ describe("buildDirectoryTree", () => {
       { Key: "a/b/file.txt", presignedUrl: "https://example.com/file.txt" },
     ];
 
-    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-alias");
+    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-connection");
 
     expect(tree).toHaveLength(1);
     expect(tree[0].name).toBe("a");
@@ -233,7 +233,7 @@ describe("buildDirectoryTree", () => {
 
     // At connection root (no urlPath), paths are relative to root
     const tree = buildDirectoryTree(
-      "my-bucket", objects, "aws", "my-alias",
+      "my-bucket", objects, "aws", "my-connection",
     );
 
     expect(tree[0].pathName).toBe("subdir/");

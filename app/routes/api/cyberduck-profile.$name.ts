@@ -10,13 +10,13 @@ export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
-  const { alias } = params;
+  const { name: connectionName } = params;
 
-  if (!alias) {
-    return new Response("Connection alias is required", { status: 400 });
+  if (!connectionName) {
+    return new Response("Connection name is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnectionByName(user, alias);
+  const connectionConfig = await getConnectionByName(user, connectionName);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }
