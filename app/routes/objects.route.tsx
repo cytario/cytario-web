@@ -73,7 +73,8 @@ export const handle = {
 
 export interface BucketRouteLoaderResponse {
   connectionName: string;
-  nodes: TreeNode[];
+  /** Root tree node for the current directory (children are the listing). */
+  root: TreeNode;
   bucketName: string;
   /** URL path segment after /connections/:name/ (relative to connection root) */
   urlPath: string;
@@ -139,11 +140,12 @@ export const loader = async ({
         })),
       );
 
-      const nodes = buildDirectoryTree(
+      const root = buildDirectoryTree(
         bucketName,
         objectsWithUrls,
         connectionConfig.provider,
         connectionName,
+        name,
         prefix,
         urlPath,
       );
@@ -153,7 +155,7 @@ export const loader = async ({
         credentials,
         connectionConfig,
         name,
-        nodes,
+        root,
         bucketName,
         urlPath,
         pathName,
@@ -170,12 +172,22 @@ export const loader = async ({
         : undefined,
     ]);
 
+    const emptyRoot: TreeNode = {
+      connectionName,
+      provider: connectionConfig.provider,
+      bucketName,
+      name,
+      type: "directory",
+      pathName: urlPath || undefined,
+      children: [],
+    };
+
     return {
       connectionName,
       credentials,
       connectionConfig,
       name,
-      nodes: [],
+      root: emptyRoot,
       bucketName,
       urlPath,
       pathName,
@@ -185,12 +197,23 @@ export const loader = async ({
     };
   } catch (error) {
     console.error("Error in objects loader:", error);
+
+    const emptyRoot: TreeNode = {
+      connectionName,
+      provider: connectionConfig.provider,
+      bucketName,
+      name,
+      type: "directory",
+      pathName: urlPath || undefined,
+      children: [],
+    };
+
     return {
       connectionName,
       credentials,
       connectionConfig,
       name,
-      nodes: [],
+      root: emptyRoot,
       bucketName,
       urlPath,
       pathName,
@@ -210,7 +233,7 @@ export default function ObjectsRoute() {
     name,
     url,
     offsetsUrl,
-    nodes,
+    root,
     urlPath,
     pathName,
     credentials,
@@ -277,14 +300,8 @@ export default function ObjectsRoute() {
         { method: "delete", action: "/api/pinned" },
       );
     } else {
-      const totalSize = nodes.reduce(
-        (sum, node) => sum + computeDirectorySize(node),
-        0,
-      );
-      const lastModified = nodes.reduce(
-        (max, node) => Math.max(max, computeDirectoryLastModified(node)),
-        0,
-      );
+      const totalSize = computeDirectorySize(root);
+      const lastModified = computeDirectoryLastModified(root);
       pinFetcher.submit(
         {
           connectionName,
@@ -296,18 +313,15 @@ export default function ObjectsRoute() {
         { method: "post", action: "/api/pinned" },
       );
     }
-  }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);
+  }, [connectionName, urlPath, isPinned, root, pinFetcher]);
 
-  // Show directory view when there are multiple objects
-  if (nodes.length > 0) {
+  // Show directory view when there are objects
+  if (root.children?.length) {
     return (
       <DirectoryView
         viewMode={viewMode}
-        name={name}
         showFilters
-        nodes={nodes}
-        connectionName={connectionName}
-        urlPath={urlPath}
+        root={root}
         secondaryActions={<ViewModeToggle />}
       >
         <Button

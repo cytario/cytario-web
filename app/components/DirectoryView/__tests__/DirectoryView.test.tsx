@@ -10,10 +10,20 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(),
 }));
 
+function makeRoot(name: string, children: TreeNode[]): TreeNode {
+  return {
+    connectionName: "",
+    provider: "",
+    bucketName: "",
+    name,
+    type: "directory",
+    children,
+  };
+}
+
 function renderDirectoryView(
   props: Partial<React.ComponentProps<typeof DirectoryView>> & {
-    nodes: TreeNode[];
-    name: string;
+    root: TreeNode;
     viewMode: React.ComponentProps<typeof DirectoryView>["viewMode"];
   },
 ) {
@@ -39,8 +49,7 @@ describe("DirectoryView Component", () => {
   test("renders the component with the correct name", () => {
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
     });
 
     expect(screen.getByText("Test Directory")).toBeInTheDocument();
@@ -49,8 +58,7 @@ describe("DirectoryView Component", () => {
   test("renders empty state when there are no nodes", () => {
     renderDirectoryView({
       viewMode: "list",
-      nodes: [],
-      name: "Empty Directory",
+      root: makeRoot("Empty Directory", []),
     });
 
     expect(screen.queryByText("Empty Directory")).not.toBeInTheDocument();
@@ -65,8 +73,7 @@ describe("DirectoryView Component", () => {
   test("renders the DirectoryTable in list mode", () => {
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
     });
 
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
@@ -76,8 +83,7 @@ describe("DirectoryView Component", () => {
   test("renders the DirectoryViewGrid in grid-compact mode", () => {
     renderDirectoryView({
       viewMode: "grid-compact",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
     });
 
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
@@ -87,8 +93,7 @@ describe("DirectoryView Component", () => {
   test("renders the DirectoryViewGrid in grid mode", () => {
     renderDirectoryView({
       viewMode: "grid",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
     });
 
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
@@ -98,8 +103,7 @@ describe("DirectoryView Component", () => {
   test("renders the DirectoryViewTree in tree mode", () => {
     renderDirectoryView({
       viewMode: "tree",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
     });
 
     expect(
@@ -110,8 +114,7 @@ describe("DirectoryView Component", () => {
   test("renders inline filter controls when showFilters is true", () => {
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       showFilters: true,
     });
 
@@ -124,8 +127,7 @@ describe("DirectoryView Component", () => {
   test("does not render inline filter controls when showFilters is false", () => {
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       showFilters: false,
     });
 
@@ -141,8 +143,7 @@ describe("DirectoryView Component", () => {
 
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       showFilters: true,
     });
 
@@ -159,8 +160,7 @@ describe("DirectoryView Component", () => {
 
     renderDirectoryView({
       viewMode: "grid-compact",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       showFilters: true,
     });
 
@@ -177,8 +177,7 @@ describe("DirectoryView Component", () => {
 
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       showFilters: true,
     });
 
@@ -196,8 +195,7 @@ describe("DirectoryView Component", () => {
 
     renderDirectoryView({
       viewMode: "grid",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       showFilters: true,
     });
 
@@ -217,8 +215,7 @@ describe("DirectoryView Component", () => {
 
     renderDirectoryView({
       viewMode: "list",
-      nodes: nodesWithHidden,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", nodesWithHidden),
     });
 
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
@@ -235,8 +232,7 @@ describe("DirectoryView Component", () => {
 
     renderDirectoryView({
       viewMode: "list",
-      nodes: nodesWithHidden,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", nodesWithHidden),
     });
 
     expect(screen.getByText(".hidden-file")).toBeInTheDocument();
@@ -245,8 +241,7 @@ describe("DirectoryView Component", () => {
   test("renders secondary actions slot", () => {
     renderDirectoryView({
       viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
+      root: makeRoot("Test Directory", mockNodes),
       secondaryActions: <button data-testid="secondary-btn">Extra</button>,
     });
 

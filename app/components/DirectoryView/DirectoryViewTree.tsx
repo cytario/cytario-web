@@ -1,11 +1,13 @@
-import { Tree, type TreeNode as DesignTreeNode } from "@cytario/design";
-import { useMemo } from "react";
-import { Link, useNavigate } from "react-router";
+import {
+  Tree,
+  type TreeApi,
+  type TreeNode as DesignTreeNode,
+} from "@cytario/design";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { getFileIcon } from "./fileTypeHelpers";
-import { NodeLinkIcon } from "./NodeLink/NodeLinkIcon";
-import { TooltipSpan } from "../Tooltip/TooltipSpan";
 import { nodeToPath } from "~/utils/resourceId";
 
 /* ------------------------------------------------------------------ */
@@ -14,17 +16,18 @@ import { nodeToPath } from "~/utils/resourceId";
 
 /**
  * Converts app TreeNodes into the design system TreeNode format.
- * Uses pathName as the unique id since it is unique within a bucket.
+ * Uses alias + pathName as the unique id to ensure uniqueness across buckets.
  */
-function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
+export function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
   return nodes.map((node) => {
+    const base = node.pathName ?? node.name;
     const designNode: DesignTreeNode = {
-      id: node.pathName ?? node.name,
+      id: node.connectionName ? `${node.connectionName}/${base}` : base,
       name: node.name,
       icon: getFileIcon(node),
     };
 
-    if (node.children.length > 0) {
+    if (node.children?.length) {
       designNode.children = toDesignTreeNodes(node.children);
     }
 
@@ -36,15 +39,16 @@ function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
  * Finds the original TreeNode from the directory tree that corresponds
  * to a design tree node id (which is pathName or name).
  */
-function findOriginalNode(
+export function findOriginalNode(
   nodes: TreeNode[],
   id: string,
 ): TreeNode | undefined {
   for (const node of nodes) {
-    const nodeId = node.pathName ?? node.name;
+    const base = node.pathName ?? node.name;
+    const nodeId = node.connectionName ? `${node.connectionName}/${base}` : base;
     if (nodeId === id) return node;
 
-    if (node.children.length > 0) {
+    if (node.children?.length) {
       const found = findOriginalNode(node.children, id);
       if (found) return found;
     }
@@ -57,102 +61,66 @@ function findOriginalNode(
 /* ------------------------------------------------------------------ */
 
 interface DirectoryViewTreeProps {
-  /** The full (unfiltered) tree of nodes. Filtering is done via searchTerm. */
   nodes: TreeNode[];
-  /** Pass-through search term for the Tree component's built-in filtering. */
   searchTerm?: string;
+  /** Fixed height mode (e.g. 600 for the main directory browser). */
+  height?: number;
+  /** Auto-size to fit content. Ignored when height is set. */
+  autoHeight?: boolean;
+  openByDefault?: boolean;
+  size?: "compact" | "comfortable";
+  className?: string;
 }
 
 export function DirectoryViewTree({
   nodes,
   searchTerm,
+  height,
+  autoHeight = false,
+  openByDefault = true,
+  size = "comfortable",
+  className,
 }: DirectoryViewTreeProps) {
   const navigate = useNavigate();
   const treeData = useMemo(() => toDesignTreeNodes(nodes), [nodes]);
+  const treeRef = useRef<TreeApi<DesignTreeNode>>(null);
+
+  const rowHeight = size === "compact" ? 32 : 40;
+  const [visibleCount, setVisibleCount] = useState<number | null>(null);
+
+  const computedHeight = autoHeight
+    ? (visibleCount ?? treeData.length) * rowHeight
+    : (height ?? 400);
+
+  const handleToggle = useCallback(() => {
+    if (!autoHeight) return;
+    requestAnimationFrame(() => {
+      if (treeRef.current) {
+        setVisibleCount(treeRef.current.visibleNodes.length);
+      }
+    });
+  }, [autoHeight]);
 
   return (
-    <div className="overflow-hidden rounded-[var(--border-radius-md)] border border-[var(--color-border-default)]">
-      <Tree
-        aria-label="Directory tree"
-        data={treeData}
-        selectionMode="none"
-        openByDefault
-        size="comfortable"
-        height={600}
-        searchTerm={searchTerm}
-        searchMatch={(node, term) =>
-          node.name.toLowerCase().includes(term.toLowerCase())
-        }
-        onActivate={(designNode) => {
-          const original = findOriginalNode(nodes, designNode.id);
-          if (!original) return;
-
-          const to = nodeToPath(original);
-          navigate(to);
-        }}
-      />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Lightweight recursive tree (used by GlobalSearch / Suggestions)    */
-/* ------------------------------------------------------------------ */
-
-/**
- * Simple recursive tree for search suggestions and lightweight contexts
- * where the full design system Tree is not needed.
- */
-export function DirectoryTree({
-  nodes,
-  action,
-  className,
-}: {
-  nodes: TreeNode[];
-  action?: (node: TreeNode) => void;
-  className?: string;
-}) {
-  return (
-    <ul className="pl-6">
-      {nodes.map((node) => {
-        const to = nodeToPath(node);
-
-        return (
-          <li key={node.name}>
-            <div className="flex items-center gap-1 min-h-8">
-              <Link
-                to={to}
-                className={[
-                  "flex flex-row flex-grow items-center h-full min-w-0 gap-1",
-                  "text-cytario-turquoise-700 hover:text-cytario-turquoise-900 hover:underline",
-                  className,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={
-                  action
-                    ? (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        action(node);
-                      }
-                    : undefined
-                }
-              >
-                <NodeLinkIcon node={node} />
-                <TooltipSpan>{node.name}</TooltipSpan>
-              </Link>
-            </div>
-            {node.children && node.children.length > 0 && (
-              <DirectoryTree
-                nodes={node.children}
-                action={action}
-                className={className}
-              />
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <Tree
+      aria-label="Directory tree"
+      data={treeData}
+      treeRef={treeRef}
+      selectionMode="none"
+      openByDefault={openByDefault}
+      size={size}
+      height={computedHeight}
+      className={className}
+      searchTerm={searchTerm}
+      searchMatch={(node, term) =>
+        node.name.toLowerCase().includes(term.toLowerCase())
+      }
+      onToggle={handleToggle}
+      onActivate={(designNode) => {
+        const original = findOriginalNode(nodes, designNode.id);
+        if (!original) return;
+        navigate(nodeToPath(original));
+      }}
+    />
   );
 }

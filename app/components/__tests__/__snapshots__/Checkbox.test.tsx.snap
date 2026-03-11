@@ -3,7 +3,7 @@
 exports[`Checkbox component > matches snapshot when checked 1`] = `
 <DocumentFragment>
   <label
-    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    class="group flex items-center gap-2 text-sm text-(--color-text-primary) cursor-pointer disabled:opacity-50 disabled:cursor-default"
     data-rac=""
     data-react-aria-pressable="true"
     data-selected="true"
@@ -20,10 +20,10 @@ exports[`Checkbox component > matches snapshot when checked 1`] = `
       />
     </span>
     <div
-      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-action-primary)] border-[var(--color-action-primary)]"
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-sm border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-(--color-border-focus) group-focus-visible:ring-offset-2 bg-(--color-action-primary) border-(--color-action-primary)"
     >
       <svg
-        class="lucide lucide-check w-4 h-4 text-[var(--color-text-inverse)]"
+        class="lucide lucide-check w-4 h-4 text-(--color-text-inverse)"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -46,7 +46,7 @@ exports[`Checkbox component > matches snapshot when checked 1`] = `
 exports[`Checkbox component > matches snapshot when not checked 1`] = `
 <DocumentFragment>
   <label
-    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    class="group flex items-center gap-2 text-sm text-(--color-text-primary) cursor-pointer disabled:opacity-50 disabled:cursor-default"
     data-rac=""
     data-react-aria-pressable="true"
   >
@@ -61,7 +61,7 @@ exports[`Checkbox component > matches snapshot when not checked 1`] = `
       />
     </span>
     <div
-      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-surface-default)] border-[var(--color-border-default)] group-hover:border-[var(--color-border-strong)]"
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-sm border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-(--color-border-focus) group-focus-visible:ring-offset-2 bg-(--color-surface-default) border-(--color-border-default) group-hover:border-(--color-border-strong)"
     />
   </label>
 </DocumentFragment>
@@ -70,7 +70,7 @@ exports[`Checkbox component > matches snapshot when not checked 1`] = `
 exports[`Checkbox component > renders as checked when isSelected prop is true 1`] = `
 <DocumentFragment>
   <label
-    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    class="group flex items-center gap-2 text-sm text-(--color-text-primary) cursor-pointer disabled:opacity-50 disabled:cursor-default"
     data-rac=""
     data-react-aria-pressable="true"
     data-selected="true"
@@ -87,10 +87,10 @@ exports[`Checkbox component > renders as checked when isSelected prop is true 1`
       />
     </span>
     <div
-      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-action-primary)] border-[var(--color-action-primary)]"
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-sm border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-(--color-border-focus) group-focus-visible:ring-offset-2 bg-(--color-action-primary) border-(--color-action-primary)"
     >
       <svg
-        class="lucide lucide-check w-4 h-4 text-[var(--color-text-inverse)]"
+        class="lucide lucide-check w-4 h-4 text-(--color-text-inverse)"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -113,7 +113,7 @@ exports[`Checkbox component > renders as checked when isSelected prop is true 1`
 exports[`Checkbox component > renders correctly 1`] = `
 <DocumentFragment>
   <label
-    class="group flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--color-text-primary)] cursor-pointer disabled:opacity-50 disabled:cursor-default"
+    class="group flex items-center gap-2 text-sm text-(--color-text-primary) cursor-pointer disabled:opacity-50 disabled:cursor-default"
     data-rac=""
     data-react-aria-pressable="true"
   >
@@ -128,7 +128,7 @@ exports[`Checkbox component > renders correctly 1`] = `
       />
     </span>
     <div
-      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-[var(--border-radius-sm)] border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--color-border-focus)] group-focus-visible:ring-offset-2 bg-[var(--color-surface-default)] border-[var(--color-border-default)] group-hover:border-[var(--color-border-strong)]"
+      class="flex items-center justify-center w-6 h-6 shrink-0 rounded-sm border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-(--color-border-focus) group-focus-visible:ring-offset-2 bg-(--color-surface-default) border-(--color-border-default) group-hover:border-(--color-border-strong)"
     />
   </label>
 </DocumentFragment>

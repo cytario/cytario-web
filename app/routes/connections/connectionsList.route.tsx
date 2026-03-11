@@ -1,5 +1,6 @@
 import { ButtonLink, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
+import { useMemo } from "react";
 import {
   type LoaderFunctionArgs,
   type MetaFunction,
@@ -9,9 +10,11 @@ import {
 
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
+import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
+import { useIndexTree } from "~/hooks/useIndexTree";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
 
@@ -44,6 +47,20 @@ export default function ConnectionsListRoute() {
 
   useInitConnections(connectionConfigs, credentials);
 
+  const staticRoot: TreeNode = useMemo(
+    () => ({
+      connectionName: "",
+      provider: "",
+      bucketName: "",
+      name: title,
+      type: "directory",
+      children: nodes,
+    }),
+    [nodes],
+  );
+
+  const root = useIndexTree(staticRoot);
+
   if (nodes.length === 0) {
     return (
       <Section>
@@ -64,8 +81,7 @@ export default function ConnectionsListRoute() {
   return (
     <DirectoryView
       viewMode={viewMode}
-      nodes={nodes}
-      name={title}
+      root={root}
       showFilters
       secondaryActions={<ViewModeToggle />}
     >

@@ -92,7 +92,6 @@ export default function RecentRoute() {
             pathName: item.pathName,
             name: item.name,
             type: item.type as TreeNode["type"],
-            children: [],
           };
         }),
     [recentlyViewed, configByName],

@@ -10,7 +10,8 @@ export interface TreeNode {
   name: string;
   type: TreeNodeType;
   pathName?: string;
-  children: TreeNode[];
+  /** Child nodes. Present on buckets and directories; absent on leaf files. */
+  children?: TreeNode[];
   _Object?: ObjectPresignedUrl;
 }
 
@@ -40,7 +41,6 @@ function buildDirectoryTreeRecursive(
       pathName,
       bucketName,
       provider,
-      children: [],
       _Object: obj,
     });
   } else {
@@ -65,7 +65,7 @@ function buildDirectoryTreeRecursive(
     }
 
     buildDirectoryTreeRecursive(
-      existingDir.children,
+      existingDir.children!,
       keyParts.slice(1),
       obj,
       bucketName,
@@ -78,8 +78,7 @@ function buildDirectoryTreeRecursive(
 
 /** Total size of all files under a directory node. */
 export function computeDirectorySize(node: TreeNode): number {
-  if (node.type === "file") return node._Object?.Size ?? 0;
-  if (node.children.length === 0) return node._Object?.Size ?? 0;
+  if (!node.children?.length) return node._Object?.Size ?? 0;
   return node.children.reduce(
     (sum, child) => sum + computeDirectorySize(child),
     0,
@@ -88,12 +87,7 @@ export function computeDirectorySize(node: TreeNode): number {
 
 /** Latest LastModified timestamp under a directory node. */
 export function computeDirectoryLastModified(node: TreeNode): number {
-  if (node.type === "file") {
-    return node._Object?.LastModified
-      ? new Date(node._Object.LastModified).getTime()
-      : 0;
-  }
-  if (node.children.length === 0) {
+  if (!node.children?.length) {
     return node._Object?.LastModified
       ? new Date(node._Object.LastModified).getTime()
       : 0;
@@ -105,8 +99,9 @@ export function computeDirectoryLastModified(node: TreeNode): number {
 }
 
 /**
- * Build a directory tree from S3 objects.
+ * Build a directory tree from S3 objects, returning a single root node.
  *
+ * @param name    Display name for the root node
  * @param prefix  S3 listing prefix to strip from object keys
  * @param urlPath Path relative to the connection root (prepended to node
  *                pathNames so they stay routable via `/connections/:connectionName/*`)
@@ -116,10 +111,11 @@ export function buildDirectoryTree(
   objects: ObjectPresignedUrl[],
   provider: string,
   connectionName: string,
+  name: string,
   prefix?: string,
   urlPath?: string,
-): TreeNode[] {
-  const root: TreeNode[] = [];
+): TreeNode {
+  const children: TreeNode[] = [];
   const basePath = urlPath ? (urlPath.endsWith("/") ? urlPath : `${urlPath}/`) : "";
 
   objects.forEach((obj) => {
@@ -129,7 +125,7 @@ export function buildDirectoryTree(
     const pathSegments = pathName.split("/");
 
     buildDirectoryTreeRecursive(
-      root,
+      children,
       pathSegments,
       obj,
       bucketName,
@@ -139,5 +135,13 @@ export function buildDirectoryTree(
     );
   });
 
-  return root;
+  return {
+    connectionName,
+    provider,
+    bucketName,
+    name,
+    type: "directory",
+    pathName: urlPath || undefined,
+    children,
+  };
 }

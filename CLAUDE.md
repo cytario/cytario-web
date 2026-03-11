@@ -20,7 +20,7 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 |---------------|---------------------------------------------------------------------|
 | Framework     | React Router v7 (SSR), React 19, Vite 6                             |
 | Language      | TypeScript 5.8 (strict mode)                                        |
-| Styling       | Tailwind CSS 3.4 (class-based dark mode)                            |
+| Styling       | Tailwind CSS 4 (custom dark variant)                                |
 | State         | Zustand 5 (with immer, persist, devtools middleware)                |
 | Forms         | react-hook-form 7 + zod 4 validation                                |
 | Tables        | @tanstack/react-table 8, @tanstack/react-virtual 3                  |
@@ -29,7 +29,7 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 | Auth          | OAuth 2.0 Authorization Code Flow via Keycloak                      |
 | Database      | PostgreSQL (Prisma 7 ORM), Redis/Valkey (sessions via ioredis)      |
 | Cloud         | AWS SDK v3 (S3, STS AssumeRoleWithWebIdentity, presigned URLs)      |
-| UI Components | @headlessui/react 2, lucide-react, motion 12                        |
+| UI Components | @cytario/design (built on react-aria-components), lucide-react, motion 12 |
 | Testing       | Vitest 3.2, @testing-library/react 16, happy-dom                    |
 | Linting       | ESLint 8 (flat config), @typescript-eslint, jsx-a11y, import        |
 | Formatting    | Prettier (default config)                                           |
@@ -120,7 +120,7 @@ import { cytarioConfig } from "~/config";
 - Route modules export: `loader`, `action`, `meta`, `handle`, `middleware`, default component
 - Middleware chain: `sessionMiddleware` → `authMiddleware`
 - Use `React.lazy()` + `<Suspense>` for heavy client-only components (ImageViewer)
-- Use `@headlessui/react` for accessible interactive components (dialogs, menus, tabs)
+- Use `@cytario/design` for all UI primitives (Button, Dialog, Menu, Tabs, Select, Field, etc.) — never import directly from `react-aria-components` except for types
 
 ### State Management
 - **Zustand** stores — one store per domain concern
@@ -132,7 +132,8 @@ import { cytarioConfig } from "~/config";
 ### Styling
 - Utility-first Tailwind CSS — no CSS modules, no styled-components
 - Use `tailwind-merge` (`twMerge`) for conditional class composition
-- Custom design tokens: `cytario-purple-500`, `cytario-turquoise-*`
+- Design tokens from `@cytario/design`: CSS custom properties (`--color-*`, `--spacing-*`) imported in `root.tsx` via `@cytario/design/tokens/variables.css` and `variables-dark.css`
+- Custom brand colors: `cytario-purple-500`, `cytario-turquoise-*` (defined in `app/tailwind.css` `@theme` block)
 - Custom font: Montserrat
 - Use `motion` library for animations
 - **No hardcoded color values** — never use hex (`#94a3b8`), named (`"white"`), or rgb literals in TypeScript/TSX. Use design tokens from `@cytario/design` instead:

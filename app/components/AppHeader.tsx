@@ -4,6 +4,7 @@ import { useRouteLoaderData } from "react-router";
 import { type UserProfile } from "~/.server/auth/getUserInfo";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
+import { GlobalNavigation } from "~/components/GlobalNavigation";
 import { GlobalSearch } from "~/components/GlobalSearch";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { UserMenu } from "~/components/UserMenu";
@@ -42,7 +43,8 @@ export function AppHeader() {
       className="z-20 flex justify-between items-center h-12 bg-slate-900 top-0 left-0 right-0"
       style={darkSurfaceTokens}
     >
-      <div className="h-full shrink min-w-0">
+      <div className="flex items-center h-full shrink min-w-0">
+        <GlobalNavigation />
         <Breadcrumbs />
       </div>
 

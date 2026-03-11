@@ -31,7 +31,7 @@ export function filterHiddenNodes(
   return nodes
     .filter((node) => !node.name.startsWith("."))
     .map((node) =>
-      node.children.length > 0
+      node.children?.length
         ? { ...node, children: filterHiddenNodes(node.children, false) }
         : node,
     );
