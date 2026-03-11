@@ -5,9 +5,11 @@ import { immer } from "zustand/middleware/immer";
 
 import { getInitialChannelsState } from "./getInitialChannelsState";
 import {
+  BRIGHTFIELD_GROUP_ID,
   ByteDomain,
   ChannelsState,
   ChannelsStateColumns,
+  detectBrightfieldGroup,
   RGBA,
   OverlaysState,
   OverlayState,
@@ -345,16 +347,24 @@ export const createViewerStore = (id: string) =>
                 (state) => {
                   const activeChannelsStateIndex =
                     state.imagePanels[state.imagePanelIndex];
+                  const layerState =
+                    state.layersStates[activeChannelsStateIndex];
+                  if (!layerState) return;
 
-                  const key =
-                    state.selectedChannelId as keyof ChannelsStateColumns;
-
-                  if (
-                    state.layersStates[activeChannelsStateIndex]?.channels[key]
-                  ) {
-                    state.layersStates[activeChannelsStateIndex].channels[
-                      key
-                    ].contrastLimits = contrastLimits;
+                  if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+                    const group = detectBrightfieldGroup(layerState.channelIds);
+                    if (!group) return;
+                    for (const key of [group.red, group.green, group.blue]) {
+                      if (layerState.channels[key]) {
+                        layerState.channels[key].contrastLimits = contrastLimits;
+                      }
+                    }
+                  } else {
+                    const key =
+                      state.selectedChannelId as keyof ChannelsStateColumns;
+                    if (layerState.channels[key]) {
+                      layerState.channels[key].contrastLimits = contrastLimits;
+                    }
                   }
                 },
                 false,
@@ -366,16 +376,28 @@ export const createViewerStore = (id: string) =>
                 (state) => {
                   const activeChannelsStateIndex =
                     state.imagePanels[state.imagePanelIndex];
+                  const layerState =
+                    state.layersStates[activeChannelsStateIndex];
+                  if (!layerState) return;
 
-                  const key =
-                    state.selectedChannelId as keyof ChannelsStateColumns;
-
-                  const channel =
-                    state.layersStates[activeChannelsStateIndex]?.channels[key];
-
-                  if (channel) {
-                    channel.contrastLimits =
-                      channel.contrastLimitsInitial as ByteDomain;
+                  if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+                    const group = detectBrightfieldGroup(layerState.channelIds);
+                    if (!group) return;
+                    for (const key of [group.red, group.green, group.blue]) {
+                      const channel = layerState.channels[key];
+                      if (channel) {
+                        channel.contrastLimits =
+                          channel.contrastLimitsInitial as ByteDomain;
+                      }
+                    }
+                  } else {
+                    const key =
+                      state.selectedChannelId as keyof ChannelsStateColumns;
+                    const channel = layerState.channels[key];
+                    if (channel) {
+                      channel.contrastLimits =
+                        channel.contrastLimitsInitial as ByteDomain;
+                    }
                   }
                 },
                 false,
@@ -385,7 +407,7 @@ export const createViewerStore = (id: string) =>
             /**
              * Sets the visibility of a channel in the active image panel.
              * If the channel is not initialized, it loads stats and initializes it before setting visibility.
-             * Updates the store state accordingly.
+             * Handles BRIGHTFIELD_GROUP_ID by toggling all R/G/B channels together.
              */
             setChannelVisibility: async (
               key: keyof ChannelsState,
@@ -397,11 +419,96 @@ export const createViewerStore = (id: string) =>
 
               const activeChannelsStateIndex =
                 state.imagePanels[state.imagePanelIndex];
+              const layerState =
+                state.layersStates[activeChannelsStateIndex];
 
-              const activeChannelsStateConfig =
-                state.layersStates[activeChannelsStateIndex].channels[key];
+              // Brightfield group: toggle all 3 channels
+              if (key === BRIGHTFIELD_GROUP_ID) {
+                const group = detectBrightfieldGroup(layerState.channelIds);
+                if (!group) return;
+                const keys = [group.red, group.green, group.blue];
 
-              // If the channel is not initialized, we need to load stats first
+                // Initialize any uninitialized channels in parallel
+                const uninitialized = keys.filter(
+                  (k) => !layerState.channels[k]?.isInitialized
+                );
+
+                if (uninitialized.length > 0) {
+                  set(
+                    (state) => {
+                      for (const k of uninitialized) {
+                        state.layersStates[activeChannelsStateIndex].channels[
+                          k
+                        ].isLoading = true;
+                      }
+                    },
+                    false,
+                    "setBrightfieldVisibility/stats/request"
+                  );
+
+                  try {
+                    const results = await Promise.all(
+                      uninitialized.map((k) =>
+                        getSelectionStats({
+                          loader: state.loader!,
+                          selection: layerState.channels[k].selection,
+                        }).then((stats) => ({ key: k, ...stats }))
+                      )
+                    );
+
+                    return set(
+                      (state) => {
+                        const ls =
+                          state.layersStates[activeChannelsStateIndex];
+                        for (const { key: k, domain, histogram } of results) {
+                          const channel = ls.channels[k];
+                          channel.isInitialized = true;
+                          channel.isLoading = false;
+                          channel.domain = castDraft(domain);
+                          // Brightfield: use full domain range (no percentile scaling)
+                          channel.contrastLimits = [...domain] as ByteDomain;
+                          channel.contrastLimitsInitial = castDraft(domain);
+                          channel.histogram = castDraft(histogram);
+                        }
+                        for (const k of keys) {
+                          ls.channels[k].isVisible = isVisible;
+                        }
+                      },
+                      false,
+                      "setBrightfieldVisibility/stats/success"
+                    );
+                  } catch {
+                    return set(
+                      (state) => {
+                        const ls =
+                          state.layersStates[activeChannelsStateIndex];
+                        for (const k of uninitialized) {
+                          ls.channels[k].isLoading = false;
+                          ls.channels[k].isVisible = false;
+                        }
+                      },
+                      false,
+                      "setBrightfieldVisibility/stats/error"
+                    );
+                  }
+                }
+
+                return set(
+                  (state) => {
+                    const ls =
+                      state.layersStates[activeChannelsStateIndex];
+                    for (const k of keys) {
+                      ls.channels[k].isVisible = isVisible;
+                    }
+                  },
+                  false,
+                  "setBrightfieldVisibility"
+                );
+              }
+
+              // Single channel
+              const activeChannelsStateConfig = layerState.channels[key];
+
               if (!activeChannelsStateConfig.isInitialized) {
                 set(
                   (state) => {

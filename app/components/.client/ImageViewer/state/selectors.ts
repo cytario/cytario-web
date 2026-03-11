@@ -1,7 +1,20 @@
-import { ChannelConfig, ChannelsStateColumns, ViewerStore } from "./types";
+import {
+  BRIGHTFIELD_GROUP_ID,
+  BrightfieldGroup,
+  ChannelConfig,
+  ChannelsStateColumns,
+  detectBrightfieldGroup,
+  ViewerStore,
+} from "./types";
 
 const EMPTY_OBJECT = Object.freeze({});
 const EMPTY_ARRAY: readonly string[] = Object.freeze([]);
+
+// Memoization caches for selectors that return new object references.
+// Zustand uses Object.is for equality — returning a new object on every call
+// causes infinite re-render loops.
+let _bfGroupCache: { ids: readonly string[]; result: BrightfieldGroup | null } | null = null;
+let _bfSelectedCache: { r: ChannelConfig; g: ChannelConfig; b: ChannelConfig; result: ChannelConfig } | null = null;
 export const select = {
   id: (state: ViewerStore) => state.id,
   error: (state: ViewerStore) => state.error,
@@ -71,6 +84,13 @@ export const select = {
     const channelIds = select.channelIds(state);
     return channelIds.filter((id) => channelsState?.[id]?.isVisible).length;
   },
+  brightfieldGroup: (state: ViewerStore): BrightfieldGroup | null => {
+    const channelIds = select.channelIds(state);
+    if (_bfGroupCache && _bfGroupCache.ids === channelIds) return _bfGroupCache.result;
+    const result = detectBrightfieldGroup(channelIds);
+    _bfGroupCache = { ids: channelIds, result };
+    return result;
+  },
   /* Overlays */
   overlaysStates: (state: ViewerStore) => {
     const layerState = select.layersState(state);
@@ -92,11 +112,46 @@ export const select = {
 
   /* Channels > Selected */
   selectedChannelId: (state: ViewerStore) =>
-    state.selectedChannelId as keyof ChannelsStateColumns | null,
+    state.selectedChannelId as
+      | keyof ChannelsStateColumns
+      | typeof BRIGHTFIELD_GROUP_ID
+      | null,
   setSelectedChannelId: (state: ViewerStore) => state.setSelectedChannelId,
   selectedChannel: (state: ViewerStore): ChannelConfig | null => {
     const selectedChannelId = select.selectedChannelId(state);
     const channelsState = select.channelsState(state);
+
+    if (selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+      const group = select.brightfieldGroup(state);
+      if (!group || !channelsState) return null;
+      const r = channelsState[group.red];
+      const g = channelsState[group.green];
+      const b = channelsState[group.blue];
+      if (!r || !g || !b) return null;
+
+      // Return cached result if underlying channel refs haven't changed
+      if (_bfSelectedCache?.r === r && _bfSelectedCache?.g === g && _bfSelectedCache?.b === b) {
+        return _bfSelectedCache.result;
+      }
+
+      // Synthesize from green channel as representative, with union domain
+      const domainMin = Math.min(r.domain[0], g.domain[0], b.domain[0]);
+      const domainMax = Math.max(r.domain[1], g.domain[1], b.domain[1]);
+
+      const result: ChannelConfig = {
+        ...g,
+        color: [200, 200, 200],
+        domain: [domainMin, domainMax],
+        contrastLimits: g.contrastLimits,
+        contrastLimitsInitial: g.contrastLimitsInitial,
+        isVisible: r.isVisible && g.isVisible && b.isVisible,
+        isLoading: r.isLoading || g.isLoading || b.isLoading,
+        isInitialized: r.isInitialized && g.isInitialized && b.isInitialized,
+      };
+      _bfSelectedCache = { r, g, b, result };
+      return result;
+    }
+
     const channelConfig = channelsState?.[selectedChannelId!];
     return channelConfig ?? null;
   },

@@ -98,7 +98,7 @@ export function ChannelsControllerItem({
 
       {/* Pixel Value */}
       {pixelValue > 0 && (
-        <span className="text-xs tabular-nums text-[var(--color-text-secondary)]">
+        <span className="text-xs tabular-nums text-(--color-text-secondary)">
           {pixelValue}
         </span>
       )}

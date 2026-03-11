@@ -1,12 +1,14 @@
 import { useEffect, useMemo } from "react";
 import { RadioGroup } from "react-aria-components";
-import { twMerge } from "tailwind-merge";
 
+import { ChannelsControllerBrightfieldItem } from "./ChannelsControllerBrightfieldItem";
 import { ChannelsControllerItem } from "./ChannelsControllerItem";
 import { select } from "../../state/selectors";
-import { ChannelsStateColumns } from "../../state/types";
+import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../state/types";
 import { useViewerStore } from "../../state/ViewerStoreContext";
 import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
+
+const MAX_VISIBLE_CHANNELS = 6;
 
 export function ChannelsControllerItemList({
   isExpanded,
@@ -23,36 +25,65 @@ export function ChannelsControllerItemList({
   const setSelectedChannelId = useViewerStore(select.setSelectedChannelId);
   const setChannelVisibility = useViewerStore(select.setChannelVisibility);
   const setChannelColor = useViewerStore(select.setChannelColor);
+  const brightfieldGroup = useViewerStore(select.brightfieldGroup);
 
   const pixelValues = useFeatureBarStore((state) => state.pixelValues);
 
+  const brightfieldChannelIds = useMemo(() => {
+    if (!brightfieldGroup) return new Set<string>();
+    return new Set([
+      brightfieldGroup.red,
+      brightfieldGroup.green,
+      brightfieldGroup.blue,
+    ]);
+  }, [brightfieldGroup]);
+
+  const isBrightfieldVisible = useMemo(() => {
+    if (!brightfieldGroup || !channelsState) return false;
+    return (
+      channelsState[brightfieldGroup.red]?.isVisible &&
+      channelsState[brightfieldGroup.green]?.isVisible &&
+      channelsState[brightfieldGroup.blue]?.isVisible
+    );
+  }, [brightfieldGroup, channelsState]);
+
   const visibleChannelIds = useMemo(
     () =>
-      channelIds.filter((id) => isExpanded || channelsState?.[id]?.isVisible),
-    [channelIds, channelsState, isExpanded]
+      channelIds.filter(
+        (id) =>
+          !brightfieldChannelIds.has(id) &&
+          (isExpanded || channelsState?.[id]?.isVisible),
+      ),
+    [channelIds, channelsState, isExpanded, brightfieldChannelIds],
   );
 
-  const cx = twMerge(
-    "flex flex-col px-3"
-  );
+  // Show brightfield item when expanded or when it's visible
+  const showBrightfield =
+    brightfieldGroup && (isExpanded || isBrightfieldVisible);
 
   useEffect(() => {
-    if (visibleChannelIds.length === 0) {
+    if (visibleChannelIds.length === 0 && !showBrightfield) {
       setIsExpanded(true);
     }
-  }, [setIsExpanded, visibleChannelIds.length]);
+  }, [setIsExpanded, visibleChannelIds.length, showBrightfield]);
 
   return (
     <RadioGroup
       aria-label="Image channels"
       value={selectedChannelId}
       onChange={(name) => {
+        if (!name) return;
+
+        // Check if enabling this channel/group would exceed the viv limit
+        const isBrightfield = name === BRIGHTFIELD_GROUP_ID;
+        const slotsNeeded = isBrightfield ? 3 : 1;
+        const alreadyVisible = isBrightfield ? isBrightfieldVisible : channelsState?.[name]?.isVisible;
+        if (!alreadyVisible && visibleChannelCount + slotsNeeded > MAX_VISIBLE_CHANNELS) return;
+
         setSelectedChannelId(name);
-        if (name) {
-          setChannelVisibility(name as keyof ChannelsStateColumns, true);
-        }
+        setChannelVisibility(name as keyof ChannelsStateColumns, true);
       }}
-      className={cx}
+      className="flex flex-col px-3"
     >
       {visibleChannelIds.map((id) => {
         const config = channelsState?.[id];
@@ -86,6 +117,31 @@ export function ChannelsControllerItemList({
           />
         );
       })}
+
+      {showBrightfield && (
+        <ChannelsControllerBrightfieldItem
+          isVisible={isBrightfieldVisible}
+          isLoading={
+            !!channelsState?.[brightfieldGroup.red]?.isLoading ||
+            !!channelsState?.[brightfieldGroup.green]?.isLoading ||
+            !!channelsState?.[brightfieldGroup.blue]?.isLoading
+          }
+          visibleChannelCount={visibleChannelCount}
+          toggleVisibility={() => {
+            const newVisible = !isBrightfieldVisible;
+            setChannelVisibility(
+              BRIGHTFIELD_GROUP_ID as keyof ChannelsStateColumns,
+              newVisible,
+            );
+
+            if (!newVisible && selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+              setSelectedChannelId(null);
+            } else if (newVisible) {
+              setSelectedChannelId(BRIGHTFIELD_GROUP_ID);
+            }
+          }}
+        />
+      )}
     </RadioGroup>
   );
 }

@@ -45,6 +45,26 @@ export interface ChannelConfig {
 }
 
 export type ChannelsState = Record<string, ChannelConfig>;
+
+export const BRIGHTFIELD_GROUP_ID = "__brightfield__" as const;
+
+export interface BrightfieldGroup {
+  red: string;
+  green: string;
+  blue: string;
+}
+
+/** Detects brightfield R/G/B channels by name from UltiStacker output. */
+export const detectBrightfieldGroup = (
+  channelIds: readonly string[],
+): BrightfieldGroup | null => {
+  const red = channelIds.find((id) => id.toLowerCase() === "red");
+  const green = channelIds.find((id) => id.toLowerCase() === "green");
+  const blue = channelIds.find((id) => id.toLowerCase() === "blue");
+
+  if (red && green && blue) return { red, green, blue };
+  return null;
+};
 export interface ViewPort {
   width: number;
   height: number;
