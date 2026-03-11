@@ -25,9 +25,9 @@ export function GlobalNavigation() {
   const root: TreeNode = useMemo(() => {
     const buckets: TreeNode[] = Object.entries(connections).map(
       ([alias, record]) => ({
-        alias,
+        connectionName: alias,
         provider: record.connectionConfig.provider,
-        bucketName: record.connectionConfig.name,
+        bucketName: record.connectionConfig.bucketName,
         name: alias,
         type: "bucket" as const,
         children: [],
@@ -35,7 +35,7 @@ export function GlobalNavigation() {
     );
 
     return {
-      alias: "",
+      connectionName: "",
       provider: "",
       bucketName: "",
       name: "Storage",

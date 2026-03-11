@@ -27,20 +27,20 @@ export function useIndexTree(initialRoot: TreeNode): TreeNode {
     if (buckets.length === 0) return;
 
     // Wait until all bucket connections have credentials in the store
-    const allReady = buckets.every((b) => connections[b.alias]?.credentials);
+    const allReady = buckets.every((b) => connections[b.connectionName]?.credentials);
     if (!allReady) return;
 
     let cancelled = false;
 
     Promise.all(
       buckets.map(async (bucket) => {
-        const conn = connections[bucket.alias];
+        const conn = connections[bucket.connectionName];
         if (!conn) return bucket;
 
         try {
           const results = await listPrefix(
-            bucket.alias,
-            conn.connectionConfig.name,
+            bucket.connectionName,
+            conn.connectionConfig.bucketName,
             conn.connectionConfig.prefix,
             "",
             conn.credentials,
@@ -56,17 +56,17 @@ export function useIndexTree(initialRoot: TreeNode): TreeNode {
           }));
 
           const tree = buildDirectoryTree(
-            conn.connectionConfig.name,
+            conn.connectionConfig.bucketName,
             objects,
             conn.connectionConfig.provider,
-            bucket.alias,
+            bucket.connectionName,
             bucket.name,
             conn.connectionConfig.prefix,
           );
           return { ...tree, type: "bucket" as const };
         } catch (err) {
           console.warn(
-            `[useIndexTree] Failed to load index for ${bucket.alias}:`,
+            `[useIndexTree] Failed to load index for ${bucket.connectionName}:`,
             err,
           );
           return bucket;

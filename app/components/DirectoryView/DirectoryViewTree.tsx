@@ -22,7 +22,7 @@ export function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
   return nodes.map((node) => {
     const base = node.pathName ?? node.name;
     const designNode: DesignTreeNode = {
-      id: node.alias ? `${node.alias}/${base}` : base,
+      id: node.connectionName ? `${node.connectionName}/${base}` : base,
       name: node.name,
       icon: getFileIcon(node),
     };
@@ -45,7 +45,7 @@ export function findOriginalNode(
 ): TreeNode | undefined {
   for (const node of nodes) {
     const base = node.pathName ?? node.name;
-    const nodeId = node.alias ? `${node.alias}/${base}` : base;
+    const nodeId = node.connectionName ? `${node.connectionName}/${base}` : base;
     if (nodeId === id) return node;
 
     if (node.children?.length) {

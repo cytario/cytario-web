@@ -49,7 +49,7 @@ export default function ConnectionsListRoute() {
 
   const staticRoot: TreeNode = useMemo(
     () => ({
-      alias: "",
+      connectionName: "",
       provider: "",
       bucketName: "",
       name: title,

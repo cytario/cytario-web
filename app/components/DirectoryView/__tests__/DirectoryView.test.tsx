@@ -12,7 +12,7 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
 
 function makeRoot(name: string, children: TreeNode[]): TreeNode {
   return {
-    alias: "",
+    connectionName: "",
     provider: "",
     bucketName: "",
     name,
