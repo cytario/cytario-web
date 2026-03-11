@@ -39,7 +39,7 @@ describe("DirectoryViewTable", () => {
   describe("bucket type nodes", () => {
     const mockBucketNodes: TreeNode[] = [
       {
-        alias: "aws-my-aws-bucket",
+        connectionName: "aws-my-aws-bucket",
         type: "bucket",
         name: "my-aws-bucket",
         bucketName: "my-aws-bucket",
@@ -47,7 +47,7 @@ describe("DirectoryViewTable", () => {
         children: [],
       },
       {
-        alias: "minio-minio-bucket",
+        connectionName: "minio-minio-bucket",
         type: "bucket",
         name: "minio-bucket",
         bucketName: "minio-bucket",
@@ -101,7 +101,7 @@ describe("DirectoryViewTable", () => {
   describe("file type nodes", () => {
     const mockFileNodes: TreeNode[] = [
       {
-        alias: "test-alias",
+        connectionName: "test-alias",
         type: "file",
         name: "data.parquet",
         bucketName: "test-bucket",
@@ -116,7 +116,7 @@ describe("DirectoryViewTable", () => {
         },
       },
       {
-        alias: "test-alias",
+        connectionName: "test-alias",
         type: "file",
         name: "results.csv",
         bucketName: "test-bucket",
@@ -168,7 +168,7 @@ describe("DirectoryViewTable", () => {
   describe("directory type nodes", () => {
     const mockDirNodes: TreeNode[] = [
       {
-        alias: "test-alias",
+        connectionName: "test-alias",
         type: "directory",
         name: "images",
         bucketName: "test-bucket",
@@ -177,7 +177,7 @@ describe("DirectoryViewTable", () => {
         children: [],
       },
       {
-        alias: "test-alias",
+        connectionName: "test-alias",
         type: "directory",
         name: "data",
         bucketName: "test-bucket",

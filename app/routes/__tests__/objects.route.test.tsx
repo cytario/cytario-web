@@ -20,7 +20,7 @@ vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
 vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByAlias: vi.fn(),
+  getConnectionByName: vi.fn(),
 }));
 vi.mock("~/utils/getObjects", () => ({
   getObjects: vi.fn(),
@@ -73,7 +73,7 @@ describe("Bucket Route", () => {
         "*": "bucket/folder/file.ome.tiff",
       },
       data: {
-        alias: "aws-test-bucket",
+        connectionName: "aws-test-bucket",
         bucketName: "test-bucket",
         connectionConfig: mock.connectionConfig({ prefix: "" }),
       },
@@ -99,7 +99,7 @@ describe("Bucket Route", () => {
         handle,
         loader: () => {
           return {
-            alias: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
             credentials: mock.credentials(),
             connectionConfig: mock.connectionConfig(),
             user: mock.user(),
@@ -131,7 +131,7 @@ describe("Bucket Route", () => {
         handle,
         loader: () => {
           return {
-            alias: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
             credentials: mock.credentials(),
             connectionConfig: mock.connectionConfig(),
             user: mock.user(),

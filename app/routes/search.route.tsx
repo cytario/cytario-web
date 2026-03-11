@@ -66,7 +66,7 @@ export const loader = async ({
   }
 
   const nodes: TreeNode[] = results.map(({ config, files }) => ({
-    alias: config.name,
+    connectionName: config.name,
     bucketName: config.bucketName,
     name: config.name,
     type: "bucket" as const,

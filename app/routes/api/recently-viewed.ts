@@ -2,11 +2,11 @@ import { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig.server";
+import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { upsertRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 const recentlyViewedSchema = z.object({
-  alias: z.string().min(1),
+  connectionName: z.string().min(1),
   pathName: z.string(),
   name: z.string().min(1),
   type: z.enum(["file", "directory"]),
@@ -20,7 +20,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   if (request.method.toUpperCase() === "POST") {
     const formData = await request.formData();
     const parsed = recentlyViewedSchema.safeParse({
-      alias: formData.get("alias"),
+      connectionName: formData.get("connectionName"),
       pathName: formData.get("pathName"),
       name: formData.get("name"),
       type: formData.get("type"),
@@ -30,7 +30,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    const connection = await getConnectionByAlias(user, parsed.data.alias);
+    const connection = await getConnectionByName(user, parsed.data.connectionName);
     if (!connection) {
       return new Response("Connection not found", { status: 404 });
     }

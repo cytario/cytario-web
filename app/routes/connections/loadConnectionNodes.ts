@@ -93,7 +93,7 @@ export async function loadConnectionNodes(
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
     return {
-      alias: config.name,
+      connectionName: config.name,
       bucketName: config.bucketName,
       name: config.name,
       type: "bucket" as const,
@@ -104,8 +104,8 @@ export async function loadConnectionNodes(
     };
   });
 
-  const configByAlias = new Map<string, ConnectionConfig>();
-  for (const c of connectionConfigs) configByAlias.set(c.name, c);
+  const configByName = new Map<string, ConnectionConfig>();
+  for (const c of connectionConfigs) configByName.set(c.name, c);
 
   const recentlyViewed: SerializedRecentlyViewed[] = await Promise.all(
     recentlyViewedRaw.map(async (item) => {
@@ -120,7 +120,7 @@ export async function loadConnectionNodes(
 
       // Generate presigned URL for file items so previews work on the home page
       if (item.type !== "file") return base;
-      const config = configByAlias.get(item.connectionName);
+      const config = configByName.get(item.connectionName);
       if (!config) return base;
       const creds = credentials[config.bucketName];
       if (!creds) return base;

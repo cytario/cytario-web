@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockUpsertRecentlyViewed = vi.hoisted(() => vi.fn());
-const mockGetConnectionByAlias = vi.hoisted(() => vi.fn());
+const mockGetConnectionByName = vi.hoisted(() => vi.fn());
 
 vi.mock("~/utils/recentlyViewed.server", () => ({
   upsertRecentlyViewed: mockUpsertRecentlyViewed,
 }));
 
 vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByAlias: mockGetConnectionByAlias,
+  getConnectionByName: mockGetConnectionByName,
 }));
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -48,7 +48,7 @@ function createActionArgs(method: string, formData: FormData) {
 describe("POST /api/recently-viewed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConnectionByAlias.mockResolvedValue({
+    mockGetConnectionByName.mockResolvedValue({
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -59,7 +59,7 @@ describe("POST /api/recently-viewed", () => {
     mockUpsertRecentlyViewed.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -70,7 +70,7 @@ describe("POST /api/recently-viewed", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockUpsertRecentlyViewed).toHaveBeenCalledWith("user-1", {
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -79,7 +79,7 @@ describe("POST /api/recently-viewed", () => {
 
   test("returns 400 with invalid type", async () => {
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "unknown",
@@ -91,9 +91,9 @@ describe("POST /api/recently-viewed", () => {
     expect(mockUpsertRecentlyViewed).not.toHaveBeenCalled();
   });
 
-  test("returns 400 with missing alias", async () => {
+  test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
-      alias: "",
+      connectionName: "",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -107,7 +107,7 @@ describe("POST /api/recently-viewed", () => {
 
   test("returns 400 with missing name", async () => {
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "",
       type: "file",
@@ -121,7 +121,7 @@ describe("POST /api/recently-viewed", () => {
 
   test("returns 405 for non-POST methods", async () => {
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -136,7 +136,7 @@ describe("POST /api/recently-viewed", () => {
     mockUpsertRecentlyViewed.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
       name: "images",
       type: "directory",
@@ -147,18 +147,18 @@ describe("POST /api/recently-viewed", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockUpsertRecentlyViewed).toHaveBeenCalledWith("user-1", {
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
       name: "images",
       type: "directory",
     });
   });
 
-  test("returns 404 when alias does not correspond to a visible connection", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(null);
+  test("returns 404 when connectionName does not correspond to a visible connection", async () => {
+    mockGetConnectionByName.mockResolvedValue(null);
 
     const formData = createFormData({
-      alias: "hidden-bucket",
+      connectionName: "hidden-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -174,7 +174,7 @@ describe("POST /api/recently-viewed", () => {
     mockUpsertRecentlyViewed.mockRejectedValue(new Error("DB connection lost"));
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",

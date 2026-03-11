@@ -68,7 +68,7 @@ export const OverlaysControllerItem = ({
     }
     return undefined;
   });
-  const connectionAlias = connection?.connectionConfig?.name;
+  const connectionName = connection?.connectionConfig?.name;
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
@@ -130,7 +130,7 @@ export const OverlaysControllerItem = ({
         </button>
 
         <IconButtonLink
-          href={connectionAlias ? `/connections/${connectionAlias}/${parseResourceId(resourceId).pathName}` : `#`}
+          href={connectionName ? `/connections/${connectionName}/${parseResourceId(resourceId).pathName}` : `#`}
           icon={ExternalLink}
           aria-label="Open file"
           variant="ghost"

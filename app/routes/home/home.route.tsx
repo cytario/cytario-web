@@ -64,13 +64,13 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   if (request.method.toLowerCase() === "delete") {
     const formData = await request.formData();
-    const alias = String(formData.get("alias") ?? "");
+    const connectionName = String(formData.get("connectionName") ?? "");
 
-    if (!alias) {
-      return { error: "Connection alias is required" };
+    if (!connectionName) {
+      return { error: "Connection name is required" };
     }
 
-    await deleteConnectionConfig(user, alias);
+    await deleteConnectionConfig(user, connectionName);
 
     const session = await getSession(request);
 
@@ -113,7 +113,7 @@ export default function HomeRoute() {
         .map((item: SerializedRecentlyViewed) => {
           const config = configByAlias.get(item.connectionName)!;
           return {
-            alias: item.connectionName,
+            connectionName: item.connectionName,
             provider: config.provider,
             bucketName: config.bucketName,
             pathName: item.pathName,
@@ -151,7 +151,7 @@ export default function HomeRoute() {
         .map((pin: SerializedPinnedPath) => {
           const config = configByAlias.get(pin.connectionName)!;
           return {
-            alias: pin.connectionName,
+            connectionName: pin.connectionName,
             provider: config.provider,
             bucketName: config.bucketName,
             pathName: pin.pathName,

@@ -5,7 +5,7 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig.server";
+import { getConnectionByName } from "~/utils/connectionConfig.server";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -21,7 +21,7 @@ export const loader = async ({
 
   if (!alias) throw new Error("Connection alias is required");
 
-  const connectionConfig = await getConnectionByAlias(user, alias);
+  const connectionConfig = await getConnectionByName(user, alias);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }

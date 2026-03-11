@@ -19,7 +19,7 @@ vi.mock("react-arborist", () => ({
 
 const mockNodes: TreeNode[] = [
   {
-    alias: "aws-test-bucket",
+    connectionName: "aws-test-bucket",
     type: "directory",
     name: "results",
     bucketName: "test-bucket",
@@ -27,7 +27,7 @@ const mockNodes: TreeNode[] = [
     provider: "aws",
     children: [
       {
-        alias: "aws-test-bucket",
+        connectionName: "aws-test-bucket",
         type: "file",
         name: "output.ome.tif",
         bucketName: "test-bucket",
@@ -38,7 +38,7 @@ const mockNodes: TreeNode[] = [
     ],
   },
   {
-    alias: "aws-test-bucket",
+    connectionName: "aws-test-bucket",
     type: "file",
     name: "analysis.csv",
     bucketName: "test-bucket",

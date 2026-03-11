@@ -26,7 +26,7 @@ vi.mock("~/components/DirectoryView/DirectoryViewGrid", () => ({
 
 function makeNode(name: string): TreeNode {
   return {
-    alias: "test-alias",
+    connectionName: "test-alias",
     name,
     type: "file",
     bucketName: "bucket",

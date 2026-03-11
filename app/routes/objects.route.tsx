@@ -30,7 +30,7 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { getConnectionByAlias } from "~/utils/connectionConfig.server";
+import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
@@ -58,21 +58,21 @@ export const handle = {
     data?: BucketRouteLoaderResponse;
   }) => {
     const { params, data } = match;
-    const alias = data?.alias ?? params.alias ?? "";
+    const connectionName = data?.connectionName ?? params.alias ?? "";
     const pathName = params["*"] ?? "";
 
     const segments = pathName ? pathName.split("/") : [];
-    const basePath = `/connections/${alias}`;
+    const basePath = `/connections/${connectionName}`;
 
     return getCrumbs(basePath, segments, {
-      dataConnectionName: alias,
+      dataConnectionName: connectionName,
       dataConnectionPath: basePath,
     });
   },
 };
 
 export interface BucketRouteLoaderResponse {
-  alias: string;
+  connectionName: string;
   nodes: TreeNode[];
   bucketName: string;
   /** URL path segment after /connections/:alias/ (relative to connection root) */
@@ -99,7 +99,7 @@ export const loader = async ({
 
   if (!alias) throw new Error("Connection alias is required");
 
-  const connectionConfig = await getConnectionByAlias(user, alias);
+  const connectionConfig = await getConnectionByName(user, alias);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }
@@ -149,7 +149,7 @@ export const loader = async ({
       );
 
       return {
-        alias,
+        connectionName: alias,
         credentials,
         connectionConfig,
         name,
@@ -171,7 +171,7 @@ export const loader = async ({
     ]);
 
     return {
-      alias,
+      connectionName: alias,
       credentials,
       connectionConfig,
       name,
@@ -186,7 +186,7 @@ export const loader = async ({
   } catch (error) {
     console.error("Error in objects loader:", error);
     return {
-      alias,
+      connectionName: alias,
       credentials,
       connectionConfig,
       name,
@@ -206,7 +206,7 @@ export const loader = async ({
 
 export default function ObjectsRoute() {
   const {
-    alias,
+    connectionName,
     name,
     url,
     offsetsUrl,
@@ -240,25 +240,25 @@ export default function ObjectsRoute() {
   );
   const fileType = getFileType(resourceId);
 
-  // Store credentials and connection config in Zustand store (keyed by alias)
+  // Store credentials and connection config in Zustand store (keyed by connection name)
   useEffect(() => {
     if (credentials && connectionConfig) {
-      setConnection(alias, credentials, connectionConfig);
+      setConnection(connectionName, credentials, connectionConfig);
     }
-  }, [alias, credentials, connectionConfig, setConnection]);
+  }, [connectionName, credentials, connectionConfig, setConnection]);
 
   // Track recently viewed files (DB-backed via server action)
   const recentFetcher = useFetcher();
   useEffect(() => {
     if (url) {
       recentFetcher.submit(
-        { alias, pathName: urlPath, name, type: "file" },
+        { connectionName, pathName: urlPath, name, type: "file" },
         { method: "post", action: "/api/recently-viewed" },
       );
     }
-    // Intentionally depends only on resourceId — it is derived from alias + pathName + provider,
+    // Intentionally depends only on resourceId — it is derived from connectionName + pathName + provider,
     // so a resourceId change guarantees the captured values are fresh. Other deps (recentFetcher,
-    // alias, urlPath, name) are stable within the same resourceId.
+    // connectionName, urlPath, name) are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId]);
 
@@ -273,7 +273,7 @@ export default function ObjectsRoute() {
   const togglePin = useCallback(() => {
     if (isPinned) {
       pinFetcher.submit(
-        { alias, pathName: urlPath },
+        { connectionName, pathName: urlPath },
         { method: "delete", action: "/api/pinned" },
       );
     } else {
@@ -287,16 +287,16 @@ export default function ObjectsRoute() {
       );
       pinFetcher.submit(
         {
-          alias,
+          connectionName,
           pathName: urlPath,
-          displayName: urlPath ? getName(urlPath, alias) : alias,
+          displayName: urlPath ? getName(urlPath, connectionName) : connectionName,
           totalSize: String(totalSize),
           lastModified: lastModified ? String(lastModified) : "",
         },
         { method: "post", action: "/api/pinned" },
       );
     }
-  }, [alias, urlPath, isPinned, nodes, pinFetcher]);
+  }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);
 
   // Show directory view when there are multiple objects
   if (nodes.length > 0) {
@@ -306,7 +306,7 @@ export default function ObjectsRoute() {
         name={name}
         showFilters
         nodes={nodes}
-        alias={alias}
+        connectionName={connectionName}
         urlPath={urlPath}
         secondaryActions={<ViewModeToggle />}
       >

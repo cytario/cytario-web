@@ -7,7 +7,7 @@ export type { PinnedPath };
 export async function addPinnedPath(
   userId: string,
   pin: {
-    alias: string;
+    connectionName: string;
     pathName: string;
     displayName: string;
     totalSize?: number;
@@ -18,7 +18,7 @@ export async function addPinnedPath(
     where: {
       userId_connectionName_pathName: {
         userId,
-        connectionName: pin.alias,
+        connectionName: pin.connectionName,
         pathName: pin.pathName,
       },
     },
@@ -29,7 +29,7 @@ export async function addPinnedPath(
     },
     create: {
       userId,
-      connectionName: pin.alias,
+      connectionName: pin.connectionName,
       pathName: pin.pathName,
       displayName: pin.displayName,
       totalSize: pin.totalSize != null ? BigInt(pin.totalSize) : null,

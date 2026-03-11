@@ -3,7 +3,7 @@ import { prisma } from "~/.server/db/prisma";
 import mock from "~/utils/__tests__/__mocks__";
 import {
   deleteConnectionConfig,
-  getConnectionByAlias,
+  getConnectionByName,
   getConnectionConfigs,
   upsertConnectionConfig,
 } from "~/utils/connectionConfig.server";
@@ -47,12 +47,12 @@ describe("connectionConfig.server", () => {
     });
   });
 
-  describe("getConnectionByAlias", () => {
+  describe("getConnectionByName", () => {
     test("returns config when user canSee", async () => {
       vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
 
-      const result = await getConnectionByAlias(user, "aws-mock-bucket");
+      const result = await getConnectionByName(user, "aws-mock-bucket");
 
       expect(prisma.connectionConfig.findUnique).toHaveBeenCalledWith({
         where: { name: "aws-mock-bucket" },
@@ -64,7 +64,7 @@ describe("connectionConfig.server", () => {
     test("returns null when config does not exist", async () => {
       vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
 
-      const result = await getConnectionByAlias(user, "nonexistent");
+      const result = await getConnectionByName(user, "nonexistent");
 
       expect(result).toBeNull();
     });
@@ -73,7 +73,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      const result = await getConnectionByAlias(user, "aws-mock-bucket");
+      const result = await getConnectionByName(user, "aws-mock-bucket");
 
       expect(result).toBeNull();
     });

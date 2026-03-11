@@ -4,7 +4,7 @@ import { isOmeTiff } from "~/utils/omeTiffOffsets";
 export type TreeNodeType = "bucket" | "directory" | "file";
 
 export interface TreeNode {
-  alias: string;
+  connectionName: string;
   provider: string;
   bucketName: string;
   name: string;
@@ -20,7 +20,7 @@ function buildDirectoryTreeRecursive(
   obj: ObjectPresignedUrl,
   bucketName: string,
   provider: string,
-  alias: string,
+  connectionName: string,
   parentPath: string = "",
 ) {
   const name = keyParts[0];
@@ -34,7 +34,7 @@ function buildDirectoryTreeRecursive(
     if (name === "") return;
 
     currentDir.push({
-      alias,
+      connectionName,
       type: "file",
       name,
       pathName,
@@ -47,7 +47,7 @@ function buildDirectoryTreeRecursive(
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
-        alias,
+        connectionName,
         type: "directory",
         name,
         pathName,
@@ -70,7 +70,7 @@ function buildDirectoryTreeRecursive(
       obj,
       bucketName,
       provider,
-      alias,
+      connectionName,
       pathName,
     );
   }
@@ -109,13 +109,13 @@ export function computeDirectoryLastModified(node: TreeNode): number {
  *
  * @param prefix  S3 listing prefix to strip from object keys
  * @param urlPath Path relative to the connection root (prepended to node
- *                pathNames so they stay routable via `/connections/:alias/*`)
+ *                pathNames so they stay routable via `/connections/:connectionName/*`)
  */
 export function buildDirectoryTree(
   bucketName: string,
   objects: ObjectPresignedUrl[],
   provider: string,
-  alias: string,
+  connectionName: string,
   prefix?: string,
   urlPath?: string,
 ): TreeNode[] {
@@ -134,7 +134,7 @@ export function buildDirectoryTree(
       obj,
       bucketName,
       provider,
-      alias,
+      connectionName,
       basePath,
     );
   });
