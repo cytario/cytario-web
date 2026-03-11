@@ -18,17 +18,10 @@ import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
-export interface DirectoryViewBaseProps {
-  nodes: TreeNode[];
-  /** Connection name for breadcrumb context */
-  connectionName?: string;
-  /** URL path relative to connection root */
-  urlPath?: string;
-}
-
-interface DirectoryViewProps extends DirectoryViewBaseProps {
+interface DirectoryViewProps {
+  /** Root tree node whose children are displayed. */
+  root: TreeNode;
   viewMode: ViewMode;
-  name: string;
   showFilters?: boolean;
   children?: ReactNode;
   /** Actions rendered in a second row beneath the header title */
@@ -39,15 +32,13 @@ interface DirectoryViewProps extends DirectoryViewBaseProps {
 
 export function DirectoryView({
   viewMode,
-  nodes,
-  name,
+  root,
   showFilters = false,
-  connectionName,
-  urlPath,
   children,
   secondaryActions,
   flush,
 }: DirectoryViewProps) {
+  const nodes = useMemo(() => root.children ?? [], [root.children]);
   const isBucket = nodes.length > 0 && nodes[0].type === "bucket";
   const columns = isBucket ? bucketColumns : fileColumns;
   const tableId = isBucket ? "bucket" : "directory";
@@ -87,13 +78,13 @@ export function DirectoryView({
   // Track recently viewed directories (DB-backed via server action)
   const recentFetcher = useFetcher();
   useEffect(() => {
-    if (!connectionName || !urlPath) return;
+    if (!root.connectionName || !root.pathName) return;
     recentFetcher.submit(
-      { connectionName, pathName: urlPath, name, type: "directory" },
+      { connectionName: root.connectionName, pathName: root.pathName, name: root.name, type: "directory" },
       { method: "post", action: "/api/recently-viewed" },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionName, urlPath, name]);
+  }, [root.connectionName, root.pathName, root.name]);
 
   if (nodes.length === 0) {
     return (
@@ -107,7 +98,7 @@ export function DirectoryView({
 
   return (
     <Section flush={flush}>
-      <SectionHeader name={name} secondaryActions={secondaryActions}>
+      <SectionHeader name={root.name} secondaryActions={secondaryActions}>
         {children}
       </SectionHeader>
 
@@ -135,7 +126,7 @@ export function DirectoryView({
 
       {isTree ? (
         <Container>
-          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} />
+          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} height={600} />
         </Container>
       ) : isGrid ? (
         <Container>

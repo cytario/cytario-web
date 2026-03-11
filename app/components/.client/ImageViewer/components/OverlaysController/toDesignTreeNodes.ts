@@ -27,7 +27,7 @@ export function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
       icon: nodeTypeIcons[node.type],
     };
 
-    if (node.children.length > 0) {
+    if (node.children?.length) {
       designNode.children = toDesignTreeNodes(node.children);
     }
 
@@ -48,7 +48,7 @@ export function findOriginalNode(
     const nodeId = node.pathName ?? node.name;
     if (nodeId === id) return node;
 
-    if (node.children.length > 0) {
+    if (node.children?.length) {
       const found = findOriginalNode(node.children, id);
       if (found) return found;
     }

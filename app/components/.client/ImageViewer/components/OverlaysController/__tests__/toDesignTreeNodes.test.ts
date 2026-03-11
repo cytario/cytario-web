@@ -13,7 +13,6 @@ const makeNode = (
   provider: "aws",
   bucketName: "test-bucket",
   type: "file",
-  children: [],
   ...overrides,
 });
 

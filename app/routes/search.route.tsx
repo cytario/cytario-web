@@ -10,7 +10,7 @@ import {
   buildDirectoryTree,
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
-import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
+import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import type { ConnectionConfig } from "~/utils/connectionConfig.server";
 import { getObjects } from "~/utils/getObjects";
 
@@ -76,8 +76,9 @@ export const loader = async ({
       files as ObjectPresignedUrl[],
       config.provider,
       config.name,
+      config.name,
       "",
-    ),
+    ).children,
   }));
 
   return { searchQuery, nodes };
@@ -91,7 +92,7 @@ export default function SearchRoute() {
       <H1>{`Search: ${searchQuery}`}</H1>
 
       <div className="bg-slate-100">
-        <DirectoryTree nodes={nodes} />
+        <DirectoryViewTree nodes={nodes} autoHeight openByDefault={false} size="compact" />
       </div>
     </Section>
   );

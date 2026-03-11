@@ -119,7 +119,6 @@ export default function HomeRoute() {
             pathName: item.pathName,
             name: item.name,
             type: item.type as TreeNode["type"],
-            children: [],
             _Object:
               item.s3Key && item.presignedUrl
                 ? ({
@@ -157,7 +156,6 @@ export default function HomeRoute() {
             pathName: pin.pathName,
             name: pin.displayName,
             type: "directory" as const,
-            children: [],
             _Object:
               pin.totalSize != null || pin.lastModified != null
                 ? ({

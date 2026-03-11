@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 
 import { TreeNode } from "../buildDirectoryTree";
-import { DirectoryViewTree, DirectoryTree } from "../DirectoryViewTree";
+import { DirectoryViewTree } from "../DirectoryViewTree";
 
 // Mock react-arborist to avoid JSDOM rendering issues with virtual lists
 vi.mock("react-arborist", () => ({
@@ -77,14 +77,14 @@ describe("DirectoryViewTree", () => {
     expect(screen.getByText("results")).toBeInTheDocument();
     expect(screen.getByText("analysis.csv")).toBeInTheDocument();
   });
-});
 
-describe("DirectoryTree (lightweight)", () => {
-  test("renders all nodes as links", () => {
+  test("renders with autoHeight and compact size", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
-        Component: () => <DirectoryTree nodes={mockNodes} />,
+        Component: () => (
+          <DirectoryViewTree nodes={mockNodes} autoHeight size="compact" />
+        ),
       },
     ]);
 
@@ -92,58 +92,5 @@ describe("DirectoryTree (lightweight)", () => {
 
     expect(screen.getByText("results")).toBeInTheDocument();
     expect(screen.getByText("analysis.csv")).toBeInTheDocument();
-  });
-
-  test("renders nested children recursively", () => {
-    const RemixStub = createRoutesStub([
-      {
-        path: "/",
-        Component: () => <DirectoryTree nodes={mockNodes} />,
-      },
-    ]);
-
-    render(<RemixStub initialEntries={["/"]} />);
-
-    expect(screen.getByText("output.ome.tif")).toBeInTheDocument();
-  });
-
-  test("renders correct navigation URLs", () => {
-    const RemixStub = createRoutesStub([
-      {
-        path: "/",
-        Component: () => <DirectoryTree nodes={mockNodes} />,
-      },
-    ]);
-
-    render(<RemixStub initialEntries={["/"]} />);
-
-    const csvLink = screen.getByText("analysis.csv").closest("a");
-    expect(csvLink).toHaveAttribute(
-      "href",
-      "/connections/aws-test-bucket/analysis.csv",
-    );
-  });
-
-  test("calls action callback when provided", async () => {
-    const actionFn = vi.fn();
-    const { userEvent } = await import("@testing-library/user-event");
-    const user = userEvent.setup();
-
-    const RemixStub = createRoutesStub([
-      {
-        path: "/",
-        Component: () => (
-          <DirectoryTree nodes={mockNodes} action={actionFn} />
-        ),
-      },
-    ]);
-
-    render(<RemixStub initialEntries={["/"]} />);
-
-    await user.click(screen.getByText("analysis.csv"));
-
-    expect(actionFn).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "analysis.csv" }),
-    );
   });
 });

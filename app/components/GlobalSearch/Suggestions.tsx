@@ -3,7 +3,7 @@ import { SearchX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { TreeNode } from "../DirectoryView/buildDirectoryTree";
-import { DirectoryTree } from "../DirectoryView/DirectoryViewTree";
+import { DirectoryViewTree } from "../DirectoryView/DirectoryViewTree";
 
 interface SuggestionsProps {
   nodes: TreeNode[];
@@ -19,6 +19,7 @@ export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.2, ease: "easeIn" }}
+          data-theme="light"
           className={`
             z-10 absolute top-12 right-0
             max-h-[calc(100vh-4rem)]
@@ -26,7 +27,6 @@ export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
             flex flex-col
             overflow-hidden
             bg-white/80 backdrop-blur-lg
-            text-black
             shadow-lg rounded-sm border border-slate-200
           `}
         >
@@ -36,7 +36,7 @@ export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
                 <H2>All Results</H2>
               </header>
               <div className="overflow-y-auto flex-1">
-                <DirectoryTree nodes={nodes} />
+                <DirectoryViewTree nodes={nodes} autoHeight openByDefault={false} size="compact" />
               </div>
             </>
           ) : (

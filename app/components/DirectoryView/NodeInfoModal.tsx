@@ -2,6 +2,7 @@ import { Button, ButtonLink } from "@cytario/design";
 import { Form, useParams } from "react-router";
 
 import { RouteModal } from "../RouteModal";
+import { IndexStatus } from "./IndexStatus";
 import { CyberduckModal } from "./modals/Cyberduck.modal";
 import { useNodeInfoModal } from "./useNodeInfoModal";
 
@@ -60,14 +61,18 @@ export function NodeInfoModal() {
 
       return (
         <RouteModal title={bucketConnectionName} onClose={closeInfoModal}>
-          <div className="flex flex-row gap-4 justify-between">
-            <ButtonLink
-              href={`/connections/${bucketConnectionName}`}
-              variant="secondary"
-              size="lg"
-            >
-              Open {infoModal.type}
-            </ButtonLink>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-row gap-4 justify-between">
+              <ButtonLink
+                href={`/connections/${bucketConnectionName}`}
+                variant="secondary"
+                size="lg"
+              >
+                Open {infoModal.type}
+              </ButtonLink>
+
+              <IndexStatus connectionName={bucketConnectionName} />
+            </div>
 
             <Form method="delete" action="/">
               <input type="hidden" name="connectionName" value={bucketConnectionName} />
