@@ -38,7 +38,7 @@ vi.mock("~/utils/connectionConfig.server", () => ({
 vi.spyOn(console, "info").mockImplementation(() => {});
 vi.spyOn(console, "error").mockImplementation(() => {});
 
-describe("reindex.$alias action", () => {
+describe("reindex.$name action", () => {
   const user = mock.user();
   const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
@@ -65,8 +65,8 @@ describe("reindex.$alias action", () => {
     vi.clearAllMocks();
   });
 
-  test("returns 400 when alias is missing", async () => {
-    const { action } = await import("~/routes/api/reindex.$alias");
+  test("returns 400 when name is missing", async () => {
+    const { action } = await import("~/routes/api/reindex.$name");
 
     const response = await action({
       params: {},
@@ -81,10 +81,10 @@ describe("reindex.$alias action", () => {
   test("returns 404 when connection config not found", async () => {
     mockGetConnectionByName.mockResolvedValue(null);
 
-    const { action } = await import("~/routes/api/reindex.$alias");
+    const { action } = await import("~/routes/api/reindex.$name");
 
     const response = await action({
-      params: { alias: "nonexistent" },
+      params: { name: "nonexistent" },
       context: createContext(),
       request: new Request("http://localhost/api/reindex/nonexistent"),
     } as unknown as ActionFunctionArgs);
@@ -97,10 +97,10 @@ describe("reindex.$alias action", () => {
     mockGetConnectionByName.mockResolvedValue(connectionConfig);
     mockCanModify.mockReturnValue(false);
 
-    const { action } = await import("~/routes/api/reindex.$alias");
+    const { action } = await import("~/routes/api/reindex.$name");
 
     const response = await action({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: createContext(),
       request: new Request("http://localhost/api/reindex/test-conn"),
     } as unknown as ActionFunctionArgs);
@@ -122,10 +122,10 @@ describe("reindex.$alias action", () => {
       set: vi.fn(),
     };
 
-    const { action } = await import("~/routes/api/reindex.$alias");
+    const { action } = await import("~/routes/api/reindex.$name");
 
     const response = await action({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: contextWithoutCreds,
       request: new Request("http://localhost/api/reindex/test-conn"),
     } as unknown as ActionFunctionArgs);
@@ -144,10 +144,10 @@ describe("reindex.$alias action", () => {
     ]);
     mockBuildIndexParquet.mockResolvedValue(Buffer.from("parquet-data"));
 
-    const { action } = await import("~/routes/api/reindex.$alias");
+    const { action } = await import("~/routes/api/reindex.$name");
 
     const response = await action({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: createContext(),
       request: new Request("http://localhost/api/reindex/test-conn"),
     } as unknown as ActionFunctionArgs);
@@ -163,10 +163,10 @@ describe("reindex.$alias action", () => {
     mockCanModify.mockReturnValue(true);
     mockGetS3Client.mockRejectedValue(new Error("S3 connection failed"));
 
-    const { action } = await import("~/routes/api/reindex.$alias");
+    const { action } = await import("~/routes/api/reindex.$name");
 
     const response = await action({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: createContext(),
       request: new Request("http://localhost/api/reindex/test-conn"),
     } as unknown as ActionFunctionArgs);

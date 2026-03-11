@@ -13,7 +13,7 @@ const PATTERN = /bucket|directory|file|action/;
 export function NodeInfoModal() {
   const [infoModal, closeInfoModal] = useNodeInfoModal(PATTERN);
   const params = useParams();
-  const alias = params.alias;
+  const connectionName = params.name;
 
   if (!infoModal) return null;
 
@@ -21,8 +21,8 @@ export function NodeInfoModal() {
     case "action":
       return <CyberduckModal />;
     case "directory": {
-      const href = alias
-        ? `/connections/${alias}/${infoModal.name}`.replace(/\/$/, "")
+      const href = connectionName
+        ? `/connections/${connectionName}/${infoModal.name}`.replace(/\/$/, "")
         : "#";
 
       return (
@@ -36,8 +36,8 @@ export function NodeInfoModal() {
       );
     }
     case "file": {
-      const href = alias
-        ? `/connections/${alias}/${infoModal.name}`.replace(/\/$/, "")
+      const href = connectionName
+        ? `/connections/${connectionName}/${infoModal.name}`.replace(/\/$/, "")
         : "#";
 
       return (
@@ -55,14 +55,14 @@ export function NodeInfoModal() {
       );
     }
     case "bucket": {
-      // infoModal.name is the connection alias
-      const bucketAlias = infoModal.name;
+      // infoModal.name is the connection name
+      const bucketConnectionName = infoModal.name;
 
       return (
-        <RouteModal title={bucketAlias} onClose={closeInfoModal}>
+        <RouteModal title={bucketConnectionName} onClose={closeInfoModal}>
           <div className="flex flex-row gap-4 justify-between">
             <ButtonLink
-              href={`/connections/${bucketAlias}`}
+              href={`/connections/${bucketConnectionName}`}
               variant="secondary"
               size="lg"
             >
@@ -70,7 +70,7 @@ export function NodeInfoModal() {
             </ButtonLink>
 
             <Form method="delete" action="/">
-              <input type="hidden" name="connectionName" value={bucketAlias} />
+              <input type="hidden" name="connectionName" value={bucketConnectionName} />
               <Button type="submit" variant="destructive" size="lg">
                 Remove Storage Connection
               </Button>

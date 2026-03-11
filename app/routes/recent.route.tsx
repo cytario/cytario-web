@@ -73,7 +73,7 @@ export default function RecentRoute() {
   const [filterText, setFilterText] = useState("");
   const clearFetcher = useFetcher();
 
-  const configByAlias = useMemo(() => {
+  const configByName = useMemo(() => {
     const map = new Map<string, (typeof connectionConfigs)[number]>();
     for (const c of connectionConfigs) map.set(c.name, c);
     return map;
@@ -82,9 +82,9 @@ export default function RecentRoute() {
   const allItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed
-        .filter((item) => configByAlias.has(item.connectionName))
+        .filter((item) => configByName.has(item.connectionName))
         .map((item) => {
-          const config = configByAlias.get(item.connectionName)!;
+          const config = configByName.get(item.connectionName)!;
           return {
             connectionName: item.connectionName,
             provider: config.provider,
@@ -95,7 +95,7 @@ export default function RecentRoute() {
             children: [],
           };
         }),
-    [recentlyViewed, configByAlias],
+    [recentlyViewed, configByName],
   );
 
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";

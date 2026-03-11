@@ -69,7 +69,7 @@ describe("Bucket Route", () => {
   test("handle calls `getCrumbs` with correct arguments", () => {
     const mockArgs = {
       params: {
-        alias: "aws-test-bucket",
+        name: "aws-test-bucket",
         "*": "bucket/folder/file.ome.tiff",
       },
       data: {
@@ -94,7 +94,7 @@ describe("Bucket Route", () => {
   test("renders `DirectoryView`, if there are multiple nodes", async () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/connections/:alias",
+        path: "/connections/:name",
         Component: ObjectsRoute,
         handle,
         loader: () => {
@@ -126,7 +126,7 @@ describe("Bucket Route", () => {
   test("renders `Viewer` for given `pathName`", async () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/connections/:alias/*",
+        path: "/connections/:name/*",
         Component: ObjectsRoute,
         handle,
         loader: () => {

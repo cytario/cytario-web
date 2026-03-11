@@ -23,7 +23,7 @@ vi.mock("~/utils/connectionConfig.server", () => ({
     mockGetConnectionByName(...args),
 }));
 
-describe("index-status.$alias loader", () => {
+describe("index-status.$name loader", () => {
   const user = mock.user();
   const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
@@ -44,8 +44,8 @@ describe("index-status.$alias loader", () => {
     vi.clearAllMocks();
   });
 
-  test("returns 400 when alias is missing", async () => {
-    const { loader } = await import("~/routes/api/index-status.$alias");
+  test("returns 400 when name is missing", async () => {
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     const response = await loader({
       params: {},
@@ -60,10 +60,10 @@ describe("index-status.$alias loader", () => {
   test("returns 404 when connection config not found", async () => {
     mockGetConnectionByName.mockResolvedValue(null);
 
-    const { loader } = await import("~/routes/api/index-status.$alias");
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     const response = await loader({
-      params: { alias: "nonexistent" },
+      params: { name: "nonexistent" },
       context: createContext(),
       request: new Request("http://localhost/api/index-status/nonexistent"),
     } as unknown as LoaderFunctionArgs);
@@ -83,10 +83,10 @@ describe("index-status.$alias loader", () => {
       set: vi.fn(),
     };
 
-    const { loader } = await import("~/routes/api/index-status.$alias");
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     const response = await loader({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: contextWithoutCreds,
       request: new Request("http://localhost/api/index-status/test-conn"),
     } as unknown as LoaderFunctionArgs);
@@ -104,10 +104,10 @@ describe("index-status.$alias loader", () => {
       }),
     });
 
-    const { loader } = await import("~/routes/api/index-status.$alias");
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     const response = await loader({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: createContext(),
       request: new Request("http://localhost/api/index-status/test-conn"),
     } as unknown as LoaderFunctionArgs);
@@ -129,10 +129,10 @@ describe("index-status.$alias loader", () => {
       ),
     });
 
-    const { loader } = await import("~/routes/api/index-status.$alias");
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     const response = await loader({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: createContext(),
       request: new Request("http://localhost/api/index-status/test-conn"),
     } as unknown as LoaderFunctionArgs);
@@ -147,11 +147,11 @@ describe("index-status.$alias loader", () => {
       send: vi.fn().mockRejectedValue(new Error("Network error")),
     });
 
-    const { loader } = await import("~/routes/api/index-status.$alias");
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     await expect(
       loader({
-        params: { alias: "test-conn" },
+        params: { name: "test-conn" },
         context: createContext(),
         request: new Request("http://localhost/api/index-status/test-conn"),
       } as unknown as LoaderFunctionArgs),
@@ -167,10 +167,10 @@ describe("index-status.$alias loader", () => {
       }),
     });
 
-    const { loader } = await import("~/routes/api/index-status.$alias");
+    const { loader } = await import("~/routes/api/index-status.$name");
 
     const response = await loader({
-      params: { alias: "test-conn" },
+      params: { name: "test-conn" },
       context: createContext(),
       request: new Request("http://localhost/api/index-status/test-conn"),
     } as unknown as LoaderFunctionArgs);

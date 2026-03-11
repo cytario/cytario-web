@@ -45,7 +45,7 @@ const protectedRoutes = [
       file: "routes/connections/connectionsList.route.tsx",
     },
     {
-      path: "/connections/:alias/*",
+      path: "/connections/:name/*",
       file: "routes/objects.route.tsx",
     },
     layout("routes/admin/admin.layout.tsx", [
@@ -73,8 +73,8 @@ const protectedRoutes = [
 
 const apiRoutes = [
   {
-    path: "/api/cyberduck-profile/:alias",
-    file: "routes/api/cyberduck-profile.$alias.ts",
+    path: "/api/cyberduck-profile/:name",
+    file: "routes/api/cyberduck-profile.$name.ts",
   },
   {
     path: "/api/recently-viewed",
@@ -85,15 +85,15 @@ const apiRoutes = [
     file: "routes/api/pinned.ts",
   },
   {
-    path: "/api/reindex/:alias",
-    file: "routes/api/reindex.$alias.ts",
+    path: "/api/reindex/:name",
+    file: "routes/api/reindex.$name.ts",
   },
   {
-    path: "/api/index-status/:alias",
-    file: "routes/api/index-status.$alias.ts",
+    path: "/api/index-status/:name",
+    file: "routes/api/index-status.$name.ts",
   },
   {
-    path: "/presign/:alias/*",
+    path: "/presign/:name/*",
     file: "routes/presign.route.tsx",
   },
 ];

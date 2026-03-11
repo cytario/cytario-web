@@ -45,9 +45,9 @@ describe("IndexStatus", () => {
   test("calls setConnectionIndex with error state when fetcher data fails validation", () => {
     setupFetcher("idle", { error: "unexpected server error" });
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
-    expect(mockSetConnectionIndex).toHaveBeenCalledWith("test-alias", {
+    expect(mockSetConnectionIndex).toHaveBeenCalledWith("test-connection", {
       status: "error",
       objectCount: 0,
       builtAt: null,
@@ -57,9 +57,9 @@ describe("IndexStatus", () => {
   test("calls setConnectionIndex with ready state when fetcher data is valid", () => {
     setupFetcher("idle", { objectCount: 42, builtAt: "2025-01-01T00:00:00Z" });
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
-    expect(mockSetConnectionIndex).toHaveBeenCalledWith("test-alias", {
+    expect(mockSetConnectionIndex).toHaveBeenCalledWith("test-connection", {
       status: "ready",
       objectCount: 42,
       builtAt: "2025-01-01T00:00:00Z",
@@ -69,7 +69,7 @@ describe("IndexStatus", () => {
   test("does not call setConnectionIndex when fetcher is loading", () => {
     setupFetcher("submitting", null);
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
     expect(mockSetConnectionIndex).not.toHaveBeenCalled();
   });
@@ -77,7 +77,7 @@ describe("IndexStatus", () => {
   test("does not call setConnectionIndex when fetcher has no data", () => {
     setupFetcher("idle", null);
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
     expect(mockSetConnectionIndex).not.toHaveBeenCalled();
   });
@@ -86,7 +86,7 @@ describe("IndexStatus", () => {
     mockBucketIndex = { status: "ready", objectCount: 1234, builtAt: "2025-01-01" };
     setupFetcher();
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
     expect(screen.getByText("1,234 indexed")).toBeInTheDocument();
   });
@@ -95,7 +95,7 @@ describe("IndexStatus", () => {
     mockBucketIndex = { status: "missing", objectCount: 0, builtAt: null };
     setupFetcher();
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
     expect(screen.getByText("No index")).toBeInTheDocument();
   });
@@ -104,7 +104,7 @@ describe("IndexStatus", () => {
     mockBucketIndex = { status: "error", objectCount: 0, builtAt: null };
     setupFetcher();
 
-    render(<IndexStatus connectionName="test-alias" />);
+    render(<IndexStatus connectionName="test-connection" />);
 
     expect(screen.getByText("Index error")).toBeInTheDocument();
   });

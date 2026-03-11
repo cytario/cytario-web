@@ -21,7 +21,7 @@ export interface ConnectionRecord {
 /**
  * Connections store for managing S3 bucket connections (credentials, config, index state).
  *
- * Keys are connection aliases (globally unique, e.g. "my-bucket" or "my-bucket-deliverables").
+ * Keys are connection names (globally unique, e.g. "my-bucket" or "my-bucket-deliverables").
  */
 export interface ConnectionsStore {
   connections: Record<string, ConnectionRecord>;

@@ -16,12 +16,12 @@ export const loader = async ({
   context,
 }: ActionFunctionArgs): Promise<Response> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { alias } = params;
+  const { name: connectionName } = params;
   const pathName = params["*"] ?? "";
 
-  if (!alias) throw new Error("Connection alias is required");
+  if (!connectionName) throw new Error("Connection name is required");
 
-  const connectionConfig = await getConnectionByName(user, alias);
+  const connectionConfig = await getConnectionByName(user, connectionName);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }

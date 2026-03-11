@@ -58,7 +58,7 @@ export const handle = {
     data?: BucketRouteLoaderResponse;
   }) => {
     const { params, data } = match;
-    const connectionName = data?.connectionName ?? params.alias ?? "";
+    const connectionName = data?.connectionName ?? params.name ?? "";
     const pathName = params["*"] ?? "";
 
     const segments = pathName ? pathName.split("/") : [];
@@ -75,7 +75,7 @@ export interface BucketRouteLoaderResponse {
   connectionName: string;
   nodes: TreeNode[];
   bucketName: string;
-  /** URL path segment after /connections/:alias/ (relative to connection root) */
+  /** URL path segment after /connections/:name/ (relative to connection root) */
   urlPath: string;
   /** Full S3 key (connection prefix + urlPath) */
   pathName: string;
@@ -95,11 +95,11 @@ export const loader = async ({
   context,
 }: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
   const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { alias } = params;
+  const { name: connectionName } = params;
 
-  if (!alias) throw new Error("Connection alias is required");
+  if (!connectionName) throw new Error("Connection name is required");
 
-  const connectionConfig = await getConnectionByName(user, alias);
+  const connectionConfig = await getConnectionByName(user, connectionName);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }
@@ -119,7 +119,7 @@ export const loader = async ({
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
-  const isPinned = await checkIsPinnedPath(user.sub, alias, urlPath);
+  const isPinned = await checkIsPinnedPath(user.sub, connectionName, urlPath);
 
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
@@ -143,13 +143,13 @@ export const loader = async ({
         bucketName,
         objectsWithUrls,
         connectionConfig.provider,
-        alias,
+        connectionName,
         prefix,
         urlPath,
       );
 
       return {
-        connectionName: alias,
+        connectionName,
         credentials,
         connectionConfig,
         name,
@@ -171,7 +171,7 @@ export const loader = async ({
     ]);
 
     return {
-      connectionName: alias,
+      connectionName,
       credentials,
       connectionConfig,
       name,
@@ -186,7 +186,7 @@ export const loader = async ({
   } catch (error) {
     console.error("Error in objects loader:", error);
     return {
-      connectionName: alias,
+      connectionName,
       credentials,
       connectionConfig,
       name,
