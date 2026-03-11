@@ -55,7 +55,8 @@ export function flattenGroups(groups: KeycloakGroup[]): string[] {
 
 /**
  * Fetches all group scopes manageable by the user from the Keycloak Admin API.
- * For each admin scope, fetches the group tree and flattens all descendants.
+ * For each admin scope, finds the exact group by path and flattens its descendants.
+ * Uses findGroupByPath instead of search to avoid returning unrelated groups.
  */
 export async function getManageableScopes(
   user: UserProfile,
@@ -63,16 +64,22 @@ export async function getManageableScopes(
 ): Promise<string[]> {
   if (user.adminScopes.length === 0) return [];
 
-  const allScopes = new Set<string>(user.adminScopes);
+  const allScopes = new Set<string>();
 
   for (const adminScope of user.adminScopes) {
+    allScopes.add(adminScope);
     try {
-      const groups = await fetchGroups(accessToken, adminScope);
-      for (const path of flattenGroups(groups)) {
-        allScopes.add(path);
+      const group = await findGroupByPath(accessToken, adminScope);
+      if (group) {
+        for (const path of flattenGroups(group.subGroups)) {
+          allScopes.add(path);
+        }
       }
-    } catch {
-      // Fall back to adminScopes on API/network error
+    } catch (error) {
+      console.warn(
+        `Failed to fetch group tree for admin scope "${adminScope}":`,
+        error,
+      );
     }
   }
 
