@@ -2,6 +2,7 @@ import {
   type ActionFunctionArgs,
   type MetaFunction,
   redirect,
+  useActionData,
   useOutletContext,
 } from "react-router";
 
@@ -37,10 +38,9 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   const formData = await request.formData();
 
   const rawData = {
-    alias: String(formData.get("alias") ?? ""),
+    name: String(formData.get("name") ?? ""),
     ownerScope: String(formData.get("ownerScope") ?? ""),
     providerType: String(formData.get("providerType") ?? ""),
-    provider: String(formData.get("provider") ?? ""),
     s3Uri: String(formData.get("s3Uri") ?? ""),
     bucketRegion: String(formData.get("bucketRegion") ?? ""),
     roleArn: String(formData.get("roleArn") ?? ""),
@@ -69,16 +69,15 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   const session = await getSession(request);
 
   try {
-    const provider = data.providerType === "aws" ? "aws" : data.provider;
     const endpoint =
       data.providerType === "aws"
         ? `https://s3.${data.bucketRegion}.amazonaws.com`
         : data.bucketEndpoint;
 
     const newConfig = {
-      alias: data.alias,
-      name: bucketName,
-      provider,
+      name: data.name,
+      bucketName,
+      provider: data.providerType,
       roleArn: data.providerType === "aws" ? data.roleArn : null,
       region: data.providerType === "aws" ? data.bucketRegion : null,
       endpoint,
@@ -92,18 +91,18 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       message: "Storage connection added successfully.",
     });
 
-    return redirect(`/connections/${data.alias}`, {
+    return redirect(`/connections/${encodeURIComponent(data.name)}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
-    // Handle unique constraint violation on alias
+    // Handle unique constraint violation on name
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       return {
         errors: {
-          alias: ["This alias is already taken. Please choose another."],
+          name: ["This name is already taken. Please choose another."],
         },
         status: "error",
       };
@@ -127,11 +126,16 @@ export default function ConnectBucketModal() {
     adminScopes: string[];
     userId: string;
   }>();
+  const actionData = useActionData<typeof action>();
   useBackendNotification();
 
   return (
     <RouteModal title={title}>
-      <AddConnectionForm adminScopes={adminScopes} userId={userId} />
+      <AddConnectionForm
+        adminScopes={adminScopes}
+        userId={userId}
+        serverErrors={actionData?.status === "error" ? actionData.errors : undefined}
+      />
     </RouteModal>
   );
 }

@@ -1,22 +1,22 @@
 import { z } from "zod";
 
-// Connection alias: 2-60 chars, alphanumeric + hyphens + spaces,
+// Connection name: 2-60 chars, alphanumeric + hyphens + spaces,
 // no leading/trailing hyphens or spaces, no consecutive hyphens or spaces
-export const aliasSchema = z
+export const connectionNameSchema = z
   .string()
-  .min(2, "Alias must be at least 2 characters")
-  .max(60, "Alias must be at most 60 characters")
+  .min(2, "Name must be at least 2 characters")
+  .max(60, "Name must be at most 60 characters")
   .regex(
     /^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$/,
-    "Alias must be alphanumeric with hyphens or spaces, no leading/trailing hyphens or spaces",
+    "Name must be alphanumeric with hyphens or spaces, no leading/trailing hyphens or spaces",
   )
   .refine(
     (val) => !val.includes("--"),
-    "Alias must not contain consecutive hyphens",
+    "Name must not contain consecutive hyphens",
   )
   .refine(
     (val) => !val.includes("  "),
-    "Alias must not contain consecutive spaces",
+    "Name must not contain consecutive spaces",
   );
 
 // AWS ARN pattern validation
@@ -36,8 +36,8 @@ const s3UriSchema = z
     { message: "Invalid S3 URI - bucket name must be 3-63 characters" },
   );
 
-/** Auto-suggest an alias from an S3 URI (e.g. "s3://my-bucket/path" → "my-bucket"). */
-export function suggestAlias(s3Uri: string): string {
+/** Auto-suggest a connection name from an S3 URI (e.g. "s3://my-bucket/path" → "my-bucket"). */
+export function suggestName(s3Uri: string): string {
   const { bucketName, prefix } = parseS3Uri(s3Uri);
   const lastSegment = prefix
     .replace(/\/$/, "")
@@ -65,22 +65,20 @@ export const parseS3Uri = (
 
 // Combined schema for final submission - AWS provider
 const awsFormSchema = z.object({
-  alias: aliasSchema,
+  name: connectionNameSchema,
   ownerScope: z.string().min(1, "Scope is required"),
   providerType: z.literal("aws"),
-  provider: z.string().default(""),
   s3Uri: s3UriSchema,
   bucketRegion: z.string().min(1, "Region is required"),
   roleArn: z.string().regex(arnPattern, "Invalid AWS Role ARN format"),
   bucketEndpoint: z.string().default(""),
 });
 
-// Combined schema for final submission - Other provider
-const otherFormSchema = z.object({
-  alias: aliasSchema,
+// Combined schema for final submission - MinIO provider
+const minioFormSchema = z.object({
+  name: connectionNameSchema,
   ownerScope: z.string().min(1, "Scope is required"),
-  providerType: z.literal("other"),
-  provider: z.string().min(1, "Provider name is required"),
+  providerType: z.literal("minio"),
   s3Uri: s3UriSchema,
   bucketRegion: z.string().default(""),
   roleArn: z.string().default(""),
@@ -90,21 +88,16 @@ const otherFormSchema = z.object({
 // Discriminated union for type-safe conditional validation
 export const connectBucketSchema = z.discriminatedUnion("providerType", [
   awsFormSchema,
-  otherFormSchema,
+  minioFormSchema,
 ]);
 
-/** @deprecated Use `connectBucketSchema` — kept for backward-compatible imports. */
-export const addConnectionSchema = connectBucketSchema;
-
 export type ConnectBucketFormData = z.input<typeof connectBucketSchema>;
-export type AddConnectionFormData = ConnectBucketFormData;
 
 // Default values for the form
 export const defaultFormValues: ConnectBucketFormData = {
-  alias: "",
+  name: "",
   ownerScope: "",
   providerType: "aws",
-  provider: "",
   s3Uri: "",
   bucketRegion: "eu-central-1",
   roleArn: "",
