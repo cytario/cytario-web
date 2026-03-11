@@ -2,11 +2,11 @@ import { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig.server";
+import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { addPinnedPath, removePinnedPath } from "~/utils/pinnedPaths.server";
 
 const pinSchema = z.object({
-  alias: z.string().min(1),
+  connectionName: z.string().min(1),
   pathName: z.string(),
   displayName: z.string().min(1),
   totalSize: z.coerce.number().optional(),
@@ -14,7 +14,7 @@ const pinSchema = z.object({
 });
 
 const unpinSchema = z.object({
-  alias: z.string().min(1),
+  connectionName: z.string().min(1),
   pathName: z.string(),
 });
 
@@ -27,7 +27,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   if (request.method.toUpperCase() === "POST") {
     const parsed = pinSchema.safeParse({
-      alias: formData.get("alias"),
+      connectionName: formData.get("connectionName"),
       pathName: formData.get("pathName"),
       displayName: formData.get("displayName"),
       totalSize: formData.get("totalSize") || undefined,
@@ -38,7 +38,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    const connection = await getConnectionByAlias(user, parsed.data.alias);
+    const connection = await getConnectionByName(user, parsed.data.connectionName);
     if (!connection) {
       return new Response("Connection not found", { status: 404 });
     }
@@ -54,7 +54,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   if (request.method.toUpperCase() === "DELETE") {
     const parsed = unpinSchema.safeParse({
-      alias: formData.get("alias"),
+      connectionName: formData.get("connectionName"),
       pathName: formData.get("pathName"),
     });
 
@@ -62,13 +62,13 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    const connection = await getConnectionByAlias(user, parsed.data.alias);
+    const connection = await getConnectionByName(user, parsed.data.connectionName);
     if (!connection) {
       return new Response("Connection not found", { status: 404 });
     }
 
     try {
-      await removePinnedPath(user.sub, parsed.data.alias, parsed.data.pathName);
+      await removePinnedPath(user.sub, parsed.data.connectionName, parsed.data.pathName);
       return Response.json({ ok: true });
     } catch (error) {
       console.error("[pinned] Failed to remove pin:", error);

@@ -41,7 +41,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const config = useConnectionsStore(
-    (state) => state.connections[node.alias]?.connectionConfig,
+    (state) => state.connections[node.connectionName]?.connectionConfig,
   );
 
   const to = nodeToPath(node);

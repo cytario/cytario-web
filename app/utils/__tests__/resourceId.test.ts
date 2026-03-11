@@ -28,23 +28,23 @@ describe("toIndexS3Key", () => {
 
 describe("nodeToPath", () => {
   test("returns connection path without pathName", () => {
-    expect(nodeToPath({ alias: "my-conn" })).toBe("/connections/my-conn");
+    expect(nodeToPath({ connectionName: "my-conn" })).toBe("/connections/my-conn");
   });
 
   test("returns connection path with pathName", () => {
-    expect(nodeToPath({ alias: "my-conn", pathName: "folder/file.txt" })).toBe(
+    expect(nodeToPath({ connectionName: "my-conn", pathName: "folder/file.txt" })).toBe(
       "/connections/my-conn/folder/file.txt",
     );
   });
 
   test("strips trailing slash from path", () => {
-    expect(nodeToPath({ alias: "my-conn", pathName: "folder/" })).toBe(
+    expect(nodeToPath({ connectionName: "my-conn", pathName: "folder/" })).toBe(
       "/connections/my-conn/folder",
     );
   });
 
   test("returns path without trailing slash when pathName is empty", () => {
-    expect(nodeToPath({ alias: "my-conn", pathName: "" })).toBe(
+    expect(nodeToPath({ connectionName: "my-conn", pathName: "" })).toBe(
       "/connections/my-conn",
     );
   });

@@ -41,7 +41,7 @@ function useNodeMetadata(node: TreeNode, viewMode?: ViewMode): ThumbnailMeta[] {
       return EMPTY_ARRAY;
     case "grid":
     default: {
-      const config = getConnectionConfig(node.alias);
+      const config = getConnectionConfig(node.connectionName);
       if (!config) return EMPTY_ARRAY;
 
       switch (node.type) {

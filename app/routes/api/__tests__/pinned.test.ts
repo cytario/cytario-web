@@ -5,7 +5,7 @@ const { mockAddPinnedPath, mockRemovePinnedPath } = vi.hoisted(() => ({
   mockRemovePinnedPath: vi.fn(),
 }));
 
-const mockGetConnectionByAlias = vi.hoisted(() => vi.fn());
+const mockGetConnectionByName = vi.hoisted(() => vi.fn());
 
 vi.mock("~/utils/pinnedPaths.server", () => ({
   addPinnedPath: mockAddPinnedPath,
@@ -13,7 +13,7 @@ vi.mock("~/utils/pinnedPaths.server", () => ({
 }));
 
 vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByAlias: mockGetConnectionByAlias,
+  getConnectionByName: mockGetConnectionByName,
 }));
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -53,7 +53,7 @@ function createActionArgs(method: string, formData: FormData) {
 describe("POST /api/pinned", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConnectionByAlias.mockResolvedValue({
+    mockGetConnectionByName.mockResolvedValue({
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -64,7 +64,7 @@ describe("POST /api/pinned", () => {
     mockAddPinnedPath.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
       displayName: "images",
       totalSize: "1024000",
@@ -76,7 +76,7 @@ describe("POST /api/pinned", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockAddPinnedPath).toHaveBeenCalledWith("user-1", {
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
       displayName: "images",
       totalSize: 1024000,
@@ -88,7 +88,7 @@ describe("POST /api/pinned", () => {
     mockAddPinnedPath.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/",
       displayName: "data",
     });
@@ -98,15 +98,15 @@ describe("POST /api/pinned", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockAddPinnedPath).toHaveBeenCalledWith("user-1", {
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/",
       displayName: "data",
     });
   });
 
-  test("returns 400 with missing alias", async () => {
+  test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
-      alias: "",
+      connectionName: "",
       pathName: "data/",
       displayName: "data",
     });
@@ -119,7 +119,7 @@ describe("POST /api/pinned", () => {
 
   test("returns 400 with missing displayName", async () => {
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/",
       displayName: "",
     });
@@ -130,11 +130,11 @@ describe("POST /api/pinned", () => {
     expect(mockAddPinnedPath).not.toHaveBeenCalled();
   });
 
-  test("returns 404 when alias does not correspond to a visible connection", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(null);
+  test("returns 404 when connectionName does not correspond to a visible connection", async () => {
+    mockGetConnectionByName.mockResolvedValue(null);
 
     const formData = createFormData({
-      alias: "hidden-bucket",
+      connectionName: "hidden-bucket",
       pathName: "data/images/",
       displayName: "images",
     });
@@ -149,7 +149,7 @@ describe("POST /api/pinned", () => {
     mockAddPinnedPath.mockRejectedValue(new Error("DB connection lost"));
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
       displayName: "images",
     });
@@ -163,7 +163,7 @@ describe("POST /api/pinned", () => {
 describe("DELETE /api/pinned", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConnectionByAlias.mockResolvedValue({
+    mockGetConnectionByName.mockResolvedValue({
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -174,7 +174,7 @@ describe("DELETE /api/pinned", () => {
     mockRemovePinnedPath.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
     });
 
@@ -189,9 +189,9 @@ describe("DELETE /api/pinned", () => {
     );
   });
 
-  test("returns 400 with missing alias on DELETE", async () => {
+  test("returns 400 with missing connectionName on DELETE", async () => {
     const formData = createFormData({
-      alias: "",
+      connectionName: "",
       pathName: "data/images/",
     });
 
@@ -201,11 +201,11 @@ describe("DELETE /api/pinned", () => {
     expect(mockRemovePinnedPath).not.toHaveBeenCalled();
   });
 
-  test("returns 404 when alias does not correspond to a visible connection on DELETE", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(null);
+  test("returns 404 when connectionName does not correspond to a visible connection on DELETE", async () => {
+    mockGetConnectionByName.mockResolvedValue(null);
 
     const formData = createFormData({
-      alias: "hidden-bucket",
+      connectionName: "hidden-bucket",
       pathName: "data/images/",
     });
 
@@ -219,7 +219,7 @@ describe("DELETE /api/pinned", () => {
     mockRemovePinnedPath.mockRejectedValue(new Error("DB connection lost"));
 
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/images/",
     });
 
@@ -232,7 +232,7 @@ describe("DELETE /api/pinned", () => {
 describe("unsupported methods", () => {
   test("returns 405 for PATCH method", async () => {
     const formData = createFormData({
-      alias: "my-bucket",
+      connectionName: "my-bucket",
       pathName: "data/",
     });
 

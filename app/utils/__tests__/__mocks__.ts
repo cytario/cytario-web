@@ -73,7 +73,7 @@ const mock = {
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => ({
-    alias: "test-provider-test-bucket",
+    connectionName: "test-provider-test-bucket",
     name: "mockName",
     type: "directory",
     bucketName: "test-bucket",

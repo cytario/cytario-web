@@ -30,7 +30,7 @@ describe("pinnedPaths.server", () => {
       mockPrisma.pinnedPath.upsert.mockResolvedValue({});
 
       await addPinnedPath("user-1", {
-        alias: "bucket-a",
+        connectionName: "bucket-a",
         pathName: "data/images/",
         displayName: "images",
         totalSize: 1024000,
@@ -54,7 +54,7 @@ describe("pinnedPaths.server", () => {
       mockPrisma.pinnedPath.upsert.mockResolvedValue({});
 
       await addPinnedPath("user-1", {
-        alias: "bucket-a",
+        connectionName: "bucket-a",
         pathName: "data/",
         displayName: "data",
       });
@@ -68,7 +68,7 @@ describe("pinnedPaths.server", () => {
   });
 
   describe("removePinnedPath", () => {
-    test("deletes a pinned path by userId, alias, and pathName", async () => {
+    test("deletes a pinned path by userId, connectionName, and pathName", async () => {
       mockPrisma.pinnedPath.deleteMany.mockResolvedValue({ count: 1 });
 
       await removePinnedPath("user-1", "bucket-a", "data/images/");

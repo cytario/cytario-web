@@ -20,8 +20,8 @@ import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
-  /** Connection alias for breadcrumb context */
-  alias?: string;
+  /** Connection name for breadcrumb context */
+  connectionName?: string;
   /** URL path relative to connection root */
   urlPath?: string;
 }
@@ -42,7 +42,7 @@ export function DirectoryView({
   nodes,
   name,
   showFilters = false,
-  alias,
+  connectionName,
   urlPath,
   children,
   secondaryActions,
@@ -87,13 +87,13 @@ export function DirectoryView({
   // Track recently viewed directories (DB-backed via server action)
   const recentFetcher = useFetcher();
   useEffect(() => {
-    if (!alias || !urlPath) return;
+    if (!connectionName || !urlPath) return;
     recentFetcher.submit(
-      { alias, pathName: urlPath, name, type: "directory" },
+      { connectionName, pathName: urlPath, name, type: "directory" },
       { method: "post", action: "/api/recently-viewed" },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alias, urlPath, name]);
+  }, [connectionName, urlPath, name]);
 
   if (nodes.length === 0) {
     return (

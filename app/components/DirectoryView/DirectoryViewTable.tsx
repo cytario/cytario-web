@@ -191,7 +191,7 @@ export function DirectoryViewTable({
   const bucketData: BucketRow[] = useMemo(() => {
     if (tableType !== "bucket") return [];
     return nodes.map((node) => {
-      const config = connections[node.alias]?.connectionConfig;
+      const config = connections[node.connectionName]?.connectionConfig;
       return {
         name: node.name,
         provider: config?.provider ?? "",

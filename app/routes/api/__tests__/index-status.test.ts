@@ -3,7 +3,7 @@ import { LoaderFunctionArgs } from "react-router";
 
 import mock from "~/utils/__tests__/__mocks__";
 
-const mockGetConnectionByAlias = vi.fn();
+const mockGetConnectionByName = vi.fn();
 const mockGetS3Client = vi.fn();
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -19,8 +19,8 @@ vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
 vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByAlias: (...args: unknown[]) =>
-    mockGetConnectionByAlias(...args),
+  getConnectionByName: (...args: unknown[]) =>
+    mockGetConnectionByName(...args),
 }));
 
 describe("index-status.$alias loader", () => {
@@ -58,7 +58,7 @@ describe("index-status.$alias loader", () => {
   });
 
   test("returns 404 when connection config not found", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(null);
+    mockGetConnectionByName.mockResolvedValue(null);
 
     const { loader } = await import("~/routes/api/index-status.$alias");
 
@@ -73,7 +73,7 @@ describe("index-status.$alias loader", () => {
   });
 
   test("returns 401 when no credentials for bucket", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(connectionConfig);
+    mockGetConnectionByName.mockResolvedValue(connectionConfig);
 
     const contextWithoutCreds = {
       get: () => ({
@@ -96,7 +96,7 @@ describe("index-status.$alias loader", () => {
   });
 
   test("returns exists:true with metadata when index exists", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(connectionConfig);
+    mockGetConnectionByName.mockResolvedValue(connectionConfig);
     mockGetS3Client.mockResolvedValue({
       send: vi.fn().mockResolvedValue({
         Metadata: { "object-count": "1500" },
@@ -119,7 +119,7 @@ describe("index-status.$alias loader", () => {
   });
 
   test("returns exists:false when index file not found", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(connectionConfig);
+    mockGetConnectionByName.mockResolvedValue(connectionConfig);
     mockGetS3Client.mockResolvedValue({
       send: vi.fn().mockRejectedValue(
         new NotFound({
@@ -142,7 +142,7 @@ describe("index-status.$alias loader", () => {
   });
 
   test("rethrows non-NotFound errors", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(connectionConfig);
+    mockGetConnectionByName.mockResolvedValue(connectionConfig);
     mockGetS3Client.mockResolvedValue({
       send: vi.fn().mockRejectedValue(new Error("Network error")),
     });
@@ -159,7 +159,7 @@ describe("index-status.$alias loader", () => {
   });
 
   test("returns objectCount 0 when metadata has no object-count", async () => {
-    mockGetConnectionByAlias.mockResolvedValue(connectionConfig);
+    mockGetConnectionByName.mockResolvedValue(connectionConfig);
     mockGetS3Client.mockResolvedValue({
       send: vi.fn().mockResolvedValue({
         Metadata: {},

@@ -8,25 +8,25 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
  * Uses `getState()` for each store access to ensure the latest snapshot is read,
  * preventing stale state in async flows.
  */
-export async function probeIndex(alias: string): Promise<void> {
+export async function probeIndex(connectionName: string): Promise<void> {
   const state = useConnectionsStore.getState();
-  const current = state.connections[alias]?.connectionIndex;
+  const current = state.connections[connectionName]?.connectionIndex;
 
   if (current && (current.status === "ready" || current.status === "loading")) {
     return;
   }
 
-  state.setConnectionIndex(alias, {
+  state.setConnectionIndex(connectionName, {
     status: "loading",
     objectCount: 0,
     builtAt: null,
   });
 
   try {
-    const res = await fetch(`/api/index-status/${alias}`);
+    const res = await fetch(`/api/index-status/${connectionName}`);
 
     if (!res.ok) {
-      useConnectionsStore.getState().setConnectionIndex(alias, {
+      useConnectionsStore.getState().setConnectionIndex(connectionName, {
         status: "error",
         objectCount: 0,
         builtAt: null,
@@ -39,20 +39,20 @@ export async function probeIndex(alias: string): Promise<void> {
       | { exists: false };
 
     if (data.exists) {
-      useConnectionsStore.getState().setConnectionIndex(alias, {
+      useConnectionsStore.getState().setConnectionIndex(connectionName, {
         status: "ready",
         objectCount: data.objectCount,
         builtAt: data.builtAt,
       });
     } else {
-      useConnectionsStore.getState().setConnectionIndex(alias, {
+      useConnectionsStore.getState().setConnectionIndex(connectionName, {
         status: "missing",
         objectCount: 0,
         builtAt: null,
       });
     }
   } catch {
-    useConnectionsStore.getState().setConnectionIndex(alias, {
+    useConnectionsStore.getState().setConnectionIndex(connectionName, {
       status: "error",
       objectCount: 0,
       builtAt: null,

@@ -4,7 +4,7 @@ import { LoaderFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByAlias } from "~/utils/connectionConfig.server";
+import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
@@ -17,7 +17,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     return new Response("Connection alias is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnectionByAlias(user, alias);
+  const connectionConfig = await getConnectionByName(user, alias);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }

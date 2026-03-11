@@ -74,7 +74,7 @@ function setupViewerStore() {
 function makeTreeNodes(): TreeNode[] {
   return [
     {
-      alias: "aws-test-bucket",
+      connectionName: "aws-test-bucket",
       provider: "aws",
       bucketName: "test-bucket",
       name: "analysis",
@@ -82,7 +82,7 @@ function makeTreeNodes(): TreeNode[] {
       pathName: "analysis/",
       children: [
         {
-          alias: "aws-test-bucket",
+          connectionName: "aws-test-bucket",
           provider: "aws",
           bucketName: "test-bucket",
           name: "cells.parquet",
@@ -91,7 +91,7 @@ function makeTreeNodes(): TreeNode[] {
           children: [],
         },
         {
-          alias: "aws-test-bucket",
+          connectionName: "aws-test-bucket",
           provider: "aws",
           bucketName: "test-bucket",
           name: "markers.parquet",

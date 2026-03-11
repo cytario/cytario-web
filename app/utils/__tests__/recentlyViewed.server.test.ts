@@ -29,7 +29,7 @@ describe("recentlyViewed.server", () => {
       mockPrisma.recentlyViewed.upsert.mockResolvedValue({});
 
       await upsertRecentlyViewed("user-1", {
-        alias: "my-bucket",
+        connectionName: "my-bucket",
         pathName: "data/image.ome.tiff",
         name: "image.ome.tiff",
         type: "file",
@@ -102,7 +102,7 @@ describe("recentlyViewed.server", () => {
   });
 
   describe("removeRecentlyViewed", () => {
-    test("deletes a specific item by userId, alias, and pathName", async () => {
+    test("deletes a specific item by userId, connectionName, and pathName", async () => {
       mockPrisma.recentlyViewed.deleteMany.mockResolvedValue({ count: 1 });
 
       await removeRecentlyViewed("user-1", "my-bucket", "data/file.csv");

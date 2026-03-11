@@ -70,7 +70,7 @@ export function NodeInfoModal() {
             </ButtonLink>
 
             <Form method="delete" action="/">
-              <input type="hidden" name="alias" value={bucketAlias} />
+              <input type="hidden" name="connectionName" value={bucketAlias} />
               <Button type="submit" variant="destructive" size="lg">
                 Remove Storage Connection
               </Button>

@@ -13,13 +13,13 @@ export async function getConnectionConfigs(
   return filterVisible(user, allConfigs);
 }
 
-// Get a connection config by its unique name (alias in the URL)
-export async function getConnectionByAlias(
+// Get a connection config by its unique name
+export async function getConnectionByName(
   user: UserProfile,
-  alias: string,
+  name: string,
 ): Promise<ConnectionConfig | null> {
   const config = await prisma.connectionConfig.findUnique({
-    where: { name: alias },
+    where: { name },
   });
   if (!config) return null;
   return canSee(user, config.ownerScope) ? config : null;
@@ -59,13 +59,13 @@ export async function upsertConnectionConfig(
   });
 }
 
-// Delete a connection config by alias (with authorization check)
+// Delete a connection config by its unique name (with authorization check)
 export async function deleteConnectionConfig(
   user: UserProfile,
-  alias: string,
+  name: string,
 ) {
   const config = await prisma.connectionConfig.findUnique({
-    where: { name: alias },
+    where: { name },
   });
 
   if (!config || !canSee(user, config.ownerScope)) {

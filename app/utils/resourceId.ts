@@ -89,10 +89,10 @@ export function matchesExtension(resourceId: string, pattern: RegExp): boolean {
   return pattern.test(resourceId);
 }
 
-/** Builds a URL path for a node using its alias. */
-export function nodeToPath(node: { alias: string; pathName?: string }): string {
+/** Builds a URL path for a node using its connection name. */
+export function nodeToPath(node: { connectionName: string; pathName?: string }): string {
   const path = node.pathName
-    ? `/connections/${node.alias}/${node.pathName}`
-    : `/connections/${node.alias}`;
+    ? `/connections/${node.connectionName}/${node.pathName}`
+    : `/connections/${node.connectionName}`;
   return path.replace(/\/$/, "");
 }

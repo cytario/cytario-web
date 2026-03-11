@@ -6,20 +6,20 @@ export type { RecentlyViewed };
 /** Upsert a recently viewed item, updating viewedAt if it already exists. */
 export async function upsertRecentlyViewed(
   userId: string,
-  item: { alias: string; pathName: string; name: string; type: string },
+  item: { connectionName: string; pathName: string; name: string; type: string },
 ): Promise<void> {
   await prisma.recentlyViewed.upsert({
     where: {
       userId_connectionName_pathName: {
         userId,
-        connectionName: item.alias,
+        connectionName: item.connectionName,
         pathName: item.pathName,
       },
     },
     update: { name: item.name, type: item.type, viewedAt: new Date() },
     create: {
       userId,
-      connectionName: item.alias,
+      connectionName: item.connectionName,
       pathName: item.pathName,
       name: item.name,
       type: item.type,

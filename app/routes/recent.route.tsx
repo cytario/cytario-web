@@ -86,7 +86,7 @@ export default function RecentRoute() {
         .map((item) => {
           const config = configByAlias.get(item.connectionName)!;
           return {
-            alias: item.connectionName,
+            connectionName: item.connectionName,
             provider: config.provider,
             bucketName: config.bucketName,
             pathName: item.pathName,

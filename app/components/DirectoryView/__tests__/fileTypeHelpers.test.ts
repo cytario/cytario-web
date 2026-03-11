@@ -12,7 +12,7 @@ import { getFileIcon, getTypeLabel } from "../fileTypeHelpers";
 
 function makeNode(overrides: Partial<TreeNode> = {}): TreeNode {
   return {
-    alias: "aws-bucket",
+    connectionName: "aws-bucket",
     name: "test",
     type: "file",
     bucketName: "bucket",

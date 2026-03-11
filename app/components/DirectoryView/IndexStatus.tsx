@@ -16,42 +16,42 @@ const reindexResponseSchema = z.object({
 });
 
 interface IndexStatusProps {
-  alias: string;
+  connectionName: string;
 }
 
-export function IndexStatus({ alias }: IndexStatusProps) {
-  const bucketIndex = useConnectionsStore(selectConnectionIndex(alias));
+export function IndexStatus({ connectionName }: IndexStatusProps) {
+  const bucketIndex = useConnectionsStore(selectConnectionIndex(connectionName));
   const setConnectionIndex = useConnectionsStore((s) => s.setConnectionIndex);
 
   const fetcher = useFetcher();
 
   useEffect(() => {
-    probeIndex(alias);
-  }, [alias]);
+    probeIndex(connectionName);
+  }, [connectionName]);
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
       const parsed = reindexResponseSchema.safeParse(fetcher.data);
       if (parsed.success) {
-        setConnectionIndex(alias, {
+        setConnectionIndex(connectionName, {
           status: "ready",
           objectCount: parsed.data.objectCount,
           builtAt: parsed.data.builtAt,
         });
       } else {
-        setConnectionIndex(alias, {
+        setConnectionIndex(connectionName, {
           status: "error",
           objectCount: 0,
           builtAt: null,
         });
       }
     }
-  }, [fetcher.state, fetcher.data, alias, setConnectionIndex]);
+  }, [fetcher.state, fetcher.data, connectionName, setConnectionIndex]);
 
   const handleRebuild = () => {
     fetcher.submit(null, {
       method: "POST",
-      action: `/api/reindex/${alias}`,
+      action: `/api/reindex/${connectionName}`,
     });
   };
 

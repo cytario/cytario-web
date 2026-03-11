@@ -8,7 +8,7 @@ import { select, useConnectionsStore } from "~/utils/connectionsStore";
 /**
  * Stores credentials and config for all connections in the Zustand store,
  * then probes each connection's index status.
- * Safe to call from multiple routes -- idempotent per alias.
+ * Safe to call from multiple routes -- idempotent per connection name.
  */
 export function useInitConnections(
   connectionConfigs: ConnectionConfig[],
