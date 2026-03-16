@@ -13,21 +13,4 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Ensure branch has no merge commits
-        run: |
-          MERGE_COMMITS=$(git log --merges origin/${{ github.base_ref }}..HEAD --oneline)
-          if [ -n "$MERGE_COMMITS" ]; then
-            echo "❌ Branch contains merge commits. Please rebase onto ${{ github.base_ref }} instead:"
-            echo "$MERGE_COMMITS"
-            exit 1
-          fi
-          echo "✅ No merge commits found in branch."
-
-      - name: Ensure branch is rebased on top of base branch
-        run: |
-          git fetch origin ${{ github.base_ref }}
-          if ! git merge-base --is-ancestor origin/${{ github.base_ref }} HEAD; then
-            echo "❌ Branch is not up to date with ${{ github.base_ref }}. Please rebase."
-            exit 1
-          fi
-          echo "✅ Branch is up to date with ${{ github.base_ref }}."
+      - uses: cytario/enforce-semi-linear-history@v1
