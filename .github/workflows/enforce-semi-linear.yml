@@ -1,0 +1,16 @@
+name: Enforce Semi-Linear History
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-linear-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: cytario/enforce-semi-linear-history@v1
