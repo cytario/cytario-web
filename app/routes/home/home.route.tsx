@@ -48,8 +48,13 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
+  const current = currentUrl.pathname;
+  const next = nextUrl.pathname;
+  // Don't revalidate when opening/closing the connect-bucket modal
+  if (current === "/" && next === "/connect-bucket") return false;
+  if (current === "/connect-bucket" && next === "/") return false;
   // Revalidate when navigating back to home from another page
-  if (currentUrl.pathname !== nextUrl.pathname) return true;
+  if (current !== next) return true;
   return false;
 };
 
