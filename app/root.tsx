@@ -68,6 +68,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   if (formAction) return defaultShouldRevalidate;
   return false;
 };
+
 interface RootLoaderResponse {
   user?: UserProfile;
   notification?: NotificationInput;
