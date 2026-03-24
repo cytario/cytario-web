@@ -73,21 +73,17 @@ npx prisma generate                               # Regenerate client
 
 ### Design System
 
-To develop [`@cytario/design`](https://github.com/cytario/cytario-design) components locally and see changes reflected in cytario-web, run three terminals. Assumes both repos are cloned as siblings (`../cytario-design`):
+To develop [`@cytario/design`](https://github.com/cytario/cytario-design) components locally and see changes reflected in cytario-web, run a single command. Assumes both repos are cloned as siblings (`../cytario-design`):
 
 ```sh
-# 1. Storybook (component development at localhost:6006)
-cd ../cytario-design && pnpm dev
-
-# 2. Watch-build and sync dist to cytario-web
-cd ../cytario-design && pnpm build:lib --watch \
-  --onSuccess "cp dist/index.js dist/index.js.map ../cytario-web/node_modules/@cytario/design/dist/"
-
-# 3. cytario-web dev server
-npm run dev
+npm run dev:design
 ```
 
-The `vite.config.ts` is configured to pick up changes in `node_modules/@cytario/design` (see the `optimizeDeps.exclude`, `ssr.noExternal`, and `server.watch` settings). These only affect the dev server, not production builds.
+This links `@cytario/design` via `npm link`, starts `tsup --watch` in the design repo, and runs the cytario-web dev server — all in one process. Changes to design system source are rebuilt by tsup and picked up by Vite's HMR automatically.
+
+The `vite.config.ts` is configured to handle the symlink: `optimizeDeps.exclude` skips pre-bundling, `ssr.noExternal` processes it through Vite's pipeline (preventing dual-React), and `server.watch` picks up changes in node_modules.
+
+> **Note:** `npm install` removes the symlink. Just re-run `npm run dev:design` — it re-links automatically.
 
 ### Debugging
 
