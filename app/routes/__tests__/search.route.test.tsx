@@ -60,6 +60,7 @@ describe("SearchRoute", () => {
         params: {},
         context: mockContext as never,
         unstable_pattern: "",
+        unstable_url: new URL(request.url),
       })
     ).rejects.toThrow("Search service unavailable");
   });

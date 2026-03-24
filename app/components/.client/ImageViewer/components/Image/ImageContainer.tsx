@@ -11,7 +11,7 @@ import { useViewerStore } from "../../state/ViewerStoreContext";
 import { LavaLoader } from "~/components/LavaLoader";
 
 interface ViewContainerProps {
-  children: (viewPort: ViewPort) => JSX.Element;
+  children: (viewPort: ViewPort) => React.JSX.Element;
   isActivePanel?: boolean;
   isPreview?: boolean;
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
