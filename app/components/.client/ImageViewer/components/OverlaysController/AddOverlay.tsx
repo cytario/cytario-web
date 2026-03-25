@@ -4,30 +4,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
 import { findOriginalNode, toDesignTreeNodes } from "./toDesignTreeNodes";
-import { select } from "../../state/selectors";
-import { useViewerStore } from "../../state/ViewerStoreContext";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 import { createResourceId } from "~/utils/resourceId";
 
-const QUERY_EXTENSION_MAP: Record<string, "csv" | "parquet"> = {
-  "convert-overlay": "csv",
-  "load-overlay": "parquet",
-};
-
 interface AddOverlayProps {
   callback?: () => void;
   query: string;
+  /** Called with a resourceId when a parquet overlay is selected. Not needed for CSV conversion. */
+  onOverlayAdd?: (overlay: Record<string, Record<string, never>>) => void;
 }
 
-export function AddOverlay({ callback, query }: AddOverlayProps) {
-  const addOverlaysState = useViewerStore(select.addOverlaysState);
+export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const { toast } = useToast();
 
-  const extension = QUERY_EXTENSION_MAP[query];
-  const searchString = `/search?query=${extension}`;
+  const searchString = `/search?query=${query}`;
 
   // Fetch available files on mount
   const objectsFetcher = useFetcher<SearchRouteLoaderResponse>();
@@ -55,13 +48,10 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
   // Hover state: show the full path of the hovered file
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
-  const handleHover = useCallback(
-    (node: DesignTreeNode) => {
-      // The design tree node id is the pathName (or name for buckets)
-      setHoveredPath(node.id);
-    },
-    [],
-  );
+  const handleHover = useCallback((node: DesignTreeNode) => {
+    // The design tree node id is the pathName (or name for buckets)
+    setHoveredPath(node.id);
+  }, []);
 
   const handleHoverEnd = useCallback(() => {
     setHoveredPath(null);
@@ -109,17 +99,19 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
       }
 
       if (!credentials) {
-        throw new Error(`No credentials found for bucket: ${originalNode.bucketName}`);
+        throw new Error(
+          `No credentials found for bucket: ${originalNode.bucketName}`,
+        );
       }
 
-      if (extension === "csv") {
+      if (query === "csv") {
         convertCsvToParquet(resourceId, credentials);
         toast({
           variant: "success",
           message: `Started conversion: ${originalNode.name}`,
         });
       } else {
-        addOverlaysState({ [resourceId]: {} });
+        onOverlayAdd?.({ [resourceId]: {} });
         toast({
           variant: "success",
           message: `Overlay added: ${originalNode.name}`,
@@ -134,14 +126,14 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
         message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
       });
     }
-  }, [selectedId, nodes, extension, addOverlaysState, toast, callback]);
+  }, [selectedId, nodes, query, onOverlayAdd, toast, callback]);
 
   return (
     <div className="flex flex-col gap-3">
       {/* Search input */}
       <Input
-        aria-label={`Search ${extension} files`}
-        placeholder={`Search .${extension} files...`}
+        aria-label={`Search ${query} files`}
+        placeholder={`Search .${query} files...`}
         value={searchTerm}
         onChange={setSearchTerm}
       />
@@ -152,14 +144,14 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
           <LavaLoader />
         </div>
       ) : treeData.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
-          No .{extension} files found in connected buckets.
+        <p className="py-8 text-center text-sm text-(--color-text-secondary)">
+          No .{query} files found in connected buckets.
         </p>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-[var(--color-border-default)]">
+          <div className="overflow-hidden rounded-lg border border-(--color-border-default)">
             <Tree
-              aria-label={`Select ${extension} file`}
+              aria-label={`Select ${query} file`}
               data={treeData}
               selectionMode="single"
               selectedIds={selectedIds}
@@ -173,11 +165,9 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
               searchMatch={searchMatch}
             />
           </div>
-          {hoveredPath && (
-            <p className="truncate text-xs text-[var(--color-text-tertiary)]">
-              {hoveredPath}
-            </p>
-          )}
+          <p className="truncate text-xs text-(--color-text-tertiary)">
+            {hoveredPath ?? "…"}
+          </p>
         </>
       )}
 
@@ -188,12 +178,8 @@ export function AddOverlay({ callback, query }: AddOverlayProps) {
             Cancel
           </Button>
         )}
-        <Button
-          variant="primary"
-          isDisabled={!selectedId}
-          onPress={handleLoad}
-        >
-          {extension === "csv" ? "Convert" : "Load"}
+        <Button variant="primary" isDisabled={!selectedId} onPress={handleLoad}>
+          {query === "csv" ? "Convert" : "Load"}
         </Button>
       </div>
     </div>

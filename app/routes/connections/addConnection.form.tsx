@@ -11,16 +11,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { KeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
+import { useFetcher } from "react-router";
 
-import AWS_REGIONS from "./awsRegions.json";
 import {
   type ConnectBucketFormData,
   connectBucketSchema,
   defaultFormValues,
   parseS3Uri,
   suggestName,
-} from "~/forms/addConnection/addConnection.schema";
+} from "./addConnection.schema";
+import AWS_REGIONS from "./awsRegions.json";
 
 const STEP_LABELS = ["Storage Type", "Connection Details", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -61,14 +61,21 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 interface ConnectBucketFormProps {
   adminScopes: string[];
   userId: string;
-  serverErrors?: Record<string, string[]>;
 }
 
 export const AddConnectionForm = ({
   adminScopes,
   userId,
-  serverErrors,
 }: ConnectBucketFormProps) => {
+  const fetcher = useFetcher<{
+    errors?: Record<string, string[]>;
+    status?: string;
+  }>();
+
+  const serverErrors =
+    fetcher.data?.status === "error" ? fetcher.data.errors : undefined;
+  const isSubmitting = fetcher.state === "submitting";
+
   // Compute the initial step from server errors so we navigate to the
   // correct page without needing setState inside an effect.
   const initialStep = serverErrors
@@ -79,9 +86,6 @@ export const AddConnectionForm = ({
     : 0;
 
   const [currentStep, setCurrentStep] = useState(initialStep);
-  const submit = useSubmit();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
 
   const {
     control,
@@ -145,7 +149,7 @@ export const AddConnectionForm = ({
         formData.append(key, String(value));
       }
     });
-    submit(formData, { method: "post" });
+    fetcher.submit(formData, { method: "post", action: "/connections" });
   };
 
   const handleNext = async () => {

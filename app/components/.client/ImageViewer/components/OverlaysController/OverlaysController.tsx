@@ -1,8 +1,8 @@
-import { ButtonLink, EmptyState } from "@cytario/design";
+import { Button, EmptyState } from "@cytario/design";
 import { Layers2 } from "lucide-react";
+import { useState } from "react";
 
-
-import { OverlayInfoModal } from "./OverlayInfoModal";
+import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";
@@ -25,6 +25,9 @@ export const OverlaysController = () => {
   const isInPointMode = isPointMode(currentZoom);
 
   const entries = Object.entries(overlaysStates);
+  // Local state (not useModal) because this modal must render inside
+  // ViewerStoreProvider, which is outside ModalOutlet's tree.
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <FeatureItem
@@ -50,14 +53,22 @@ export const OverlaysController = () => {
             description="Add parquet cell detection files"
             icon={Layers2}
             className="py-6"
-            action={<ButtonLink href="?action=load-overlay" variant="secondary" size="sm">Add Overlay</ButtonLink>}
+            action={
+              <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>
+                Add Overlay
+              </Button>
+            }
           />
         ) : (
-          <ButtonLink href="?action=load-overlay" variant="secondary" size="sm">Add Overlay</ButtonLink>
+          <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>
+            Add Overlay
+          </Button>
         )}
       </footer>
 
-      <OverlayInfoModal />
+      {isOpen && (
+        <LoadOverlayModal onClose={() => setIsOpen(false)} />
+      )}
     </FeatureItem>
   );
 };
