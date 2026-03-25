@@ -1,17 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Mock } from "vitest";
 
-import { select } from "../../../state/selectors";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
 import { AddOverlay } from "../AddOverlay";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 // --- Mocks ---
-
-vi.mock("../../../state/ViewerStoreContext", () => ({
-  useViewerStore: vi.fn(),
-}));
 
 const mockUseFetcherLoad = vi.fn();
 let mockFetcherData: { nodes: TreeNode[] } | undefined;
@@ -53,7 +46,6 @@ vi.mock("~/components/LavaLoader", () => ({
 
 // --- Helpers ---
 
-const mockAddOverlaysState = vi.fn();
 const mockToast = vi.fn();
 
 vi.mock("@cytario/design", async (importOriginal) => {
@@ -63,13 +55,6 @@ vi.mock("@cytario/design", async (importOriginal) => {
     useToast: () => ({ toast: mockToast }),
   };
 });
-
-function setupViewerStore() {
-  (useViewerStore as Mock).mockImplementation((selector) => {
-    if (selector === select.addOverlaysState) return mockAddOverlaysState;
-    return undefined;
-  });
-}
 
 function makeTreeNodes(): TreeNode[] {
   return [
@@ -111,23 +96,20 @@ describe("AddOverlay", () => {
     vi.clearAllMocks();
     mockFetcherData = undefined;
     mockFetcherState = "idle";
-    setupViewerStore();
   });
 
   test("fetches files on mount with correct search query for parquet", () => {
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
-    expect(mockUseFetcherLoad).toHaveBeenCalledWith(
-      "/search?query=parquet",
-    );
+    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?query=parquet");
   });
 
   test("fetches files on mount with correct search query for csv", () => {
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="convert-overlay" />);
+    render(<AddOverlay query="csv" />);
 
     expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?query=csv");
   });
@@ -135,7 +117,7 @@ describe("AddOverlay", () => {
   test("shows loading state while fetcher is loading", () => {
     mockFetcherState = "loading";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
     expect(screen.getByTestId("lava-loader")).toBeInTheDocument();
   });
@@ -144,7 +126,7 @@ describe("AddOverlay", () => {
     mockFetcherData = { nodes: [] };
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
     expect(
       screen.getByText("No .parquet files found in connected buckets."),
@@ -155,7 +137,7 @@ describe("AddOverlay", () => {
     mockFetcherData = { nodes: makeTreeNodes() };
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
     expect(screen.getByText("analysis")).toBeInTheDocument();
     expect(screen.getByText("cells.parquet")).toBeInTheDocument();
@@ -166,7 +148,7 @@ describe("AddOverlay", () => {
     mockFetcherData = { nodes: makeTreeNodes() };
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
     expect(
       screen.getByPlaceholderText("Search .parquet files..."),
@@ -177,7 +159,7 @@ describe("AddOverlay", () => {
     mockFetcherData = { nodes: makeTreeNodes() };
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
     const loadButton = screen.getByRole("button", { name: "Load" });
     expect(loadButton).toBeDisabled();
@@ -187,7 +169,7 @@ describe("AddOverlay", () => {
     mockFetcherData = { nodes: [] };
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="convert-overlay" />);
+    render(<AddOverlay query="csv" />);
 
     expect(
       screen.getByRole("button", { name: "Convert" }),
@@ -199,7 +181,7 @@ describe("AddOverlay", () => {
     mockFetcherState = "idle";
     const callback = vi.fn();
 
-    render(<AddOverlay query="load-overlay" callback={callback} />);
+    render(<AddOverlay query="parquet" callback={callback} />);
 
     expect(
       screen.getByRole("button", { name: "Cancel" }),
@@ -210,7 +192,7 @@ describe("AddOverlay", () => {
     mockFetcherData = { nodes: [] };
     mockFetcherState = "idle";
 
-    render(<AddOverlay query="load-overlay" />);
+    render(<AddOverlay query="parquet" />);
 
     expect(
       screen.queryByRole("button", { name: "Cancel" }),
@@ -223,7 +205,7 @@ describe("AddOverlay", () => {
     const callback = vi.fn();
     const user = userEvent.setup();
 
-    render(<AddOverlay query="load-overlay" callback={callback} />);
+    render(<AddOverlay query="parquet" callback={callback} />);
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 

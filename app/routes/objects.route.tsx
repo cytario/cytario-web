@@ -29,6 +29,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
+import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
@@ -221,6 +222,7 @@ export default function ObjectsRoute() {
 
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
+  const { openModal } = useModal();
   const setConnection = useConnectionsStore(select.setConnection);
 
   // Handle notifications from loader
@@ -342,7 +344,7 @@ export default function ObjectsRoute() {
                   performance.
                 </span>
               </div>
-              <Button onPress={() => navigate(`?action=convert-overlay`)}>
+              <Button onPress={() => openModal("convert-overlay")}>
                 Convert to Parquet
               </Button>
             </header>
