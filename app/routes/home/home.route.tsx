@@ -16,7 +16,6 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { NodeInfoModal } from "~/components/DirectoryView/NodeInfoModal";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { useModal } from "~/hooks/useModal";
 import {
@@ -230,7 +229,6 @@ export default function HomeRoute() {
         </Section>
       )}
 
-      <NodeInfoModal />
     </div>
   );
 }

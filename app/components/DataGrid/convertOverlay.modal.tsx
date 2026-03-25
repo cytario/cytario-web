@@ -2,7 +2,7 @@ import { AddOverlay } from "~/components/.client/ImageViewer/components/Overlays
 import { RouteModal } from "~/components/RouteModal";
 
 /** CSV to Parquet conversion modal. */
-export function ConvertOverlayModal({ onClose }: { onClose: () => void }) {
+export default function ConvertOverlayModal({ onClose }: { onClose: () => void }) {
   return (
     <RouteModal
       title="Convert CSV to Parquet"

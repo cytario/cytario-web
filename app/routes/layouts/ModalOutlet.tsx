@@ -15,10 +15,11 @@ const MODAL_REGISTRY = {
   "add-connection": lazy(
     () => import("~/routes/connections/addConnection.modal"),
   ),
-  "convert-overlay": lazy(() =>
-    import("~/components/DataGrid/convertOverlay.modal").then((m) => ({
-      default: m.ConvertOverlayModal,
-    })),
+  "convert-overlay": lazy(
+    () => import("~/components/DataGrid/convertOverlay.modal"),
+  ),
+  "node-info": lazy(
+    () => import("~/components/DirectoryView/modals/nodeInfo.modal"),
   ),
 } satisfies Record<string, ModalComponent>;
 
