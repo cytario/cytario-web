@@ -1,6 +1,6 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { Button, ButtonLink, EmptyState } from "@cytario/design";
+import { Button, EmptyState } from "@cytario/design";
 import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
@@ -320,10 +320,13 @@ export default function ObjectsRoute() {
           {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
           {isPinned ? "Pinned" : "Pin"}
         </Button>
-        <ButtonLink href="?action=cyberduck" variant="secondary">
+        <Button
+          onPress={() => openModal("cyberduck", { connectionName })}
+          variant="secondary"
+        >
           <Download size={16} />
           Access with Cyberduck
-        </ButtonLink>
+        </Button>
       </DirectoryView>
     );
   }

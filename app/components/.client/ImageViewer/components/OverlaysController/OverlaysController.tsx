@@ -2,7 +2,7 @@ import { Button, EmptyState } from "@cytario/design";
 import { Layers2 } from "lucide-react";
 import { useState } from "react";
 
-import { LoadOverlayModal } from "./overlayPicker.modal";
+import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/selectors";
 import { useViewerStore } from "../../state/ViewerStoreContext";

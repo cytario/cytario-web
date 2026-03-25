@@ -16,10 +16,13 @@ const MODAL_REGISTRY = {
     () => import("~/routes/connections/addConnection.modal"),
   ),
   "convert-overlay": lazy(
-    () => import("~/components/DataGrid/convertOverlay.modal"),
+    () => import("~/components/DataGrid/ConvertOverlay.modal"),
   ),
   "node-info": lazy(
-    () => import("~/components/DirectoryView/modals/nodeInfo.modal"),
+    () => import("~/components/DirectoryView/modals/NodeInfo.modal"),
+  ),
+  cyberduck: lazy(
+    () => import("~/components/DirectoryView/modals/Cyberduck.modal"),
   ),
 } satisfies Record<string, ModalComponent>;
 
