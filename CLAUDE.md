@@ -49,12 +49,12 @@ cytario-web/
 │   │   └── db/              # PostgreSQL + Redis connections
 │   ├── components/          # Shared React components
 │   │   └── .client/         # Client-only components (ImageViewer, deck.gl)
-│   ├── forms/               # Form definitions with zod schemas
 │   ├── hooks/               # Custom React hooks
-│   ├── routes/              # Route modules (loaders, actions, components)
+│   ├── routes/              # Route modules + colocated resources
 │   │   ├── auth/            # Login, logout, callback
-│   │   ├── buckets/         # Bucket list + connect modal
-│   │   ├── layouts/         # Layout routes (scrollview)
+│   │   ├── connections/     # Connection list, add-connection modal/form/action/schema
+│   │   ├── admin/           # Admin routes with colocated modals/forms/actions
+│   │   ├── layouts/         # Layout routes (scrollview, ModalOutlet)
 │   │   └── api/             # API-only routes
 │   ├── utils/               # Utility functions
 │   ├── config.ts            # Typed environment config
@@ -115,12 +115,28 @@ import { cytarioConfig } from "~/config";
 - Prisma generates types — never manually duplicate DB types
 - Prefer `interface` for object shapes, `type` for unions/intersections
 
+### File Colocation
+- **Colocate route-related resources** — modals, forms, actions, schemas, and loaders live next to their route file, not in separate top-level directories
+- Naming convention: `<feature>.route.tsx`, `<feature>.modal.tsx`, `<feature>.action.ts`, `<feature>.form.tsx`, `<feature>.schema.ts`, `<feature>.loader.ts`
+- Example: `routes/connections/` contains `connectionsList.route.tsx`, `addConnection.modal.tsx`, `addConnection.action.ts`, `addConnection.form.tsx`, `addConnection.schema.ts`
+- Reference: `routes/admin/updateUser/` follows the same pattern
+- Tests go in `__tests__/` adjacent to source files
+
+### Modals
+- **Two rendering modes:**
+  - **Child route modals** — rendered via React Router `route → children` (used for admin modals scoped to `/admin/users`)
+  - **Search param modals** — rendered via `?modal=<name>` through `ModalOutlet` in the scrollview layout (used for modals that should be openable from any page)
+- Search param modals are registered in `routes/layouts/ModalOutlet.tsx` with `React.lazy()` for code splitting
+- Use `useModal()` hook to open/close: `openModal("add-connection")`, `closeModal()`
+- Modal components receive `onClose` prop and wrap content in `<RouteModal>`
+- `RouteModal` wraps `@cytario/design` `Dialog` — child-route modals default to `navigate(-1)`, search-param modals receive `closeModal` as `onClose`
+
 ### React Patterns
 - Server/client separation via `.server/` and `.client/` directories
 - Route modules export: `loader`, `action`, `meta`, `handle`, `middleware`, default component
 - Middleware chain: `sessionMiddleware` → `authMiddleware`
 - Use `React.lazy()` + `<Suspense>` for heavy client-only components (ImageViewer)
-- Use `@headlessui/react` for accessible interactive components (dialogs, menus, tabs)
+- Use `@cytario/design` for UI components (Dialog, Button, Input, Tree, etc.)
 
 ### State Management
 - **Zustand** stores — one store per domain concern

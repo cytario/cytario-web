@@ -1,4 +1,4 @@
-import { ButtonLink, EmptyState } from "@cytario/design";
+import { Button, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
 import {
   type LoaderFunctionArgs,
@@ -13,7 +13,10 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useInitConnections } from "~/hooks/useInitConnections";
+import { useModal } from "~/hooks/useModal";
 import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
+
+export { addConnectionAction as action } from "./addConnection.action";
 
 const title = "Storage Connections";
 
@@ -43,6 +46,7 @@ export default function ConnectionsListRoute() {
     useLoaderData<typeof loader>();
 
   useInitConnections(connectionConfigs, credentials);
+  const { openModal } = useModal();
 
   if (nodes.length === 0) {
     return (
@@ -52,9 +56,13 @@ export default function ConnectionsListRoute() {
           title="No storage connections"
           description="Add a storage connection to view your cloud storage."
           action={
-            <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
+            <Button
+              size="lg"
+              variant="neutral"
+              onPress={() => openModal("add-connection")}
+            >
               Connect Storage
-            </ButtonLink>
+            </Button>
           }
         />
       </Section>
@@ -69,9 +77,9 @@ export default function ConnectionsListRoute() {
       showFilters
       secondaryActions={<ViewModeToggle />}
     >
-      <ButtonLink href="/connect-bucket" variant="secondary">
+      <Button variant="secondary" onPress={() => openModal("add-connection")}>
         <Plug size={16} /> Connect Storage
-      </ButtonLink>
+      </Button>
     </DirectoryView>
   );
 }

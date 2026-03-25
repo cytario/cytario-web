@@ -81,9 +81,9 @@ npm run dev:design
 
 This links `@cytario/design` via `npm link`, starts `tsup --watch` in the design repo, and runs the cytario-web dev server — all in one process. Changes to design system source are rebuilt by tsup and picked up by Vite's HMR automatically.
 
-The `vite.config.ts` is configured to handle the symlink: `optimizeDeps.exclude` skips pre-bundling, `ssr.noExternal` processes it through Vite's pipeline (preventing dual-React), and `server.watch` picks up changes in node_modules.
+The `vite.config.ts` is configured to handle the symlink: `optimizeDeps.exclude` skips pre-bundling, `ssr.noExternal` processes it through Vite's pipeline, and `server.watch` picks up changes in node_modules.
 
-> **Note:** `npm install` removes the symlink. Just re-run `npm run dev:design` — it re-links automatically.
+> **Note:** Switching back to `npm run dev` automatically unlinks `@cytario/design` and restores the published version (via the `predev` script). No manual `npm install` needed.
 
 ### Debugging
 
