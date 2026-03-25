@@ -1,11 +1,10 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import { ActionFunctionArgs } from "react-router";
+import { type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
-import { getManageableScopes } from "~/.server/auth/keycloakAdmin";
 import { SessionCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
@@ -58,35 +57,27 @@ export type SerializedPinnedPath = {
 
 export interface LoaderData {
   nodes: TreeNode[];
-  adminScopes: string[];
-  userId: string;
   credentials: Record<string, Credentials>;
   connectionConfigs: ConnectionConfig[];
   recentlyViewed: SerializedRecentlyViewed[];
   pinnedPaths: SerializedPinnedPath[];
 }
 
-export async function loadConnectionNodes(
-  context: ActionFunctionArgs["context"],
-) {
-  const { connectionConfigs, credentials, user, authTokens } =
-    context.get(authContext);
+export async function loadConnectionNodes({
+  context,
+}: LoaderFunctionArgs) {
+  const { connectionConfigs, credentials, user } = context.get(authContext);
   const userId = user.sub;
 
-  const [previews, adminScopes, recentlyViewedRaw, pinnedPathsRaw] =
-    await Promise.all([
-      Promise.allSettled(
-        connectionConfigs.map((config) =>
-          fetchPreviewObject(config, credentials, userId),
-        ),
+  const [previews, recentlyViewedRaw, pinnedPathsRaw] = await Promise.all([
+    Promise.allSettled(
+      connectionConfigs.map((config) =>
+        fetchPreviewObject(config, credentials, userId),
       ),
-      getManageableScopes(user, authTokens.accessToken).catch((error) => {
-        console.error("Failed to fetch manageable scopes:", error);
-        return [] as string[];
-      }),
-      getRecentlyViewed(userId, 20),
-      getPinnedPaths(userId),
-    ]);
+    ),
+    getRecentlyViewed(userId, 20),
+    getPinnedPaths(userId),
+  ]);
 
   const nodes: TreeNode[] = connectionConfigs.map((config, i) => {
     const result = previews[i];
@@ -152,8 +143,6 @@ export async function loadConnectionNodes(
 
   return {
     nodes,
-    adminScopes,
-    userId,
     credentials,
     connectionConfigs,
     recentlyViewed,

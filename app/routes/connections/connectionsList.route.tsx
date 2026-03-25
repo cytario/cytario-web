@@ -1,12 +1,12 @@
 import { Button, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
 import {
-  type LoaderFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
   useLoaderData,
 } from "react-router";
 
+import type { LoaderData } from "./connectionsList.loader";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -14,9 +14,9 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { useModal } from "~/hooks/useModal";
-import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
 
 export { addConnectionAction as action } from "./addConnection.action";
+export { loadConnectionNodes as loader } from "./connectionsList.loader";
 
 const title = "Storage Connections";
 
@@ -36,14 +36,10 @@ export const handle = {
 
 export const middleware = [authMiddleware];
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
-  return loadConnectionNodes(context);
-};
-
 export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
   const { nodes, credentials, connectionConfigs } =
-    useLoaderData<typeof loader>();
+    useLoaderData<LoaderData>();
 
   useInitConnections(connectionConfigs, credentials);
   const { openModal } = useModal();

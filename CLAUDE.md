@@ -130,6 +130,7 @@ import { cytarioConfig } from "~/config";
 - Use `useModal()` hook to open/close: `openModal("add-connection")`, `closeModal()`
 - Modal components receive `onClose` prop and wrap content in `<RouteModal>`
 - `RouteModal` wraps `@cytario/design` `Dialog` — child-route modals default to `navigate(-1)`, search-param modals receive `closeModal` as `onClose`
+- `closeModal()` only removes the `modal` param — modals that pass extra params via `openModal(name, params)` must clean those up in their own `onClose` handler (see `NodeInfo.modal.tsx` for an example)
 
 ### React Patterns
 - Server/client separation via `.server/` and `.client/` directories

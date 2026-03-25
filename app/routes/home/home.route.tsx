@@ -3,7 +3,6 @@ import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import {
   type ActionFunctionArgs,
-  type LoaderFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
   redirect,
@@ -19,10 +18,10 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { useModal } from "~/hooks/useModal";
 import {
-  loadConnectionNodes,
+  type LoaderData,
   type SerializedPinnedPath,
   type SerializedRecentlyViewed,
-} from "~/routes/connections/loadConnectionNodes";
+} from "~/routes/connections/connectionsList.loader";
 import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
@@ -54,9 +53,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const middleware = [authMiddleware];
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
-  return loadConnectionNodes(context);
-};
+export { loadConnectionNodes as loader } from "~/routes/connections/connectionsList.loader";
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
@@ -88,7 +85,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 export default function HomeRoute() {
   const { nodes, credentials, connectionConfigs, recentlyViewed, pinnedPaths } =
-    useLoaderData<typeof loader>();
+    useLoaderData<LoaderData>();
 
   useInitConnections(connectionConfigs, credentials);
   const { openModal } = useModal();

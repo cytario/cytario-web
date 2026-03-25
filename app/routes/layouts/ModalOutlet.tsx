@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import { lazy, type ComponentType } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 
 import { useModal } from "~/hooks/useModal";
 
