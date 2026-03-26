@@ -9,7 +9,7 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
-import { useModal } from "~/hooks/useModal";
+import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { nodeToPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -36,16 +36,9 @@ export function NodeLink({
   showInfoButton = true,
 }: NodeLinkProps) {
   const navigate = useNavigate();
-  const { openModal } = useModal();
+  const openNodeInfoModal = useNodeInfoModal(node);
 
   const to = nodeToPath(node);
-
-  const openNodeInfoModal = useCallback(() => {
-    openModal("node-info", {
-      nodeType: node.type,
-      nodeName: node.pathName ?? node.name,
-    });
-  }, [node.type, node.pathName, node.name, openModal]);
 
   // Activate link with Space key (links natively only respond to Enter)
   const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -75,7 +68,7 @@ export function NodeLink({
         </Link>
       )}
 
-      {/* Node name */}
+      {/* Node name + info button */}
       <div className="w-full flex items-center gap-1 min-h-8">
         <Link
           to={to}
@@ -93,18 +86,17 @@ export function NodeLink({
           <TooltipSpan ellipsis={viewMode === "list" ? "middle" : undefined}>
             {node.name}
           </TooltipSpan>
-
-          {/* Context menu */}
-          {showInfoButton && (
-            <IconButton
-              icon={Info}
-              aria-label="Show Info"
-              onPress={openNodeInfoModal}
-              variant="ghost"
-              className="border-none text-inherit"
-            />
-          )}
         </Link>
+
+        {showInfoButton && (
+          <IconButton
+            icon={Info}
+            aria-label={`Show info for ${node.name}`}
+            onPress={openNodeInfoModal}
+            variant="ghost"
+            className="border-none text-inherit"
+          />
+        )}
       </div>
     </div>
   );

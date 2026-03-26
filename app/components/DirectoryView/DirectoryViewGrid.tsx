@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { TreeNode } from "./buildDirectoryTree";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
-import { useModal } from "~/hooks/useModal";
+import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId, nodeToPath } from "~/utils/resourceId";
@@ -40,7 +40,7 @@ function getExtension(name: string): string | undefined {
 
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const { openModal } = useModal();
+  const handleInfo = useNodeInfoModal(node);
   const config = useConnectionsStore(
     (state) => state.connections[node.connectionName]?.connectionConfig,
   );
@@ -50,13 +50,6 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
   const handlePress = useCallback(() => {
     navigate(to);
   }, [navigate, to]);
-
-  const handleInfo = useCallback(() => {
-    openModal("node-info", {
-      nodeType: node.type,
-      nodeName: node.pathName ?? node.name,
-    });
-  }, [node.type, node.pathName, node.name, openModal]);
 
   const key = node._Object?.Key;
   const url = node._Object?.presignedUrl;
@@ -99,7 +92,7 @@ function FileCardGridItem({
   compact: boolean;
 }) {
   const navigate = useNavigate();
-  const { openModal } = useModal();
+  const handleInfo = useNodeInfoModal(node);
 
   const resourceId = createResourceId(
     node.provider,
@@ -111,13 +104,6 @@ function FileCardGridItem({
   const handlePress = useCallback(() => {
     navigate(to);
   }, [navigate, to]);
-
-  const handleInfo = useCallback(() => {
-    openModal("node-info", {
-      nodeType: node.type,
-      nodeName: node.pathName ?? node.name,
-    });
-  }, [node.type, node.pathName, node.name, openModal]);
 
   const cardType = node.type === "file" ? "file" : "directory";
   const extension = node.type === "file" ? getExtension(node.name) : undefined;

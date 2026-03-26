@@ -90,6 +90,7 @@ export const bucketColumns: ColumnConfig[] = [
 const bucketCellRenderers: CellRenderers<BucketRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
   ownerScope: (row) => <Pill name={row.ownerScope} />,
+  provider: (row) => <Pill name={row.provider} />,
 };
 
 // --- File/directory view ---

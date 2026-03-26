@@ -7,8 +7,9 @@ import type { ModalName } from "~/routes/layouts/ModalOutlet";
  * Hook for opening and closing search-param-driven modals.
  *
  * - `openModal` pushes a history entry so the browser back button closes the modal.
- * - `closeModal` replaces the current entry (no extra history) and removes the
- *   `modal` param. Individual modals handle their own extra param cleanup.
+ *   Extra `params` are stored as search params alongside `?modal=<name>`.
+ * - `closeModal` replaces the current entry (no extra history) and removes
+ *   `modal` plus any extra keys added by `openModal` in a single navigation.
  */
 export function useModal() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,16 +35,24 @@ export function useModal() {
     [setSearchParams],
   );
 
-  const closeModal = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("modal");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const closeModal = useCallback(
+    (extraKeys?: string[]) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("modal");
+          if (extraKeys) {
+            for (const key of extraKeys) {
+              next.delete(key);
+            }
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   return { modalName, openModal, closeModal } as const;
 }

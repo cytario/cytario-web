@@ -4,7 +4,7 @@ import { useModal } from "~/hooks/useModal";
 
 export type ModalName = keyof typeof MODAL_REGISTRY;
 
-type ModalComponent = ComponentType<{ onClose: () => void }>;
+type ModalComponent = ComponentType<{ onClose: (extraKeys?: string[]) => void }>;
 
 /**
  * Maps `?modal=<name>` values to lazy-loaded modal components.
@@ -17,8 +17,14 @@ const MODAL_REGISTRY = {
   "convert-overlay": lazy(
     () => import("~/components/DataGrid/ConvertOverlay.modal"),
   ),
-  "node-info": lazy(
-    () => import("~/components/DirectoryView/modals/NodeInfo.modal"),
+  "connection-info": lazy(
+    () => import("~/components/DirectoryView/modals/ConnectionInfo.modal"),
+  ),
+  "directory-info": lazy(
+    () => import("~/components/DirectoryView/modals/DirectoryInfo.modal"),
+  ),
+  "file-info": lazy(
+    () => import("~/components/DirectoryView/modals/FileInfo.modal"),
   ),
   cyberduck: lazy(
     () => import("~/components/DirectoryView/modals/Cyberduck.modal"),
