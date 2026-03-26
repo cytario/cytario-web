@@ -54,7 +54,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   return new Response(profile, {
     headers: {
       "Content-Type": "application/xml",
-      "Content-Disposition": `attachment; filename="${connectionName}.cyberduckprofile"`,
+      "Content-Disposition": `attachment; filename="${connectionName.replace(/["\r\n\\]/g, "_")}.cyberduckprofile"`,
     },
   });
 };
