@@ -21,7 +21,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Connection configuration not found", { status: 404 });
   }
 
-  const { bucketName } = connectionConfig;
+  const { bucketName, prefix } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
   const actualRegion = connectionConfig.region ?? "eu-central-1";
@@ -33,7 +33,9 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   // Generate Cyberduck profile XML
   const profile = generateCyberduckProfile({
     vendor,
+    connectionName,
     bucketName,
+    prefix: prefix?.replace(/\/$/, "") || "",
     roleArn: connectionConfig.roleArn,
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
@@ -52,14 +54,16 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   return new Response(profile, {
     headers: {
       "Content-Type": "application/xml",
-      "Content-Disposition": `attachment; filename="${bucketName}.cyberduckprofile"`,
+      "Content-Disposition": `attachment; filename="${connectionName}.cyberduckprofile"`,
     },
   });
 };
 
 interface CyberduckProfileConfig {
   vendor: string;
+  connectionName: string;
   bucketName: string;
+  prefix: string;
   roleArn: string | null;
   region: string;
   endpoint: string;
@@ -77,7 +81,9 @@ interface CyberduckProfileConfig {
 function generateCyberduckProfile(config: CyberduckProfileConfig): string {
   const {
     vendor,
+    connectionName,
     bucketName,
+    prefix,
     roleArn,
     region,
     endpoint,
@@ -121,11 +127,11 @@ function generateCyberduckProfile(config: CyberduckProfileConfig): string {
         <key>Vendor</key>
         <string>${escapeXml(vendor)}</string>
         <key>Description</key>
-        <string>Cytario - ${escapeXml(bucketName)}</string>
+        <string>Cytario - ${escapeXml(connectionName)}</string>
         <key>Default Nickname</key>
-        <string>${escapeXml(bucketName)}</string>
+        <string>${escapeXml(connectionName)}</string>
         <key>Default Path</key>
-        <string>/${escapeXml(bucketName)}/</string>
+        <string>/${escapeXml(bucketName)}${prefix ? `/${escapeXml(prefix)}` : ""}/</string>
         <key>OAuth Authorization Url</key>
         <string>${escapeXml(oauthConfig.authUrl)}</string>
         <key>OAuth Token Url</key>
