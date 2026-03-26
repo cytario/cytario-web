@@ -2,16 +2,12 @@ import { Button, EmptyState } from "@cytario/design";
 import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import {
-  type ActionFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
-  redirect,
   useLoaderData,
 } from "react-router";
 
-import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getSession } from "~/.server/auth/getSession";
-import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -22,7 +18,6 @@ import {
   type SerializedPinnedPath,
   type SerializedRecentlyViewed,
 } from "~/routes/connections/connectionsList.loader";
-import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
 const title = "Storage Connections";
@@ -54,34 +49,6 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 export const middleware = [authMiddleware];
 
 export { loadConnectionNodes as loader } from "~/routes/connections/connectionsList.loader";
-
-export const action = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
-
-  if (request.method.toLowerCase() === "delete") {
-    const formData = await request.formData();
-    const connectionName = String(formData.get("connectionName") ?? "");
-
-    if (!connectionName) {
-      return { error: "Connection name is required" };
-    }
-
-    await deleteConnectionConfig(user, connectionName);
-
-    const session = await getSession(request);
-
-    session.set("notification", {
-      status: "success",
-      message: "Storage connection deleted.",
-    });
-
-    return redirect("/", {
-      headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
-    });
-  }
-
-  return null;
-};
 
 export default function HomeRoute() {
   const { nodes, credentials, connectionConfigs, recentlyViewed, pinnedPaths } =

@@ -8,11 +8,7 @@ import { RouteModal } from "~/components/RouteModal";
  * Node information modal for bucket, directory, and file nodes.
  * Opens via `?modal=node-info&nodeType=file&nodeName=path/to/file`.
  */
-export default function NodeInfoModal({
-  onClose,
-}: {
-  onClose: () => void;
-}) {
+export default function NodeInfoModal({ onClose }: { onClose: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { name: connectionName } = useParams();
 
@@ -65,17 +61,15 @@ export default function NodeInfoModal({
     case "bucket":
       return (
         <RouteModal title={nodeName} onClose={handleClose}>
-          <div className="flex flex-row gap-4 justify-between">
-            <ButtonLink
-              href={`/connections/${nodeName}`}
-              variant="secondary"
-              size="lg"
-            >
-              Open bucket
+          <div className="flex flex-col gap-4">
+            {/* Open Connection */}
+            <ButtonLink href={`/connections/${nodeName}`} variant="secondary">
+              Open Connection
             </ButtonLink>
-            <Form method="delete" action="/">
+            {/* Remove Connection */}
+            <Form method="delete" action="/connections">
               <input type="hidden" name="connectionName" value={nodeName} />
-              <Button type="submit" variant="destructive" size="lg">
+              <Button type="submit" variant="destructive">
                 Remove Storage Connection
               </Button>
             </Form>

@@ -1,12 +1,15 @@
 import { Button, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
 import {
+  type ActionFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
   useLoaderData,
 } from "react-router";
 
+import { addConnectionAction } from "./addConnection.action";
 import type { LoaderData } from "./connectionsList.loader";
+import { deleteConnectionAction } from "./deleteConnection.action";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -15,7 +18,17 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { useModal } from "~/hooks/useModal";
 
-export { addConnectionAction as action } from "./addConnection.action";
+export const action = async (args: ActionFunctionArgs) => {
+  switch (args.request.method.toUpperCase()) {
+    case "POST":
+      return addConnectionAction(args);
+    case "DELETE":
+      return deleteConnectionAction(args);
+    default:
+      return null;
+  }
+};
+
 export { loadConnectionNodes as loader } from "./connectionsList.loader";
 
 const title = "Storage Connections";

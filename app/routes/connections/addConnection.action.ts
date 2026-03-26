@@ -4,7 +4,7 @@ import { connectBucketSchema, parseS3Uri } from "./addConnection.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { canCreate } from "~/.server/auth/authorization";
-import { getSession } from "~/.server/auth/getSession";
+import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { upsertConnectionConfig } from "~/utils/connectionConfig.server";
 
@@ -45,7 +45,7 @@ export const addConnectionAction = async ({
   }
 
   const { bucketName, prefix } = parseS3Uri(data.s3Uri);
-  const session = await getSession(request);
+  const session = context.get(sessionContext);
 
   try {
     const endpoint =
