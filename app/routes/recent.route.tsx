@@ -23,7 +23,6 @@ import {
   filterHiddenNodes,
   filterNodes,
 } from "~/components/DirectoryView/filterNodes";
-import { NodeInfoModal } from "~/components/DirectoryView/NodeInfoModal";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import {
@@ -196,7 +195,6 @@ export default function RecentRoute() {
           description="Items you view or browse will appear here."
         />
       )}
-      <NodeInfoModal />
     </Section>
   );
 }

@@ -16,6 +16,7 @@ import {
   type LinksFunction,
   type MiddlewareFunction,
   type LoaderFunctionArgs,
+  type ShouldRevalidateFunction,
 } from "react-router";
 
 import { UserProfile } from "./.server/auth/getUserInfo";
@@ -58,6 +59,16 @@ export const handle = {
 };
 
 export const middleware: MiddlewareFunction[] = [sessionMiddleware];
+
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  formAction,
+  defaultShouldRevalidate,
+}) => {
+  // Only revalidate after form submissions (to pick up session notifications)
+  if (formAction) return defaultShouldRevalidate;
+  return false;
+};
+
 interface RootLoaderResponse {
   user?: UserProfile;
   notification?: NotificationInput;

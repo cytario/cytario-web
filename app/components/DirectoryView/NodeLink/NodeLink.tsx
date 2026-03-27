@@ -1,7 +1,7 @@
 import { IconButton } from "@cytario/design";
 import { Info } from "lucide-react";
 import { KeyboardEventHandler, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { NodeLinkIcon } from "./NodeLinkIcon";
@@ -9,6 +9,7 @@ import { NodeThumbnail } from "./NodeThumbnail";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
+import { useModal } from "~/hooks/useModal";
 import { nodeToPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -34,23 +35,17 @@ export function NodeLink({
   onClick,
   showInfoButton = true,
 }: NodeLinkProps) {
-  const location = useLocation();
   const navigate = useNavigate();
+  const { openModal } = useModal();
 
-  const nodeType = node.type;
   const to = nodeToPath(node);
 
-  // Open info modal — use pathName as the search param value to identify the node
-  const nodeId = node.pathName ?? node.name;
   const openNodeInfoModal = useCallback(() => {
-    const search = new URLSearchParams(location.search);
-    search.set(nodeType, nodeId);
-
-    navigate({
-      pathname: location.pathname,
-      search: `?${search.toString()}`,
+    openModal("node-info", {
+      nodeType: node.type,
+      nodeName: node.pathName ?? node.name,
     });
-  }, [nodeId, location.pathname, location.search, navigate, nodeType]);
+  }, [node.type, node.pathName, node.name, openModal]);
 
   // Activate link with Space key (links natively only respond to Enter)
   const handleKeyDown: KeyboardEventHandler = useCallback(

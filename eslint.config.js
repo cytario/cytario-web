@@ -179,6 +179,7 @@ export default [
       "app/root.tsx",
       "app/entry.*.tsx",
       "**/__mocks__.*",
+      "**/*.modal.tsx",
     ],
     rules: {
       "import/no-default-export": "error",

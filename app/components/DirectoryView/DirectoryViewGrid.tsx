@@ -1,11 +1,12 @@
 import { FileCard, StorageConnectionCard } from "@cytario/design";
 import { filesize } from "filesize";
 import { lazy, Suspense, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 
 import { TreeNode } from "./buildDirectoryTree";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
+import { useModal } from "~/hooks/useModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId, nodeToPath } from "~/utils/resourceId";
@@ -39,26 +40,23 @@ function getExtension(name: string): string | undefined {
 
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { openModal } = useModal();
   const config = useConnectionsStore(
     (state) => state.connections[node.connectionName]?.connectionConfig,
   );
 
   const to = nodeToPath(node);
-  const nodeId = node.pathName ?? node.name;
 
   const handlePress = useCallback(() => {
     navigate(to);
   }, [navigate, to]);
 
   const handleInfo = useCallback(() => {
-    const search = new URLSearchParams(location.search);
-    search.set(node.type, nodeId);
-    navigate({
-      pathname: location.pathname,
-      search: `?${search.toString()}`,
+    openModal("node-info", {
+      nodeType: node.type,
+      nodeName: node.pathName ?? node.name,
     });
-  }, [nodeId, location.pathname, location.search, navigate, node.type]);
+  }, [node.type, node.pathName, node.name, openModal]);
 
   const key = node._Object?.Key;
   const url = node._Object?.presignedUrl;
@@ -101,7 +99,7 @@ function FileCardGridItem({
   compact: boolean;
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { openModal } = useModal();
 
   const resourceId = createResourceId(
     node.provider,
@@ -109,20 +107,17 @@ function FileCardGridItem({
     node._Object?.Key ?? node.pathName,
   );
   const to = nodeToPath(node);
-  const nodeId = node.pathName ?? node.name;
 
   const handlePress = useCallback(() => {
     navigate(to);
   }, [navigate, to]);
 
   const handleInfo = useCallback(() => {
-    const search = new URLSearchParams(location.search);
-    search.set(node.type, nodeId);
-    navigate({
-      pathname: location.pathname,
-      search: `?${search.toString()}`,
+    openModal("node-info", {
+      nodeType: node.type,
+      nodeName: node.pathName ?? node.name,
     });
-  }, [nodeId, location.pathname, location.search, navigate, node.type]);
+  }, [node.type, node.pathName, node.name, openModal]);
 
   const cardType = node.type === "file" ? "file" : "directory";
   const extension = node.type === "file" ? getExtension(node.name) : undefined;

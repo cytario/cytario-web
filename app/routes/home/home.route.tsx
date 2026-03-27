@@ -1,12 +1,10 @@
-import { ButtonLink, EmptyState } from "@cytario/design";
+import { Button, EmptyState } from "@cytario/design";
 import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import {
   type ActionFunctionArgs,
-  type LoaderFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
-  Outlet,
   redirect,
   useLoaderData,
 } from "react-router";
@@ -17,13 +15,13 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { NodeInfoModal } from "~/components/DirectoryView/NodeInfoModal";
 import { useInitConnections } from "~/hooks/useInitConnections";
+import { useModal } from "~/hooks/useModal";
 import {
-  loadConnectionNodes,
+  type LoaderData,
   type SerializedPinnedPath,
   type SerializedRecentlyViewed,
-} from "~/routes/connections/loadConnectionNodes";
+} from "~/routes/connections/connectionsList.loader";
 import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
@@ -55,9 +53,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const middleware = [authMiddleware];
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
-  return loadConnectionNodes(context);
-};
+export { loadConnectionNodes as loader } from "~/routes/connections/connectionsList.loader";
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
@@ -88,17 +84,11 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 };
 
 export default function HomeRoute() {
-  const {
-    nodes,
-    adminScopes,
-    userId,
-    credentials,
-    connectionConfigs,
-    recentlyViewed,
-    pinnedPaths,
-  } = useLoaderData<typeof loader>();
+  const { nodes, credentials, connectionConfigs, recentlyViewed, pinnedPaths } =
+    useLoaderData<LoaderData>();
 
   useInitConnections(connectionConfigs, credentials);
+  const { openModal } = useModal();
 
   const configByName = useMemo(() => {
     const map = new Map<string, (typeof connectionConfigs)[number]>();
@@ -109,7 +99,9 @@ export default function HomeRoute() {
   const allRecentItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed
-        .filter((item: SerializedRecentlyViewed) => configByName.has(item.connectionName))
+        .filter((item: SerializedRecentlyViewed) =>
+          configByName.has(item.connectionName),
+        )
         .map((item: SerializedRecentlyViewed) => {
           const config = configByName.get(item.connectionName)!;
           return {
@@ -147,7 +139,9 @@ export default function HomeRoute() {
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
       pinnedPaths
-        .filter((pin: SerializedPinnedPath) => configByName.has(pin.connectionName))
+        .filter((pin: SerializedPinnedPath) =>
+          configByName.has(pin.connectionName),
+        )
         .map((pin: SerializedPinnedPath) => {
           const config = configByName.get(pin.connectionName)!;
           return {
@@ -220,16 +214,18 @@ export default function HomeRoute() {
             title="Start exploring your data"
             description="Add a storage connection to view your cloud storage."
             action={
-              <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
+              <Button
+                size="lg"
+                variant="neutral"
+                onPress={() => openModal("add-connection")}
+              >
                 Connect Storage
-              </ButtonLink>
+              </Button>
             }
           />
         </Section>
       )}
 
-      <NodeInfoModal />
-      <Outlet context={{ adminScopes, userId }} />
     </div>
   );
 }

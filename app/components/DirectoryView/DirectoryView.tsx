@@ -13,7 +13,6 @@ import {
 } from "./DirectoryViewTable";
 import { DirectoryViewTree } from "./DirectoryViewTree";
 import { filterHiddenNodes, filterNodes } from "./filterNodes";
-import { NodeInfoModal } from "./NodeInfoModal";
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
@@ -165,7 +164,6 @@ export function DirectoryView({
         </Container>
       )}
 
-      <NodeInfoModal />
     </Section>
   );
 }

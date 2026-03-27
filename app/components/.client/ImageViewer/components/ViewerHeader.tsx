@@ -12,7 +12,7 @@ export const ViewerHeader = ({
     metadata: ViewerStore["metadata"] | null;
     viewStateActive: ViewState | null;
     setViewStateActive: (viewState: ViewState) => void;
-  }) => JSX.Element;
+  }) => React.JSX.Element;
 }) => {
   const setHeaderSlot = useLayoutStore((s) => s.setHeaderSlot);
 

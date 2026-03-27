@@ -6,13 +6,19 @@ import { describe, expect, test, vi } from "vitest";
 import { AddConnectionForm } from "../addConnection.form";
 
 const mockSubmit = vi.fn();
+let mockFetcherData: unknown = null;
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
   return {
     ...actual,
-    useSubmit: () => mockSubmit,
-    useNavigation: () => ({ state: "idle" }),
+    useFetcher: () => ({
+      submit: mockSubmit,
+      state: "idle",
+      get data() {
+        return mockFetcherData;
+      },
+    }),
   };
 });
 
@@ -20,7 +26,6 @@ function renderForm(
   overrides: {
     adminScopes?: string[];
     userId?: string;
-    serverErrors?: Record<string, string[]>;
   } = {},
 ) {
   const userId = overrides.userId ?? "test-user-id";
@@ -30,11 +35,7 @@ function renderForm(
     {
       path: "/",
       Component: () => (
-        <AddConnectionForm
-          adminScopes={adminScopes}
-          userId={userId}
-          serverErrors={overrides.serverErrors}
-        />
+        <AddConnectionForm adminScopes={adminScopes} userId={userId} />
       ),
     },
   ]);
@@ -44,9 +45,7 @@ function renderForm(
 
 /** Query an input element by its `name` HTML attribute. */
 function getInput(name: string): HTMLInputElement {
-  const el = document.querySelector<HTMLInputElement>(
-    `input[name="${name}"]`,
-  );
+  const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]`);
   if (!el) throw new Error(`Input with name="${name}" not found`);
   return el;
 }
@@ -144,9 +143,7 @@ describe("AddConnectionForm", () => {
     test("renders Provider, S3 URI, and Name fields on page 1", () => {
       renderForm();
 
-      expect(
-        screen.getAllByText("Provider").length,
-      ).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Provider").length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("S3 URI")).toBeInTheDocument();
       expect(screen.getByText("Name")).toBeInTheDocument();
     });
@@ -160,9 +157,7 @@ describe("AddConnectionForm", () => {
     test("renders Next button on page 1", () => {
       renderForm();
 
-      expect(
-        screen.getByRole("button", { name: "Next" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
     });
 
     test("renders AWS S3 and MinIO provider options", async () => {
@@ -177,9 +172,7 @@ describe("AddConnectionForm", () => {
       expect(
         screen.getByRole("option", { name: "AWS S3" }),
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole("option", { name: "MinIO" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "MinIO" })).toBeInTheDocument();
     });
 
     test("renders placeholder text for S3 URI input", () => {
@@ -215,9 +208,9 @@ describe("AddConnectionForm", () => {
       renderForm({ adminScopes: ["cytario/lab"] });
       await goToPage2();
 
-      expect(
-        screen.getAllByText("Visibility").length,
-      ).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Visibility").length).toBeGreaterThanOrEqual(
+        1,
+      );
     });
 
     test("shows Personal and admin scope options in Visibility select", async () => {
@@ -250,9 +243,7 @@ describe("AddConnectionForm", () => {
       await goToPage2();
 
       expect(screen.getByText("Role ARN")).toBeInTheDocument();
-      expect(
-        screen.getAllByText("Region").length,
-      ).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Region").length).toBeGreaterThanOrEqual(1);
     });
 
     test("renders Role ARN placeholder", async () => {
@@ -260,9 +251,7 @@ describe("AddConnectionForm", () => {
       await goToPage2();
 
       expect(
-        screen.getByPlaceholderText(
-          "arn:aws:iam::123456789012:role/MyRole",
-        ),
+        screen.getByPlaceholderText("arn:aws:iam::123456789012:role/MyRole"),
       ).toBeInTheDocument();
     });
 
@@ -270,9 +259,7 @@ describe("AddConnectionForm", () => {
       renderForm();
       await goToPage2();
 
-      expect(
-        screen.getByRole("button", { name: "Next" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Connect Storage" }),
       ).not.toBeInTheDocument();
@@ -283,9 +270,7 @@ describe("AddConnectionForm", () => {
       await goToPage2();
 
       expect(
-        screen.getByText(
-          /IAM role Cytario assumes to access your S3 data/,
-        ),
+        screen.getByText(/IAM role Cytario assumes to access your S3 data/),
       ).toBeInTheDocument();
     });
 
@@ -355,7 +340,7 @@ describe("AddConnectionForm", () => {
       ).toBeInTheDocument();
     });
 
-    test("submits form data when Connect Storage is clicked", async () => {
+    test("submits form data to /connections action", async () => {
       mockSubmit.mockClear();
       renderForm();
       const user = await goToPage3();
@@ -377,7 +362,7 @@ describe("AddConnectionForm", () => {
       expect(formData.get("roleArn")).toBe(
         "arn:aws:iam::123456789012:role/MyRole",
       );
-      expect(options).toEqual({ method: "post" });
+      expect(options).toEqual({ method: "post", action: "/connections" });
     });
   });
 
@@ -389,9 +374,7 @@ describe("AddConnectionForm", () => {
       expect(screen.getByText("MinIO")).toBeInTheDocument();
       expect(screen.getByText("test-conn")).toBeInTheDocument();
       expect(screen.getByText("test-bucket")).toBeInTheDocument();
-      expect(
-        screen.getByText("https://s3.cytario.com"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("https://s3.cytario.com")).toBeInTheDocument();
     });
 
     test("does not show Role ARN or Region in MinIO summary", async () => {
@@ -421,9 +404,7 @@ describe("AddConnectionForm", () => {
 
       const [formData] = mockSubmit.mock.calls[0];
       expect(formData.get("providerType")).toBe("minio");
-      expect(formData.get("bucketEndpoint")).toBe(
-        "https://s3.cytario.com",
-      );
+      expect(formData.get("bucketEndpoint")).toBe("https://s3.cytario.com");
     });
   });
 
@@ -504,18 +485,6 @@ describe("AddConnectionForm", () => {
     });
   });
 
-  describe("server errors", () => {
-    test("displays server-side error messages when provided", () => {
-      renderForm({
-        serverErrors: { name: ["This name is already taken."] },
-      });
-
-      expect(
-        screen.getByText("This name is already taken."),
-      ).toBeInTheDocument();
-    });
-  });
-
   describe("field descriptions", () => {
     test("shows S3 URI help text on page 1", () => {
       renderForm();
@@ -531,6 +500,23 @@ describe("AddConnectionForm", () => {
       expect(
         screen.getByText(/A friendly name, auto-suggested from the S3 URI/),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("server errors", () => {
+    test("displays server-side error messages from fetcher data", () => {
+      mockFetcherData = {
+        status: "error",
+        errors: { name: ["This name is already taken."] },
+      };
+
+      renderForm();
+
+      expect(
+        screen.getByText("This name is already taken."),
+      ).toBeInTheDocument();
+
+      mockFetcherData = null;
     });
   });
 });

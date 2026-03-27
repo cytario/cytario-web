@@ -1,19 +1,22 @@
-import { ButtonLink, EmptyState } from "@cytario/design";
+import { Button, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
 import {
-  type LoaderFunctionArgs,
   type MetaFunction,
   type ShouldRevalidateFunction,
   useLoaderData,
 } from "react-router";
 
+import type { LoaderData } from "./connectionsList.loader";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import { loadConnectionNodes } from "~/routes/connections/loadConnectionNodes";
+import { useModal } from "~/hooks/useModal";
+
+export { addConnectionAction as action } from "./addConnection.action";
+export { loadConnectionNodes as loader } from "./connectionsList.loader";
 
 const title = "Storage Connections";
 
@@ -33,16 +36,13 @@ export const handle = {
 
 export const middleware = [authMiddleware];
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
-  return loadConnectionNodes(context);
-};
-
 export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
   const { nodes, credentials, connectionConfigs } =
-    useLoaderData<typeof loader>();
+    useLoaderData<LoaderData>();
 
   useInitConnections(connectionConfigs, credentials);
+  const { openModal } = useModal();
 
   if (nodes.length === 0) {
     return (
@@ -52,9 +52,13 @@ export default function ConnectionsListRoute() {
           title="No storage connections"
           description="Add a storage connection to view your cloud storage."
           action={
-            <ButtonLink href="/connect-bucket" size="lg" variant="neutral">
+            <Button
+              size="lg"
+              variant="neutral"
+              onPress={() => openModal("add-connection")}
+            >
               Connect Storage
-            </ButtonLink>
+            </Button>
           }
         />
       </Section>
@@ -69,9 +73,9 @@ export default function ConnectionsListRoute() {
       showFilters
       secondaryActions={<ViewModeToggle />}
     >
-      <ButtonLink href="/connect-bucket" variant="secondary">
+      <Button variant="secondary" onPress={() => openModal("add-connection")}>
         <Plug size={16} /> Connect Storage
-      </ButtonLink>
+      </Button>
     </DirectoryView>
   );
 }

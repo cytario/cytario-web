@@ -21,12 +21,6 @@ const protectedRoutes = [
     {
       path: "/",
       file: "routes/home/home.route.tsx",
-      children: [
-        {
-          path: "connect-bucket",
-          file: "routes/connections/addConnection.modal.tsx",
-        },
-      ],
     },
     {
       path: "/recent",

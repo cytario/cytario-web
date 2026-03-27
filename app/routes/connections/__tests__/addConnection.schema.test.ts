@@ -80,9 +80,7 @@ describe("suggestName", () => {
   });
 
   test("derives name from s3:// URI with last path segment", () => {
-    expect(suggestName("s3://my-bucket/path/prefix")).toBe(
-      "my-bucket prefix",
-    );
+    expect(suggestName("s3://my-bucket/path/prefix")).toBe("my-bucket prefix");
   });
 
   test("preserves case", () => {

@@ -1,6 +1,6 @@
 import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { Button, ButtonLink, EmptyState } from "@cytario/design";
+import { Button, EmptyState } from "@cytario/design";
 import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
@@ -29,6 +29,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
+import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
@@ -221,6 +222,7 @@ export default function ObjectsRoute() {
 
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
+  const { openModal } = useModal();
   const setConnection = useConnectionsStore(select.setConnection);
 
   // Handle notifications from loader
@@ -318,10 +320,13 @@ export default function ObjectsRoute() {
           {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
           {isPinned ? "Pinned" : "Pin"}
         </Button>
-        <ButtonLink href="?action=cyberduck" variant="secondary">
+        <Button
+          onPress={() => openModal("cyberduck", { connectionName })}
+          variant="secondary"
+        >
           <Download size={16} />
           Access with Cyberduck
-        </ButtonLink>
+        </Button>
       </DirectoryView>
     );
   }
@@ -342,7 +347,7 @@ export default function ObjectsRoute() {
                   performance.
                 </span>
               </div>
-              <Button onPress={() => navigate(`?action=convert-overlay`)}>
+              <Button onPress={() => openModal("convert-overlay")}>
                 Convert to Parquet
               </Button>
             </header>
