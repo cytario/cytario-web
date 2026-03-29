@@ -723,6 +723,10 @@ export const createViewerStore = (id: string) =>
           }),
           {
             name: "ViewerStore-" + id,
+            serialize: {
+              replacer: (_key: string, value: unknown) =>
+                typeof value === "bigint" ? Number(value) : value,
+            },
           }
         )
       ),

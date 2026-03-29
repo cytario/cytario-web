@@ -28,6 +28,11 @@ describe("getFileType", () => {
     expect(getFileType("stream.ndjson")).toBe("JSON");
   });
 
+  test("identifies CZI files", () => {
+    expect(getFileType("image.czi")).toBe("CZI");
+    expect(getFileType("IMAGE.CZI")).toBe("CZI");
+  });
+
   test("identifies image files", () => {
     expect(getFileType("photo.png")).toBe("PNG");
     expect(getFileType("photo.jpg")).toBe("JPEG");
@@ -52,6 +57,7 @@ describe("IMAGE_FILE_TYPES", () => {
   test("contains all image types", () => {
     expect(IMAGE_FILE_TYPES.has("TIFF")).toBe(true);
     expect(IMAGE_FILE_TYPES.has("OME-TIFF")).toBe(true);
+    expect(IMAGE_FILE_TYPES.has("CZI")).toBe(true);
     expect(IMAGE_FILE_TYPES.has("PNG")).toBe(true);
     expect(IMAGE_FILE_TYPES.has("JPEG")).toBe(true);
   });
@@ -73,6 +79,10 @@ describe("getFileTypeIcon", () => {
     expect(getFileTypeIcon("photo.tiff")).toBe("Image");
     expect(getFileTypeIcon("photo.png")).toBe("Image");
     expect(getFileTypeIcon("photo.jpg")).toBe("Image");
+  });
+
+  test("returns Microscope for CZI", () => {
+    expect(getFileTypeIcon("image.czi")).toBe("Microscope");
   });
 
   test("returns Table for Parquet", () => {

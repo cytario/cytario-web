@@ -6,7 +6,10 @@ import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
 import { JP2KDecoder } from "../state/jp2k-decoder";
 import { LZWDecoder } from "../state/lzwDecoder";
-import { ViewerStoreProvider } from "../state/ViewerStoreContext";
+import {
+  ImageFormat,
+  ViewerStoreProvider,
+} from "../state/ViewerStoreContext";
 
 /**
  * Register decoders for GeoTIFF files.
@@ -24,12 +27,13 @@ if (!decodersRegistered) {
 interface ViewerProps {
   resourceId: string;
   url: string;
+  format: ImageFormat;
   offsetsUrl?: string;
 }
 
-export const Viewer = ({ resourceId, url, offsetsUrl }: ViewerProps) => {
+export const Viewer = ({ resourceId, url, format, offsetsUrl }: ViewerProps) => {
   return (
-    <ViewerStoreProvider resourceId={resourceId} url={url} offsetsUrl={offsetsUrl}>
+    <ViewerStoreProvider resourceId={resourceId} url={url} format={format} offsetsUrl={offsetsUrl}>
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier

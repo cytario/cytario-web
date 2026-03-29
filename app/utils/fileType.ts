@@ -5,6 +5,7 @@ export type LucideIconName = keyof typeof icons;
 export type FileType =
   | "OME-TIFF"
   | "TIFF"
+  | "CZI"
   | "Parquet"
   | "CSV"
   | "JSON"
@@ -26,6 +27,7 @@ interface FileTypeEntry {
 const FILE_TYPE_REGISTRY: FileTypeEntry[] = [
   { pattern: /\.ome\.tiff?$/i, type: "OME-TIFF", icon: "Microscope" },
   { pattern: /\.tiff?$/i, type: "TIFF", icon: "Image" },
+  { pattern: /\.czi$/i, type: "CZI", icon: "Microscope" },
   { pattern: /\.parquet$/i, type: "Parquet", icon: "Table" },
   { pattern: /\.csv$/i, type: "CSV", icon: "FileSpreadsheet" },
   { pattern: /\.ndjson$/i, type: "JSON", icon: "Braces" },
@@ -38,6 +40,7 @@ const FILE_TYPE_REGISTRY: FileTypeEntry[] = [
 export const IMAGE_FILE_TYPES: ReadonlySet<FileType> = new Set([
   "TIFF",
   "OME-TIFF",
+  "CZI",
   "PNG",
   "JPEG",
 ]);

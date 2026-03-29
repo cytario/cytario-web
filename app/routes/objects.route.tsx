@@ -361,7 +361,17 @@ export default function ObjectsRoute() {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
+            <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} format="ome-tiff"/>
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    if (fileType === "CZI") {
+      return (
+        <ClientOnly>
+          <Suspense fallback={<div>Loading viewer...</div>}>
+            <Viewer resourceId={resourceId} url={url} format="czi" />
           </Suspense>
         </ClientOnly>
       );
