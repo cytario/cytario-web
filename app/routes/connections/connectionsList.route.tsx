@@ -28,7 +28,7 @@ export const action = async (args: ActionFunctionArgs) => {
     case "PATCH":
       return updateConnectionScopeAction(args);
     default:
-      return null;
+      return new Response("Method not allowed", { status: 405 });
   }
 };
 

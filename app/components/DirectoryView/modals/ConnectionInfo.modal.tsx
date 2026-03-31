@@ -160,7 +160,7 @@ function ScopeEditor({
           <Button
             size="sm"
             onPress={handleSave}
-            isDisabled={fetcher.state === "submitting"}
+            isDisabled={fetcher.state !== "idle"}
           >
             Save
           </Button>
