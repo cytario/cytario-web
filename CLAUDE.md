@@ -118,7 +118,7 @@ import { cytarioConfig } from "~/config";
 ### File Colocation
 - **Colocate route-related resources** — modals, forms, actions, schemas, and loaders live next to their route file, not in separate top-level directories
 - Naming convention: `<feature>.route.tsx`, `<feature>.modal.tsx`, `<feature>.action.ts`, `<feature>.form.tsx`, `<feature>.schema.ts`, `<feature>.loader.ts`
-- Example: `routes/connections/` contains `connectionsList.route.tsx`, `addConnection.modal.tsx`, `addConnection.action.ts`, `addConnection.form.tsx`, `addConnection.schema.ts`
+- Example: `routes/connections/` contains `connectionsList.route.tsx`, `addConnection.modal.tsx`, `addConnection.action.ts`, `addConnection.form.tsx`, `addConnection.schema.ts`, `deleteConnection.action.ts`, `updateConnectionScope.action.ts`
 - Reference: `routes/admin/updateUser/` follows the same pattern
 - Tests go in `__tests__/` adjacent to source files
 
@@ -130,7 +130,7 @@ import { cytarioConfig } from "~/config";
 - Use `useModal()` hook to open/close: `openModal("add-connection")`, `closeModal()`
 - Modal components receive `onClose` prop and wrap content in `<RouteModal>`
 - `RouteModal` wraps `@cytario/design` `Dialog` — child-route modals default to `navigate(-1)`, search-param modals receive `closeModal` as `onClose`
-- `closeModal()` only removes the `modal` param — modals that pass extra params via `openModal(name, params)` must clean those up in their own `onClose` handler (see `NodeInfo.modal.tsx` for an example)
+- `closeModal(extraKeys?)` removes the `modal` param plus any extra keys in a single `setSearchParams` call. Modals that add extra params via `openModal(name, params)` pass those keys to `onClose` for cleanup (see `ConnectionInfo.modal.tsx`: `onClose(["nodeName"])`)
 
 ### React Patterns
 - Server/client separation via `.server/` and `.client/` directories
