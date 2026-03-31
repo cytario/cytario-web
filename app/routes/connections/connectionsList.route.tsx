@@ -10,6 +10,7 @@ import {
 import { addConnectionAction } from "./addConnection.action";
 import type { LoaderData } from "./connectionsList.loader";
 import { deleteConnectionAction } from "./deleteConnection.action";
+import { updateConnectionScopeAction } from "./updateConnectionScope.action";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -24,6 +25,8 @@ export const action = async (args: ActionFunctionArgs) => {
       return addConnectionAction(args);
     case "DELETE":
       return deleteConnectionAction(args);
+    case "PATCH":
+      return updateConnectionScopeAction(args);
     default:
       return null;
   }

@@ -1,5 +1,5 @@
 import { ConnectionConfig } from "~/.generated/client";
-import { canModify, canSee, filterVisible } from "~/.server/auth/authorization";
+import { canCreate, canModify, canSee, filterVisible } from "~/.server/auth/authorization";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { prisma } from "~/.server/db/prisma";
 
@@ -77,4 +77,32 @@ export async function deleteConnectionConfig(
   }
 
   await prisma.connectionConfig.delete({ where: { id: config.id } });
+}
+
+// Update the ownerScope of a connection config (with authorization checks)
+export async function updateConnectionScope(
+  user: UserProfile,
+  name: string,
+  newOwnerScope: string,
+) {
+  const config = await prisma.connectionConfig.findUnique({
+    where: { name },
+  });
+
+  if (!config || !canSee(user, config.ownerScope)) {
+    throw new Error("Connection not found");
+  }
+
+  if (!canModify(user, config.ownerScope)) {
+    throw new Error("Not authorized to modify this connection");
+  }
+
+  if (!canCreate(user, newOwnerScope)) {
+    throw new Error("Not authorized to assign to this scope");
+  }
+
+  return prisma.connectionConfig.update({
+    where: { id: config.id },
+    data: { ownerScope: newOwnerScope },
+  });
 }

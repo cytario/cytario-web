@@ -1,10 +1,17 @@
-import { Button, ButtonLink } from "@cytario/design";
+import { Button, ButtonLink, Select } from "@cytario/design";
 import { useCallback, useRef, useState } from "react";
-import { Form, useSearchParams } from "react-router";
+import {
+  Form,
+  useFetcher,
+  useRouteLoaderData,
+  useSearchParams,
+} from "react-router";
 
+import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { ScopePill } from "~/components/Pill/Pill";
+import { formatScopeLabel, ScopePill } from "~/components/Pill/Pill";
 import { RouteModal } from "~/components/RouteModal";
+import { canModify } from "~/utils/authorization";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 
 export default function ConnectionInfoModal({
@@ -21,6 +28,15 @@ export default function ConnectionInfoModal({
     nodeName ? state.connections[nodeName]?.connectionConfig : undefined,
   );
 
+  const rootData = useRouteLoaderData("root") as
+    | { user?: UserProfile }
+    | undefined;
+  const user = rootData?.user;
+
+  const fetcher = useFetcher<{ error?: string; status?: string }>();
+  const fetcherError =
+    fetcher.data?.status === "error" ? fetcher.data.error : undefined;
+
   const handleClose = useCallback(() => {
     onClose(["nodeName"]);
   }, [onClose]);
@@ -28,28 +44,44 @@ export default function ConnectionInfoModal({
   if (!nodeName || !connectionConfig) return null;
 
   const { provider, ownerScope } = connectionConfig;
+  const userCanModify = user ? canModify(user, ownerScope) : false;
+
+  const scopeItems = user
+    ? [
+        { id: user.sub, name: "Personal" },
+        ...user.adminScopes.map((s) => ({ id: s, name: formatScopeLabel(s) })),
+      ]
+    : [];
 
   return (
     <RouteModal title={nodeName} onClose={handleClose}>
       <div className="flex flex-col gap-4">
         {/* Connection details */}
         <dl className="flex flex-col gap-2 text-sm">
-          {ownerScope && (
-            <div className="flex items-center justify-between">
-              <dt className="text-(--color-text-secondary)">Visibility</dt>
-              <dd>
-                <ScopePill ownerScope={ownerScope} />
-              </dd>
-            </div>
-          )}
           {provider && (
             <div className="flex items-center justify-between">
               <dt className="text-(--color-text-secondary)">Provider</dt>
-              <dd className="font-medium text-(--color-text-primary)">
+              <dd>
                 <ScopePill ownerScope={provider} />
               </dd>
             </div>
           )}
+          <div className="flex items-center justify-between">
+            <dt className="text-(--color-text-secondary)">Visibility</dt>
+            <dd>
+              {userCanModify && scopeItems.length > 1 ? (
+                <ScopeEditor
+                  connectionName={nodeName}
+                  currentScope={ownerScope}
+                  scopeItems={scopeItems}
+                  fetcher={fetcher}
+                  error={fetcherError}
+                />
+              ) : (
+                <ScopePill ownerScope={ownerScope} />
+              )}
+            </dd>
+          </div>
         </dl>
 
         {/* Open Connection */}
@@ -58,7 +90,12 @@ export default function ConnectionInfoModal({
         </ButtonLink>
 
         {/* Remove Connection */}
-        <Form method="delete" action="/connections" ref={formRef}>
+        <Form
+          method="delete"
+          action="/connections"
+          ref={formRef}
+          className="flex flex-col"
+        >
           <input type="hidden" name="connectionName" value={nodeName} />
           <Button
             type="button"
@@ -83,5 +120,53 @@ export default function ConnectionInfoModal({
         </ConfirmDialog>
       </div>
     </RouteModal>
+  );
+}
+
+function ScopeEditor({
+  connectionName,
+  currentScope,
+  scopeItems,
+  fetcher,
+  error,
+}: {
+  connectionName: string;
+  currentScope: string;
+  scopeItems: { id: string; name: string }[];
+  fetcher: ReturnType<typeof useFetcher>;
+  error?: string;
+}) {
+  const [selectedScope, setSelectedScope] = useState(currentScope);
+  const isDirty = selectedScope !== currentScope;
+
+  const handleSave = () => {
+    fetcher.submit(
+      { connectionName, newOwnerScope: selectedScope },
+      { method: "PATCH", action: "/connections" },
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <Select
+          label="Visibility"
+          hideLabel
+          items={scopeItems}
+          selectedKey={selectedScope}
+          onSelectionChange={(key) => setSelectedScope(String(key))}
+        />
+        {isDirty && (
+          <Button
+            size="sm"
+            onPress={handleSave}
+            isDisabled={fetcher.state === "submitting"}
+          >
+            Save
+          </Button>
+        )}
+      </div>
+      {error && <p className="text-xs text-(--color-text-danger)">{error}</p>}
+    </div>
   );
 }
