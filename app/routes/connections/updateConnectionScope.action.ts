@@ -43,8 +43,9 @@ export const updateConnectionScopeAction = async ({
       };
     }
 
-    if (error instanceof Error && error.message.startsWith("Not authorized")) {
-      return { error: error.message, status: "error" as const };
+    // Auth and not-found errors from updateConnectionScope
+    if (error instanceof Error) {
+      return { error: "Not authorized to change this connection's scope.", status: "error" as const };
     }
 
     throw error;
