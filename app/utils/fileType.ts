@@ -34,6 +34,24 @@ const FILE_TYPE_REGISTRY: FileTypeEntry[] = [
   { pattern: /\.jpe?g$/i, type: "JPEG", icon: "Image" },
 ];
 
+/**
+ * Extracts the file extension from a filename, handling compound extensions
+ * like `.ome.tif` and `.ome.tiff`.
+ *
+ * @example
+ * getExtension("sample.ome.tif")  // "ome.tif"
+ * getExtension("image.png")       // "png"
+ * getExtension("README")          // undefined
+ */
+export function getExtension(name: string): string | undefined {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".ome.tif")) return "ome.tif";
+  if (lower.endsWith(".ome.tiff")) return "ome.tiff";
+  const lastDot = lower.lastIndexOf(".");
+  if (lastDot <= 0) return undefined;
+  return lower.slice(lastDot + 1);
+}
+
 /** Set of file types that represent viewable images. */
 export const IMAGE_FILE_TYPES: ReadonlySet<FileType> = new Set([
   "TIFF",
