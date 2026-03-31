@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs, data } from "react-router";
 
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
@@ -28,7 +28,7 @@ export const updateConnectionScopeAction = async ({
       message: "Connection visibility updated.",
     });
 
-    return Response.json(
+    return data(
       { status: "success" as const },
       { headers: { "Set-Cookie": await sessionStorage.commitSession(session) } },
     );
