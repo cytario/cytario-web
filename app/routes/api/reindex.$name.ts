@@ -7,7 +7,7 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { buildIndexParquet } from "~/.server/reindex/buildIndex";
 import { listAllObjects } from "~/.server/reindex/listAllObjects";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByName } from "~/utils/connectionConfig.server";
+import { getConnection } from "~/routes/connections/connections.server";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
@@ -20,7 +20,7 @@ export const action = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Connection name is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnectionByName(user, connectionName);
+  const connectionConfig = await getConnection(user, connectionName);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }

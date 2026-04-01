@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import type { ConnectionConfig } from "~/utils/connectionConfig.server";
+import type { ConnectionConfig } from "~/.generated/client";
 import { createMigrate } from "~/utils/persistMigration";
 
 export interface ConnectionIndex {

@@ -3,10 +3,14 @@ import { useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { type TreeNode } from "./buildDirectoryTree";
-import { getFileIcon } from "./fileTypeHelpers";
 import { NodeLinkIcon } from "./NodeLink/NodeLinkIcon";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
+import { getNodeIcon } from "~/utils/fileType";
 import { nodeToPath } from "~/utils/resourceId";
+
+// The design system bundles its own @types/react, so its LucideIcon type is
+// structurally identical but nominally different. A simple cast is safe here.
+type DesignIcon = DesignTreeNode["icon"];
 
 /* ------------------------------------------------------------------ */
 /*  Tree node conversion                                               */
@@ -21,7 +25,7 @@ function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
     const designNode: DesignTreeNode = {
       id: node.pathName ?? node.name,
       name: node.name,
-      icon: getFileIcon(node),
+      icon: getNodeIcon(node) as DesignIcon,
     };
 
     if (node.children.length > 0) {

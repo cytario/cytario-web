@@ -13,14 +13,15 @@ import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useFetcher } from "react-router";
 
+import AWS_REGIONS from "./awsRegions.json";
 import {
   type ConnectBucketFormData,
-  connectBucketSchema,
+  connectionSchema,
   defaultFormValues,
   parseS3Uri,
   suggestName,
-} from "./addConnection.schema";
-import AWS_REGIONS from "./awsRegions.json";
+} from "./connection.schema";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 
 const STEP_LABELS = ["Storage Type", "Connection Details", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -58,15 +59,18 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-interface ConnectBucketFormProps {
+interface ConnectionFormProps {
   adminScopes: string[];
   userId: string;
+  initialData?: ConnectBucketFormData & { originalName: string };
 }
 
-export const AddConnectionForm = ({
+export const ConnectionForm = ({
   adminScopes,
   userId,
-}: ConnectBucketFormProps) => {
+  initialData,
+}: ConnectionFormProps) => {
+  const isEditMode = !!initialData;
   const fetcher = useFetcher<{
     errors?: Record<string, string[]>;
     status?: string;
@@ -95,11 +99,10 @@ export const AddConnectionForm = ({
     trigger,
     formState: { errors },
   } = useForm<ConnectBucketFormData>({
-    resolver: zodResolver(connectBucketSchema),
-    defaultValues: {
-      ...defaultFormValues,
-      ownerScope: userId,
-    },
+    resolver: zodResolver(connectionSchema),
+    defaultValues: initialData
+      ? { ...defaultFormValues, ...initialData, ownerScope: initialData.ownerScope || userId }
+      : { ...defaultFormValues, ownerScope: userId },
     mode: "onTouched",
   });
 
@@ -124,7 +127,7 @@ export const AddConnectionForm = ({
   const roleArn = useWatch({ control, name: "roleArn" });
   const bucketEndpoint = useWatch({ control, name: "bucketEndpoint" });
 
-  const userEditedName = useRef(false);
+  const userEditedName = useRef(isEditMode);
   const isAutoUpdatingName = useRef(false);
 
   useEffect(() => {
@@ -149,7 +152,12 @@ export const AddConnectionForm = ({
         formData.append(key, String(value));
       }
     });
-    fetcher.submit(formData, { method: "post", action: "/connections" });
+    if (isEditMode) {
+      formData.append("_originalName", initialData.originalName);
+      fetcher.submit(formData, { method: "PATCH", action: "/connections" });
+    } else {
+      fetcher.submit(formData, { method: "post", action: "/connections" });
+    }
   };
 
   const handleNext = async () => {
@@ -197,11 +205,10 @@ export const AddConnectionForm = ({
                   control={control}
                   render={({ field }) => (
                     <Select
-                      label="Provider"
-                      hideLabel
                       items={providerItems}
                       selectedKey={field.value}
                       onSelectionChange={(key) => field.onChange(key)}
+
                     />
                   )}
                 />
@@ -227,6 +234,7 @@ export const AddConnectionForm = ({
                       placeholder="my-bucket/path/prefix"
                       prefix="s3://"
                       size="lg"
+
                     />
                   )}
                 />
@@ -253,6 +261,7 @@ export const AddConnectionForm = ({
                       name={field.name}
                       placeholder="my-connection"
                       size="lg"
+
                     />
                   )}
                 />
@@ -273,8 +282,6 @@ export const AddConnectionForm = ({
                     control={control}
                     render={({ field }) => (
                       <Select
-                        label="Visibility"
-                        hideLabel
                         items={[
                           { id: userId, name: "Personal" },
                           ...adminScopes.map((str) => ({
@@ -284,6 +291,7 @@ export const AddConnectionForm = ({
                         ]}
                         selectedKey={field.value}
                         onSelectionChange={(key) => field.onChange(key)}
+                        renderItem={(item) => <VisibilityPill scope={item.id} />}
                       />
                     )}
                   />
@@ -323,8 +331,6 @@ export const AddConnectionForm = ({
                       control={control}
                       render={({ field }) => (
                         <Select
-                          label="Region"
-                          hideLabel
                           items={regionItems}
                           selectedKey={field.value}
                           onSelectionChange={(key) => field.onChange(key)}
@@ -360,7 +366,7 @@ export const AddConnectionForm = ({
 
           {currentStep === LAST_STEP && (
             <div>
-              <p className="mb-[var(--spacing-2)] text-[length:var(--font-size-sm)] font-[number:var(--font-weight-medium)] text-[var(--color-text-primary)]">
+              <p className="mb-(--spacing-2) text-(length:--font-size-sm) font-medium text-(--color-text-primary)">
                 Summary
               </p>
               <div
@@ -395,7 +401,7 @@ export const AddConnectionForm = ({
           <FormWizardNav
             onNext={handleNext}
             isSubmitting={isSubmitting}
-            submitLabel="Connect Storage"
+            submitLabel={isEditMode ? "Save Changes" : "Connect Storage"}
           />
         </form>
       </div>

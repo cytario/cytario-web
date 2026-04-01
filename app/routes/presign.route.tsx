@@ -5,7 +5,7 @@ import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getConnectionByName } from "~/utils/connectionConfig.server";
+import { getConnection } from "~/routes/connections/connections.server";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -21,7 +21,7 @@ export const loader = async ({
 
   if (!connectionName) throw new Error("Connection name is required");
 
-  const connectionConfig = await getConnectionByName(user, connectionName);
+  const connectionConfig = await getConnection(user, connectionName);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }
@@ -37,7 +37,7 @@ export const loader = async ({
     const presignedUrl = await getPresignedUrl(
       connectionConfig,
       s3Client,
-      pathName
+      pathName,
     );
 
     return Response.json({ url: presignedUrl });
@@ -45,7 +45,7 @@ export const loader = async ({
     console.error("Error presigning url", error);
     return Response.json(
       { error: "Failed to generate presigned URL" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 };

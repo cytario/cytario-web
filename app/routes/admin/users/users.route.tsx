@@ -1,4 +1,4 @@
-import { ButtonLink, EmptyState } from "@cytario/design";
+import { ButtonLink, EmptyState, PathPill, Pill } from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
 import { UserPlus, Users, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -17,8 +17,6 @@ import {
   type GroupInfo,
 } from "~/.server/auth/keycloakAdmin";
 import { Section, SectionHeader } from "~/components/Container";
-import { GroupPill } from "~/components/Pill/GroupPill";
-import { Pill } from "~/components/Pill/Pill";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import {
   type CellRenderers,
@@ -87,7 +85,7 @@ function buildGroupColumn(
     filterRender: (option) => {
       const count = option.value ? (counts.get(option.value) ?? 0) : totalCount;
       const pill = option.value ? (
-        <GroupPill path={option.value} visibleCount={pillVisibleCount} />
+        <PathPill visibleCount={pillVisibleCount}>{option.value}</PathPill>
       ) : (
         <span className="h-5 px-2 rounded-full border-2 border-white bg-slate-100 text-slate-500 text-xs font-medium">
           All
@@ -160,22 +158,19 @@ function buildColumns(
         { label: "Active", value: "true" },
         { label: "Disabled", value: "false" },
       ],
-      filterRender: (option) => (
-        <Pill
-          name={
-            option.value === "true"
-              ? "Active"
-              : option.value === "false"
-                ? "Disabled"
-                : option.label
-          }
-          className={
-            option.value === "true"
-              ? "bg-emerald-100 text-emerald-800"
-              : "bg-slate-200 text-slate-600"
-          }
-        />
-      ),
+      filterRender: (option) => {
+        const label =
+          option.value === "true"
+            ? "Active"
+            : option.value === "false"
+              ? "Disabled"
+              : option.label;
+        return (
+          <Pill color={option.value === "true" ? "green" : "slate"}>
+            {label}
+          </Pill>
+        );
+      },
     },
     buildGroupColumn(
       "adminGroups",
@@ -204,23 +199,21 @@ const cellRenderers: CellRenderers<UserRow> = {
       {row.name}
     </Link>
   ),
-  enabled: (row) => (
-    <Pill
-      name={row.enabled === "true" ? "Active" : "Disabled"}
-      className={
-        row.enabled === "true"
-          ? "bg-emerald-100 text-emerald-800"
-          : "bg-slate-200 text-slate-600"
-      }
-    />
-  ),
+  enabled: (row) => {
+    const label = row.enabled === "true" ? "Active" : "Disabled";
+    return (
+      <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>
+    );
+  },
   adminGroups: (row) => (
     <div className="flex flex-wrap gap-1">
       {row.adminGroups
         .split(", ")
         .filter(Boolean)
         .map((path) => (
-          <GroupPill key={path} path={path} visibleCount={2} />
+          <PathPill key={path} visibleCount={2}>
+            {path}
+          </PathPill>
         ))}
     </div>
   ),
@@ -230,7 +223,7 @@ const cellRenderers: CellRenderers<UserRow> = {
         .split(", ")
         .filter(Boolean)
         .map((path) => (
-          <GroupPill key={path} path={path} />
+          <PathPill key={path}>{path}</PathPill>
         ))}
     </div>
   ),

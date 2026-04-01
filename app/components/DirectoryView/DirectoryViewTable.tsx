@@ -1,3 +1,4 @@
+import { Pill } from "@cytario/design";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { useMemo } from "react";
@@ -9,15 +10,16 @@ import {
   computeDirectoryLastModified,
 } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
-import { Pill, formatScopeLabel } from "~/components/Pill/Pill";
+import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
-// --- Bucket view ---
+// --- Connection view ---
 
-interface BucketRow {
+interface ConnectionRow {
   [key: string]: unknown;
   name: string;
   provider: string;
@@ -29,7 +31,7 @@ interface BucketRow {
   _node: TreeNode;
 }
 
-export const bucketColumns: ColumnConfig[] = [
+export const connectionColumns: ColumnConfig[] = [
   {
     id: "name",
     header: "Name",
@@ -87,9 +89,10 @@ export const bucketColumns: ColumnConfig[] = [
   },
 ];
 
-const bucketCellRenderers: CellRenderers<BucketRow> = {
+const connectionCellRenderers: CellRenderers<ConnectionRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
-  ownerScope: (row) => <Pill name={row.ownerScope} />,
+  ownerScope: (row) => <VisibilityPill scope={row.ownerScope} />,
+  provider: (row) => <ProviderPill provider={row.provider} />,
 };
 
 // --- File/directory view ---
@@ -134,10 +137,9 @@ export const fileColumns: ColumnConfig[] = [
       { label: "Unknown", value: "Unknown" },
     ],
     filterRender: (option) => (
-      <Pill
-        name={option.value || option.label}
-        className={option.value ? undefined : "bg-slate-200 text-slate-600"}
-      />
+      <Pill className={option.value ? undefined : "bg-slate-200 text-slate-600"}>
+        {option.value || option.label}
+      </Pill>
     ),
   },
   {
@@ -160,7 +162,7 @@ export const fileColumns: ColumnConfig[] = [
 
 const fileCellRenderers: CellRenderers<FileRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
-  file_type: (row) => <Pill name={row.file_type} />,
+  file_type: (row) => <Pill>{row.file_type}</Pill>,
   last_modified: (row) =>
     row.last_modified ? formatHumanReadableDate(row.last_modified) : null,
   size: (row) => (row.size ? filesize(row.size).toString() : null),
@@ -188,18 +190,19 @@ export function DirectoryViewTable({
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";
 
-  const bucketData: BucketRow[] = useMemo(() => {
+  const connectionData: ConnectionRow[] = useMemo(() => {
     if (tableType !== "bucket") return [];
-    return nodes.map((node) => {
+    return nodes.flatMap((node) => {
       const config = connections[node.connectionName]?.connectionConfig;
+      if (!config) return [];
       return {
         name: node.name,
-        provider: config?.provider ?? "",
-        endpoint: config?.endpoint ?? "",
-        region: config?.region ?? "",
-        rolearn: config?.roleArn ?? "",
-        ownerScope: formatScopeLabel(config?.ownerScope ?? ""),
-        createdBy: config?.createdBy ?? "",
+        provider: config.provider,
+        endpoint: config.endpoint,
+        region: config.region ?? "",
+        rolearn: config.roleArn ?? "",
+        ownerScope: config.ownerScope,
+        createdBy: config.createdBy,
         _node: node,
       };
     });
@@ -226,9 +229,9 @@ export function DirectoryViewTable({
   if (tableType === "bucket") {
     return (
       <Table
-        columns={bucketColumns}
-        data={bucketData}
-        cellRenderers={bucketCellRenderers}
+        columns={connectionColumns}
+        data={connectionData}
+        cellRenderers={connectionCellRenderers}
         tableId="bucket"
         ariaLabel="Storage connections"
         showFilters={showFilters}

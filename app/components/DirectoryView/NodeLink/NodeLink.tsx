@@ -5,11 +5,11 @@ import { Link, useNavigate } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { NodeLinkIcon } from "./NodeLinkIcon";
-import { NodeThumbnail } from "./NodeThumbnail";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { ConnectionMenu } from "~/components/DirectoryView/ConnectionMenu";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
-import { useModal } from "~/hooks/useModal";
+import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { nodeToPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -36,16 +36,9 @@ export function NodeLink({
   showInfoButton = true,
 }: NodeLinkProps) {
   const navigate = useNavigate();
-  const { openModal } = useModal();
+  const openNodeInfoModal = useNodeInfoModal(node);
 
   const to = nodeToPath(node);
-
-  const openNodeInfoModal = useCallback(() => {
-    openModal("node-info", {
-      nodeType: node.type,
-      nodeName: node.pathName ?? node.name,
-    });
-  }, [node.type, node.pathName, node.name, openModal]);
 
   // Activate link with Space key (links natively only respond to Enter)
   const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -63,19 +56,7 @@ export function NodeLink({
 
   return (
     <div className="group flex flex-col h-full">
-      {/* Grid view thumbnail */}
-      {viewMode !== "list" && (
-        <Link
-          to={to}
-          tabIndex={-1}
-          aria-hidden
-          className="flex items-center justify-center w-full flex-1 min-h-0"
-        >
-          <NodeThumbnail node={node} viewMode={viewMode} />
-        </Link>
-      )}
-
-      {/* Node name */}
+      {/* Node name + info button */}
       <div className="w-full flex items-center gap-1 min-h-8">
         <Link
           to={to}
@@ -93,18 +74,21 @@ export function NodeLink({
           <TooltipSpan ellipsis={viewMode === "list" ? "middle" : undefined}>
             {node.name}
           </TooltipSpan>
+        </Link>
 
-          {/* Context menu */}
-          {showInfoButton && (
+        {showInfoButton && (
+          node.type === "bucket" ? (
+            <ConnectionMenu connectionName={node.name} />
+          ) : (
             <IconButton
               icon={Info}
-              aria-label="Show Info"
+              aria-label={`Show info for ${node.name}`}
               onPress={openNodeInfoModal}
               variant="ghost"
               className="border-none text-inherit"
             />
-          )}
-        </Link>
+          )
+        )}
       </div>
     </div>
   );

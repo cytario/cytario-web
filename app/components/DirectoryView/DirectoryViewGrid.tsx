@@ -4,10 +4,14 @@ import { lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 import { TreeNode } from "./buildDirectoryTree";
+import { ConnectionMenu } from "./ConnectionMenu";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
-import { useModal } from "~/hooks/useModal";
+import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
+import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
+import { getExtension } from "~/utils/fileType";
 import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { createResourceId, nodeToPath } from "~/utils/resourceId";
 
@@ -28,19 +32,8 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
   grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
-/** Extract the file extension from a filename (e.g. "sample.ome.tif" -> "ome.tif"). */
-function getExtension(name: string): string | undefined {
-  const omeTiffMatch = name.match(/\.(ome\.tiff?)$/i);
-  if (omeTiffMatch) return omeTiffMatch[1];
-
-  const dotIndex = name.lastIndexOf(".");
-  if (dotIndex <= 0) return undefined;
-  return name.slice(dotIndex + 1);
-}
-
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const { openModal } = useModal();
   const config = useConnectionsStore(
     (state) => state.connections[node.connectionName]?.connectionConfig,
   );
@@ -51,13 +44,6 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
     navigate(to);
   }, [navigate, to]);
 
-  const handleInfo = useCallback(() => {
-    openModal("node-info", {
-      nodeType: node.type,
-      nodeName: node.pathName ?? node.name,
-    });
-  }, [node.type, node.pathName, node.name, openModal]);
-
   const key = node._Object?.Key;
   const url = node._Object?.presignedUrl;
   const hasOmeTiffPreview = !!url && !!key && isOmeTiff(key);
@@ -65,11 +51,17 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
   return (
     <StorageConnectionCard
       name={node.name}
-      provider={config?.provider}
-      region={config?.region ?? undefined}
       status="connected"
+      meta={
+        config && (
+          <>
+            <VisibilityPill scope={config.ownerScope} />
+            <ProviderPill provider={config.provider} />
+          </>
+        )
+      }
       onPress={handlePress}
-      onInfo={handleInfo}
+      actions={<ConnectionMenu connectionName={node.name} />}
     >
       {hasOmeTiffPreview && (
         <ClientOnly>
@@ -99,7 +91,7 @@ function FileCardGridItem({
   compact: boolean;
 }) {
   const navigate = useNavigate();
-  const { openModal } = useModal();
+  const handleInfo = useNodeInfoModal(node);
 
   const resourceId = createResourceId(
     node.provider,
@@ -111,13 +103,6 @@ function FileCardGridItem({
   const handlePress = useCallback(() => {
     navigate(to);
   }, [navigate, to]);
-
-  const handleInfo = useCallback(() => {
-    openModal("node-info", {
-      nodeType: node.type,
-      nodeName: node.pathName ?? node.name,
-    });
-  }, [node.type, node.pathName, node.name, openModal]);
 
   const cardType = node.type === "file" ? "file" : "directory";
   const extension = node.type === "file" ? getExtension(node.name) : undefined;

@@ -1,10 +1,10 @@
 import { useRouteLoaderData } from "react-router";
 
-import { AddConnectionForm } from "./addConnection.form";
+import { ConnectionForm } from "./connection.form";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { RouteModal } from "~/components/RouteModal";
 
-export default function AddConnectionModal({
+export default function CreateConnectionModal({
   onClose,
 }: {
   onClose: () => void;
@@ -18,7 +18,7 @@ export default function AddConnectionModal({
 
   return (
     <RouteModal title="Connect Storage" onClose={onClose}>
-      <AddConnectionForm adminScopes={user.adminScopes} userId={user.sub} />
+      <ConnectionForm adminScopes={user.adminScopes} userId={user.sub} />
     </RouteModal>
   );
 }

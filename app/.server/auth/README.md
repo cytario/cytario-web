@@ -104,8 +104,9 @@ Keycloak redirects to /login
 
 | File | Purpose |
 |------|---------|
-| `getSession.ts` | Session retrieval (deprecated - use middleware) |
+| `getSession.ts` | Session retrieval (deprecated — use `sessionMiddleware` context instead) |
 | `getSessionData.ts` | Extract user, tokens, credentials from session |
+| `authorization.ts` | Re-exports `canSee`, `canModify`, `canCreate`, `filterVisible` from `~/utils/authorization.ts` (shared client/server) |
 | `redirectIfAuthenticated.ts` | Redirect helper for login page |
 
 ## Session Data Structure
