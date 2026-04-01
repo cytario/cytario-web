@@ -16,6 +16,7 @@ interface ConnectionMenuProps {
 export function ConnectionMenu({ connectionName }: ConnectionMenuProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const focusReturnRef = useRef<HTMLElement | null>(null);
   const { openModal } = useModal();
 
   const connectionConfig = useConnectionsStore(
@@ -59,7 +60,12 @@ export function ConnectionMenu({ connectionName }: ConnectionMenuProps) {
                   id="delete"
                   icon={Trash2}
                   isDanger
-                  onAction={() => setConfirmOpen(true)}
+                  textValue="Delete connection"
+                  onAction={() => {
+                    focusReturnRef.current =
+                      document.activeElement as HTMLElement | null;
+                    setConfirmOpen(true);
+                  }}
                 >
                   Delete
                 </MenuItem>
@@ -87,7 +93,10 @@ export function ConnectionMenu({ connectionName }: ConnectionMenuProps) {
 
       <ConfirmDialog
         open={confirmOpen}
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => {
+          setConfirmOpen(false);
+          requestAnimationFrame(() => focusReturnRef.current?.focus());
+        }}
         onConfirm={() => formRef.current?.requestSubmit()}
         title="Remove connection?"
         confirmLabel="Remove"

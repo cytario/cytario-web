@@ -43,43 +43,11 @@ export async function updateConnection(
     }
   }
 
-  const nameChanged = updates.name !== originalName;
+  const previousBucketName = config.bucketName;
 
-  // Use a transaction to cascade name changes to related records
-  if (nameChanged) {
-    return prisma.$transaction(async (tx) => {
-      // Defer FK constraints so we can update parent name before children
-      await tx.$executeRaw`SET CONSTRAINTS ALL DEFERRED`;
-
-      const updated = await tx.connectionConfig.update({
-        where: { id: config.id },
-        data: {
-          name: updates.name,
-          ownerScope: updates.ownerScope,
-          provider: updates.provider,
-          bucketName: updates.bucketName,
-          prefix: updates.prefix,
-          endpoint: updates.endpoint,
-          roleArn: updates.roleArn,
-          region: updates.region,
-        },
-      });
-
-      // Now update children to reference the new name
-      await tx.recentlyViewed.updateMany({
-        where: { connectionName: originalName },
-        data: { connectionName: updates.name },
-      });
-      await tx.pinnedPath.updateMany({
-        where: { connectionName: originalName },
-        data: { connectionName: updates.name },
-      });
-
-      return updated;
-    });
-  }
-
-  return prisma.connectionConfig.update({
+  // FKs on recentlyViewed/pinnedPath have ON UPDATE CASCADE,
+  // so Postgres automatically cascades name changes to children.
+  const updated = await prisma.connectionConfig.update({
     where: { id: config.id },
     data: {
       name: updates.name,
@@ -92,6 +60,8 @@ export async function updateConnection(
       region: updates.region,
     },
   });
+
+  return { ...updated, previousBucketName };
 }
 
 export const updateAction = async ({
@@ -151,11 +121,14 @@ export const updateAction = async ({
       region: validated.providerType === "aws" ? validated.bucketRegion : null,
     });
 
-    // Invalidate cached credentials and S3 clients for this bucket
+    // Invalidate cached credentials and S3 clients for the old bucket
     const credentials = session.get("credentials") ?? {};
-    delete credentials[updatedConfig.bucketName];
+    delete credentials[updatedConfig.previousBucketName];
+    if (updatedConfig.bucketName !== updatedConfig.previousBucketName) {
+      delete credentials[updatedConfig.bucketName];
+    }
     session.set("credentials", credentials);
-    invalidateS3ClientsForBucket(user.sub, updatedConfig.bucketName);
+    invalidateS3ClientsForBucket(user.sub, updatedConfig.previousBucketName);
 
     session.set("notification", {
       status: "success",

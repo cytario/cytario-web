@@ -37,7 +37,20 @@ export const deleteAction = async ({
     return { error: "Connection name is required" };
   }
 
-  await deleteConnection(user, connectionName);
+  try {
+    await deleteConnection(user, connectionName);
+  } catch (error) {
+    if (error instanceof Error) {
+      session.set("notification", {
+        status: "error",
+        message: error.message,
+      });
+      return redirect("/connections", {
+        headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
+      });
+    }
+    throw error;
+  }
 
   session.set("notification", {
     status: "success",
