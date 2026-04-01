@@ -29,7 +29,7 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 | Auth          | OAuth 2.0 Authorization Code Flow via Keycloak                      |
 | Database      | PostgreSQL (Prisma 7 ORM), Redis/Valkey (sessions via ioredis)      |
 | Cloud         | AWS SDK v3 (S3, STS AssumeRoleWithWebIdentity, presigned URLs)      |
-| UI Components | @headlessui/react 2, lucide-react, motion 12                        |
+| UI Components | @cytario/design (react-aria), lucide-react, motion 12               |
 | Testing       | Vitest 3.2, @testing-library/react 16, happy-dom                    |
 | Linting       | ESLint 8 (flat config), @typescript-eslint, jsx-a11y, import        |
 | Formatting    | Prettier (default config)                                           |
@@ -52,7 +52,7 @@ cytario-web/
 │   ├── hooks/               # Custom React hooks
 │   ├── routes/              # Route modules + colocated resources
 │   │   ├── auth/            # Login, logout, callback
-│   │   ├── connections/     # Connection list, add-connection modal/form/action/schema
+│   │   ├── connections/     # Connection CRUD (create/edit/delete), form, schema, loader
 │   │   ├── admin/           # Admin routes with colocated modals/forms/actions
 │   │   ├── layouts/         # Layout routes (scrollview, ModalOutlet)
 │   │   └── api/             # API-only routes
@@ -117,8 +117,8 @@ import { cytarioConfig } from "~/config";
 
 ### File Colocation
 - **Colocate route-related resources** — modals, forms, actions, schemas, and loaders live next to their route file, not in separate top-level directories
-- Naming convention: `<feature>.route.tsx`, `<feature>.modal.tsx`, `<feature>.action.ts`, `<feature>.form.tsx`, `<feature>.schema.ts`, `<feature>.loader.ts`
-- Example: `routes/connections/` contains `connectionsList.route.tsx`, `addConnection.modal.tsx`, `addConnection.action.ts`, `addConnection.form.tsx`, `addConnection.schema.ts`, `deleteConnection.action.ts`, `updateConnectionScope.action.ts`
+- Naming convention: `<resource>.route.tsx`, `<action><Resource>.action.ts`, `<action><Resource>.modal.tsx`, `<resource>.form.tsx`, `<resource>.schema.ts`, `<resource>.loader.ts`, `<resource>.server.ts`
+- Example: `routes/connections/` contains `connections.route.tsx`, `connections.loader.ts`, `connections.server.ts`, `connection.form.tsx`, `connection.schema.ts`, `createConnection.action.ts`, `createConnection.modal.tsx`, `updateConnection.action.ts`, `updateConnection.modal.tsx`, `deleteConnection.action.ts`
 - Reference: `routes/admin/updateUser/` follows the same pattern
 - Tests go in `__tests__/` adjacent to source files
 
@@ -128,9 +128,10 @@ import { cytarioConfig } from "~/config";
   - **Search param modals** — rendered via `?modal=<name>` through `ModalOutlet` in the scrollview layout (used for modals that should be openable from any page)
 - Search param modals are registered in `routes/layouts/ModalOutlet.tsx` with `React.lazy()` for code splitting
 - Use `useModal()` hook to open/close: `openModal("add-connection")`, `closeModal()`
+- `useModal` captures `document.activeElement` on open and restores focus on close (a11y)
 - Modal components receive `onClose` prop and wrap content in `<RouteModal>`
 - `RouteModal` wraps `@cytario/design` `Dialog` — child-route modals default to `navigate(-1)`, search-param modals receive `closeModal` as `onClose`
-- `closeModal(extraKeys?)` removes the `modal` param plus any extra keys in a single `setSearchParams` call. Modals that add extra params via `openModal(name, params)` pass those keys to `onClose` for cleanup (see `ConnectionInfo.modal.tsx`: `onClose(["nodeName"])`)
+- `closeModal(extraKeys?)` removes the `modal` param plus any extra keys in a single `setSearchParams` call. Modals that add extra params via `openModal(name, params)` pass those keys to `onClose` for cleanup (e.g. `onClose(["nodeName"])`)
 
 ### React Patterns
 - Server/client separation via `.server/` and `.client/` directories
