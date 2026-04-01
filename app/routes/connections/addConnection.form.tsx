@@ -21,6 +21,7 @@ import {
   suggestName,
 } from "./addConnection.schema";
 import AWS_REGIONS from "./awsRegions.json";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 
 const STEP_LABELS = ["Storage Type", "Connection Details", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -197,8 +198,6 @@ export const AddConnectionForm = ({
                   control={control}
                   render={({ field }) => (
                     <Select
-                      label="Provider"
-                      hideLabel
                       items={providerItems}
                       selectedKey={field.value}
                       onSelectionChange={(key) => field.onChange(key)}
@@ -273,8 +272,6 @@ export const AddConnectionForm = ({
                     control={control}
                     render={({ field }) => (
                       <Select
-                        label="Visibility"
-                        hideLabel
                         items={[
                           { id: userId, name: "Personal" },
                           ...adminScopes.map((str) => ({
@@ -284,6 +281,7 @@ export const AddConnectionForm = ({
                         ]}
                         selectedKey={field.value}
                         onSelectionChange={(key) => field.onChange(key)}
+                        renderItem={(item) => <VisibilityPill scope={item.id} />}
                       />
                     )}
                   />
@@ -323,8 +321,6 @@ export const AddConnectionForm = ({
                       control={control}
                       render={({ field }) => (
                         <Select
-                          label="Region"
-                          hideLabel
                           items={regionItems}
                           selectedKey={field.value}
                           onSelectionChange={(key) => field.onChange(key)}
@@ -360,7 +356,7 @@ export const AddConnectionForm = ({
 
           {currentStep === LAST_STEP && (
             <div>
-              <p className="mb-[var(--spacing-2)] text-[length:var(--font-size-sm)] font-[number:var(--font-weight-medium)] text-[var(--color-text-primary)]">
+              <p className="mb-(--spacing-2) text-(length:--font-size-sm) font-medium text-(--color-text-primary)">
                 Summary
               </p>
               <div

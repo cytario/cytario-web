@@ -6,6 +6,8 @@ import { useNavigate } from "react-router";
 import { TreeNode } from "./buildDirectoryTree";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
+import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getExtension } from "~/utils/fileType";
@@ -29,7 +31,6 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
   grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
-
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
@@ -50,9 +51,13 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
   return (
     <StorageConnectionCard
       name={node.name}
-      provider={config?.provider}
-      region={config?.region ?? undefined}
       status="connected"
+      meta={
+        <>
+          <VisibilityPill scope={config.ownerScope} />
+          <ProviderPill provider={config.provider} />
+        </>
+      }
       onPress={handlePress}
       onInfo={handleInfo}
     >

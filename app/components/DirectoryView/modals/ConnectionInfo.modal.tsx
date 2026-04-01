@@ -9,7 +9,8 @@ import {
 
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { formatScopeLabel, ScopePill } from "~/components/Pill/Pill";
+import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { formatVisibilityLabel, VisibilityPill } from "~/components/Pills/VisibilityPill";
 import { RouteModal } from "~/components/RouteModal";
 import { canModify } from "~/utils/authorization";
 import { useConnectionsStore } from "~/utils/connectionsStore";
@@ -49,7 +50,7 @@ export default function ConnectionInfoModal({
   const scopeItems = user
     ? [
         { id: user.sub, name: "Personal" },
-        ...user.adminScopes.map((s) => ({ id: s, name: formatScopeLabel(s) })),
+        ...user.adminScopes.map((s) => ({ id: s, name: formatVisibilityLabel(s) })),
       ]
     : [];
 
@@ -62,7 +63,7 @@ export default function ConnectionInfoModal({
             <div className="flex items-center justify-between">
               <dt className="text-(--color-text-secondary)">Provider</dt>
               <dd>
-                <ScopePill ownerScope={provider} />
+                <ProviderPill provider={provider} />
               </dd>
             </div>
           )}
@@ -78,7 +79,7 @@ export default function ConnectionInfoModal({
                   error={fetcherError}
                 />
               ) : (
-                <ScopePill ownerScope={ownerScope} />
+                <VisibilityPill scope={ownerScope} />
               )}
             </dd>
           </div>
@@ -150,11 +151,10 @@ function ScopeEditor({
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
         <Select
-          label="Visibility"
-          hideLabel
           items={scopeItems}
           selectedKey={selectedScope}
           onSelectionChange={(key) => setSelectedScope(String(key))}
+          renderItem={(item) => <VisibilityPill scope={item.id} />}
         />
         {isDirty && (
           <Button

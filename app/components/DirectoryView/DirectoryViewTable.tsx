@@ -1,3 +1,4 @@
+import { Pill } from "@cytario/design";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { useMemo } from "react";
@@ -9,7 +10,8 @@ import {
   computeDirectoryLastModified,
 } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
-import { Pill, formatScopeLabel } from "~/components/Pill/Pill";
+import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
@@ -89,8 +91,8 @@ export const bucketColumns: ColumnConfig[] = [
 
 const bucketCellRenderers: CellRenderers<BucketRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
-  ownerScope: (row) => <Pill name={row.ownerScope} />,
-  provider: (row) => <Pill name={row.provider} />,
+  ownerScope: (row) => <VisibilityPill scope={row.ownerScope} />,
+  provider: (row) => <ProviderPill provider={row.provider} />,
 };
 
 // --- File/directory view ---
@@ -135,10 +137,9 @@ export const fileColumns: ColumnConfig[] = [
       { label: "Unknown", value: "Unknown" },
     ],
     filterRender: (option) => (
-      <Pill
-        name={option.value || option.label}
-        className={option.value ? undefined : "bg-slate-200 text-slate-600"}
-      />
+      <Pill className={option.value ? undefined : "bg-slate-200 text-slate-600"}>
+        {option.value || option.label}
+      </Pill>
     ),
   },
   {
@@ -161,7 +162,7 @@ export const fileColumns: ColumnConfig[] = [
 
 const fileCellRenderers: CellRenderers<FileRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
-  file_type: (row) => <Pill name={row.file_type} />,
+  file_type: (row) => <Pill>{row.file_type}</Pill>,
   last_modified: (row) =>
     row.last_modified ? formatHumanReadableDate(row.last_modified) : null,
   size: (row) => (row.size ? filesize(row.size).toString() : null),
@@ -199,7 +200,7 @@ export function DirectoryViewTable({
         endpoint: config?.endpoint ?? "",
         region: config?.region ?? "",
         rolearn: config?.roleArn ?? "",
-        ownerScope: formatScopeLabel(config?.ownerScope ?? ""),
+        ownerScope: config?.ownerScope ?? "",
         createdBy: config?.createdBy ?? "",
         _node: node,
       };

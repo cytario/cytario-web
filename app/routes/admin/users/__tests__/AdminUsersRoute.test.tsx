@@ -144,7 +144,7 @@ describe("AdminUsersRoute", () => {
     renderRoute();
 
     // Marcus is in "cytario/lab/admins" — should appear in Admin Groups column
-    // The "admins" text should appear as a visible GroupPill segment
+    // The "admins" text should appear as a visible PathPill segment
     expect(await screen.findByText("admins")).toBeInTheDocument();
   });
 });

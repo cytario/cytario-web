@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { NodeLinkIcon } from "./NodeLinkIcon";
-import { NodeThumbnail } from "./NodeThumbnail";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
@@ -56,18 +55,6 @@ export function NodeLink({
 
   return (
     <div className="group flex flex-col h-full">
-      {/* Grid view thumbnail */}
-      {viewMode !== "list" && (
-        <Link
-          to={to}
-          tabIndex={-1}
-          aria-hidden
-          className="flex items-center justify-center w-full flex-1 min-h-0"
-        >
-          <NodeThumbnail node={node} viewMode={viewMode} />
-        </Link>
-      )}
-
       {/* Node name + info button */}
       <div className="w-full flex items-center gap-1 min-h-8">
         <Link
