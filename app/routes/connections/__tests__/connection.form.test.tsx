@@ -53,7 +53,7 @@ function getInput(name: string): HTMLInputElement {
 /** Select MinIO provider on page 1 via the dropdown. */
 async function selectMinIO(user: ReturnType<typeof userEvent.setup>) {
   const providerButton = screen.getByRole("button", {
-    name: /AWS S3/,
+    name: /Provider/,
   });
   await user.click(providerButton);
   const minioOption = screen.getByRole("option", { name: "MinIO" });
@@ -165,7 +165,7 @@ describe("ConnectionForm", () => {
       renderForm();
 
       const providerButton = screen.getByRole("button", {
-        name: /AWS S3/,
+        name: /Provider/,
       });
       await user.click(providerButton);
 
@@ -216,12 +216,12 @@ describe("ConnectionForm", () => {
     test("shows Personal and admin scope options in Visibility select", async () => {
       renderForm({
         adminScopes: ["cytario/lab", "cytario/team-a"],
-        userId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        userId: "user-42",
       });
       const user = await goToPage2();
 
       const visibilityButton = screen.getByRole("button", {
-        name: /Personal/,
+        name: /Visibility/,
       });
       await user.click(visibilityButton);
 
@@ -229,10 +229,10 @@ describe("ConnectionForm", () => {
         screen.getByRole("option", { name: "Personal" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("option", { name: "lab" }),
+        screen.getByRole("option", { name: "cytario/lab" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("option", { name: "team-a" }),
+        screen.getByRole("option", { name: "cytario/team-a" }),
       ).toBeInTheDocument();
     });
   });
