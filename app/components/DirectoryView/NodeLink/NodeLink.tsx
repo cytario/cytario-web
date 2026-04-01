@@ -7,6 +7,7 @@ import { twMerge } from "tailwind-merge";
 import { NodeLinkIcon } from "./NodeLinkIcon";
 import { TooltipSpan } from "../../Tooltip/TooltipSpan";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { ConnectionMenu } from "~/components/DirectoryView/ConnectionMenu";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { nodeToPath } from "~/utils/resourceId";
@@ -76,13 +77,17 @@ export function NodeLink({
         </Link>
 
         {showInfoButton && (
-          <IconButton
-            icon={Info}
-            aria-label={`Show info for ${node.name}`}
-            onPress={openNodeInfoModal}
-            variant="ghost"
-            className="border-none text-inherit"
-          />
+          node.type === "bucket" ? (
+            <ConnectionMenu connectionName={node.name} />
+          ) : (
+            <IconButton
+              icon={Info}
+              aria-label={`Show info for ${node.name}`}
+              onPress={openNodeInfoModal}
+              variant="ghost"
+              className="border-none text-inherit"
+            />
+          )
         )}
       </div>
     </div>

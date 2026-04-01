@@ -4,6 +4,7 @@ import { lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 import { TreeNode } from "./buildDirectoryTree";
+import { ConnectionMenu } from "./ConnectionMenu";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
@@ -33,7 +34,6 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
 
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const handleInfo = useNodeInfoModal(node);
   const config = useConnectionsStore(
     (state) => state.connections[node.connectionName]?.connectionConfig,
   );
@@ -61,7 +61,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
         )
       }
       onPress={handlePress}
-      onInfo={handleInfo}
+      actions={<ConnectionMenu connectionName={node.name} />}
     >
       {hasOmeTiffPreview && (
         <ClientOnly>

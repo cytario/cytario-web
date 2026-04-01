@@ -17,9 +17,6 @@ const MODAL_REGISTRY = {
   "convert-overlay": lazy(
     () => import("~/components/DataGrid/ConvertOverlay.modal"),
   ),
-  "connection-info": lazy(
-    () => import("~/components/DirectoryView/modals/ConnectionInfo.modal"),
-  ),
   "edit-connection": lazy(
     () => import("~/routes/connections/updateConnection.modal"),
   ),
