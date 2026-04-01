@@ -64,10 +64,8 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 };
 
 export default function RecentRoute() {
-  const { connectionConfigs, recentlyViewed } =
-    useLoaderData<typeof loader>();
-  const { viewMode, showHiddenFiles, toggleShowHiddenFiles } =
-    useLayoutStore();
+  const { connectionConfigs, recentlyViewed } = useLoaderData<typeof loader>();
+  const { viewMode, showHiddenFiles, toggleShowHiddenFiles } = useLayoutStore();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [filterText, setFilterText] = useState("");
   const clearFetcher = useFetcher();
@@ -132,9 +130,7 @@ export default function RecentRoute() {
             {allItems.length > 0 && (
               <Button
                 variant="secondary"
-                onPress={() =>
-                  clearFetcher.submit({}, { method: "delete" })
-                }
+                onPress={() => clearFetcher.submit({}, { method: "delete" })}
               >
                 <Trash2 size={16} />
                 Clear history

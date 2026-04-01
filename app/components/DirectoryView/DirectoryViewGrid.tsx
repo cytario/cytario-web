@@ -53,10 +53,12 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
       name={node.name}
       status="connected"
       meta={
-        <>
-          <VisibilityPill scope={config.ownerScope} />
-          <ProviderPill provider={config.provider} />
-        </>
+        config && (
+          <>
+            <VisibilityPill scope={config.ownerScope} />
+            <ProviderPill provider={config.provider} />
+          </>
+        )
       }
       onPress={handlePress}
       onInfo={handleInfo}

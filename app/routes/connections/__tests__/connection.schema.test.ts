@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  connectBucketSchema,
+  connectionSchema,
   connectionNameSchema,
   parseS3Uri,
   suggestName,
-} from "../addConnection.schema";
+} from "../connection.schema";
 
 describe("connectionNameSchema", () => {
   test("accepts valid lowercase alphanumeric names", () => {
@@ -173,9 +173,9 @@ describe("parseS3Uri", () => {
   });
 });
 
-describe("connectBucketSchema", () => {
+describe("connectionSchema", () => {
   test("validates a complete AWS form submission", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: "my-bucket/data",
@@ -188,7 +188,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("validates a complete MinIO form submission", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "minio",
       s3Uri: "my-bucket",
@@ -201,7 +201,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects AWS form with missing name", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: "my-bucket/data",
@@ -214,7 +214,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects MinIO form with missing name", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "minio",
       s3Uri: "my-bucket",
@@ -227,7 +227,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects AWS form with invalid Role ARN format", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: "my-bucket",
@@ -240,7 +240,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects AWS form with missing region", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: "my-bucket",
@@ -253,7 +253,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects MinIO form with invalid endpoint URL", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "minio",
       s3Uri: "my-bucket",
@@ -266,7 +266,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects MinIO form with missing endpoint", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "minio",
       s3Uri: "my-bucket",
@@ -279,7 +279,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects S3 URI with bucket name shorter than 3 characters", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: "ab",
@@ -293,7 +293,7 @@ describe("connectBucketSchema", () => {
 
   test("rejects S3 URI with bucket name longer than 63 characters", () => {
     const longBucket = "a".repeat(64);
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: longBucket,
@@ -306,7 +306,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("accepts S3 URI with s3:// prefix in the value", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "user-123",
       providerType: "aws",
       s3Uri: "s3://my-bucket/data",
@@ -319,7 +319,7 @@ describe("connectBucketSchema", () => {
   });
 
   test("rejects missing ownerScope", () => {
-    const result = connectBucketSchema.safeParse({
+    const result = connectionSchema.safeParse({
       ownerScope: "",
       providerType: "aws",
       s3Uri: "my-bucket",

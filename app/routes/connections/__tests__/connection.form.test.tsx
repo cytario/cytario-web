@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
-import { AddConnectionForm } from "../addConnection.form";
+import { ConnectionForm } from "../connection.form";
 
 const mockSubmit = vi.fn();
 let mockFetcherData: unknown = null;
@@ -35,7 +35,7 @@ function renderForm(
     {
       path: "/",
       Component: () => (
-        <AddConnectionForm adminScopes={adminScopes} userId={userId} />
+        <ConnectionForm adminScopes={adminScopes} userId={userId} />
       ),
     },
   ]);
@@ -138,7 +138,7 @@ async function goToPage3MinIO() {
   return user;
 }
 
-describe("AddConnectionForm", () => {
+describe("ConnectionForm", () => {
   describe("page 1 — storage type", () => {
     test("renders Provider, S3 URI, and Name fields on page 1", () => {
       renderForm();

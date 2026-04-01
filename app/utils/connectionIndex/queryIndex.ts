@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import type { ConnectionConfig } from "~/utils/connectionConfig.server";
+import type { ConnectionConfig } from "~/.generated/client";
 import { createDatabase } from "~/utils/db/createDatabase";
 import { toIndexS3Key } from "~/utils/resourceId";
 

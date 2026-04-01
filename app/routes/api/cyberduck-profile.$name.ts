@@ -3,7 +3,7 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
-import { getConnectionByName } from "~/utils/connectionConfig.server";
+import { getConnection } from "~/routes/connections/connections.server";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
@@ -16,7 +16,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Connection name is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnectionByName(user, connectionName);
+  const connectionConfig = await getConnection(user, connectionName);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }

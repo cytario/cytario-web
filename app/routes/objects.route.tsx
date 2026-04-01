@@ -30,8 +30,8 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { useModal } from "~/hooks/useModal";
+import { getConnection } from "~/routes/connections/connections.server";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { getConnectionByName } from "~/utils/connectionConfig.server";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
@@ -100,7 +100,7 @@ export const loader = async ({
 
   if (!connectionName) throw new Error("Connection name is required");
 
-  const connectionConfig = await getConnectionByName(user, connectionName);
+  const connectionConfig = await getConnection(user, connectionName);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }
@@ -136,7 +136,11 @@ export const loader = async ({
       const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
         objects.map(async (obj) => ({
           ...obj,
-          presignedUrl: await getPresignedUrl(connectionConfig, s3Client, obj.Key!),
+          presignedUrl: await getPresignedUrl(
+            connectionConfig,
+            s3Client,
+            obj.Key!,
+          ),
         })),
       );
 
@@ -291,7 +295,9 @@ export default function ObjectsRoute() {
         {
           connectionName,
           pathName: urlPath,
-          displayName: urlPath ? getName(urlPath, connectionName) : connectionName,
+          displayName: urlPath
+            ? getName(urlPath, connectionName)
+            : connectionName,
           totalSize: String(totalSize),
           lastModified: lastModified ? String(lastModified) : "",
         },
@@ -305,10 +311,9 @@ export default function ObjectsRoute() {
     return (
       <DirectoryView
         viewMode={viewMode}
-        name={name}
+        name={connectionName}
         showFilters
         nodes={nodes}
-        connectionName={connectionName}
         urlPath={urlPath}
         secondaryActions={<ViewModeToggle />}
       >

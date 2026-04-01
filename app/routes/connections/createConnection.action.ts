@@ -1,14 +1,48 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
-import { connectBucketSchema, parseS3Uri } from "./addConnection.schema";
+import { connectionSchema, parseS3Uri } from "./connection.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { canCreate } from "~/.server/auth/authorization";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { upsertConnectionConfig } from "~/utils/connectionConfig.server";
+import { prisma } from "~/.server/db/prisma";
 
-export const addConnectionAction = async ({
+/** Create a connection config (upserts on the composite unique key). */
+export async function createConnection(
+  ownerScope: string,
+  createdBy: string,
+  config: {
+    name: string;
+    bucketName: string;
+    provider: string;
+    roleArn: string | null;
+    region: string | null;
+    endpoint: string;
+    prefix?: string;
+  },
+) {
+  const prefix = config.prefix ?? "";
+  return prisma.connectionConfig.upsert({
+    where: {
+      ownerScope_provider_bucketName_prefix: {
+        ownerScope,
+        provider: config.provider,
+        bucketName: config.bucketName,
+        prefix,
+      },
+    },
+    update: { ...config, prefix },
+    create: {
+      ownerScope,
+      createdBy,
+      ...config,
+      prefix,
+    },
+  });
+}
+
+export const createAction = async ({
   request,
   context,
 }: ActionFunctionArgs) => {
@@ -26,7 +60,7 @@ export const addConnectionAction = async ({
     bucketEndpoint: String(formData.get("bucketEndpoint") ?? ""),
   };
 
-  const result = connectBucketSchema.safeParse(rawData);
+  const result = connectionSchema.safeParse(rawData);
 
   if (!result.success) {
     return {
@@ -63,7 +97,7 @@ export const addConnectionAction = async ({
       prefix,
     };
 
-    await upsertConnectionConfig(data.ownerScope, user.sub, newConfig);
+    await createConnection(data.ownerScope, user.sub, newConfig);
 
     session.set("notification", {
       status: "success",
@@ -86,7 +120,7 @@ export const addConnectionAction = async ({
       };
     }
 
-    console.error("Error upserting connection config:", error);
+    console.error("Error creating connection:", error);
 
     session.set("notification", {
       status: "error",

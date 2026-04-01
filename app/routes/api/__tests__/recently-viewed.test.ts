@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockUpsertRecentlyViewed = vi.hoisted(() => vi.fn());
-const mockGetConnectionByName = vi.hoisted(() => vi.fn());
+const mockGetConnection = vi.hoisted(() => vi.fn());
 
 vi.mock("~/utils/recentlyViewed.server", () => ({
   upsertRecentlyViewed: mockUpsertRecentlyViewed,
 }));
 
-vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByName: mockGetConnectionByName,
+vi.mock("~/routes/connections/connections.server", () => ({
+  getConnection: mockGetConnection,
 }));
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -48,7 +48,7 @@ function createActionArgs(method: string, formData: FormData) {
 describe("POST /api/recently-viewed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConnectionByName.mockResolvedValue({
+    mockGetConnection.mockResolvedValue({
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -155,7 +155,7 @@ describe("POST /api/recently-viewed", () => {
   });
 
   test("returns 404 when connectionName does not correspond to a visible connection", async () => {
-    mockGetConnectionByName.mockResolvedValue(null);
+    mockGetConnection.mockResolvedValue(null);
 
     const formData = createFormData({
       connectionName: "hidden-bucket",

@@ -2,7 +2,7 @@ import { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getConnectionByName } from "~/utils/connectionConfig.server";
+import { getConnection } from "~/routes/connections/connections.server";
 import { upsertRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 const recentlyViewedSchema = z.object({
@@ -30,7 +30,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       return new Response("Invalid input", { status: 400 });
     }
 
-    const connection = await getConnectionByName(user, parsed.data.connectionName);
+    const connection = await getConnection(user, parsed.data.connectionName);
     if (!connection) {
       return new Response("Connection not found", { status: 404 });
     }

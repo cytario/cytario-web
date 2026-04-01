@@ -7,10 +7,10 @@ import {
   useLoaderData,
 } from "react-router";
 
-import { addConnectionAction } from "./addConnection.action";
-import type { LoaderData } from "./connectionsList.loader";
-import { deleteConnectionAction } from "./deleteConnection.action";
-import { updateConnectionScopeAction } from "./updateConnectionScope.action";
+import type { LoaderData } from "./connections.loader";
+import { createAction } from "./createConnection.action";
+import { deleteAction } from "./deleteConnection.action";
+import { updateAction } from "./updateConnection.action";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -22,17 +22,17 @@ import { useModal } from "~/hooks/useModal";
 export const action = async (args: ActionFunctionArgs) => {
   switch (args.request.method.toUpperCase()) {
     case "POST":
-      return addConnectionAction(args);
+      return createAction(args);
     case "DELETE":
-      return deleteConnectionAction(args);
+      return deleteAction(args);
     case "PATCH":
-      return updateConnectionScopeAction(args);
+      return updateAction(args);
     default:
       return new Response("Method not allowed", { status: 405 });
   }
 };
 
-export { loadConnectionNodes as loader } from "./connectionsList.loader";
+export { loadConnections as loader } from "./connections.loader";
 
 const title = "Storage Connections";
 

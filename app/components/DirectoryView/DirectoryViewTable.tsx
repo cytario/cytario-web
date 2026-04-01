@@ -17,9 +17,9 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 
-// --- Bucket view ---
+// --- Connection view ---
 
-interface BucketRow {
+interface ConnectionRow {
   [key: string]: unknown;
   name: string;
   provider: string;
@@ -31,7 +31,7 @@ interface BucketRow {
   _node: TreeNode;
 }
 
-export const bucketColumns: ColumnConfig[] = [
+export const connectionColumns: ColumnConfig[] = [
   {
     id: "name",
     header: "Name",
@@ -89,7 +89,7 @@ export const bucketColumns: ColumnConfig[] = [
   },
 ];
 
-const bucketCellRenderers: CellRenderers<BucketRow> = {
+const connectionCellRenderers: CellRenderers<ConnectionRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
   ownerScope: (row) => <VisibilityPill scope={row.ownerScope} />,
   provider: (row) => <ProviderPill provider={row.provider} />,
@@ -190,18 +190,19 @@ export function DirectoryViewTable({
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";
 
-  const bucketData: BucketRow[] = useMemo(() => {
+  const connectionData: ConnectionRow[] = useMemo(() => {
     if (tableType !== "bucket") return [];
-    return nodes.map((node) => {
+    return nodes.flatMap((node) => {
       const config = connections[node.connectionName]?.connectionConfig;
+      if (!config) return [];
       return {
         name: node.name,
-        provider: config?.provider ?? "",
-        endpoint: config?.endpoint ?? "",
-        region: config?.region ?? "",
-        rolearn: config?.roleArn ?? "",
-        ownerScope: config?.ownerScope ?? "",
-        createdBy: config?.createdBy ?? "",
+        provider: config.provider,
+        endpoint: config.endpoint,
+        region: config.region ?? "",
+        rolearn: config.roleArn ?? "",
+        ownerScope: config.ownerScope,
+        createdBy: config.createdBy,
         _node: node,
       };
     });
@@ -228,9 +229,9 @@ export function DirectoryViewTable({
   if (tableType === "bucket") {
     return (
       <Table
-        columns={bucketColumns}
-        data={bucketData}
-        cellRenderers={bucketCellRenderers}
+        columns={connectionColumns}
+        data={connectionData}
+        cellRenderers={connectionCellRenderers}
         tableId="bucket"
         ariaLabel="Storage connections"
         showFilters={showFilters}

@@ -63,7 +63,7 @@ export interface LoaderData {
   pinnedPaths: SerializedPinnedPath[];
 }
 
-export async function loadConnectionNodes({
+export async function loadConnections({
   context,
 }: LoaderFunctionArgs) {
   const { connectionConfigs, credentials, user } = context.get(authContext);

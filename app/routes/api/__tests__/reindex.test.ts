@@ -2,7 +2,7 @@ import { ActionFunctionArgs } from "react-router";
 
 import mock from "~/utils/__tests__/__mocks__";
 
-const mockGetConnectionByName = vi.fn();
+const mockGetConnection = vi.fn();
 const mockCanModify = vi.fn();
 const mockGetS3Client = vi.fn();
 const mockListAllObjects = vi.fn();
@@ -29,9 +29,9 @@ vi.mock("~/.server/reindex/listAllObjects", () => ({
 vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
-vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByName: (...args: unknown[]) =>
-    mockGetConnectionByName(...args),
+vi.mock("~/routes/connections/connections.server", () => ({
+  getConnection: (...args: unknown[]) =>
+    mockGetConnection(...args),
 }));
 
 // Suppress console.info and console.error in tests
@@ -79,7 +79,7 @@ describe("reindex.$name action", () => {
   });
 
   test("returns 404 when connection config not found", async () => {
-    mockGetConnectionByName.mockResolvedValue(null);
+    mockGetConnection.mockResolvedValue(null);
 
     const { action } = await import("~/routes/api/reindex.$name");
 
@@ -94,7 +94,7 @@ describe("reindex.$name action", () => {
   });
 
   test("returns 403 when user cannot modify the connection", async () => {
-    mockGetConnectionByName.mockResolvedValue(connectionConfig);
+    mockGetConnection.mockResolvedValue(connectionConfig);
     mockCanModify.mockReturnValue(false);
 
     const { action } = await import("~/routes/api/reindex.$name");
@@ -111,7 +111,7 @@ describe("reindex.$name action", () => {
   });
 
   test("returns 401 when no credentials for bucket", async () => {
-    mockGetConnectionByName.mockResolvedValue(connectionConfig);
+    mockGetConnection.mockResolvedValue(connectionConfig);
     mockCanModify.mockReturnValue(true);
 
     const contextWithoutCreds = {
@@ -135,7 +135,7 @@ describe("reindex.$name action", () => {
   });
 
   test("builds and uploads index on success", async () => {
-    mockGetConnectionByName.mockResolvedValue(connectionConfig);
+    mockGetConnection.mockResolvedValue(connectionConfig);
     mockCanModify.mockReturnValue(true);
     mockGetS3Client.mockResolvedValue({ send: vi.fn() });
     mockListAllObjects.mockResolvedValue([
@@ -159,7 +159,7 @@ describe("reindex.$name action", () => {
   });
 
   test("returns 500 on indexing failure", async () => {
-    mockGetConnectionByName.mockResolvedValue(connectionConfig);
+    mockGetConnection.mockResolvedValue(connectionConfig);
     mockCanModify.mockReturnValue(true);
     mockGetS3Client.mockRejectedValue(new Error("S3 connection failed"));
 

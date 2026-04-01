@@ -17,7 +17,7 @@ import {
   type LoaderData,
   type SerializedPinnedPath,
   type SerializedRecentlyViewed,
-} from "~/routes/connections/connectionsList.loader";
+} from "~/routes/connections/connections.loader";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
 const title = "Storage Connections";
@@ -48,7 +48,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const middleware = [authMiddleware];
 
-export { loadConnectionNodes as loader } from "~/routes/connections/connectionsList.loader";
+export { loadConnections as loader } from "~/routes/connections/connections.loader";
 
 export default function HomeRoute() {
   const { nodes, credentials, connectionConfigs, recentlyViewed, pinnedPaths } =

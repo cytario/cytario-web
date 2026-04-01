@@ -12,13 +12,16 @@ type ModalComponent = ComponentType<{ onClose: (extraKeys?: string[]) => void }>
  */
 const MODAL_REGISTRY = {
   "add-connection": lazy(
-    () => import("~/routes/connections/addConnection.modal"),
+    () => import("~/routes/connections/createConnection.modal"),
   ),
   "convert-overlay": lazy(
     () => import("~/components/DataGrid/ConvertOverlay.modal"),
   ),
   "connection-info": lazy(
     () => import("~/components/DirectoryView/modals/ConnectionInfo.modal"),
+  ),
+  "edit-connection": lazy(
+    () => import("~/routes/connections/updateConnection.modal"),
   ),
   "directory-info": lazy(
     () => import("~/components/DirectoryView/modals/DirectoryInfo.modal"),

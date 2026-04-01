@@ -12,7 +12,7 @@ import {
 import { verifyIdToken } from "./verifyIdToken";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
-import { getConnectionConfigs } from "~/utils/connectionConfig.server";
+import { listConnections } from "~/routes/connections/connections.server";
 
 export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfig[];
@@ -50,7 +50,7 @@ const label = createLabel("authorize", "green");
 const fetchAllCredentials = async (
   sessionData: SessionData,
 ): Promise<{ sessionData: SessionData; connectionConfigs: ConnectionConfig[] }> => {
-  const connectionConfigs = await getConnectionConfigs(sessionData.user);
+  const connectionConfigs = await listConnections(sessionData.user);
 
   const newCredentials = await getAllSessionCredentials(
     sessionData,

@@ -7,7 +7,7 @@ import { useFetcher } from "react-router";
 import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
-  bucketColumns,
+  connectionColumns,
   DirectoryViewTable,
   fileColumns,
 } from "./DirectoryViewTable";
@@ -19,9 +19,6 @@ import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
-  /** Connection name for breadcrumb context */
-  connectionName?: string;
-  /** URL path relative to connection root */
   urlPath?: string;
 }
 
@@ -41,17 +38,20 @@ export function DirectoryView({
   nodes,
   name,
   showFilters = false,
-  connectionName,
+  // connectionName,
   urlPath,
   children,
   secondaryActions,
   flush,
 }: DirectoryViewProps) {
-  const isBucket = nodes.length > 0 && nodes[0].type === "bucket";
-  const columns = isBucket ? bucketColumns : fileColumns;
-  const tableId = isBucket ? "bucket" : "directory";
+  const isConnection = nodes.length > 0 && nodes[0].type === "bucket";
+  const columns = isConnection ? connectionColumns : fileColumns;
+  const tableId = isConnection ? "bucket" : "directory";
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
+
+  // TODO
+  const connectionName = name;
 
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const toggleShowHiddenFiles = useLayoutStore((s) => s.toggleShowHiddenFiles);
@@ -69,9 +69,9 @@ export function DirectoryView({
   const filteredNodes = useMemo(
     () =>
       isGrid
-        ? filterNodes(visibleNodes, columnFilters, columns, isBucket)
+        ? filterNodes(visibleNodes, columnFilters, columns, isConnection)
         : visibleNodes,
-    [isGrid, visibleNodes, columnFilters, columns, isBucket],
+    [isGrid, visibleNodes, columnFilters, columns, isConnection],
   );
 
   // Apply inline text filter for grid and list modes
@@ -112,7 +112,7 @@ export function DirectoryView({
 
       {showFilters && (
         <Container>
-          <div className="mb-6 flex items-center justify-between gap-3 min-h-[40px]">
+          <div className="mb-6 flex items-center justify-between gap-3 min-h-10">
             <Input
               aria-label="Filter files"
               placeholder="Filter files..."
@@ -124,7 +124,7 @@ export function DirectoryView({
             <Switch
               isSelected={showHiddenFiles}
               onChange={toggleShowHiddenFiles}
-              className="text-xs font-medium text-[var(--color-text-secondary)]"
+              className="text-xs font-medium text-(--color-text-secondary)"
             >
               Show hidden
             </Switch>
@@ -141,7 +141,7 @@ export function DirectoryView({
           {displayNodes.length > 0 ? (
             <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} />
           ) : (
-            <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
+            <p className="py-8 text-center text-sm text-(--color-text-secondary)">
               No items match the current filters. Try adjusting the filter, or
               enable &ldquo;Show hidden files&rdquo; to see dot-prefixed
               entries.
@@ -156,14 +156,13 @@ export function DirectoryView({
               showFilters={showFilters}
             />
           ) : (
-            <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
+            <p className="py-8 text-center text-sm text-(--color-text-secondary)">
               No items match the current filters. Enable &ldquo;Show hidden
               files&rdquo; to see dot-prefixed entries.
             </p>
           )}
         </Container>
       )}
-
     </Section>
   );
 }

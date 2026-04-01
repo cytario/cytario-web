@@ -1,8 +1,7 @@
-import { Button, ButtonLink, Select } from "@cytario/design";
+import { Button, ButtonLink } from "@cytario/design";
 import { useCallback, useRef, useState } from "react";
 import {
   Form,
-  useFetcher,
   useRouteLoaderData,
   useSearchParams,
 } from "react-router";
@@ -10,8 +9,9 @@ import {
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
-import { formatVisibilityLabel, VisibilityPill } from "~/components/Pills/VisibilityPill";
+import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 import { RouteModal } from "~/components/RouteModal";
+import { useModal } from "~/hooks/useModal";
 import { canModify } from "~/utils/authorization";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 
@@ -23,6 +23,7 @@ export default function ConnectionInfoModal({
   const [searchParams] = useSearchParams();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const { openModal } = useModal();
 
   const nodeName = searchParams.get("nodeName");
   const connectionConfig = useConnectionsStore((state) =>
@@ -34,10 +35,6 @@ export default function ConnectionInfoModal({
     | undefined;
   const user = rootData?.user;
 
-  const fetcher = useFetcher<{ error?: string; status?: string }>();
-  const fetcherError =
-    fetcher.data?.status === "error" ? fetcher.data.error : undefined;
-
   const handleClose = useCallback(() => {
     onClose(["nodeName"]);
   }, [onClose]);
@@ -46,13 +43,6 @@ export default function ConnectionInfoModal({
 
   const { provider, ownerScope } = connectionConfig;
   const userCanModify = user ? canModify(user, ownerScope) : false;
-
-  const scopeItems = user
-    ? [
-        { id: user.sub, name: "Personal" },
-        ...user.adminScopes.map((s) => ({ id: s, name: formatVisibilityLabel(s) })),
-      ]
-    : [];
 
   return (
     <RouteModal title={nodeName} onClose={handleClose}>
@@ -70,20 +60,20 @@ export default function ConnectionInfoModal({
           <div className="flex items-center justify-between">
             <dt className="text-(--color-text-secondary)">Visibility</dt>
             <dd>
-              {userCanModify && scopeItems.length > 1 ? (
-                <ScopeEditor
-                  connectionName={nodeName}
-                  currentScope={ownerScope}
-                  scopeItems={scopeItems}
-                  fetcher={fetcher}
-                  error={fetcherError}
-                />
-              ) : (
-                <VisibilityPill scope={ownerScope} />
-              )}
+              <VisibilityPill scope={ownerScope} />
             </dd>
           </div>
         </dl>
+
+        {/* Edit Connection */}
+        {userCanModify && (
+          <Button
+            variant="secondary"
+            onPress={() => openModal("edit-connection", { nodeName })}
+          >
+            Edit Connection
+          </Button>
+        )}
 
         {/* Open Connection */}
         <ButtonLink href={`/connections/${nodeName}`} variant="secondary">
@@ -121,52 +111,5 @@ export default function ConnectionInfoModal({
         </ConfirmDialog>
       </div>
     </RouteModal>
-  );
-}
-
-function ScopeEditor({
-  connectionName,
-  currentScope,
-  scopeItems,
-  fetcher,
-  error,
-}: {
-  connectionName: string;
-  currentScope: string;
-  scopeItems: { id: string; name: string }[];
-  fetcher: ReturnType<typeof useFetcher>;
-  error?: string;
-}) {
-  const [selectedScope, setSelectedScope] = useState(currentScope);
-  const isDirty = selectedScope !== currentScope;
-
-  const handleSave = () => {
-    fetcher.submit(
-      { connectionName, newOwnerScope: selectedScope },
-      { method: "PATCH", action: "/connections" },
-    );
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <Select
-          items={scopeItems}
-          selectedKey={selectedScope}
-          onSelectionChange={(key) => setSelectedScope(String(key))}
-          renderItem={(item) => <VisibilityPill scope={item.id} />}
-        />
-        {isDirty && (
-          <Button
-            size="sm"
-            onPress={handleSave}
-            isDisabled={fetcher.state !== "idle"}
-          >
-            Save
-          </Button>
-        )}
-      </div>
-      {error && <p className="text-xs text-(--color-text-danger)">{error}</p>}
-    </div>
   );
 }

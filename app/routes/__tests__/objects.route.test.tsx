@@ -19,8 +19,8 @@ vi.mock("~/.server/auth/getS3Client", () => ({
 vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
-vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByName: vi.fn(),
+vi.mock("~/routes/connections/connections.server", () => ({
+  getConnection: vi.fn(),
 }));
 vi.mock("~/utils/getObjects", () => ({
   getObjects: vi.fn(),

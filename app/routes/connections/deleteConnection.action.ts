@@ -1,11 +1,30 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { authContext } from "~/.server/auth/authMiddleware";
+import { canModify, canSee } from "~/.server/auth/authorization";
+import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { deleteConnectionConfig } from "~/utils/connectionConfig.server";
+import { prisma } from "~/.server/db/prisma";
 
-export const deleteConnectionAction = async ({
+/** Delete a connection config by name. Checks visibility and modify authorization. */
+export async function deleteConnection(user: UserProfile, name: string) {
+  const config = await prisma.connectionConfig.findUnique({
+    where: { name },
+  });
+
+  if (!config || !canSee(user, config.ownerScope)) {
+    throw new Error("Connection config not found");
+  }
+
+  if (!canModify(user, config.ownerScope)) {
+    throw new Error("Not authorized to delete this connection config");
+  }
+
+  await prisma.connectionConfig.delete({ where: { id: config.id } });
+}
+
+export const deleteAction = async ({
   request,
   context,
 }: ActionFunctionArgs) => {
@@ -18,7 +37,7 @@ export const deleteConnectionAction = async ({
     return { error: "Connection name is required" };
   }
 
-  await deleteConnectionConfig(user, connectionName);
+  await deleteConnection(user, connectionName);
 
   session.set("notification", {
     status: "success",

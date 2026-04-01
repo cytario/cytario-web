@@ -36,7 +36,7 @@ const protectedRoutes = [
     },
     {
       path: "/connections",
-      file: "routes/connections/connectionsList.route.tsx",
+      file: "routes/connections/connections.route.tsx",
     },
     {
       path: "/connections/:name/*",

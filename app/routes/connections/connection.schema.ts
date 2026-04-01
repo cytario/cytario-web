@@ -86,12 +86,12 @@ const minioFormSchema = z.object({
 });
 
 // Discriminated union for type-safe conditional validation
-export const connectBucketSchema = z.discriminatedUnion("providerType", [
+export const connectionSchema = z.discriminatedUnion("providerType", [
   awsFormSchema,
   minioFormSchema,
 ]);
 
-export type ConnectBucketFormData = z.input<typeof connectBucketSchema>;
+export type ConnectBucketFormData = z.input<typeof connectionSchema>;
 
 // Default values for the form
 export const defaultFormValues: ConnectBucketFormData = {

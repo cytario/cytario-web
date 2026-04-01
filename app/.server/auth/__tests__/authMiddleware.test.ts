@@ -7,8 +7,8 @@ import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
+import { listConnections } from "~/routes/connections/connections.server";
 import mock from "~/utils/__tests__/__mocks__";
-import { getConnectionConfigs } from "~/utils/connectionConfig.server";
 
 vi.mock("../getSession", () => ({
   getSessionData: vi.fn(),
@@ -29,8 +29,8 @@ vi.mock("../sessionStorage", () => ({
   },
 }));
 
-vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionConfigs: vi.fn(),
+vi.mock("~/routes/connections/connections.server", () => ({
+  listConnections: vi.fn(),
 }));
 
 vi.mock("../verifyIdToken", () => ({
@@ -108,7 +108,7 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.destroySession).mockResolvedValue(
       "destroy-cookie",
     );
-    vi.mocked(getConnectionConfigs).mockResolvedValue(mockConnectionConfigs);
+    vi.mocked(listConnections).mockResolvedValue(mockConnectionConfigs);
     // Return the same credentials by default (no change = no session commit)
     vi.mocked(getAllSessionCredentials).mockImplementation(
       async (sessionData) => sessionData.credentials,
@@ -187,7 +187,7 @@ describe("authMiddleware", () => {
         mockNext,
       );
 
-      expect(getConnectionConfigs).toHaveBeenCalledWith(mockSessionData.user);
+      expect(listConnections).toHaveBeenCalledWith(mockSessionData.user);
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
         mockConnectionConfigs,

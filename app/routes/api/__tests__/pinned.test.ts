@@ -5,15 +5,15 @@ const { mockAddPinnedPath, mockRemovePinnedPath } = vi.hoisted(() => ({
   mockRemovePinnedPath: vi.fn(),
 }));
 
-const mockGetConnectionByName = vi.hoisted(() => vi.fn());
+const mockGetConnection = vi.hoisted(() => vi.fn());
 
 vi.mock("~/utils/pinnedPaths.server", () => ({
   addPinnedPath: mockAddPinnedPath,
   removePinnedPath: mockRemovePinnedPath,
 }));
 
-vi.mock("~/utils/connectionConfig.server", () => ({
-  getConnectionByName: mockGetConnectionByName,
+vi.mock("~/routes/connections/connections.server", () => ({
+  getConnection: mockGetConnection,
 }));
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -53,7 +53,7 @@ function createActionArgs(method: string, formData: FormData) {
 describe("POST /api/pinned", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConnectionByName.mockResolvedValue({
+    mockGetConnection.mockResolvedValue({
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -131,7 +131,7 @@ describe("POST /api/pinned", () => {
   });
 
   test("returns 404 when connectionName does not correspond to a visible connection", async () => {
-    mockGetConnectionByName.mockResolvedValue(null);
+    mockGetConnection.mockResolvedValue(null);
 
     const formData = createFormData({
       connectionName: "hidden-bucket",
@@ -163,7 +163,7 @@ describe("POST /api/pinned", () => {
 describe("DELETE /api/pinned", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConnectionByName.mockResolvedValue({
+    mockGetConnection.mockResolvedValue({
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -202,7 +202,7 @@ describe("DELETE /api/pinned", () => {
   });
 
   test("returns 404 when connectionName does not correspond to a visible connection on DELETE", async () => {
-    mockGetConnectionByName.mockResolvedValue(null);
+    mockGetConnection.mockResolvedValue(null);
 
     const formData = createFormData({
       connectionName: "hidden-bucket",

@@ -3,6 +3,7 @@ import { H1 } from "@cytario/design";
 import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 
 import { ObjectPresignedUrl } from "./objects.route";
+import type { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { Section } from "~/components/Container";
@@ -11,7 +12,6 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
-import type { ConnectionConfig } from "~/utils/connectionConfig.server";
 import { getObjects } from "~/utils/getObjects";
 
 interface ConfigFiles {
@@ -52,11 +52,7 @@ export const loader = async ({
       continue;
     }
 
-    const s3Client = await getS3Client(
-      connectionConfig,
-      credentials,
-      user.sub,
-    );
+    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
     const files =
       (await getObjects(connectionConfig, s3Client, searchQuery)) ?? [];
 
