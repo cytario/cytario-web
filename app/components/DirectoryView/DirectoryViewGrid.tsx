@@ -11,9 +11,10 @@ import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
-import { getExtension } from "~/utils/fileType";
-import { isOmeTiff } from "~/utils/omeTiffOffsets";
+import { selectConnection } from "~/utils/connectionsStore/selectors";
+import { getNodeIcon, isImageFile } from "~/utils/fileType";
 import { createResourceId, nodeToPath } from "~/utils/resourceId";
+import { constructS3Url } from "~/utils/zarrUtils";
 
 const ViewerStoreProvider = lazy(() =>
   import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
@@ -46,7 +47,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
 
   const key = node._Object?.Key;
   const url = node._Object?.presignedUrl;
-  const hasOmeTiffPreview = !!url && !!key && isOmeTiff(key);
+  const hasPreview = !!url && !!key && isImageFile(key);
 
   return (
     <StorageConnectionCard
@@ -63,7 +64,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
       onPress={handlePress}
       actions={<ConnectionMenu connectionName={node.name} />}
     >
-      {hasOmeTiffPreview && (
+      {hasPreview && (
         <ClientOnly>
           <Suspense
             fallback={
@@ -104,35 +105,57 @@ function FileCardGridItem({
     navigate(to);
   }, [navigate, to]);
 
-  const cardType = node.type === "file" ? "file" : "directory";
-  const extension = node.type === "file" ? getExtension(node.name) : undefined;
+  // Detect whether this node is a viewable image
+  const key = node._Object?.Key;
+  const url = node._Object?.presignedUrl;
+  const isZarr = node.type === "directory" && isImageFile(node.name);
+  const hasTiffPreview = !!url && !!key && isImageFile(key);
+
+  // For zarr directories: get credentials and construct S3 URL.
+  const { connectionName } = node;
+  const connection = useConnectionsStore(
+    isZarr ? selectConnection(connectionName) : () => null,
+  );
+  const zarrUrl =
+    isZarr && connection?.connectionConfig
+      ? constructS3Url(
+          connection.connectionConfig,
+          node.pathName?.replace(/\/$/, "") ?? node.name,
+        )
+      : undefined;
+  const hasZarrPreview = !!zarrUrl && !!connection?.credentials;
+  const hasPreview = hasTiffPreview || hasZarrPreview;
+
+  const nodeIcon = getNodeIcon(node);
   const size =
     node.type === "file" && node._Object?.Size
       ? filesize(node._Object.Size)
       : undefined;
 
-  const key = node._Object?.Key;
-  const url = node._Object?.presignedUrl;
-  const hasOmeTiffPreview = !!url && !!key && isOmeTiff(key);
-
   return (
     <FileCard
       name={node.name}
-      type={cardType}
-      extension={extension}
+      icon={nodeIcon}
       size={typeof size === "string" ? size : undefined}
       compact={compact}
       onPress={handlePress}
       onInfo={handleInfo}
     >
-      {hasOmeTiffPreview && (
+      {hasPreview && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider resourceId={resourceId} url={url}>
+            <ViewerStoreProvider
+              resourceId={resourceId}
+              url={hasZarrPreview ? zarrUrl! : url!}
+              {...(hasZarrPreview && {
+                credentials: connection!.credentials,
+                connectionConfig: connection!.connectionConfig,
+              })}
+            >
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>

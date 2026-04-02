@@ -1,5 +1,5 @@
 import { ObjectPresignedUrl } from "~/routes/objects.route";
-import { isOmeTiff } from "~/utils/omeTiffOffsets";
+import { isImageFile } from "~/utils/fileType";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
@@ -58,8 +58,8 @@ function buildDirectoryTreeRecursive(
       };
       currentDir.push(existingDir);
     } else if (
-      isOmeTiff(obj.Key ?? "") &&
-      !isOmeTiff(existingDir._Object?.Key ?? "")
+      isImageFile(obj.Key ?? "") &&
+      !isImageFile(existingDir._Object?.Key ?? "")
     ) {
       existingDir._Object = obj;
     }

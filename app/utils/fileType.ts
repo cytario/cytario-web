@@ -3,10 +3,10 @@ import {
   Braces,
   File,
   FileSpreadsheet,
+  Folder,
   Image,
   Microscope,
   Table,
-  Folder,
   icons,
   type LucideIcon,
 } from "lucide-react";
@@ -18,6 +18,7 @@ export type LucideIconName = keyof typeof icons;
 
 export type FileType =
   | "OME-TIFF"
+  | "OME-Zarr"
   | "TIFF"
   | "Parquet"
   | "CSV"
@@ -41,6 +42,7 @@ interface FileTypeEntry {
  */
 const FILE_TYPE_REGISTRY: FileTypeEntry[] = [
   { pattern: /\.ome\.tiff?$/i, type: "OME-TIFF", label: "OME-TIFF", icon: "Microscope", iconComponent: Microscope },
+  { pattern: /\.zarr\/?$/i, type: "OME-Zarr", label: "OME-Zarr", icon: "Microscope", iconComponent: Microscope },
   { pattern: /\.tiff?$/i, type: "TIFF", label: "TIFF", icon: "Image", iconComponent: Image },
   { pattern: /\.parquet$/i, type: "Parquet", label: "Parquet", icon: "Table", iconComponent: Table },
   { pattern: /\.csv$/i, type: "CSV", label: "CSV", icon: "FileSpreadsheet", iconComponent: FileSpreadsheet },
@@ -52,10 +54,12 @@ const FILE_TYPE_REGISTRY: FileTypeEntry[] = [
 
 /**
  * Extracts the file extension from a filename, handling compound extensions
- * like `.ome.tif` and `.ome.tiff`.
+ * like `.ome.tif`, `.ome.tiff`, and `.zarr`.
  *
  * @example
  * getExtension("sample.ome.tif")  // "ome.tif"
+ * getExtension("image.ome.zarr")  // "ome.zarr"
+ * getExtension("image.zarr")      // "zarr"
  * getExtension("image.png")       // "png"
  * getExtension("README")          // undefined
  */
@@ -63,6 +67,7 @@ export function getExtension(name: string): string | undefined {
   const lower = name.toLowerCase();
   if (lower.endsWith(".ome.tif")) return "ome.tif";
   if (lower.endsWith(".ome.tiff")) return "ome.tiff";
+  if (lower.endsWith(".ome.zarr")) return "ome.zarr";
   const lastDot = lower.lastIndexOf(".");
   if (lastDot <= 0) return undefined;
   return lower.slice(lastDot + 1);
@@ -72,6 +77,7 @@ export function getExtension(name: string): string | undefined {
 export const IMAGE_FILE_TYPES: ReadonlySet<FileType> = new Set([
   "TIFF",
   "OME-TIFF",
+  "OME-Zarr",
   "PNG",
   "JPEG",
 ]);
@@ -82,6 +88,11 @@ export function getFileType(path: string): FileType {
     if (entry.pattern.test(path)) return entry.type;
   }
   return "Unknown";
+}
+
+/** Returns true if the name or key matches a viewable image type. */
+export function isImageFile(nameOrKey: string): boolean {
+  return IMAGE_FILE_TYPES.has(getFileType(nameOrKey));
 }
 
 /** Returns a Lucide icon name appropriate for the file's extension. */
@@ -98,7 +109,12 @@ export function getFileTypeIcon(path: string): LucideIconName {
  */
 export function getNodeIcon(node: TreeNode): LucideIcon {
   if (node.type === "bucket") return Archive;
-  if (node.type === "directory") return Folder;
+  if (node.type === "directory") {
+    for (const entry of FILE_TYPE_REGISTRY) {
+      if (entry.pattern.test(node.name)) return entry.iconComponent;
+    }
+    return Folder;
+  }
 
   for (const entry of FILE_TYPE_REGISTRY) {
     if (entry.pattern.test(node.name)) return entry.iconComponent;
@@ -108,12 +124,17 @@ export function getNodeIcon(node: TreeNode): LucideIcon {
 
 /**
  * Returns a human-readable type label for a tree node
- * (e.g. "Bucket", "Folder", "OME-TIFF", "CSV").
+ * (e.g. "Bucket", "Folder", "OME-TIFF", "OME-Zarr", "CSV").
  * Falls back to the uppercase extension or "File" for unknown types.
  */
 export function getTypeLabel(node: TreeNode): string {
   if (node.type === "bucket") return "Bucket";
-  if (node.type === "directory") return "Folder";
+  if (node.type === "directory") {
+    for (const entry of FILE_TYPE_REGISTRY) {
+      if (entry.pattern.test(node.name)) return entry.label;
+    }
+    return "Folder";
+  }
 
   for (const entry of FILE_TYPE_REGISTRY) {
     if (entry.pattern.test(node.name)) return entry.label;

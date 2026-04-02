@@ -9,7 +9,7 @@ import { SessionCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { getObjects } from "~/utils/getObjects";
-import { isOmeTiff } from "~/utils/omeTiffOffsets";
+import { isImageFile } from "~/utils/fileType";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
@@ -28,7 +28,7 @@ const fetchPreviewObject = async (
     config.prefix || undefined,
     100,
   );
-  const preview = objects.find((obj) => isOmeTiff(obj.Key ?? ""));
+  const preview = objects.find((obj) => isImageFile(obj.Key ?? ""));
   if (!preview?.Key) return undefined;
   const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
   return { ...preview, presignedUrl } as ObjectPresignedUrl;
