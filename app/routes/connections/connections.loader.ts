@@ -8,8 +8,8 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { SessionCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
-import { getObjects } from "~/utils/getObjects";
 import { isImageFile } from "~/utils/fileType";
+import { getObjects } from "~/utils/getObjects";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
