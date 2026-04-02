@@ -49,6 +49,7 @@ export const connectionColumns: ColumnConfig[] = [
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
+    filterRender: (option) => <VisibilityPill scope={option.value} />,
   },
   {
     id: "provider",
@@ -57,6 +58,7 @@ export const connectionColumns: ColumnConfig[] = [
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
+    filterRender: (option) => <ProviderPill provider={option.value} />,
   },
   {
     id: "endpoint",
@@ -125,7 +127,6 @@ export const fileColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "select",
     filterOptions: [
-      { label: "All", value: "" },
       { label: "CSV", value: "CSV" },
       { label: "Directory", value: "Directory" },
       { label: "JPEG", value: "JPEG" },
@@ -136,11 +137,7 @@ export const fileColumns: ColumnConfig[] = [
       { label: "TIFF", value: "TIFF" },
       { label: "Unknown", value: "Unknown" },
     ],
-    filterRender: (option) => (
-      <Pill className={option.value ? undefined : "bg-slate-200 text-slate-600"}>
-        {option.value || option.label}
-      </Pill>
-    ),
+    filterRender: (option) => <Pill>{option.value}</Pill>,
   },
   {
     id: "last_modified",

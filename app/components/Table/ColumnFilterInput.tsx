@@ -1,4 +1,10 @@
-import { IconButton, Input } from "@cytario/design";
+import {
+  IconButton,
+  Input,
+  Pill,
+  Select,
+  type SelectItem,
+} from "@cytario/design";
 import { Column } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
@@ -8,52 +14,76 @@ interface ColumnFilterInputProps {
   filterType: "text" | "select";
   filterPlaceholder?: string;
   filterOptions?: { label: string; value: string }[];
+  /** Render a custom option for non-"All" values. The "All" option is
+   *  always rendered as a slate Pill automatically. */
   filterRender?: (option: { label: string; value: string }) => ReactNode;
 }
+
+const ALL_KEY = "__all__";
+const ALL_OPTION: SelectItem = { id: ALL_KEY, name: "All" };
+const AllPill = () => <Pill color="slate">All</Pill>;
 
 export function ColumnFilterInput({
   column,
   filterType,
   filterPlaceholder,
   filterOptions,
+  filterRender,
 }: ColumnFilterInputProps) {
   const filterValue = (column.getFilterValue() as string) ?? "";
 
-  const sortedOptions = useMemo(() => {
+  const selectItems = useMemo((): SelectItem[] => {
     if (filterType !== "select") return [];
     if (filterOptions) {
-      return filterOptions;
+      return [
+        ALL_OPTION,
+        ...filterOptions
+          .filter((o) => o.value !== "")
+          .map((o) => ({ id: o.value, name: o.label })),
+      ];
     }
     const facetedValues = column.getFacetedUniqueValues();
     return [
-      { label: "All", value: "" },
+      ALL_OPTION,
       ...Array.from(facetedValues.keys())
         .filter((v) => v != null && v !== "")
         .map(String)
         .sort()
-        .map((v) => ({ label: v, value: v })),
+        .map((v) => ({ id: v, name: v })),
     ];
   }, [column, filterType, filterOptions]);
 
-  const setFilter = (value: string) =>
-    column.setFilterValue(value || undefined);
+  const selectedKey = filterValue || ALL_KEY;
+
+  const setFilter = (key: string) =>
+    column.setFilterValue(key === ALL_KEY ? undefined : key);
+
   const clearFilter = () => column.setFilterValue(undefined);
+
+  const renderItem = useMemo(() => {
+    if (!filterRender) return undefined;
+    const render = filterRender;
+    function FilterOption(item: SelectItem) {
+      return item.id === ALL_KEY ? (
+        <AllPill />
+      ) : (
+        render({ label: item.name, value: item.id })
+      );
+    }
+    return FilterOption;
+  }, [filterRender]);
 
   return (
     <div className="flex items-center gap-1">
       {filterType === "select" ? (
-        <select
-          value={filterValue}
-          onChange={(e) => setFilter(e.target.value)}
+        <Select
+          className="w-full"
+          items={selectItems}
+          value={selectedKey}
+          onChange={(key) => setFilter(String(key))}
           aria-label={`Filter by ${column.columnDef.header}`}
-          className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-cytario-turquoise-700 focus:outline-none focus:ring-1 focus:ring-cytario-turquoise-700"
-        >
-          {sortedOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          renderItem={renderItem}
+        />
       ) : (
         <Input
           value={filterValue}
