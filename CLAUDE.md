@@ -8,7 +8,7 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 
 ## Project Overview
 
-**Cytario Web** is a scientific imaging data browser and viewer. It provides a web-based interface for exploring, visualizing, and managing large-scale imaging datasets (OME-TIFF, Parquet, GeoTIFF) stored in S3-compatible object storage. Built for researchers and data scientists working with multiplexed microscopy and spatial biology data.
+**Cytario Web** is a scientific imaging data browser and viewer. It provides a web-based interface for exploring, visualizing, and managing large-scale imaging datasets (OME-TIFF, OME-Zarr, Parquet, GeoTIFF) stored in S3-compatible object storage. Built for researchers and data scientists working with multiplexed microscopy and spatial biology data.
 
 **License:** AGPL-3.0 | **Node.js:** >=24.10.0
 
