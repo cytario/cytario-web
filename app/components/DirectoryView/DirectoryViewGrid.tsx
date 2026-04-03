@@ -14,7 +14,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
 import { selectConnection } from "~/utils/connectionsStore/selectors";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
 import { createResourceId, nodeToPath } from "~/utils/resourceId";
-import { constructS3Url } from "~/utils/zarrUtils";
+import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 
 const ViewerStoreProvider = lazy(() =>
   import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
@@ -108,7 +108,7 @@ function FileCardGridItem({
   // Detect whether this node is a viewable image
   const key = node._Object?.Key;
   const url = node._Object?.presignedUrl;
-  const isZarr = node.type === "directory" && isImageFile(node.name);
+  const isZarr = isZarrPath(node.name);
   const hasTiffPreview = !!url && !!key && isImageFile(key);
 
   // For zarr directories: get credentials and construct S3 URL.

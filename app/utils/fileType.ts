@@ -109,12 +109,7 @@ export function getFileTypeIcon(path: string): LucideIconName {
  */
 export function getNodeIcon(node: TreeNode): LucideIcon {
   if (node.type === "bucket") return Archive;
-  if (node.type === "directory") {
-    for (const entry of FILE_TYPE_REGISTRY) {
-      if (entry.pattern.test(node.name)) return entry.iconComponent;
-    }
-    return Folder;
-  }
+  if (node.type === "directory") return Folder;
 
   for (const entry of FILE_TYPE_REGISTRY) {
     if (entry.pattern.test(node.name)) return entry.iconComponent;
@@ -129,12 +124,7 @@ export function getNodeIcon(node: TreeNode): LucideIcon {
  */
 export function getTypeLabel(node: TreeNode): string {
   if (node.type === "bucket") return "Bucket";
-  if (node.type === "directory") {
-    for (const entry of FILE_TYPE_REGISTRY) {
-      if (entry.pattern.test(node.name)) return entry.label;
-    }
-    return "Folder";
-  }
+  if (node.type === "directory") return "Folder";
 
   for (const entry of FILE_TYPE_REGISTRY) {
     if (entry.pattern.test(node.name)) return entry.label;

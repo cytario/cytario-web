@@ -12,6 +12,7 @@ import { isImageFile } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
+import { isZarrPath } from "~/utils/zarrUtils";
 
 const fetchPreviewObject = async (
   config: ConnectionConfig,
@@ -109,8 +110,9 @@ export async function loadConnections({
         viewedAt: item.viewedAt.toISOString(),
       };
 
-      // Generate presigned URL for file items so previews work on the home page
-      if (item.type !== "file") return base;
+      // Generate presigned URL for file items so previews work on the home page.
+      // Zarr files use SigV4 credentials from the connections store instead.
+      if (item.type !== "file" || isZarrPath(item.pathName)) return base;
       const config = configByName.get(item.connectionName);
       if (!config) return base;
       const creds = credentials[config.bucketName];

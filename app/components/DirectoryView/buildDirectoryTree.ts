@@ -1,5 +1,6 @@
 import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { isImageFile } from "~/utils/fileType";
+import { isZarrPath } from "~/utils/zarrUtils";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
@@ -44,6 +45,24 @@ function buildDirectoryTreeRecursive(
       _Object: obj,
     });
   } else {
+    // Zarr directories are images — treat as leaf nodes, skip recursion
+    // into the thousands of internal chunk files.
+    if (isZarrPath(name)) {
+      if (!currentDir.find((child) => child.name === name)) {
+        currentDir.push({
+          connectionName,
+          type: "file",
+          name,
+          pathName,
+          bucketName,
+          provider,
+          children: [],
+          _Object: obj,
+        });
+      }
+      return;
+    }
+
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
