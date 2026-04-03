@@ -1,4 +1,4 @@
-import { getOffsetKeyForOmeTiff, isOmeTiff } from "~/utils/omeTiffOffsets";
+import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 
 describe("omeTiffOffsets", () => {
   describe("getOffsetKeyForOmeTiff", () => {
@@ -35,25 +35,6 @@ describe("omeTiffOffsets", () => {
       expect(getOffsetKeyForOmeTiff("image.png")).toBeNull();
       expect(getOffsetKeyForOmeTiff("image.csv")).toBeNull();
       expect(getOffsetKeyForOmeTiff("image.ome.zarr")).toBeNull();
-    });
-  });
-
-  describe("isOmeTiff", () => {
-    test("returns true for .ome.tif", () => {
-      expect(isOmeTiff("image.ome.tif")).toBe(true);
-    });
-
-    test("returns true for .ome.tiff", () => {
-      expect(isOmeTiff("image.ome.tiff")).toBe(true);
-    });
-
-    test("is case insensitive", () => {
-      expect(isOmeTiff("image.OME.TIFF")).toBe(true);
-    });
-
-    test("returns false for non-OME-TIFF files", () => {
-      expect(isOmeTiff("image.tif")).toBe(false);
-      expect(isOmeTiff("image.png")).toBe(false);
     });
   });
 });

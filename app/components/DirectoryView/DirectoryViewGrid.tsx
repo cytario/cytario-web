@@ -47,7 +47,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
 
   const key = node._Object?.Key;
   const url = node._Object?.presignedUrl;
-  const hasPreview = !!url && !!key && isImageFile(key);
+  const hasPreview = !!url && !!key && isImageFile(key) && !isZarrPath(key);
 
   return (
     <StorageConnectionCard

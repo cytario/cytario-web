@@ -14,7 +14,3 @@ export function getOffsetKeyForOmeTiff(key: string): string | null {
   if (!OME_TIFF_REGEX.test(key)) return null;
   return key.replace(OME_TIFF_REGEX, ".offsets.json");
 }
-
-export function isOmeTiff(key: string): boolean {
-  return OME_TIFF_REGEX.test(key);
-}
