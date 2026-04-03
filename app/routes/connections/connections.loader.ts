@@ -8,10 +8,11 @@ import { getS3Client } from "~/.server/auth/getS3Client";
 import { SessionCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ObjectPresignedUrl } from "~/routes/objects.route";
+import { isImageFile } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
-import { isOmeTiff } from "~/utils/omeTiffOffsets";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
+import { isZarrPath } from "~/utils/zarrUtils";
 
 const fetchPreviewObject = async (
   config: ConnectionConfig,
@@ -28,7 +29,7 @@ const fetchPreviewObject = async (
     config.prefix || undefined,
     100,
   );
-  const preview = objects.find((obj) => isOmeTiff(obj.Key ?? ""));
+  const preview = objects.find((obj) => isImageFile(obj.Key ?? ""));
   if (!preview?.Key) return undefined;
   const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
   return { ...preview, presignedUrl } as ObjectPresignedUrl;
@@ -109,8 +110,9 @@ export async function loadConnections({
         viewedAt: item.viewedAt.toISOString(),
       };
 
-      // Generate presigned URL for file items so previews work on the home page
-      if (item.type !== "file") return base;
+      // Generate presigned URL for file items so previews work on the home page.
+      // Zarr files use SigV4 credentials from the connections store instead.
+      if (item.type !== "file" || isZarrPath(item.pathName)) return base;
       const config = configByName.get(item.connectionName);
       if (!config) return base;
       const creds = credentials[config.bucketName];

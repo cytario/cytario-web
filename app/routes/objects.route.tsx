@@ -39,7 +39,7 @@ import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { createResourceId } from "~/utils/resourceId";
-
+import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -87,6 +87,7 @@ export interface BucketRouteLoaderResponse {
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
   isPinned: boolean;
+  isZarr?: boolean;
 }
 
 export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
@@ -124,6 +125,26 @@ export const loader = async ({
 
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
+
+    // Check for zarr before listing objects — zarr directories can contain
+    // thousands of chunk files, so we skip the expensive ListObjects call.
+    const isZarr = isZarrPath(pathName);
+    if (isZarr) {
+      const zarrUrl = constructS3Url(connectionConfig, pathName);
+      return {
+        credentials,
+        connectionConfig,
+        isPinned,
+        name,
+        nodes: [],
+        bucketName,
+        connectionName,
+        pathName,
+        urlPath,
+        url: zarrUrl,
+        isZarr: true,
+      };
+    }
 
     const objects: Readonly<_Object>[] = await getObjects(
       connectionConfig,
@@ -221,6 +242,7 @@ export default function ObjectsRoute() {
     credentials,
     connectionConfig,
     isPinned: loaderIsPinned,
+    isZarr,
     notification,
   } = useLoaderData<typeof loader>();
 
@@ -367,6 +389,22 @@ export default function ObjectsRoute() {
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
             <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    // Check for bioformats2raw zarr images — use direct S3 access with credentials
+    if (isZarr) {
+      return (
+        <ClientOnly>
+          <Suspense fallback={<div>Loading viewer...</div>}>
+            <Viewer
+              resourceId={resourceId}
+              url={url}
+              credentials={credentials}
+              connectionConfig={connectionConfig}
+            />
           </Suspense>
         </ClientOnly>
       );
