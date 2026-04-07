@@ -28,7 +28,7 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 | WebAssembly   | @duckdb/duckdb-wasm (in-browser SQL), lzw-tiff-decoder (Web Worker) |
 | Auth          | OAuth 2.0 Authorization Code Flow via Keycloak                      |
 | Database      | PostgreSQL (Prisma 7 ORM), Redis/Valkey (sessions via ioredis)      |
-| Cloud         | AWS SDK v3 (S3, STS AssumeRoleWithWebIdentity, presigned URLs)      |
+| Cloud         | AWS SDK v3 (S3, STS AssumeRoleWithWebIdentity, SigV4 request signing) |
 | UI Components | @cytario/design (react-aria), lucide-react, motion 12               |
 | Testing       | Vitest 3.2, @testing-library/react 16, happy-dom                    |
 | Linting       | ESLint 8 (flat config), @typescript-eslint, jsx-a11y, import        |
@@ -144,7 +144,7 @@ import { cytarioConfig } from "~/config";
 - **Zustand** stores — one store per domain concern
 - Use `immer` middleware for complex state updates
 - Use `persist` middleware selectively (localStorage or sessionStorage)
-- Singleton pattern via factory functions: `createViewerStore(id)`, `createTableStore(id)`
+- Viewer registry keyed by URL: `ViewerStoreProvider({ url, signedFetch })`, `createTableStore(id)`
 - Define selectors separately from stores
 
 ### Styling
@@ -259,5 +259,5 @@ npm run dev                  # Start dev server at localhost:3000
 - **OME-TIFF** — Open Microscopy Environment TIFF format for multiscale bioimaging
 - **Channel** — A single imaging modality/fluorophore in a multiplexed image
 - **Overlay** — Cell segmentation or marker data rendered atop images (Parquet → Arrow → deck.gl)
-- **Presigned URL** — Temporary authenticated URL for direct S3 object access
+- **SigV4 Signed Fetch** — Request-level AWS Signature V4 signing for direct S3 access (replaces presigned URLs)
 - **DuckDB** — In-browser WASM SQL engine for querying Parquet/CSV files without a server
