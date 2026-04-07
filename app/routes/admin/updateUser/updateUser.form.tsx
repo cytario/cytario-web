@@ -1,4 +1,4 @@
-import { Checkbox, Field, Fieldset, H3 } from "@cytario/design";
+import { Checkbox, Field, Fieldset, H3, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -7,7 +7,6 @@ import { useSubmit } from "react-router";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { type KeycloakUser } from "~/.server/auth/keycloakAdmin/client";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { Input } from "~/components/Controls";
 import {
   type UpdateUserFormData,
   updateUserSchema,
@@ -36,7 +35,6 @@ export const UpdateUserForm = ({
 
   const {
     control,
-    register,
     handleSubmit,
     formState: { errors },
   } = useForm<UpdateUserFormData>({
@@ -147,18 +145,47 @@ export const UpdateUserForm = ({
       <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
         <Fieldset>
           <Field label="Email" error={errors.email}>
-            <Input
-              {...register("email")}
-              type="email"
-              scale="large"
-              theme="light"
+            <Controller
+              control={control}
+              name="email"
+              render={({ field }) => (
+                <Input
+                  type="email"
+                  size="lg"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
           </Field>
           <Field label="First name" error={errors.firstName}>
-            <Input {...register("firstName")} scale="large" theme="light" />
+            <Controller
+              control={control}
+              name="firstName"
+              render={({ field }) => (
+                <Input
+                  size="lg"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
+            />
           </Field>
           <Field label="Last name" error={errors.lastName}>
-            <Input {...register("lastName")} scale="large" theme="light" />
+            <Controller
+              control={control}
+              name="lastName"
+              render={({ field }) => (
+                <Input
+                  size="lg"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
+            />
           </Field>
           <div className="flex items-center gap-2">
             <Controller

@@ -2,7 +2,6 @@ import { IconButton } from "@cytario/design";
 import { ChevronDown, ChevronRight, Circle, CircleDot, type LucideIcon } from "lucide-react";
 
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
-import { Input } from "~/components/Controls";
 
 interface FeatureItemProps {
   title: string;
@@ -72,7 +71,7 @@ function FeatureItemInner({
           )}
 
           {onSliderChange && (
-            <Input
+            <input
               type="range"
               min={0}
               max={100}

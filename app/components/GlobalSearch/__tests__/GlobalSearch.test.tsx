@@ -29,12 +29,12 @@ describe("GlobalSearch", () => {
 
   test("renders the search bar", () => {
     render(<GlobalSearch />);
-    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
   });
 
   test("updates the query state on input change", () => {
     render(<GlobalSearch />);
-    const input = screen.getByRole("searchbox");
+    const input = screen.getByPlaceholderText("Search...");
 
     fireEvent.change(input, { target: { value: "test" } });
     expect(input).toHaveValue("test");
@@ -42,7 +42,7 @@ describe("GlobalSearch", () => {
 
   test("submits the query after debounce duration", async () => {
     render(<GlobalSearch />);
-    const input = screen.getByRole("searchbox");
+    const input = screen.getByPlaceholderText("Search...");
 
     fireEvent.change(input, { target: { value: "test" } });
 
@@ -56,7 +56,7 @@ describe("GlobalSearch", () => {
 
   test("clears the results when input is cleared", () => {
     render(<GlobalSearch />);
-    const input = screen.getByRole("searchbox");
+    const input = screen.getByPlaceholderText("Search...");
     fireEvent.change(input, { target: { value: "test" } });
 
     const clearButton = screen.getByRole("button");

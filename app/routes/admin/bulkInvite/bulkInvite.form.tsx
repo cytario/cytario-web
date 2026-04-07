@@ -1,4 +1,4 @@
-import { Button, Checkbox, Field, Icon, IconButton, Select } from "@cytario/design";
+import { Button, Checkbox, Field, Icon, IconButton, Input, Select } from "@cytario/design";
 import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
@@ -8,7 +8,6 @@ import {
   bulkInviteRowSchema,
   bulkInviteSchema,
 } from "./bulkInvite.schema";
-import { Input } from "~/components/Controls";
 
 interface BulkInviteFormProps {
   scope: string;
@@ -194,9 +193,6 @@ export function BulkInviteForm({
         </thead>
         <tbody>
           {rows.map((row, i) => {
-            const emailErrorId = `row-${row.id}-email-error`;
-            const firstNameErrorId = `row-${row.id}-firstName-error`;
-            const lastNameErrorId = `row-${row.id}-lastName-error`;
             return (
               <tr key={row.id}>
                 <td className="pr-2 py-1 text-sm text-slate-400 tabular-nums text-right">
@@ -205,65 +201,29 @@ export function BulkInviteForm({
                 <td className="px-1 py-1">
                   <Input
                     value={row.email}
-                    onChange={(e) => updateRow(i, "email", e.target.value)}
+                    onChange={(value) => updateRow(i, "email", value)}
                     placeholder="email@example.com"
-                    scale="small"
-                    theme="light"
-                    className={row.errors?.email ? "border-rose-500" : ""}
-                    aria-invalid={!!row.errors?.email}
-                    aria-describedby={
-                      row.errors?.email ? emailErrorId : undefined
-                    }
+                    size="sm"
+                    errorMessage={row.errors?.email}
                   />
-                  {row.errors?.email && (
-                    <p id={emailErrorId} className="text-xs text-rose-600 mt-0.5">
-                      {row.errors.email}
-                    </p>
-                  )}
                 </td>
                 <td className="px-1 py-1">
                   <Input
                     value={row.firstName}
-                    onChange={(e) => updateRow(i, "firstName", e.target.value)}
+                    onChange={(value) => updateRow(i, "firstName", value)}
                     placeholder="First"
-                    scale="small"
-                    theme="light"
-                    className={row.errors?.firstName ? "border-rose-500" : ""}
-                    aria-invalid={!!row.errors?.firstName}
-                    aria-describedby={
-                      row.errors?.firstName ? firstNameErrorId : undefined
-                    }
+                    size="sm"
+                    errorMessage={row.errors?.firstName}
                   />
-                  {row.errors?.firstName && (
-                    <p
-                      id={firstNameErrorId}
-                      className="text-xs text-rose-600 mt-0.5"
-                    >
-                      {row.errors.firstName}
-                    </p>
-                  )}
                 </td>
                 <td className="px-1 py-1">
                   <Input
                     value={row.lastName}
-                    onChange={(e) => updateRow(i, "lastName", e.target.value)}
+                    onChange={(value) => updateRow(i, "lastName", value)}
                     placeholder="Last"
-                    scale="small"
-                    theme="light"
-                    className={row.errors?.lastName ? "border-rose-500" : ""}
-                    aria-invalid={!!row.errors?.lastName}
-                    aria-describedby={
-                      row.errors?.lastName ? lastNameErrorId : undefined
-                    }
+                    size="sm"
+                    errorMessage={row.errors?.lastName}
                   />
-                  {row.errors?.lastName && (
-                    <p
-                      id={lastNameErrorId}
-                      className="text-xs text-rose-600 mt-0.5"
-                    >
-                      {row.errors.lastName}
-                    </p>
-                  )}
                 </td>
                 <td className="pl-1 py-1">
                   {rows.length > 1 && (

@@ -5,7 +5,6 @@ import { useState } from "react";
 import { select } from "../../state/store/selectors";
 import { ByteDomain } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { Input } from "~/components/Controls";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
@@ -85,10 +84,9 @@ export function MinMaxSettings() {
         <label htmlFor="min-contrast" className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
           Min
         </label>
-        <Input
+        <input
           id="min-contrast"
-          theme="dark"
-          className="text-right [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-slate-500 bg-slate-950 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           type="number"
           value={minValue}
           disabled={!selectedChannel}
@@ -101,10 +99,9 @@ export function MinMaxSettings() {
         <label htmlFor="max-contrast" className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
           Max
         </label>
-        <Input
+        <input
           id="max-contrast"
-          theme="dark"
-          className="text-right [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-slate-500 bg-slate-950 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           type="number"
           value={maxValue}
           disabled={!selectedChannel}
