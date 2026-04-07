@@ -1,8 +1,8 @@
 import { getContrastLimits } from "./getContrastLimits";
 import { getDomain } from "./getDomain";
 import { getHistogram } from "./getHistogram";
-import { Loader } from "../state/ome.tif.types";
-import { ByteDomain, Selection } from "../state/types";
+import { Loader } from "../state/store/ome.tif.types";
+import { ByteDomain, Selection } from "../state/store/types";
 
 export async function getSelectionStats({
   loader,

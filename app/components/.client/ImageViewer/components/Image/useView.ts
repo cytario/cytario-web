@@ -1,7 +1,7 @@
 import { OrthographicView } from "@deck.gl/core";
 import { useMemo } from "react";
 
-import { ViewPort } from "../../state/types";
+import { ViewPort } from "../../state/store/types";
 
 export const useView = ({ width, height }: ViewPort) => {
   /** Setup Orthographic View */

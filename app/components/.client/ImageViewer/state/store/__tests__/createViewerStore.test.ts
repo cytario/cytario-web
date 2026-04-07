@@ -1,4 +1,4 @@
-import { getSelectionStats } from "../../utils/getSelectionStats";
+import { getSelectionStats } from "../../../utils/getSelectionStats";
 import { createViewerStore } from "../createViewerStore";
 import { getInitialChannelsState } from "../getInitialChannelsState";
 import { Image, Loader } from "../ome.tif.types";
@@ -10,7 +10,7 @@ import {
 } from "../types";
 import { createMigrate } from "~/utils/persistMigration";
 
-vi.mock("../../utils/getSelectionStats");
+vi.mock("../../../utils/getSelectionStats");
 vi.mock("../getInitialChannelsState");
 
 const createMockLayersState = () => ({

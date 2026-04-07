@@ -2,8 +2,8 @@ import { TabPanel } from "@cytario/design";
 
 import { ChannelsControllerItemList } from "./ChannelsControllerItemList";
 import { Histogram } from "./Histogram";
-import { select } from "../../state/selectors";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { FeatureItem } from "../FeatureBar/FeatureItem";
 import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
 

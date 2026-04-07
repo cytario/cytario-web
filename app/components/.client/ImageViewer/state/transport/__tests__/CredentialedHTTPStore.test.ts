@@ -1,6 +1,7 @@
 import type { Credentials } from "@aws-sdk/client-sts";
 
 import { CredentialedHTTPStore } from "../CredentialedHTTPStore";
+import { createSignedFetch } from "~/utils/signedFetch";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -15,88 +16,71 @@ describe("CredentialedHTTPStore", () => {
   };
 
   const mockConnectionConfig = {
-    id: 1,
-    name: "test-connection",
-    bucketName: "test-bucket",
-    ownerScope: "org-1",
-    createdBy: "user-1",
-    provider: "aws",
-    endpoint: "https://s3.us-west-2.amazonaws.com",
-    roleArn: null,
     region: "us-west-2",
-    prefix: "",
   };
+
+  const signedFetch = createSignedFetch(
+    () => mockCredentials,
+    mockConnectionConfig,
+  );
 
   beforeEach(() => {
     mockFetch.mockReset();
   });
 
   describe("constructor", () => {
-    test("initializes with valid credentials", () => {
+    test("initializes with signedFetch", () => {
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/path",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
-
       expect(store).toBeInstanceOf(CredentialedHTTPStore);
     });
 
     test("adds trailing slash to URL if missing", () => {
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.amazonaws.com/path",
-        mockCredentials,
+        signedFetch,
       );
-
       expect(store).toBeDefined();
     });
 
     test("preserves trailing slash if present", () => {
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.amazonaws.com/path/",
-        mockCredentials,
+        signedFetch,
       );
-
       expect(store).toBeDefined();
     });
+  });
 
-    test("uses default region when connectionConfig not provided", () => {
-      const store = new CredentialedHTTPStore(
-        "https://bucket.s3.amazonaws.com/path",
-        mockCredentials,
-      );
-
-      expect(store).toBeDefined();
-    });
-
-    test("throws error when AccessKeyId is missing", () => {
+  describe("credential validation (in createSignedFetch)", () => {
+    test("throws error when AccessKeyId is missing on first fetch", async () => {
       const invalidCredentials = {
         ...mockCredentials,
         AccessKeyId: undefined,
       } as unknown as Credentials;
 
-      expect(() => {
-        new CredentialedHTTPStore(
-          "https://bucket.s3.amazonaws.com/path",
-          invalidCredentials,
-        );
-      }).toThrow(
+      const sf = createSignedFetch(
+        () => invalidCredentials,
+        mockConnectionConfig,
+      );
+      await expect(sf("https://bucket.s3.amazonaws.com/key")).rejects.toThrow(
         "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
     });
 
-    test("throws error when SecretAccessKey is missing", () => {
+    test("throws error when SecretAccessKey is missing on first fetch", async () => {
       const invalidCredentials = {
         ...mockCredentials,
         SecretAccessKey: undefined,
       } as unknown as Credentials;
 
-      expect(() => {
-        new CredentialedHTTPStore(
-          "https://bucket.s3.amazonaws.com/path",
-          invalidCredentials,
-        );
-      }).toThrow(
+      const sf = createSignedFetch(
+        () => invalidCredentials,
+        mockConnectionConfig,
+      );
+      await expect(sf("https://bucket.s3.amazonaws.com/key")).rejects.toThrow(
         "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
     });
@@ -113,8 +97,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       const result = await store.get(".zattrs");
@@ -141,8 +124,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await store.get("0/0/0");
@@ -161,8 +143,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await store.get("0/0/0");
@@ -179,12 +160,10 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       const result = await store.get("missing-key");
-
       expect(result).toBeUndefined();
     });
 
@@ -197,8 +176,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await expect(store.get("forbidden-key")).rejects.toThrow(
@@ -215,8 +193,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await expect(store.get("error-key")).rejects.toThrow(
@@ -233,8 +210,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await store.get("/.zattrs");
@@ -254,8 +230,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "https://bucket.s3.us-west-2.amazonaws.com/data.zarr",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await store.get("0/0/0/0/0/0/42");
@@ -277,8 +252,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "http://localhost:9000/bucket/data.zarr",
-        mockCredentials,
-        { ...mockConnectionConfig, endpoint: "http://localhost:9000" },
+        signedFetch,
       );
 
       await store.get(".zattrs");
@@ -298,8 +272,7 @@ describe("CredentialedHTTPStore", () => {
 
       const store = new CredentialedHTTPStore(
         "http://localhost:9000/bucket/path",
-        mockCredentials,
-        mockConnectionConfig,
+        signedFetch,
       );
 
       await store.get("key");

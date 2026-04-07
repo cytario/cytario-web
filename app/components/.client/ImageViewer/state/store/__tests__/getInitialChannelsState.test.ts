@@ -1,12 +1,12 @@
-import { getSelectionStats } from "../../utils/getSelectionStats";
+import { getSelectionStats } from "../../../utils/getSelectionStats";
 import { getInitialChannelsState } from "../getInitialChannelsState";
 import { Image, Loader } from "../ome.tif.types";
 
-vi.mock("../../utils/getSelectionStats");
+vi.mock("../../../utils/getSelectionStats");
 
 describe("getInitialChannelsState", () => {
   const createMockMetadata = (
-    channels: { Name?: string; Color?: number[] }[]
+    channels: { Name?: string; Color?: number[] }[],
   ): Image =>
     ({
       Pixels: {

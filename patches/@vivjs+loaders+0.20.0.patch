@@ -1,0 +1,24 @@
+diff --git a/node_modules/@vivjs/loaders/dist/index.mjs b/node_modules/@vivjs/loaders/dist/index.mjs
+index 0ebc8a0..3e4bedc 100644
+--- a/node_modules/@vivjs/loaders/dist/index.mjs
++++ b/node_modules/@vivjs/loaders/dist/index.mjs
+@@ -410,7 +410,7 @@ function createGeoTiffObject(source, { headers }) {
+   return fromUrl(url.href, { headers, cacheSize: Number.POSITIVE_INFINITY });
+ }
+ async function createGeoTiff(source, options = {}) {
+-  const tiff = await createGeoTiffObject(source, options);
++  const tiff = options.source ?? await createGeoTiffObject(source, options);
+   return options.offsets ? createOffsetsProxy(tiff, options.offsets) : tiff;
+ }
+ 
+@@ -867,8 +867,8 @@ function createSingleFileOmeTiffPyramidalIndexer(tiff, image) {
+   }, image);
+ }
+ async function loadSingleFileOmeTiff(source, options = {}) {
+-  const { offsets, headers, pool } = options;
+-  const tiff = await createGeoTiff(source, { headers, offsets });
++  const { offsets, headers, pool, source: prebuiltSource } = options;
++  const tiff = await createGeoTiff(source, { headers, offsets, source: prebuiltSource });
+   const firstImage = await tiff.getImage();
+   const { rootMeta, levels } = resolveMetadata(
+     fromString(firstImage.fileDirectory.ImageDescription),

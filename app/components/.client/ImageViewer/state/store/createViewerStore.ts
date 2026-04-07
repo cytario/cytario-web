@@ -17,7 +17,7 @@ import {
   ViewState,
   RGB,
 } from "./types";
-import { getSelectionStats } from "../utils/getSelectionStats";
+import { getSelectionStats } from "../../utils/getSelectionStats";
 import { createMigrate } from "~/utils/persistMigration";
 
 type PersistedViewerState = Pick<

@@ -10,7 +10,7 @@ import { AdditivePolygonLayer } from "./AdditivePolygonLayer";
 import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
 import { getPolygon } from "./getPolygon";
 import { MarkerProps } from "./markerUniforms";
-import { CellMarker } from "../../../state/types";
+import { CellMarker } from "../../../state/store/types";
 import { toastBridge } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { isPointMode } from "~/utils/db/getGeomQuery";

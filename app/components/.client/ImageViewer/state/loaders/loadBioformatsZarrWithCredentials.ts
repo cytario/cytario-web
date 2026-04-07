@@ -1,29 +1,22 @@
-import type { Credentials } from "@aws-sdk/client-sts";
 import { loadOmeZarrFromStore, type RootAttrs } from "@hms-dbmi/viv";
 
-import { CredentialedHTTPStore } from "./CredentialedHTTPStore";
-import type { Image, Loader } from "./ome.tif.types";
-import type { ConnectionConfig } from "~/.generated/client";
-
-interface LoadOptions {
-  credentials: Credentials;
-  connectionConfig?: ConnectionConfig;
-}
+import type { Image, Loader } from "../store/ome.tif.types";
+import { CredentialedHTTPStore } from "../transport/CredentialedHTTPStore";
+import type { SignedFetch } from "~/utils/signedFetch";
 
 /**
- * Load an OME-Zarr image using AWS credentials for S3 authentication.
+ * Load an OME-Zarr image using SigV4-signed S3 requests.
  * Uses viv's loadOmeZarrFromStore with a custom credentialed store.
  */
 export async function loadBioformatsZarrWithCredentials(
   source: string,
-  options: LoadOptions,
+  signedFetch: SignedFetch,
 ): Promise<{ data: Loader; metadata: Image }> {
-  const { credentials, connectionConfig } = options;
   const baseUrl = source.endsWith("/") ? source.slice(0, -1) : source;
 
   // Point store at image series 0 — bioformats2raw puts multiscales metadata
   // under 0/, not at the root (which only has bioformats2raw.layout).
-  const store = new CredentialedHTTPStore(`${baseUrl}/0`, credentials, connectionConfig);
+  const store = new CredentialedHTTPStore(`${baseUrl}/0`, signedFetch);
   const result = await loadOmeZarrFromStore(store);
 
   const loader = result.data as Loader;
@@ -72,8 +65,10 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
 
   // Extract physical pixel sizes from NGFF coordinateTransformations.
   // The first dataset's scale transform maps pixel indices to physical units.
-  const { PhysicalSizeX, PhysicalSizeY, PhysicalSizeZ } =
-    extractPhysicalSizes(multiscale, axes);
+  const { PhysicalSizeX, PhysicalSizeY, PhysicalSizeZ } = extractPhysicalSizes(
+    multiscale,
+    axes,
+  );
 
   // Resolve axis units (NGFF stores unit on the axis definition)
   const axisUnit = (name: string) => {
@@ -108,11 +103,13 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
       PhysicalSizeXUnit: axisUnit("x"),
       PhysicalSizeYUnit: axisUnit("y"),
       PhysicalSizeZUnit: axisUnit("z"),
-      Channels: channels.map((ch: { label: string; color: string }, i: number) => ({
-        ID: `Channel:0:${i}`,
-        Name: ch.label,
-        Color: parseOmeroColor(ch.color),
-      })),
+      Channels: channels.map(
+        (ch: { label: string; color: string }, i: number) => ({
+          ID: `Channel:0:${i}`,
+          Name: ch.label,
+          Color: parseOmeroColor(ch.color),
+        }),
+      ),
     },
     format: () => ({
       "Acquisition Date": "",
@@ -147,7 +144,9 @@ export function extractPhysicalSizes(
   }
 
   const resolvedAxes =
-    axes.map((a: string | { name: string }) => (typeof a === "string" ? a : a.name)) ?? [];
+    axes.map((a: string | { name: string }) =>
+      typeof a === "string" ? a : a.name,
+    ) ?? [];
 
   const scaleForAxis = (name: string): number | undefined => {
     const idx = resolvedAxes.indexOf(name);

@@ -1,7 +1,7 @@
 import { Channel, Image, Loader } from "./ome.tif.types";
 import { ChannelConfig, ChannelsState, RGB } from "./types";
-import { OVERLAY_COLORS } from "../components/OverlaysController/getOverlayState";
-import { getSelectionStats } from "../utils/getSelectionStats";
+import { OVERLAY_COLORS } from "../../components/OverlaysController/getOverlayState";
+import { getSelectionStats } from "../../utils/getSelectionStats";
 
 /** Returns the RGB color for a channel, falling back to OVERLAY_COLORS if metadata lacks a Color. */
 const getInitialColor = (channels: Channel[], index: number): RGB => {

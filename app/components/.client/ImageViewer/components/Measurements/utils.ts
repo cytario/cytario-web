@@ -1,4 +1,4 @@
-import { WavelengthUnit } from "../../state/ome.tif.types";
+import { WavelengthUnit } from "../../state/store/ome.tif.types";
 
 export const absoluteToMetricFactory =
   (physicalSize: number, unit: WavelengthUnit) =>

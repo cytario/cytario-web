@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const fixturePath = path.resolve(
     __dirname,
-    "../../../../../__tests__/fixtures/images/aware.jp2",
+    "../../../../../../__tests__/fixtures/images/aware.jp2",
 );
 
 const awareFixtureBytes = new Uint8Array(fs.readFileSync(fixturePath));

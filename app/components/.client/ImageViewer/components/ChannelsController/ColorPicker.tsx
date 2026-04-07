@@ -1,6 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@cytario/design";
 
-import { RGB, RGBA } from "../../state/types";
+import { RGB, RGBA } from "../../state/store/types";
 import { OVERLAY_COLORS } from "../OverlaysController/getOverlayState";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {

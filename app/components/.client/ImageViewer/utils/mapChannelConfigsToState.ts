@@ -1,4 +1,4 @@
-import { ChannelsStateColumns, ChannelsState } from "../state/types";
+import { ChannelsStateColumns, ChannelsState } from "../state/store/types";
 
 export const mapChannelConfigsToState = (
   state: ChannelsState

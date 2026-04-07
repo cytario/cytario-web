@@ -1,7 +1,7 @@
 import { Input, SegmentedControl, SegmentedControlItem } from "@cytario/design";
 
 import { ResetViewStateButton } from "./Image/ResetViewStateButton";
-import { type ViewerStore, type ViewState } from "../state/types";
+import { type ViewerStore, type ViewState } from "../state/store/types";
 
 const MAGNIFICATION_PRESETS = [5, 10, 20, 40, 80] as const;
 

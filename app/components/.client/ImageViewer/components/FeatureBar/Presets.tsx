@@ -1,7 +1,7 @@
 import { Tab, TabList, Tabs, type Key } from "@cytario/design";
 
-import { select } from "../../state/selectors";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { rgb } from "../ChannelsController/ColorPicker";
 import { SplitViewToggle } from "../SplitViewToggle";
 

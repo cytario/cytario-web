@@ -10,9 +10,6 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   authContext: {},
   authMiddleware: vi.fn(),
 }));
-vi.mock("~/.server/auth/getPresignedUrl", () => ({
-  getPresignedUrl: vi.fn(),
-}));
 vi.mock("~/.server/auth/getS3Client", () => ({
   getS3Client: vi.fn(),
 }));
@@ -139,8 +136,7 @@ describe("Bucket Route", () => {
             pathName: "test/path/to/file.ome.tiff",
             bucketName: "test-bucket",
             name: "file.ome.tiff",
-            url: "https://example.com/test/path/to/file.ome.tiff",
-            offsetsUrl: "https://example.com/test/path/to/file.offsets.json",
+            isSingleFile: true,
             isPinned: false,
           };
         },

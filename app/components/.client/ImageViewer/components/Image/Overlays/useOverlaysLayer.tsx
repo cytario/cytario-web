@@ -2,8 +2,8 @@ import { ReactNode, useMemo } from "react";
 
 import { createMarkerProps } from "./markerUniforms";
 import { OverlaysLayer } from "./OverlaysLayer";
-import { select } from "../../../state/selectors";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 type SetTooltip = (

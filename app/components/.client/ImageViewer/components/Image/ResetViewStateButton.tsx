@@ -2,7 +2,7 @@ import { IconButton } from "@cytario/design";
 import { Fullscreen } from "lucide-react";
 import { Dispatch, useMemo } from "react";
 
-import { ViewerStore, ViewPort, ViewState } from "../../state/types";
+import { ViewerStore, ViewPort, ViewState } from "../../state/store/types";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 
 export const ResetViewStateButton = ({

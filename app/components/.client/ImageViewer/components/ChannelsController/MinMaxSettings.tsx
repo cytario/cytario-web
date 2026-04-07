@@ -2,9 +2,9 @@ import { IconButton } from "@cytario/design";
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 
-import { select } from "../../state/selectors";
-import { ByteDomain } from "../../state/types";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { ByteDomain } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { Input } from "~/components/Controls";
 
 export function MinMaxSettings() {

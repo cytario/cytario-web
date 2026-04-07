@@ -1,4 +1,4 @@
-import type { RGBA } from "../../../../state/types";
+import type { RGBA } from "../../../../state/store/types";
 import { createMarkerProps } from "../markerUniforms";
 
 describe("createMarkerProps", () => {

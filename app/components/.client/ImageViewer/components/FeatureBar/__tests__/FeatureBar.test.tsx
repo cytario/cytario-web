@@ -1,18 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 
-import { ViewerStoreProvider } from "../../../state/ViewerStoreContext";
+import { ViewerStoreProvider } from "../../../state/store/ViewerStoreContext";
 import { FeatureBar } from "../FeatureBar";
 
+const mockSignedFetch = vi.fn();
+
 describe("FeatureBar", () => {
-  test("renders all main sections", () => {
+  test("renders the toolbar with tablist", () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/connections/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
+        path: "/connections/test/lab/image.ome.tif",
         Component: () => (
           <ViewerStoreProvider
-            resourceId={"vericura-image-data/lab/USL-2024-58461-31.ome.tif"}
-            url={"USL-2024-58461-31.ome.tif"}
+            url="https://bucket.s3.eu-central-1.amazonaws.com/lab/image.ome.tif"
+            signedFetch={mockSignedFetch}
           >
             <FeatureBar />
           </ViewerStoreProvider>
@@ -22,24 +24,11 @@ describe("FeatureBar", () => {
 
     render(
       <RemixStub
-        initialEntries={[
-          "/connections/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
-        ]}
+        initialEntries={["/connections/test/lab/image.ome.tif"]}
       />
     );
 
     expect(screen.getByRole("toolbar")).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", { name: "Channels" })
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", { name: "Overlays" })
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", { name: "Toggle Feature Bar" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
   });
 });

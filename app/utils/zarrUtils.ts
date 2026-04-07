@@ -10,22 +10,31 @@ export function isZarrPath(urlOrPath: string): boolean {
 }
 
 /**
- * Construct an S3 URL from connection config and path.
- * Used for zarr files that need direct S3 access with credentials.
+ * Construct a direct S3 URL from connection config and path.
+ * Uses virtual-hosted style for AWS S3 and path-style for custom endpoints.
+ * Path segments are URI-encoded to handle special characters in S3 keys.
  */
 export function constructS3Url(
   connectionConfig: Pick<ConnectionConfig, "bucketName" | "region" | "endpoint">,
   pathName: string,
 ): string {
   const bucket = connectionConfig.bucketName;
+  const encodedPath = pathName
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
 
-  // Handle custom endpoints (MinIO, R2, etc.)
-  if (connectionConfig.endpoint) {
-    const endpoint = connectionConfig.endpoint.replace(/\/$/, "");
-    return `${endpoint}/${bucket}/${pathName}`;
+  const region = connectionConfig.region || "eu-central-1";
+  const endpoint = connectionConfig.endpoint?.replace(/\/$/, "");
+
+  // Detect AWS S3 endpoints — use virtual-hosted style (bucket.s3.region.amazonaws.com)
+  // regardless of whether the endpoint is explicit or implicit.
+  const isAwsEndpoint = !endpoint || /\.amazonaws\.com$/i.test(endpoint);
+
+  if (isAwsEndpoint) {
+    return `https://${bucket}.s3.${region}.amazonaws.com/${encodedPath}`;
   }
 
-  // Default to AWS S3 virtual-hosted style URL
-  const region = connectionConfig.region || "us-east-1";
-  return `https://${bucket}.s3.${region}.amazonaws.com/${pathName}`;
+  // Custom endpoints (MinIO, R2, etc.) — use path-style
+  return `${endpoint}/${bucket}/${encodedPath}`;
 }

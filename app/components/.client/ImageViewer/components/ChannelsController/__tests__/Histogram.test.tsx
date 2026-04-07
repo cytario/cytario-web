@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { Mock } from "vitest";
 
-import { select } from "../../../state/selectors";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { Histogram } from "../Histogram";
 
-vi.mock("../../../state/ViewerStoreContext", () => ({
+vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 

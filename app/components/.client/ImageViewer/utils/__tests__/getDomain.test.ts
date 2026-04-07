@@ -1,4 +1,4 @@
-import { ByteDomain } from "../../state/types";
+import { ByteDomain } from "../../state/store/types";
 import { getDomain } from "../getDomain";
 
 const testCases: [number[], ByteDomain][] = [

@@ -1,6 +1,6 @@
 import { FileCard, StorageConnectionCard } from "@cytario/design";
 import { filesize } from "filesize";
-import { lazy, Suspense, useCallback } from "react";
+import { lazy, Suspense, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import { TreeNode } from "./buildDirectoryTree";
@@ -13,11 +13,12 @@ import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { selectConnection } from "~/utils/connectionsStore/selectors";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
-import { createResourceId, nodeToPath } from "~/utils/resourceId";
-import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
+import { nodeToPath } from "~/utils/resourceId";
+import { createSignedFetch } from "~/utils/signedFetch";
+import { constructS3Url } from "~/utils/zarrUtils";
 
 const ViewerStoreProvider = lazy(() =>
-  import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
+  import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then(
     (mod) => ({ default: mod.ViewerStoreProvider }),
   ),
 );
@@ -33,48 +34,58 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
   grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
+/** Create a signedFetch that lazily resolves credentials from the connections store. */
+function useSignedFetch(connectionName: string) {
+  const connection = useConnectionsStore(selectConnection(connectionName));
+  const config = connection?.connectionConfig;
+
+  const signedFetch = useMemo(() => {
+    if (!config) return null;
+    return createSignedFetch(
+      () => useConnectionsStore.getState().connections[connectionName]?.credentials,
+      config,
+    );
+  }, [connectionName, config]);
+
+  return { connection, signedFetch };
+}
+
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const config = useConnectionsStore(
-    (state) => state.connections[node.connectionName]?.connectionConfig,
-  );
+  const { connection, signedFetch } = useSignedFetch(node.connectionName);
 
   const to = nodeToPath(node);
-
-  const handlePress = useCallback(() => {
-    navigate(to);
-  }, [navigate, to]);
+  const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   const key = node._Object?.Key;
-  const url = node._Object?.presignedUrl;
-  const hasPreview = !!url && !!key && isImageFile(key) && !isZarrPath(key);
+  const hasPreview = !!key && isImageFile(key) && !!signedFetch;
+  const s3Url = hasPreview && connection?.connectionConfig
+    ? constructS3Url(connection.connectionConfig, key)
+    : "";
 
   return (
     <StorageConnectionCard
       name={node.name}
       status="connected"
       meta={
-        config && (
+        connection?.connectionConfig && (
           <>
-            <VisibilityPill scope={config.ownerScope} />
-            <ProviderPill provider={config.provider} />
+            <VisibilityPill scope={connection.connectionConfig.ownerScope} />
+            <ProviderPill provider={connection.connectionConfig.provider} />
           </>
         )
       }
       onPress={handlePress}
       actions={<ConnectionMenu connectionName={node.name} />}
     >
-      {hasPreview && (
+      {hasPreview && signedFetch && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider
-              resourceId={createResourceId(node.provider, node.bucketName, key)}
-              url={url}
-            >
+            <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>
@@ -93,38 +104,21 @@ function FileCardGridItem({
 }) {
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
+  const { connection, signedFetch } = useSignedFetch(node.connectionName);
 
-  const resourceId = createResourceId(
-    node.provider,
-    node.bucketName,
-    node._Object?.Key ?? node.pathName,
-  );
   const to = nodeToPath(node);
+  const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  const handlePress = useCallback(() => {
-    navigate(to);
-  }, [navigate, to]);
-
-  // Detect whether this node is a viewable image
-  const key = node._Object?.Key;
-  const url = node._Object?.presignedUrl;
-  const isZarr = isZarrPath(node.name);
-  const hasTiffPreview = !!url && !!key && isImageFile(key);
-
-  // For zarr directories: get credentials and construct S3 URL.
-  const { connectionName } = node;
-  const connection = useConnectionsStore(
-    isZarr ? selectConnection(connectionName) : () => null,
-  );
-  const zarrUrl =
-    isZarr && connection?.connectionConfig
-      ? constructS3Url(
-          connection.connectionConfig,
-          node.pathName?.replace(/\/$/, "") ?? node.name,
-        )
-      : undefined;
-  const hasZarrPreview = !!zarrUrl && !!connection?.credentials;
-  const hasPreview = hasTiffPreview || hasZarrPreview;
+  // For files: use the node's own path. For directories: use the first image found inside.
+  const previewKey = node._Object?.Key;
+  const isPreviewable = isImageFile(node.name) || (!!previewKey && isImageFile(previewKey));
+  const hasPreview = isPreviewable && !!signedFetch;
+  const previewPath = isImageFile(node.name)
+    ? (node.pathName?.replace(/\/$/, "") ?? node.name)
+    : previewKey ?? "";
+  const s3Url = hasPreview && connection?.connectionConfig
+    ? constructS3Url(connection.connectionConfig, previewPath)
+    : "";
 
   const nodeIcon = getNodeIcon(node);
   const size =
@@ -141,21 +135,14 @@ function FileCardGridItem({
       onPress={handlePress}
       onInfo={handleInfo}
     >
-      {hasPreview && (
+      {hasPreview && signedFetch && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider
-              resourceId={resourceId}
-              url={hasZarrPreview ? zarrUrl! : url!}
-              {...(hasZarrPreview && {
-                credentials: connection!.credentials,
-                connectionConfig: connection!.connectionConfig,
-              })}
-            >
+            <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>

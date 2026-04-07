@@ -1,4 +1,4 @@
-import { ByteDomain } from "../state/types";
+import { ByteDomain } from "../state/store/types";
 
 export const getDomain = (sortedPixels: number[]): ByteDomain => {
   const domainMin = sortedPixels[0];

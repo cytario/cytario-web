@@ -1,14 +1,13 @@
-import type { Credentials } from "@aws-sdk/client-sts";
 import { addDecoder } from "geotiff";
 
 import { FeatureBar } from "./FeatureBar/FeatureBar";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
-import { JP2KDecoder } from "../state/jp2k-decoder";
-import { LZWDecoder } from "../state/lzwDecoder";
-import { ViewerStoreProvider } from "../state/ViewerStoreContext";
-import { ConnectionConfig } from "~/.generated/client";
+import { JP2KDecoder } from "../state/decoders/jp2k-decoder";
+import { LZWDecoder } from "../state/decoders/lzwDecoder";
+import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
+import type { SignedFetch } from "~/utils/signedFetch";
 
 /**
  * Register decoders for GeoTIFF files.
@@ -24,28 +23,13 @@ if (!decodersRegistered) {
 }
 
 interface ViewerProps {
-  resourceId: string;
   url: string;
-  offsetsUrl?: string;
-  credentials?: Credentials;
-  connectionConfig?: ConnectionConfig;
+  signedFetch: SignedFetch;
 }
 
-export const Viewer = ({
-  resourceId,
-  url,
-  offsetsUrl,
-  credentials,
-  connectionConfig,
-}: ViewerProps) => {
+export const Viewer = ({ url, signedFetch }: ViewerProps) => {
   return (
-    <ViewerStoreProvider
-      resourceId={resourceId}
-      url={url}
-      offsetsUrl={offsetsUrl}
-      credentials={credentials}
-      connectionConfig={connectionConfig}
-    >
+    <ViewerStoreProvider url={url} signedFetch={signedFetch}>
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
@@ -56,7 +40,10 @@ export const Viewer = ({
         )}
       </ViewerHeader>
 
-      <div data-theme="dark" className="relative flex flex-grow h-full bg-[var(--color-neutral-950)] text-[var(--color-text-primary)] overflow-hidden">
+      <div
+        data-theme="dark"
+        className="relative flex grow h-full bg-neutral-950 text-(--color-text-primary) overflow-hidden"
+      >
         <FeatureBar />
         <ImagePanels />
       </div>

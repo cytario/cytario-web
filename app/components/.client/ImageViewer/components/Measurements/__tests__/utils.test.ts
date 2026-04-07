@@ -1,4 +1,4 @@
-import { WavelengthUnit } from "../../../state/ome.tif.types";
+import { WavelengthUnit } from "../../../state/store/ome.tif.types";
 import { absoluteToMetricFactory, metricToAbsoluteFactory } from "../utils";
 
 describe("absoluteToMetricFactory", () => {
@@ -19,7 +19,7 @@ describe("absoluteToMetricFactory", () => {
     ({ physicalSize, size, unit, expected }) => {
       const absoluteToMetric = absoluteToMetricFactory(physicalSize, unit);
       expect(absoluteToMetric(size)).toBe(expected);
-    }
+    },
   );
 });
 
@@ -41,6 +41,6 @@ describe("metricToAbsoluteFactory", () => {
     ({ physicalSize, sizeMetric, unit, expected }) => {
       const metricToAbsolute = metricToAbsoluteFactory(physicalSize, unit);
       expect(metricToAbsolute(sizeMetric)).toBe(expected);
-    }
+    },
   );
 });
