@@ -74,9 +74,10 @@ export function ColumnFilterInput({
   }, [filterRender]);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 font-normal">
       {filterType === "select" ? (
         <Select
+          size="sm"
           className="w-full"
           items={selectItems}
           value={selectedKey}

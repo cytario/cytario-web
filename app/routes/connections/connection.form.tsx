@@ -6,6 +6,7 @@ import {
   FormWizardProgress,
   Input,
   Select,
+  SelectItem,
 } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { KeyboardEvent } from "react";
@@ -21,17 +22,18 @@ import {
   parseS3Uri,
   suggestName,
 } from "./connection.schema";
+import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { VisibilityPill } from "~/components/Pills/VisibilityPill";
 
 const STEP_LABELS = ["Storage Type", "Connection Details", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
 
-const providerItems = [
+const providerItems: SelectItem[] = [
   { id: "aws", name: "AWS S3" },
   { id: "minio", name: "MinIO" },
 ];
 
-const regionItems = AWS_REGIONS.map((region) => ({
+const regionItems: SelectItem[] = AWS_REGIONS.map((region) => ({
   id: region.value,
   name: `${region.label} (${region.value})`,
 }));
@@ -101,7 +103,11 @@ export const ConnectionForm = ({
   } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectionSchema),
     defaultValues: initialData
-      ? { ...defaultFormValues, ...initialData, ownerScope: initialData.ownerScope || userId }
+      ? {
+          ...defaultFormValues,
+          ...initialData,
+          ownerScope: initialData.ownerScope || userId,
+        }
       : { ...defaultFormValues, ownerScope: userId },
     mode: "onTouched",
   });
@@ -188,12 +194,12 @@ export const ConnectionForm = ({
       totalSteps={STEP_LABELS.length}
       onStepChange={setCurrentStep}
     >
-      <div className="flex flex-col gap-[var(--spacing-6)]">
+      <div className="flex flex-col gap-(--spacing-6)">
         <FormWizardProgress labels={STEP_LABELS} />
 
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
         <form
-          className="flex flex-col gap-[var(--spacing-6)]"
+          className="flex flex-col gap-(--spacing-6)"
           onSubmit={handleSubmit(onSubmit)}
           onKeyDown={handleKeyDown}
         >
@@ -206,9 +212,9 @@ export const ConnectionForm = ({
                   render={({ field }) => (
                     <Select
                       items={providerItems}
+                      renderItem={(item) => <ProviderPill provider={item.id} />}
                       selectedKey={field.value}
                       onSelectionChange={(key) => field.onChange(key)}
-
                     />
                   )}
                 />
@@ -234,7 +240,6 @@ export const ConnectionForm = ({
                       placeholder="my-bucket/path/prefix"
                       prefix="s3://"
                       size="lg"
-
                     />
                   )}
                 />
@@ -261,7 +266,6 @@ export const ConnectionForm = ({
                       name={field.name}
                       placeholder="my-connection"
                       size="lg"
-
                     />
                   )}
                 />
@@ -291,7 +295,9 @@ export const ConnectionForm = ({
                         ]}
                         selectedKey={field.value}
                         onSelectionChange={(key) => field.onChange(key)}
-                        renderItem={(item) => <VisibilityPill scope={item.id} />}
+                        renderItem={(item) => (
+                          <VisibilityPill scope={item.id} />
+                        )}
                       />
                     )}
                   />

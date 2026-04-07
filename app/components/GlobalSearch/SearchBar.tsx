@@ -1,11 +1,9 @@
-import { IconButton } from "@cytario/design";
+import { IconButton, Input } from "@cytario/design";
 import { X } from "lucide-react";
-
-import { Input } from "../Controls";
 
 type SearchBarProps = Readonly<{
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (value: string) => void;
   onClear: () => void;
 }>;
 
@@ -13,11 +11,9 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
   return (
     <div className="flex">
       <Input
-        theme="dark"
-        type="search"
         value={value}
         onChange={onChange}
-        onFocus={onChange}
+        onFocus={() => onChange(value)}
         placeholder="Search..."
       />
 

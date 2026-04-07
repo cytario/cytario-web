@@ -6,7 +6,7 @@ interface ProviderConfig {
 }
 
 const providers: Record<string, ProviderConfig> = {
-  aws: { label: "AWS", color: "purple" },
+  aws: { label: "AWS S3", color: "amber" },
   minio: { label: "MinIO", color: "rose" },
 };
 

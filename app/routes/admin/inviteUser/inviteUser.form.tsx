@@ -1,11 +1,10 @@
-import { Checkbox, Field, Fieldset, Select } from "@cytario/design";
+import { Checkbox, Field, Fieldset, Input, Select } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
-import { Input } from "~/components/Controls";
 
 interface InviteUserFormProps {
   scope: string;
@@ -24,7 +23,6 @@ export function InviteUserForm({
 
   const {
     control,
-    register,
     handleSubmit,
     reset,
     formState: { errors },
@@ -70,28 +68,48 @@ export function InviteUserForm({
       className="space-y-4"
     >
       <Fieldset>
-        <Field
-          label="Email"
-          error={errors.email}
-        >
-          <Input
-            {...register("email")}
-            type="email"
-            scale="large"
-            theme="light"
+        <Field label="Email" error={errors.email}>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <Input
+                type="email"
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
           />
         </Field>
-        <Field
-          label="First name"
-          error={errors.firstName}
-        >
-          <Input {...register("firstName")} scale="large" theme="light" />
+        <Field label="First name" error={errors.firstName}>
+          <Controller
+            control={control}
+            name="firstName"
+            render={({ field }) => (
+              <Input
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
         </Field>
-        <Field
-          label="Last name"
-          error={errors.lastName}
-        >
-          <Input {...register("lastName")} scale="large" theme="light" />
+        <Field label="Last name" error={errors.lastName}>
+          <Controller
+            control={control}
+            name="lastName"
+            render={({ field }) => (
+              <Input
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
         </Field>
         {groupOptions.length > 0 ? (
           <Controller

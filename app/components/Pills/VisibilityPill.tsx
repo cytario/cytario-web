@@ -1,15 +1,25 @@
-import { Pill } from "@cytario/design";
+import { Pill, type PillColor } from "@cytario/design";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Format an ownerScope value into a human-readable label. */
-function formatVisibilityLabel(scope: string): string {
-  if (!scope || UUID_RE.test(scope)) return "Personal";
-  const segments = scope.split("/").filter(Boolean);
-  return segments[segments.length - 1] ?? scope;
+interface VisibilityConfig {
+  label: string;
+  color: PillColor;
 }
 
-export function VisibilityPill({ scope }: { scope: string }) {
-  return <Pill>{formatVisibilityLabel(scope)}</Pill>;
+function resolveVisibility(scope: string): VisibilityConfig {
+  if (!scope || UUID_RE.test(scope)) return { label: "Personal", color: "slate" };
+  if (scope.toLowerCase().includes("cytario")) return { label: "Cytario", color: "teal" };
+  const segments = scope.split("/").filter(Boolean);
+  return { label: segments[segments.length - 1] ?? scope, color: "slate" };
+}
+
+interface VisibilityPillProps {
+  scope: string;
+}
+
+export function VisibilityPill({ scope }: VisibilityPillProps) {
+  const { label, color } = resolveVisibility(scope);
+  return <Pill color={color}>{label}</Pill>;
 }
