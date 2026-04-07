@@ -14,10 +14,15 @@ jobs:
     name: QA Checks
     uses: ./.github/workflows/qa-checks.yml
 
+  e2e:
+    name: E2E Tests
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
+
   release:
     name: Release
     uses: ./.github/workflows/release.yml
-    needs: qa-checks
+    needs: [qa-checks, e2e]
 
   build:
     name: Build
