@@ -6,19 +6,15 @@ import { describe, expect, test, vi } from "vitest";
 import { ConnectionForm } from "../connection.form";
 
 const mockSubmit = vi.fn();
-let mockFetcherData: unknown = null;
+let mockActionData: unknown = undefined;
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
   return {
     ...actual,
-    useFetcher: () => ({
-      submit: mockSubmit,
-      state: "idle",
-      get data() {
-        return mockFetcherData;
-      },
-    }),
+    useSubmit: () => mockSubmit,
+    useActionData: () => mockActionData,
+    useNavigation: () => ({ state: "idle" }),
   };
 });
 
@@ -510,8 +506,8 @@ describe("ConnectionForm", () => {
   });
 
   describe("server errors", () => {
-    test("displays server-side error messages from fetcher data", () => {
-      mockFetcherData = {
+    test("displays server-side error messages from action data", () => {
+      mockActionData = {
         status: "error",
         errors: { name: ["This name is already taken."] },
       };
@@ -522,7 +518,7 @@ describe("ConnectionForm", () => {
         screen.getByText("This name is already taken."),
       ).toBeInTheDocument();
 
-      mockFetcherData = null;
+      mockActionData = null;
     });
   });
 });

@@ -12,7 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { KeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { useFetcher } from "react-router";
+import { useActionData, useNavigation, useSubmit } from "react-router";
 
 import AWS_REGIONS from "./awsRegions.json";
 import {
@@ -73,14 +73,16 @@ export const ConnectionForm = ({
   initialData,
 }: ConnectionFormProps) => {
   const isEditMode = !!initialData;
-  const fetcher = useFetcher<{
+  const submit = useSubmit();
+  const actionData = useActionData<{
     errors?: Record<string, string[]>;
     status?: string;
   }>();
+  const navigation = useNavigation();
 
   const serverErrors =
-    fetcher.data?.status === "error" ? fetcher.data.errors : undefined;
-  const isSubmitting = fetcher.state === "submitting";
+    actionData?.status === "error" ? actionData.errors : undefined;
+  const isSubmitting = navigation.state === "submitting";
 
   // Compute the initial step from server errors so we navigate to the
   // correct page without needing setState inside an effect.
@@ -160,9 +162,9 @@ export const ConnectionForm = ({
     });
     if (isEditMode) {
       formData.append("_originalName", initialData.originalName);
-      fetcher.submit(formData, { method: "PATCH", action: "/connections" });
+      submit(formData, { method: "PATCH", action: "/connections" });
     } else {
-      fetcher.submit(formData, { method: "post", action: "/connections" });
+      submit(formData, { method: "post", action: "/connections" });
     }
   };
 
