@@ -1,11 +1,11 @@
 import type { RootAttrs } from "@hms-dbmi/viv";
 
+import type { Loader } from "../../store/ome.tif.types";
 import {
   parseOmeroColor,
   extractPhysicalSizes,
   rootAttrsToImage,
 } from "../loadBioformatsZarrWithCredentials";
-import type { Loader } from "../../store/ome.tif.types";
 
 // Helper to create a mock loader with shape and labels
 function createMockLoader(
