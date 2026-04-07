@@ -13,9 +13,10 @@ export class SigV4TiffClient {
     this.signedFetch = signedFetch;
   }
 
-  async request(
-    { headers, signal }: { headers?: HeadersInit; signal?: AbortSignal } = {},
-  ) {
+  async request({
+    headers,
+    signal,
+  }: { headers?: HeadersInit; signal?: AbortSignal } = {}) {
     const response = await this.signedFetch(this.url, {
       headers: headers as Record<string, string>,
       signal,

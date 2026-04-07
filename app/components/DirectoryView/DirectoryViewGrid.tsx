@@ -1,6 +1,6 @@
 import { FileCard, StorageConnectionCard } from "@cytario/design";
 import { filesize } from "filesize";
-import { lazy, Suspense, useCallback } from "react";
+import { lazy, Suspense, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import { TreeNode } from "./buildDirectoryTree";
@@ -14,6 +14,8 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
 import { selectConnection } from "~/utils/connectionsStore/selectors";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
 import { nodeToPath } from "~/utils/resourceId";
+import { createSignedFetch } from "~/utils/signedFetch";
+import { constructS3Url } from "~/utils/zarrUtils";
 
 const ViewerStoreProvider = lazy(() =>
   import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then(
@@ -32,17 +34,34 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
   grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
+/** Create a signedFetch that lazily resolves credentials from the connections store. */
+function useSignedFetch(connectionName: string) {
+  const connection = useConnectionsStore(selectConnection(connectionName));
+  const config = connection?.connectionConfig;
+
+  const signedFetch = useMemo(() => {
+    if (!config) return null;
+    return createSignedFetch(
+      () => useConnectionsStore.getState().connections[connectionName]?.credentials,
+      config,
+    );
+  }, [connectionName, config]);
+
+  return { connection, signedFetch };
+}
+
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const connection = useConnectionsStore(selectConnection(node.connectionName));
+  const { connection, signedFetch } = useSignedFetch(node.connectionName);
 
   const to = nodeToPath(node);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  // Preview: check if the bucket's first image file can be previewed
   const key = node._Object?.Key;
-  const hasPreview = !!key && isImageFile(key) && !!connection?.credentials;
-  const pathName = key ?? "";
+  const hasPreview = !!key && isImageFile(key) && !!signedFetch;
+  const s3Url = hasPreview && connection?.connectionConfig
+    ? constructS3Url(connection.connectionConfig, key)
+    : "";
 
   return (
     <StorageConnectionCard
@@ -59,14 +78,14 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
       onPress={handlePress}
       actions={<ConnectionMenu connectionName={node.name} />}
     >
-      {hasPreview && connection && (
+      {hasPreview && signedFetch && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider connection={connection} pathName={pathName}>
+            <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>
@@ -85,19 +104,21 @@ function FileCardGridItem({
 }) {
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
-  const connection = useConnectionsStore(selectConnection(node.connectionName));
+  const { connection, signedFetch } = useSignedFetch(node.connectionName);
 
   const to = nodeToPath(node);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  // For files: pathName is the node's own path.
-  // For directories: _Object.Key is the first image found inside — use it for preview.
+  // For files: use the node's own path. For directories: use the first image found inside.
   const previewKey = node._Object?.Key;
   const isPreviewable = isImageFile(node.name) || (!!previewKey && isImageFile(previewKey));
-  const hasPreview = isPreviewable && !!connection?.credentials;
-  const pathName = isImageFile(node.name)
+  const hasPreview = isPreviewable && !!signedFetch;
+  const previewPath = isImageFile(node.name)
     ? (node.pathName?.replace(/\/$/, "") ?? node.name)
     : previewKey ?? "";
+  const s3Url = hasPreview && connection?.connectionConfig
+    ? constructS3Url(connection.connectionConfig, previewPath)
+    : "";
 
   const nodeIcon = getNodeIcon(node);
   const size =
@@ -114,14 +135,14 @@ function FileCardGridItem({
       onPress={handlePress}
       onInfo={handleInfo}
     >
-      {hasPreview && connection && (
+      {hasPreview && signedFetch && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider connection={connection} pathName={pathName}>
+            <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>

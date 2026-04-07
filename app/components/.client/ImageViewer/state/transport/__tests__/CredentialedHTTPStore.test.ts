@@ -19,7 +19,10 @@ describe("CredentialedHTTPStore", () => {
     region: "us-west-2",
   };
 
-  const signedFetch = createSignedFetch(mockCredentials, mockConnectionConfig);
+  const signedFetch = createSignedFetch(
+    () => mockCredentials,
+    mockConnectionConfig,
+  );
 
   beforeEach(() => {
     mockFetch.mockReset();
@@ -52,28 +55,32 @@ describe("CredentialedHTTPStore", () => {
   });
 
   describe("credential validation (in createSignedFetch)", () => {
-    test("throws error when AccessKeyId is missing", () => {
+    test("throws error when AccessKeyId is missing on first fetch", async () => {
       const invalidCredentials = {
         ...mockCredentials,
         AccessKeyId: undefined,
       } as unknown as Credentials;
 
-      expect(() => {
-        createSignedFetch(invalidCredentials, mockConnectionConfig);
-      }).toThrow(
+      const sf = createSignedFetch(
+        () => invalidCredentials,
+        mockConnectionConfig,
+      );
+      await expect(sf("https://bucket.s3.amazonaws.com/key")).rejects.toThrow(
         "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
     });
 
-    test("throws error when SecretAccessKey is missing", () => {
+    test("throws error when SecretAccessKey is missing on first fetch", async () => {
       const invalidCredentials = {
         ...mockCredentials,
         SecretAccessKey: undefined,
       } as unknown as Credentials;
 
-      expect(() => {
-        createSignedFetch(invalidCredentials, mockConnectionConfig);
-      }).toThrow(
+      const sf = createSignedFetch(
+        () => invalidCredentials,
+        mockConnectionConfig,
+      );
+      await expect(sf("https://bucket.s3.amazonaws.com/key")).rejects.toThrow(
         "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
     });

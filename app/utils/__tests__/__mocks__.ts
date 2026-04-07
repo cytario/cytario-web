@@ -11,11 +11,13 @@ import {
 import {
   Channel,
   Image,
-} from "~/components/.client/ImageViewer/state/ome.tif.types";
+} from "~/components/.client/ImageViewer/state/store/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 const mock = {
-  connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
+  connectionConfig: (
+    data: Partial<ConnectionConfig> = {},
+  ): ConnectionConfig => ({
     bucketName: "mock-bucket",
     id: 0,
     name: "aws-mock-bucket",

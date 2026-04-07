@@ -37,7 +37,8 @@ import { getObjects } from "~/utils/getObjects";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { createResourceId } from "~/utils/resourceId";
-import { isZarrPath } from "~/utils/zarrUtils";
+import { createSignedFetch } from "~/utils/signedFetch";
+import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -358,11 +359,17 @@ export default function ObjectsRoute() {
       fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
 
     if (isViewableImage) {
-      const connection = { credentials, connectionConfig };
+      const s3Url = constructS3Url(connectionConfig, pathName);
+      const signedFetch = createSignedFetch(
+        () =>
+          useConnectionsStore.getState().connections[connectionName]
+            ?.credentials,
+        connectionConfig,
+      );
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer connection={connection} pathName={pathName} />
+            <Viewer url={s3Url} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );

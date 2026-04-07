@@ -1,4 +1,3 @@
-import type { Credentials } from "@aws-sdk/client-sts";
 import { createContext, useContext, type ReactNode, useMemo } from "react";
 import { useStore, create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -7,54 +6,39 @@ import { createViewerStore } from "./createViewerStore";
 import type { ViewerStore } from "./types";
 import { loadBioformatsZarrWithCredentials } from "../loaders/loadBioformatsZarrWithCredentials";
 import { loadOmeTiffWithCredentials } from "../loaders/loadOmeTiffWithCredentials";
-import type { ConnectionConfig } from "~/.generated/client";
-import { createResourceId } from "~/utils/resourceId";
-import { createSignedFetch } from "~/utils/signedFetch";
-import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
+import type { SignedFetch } from "~/utils/signedFetch";
+import { isZarrPath } from "~/utils/zarrUtils";
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
-/** Connection record shape from the connections Zustand store. */
-interface ConnectionRecord {
-  credentials: Credentials;
-  connectionConfig: ConnectionConfig;
-}
-
-interface RegisterViewerOptions {
-  id: string;
-  connection: ConnectionRecord;
-  pathName: string;
-}
-
 interface ViewerRegistryStore {
   viewers: Record<string, ViewerStoreApi>;
-  registerViewer: (options: RegisterViewerOptions) => ViewerStoreApi;
+  registerViewer: (url: string, signedFetch: SignedFetch) => ViewerStoreApi;
 }
 
+/**
+ * Module-level registry that caches viewer stores by S3 URL.
+ * Returning a cached store preserves all image state (channels, view state,
+ * overlays) when navigating back to a previously viewed image.
+ *
+ * The signedFetch function resolves credentials lazily per request, so cached
+ * stores automatically use fresh credentials after STS token rotation.
+ */
 const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
     (set, get) => ({
       viewers: {},
-      registerViewer: ({ id, connection, pathName }) => {
-        const existingStore = get().viewers[id];
+      registerViewer: (url, signedFetch) => {
+        const existingStore = get().viewers[url];
         if (existingStore) return existingStore;
 
-        const viewerStore = createViewerStore(id);
+        const viewerStore = createViewerStore(url);
         const viewerState = viewerStore.getState();
 
-        const { credentials, connectionConfig } = connection;
-        const s3Url = constructS3Url(connectionConfig, pathName);
-        const signedFetch = createSignedFetch(credentials, connectionConfig);
-
-        // Strategy: select loader based on format
-        const loadImage = isZarrPath(pathName)
-          ? () => loadBioformatsZarrWithCredentials(s3Url, signedFetch)
-          : () =>
-              loadOmeTiffWithCredentials(s3Url, {
-                signedFetch,
-                connectionConfig,
-                pathName,
-              });
+        // Strategy: select loader based on format detected from URL
+        const loadImage = isZarrPath(url)
+          ? () => loadBioformatsZarrWithCredentials(url, signedFetch)
+          : () => loadOmeTiffWithCredentials(url, signedFetch);
 
         loadImage()
           .then(({ data: loader, metadata }) => {
@@ -70,7 +54,7 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
 
         set(
           (registryState) => ({
-            viewers: { ...registryState.viewers, [id]: viewerStore },
+            viewers: { ...registryState.viewers, [url]: viewerStore },
           }),
           false,
           "registerViewer",
@@ -86,29 +70,28 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
 const ViewerStoreContext = createContext<ViewerStoreApi | null>(null);
 
 interface ViewerStoreProviderProps {
-  connection: ConnectionRecord;
-  pathName: string;
+  /** Direct S3 URL to the image (constructed by the caller via constructS3Url). */
+  url: string;
+  /** SigV4-signing fetch function. Resolves credentials lazily per request. */
+  signedFetch: SignedFetch;
   children: ReactNode;
 }
 
+/**
+ * Provides a viewer store to its children. The viewer is auth-agnostic —
+ * it receives a pre-built URL and a signing function, keeping credential
+ * management entirely in the caller's domain.
+ */
 export const ViewerStoreProvider = ({
-  connection,
-  pathName,
+  url,
+  signedFetch,
   children,
 }: ViewerStoreProviderProps) => {
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
 
-  // Include AccessKeyId in the cache key so credential rotation creates a fresh store
-  const resourceId = createResourceId(
-    connection.connectionConfig.provider,
-    connection.connectionConfig.bucketName,
-    pathName,
-  );
-  const cacheKey = `${resourceId}:${connection.credentials.AccessKeyId}`;
-
   const store = useMemo(
-    () => registerViewer({ id: cacheKey, connection, pathName }),
-    [cacheKey, connection, pathName, registerViewer],
+    () => registerViewer(url, signedFetch),
+    [url, signedFetch, registerViewer],
   );
 
   return (
@@ -118,6 +101,7 @@ export const ViewerStoreProvider = ({
   );
 };
 
+/** Access the viewer store from within a ViewerStoreProvider. */
 export const useViewerStore = <T,>(selector: (state: ViewerStore) => T): T => {
   const store = useContext(ViewerStoreContext);
 

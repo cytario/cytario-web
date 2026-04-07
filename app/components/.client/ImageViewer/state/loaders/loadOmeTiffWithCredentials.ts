@@ -3,15 +3,13 @@ import { fromCustomClient } from "geotiff";
 
 import type { Image, Loader } from "../store/ome.tif.types";
 import { SigV4TiffClient } from "../transport/SigV4TiffClient";
-import type { ConnectionConfig } from "~/.generated/client";
-import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import type { SignedFetch } from "~/utils/signedFetch";
-import { constructS3Url } from "~/utils/zarrUtils";
 
-interface LoadOmeTiffOptions {
-  signedFetch: SignedFetch;
-  connectionConfig: ConnectionConfig;
-  pathName: string;
+/** Derive the offset sidecar URL from the TIFF URL (replace .ome.tif(f) → .offsets.json). */
+function getOffsetsUrl(tiffUrl: string): string | null {
+  const match = tiffUrl.match(/\.ome\.tiff?$/i);
+  if (!match) return null;
+  return tiffUrl.replace(/\.ome\.tiff?$/i, ".offsets.json");
 }
 
 /**
@@ -24,17 +22,14 @@ interface LoadOmeTiffOptions {
  */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
-  options: LoadOmeTiffOptions,
+  signedFetch: SignedFetch,
 ): Promise<{ data: Loader; metadata: Image }> {
-  const { signedFetch, connectionConfig, pathName } = options;
-
   // Fetch optional offset sidecar via signed request
-  const offsetKey = getOffsetKeyForOmeTiff(pathName);
+  const offsetsUrl = getOffsetsUrl(s3Url);
   let offsets: number[] | undefined;
-  if (offsetKey) {
-    const offsetUrl = constructS3Url(connectionConfig, offsetKey);
+  if (offsetsUrl) {
     try {
-      const res = await signedFetch(offsetUrl);
+      const res = await signedFetch(offsetsUrl);
       if (res.ok) {
         const json: unknown = await res.json();
         if (Array.isArray(json) && json.every((v) => typeof v === "number")) {

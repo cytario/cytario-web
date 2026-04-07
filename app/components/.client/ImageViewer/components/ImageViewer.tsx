@@ -1,4 +1,3 @@
-import type { Credentials } from "@aws-sdk/client-sts";
 import { addDecoder } from "geotiff";
 
 import { FeatureBar } from "./FeatureBar/FeatureBar";
@@ -8,7 +7,7 @@ import { ViewerHeader } from "./ViewerHeader";
 import { JP2KDecoder } from "../state/decoders/jp2k-decoder";
 import { LZWDecoder } from "../state/decoders/lzwDecoder";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
-import type { ConnectionConfig } from "~/.generated/client";
+import type { SignedFetch } from "~/utils/signedFetch";
 
 /**
  * Register decoders for GeoTIFF files.
@@ -24,16 +23,13 @@ if (!decodersRegistered) {
 }
 
 interface ViewerProps {
-  connection: {
-    credentials: Credentials;
-    connectionConfig: ConnectionConfig;
-  };
-  pathName: string;
+  url: string;
+  signedFetch: SignedFetch;
 }
 
-export const Viewer = ({ connection, pathName }: ViewerProps) => {
+export const Viewer = ({ url, signedFetch }: ViewerProps) => {
   return (
-    <ViewerStoreProvider connection={connection} pathName={pathName}>
+    <ViewerStoreProvider url={url} signedFetch={signedFetch}>
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
@@ -44,7 +40,10 @@ export const Viewer = ({ connection, pathName }: ViewerProps) => {
         )}
       </ViewerHeader>
 
-      <div data-theme="dark" className="relative flex flex-grow h-full bg-[var(--color-neutral-950)] text-[var(--color-text-primary)] overflow-hidden">
+      <div
+        data-theme="dark"
+        className="relative flex grow h-full bg-neutral-950 text-(--color-text-primary) overflow-hidden"
+      >
         <FeatureBar />
         <ImagePanels />
       </div>

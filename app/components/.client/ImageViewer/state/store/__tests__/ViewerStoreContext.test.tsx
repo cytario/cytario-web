@@ -1,4 +1,3 @@
-import type { Credentials } from "@aws-sdk/client-sts";
 import { render, screen, waitFor } from "@testing-library/react";
 
 import { loadBioformatsZarrWithCredentials } from "../../loaders/loadBioformatsZarrWithCredentials";
@@ -34,30 +33,7 @@ vi.mock("~/utils/resourceId", () => ({
   createResourceId: vi.fn((...args: string[]) => args.join("/")),
 }));
 
-const mockCredentials: Credentials = {
-  AccessKeyId: "AKIAIOSFODNN7EXAMPLE",
-  SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-  SessionToken: "token",
-  Expiration: new Date(),
-};
-
-const mockConnectionConfig = {
-  id: 1,
-  name: "test-connection",
-  bucketName: "test-bucket",
-  ownerScope: "org-1",
-  createdBy: "user-1",
-  provider: "aws",
-  endpoint: "",
-  roleArn: null,
-  region: "us-east-1",
-  prefix: "",
-};
-
-const mockConnection = {
-  credentials: mockCredentials,
-  connectionConfig: mockConnectionConfig,
-};
+const mockSignedFetch = vi.fn();
 
 describe("ViewerStoreContext", () => {
   const mockViewerStore = {
@@ -87,8 +63,8 @@ describe("ViewerStoreContext", () => {
 
       render(
         <ViewerStoreProvider
-          connection={mockConnection}
-          pathName="image.ome.tif"
+          url="https://bucket.s3.amazonaws.com/image.ome.tif"
+          signedFetch={mockSignedFetch}
         >
           <div data-testid="child">Child content</div>
         </ViewerStoreProvider>,
@@ -98,17 +74,15 @@ describe("ViewerStoreContext", () => {
       expect(screen.getByText("Child content")).toBeInTheDocument();
     });
 
-    test("creates a new viewer store for a new pathName", async () => {
+    test("creates a new viewer store for a new URL", async () => {
       vi.mocked(loadOmeTiffWithCredentials).mockResolvedValue({
         data: [],
         metadata: {},
       } as never);
 
+      const url = `https://bucket.s3.amazonaws.com/new-${Date.now()}.ome.tif`;
       render(
-        <ViewerStoreProvider
-          connection={mockConnection}
-          pathName="new-image.ome.tif"
-        >
+        <ViewerStoreProvider url={url} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -118,17 +92,15 @@ describe("ViewerStoreContext", () => {
       });
     });
 
-    test("returns existing store for same pathName and credentials", async () => {
+    test("returns existing store for same URL", async () => {
       vi.mocked(loadOmeTiffWithCredentials).mockResolvedValue({
         data: [],
         metadata: {},
       } as never);
 
+      const url = `https://bucket.s3.amazonaws.com/same-${Date.now()}.ome.tif`;
       const { rerender } = render(
-        <ViewerStoreProvider
-          connection={mockConnection}
-          pathName="same-image.ome.tif"
-        >
+        <ViewerStoreProvider url={url} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -138,10 +110,7 @@ describe("ViewerStoreContext", () => {
       });
 
       rerender(
-        <ViewerStoreProvider
-          connection={mockConnection}
-          pathName="same-image.ome.tif"
-        >
+        <ViewerStoreProvider url={url} signedFetch={mockSignedFetch}>
           <div>Test Updated</div>
         </ViewerStoreProvider>,
       );
@@ -152,8 +121,8 @@ describe("ViewerStoreContext", () => {
 
   describe("registerViewer", () => {
     test("calls loadOmeTiffWithCredentials for TIFF files", async () => {
-      // Use unique pathName to avoid cache hit from previous tests
-      const uniquePath = `image-${Date.now()}.ome.tif`;
+      // Use unique URL to avoid cache hit from previous tests
+      const uniqueUrl = `https://bucket.s3.amazonaws.com/image-${Date.now()}.ome.tif`;
       const mockLoader = [{ type: "tiff" }];
       const mockMetadata = { name: "test.tiff" };
       const setLoader = vi.fn();
@@ -177,7 +146,7 @@ describe("ViewerStoreContext", () => {
       } as never);
 
       render(
-        <ViewerStoreProvider connection={mockConnection} pathName={uniquePath}>
+        <ViewerStoreProvider url={uniqueUrl} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -214,7 +183,10 @@ describe("ViewerStoreContext", () => {
       } as never);
 
       render(
-        <ViewerStoreProvider connection={mockConnection} pathName="image.zarr">
+        <ViewerStoreProvider
+          url="https://bucket.s3.amazonaws.com/image.zarr"
+          signedFetch={mockSignedFetch}
+        >
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -247,8 +219,8 @@ describe("ViewerStoreContext", () => {
 
       render(
         <ViewerStoreProvider
-          connection={mockConnection}
-          pathName="bad-image.ome.tif"
+          url={`https://bucket.s3.amazonaws.com/bad-${Date.now()}.ome.tif`}
+          signedFetch={mockSignedFetch}
         >
           <div>Test</div>
         </ViewerStoreProvider>,
