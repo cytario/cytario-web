@@ -1,12 +1,12 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Mock } from "vitest";
 
-import { select } from "../../../state/selectors";
-import { ChannelsState } from "../../../state/types";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { ChannelsState } from "../../../state/store/types";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { DomainSlider } from "../DomainSlider";
 
-vi.mock("../../../state/ViewerStoreContext", () => ({
+vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 

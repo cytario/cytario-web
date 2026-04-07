@@ -2,8 +2,8 @@ import { PickingInfo } from "@deck.gl/core";
 import { MultiscaleImageLayer, ColorPaletteExtension } from "@hms-dbmi/viv";
 import { useMemo } from "react";
 
-import { select } from "../../../state/selectors";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 

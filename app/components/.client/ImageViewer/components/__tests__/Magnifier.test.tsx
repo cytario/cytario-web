@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { type ViewState, type ViewerStore } from "../../state/types";
+import { type ViewState, type ViewerStore } from "../../state/store/types";
 import {
   Magnifier,
   magnificationFromZoom,

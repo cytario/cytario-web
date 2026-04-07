@@ -4,8 +4,8 @@ import { useState } from "react";
 
 import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
-import { select } from "../../state/selectors";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { FeatureItem } from "../FeatureBar/FeatureItem";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 

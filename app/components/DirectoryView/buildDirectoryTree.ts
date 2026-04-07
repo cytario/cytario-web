@@ -1,4 +1,5 @@
-import { ObjectPresignedUrl } from "~/routes/objects.route";
+import type { _Object } from "@aws-sdk/client-s3";
+
 import { isImageFile } from "~/utils/fileType";
 import { isZarrPath } from "~/utils/zarrUtils";
 
@@ -12,13 +13,13 @@ export interface TreeNode {
   type: TreeNodeType;
   pathName?: string;
   children: TreeNode[];
-  _Object?: ObjectPresignedUrl;
+  _Object?: _Object;
 }
 
 function buildDirectoryTreeRecursive(
   currentDir: TreeNode[],
   keyParts: string[],
-  obj: ObjectPresignedUrl,
+  obj: _Object,
   bucketName: string,
   provider: string,
   connectionName: string,
@@ -132,7 +133,7 @@ export function computeDirectoryLastModified(node: TreeNode): number {
  */
 export function buildDirectoryTree(
   bucketName: string,
-  objects: ObjectPresignedUrl[],
+  objects: _Object[],
   provider: string,
   connectionName: string,
   prefix?: string,

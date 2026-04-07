@@ -2,12 +2,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { RadioGroup } from "react-aria-components";
 import { Mock } from "vitest";
 
-import { select } from "../../../state/selectors";
-import { ChannelsStateColumns } from "../../../state/types";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { ChannelsStateColumns } from "../../../state/store/types";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsControllerItem";
 
-vi.mock("../../../state/ViewerStoreContext", () => ({
+vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 

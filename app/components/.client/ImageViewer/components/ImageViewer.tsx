@@ -5,10 +5,10 @@ import { FeatureBar } from "./FeatureBar/FeatureBar";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
-import { JP2KDecoder } from "../state/jp2k-decoder";
-import { LZWDecoder } from "../state/lzwDecoder";
-import { ViewerStoreProvider } from "../state/ViewerStoreContext";
-import { ConnectionConfig } from "~/.generated/client";
+import { JP2KDecoder } from "../state/decoders/jp2k-decoder";
+import { LZWDecoder } from "../state/decoders/lzwDecoder";
+import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
+import type { ConnectionConfig } from "~/.generated/client";
 
 /**
  * Register decoders for GeoTIFF files.
@@ -24,28 +24,16 @@ if (!decodersRegistered) {
 }
 
 interface ViewerProps {
-  resourceId: string;
-  url: string;
-  offsetsUrl?: string;
-  credentials?: Credentials;
-  connectionConfig?: ConnectionConfig;
+  connection: {
+    credentials: Credentials;
+    connectionConfig: ConnectionConfig;
+  };
+  pathName: string;
 }
 
-export const Viewer = ({
-  resourceId,
-  url,
-  offsetsUrl,
-  credentials,
-  connectionConfig,
-}: ViewerProps) => {
+export const Viewer = ({ connection, pathName }: ViewerProps) => {
   return (
-    <ViewerStoreProvider
-      resourceId={resourceId}
-      url={url}
-      offsetsUrl={offsetsUrl}
-      credentials={credentials}
-      connectionConfig={connectionConfig}
-    >
+    <ViewerStoreProvider connection={connection} pathName={pathName}>
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier

@@ -1,9 +1,9 @@
 import Slider from "rc-slider";
 
 import { rgb } from "./ColorPicker";
-import { select } from "../../state/selectors";
-import { ByteDomain } from "../../state/types";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { ByteDomain } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
   const selectedChannelId = useViewerStore(select.selectedChannelId);

@@ -79,13 +79,6 @@ export default function HomeRoute() {
             name: item.name,
             type: item.type as TreeNode["type"],
             children: [],
-            _Object:
-              item.s3Key && item.presignedUrl
-                ? ({
-                    Key: item.s3Key,
-                    presignedUrl: item.presignedUrl,
-                  } as TreeNode["_Object"])
-                : undefined,
           };
         }),
     [recentlyViewed, configByName],

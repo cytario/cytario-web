@@ -1,4 +1,4 @@
-import { ByteDomain } from "../../state/types";
+import { ByteDomain } from "../../state/store/types";
 
 const normalizeY = (value: number, maxLogValue: number, height: number) => {
   const logValue = Math.log(value + 1);

@@ -1,25 +1,14 @@
-import { buildDirectoryTree, TreeNode } from "../buildDirectoryTree";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
+import type { _Object } from "@aws-sdk/client-s3";
 
-const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
+import { buildDirectoryTree, TreeNode } from "../buildDirectoryTree";
+
+const testCases: [_Object[], TreeNode[]][] = [
   [
     [
-      {
-        Key: "folder1/file1.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-      {
-        Key: "folder1/file2.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-      {
-        Key: "folder2/file3.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
-      {
-        Key: "folder2/subfolder1/file4.txt",
-        presignedUrl: "http://example.com/file1.txt",
-      },
+      { Key: "folder1/file1.txt" },
+      { Key: "folder1/file2.txt" },
+      { Key: "folder2/file3.txt" },
+      { Key: "folder2/subfolder1/file4.txt" },
     ],
     [
       {
@@ -38,10 +27,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             bucketName: "test-bucket",
             provider: "test-provider",
             children: [],
-            _Object: {
-              Key: "folder1/file1.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
+            _Object: { Key: "folder1/file1.txt" },
           },
           {
             connectionName: "test-connection",
@@ -51,16 +37,10 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             pathName: "folder1/file2.txt",
             provider: "test-provider",
             children: [],
-            _Object: {
-              Key: "folder1/file2.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
+            _Object: { Key: "folder1/file2.txt" },
           },
         ],
-        _Object: {
-          Key: "folder1/file1.txt",
-          presignedUrl: "http://example.com/file1.txt",
-        },
+        _Object: { Key: "folder1/file1.txt" },
       },
       {
         connectionName: "test-connection",
@@ -78,10 +58,7 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
             pathName: "folder2/file3.txt",
             provider: "test-provider",
             children: [],
-            _Object: {
-              Key: "folder2/file3.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
+            _Object: { Key: "folder2/file3.txt" },
           },
           {
             connectionName: "test-connection",
@@ -99,62 +76,16 @@ const testCases: [ObjectPresignedUrl[], TreeNode[]][] = [
                 pathName: "folder2/subfolder1/file4.txt",
                 provider: "test-provider",
                 children: [],
-                _Object: {
-                  Key: "folder2/subfolder1/file4.txt",
-                  presignedUrl: "http://example.com/file1.txt",
-                },
+                _Object: { Key: "folder2/subfolder1/file4.txt" },
               },
             ],
-            _Object: {
-              Key: "folder2/subfolder1/file4.txt",
-              presignedUrl: "http://example.com/file1.txt",
-            },
+            _Object: { Key: "folder2/subfolder1/file4.txt" },
           },
         ],
-        _Object: {
-          Key: "folder2/file3.txt",
-          presignedUrl: "http://example.com/file1.txt",
-        },
+        _Object: { Key: "folder2/file3.txt" },
       },
     ],
   ],
-  // // no directories
-  // [
-  //   [
-  //     {
-  //       Key: "file1.txt",
-  //       presignedUrl: "http://example.com/file1.txt",
-  //     } as ObjectPresignedUrl,
-  //     {
-  //       Key: "file2.txt",
-  //       presignedUrl: "http://example.com/file1.txt",
-  //     } as ObjectPresignedUrl,
-  //   ],
-  //   [
-  //     {
-  //       type: "file",
-  //       name: "file1.txt",
-  //       bucketName: "test-bucket",
-  //       children: [],
-  //       _Object: {
-  //         Key: "file1.txt",
-  //         presignedUrl: "http://example.com/file1.txt",
-  //       },
-  //     },
-  //     {
-  //       type: "file",
-  //       name: "file2.txt",
-  //       bucketName: "test-bucket",
-  //       children: [],
-  //       _Object: {
-  //         Key: "file2.txt",
-  //         presignedUrl: "http://example.com/file1.txt",
-  //       },
-  //     },
-  //   ],
-  // ],
-  // // no data
-  // [[], []],
 ];
 
 describe("buildDirectoryTree", () => {
@@ -167,12 +98,10 @@ describe("buildDirectoryTree", () => {
   );
 
   test("should prepend urlPath to node pathNames when navigating into a subdirectory", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },
+    const objects: _Object[] = [
+      { Key: "subdir/file.tif" },
     ];
 
-    // Simulate navigating into "subdir/" within a connection:
-    // S3 prefix "subdir/" is stripped, but urlPath "subdir" anchors paths to connection root
     const tree = buildDirectoryTree(
       "my-bucket", objects, "aws", "my-connection", "subdir/", "subdir",
     );
@@ -186,21 +115,19 @@ describe("buildDirectoryTree", () => {
         bucketName: "my-bucket",
         provider: "aws",
         children: [],
-        _Object: { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },
+        _Object: { Key: "subdir/file.tif" },
       },
     ]);
   });
 
   test("should skip S3 folder marker objects (keys ending with /)", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "czi/", presignedUrl: "" },
-      { Key: "czi/ULT-2022-16901-457_V1.czi", presignedUrl: "https://example.com/file.czi" },
+    const objects: _Object[] = [
+      { Key: "czi/" },
+      { Key: "czi/ULT-2022-16901-457_V1.czi" },
     ];
 
     const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-connection");
 
-    // The "czi/" folder marker should only create the directory,
-    // not a phantom empty-name file child.
     expect(tree).toHaveLength(1);
     expect(tree[0].type).toBe("directory");
     expect(tree[0].name).toBe("czi");
@@ -210,10 +137,10 @@ describe("buildDirectoryTree", () => {
   });
 
   test("should handle nested folder markers without creating phantom nodes", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "a/", presignedUrl: "" },
-      { Key: "a/b/", presignedUrl: "" },
-      { Key: "a/b/file.txt", presignedUrl: "https://example.com/file.txt" },
+    const objects: _Object[] = [
+      { Key: "a/" },
+      { Key: "a/b/" },
+      { Key: "a/b/file.txt" },
     ];
 
     const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-connection");
@@ -227,11 +154,10 @@ describe("buildDirectoryTree", () => {
   });
 
   test("should produce paths relative to connection root without urlPath", () => {
-    const objects: ObjectPresignedUrl[] = [
-      { Key: "subdir/file.tif", presignedUrl: "https://example.com/file.tif" },
+    const objects: _Object[] = [
+      { Key: "subdir/file.tif" },
     ];
 
-    // At connection root (no urlPath), paths are relative to root
     const tree = buildDirectoryTree(
       "my-bucket", objects, "aws", "my-connection",
     );

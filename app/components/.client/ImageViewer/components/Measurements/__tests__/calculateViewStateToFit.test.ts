@@ -1,4 +1,4 @@
-import { ViewState } from "../../../state/types";
+import { ViewState } from "../../../state/store/types";
 import { calculateViewStateToFit } from "../calculateViewStateToFit";
 import mock from "~/utils/__tests__/__mocks__";
 

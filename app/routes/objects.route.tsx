@@ -13,7 +13,6 @@ import {
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
@@ -35,11 +34,10 @@ import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
-import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { createResourceId } from "~/utils/resourceId";
-import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
+import { isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
@@ -81,16 +79,13 @@ export interface BucketRouteLoaderResponse {
   /** Full S3 key (connection prefix + urlPath) */
   pathName: string;
   name: string;
-  url?: string;
-  offsetsUrl?: string;
+  /** True when navigating to a single viewable file (not a directory listing) */
+  isSingleFile?: boolean;
   notification?: NotificationInput;
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
   isPinned: boolean;
-  isZarr?: boolean;
 }
-
-export type ObjectPresignedUrl = Readonly<_Object & { presignedUrl: string }>;
 
 export const loader = async ({
   params,
@@ -128,9 +123,7 @@ export const loader = async ({
 
     // Check for zarr before listing objects — zarr directories can contain
     // thousands of chunk files, so we skip the expensive ListObjects call.
-    const isZarr = isZarrPath(pathName);
-    if (isZarr) {
-      const zarrUrl = constructS3Url(connectionConfig, pathName);
+    if (isZarrPath(pathName)) {
       return {
         credentials,
         connectionConfig,
@@ -141,8 +134,7 @@ export const loader = async ({
         connectionName,
         pathName,
         urlPath,
-        url: zarrUrl,
-        isZarr: true,
+        isSingleFile: true,
       };
     }
 
@@ -154,20 +146,9 @@ export const loader = async ({
     );
 
     if (objects.length > 0) {
-      const objectsWithUrls: ObjectPresignedUrl[] = await Promise.all(
-        objects.map(async (obj) => ({
-          ...obj,
-          presignedUrl: await getPresignedUrl(
-            connectionConfig,
-            s3Client,
-            obj.Key!,
-          ),
-        })),
-      );
-
       const nodes = buildDirectoryTree(
         bucketName,
-        objectsWithUrls,
+        objects,
         connectionConfig.provider,
         connectionName,
         prefix,
@@ -187,15 +168,7 @@ export const loader = async ({
       };
     }
 
-    const offsetKey = getOffsetKeyForOmeTiff(pathName);
-
-    const [url, offsetsUrl] = await Promise.all([
-      getPresignedUrl(connectionConfig, s3Client, pathName),
-      offsetKey
-        ? getPresignedUrl(connectionConfig, s3Client, offsetKey)
-        : undefined,
-    ]);
-
+    // Single file — viewer or unsupported format
     return {
       connectionName,
       credentials,
@@ -205,8 +178,7 @@ export const loader = async ({
       bucketName,
       urlPath,
       pathName,
-      url,
-      offsetsUrl,
+      isSingleFile: true,
       isPinned,
     };
   } catch (error) {
@@ -234,15 +206,13 @@ export default function ObjectsRoute() {
   const {
     connectionName,
     name,
-    url,
-    offsetsUrl,
     nodes,
     urlPath,
     pathName,
     credentials,
     connectionConfig,
     isPinned: loaderIsPinned,
-    isZarr,
+    isSingleFile,
     notification,
   } = useLoaderData<typeof loader>();
 
@@ -278,7 +248,7 @@ export default function ObjectsRoute() {
   // Track recently viewed files (DB-backed via server action)
   const recentFetcher = useFetcher();
   useEffect(() => {
-    if (url) {
+    if (isSingleFile) {
       recentFetcher.submit(
         { connectionName, pathName: urlPath, name, type: "file" },
         { method: "post", action: "/api/recently-viewed" },
@@ -359,7 +329,7 @@ export default function ObjectsRoute() {
   }
 
   // Open file viewer when a single file is selected
-  if (url) {
+  if (isSingleFile) {
     const isCsv = fileType === "CSV";
     const isTabularFile = ["CSV", "Parquet", "JSON"].includes(fileType);
 
@@ -384,27 +354,15 @@ export default function ObjectsRoute() {
       );
     }
 
-    if (fileType === "TIFF" || fileType === "OME-TIFF") {
-      return (
-        <ClientOnly>
-          <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer resourceId={resourceId} url={url} offsetsUrl={offsetsUrl} />
-          </Suspense>
-        </ClientOnly>
-      );
-    }
+    const isViewableImage =
+      fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
 
-    // Check for bioformats2raw zarr images — use direct S3 access with credentials
-    if (isZarr) {
+    if (isViewableImage) {
+      const connection = { credentials, connectionConfig };
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer
-              resourceId={resourceId}
-              url={url}
-              credentials={credentials}
-              connectionConfig={connectionConfig}
-            />
+            <Viewer connection={connection} pathName={pathName} />
           </Suspense>
         </ClientOnly>
       );

@@ -112,7 +112,6 @@ describe("DirectoryViewTable", () => {
           Key: "folder/data.parquet",
           LastModified: new Date("2024-01-15T10:30:00Z"),
           Size: 1024 * 1024, // 1MB
-          presignedUrl: "https://example.com/data.parquet",
         },
       },
       {
@@ -127,7 +126,6 @@ describe("DirectoryViewTable", () => {
           Key: "folder/results.csv",
           LastModified: new Date("2024-02-20T14:00:00Z"),
           Size: 512,
-          presignedUrl: "https://example.com/results.csv",
         },
       },
     ];

@@ -3,9 +3,9 @@ import { RadioGroup } from "react-aria-components";
 
 import { ChannelsControllerBrightfieldItem } from "./ChannelsControllerBrightfieldItem";
 import { ChannelsControllerItem } from "./ChannelsControllerItem";
-import { select } from "../../state/selectors";
-import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../state/types";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
 
 const MAX_VISIBLE_CHANNELS = 6;

@@ -1,4 +1,4 @@
-import { RGBA, OverlayState } from "../../state/types";
+import { RGBA, OverlayState } from "../../state/store/types";
 
 export type MarkerInfo = Record<string, { count: number }>;
 

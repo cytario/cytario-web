@@ -2,7 +2,6 @@ import { _Object } from "@aws-sdk/client-s3";
 import { H1 } from "@cytario/design";
 import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 
-import { ObjectPresignedUrl } from "./objects.route";
 import type { ConnectionConfig } from "~/.generated/client";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
@@ -69,7 +68,7 @@ export const loader = async ({
     provider: config.provider,
     children: buildDirectoryTree(
       config.bucketName,
-      files as ObjectPresignedUrl[],
+      files as _Object[],
       config.provider,
       config.name,
       "",

@@ -13,11 +13,10 @@ import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { selectConnection } from "~/utils/connectionsStore/selectors";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
-import { createResourceId, nodeToPath } from "~/utils/resourceId";
-import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
+import { nodeToPath } from "~/utils/resourceId";
 
 const ViewerStoreProvider = lazy(() =>
-  import("~/components/.client/ImageViewer/state/ViewerStoreContext").then(
+  import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then(
     (mod) => ({ default: mod.ViewerStoreProvider }),
   ),
 );
@@ -35,46 +34,39 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
 
 function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
-  const config = useConnectionsStore(
-    (state) => state.connections[node.connectionName]?.connectionConfig,
-  );
+  const connection = useConnectionsStore(selectConnection(node.connectionName));
 
   const to = nodeToPath(node);
+  const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  const handlePress = useCallback(() => {
-    navigate(to);
-  }, [navigate, to]);
-
+  // Preview: check if the bucket's first image file can be previewed
   const key = node._Object?.Key;
-  const url = node._Object?.presignedUrl;
-  const hasPreview = !!url && !!key && isImageFile(key) && !isZarrPath(key);
+  const hasPreview = !!key && isImageFile(key) && !!connection?.credentials;
+  const pathName = key ?? "";
 
   return (
     <StorageConnectionCard
       name={node.name}
       status="connected"
       meta={
-        config && (
+        connection?.connectionConfig && (
           <>
-            <VisibilityPill scope={config.ownerScope} />
-            <ProviderPill provider={config.provider} />
+            <VisibilityPill scope={connection.connectionConfig.ownerScope} />
+            <ProviderPill provider={connection.connectionConfig.provider} />
           </>
         )
       }
       onPress={handlePress}
       actions={<ConnectionMenu connectionName={node.name} />}
     >
-      {hasPreview && (
+      {hasPreview && connection && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider
-              resourceId={createResourceId(node.provider, node.bucketName, key)}
-              url={url}
-            >
+            <ViewerStoreProvider connection={connection} pathName={pathName}>
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>
@@ -93,38 +85,19 @@ function FileCardGridItem({
 }) {
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
+  const connection = useConnectionsStore(selectConnection(node.connectionName));
 
-  const resourceId = createResourceId(
-    node.provider,
-    node.bucketName,
-    node._Object?.Key ?? node.pathName,
-  );
   const to = nodeToPath(node);
+  const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  const handlePress = useCallback(() => {
-    navigate(to);
-  }, [navigate, to]);
-
-  // Detect whether this node is a viewable image
-  const key = node._Object?.Key;
-  const url = node._Object?.presignedUrl;
-  const isZarr = isZarrPath(node.name);
-  const hasTiffPreview = !!url && !!key && isImageFile(key);
-
-  // For zarr directories: get credentials and construct S3 URL.
-  const { connectionName } = node;
-  const connection = useConnectionsStore(
-    isZarr ? selectConnection(connectionName) : () => null,
-  );
-  const zarrUrl =
-    isZarr && connection?.connectionConfig
-      ? constructS3Url(
-          connection.connectionConfig,
-          node.pathName?.replace(/\/$/, "") ?? node.name,
-        )
-      : undefined;
-  const hasZarrPreview = !!zarrUrl && !!connection?.credentials;
-  const hasPreview = hasTiffPreview || hasZarrPreview;
+  // For files: pathName is the node's own path.
+  // For directories: _Object.Key is the first image found inside — use it for preview.
+  const previewKey = node._Object?.Key;
+  const isPreviewable = isImageFile(node.name) || (!!previewKey && isImageFile(previewKey));
+  const hasPreview = isPreviewable && !!connection?.credentials;
+  const pathName = isImageFile(node.name)
+    ? (node.pathName?.replace(/\/$/, "") ?? node.name)
+    : previewKey ?? "";
 
   const nodeIcon = getNodeIcon(node);
   const size =
@@ -141,21 +114,14 @@ function FileCardGridItem({
       onPress={handlePress}
       onInfo={handleInfo}
     >
-      {hasPreview && (
+      {hasPreview && connection && (
         <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
             }
           >
-            <ViewerStoreProvider
-              resourceId={resourceId}
-              url={hasZarrPreview ? zarrUrl! : url!}
-              {...(hasZarrPreview && {
-                credentials: connection!.credentials,
-                connectionConfig: connection!.connectionConfig,
-              })}
-            >
+            <ViewerStoreProvider connection={connection} pathName={pathName}>
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>

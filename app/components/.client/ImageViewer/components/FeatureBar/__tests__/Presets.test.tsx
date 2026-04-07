@@ -1,8 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 
-import { ViewerStoreProvider } from "../../../state/ViewerStoreContext";
+import { ViewerStoreProvider } from "../../../state/store/ViewerStoreContext";
 import { Presets } from "../Presets";
+
+const mockConnection = {
+  credentials: {
+    AccessKeyId: "AKIAIOSFODNN7EXAMPLE",
+    SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    SessionToken: "token",
+    Expiration: new Date(),
+  },
+  connectionConfig: {
+    id: 1, name: "test", bucketName: "test-bucket", ownerScope: "org",
+    createdBy: "user", provider: "aws", endpoint: "", roleArn: null, region: "us-east-1", prefix: "",
+  },
+};
 
 function renderPresets() {
   const RemixStub = createRoutesStub([
@@ -10,8 +23,8 @@ function renderPresets() {
       path: "/connections/test-bucket/test.ome.tif",
       Component: () => (
         <ViewerStoreProvider
-          resourceId={"test-bucket/test.ome.tif"}
-          url={"test.ome.tif"}
+          connection={mockConnection}
+          pathName="test.ome.tif"
         >
           <Presets>
             <div data-testid="preset-content">Content</div>

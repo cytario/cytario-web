@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-import { select } from "../state/selectors";
-import { ViewerStore, ViewState } from "../state/types";
-import { useViewerStore } from "../state/ViewerStoreContext";
+import { select } from "../state/store/selectors";
+import { ViewerStore, ViewState } from "../state/store/types";
+import { useViewerStore } from "../state/store/ViewerStoreContext";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 
 export const ViewerHeader = ({

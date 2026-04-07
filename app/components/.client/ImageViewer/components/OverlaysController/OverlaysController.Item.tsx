@@ -9,9 +9,9 @@ import { RadioGroup } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { getOverlayState } from "./getOverlayState";
-import { select } from "../../state/selectors";
-import { ChannelsStateColumns, OverlayState } from "../../state/types";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
 import { LavaLoader } from "~/components/LavaLoader";
 import { useConnectionsStore } from "~/utils/connectionsStore";

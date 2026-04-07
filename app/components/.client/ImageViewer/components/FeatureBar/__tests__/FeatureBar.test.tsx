@@ -1,8 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 
-import { ViewerStoreProvider } from "../../../state/ViewerStoreContext";
+import { ViewerStoreProvider } from "../../../state/store/ViewerStoreContext";
 import { FeatureBar } from "../FeatureBar";
+
+const mockConnection = {
+  credentials: {
+    AccessKeyId: "AKIAIOSFODNN7EXAMPLE",
+    SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    SessionToken: "token",
+    Expiration: new Date(),
+  },
+  connectionConfig: {
+    id: 1, name: "test", bucketName: "vericura-image-data", ownerScope: "org",
+    createdBy: "user", provider: "aws", endpoint: "", roleArn: null, region: "us-east-1", prefix: "",
+  },
+};
 
 describe("FeatureBar", () => {
   test("renders all main sections", () => {
@@ -11,8 +24,8 @@ describe("FeatureBar", () => {
         path: "/connections/vericura-image-data/lab/USL-2024-58461-31.ome.tif",
         Component: () => (
           <ViewerStoreProvider
-            resourceId={"vericura-image-data/lab/USL-2024-58461-31.ome.tif"}
-            url={"USL-2024-58461-31.ome.tif"}
+            connection={mockConnection}
+            pathName="lab/USL-2024-58461-31.ome.tif"
           >
             <FeatureBar />
           </ViewerStoreProvider>

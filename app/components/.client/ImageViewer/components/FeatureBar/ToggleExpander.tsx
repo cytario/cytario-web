@@ -1,8 +1,8 @@
 import { IconButton } from "@cytario/design";
 import { Filter, FilterX } from "lucide-react";
 
-import { select } from "../../state/selectors";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
 
 export const ToggleExpander = () => {

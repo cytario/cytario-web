@@ -1,24 +1,23 @@
+import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 import { type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getPresignedUrl } from "~/.server/auth/getPresignedUrl";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { SessionCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { ObjectPresignedUrl } from "~/routes/objects.route";
 import { isImageFile } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
-import { isZarrPath } from "~/utils/zarrUtils";
 
+/** Find the first image file in a connection for the bucket card preview. */
 const fetchPreviewObject = async (
   config: ConnectionConfig,
   credentials: SessionCredentials,
   userId: string,
-): Promise<ObjectPresignedUrl | undefined> => {
+): Promise<_Object | undefined> => {
   const creds = credentials[config.bucketName];
   if (!creds) return undefined;
   const s3 = await getS3Client(config, creds, userId);
@@ -29,10 +28,7 @@ const fetchPreviewObject = async (
     config.prefix || undefined,
     100,
   );
-  const preview = objects.find((obj) => isImageFile(obj.Key ?? ""));
-  if (!preview?.Key) return undefined;
-  const presignedUrl = await getPresignedUrl(config, s3, preview.Key);
-  return { ...preview, presignedUrl } as ObjectPresignedUrl;
+  return objects.find((obj) => isImageFile(obj.Key ?? ""));
 };
 
 export type SerializedRecentlyViewed = {
@@ -42,9 +38,6 @@ export type SerializedRecentlyViewed = {
   name: string;
   type: string;
   viewedAt: string;
-  /** Full S3 key (connection prefix + pathName) */
-  s3Key?: string;
-  presignedUrl?: string;
 };
 
 export type SerializedPinnedPath = {
@@ -96,41 +89,14 @@ export async function loadConnections({
     };
   });
 
-  const configByName = new Map<string, ConnectionConfig>();
-  for (const c of connectionConfigs) configByName.set(c.name, c);
-
-  const recentlyViewed: SerializedRecentlyViewed[] = await Promise.all(
-    recentlyViewedRaw.map(async (item) => {
-      const base: SerializedRecentlyViewed = {
-        id: item.id,
-        connectionName: item.connectionName,
-        pathName: item.pathName,
-        name: item.name,
-        type: item.type,
-        viewedAt: item.viewedAt.toISOString(),
-      };
-
-      // Generate presigned URL for file items so previews work on the home page.
-      // Zarr files use SigV4 credentials from the connections store instead.
-      if (item.type !== "file" || isZarrPath(item.pathName)) return base;
-      const config = configByName.get(item.connectionName);
-      if (!config) return base;
-      const creds = credentials[config.bucketName];
-      if (!creds) return base;
-
-      try {
-        const connPrefix = config.prefix?.replace(/\/$/, "") ?? "";
-        const s3Key = connPrefix
-          ? item.pathName
-            ? `${connPrefix}/${item.pathName}`
-            : connPrefix
-          : item.pathName;
-        const s3 = await getS3Client(config, creds, userId);
-        const presignedUrl = await getPresignedUrl(config, s3, s3Key);
-        return { ...base, s3Key, presignedUrl };
-      } catch {
-        return base;
-      }
+  const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
+    (item) => ({
+      id: item.id,
+      connectionName: item.connectionName,
+      pathName: item.pathName,
+      name: item.name,
+      type: item.type,
+      viewedAt: item.viewedAt.toISOString(),
     }),
   );
 
@@ -149,5 +115,5 @@ export async function loadConnections({
     connectionConfigs,
     recentlyViewed,
     pinnedPaths,
-  };
+  } satisfies LoaderData;
 }

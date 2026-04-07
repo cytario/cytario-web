@@ -7,9 +7,9 @@ import { ImageContainer } from "./ImageContainer";
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
 import { useInitializeChannels } from "./useInitializeChannels";
 import { useView } from "./useView";
-import { select } from "../../state/selectors";
-import { ViewPort } from "../../state/types";
-import { useViewerStore } from "../../state/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { ViewPort } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ActiveViewStatePreview } from "../Measurements/ActiveViewStatePreview";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 

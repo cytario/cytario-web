@@ -1,6 +1,6 @@
 import type { ShaderModule } from "@luma.gl/shadertools";
 
-import { RGBA } from "../../../state/types";
+import { RGBA } from "../../../state/store/types";
 
 // GLSL uniform block declaration for marker colors and opacity
 const uniformBlock = /* glsl */ `\

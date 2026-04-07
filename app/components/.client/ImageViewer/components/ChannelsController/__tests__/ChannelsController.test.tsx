@@ -3,15 +3,15 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { Mock } from "vitest";
 
-import { select } from "../../../state/selectors";
-import { useViewerStore } from "../../../state/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import {
   useFeatureBarStore,
   useFeatureItemStore,
 } from "../../FeatureBar/useFeatureBar";
 import { ChannelsController } from "../ChannelsController";
 
-vi.mock("../../../state/ViewerStoreContext", () => ({
+vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 
