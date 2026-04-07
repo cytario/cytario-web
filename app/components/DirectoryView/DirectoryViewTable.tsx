@@ -54,7 +54,7 @@ export const connectionColumns: ColumnConfig[] = [
   {
     id: "provider",
     header: "Provider",
-    size: 100,
+    size: 160,
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
@@ -66,14 +66,16 @@ export const connectionColumns: ColumnConfig[] = [
     size: 340,
     enableSorting: true,
     defaultVisible: false,
+    copyable: true,
   },
   {
     id: "region",
     header: "Region",
-    size: 120,
+    size: 160,
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
+    copyable: true,
   },
   {
     id: "rolearn",
@@ -81,6 +83,7 @@ export const connectionColumns: ColumnConfig[] = [
     size: 480,
     enableSorting: true,
     defaultVisible: false,
+    copyable: true,
   },
   {
     id: "createdBy",
@@ -88,6 +91,7 @@ export const connectionColumns: ColumnConfig[] = [
     size: 280,
     enableSorting: true,
     defaultVisible: false,
+    copyable: true,
   },
 ];
 
