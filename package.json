@@ -6,7 +6,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && rm -rf node_modules/.vite",
     "prepare": "husky || true",
     "build": "react-router build",
     "dev": "react-router dev",

@@ -136,7 +136,7 @@ describe("constructS3Url", () => {
       );
     });
 
-    test("uses us-east-1 as default region", () => {
+    test("uses eu-central-1 as default region", () => {
       const config = {
         bucketName: "my-bucket",
         region: null,
@@ -146,7 +146,7 @@ describe("constructS3Url", () => {
       const result = constructS3Url(config, "data.zarr");
 
       expect(result).toBe(
-        "https://my-bucket.s3.us-east-1.amazonaws.com/data.zarr",
+        "https://my-bucket.s3.eu-central-1.amazonaws.com/data.zarr",
       );
     });
 

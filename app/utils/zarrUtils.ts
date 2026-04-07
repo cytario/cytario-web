@@ -24,7 +24,7 @@ export function constructS3Url(
     .map(encodeURIComponent)
     .join("/");
 
-  const region = connectionConfig.region || "us-east-1";
+  const region = connectionConfig.region || "eu-central-1";
   const endpoint = connectionConfig.endpoint?.replace(/\/$/, "");
 
   // Detect AWS S3 endpoints — use virtual-hosted style (bucket.s3.region.amazonaws.com)

@@ -26,7 +26,7 @@ export function createSignedFetch(
       secretAccessKey: credentials.SecretAccessKey,
       sessionToken: credentials.SessionToken,
     },
-    region: connectionConfig.region || "us-east-1",
+    region: connectionConfig.region || "eu-central-1",
     service: "s3",
     sha256: Sha256,
   });
