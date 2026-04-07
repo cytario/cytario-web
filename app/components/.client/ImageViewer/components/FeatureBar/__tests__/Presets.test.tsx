@@ -4,18 +4,7 @@ import { createRoutesStub } from "react-router";
 import { ViewerStoreProvider } from "../../../state/store/ViewerStoreContext";
 import { Presets } from "../Presets";
 
-const mockConnection = {
-  credentials: {
-    AccessKeyId: "AKIAIOSFODNN7EXAMPLE",
-    SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    SessionToken: "token",
-    Expiration: new Date(),
-  },
-  connectionConfig: {
-    id: 1, name: "test", bucketName: "test-bucket", ownerScope: "org",
-    createdBy: "user", provider: "aws", endpoint: "", roleArn: null, region: "us-east-1", prefix: "",
-  },
-};
+const mockSignedFetch = vi.fn();
 
 function renderPresets() {
   const RemixStub = createRoutesStub([
@@ -23,8 +12,8 @@ function renderPresets() {
       path: "/connections/test-bucket/test.ome.tif",
       Component: () => (
         <ViewerStoreProvider
-          connection={mockConnection}
-          pathName="test.ome.tif"
+          url="https://bucket.s3.eu-central-1.amazonaws.com/test.ome.tif"
+          signedFetch={mockSignedFetch}
         >
           <Presets>
             <div data-testid="preset-content">Content</div>
@@ -46,7 +35,6 @@ describe("Presets", () => {
     const tabs = screen.getAllByRole("tab");
     expect(tabs).toHaveLength(4);
 
-    // Each tab should display its 1-indexed number
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
@@ -68,8 +56,6 @@ describe("Presets", () => {
 
     const tabs = screen.getAllByRole("tab");
     for (const tab of tabs) {
-      // The tab element must NOT have style="background: transparent" which
-      // would override the Tailwind bg-* classes and make tabs invisible
       expect(tab).not.toHaveStyle({ background: "transparent" });
     }
   });

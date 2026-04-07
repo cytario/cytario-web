@@ -5,7 +5,7 @@ import {
   extractPhysicalSizes,
   rootAttrsToImage,
 } from "../loadBioformatsZarrWithCredentials";
-import type { Loader } from "../ome.tif.types";
+import type { Loader } from "../../store/ome.tif.types";
 
 // Helper to create a mock loader with shape and labels
 function createMockLoader(

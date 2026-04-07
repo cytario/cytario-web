@@ -1,4 +1,4 @@
-import { Loader } from "../../state/ome.tif.types";
+import { Loader } from "../../state/store/ome.tif.types";
 import { getSelectionStats } from "../getSelectionStats";
 
 const mockData = new Uint16Array(2 ** 16);

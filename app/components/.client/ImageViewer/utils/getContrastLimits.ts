@@ -1,4 +1,4 @@
-import { ByteDomain } from "../state/types";
+import { ByteDomain } from "../state/store/types";
 
 const lowerCutoff = 0.7;
 const upperCutoff = 0.9999;
