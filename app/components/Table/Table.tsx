@@ -6,7 +6,7 @@ import {
   getFilteredRowModel,
   getFacetedUniqueValues,
   ColumnDef,
-  SortingFn,
+  type Row,
 } from "@tanstack/react-table";
 import { FilterX, SearchX } from "lucide-react";
 import { ReactNode, useCallback, useMemo, useRef } from "react";
@@ -22,11 +22,11 @@ import { useTableSorting } from "./useTableSorting";
 // Re-export types for external use
 export type { ColumnConfig, TableProps, CellRenderers } from "./types";
 
-const booleanSortingFn: SortingFn<unknown> = (rowA, rowB, columnId) => {
+function booleanSortingFn<TData>(rowA: Row<TData>, rowB: Row<TData>, columnId: string): number {
   const a = rowA.getValue<boolean>(columnId) ? 1 : 0;
   const b = rowB.getValue<boolean>(columnId) ? 1 : 0;
   return a - b;
-};
+}
 
 export function Table<TData extends Record<string, unknown>>({
   columns,
@@ -72,7 +72,7 @@ export function Table<TData extends Record<string, unknown>>({
       maxSize: indexColumnSize,
     };
 
-    const dataColumns = columns.map((colConfig): ColumnDef<TData> => {
+    const dataColumns = columns.map((colConfig) => {
       const renderer = cellRenderers[colConfig.id];
 
       return {
@@ -80,14 +80,13 @@ export function Table<TData extends Record<string, unknown>>({
         accessorKey: colConfig.id as string & keyof TData,
         header: colConfig.header,
         cell: renderer
-          ? (info) => renderer(info.row.original)
-          : (info) => info.getValue() as ReactNode,
+          ? (info: { row: { original: TData }; getValue: () => unknown }) =>
+              renderer(info.row.original)
+          : (info: { getValue: () => unknown }) => info.getValue() as ReactNode,
         enableResizing: colConfig.enableResizing !== false,
         enableSorting: colConfig.enableSorting ?? false,
         enableColumnFilter: colConfig.enableColumnFilter ?? false,
-        ...(colConfig.filterFn && {
-          filterFn: colConfig.filterFn as typeof colConfig.filterFn & {},
-        }),
+        ...(colConfig.filterFn && { filterFn: colConfig.filterFn }),
         sortingFn:
           colConfig.sortingFn === "boolean"
             ? booleanSortingFn
@@ -95,7 +94,7 @@ export function Table<TData extends Record<string, unknown>>({
         size: colConfig.size ?? 150,
         minSize: colConfig.minSize ?? 48,
         maxSize: colConfig.maxSize ?? Number.MAX_SAFE_INTEGER,
-      };
+      } as ColumnDef<TData>;
     });
 
     return [indexColumn, ...dataColumns];
