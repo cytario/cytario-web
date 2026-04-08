@@ -6,6 +6,9 @@ on:
 env:
   TZ: "Europe/Berlin"
   HUSKY: 0
+  DATABASE_URL: "postgresql://cytario:cytario@localhost:5433/cytario"
+  REDIS_HOST: localhost
+  REDIS_PORT: 6379
 
 jobs:
   e2e:
@@ -14,6 +17,31 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cytario
+          POSTGRES_USER: cytario
+          POSTGRES_PASSWORD: cytario
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      valkey:
+        image: valkey/valkey:9
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -29,8 +57,12 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
-        env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+      - name: Push database schema
+        run: npx prisma db push
+
+      - name: Seed database
+        run: npx prisma db seed
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -38,30 +70,24 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          BASE_URL: ${{ secrets.BASE_URL }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
           SCOPES: "openid profile"
           WEB_HOST: "http://localhost:5173"
-          COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_HOST: ${{ secrets.REDIS_HOST }}
-          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          COOKIE_SECRET: "e2e-cookie-secret"
+          JWT_SECRET: "e2e-jwt-secret"
 
       - name: Start application
         run: npm start &
         env:
-          BASE_URL: ${{ secrets.BASE_URL }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
           SCOPES: "openid profile"
           WEB_HOST: "http://localhost:5173"
-          COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_HOST: ${{ secrets.REDIS_HOST }}
-          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          COOKIE_SECRET: "e2e-cookie-secret"
+          JWT_SECRET: "e2e-jwt-secret"
 
       - name: Wait for application
         run: npx wait-on http://localhost:5173 --timeout 30000

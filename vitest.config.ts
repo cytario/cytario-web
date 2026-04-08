@@ -34,6 +34,7 @@ export default defineConfig({
         setupFiles: ["./vitest.setup.ts"],
         globals: true,
         silent: true,
+        exclude: ["e2e/**", "node_modules/**"],
         environment: "happy-dom",
         server: {
             deps: {
