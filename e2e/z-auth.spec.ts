@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("SRS-CY-31101, SRS-CY-31105: Auth round-trip", () => {
+test.describe("SRS-CY-31101, SRS-CY-31105, SRS-CY-31201: Auth round-trip", () => {
   test("authenticated user can access the app and sees home page", async ({
     page,
   }) => {

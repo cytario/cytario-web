@@ -71,6 +71,17 @@ npx prisma studio                                 # Database GUI
 npx prisma generate                               # Regenerate client
 ```
 
+### Testing
+
+```sh
+npm test              # Unit & component tests (vitest, watch mode)
+npm run coverage      # Unit tests with coverage report
+npm run e2e           # E2E tests (Playwright, requires running app + .env)
+npm run e2e:ui        # E2E tests with interactive UI
+```
+
+E2E tests require `WEB_HOST`, `E2E_USERNAME`, `E2E_PASSWORD`, `E2E_ADMIN_USERNAME`, and `E2E_ADMIN_PASSWORD` in `.env`. See the [E2E Testing Guide](https://cytario.github.io/cytario-docs/tech-doc/guides/e2e-testing/) for details.
+
 ### Design System
 
 To develop [`@cytario/design`](https://github.com/cytario/cytario-design) components locally and see changes reflected in cytario-web, run a single command. Assumes both repos are cloned as siblings (`../cytario-design`):

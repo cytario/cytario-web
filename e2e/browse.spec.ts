@@ -8,7 +8,7 @@ const connectionCard = (page: Page) =>
     name: new RegExp(`Status: connected ${TEST_CONNECTION}`),
   });
 
-test.describe("SRS-CY-32101: Browse files in storage connection", () => {
+test.describe("SRS-CY-32103, SRS-CY-32201, SRS-CY-32202: Browse files in storage connection", () => {
   test("connection list shows the test connection", async ({ page }) => {
     await page.goto("/connections");
 

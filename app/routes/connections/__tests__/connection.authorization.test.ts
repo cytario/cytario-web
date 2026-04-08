@@ -75,7 +75,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("SRS-CY-44104: deleteConnection authorization", () => {
+describe("SRS-CY-44103, SRS-CY-44104: deleteConnection authorization", () => {
   test("admin of scope can delete", async () => {
     vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
       cytarioConfig,
@@ -137,7 +137,7 @@ describe("SRS-CY-44104: deleteConnection authorization", () => {
   });
 });
 
-describe("SRS-CY-44107: updateConnection authorization", () => {
+describe("SRS-CY-44103, SRS-CY-44107: updateConnection authorization", () => {
   test("admin of scope can update", async () => {
     vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
       cytarioConfig,

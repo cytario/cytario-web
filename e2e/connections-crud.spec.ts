@@ -21,7 +21,7 @@ async function asUser(browser: Browser): Promise<Page> {
 }
 
 test.describe.serial(
-  "SRS-CY-44105, SRS-CY-44107, SRS-CY-44104: Connection CRUD lifecycle",
+  "SRS-CY-44103, SRS-CY-44104, SRS-CY-44105, SRS-CY-44107: Connection CRUD lifecycle",
   () => {
     test("admin creates a personal-scoped connection", async ({ browser }) => {
       const page = await asAdmin(browser);
