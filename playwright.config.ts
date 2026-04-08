@@ -23,12 +23,26 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
     {
+      name: "admin-setup",
+      testMatch: /auth\.admin-setup\.ts/,
+    },
+    {
+      name: "connections-crud",
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+      testMatch: /connections-crud/,
+      dependencies: ["setup", "admin-setup"],
+    },
+    {
+      // Run last — the logout test in z-auth.spec.ts destroys the server-side session
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth/state.json",
       },
-      dependencies: ["setup"],
+      testIgnore: /connections-crud/,
+      dependencies: ["setup", "connections-crud"],
     },
   ],
 });
