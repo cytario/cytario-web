@@ -15,9 +15,7 @@ setup("authenticate via Keycloak", async ({ page }) => {
   await page.getByRole("button", { name: "Sign In" }).click();
 
   // Wait for redirect back to the app after successful auth
-  // Landing page is "/" with title "Storage Connections"
-  await page.waitForURL(/localhost:5173/, { timeout: 15_000 });
-  await expect(page).toHaveTitle(/Storage Connections/);
+  await expect(page).toHaveTitle(/Storage Connections/, { timeout: 15_000 });
 
   // Save signed-in state for other tests to reuse
   await page.context().storageState({ path: authFile });

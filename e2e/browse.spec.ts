@@ -20,7 +20,8 @@ test.describe("SRS-CY-32101: Browse files in storage connection", () => {
   }) => {
     await page.goto("/connections");
 
-    // Click the test connection card to open it
+    // Wait for the card to load, then click
+    await expect(connectionCard(page)).toBeVisible({ timeout: 10_000 });
     await connectionCard(page).click();
 
     // Should navigate to /connections/<name>/...
@@ -36,6 +37,7 @@ test.describe("SRS-CY-32101: Browse files in storage connection", () => {
     page,
   }) => {
     await page.goto("/connections");
+    await expect(connectionCard(page)).toBeVisible({ timeout: 10_000 });
     await connectionCard(page).click();
     await page.waitForURL(/\/connections\/.+/, { timeout: 10_000 });
 

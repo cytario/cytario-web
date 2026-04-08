@@ -12,7 +12,7 @@ export default defineConfig({
   reporter: [["html", { open: "never" }], ["list"]],
 
   use: {
-    baseURL: process.env.WEB_HOST || "http://localhost:5173",
+    baseURL: process.env.WEB_HOST,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
