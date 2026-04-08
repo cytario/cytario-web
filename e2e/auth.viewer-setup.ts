@@ -1,8 +1,8 @@
 import { test as setup, expect } from "@playwright/test";
 
-const authFile = "e2e/.auth/admin.json";
+const authFile = "e2e/.auth/viewer.json";
 
-setup("authenticate admin via Keycloak", async ({ page }) => {
+setup("authenticate viewer via Keycloak", async ({ page }) => {
   await page.goto("/");
 
   await page
@@ -11,10 +11,10 @@ setup("authenticate admin via Keycloak", async ({ page }) => {
 
   await page
     .getByRole("textbox", { name: "Email" })
-    .fill(process.env.E2E_ADMIN_USERNAME!);
+    .fill(process.env.E2E_VIEWER_USERNAME!);
   await page
     .getByRole("textbox", { name: "Password" })
-    .fill(process.env.E2E_ADMIN_PASSWORD!);
+    .fill(process.env.E2E_VIEWER_PASSWORD!);
   await page.getByRole("button", { name: "Sign In" }).click();
 
   await expect(page).toHaveTitle(/Storage Connections/, { timeout: 15_000 });

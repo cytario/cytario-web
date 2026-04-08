@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Single worker: logout test destroys the server-side session (Redis),
+  // Single worker: logout test destroys the server-side session (Valkey),
   // which would break parallel tests sharing the same session cookie.
   workers: 1,
   reporter: [["html", { open: "never" }], ["list"]],
@@ -19,8 +19,8 @@ export default defineConfig({
 
   projects: [
     {
-      name: "setup",
-      testMatch: /auth\.setup\.ts/,
+      name: "viewer-setup",
+      testMatch: /auth\.viewer-setup\.ts/,
     },
     {
       name: "admin-setup",
@@ -28,21 +28,28 @@ export default defineConfig({
     },
     {
       name: "connections-crud",
-      use: {
-        ...devices["Desktop Chrome"],
-      },
+      use: { ...devices["Desktop Chrome"] },
       testMatch: /connections-crud/,
-      dependencies: ["setup", "admin-setup"],
+      dependencies: ["viewer-setup", "admin-setup"],
     },
     {
-      // Run last — the logout test in z-auth.spec.ts destroys the server-side session
-      name: "chromium",
+      name: "browsing",
       use: {
         ...devices["Desktop Chrome"],
-        storageState: "e2e/.auth/state.json",
+        storageState: "e2e/.auth/viewer.json",
       },
-      testIgnore: /connections-crud/,
-      dependencies: ["setup", "connections-crud"],
+      testMatch: /browse\.spec|viewer\.spec/,
+      dependencies: ["viewer-setup", "connections-crud"],
+    },
+    {
+      // Runs last — logout destroys the server-side session
+      name: "auth-tests",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/viewer.json",
+      },
+      testMatch: /auth\.spec\.ts/,
+      dependencies: ["browsing"],
     },
   ],
 });

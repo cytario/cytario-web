@@ -17,8 +17,8 @@ env:
   WEB_HOST: "http://localhost:3000"
   COOKIE_SECRET: "e2e-cookie-secret"
   JWT_SECRET: "e2e-jwt-secret"
-  E2E_USERNAME: "e2e-test@cytario.com"
-  E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+  E2E_VIEWER_USERNAME: "e2e-test@cytario.com"
+  E2E_VIEWER_PASSWORD: ${{ secrets.E2E_VIEWER_PASSWORD }}
   E2E_ADMIN_USERNAME: "e2e-admin@cytario.com"
   E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
 

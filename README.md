@@ -80,7 +80,7 @@ npm run e2e           # E2E tests (Playwright, requires running app + .env)
 npm run e2e:ui        # E2E tests with interactive UI
 ```
 
-E2E tests require `WEB_HOST`, `E2E_USERNAME`, `E2E_PASSWORD`, `E2E_ADMIN_USERNAME`, and `E2E_ADMIN_PASSWORD` in `.env`. See the [E2E Testing Guide](https://cytario.github.io/cytario-docs/tech-doc/guides/e2e-testing/) for details.
+E2E tests require `WEB_HOST`, `E2E_VIEWER_USERNAME`, `E2E_VIEWER_PASSWORD`, `E2E_ADMIN_USERNAME`, and `E2E_ADMIN_PASSWORD` in `.env`. See the [E2E Testing Guide](https://cytario.github.io/cytario-docs/tech-doc/guides/e2e-testing/) for details.
 
 ### Design System
 

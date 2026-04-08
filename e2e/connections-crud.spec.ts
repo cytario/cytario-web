@@ -8,14 +8,14 @@ const S3_URI = `slashm-ultivue-exchange/e2e-${Date.now()}`;
 
 async function asAdmin(browser: Browser): Promise<Page> {
   const ctx = await browser.newContext({
-    storageState: "e2e/.auth/admin-state.json",
+    storageState: "e2e/.auth/admin.json",
   });
   return ctx.newPage();
 }
 
-async function asUser(browser: Browser): Promise<Page> {
+async function asViewer(browser: Browser): Promise<Page> {
   const ctx = await browser.newContext({
-    storageState: "e2e/.auth/state.json",
+    storageState: "e2e/.auth/viewer.json",
   });
   return ctx.newPage();
 }
@@ -23,6 +23,22 @@ async function asUser(browser: Browser): Promise<Page> {
 test.describe.serial(
   "SRS-CY-44103, SRS-CY-44104, SRS-CY-44105, SRS-CY-44107: Connection CRUD lifecycle",
   () => {
+    // Best-effort cleanup: delete the test connection if it still exists
+    test.afterAll(async ({ browser }) => {
+      const page = await asAdmin(browser);
+      await page.goto("/connections");
+      const actionsBtn = page.getByRole("button", {
+        name: `Actions for ${CONNECTION_NAME}`,
+        exact: true,
+      });
+      if (await actionsBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await actionsBtn.click();
+        await page.getByRole("menuitem", { name: "Delete" }).click();
+        await page.getByRole("button", { name: "Remove" }).click();
+      }
+      await page.context().close();
+    });
+
     test("admin creates a personal-scoped connection", async ({ browser }) => {
       const page = await asAdmin(browser);
       await page.goto("/connections");
@@ -66,10 +82,8 @@ test.describe.serial(
       await page.context().close();
     });
 
-    test("regular user cannot see the personal connection", async ({
-      browser,
-    }) => {
-      const page = await asUser(browser);
+    test("viewer cannot see the personal connection", async ({ browser }) => {
+      const page = await asViewer(browser);
       await page.goto("/connections");
       await expect(page.getByText(CONNECTION_NAME)).not.toBeVisible({
         timeout: 5_000,
@@ -93,16 +107,16 @@ test.describe.serial(
       await page.getByRole("menuitem", { name: "Edit" }).click();
 
       // Edit modal should open
-      const editDialog = page.getByRole("dialog", { name: "Edit Connection" });
+      const editDialog = page.getByRole("dialog", {
+        name: "Edit Connection",
+      });
       await expect(editDialog).toBeVisible();
 
       // Navigate to step 2 (Connection Details)
       await editDialog.getByRole("button", { name: "Next" }).click();
 
       // Change Visibility from Personal to Cytario
-      await editDialog
-        .getByRole("button", { name: "Personal" })
-        .click();
+      await editDialog.getByRole("button", { name: "Personal" }).click();
       await page.getByRole("option", { name: "Cytario" }).click();
 
       // Wait for the select to reflect the new value
@@ -119,17 +133,15 @@ test.describe.serial(
 
       // Should redirect after save
       await page.waitForURL(/\/connections/, { timeout: 10_000 });
-
-      // Verify the dialog is closed (edit completed)
       await expect(editDialog).not.toBeVisible({ timeout: 5_000 });
 
       await page.context().close();
     });
 
-    test("regular user can see the connection but cannot edit or delete", async ({
+    test("viewer can see the connection but cannot edit or delete", async ({
       browser,
     }) => {
-      const page = await asUser(browser);
+      const page = await asViewer(browser);
       await page.goto("/connections");
 
       // Connection should now be visible with cytario scope
@@ -142,21 +154,22 @@ test.describe.serial(
         name: `Actions for ${CONNECTION_NAME}`,
         exact: true,
       });
+      await expect(actionsBtn).toBeVisible({ timeout: 10_000 });
+      await actionsBtn.click();
 
-      if (await actionsBtn.isVisible()) {
-        await actionsBtn.click();
-        const menu = page.getByRole("menu", {
-          name: `Actions for ${CONNECTION_NAME}`,
-        });
-        await expect(menu.getByRole("menuitem", { name: "Open" })).toBeVisible();
-        await expect(
-          menu.getByRole("menuitem", { name: "Edit" }),
-        ).not.toBeVisible();
-        await expect(
-          menu.getByRole("menuitem", { name: "Delete" }),
-        ).not.toBeVisible();
-        await page.keyboard.press("Escape");
-      }
+      const menu = page.getByRole("menu", {
+        name: `Actions for ${CONNECTION_NAME}`,
+      });
+      await expect(
+        menu.getByRole("menuitem", { name: "Open" }),
+      ).toBeVisible();
+      await expect(
+        menu.getByRole("menuitem", { name: "Edit" }),
+      ).not.toBeVisible();
+      await expect(
+        menu.getByRole("menuitem", { name: "Delete" }),
+      ).not.toBeVisible();
+      await page.keyboard.press("Escape");
 
       await page.context().close();
     });
@@ -182,18 +195,13 @@ test.describe.serial(
       await expect(
         page.getByRole("dialog", { name: "Remove connection?" }),
       ).not.toBeVisible({ timeout: 10_000 });
-      await expect(
-        page.getByRole("button", {
-          name: `Actions for ${CONNECTION_NAME}`,
-          exact: true,
-        }),
-      ).not.toBeVisible({ timeout: 10_000 });
+      await expect(actionsBtn).not.toBeVisible({ timeout: 10_000 });
 
       await page.context().close();
     });
 
-    test("regular user confirms connection is gone", async ({ browser }) => {
-      const page = await asUser(browser);
+    test("viewer confirms connection is gone", async ({ browser }) => {
+      const page = await asViewer(browser);
       await page.goto("/connections");
       await expect(page.getByText(CONNECTION_NAME)).not.toBeVisible({
         timeout: 5_000,
