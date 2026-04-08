@@ -76,6 +76,12 @@ jobs:
       - name: Seed database
         run: npx prisma db seed
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
