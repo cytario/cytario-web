@@ -9,6 +9,8 @@ env:
   DATABASE_URL: "postgresql://cytario:cytario@localhost:5433/cytario"
   REDIS_HOST: localhost
   REDIS_PORT: 6379
+  BASE_URL: "https://auth.cytar.io/realms/cytario"
+  CLIENT_ID: "cytario-web"
 
 jobs:
   e2e:
@@ -70,9 +72,7 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          BASE_URL: ${{ secrets.E2E_BASE_URL }}
-          CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SCOPES: "openid profile"
           WEB_HOST: "http://localhost:5173"
           COOKIE_SECRET: "e2e-cookie-secret"
@@ -81,9 +81,7 @@ jobs:
       - name: Start application
         run: npm start &
         env:
-          BASE_URL: ${{ secrets.E2E_BASE_URL }}
-          CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SCOPES: "openid profile"
           WEB_HOST: "http://localhost:5173"
           COOKIE_SECRET: "e2e-cookie-secret"
@@ -95,10 +93,10 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test
         env:
-          E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+          E2E_USERNAME: "e2e-test@cytario.com"
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-          E2E_CONNECTION_NAME: ${{ secrets.E2E_CONNECTION_NAME }}
-          E2E_IMAGE_PATH: ${{ secrets.E2E_IMAGE_PATH }}
+          E2E_ADMIN_USERNAME: "e2e-admin@cytario.com"
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
 
       - name: Upload Playwright report
         if: always()
