@@ -11,6 +11,16 @@ env:
   REDIS_PORT: 6379
   BASE_URL: "https://auth.cytar.io/realms/cytario"
   CLIENT_ID: "cytario-web"
+  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+  CYBERDUCK_CLIENT_ID: "cyberduck"
+  SCOPES: "openid profile"
+  WEB_HOST: "http://localhost:3000"
+  COOKIE_SECRET: "e2e-cookie-secret"
+  JWT_SECRET: "e2e-jwt-secret"
+  E2E_USERNAME: "e2e-test@cytario.com"
+  E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+  E2E_ADMIN_USERNAME: "e2e-admin@cytario.com"
+  E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
 
 jobs:
   e2e:
@@ -71,32 +81,15 @@ jobs:
 
       - name: Build application
         run: npm run build
-        env:
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          SCOPES: "openid profile"
-          WEB_HOST: "http://localhost:5173"
-          COOKIE_SECRET: "e2e-cookie-secret"
-          JWT_SECRET: "e2e-jwt-secret"
 
       - name: Start application
         run: npm start &
-        env:
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          SCOPES: "openid profile"
-          WEB_HOST: "http://localhost:5173"
-          COOKIE_SECRET: "e2e-cookie-secret"
-          JWT_SECRET: "e2e-jwt-secret"
 
       - name: Wait for application
-        run: npx wait-on http://localhost:5173 --timeout 30000
+        run: npx wait-on http://localhost:3000 --timeout 30000
 
       - name: Run Playwright tests
         run: npx playwright test
-        env:
-          E2E_USERNAME: "e2e-test@cytario.com"
-          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-          E2E_ADMIN_USERNAME: "e2e-admin@cytario.com"
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
 
       - name: Upload Playwright report
         if: always()
