@@ -1,7 +1,6 @@
-export { adminFetch, type KeycloakGroup, type KeycloakUser } from "./client";
+export { type KeycloakGroup, type KeycloakUser } from "./client";
 
 export {
-  flattenGroups,
   findGroupByPath,
   getManageableScopes,
   getGroupWithMembers,
@@ -13,6 +12,7 @@ export {
 } from "./groups";
 
 export {
+  getUser,
   inviteUser,
   updateUser,
   addUserToGroup,

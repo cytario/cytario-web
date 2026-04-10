@@ -1,6 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 
-import { getS3Client, getS3ClientCacheStats } from "../getS3Client";
+import { getS3Client } from "../getS3Client";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("@aws-sdk/client-s3", () => ({
@@ -225,15 +225,4 @@ describe("getS3Client", () => {
     });
   });
 
-  describe("getS3ClientCacheStats", () => {
-    test("returns cache statistics", () => {
-      const stats = getS3ClientCacheStats();
-
-      expect(stats).toHaveProperty("size");
-      expect(stats).toHaveProperty("maxEntries");
-      expect(stats).toHaveProperty("ttl");
-      expect(stats.maxEntries).toBe(10000);
-      expect(stats.ttl).toBe(3600000);
-    });
-  });
 });

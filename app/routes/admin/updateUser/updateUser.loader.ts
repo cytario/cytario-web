@@ -1,7 +1,7 @@
 import { LoaderFunction } from "react-router";
 
 import { authContext } from "~/.server/auth/authMiddleware";
-import { adminFetch, KeycloakUser } from "~/.server/auth/keycloakAdmin";
+import { getUser } from "~/.server/auth/keycloakAdmin";
 
 /**
  * Loads user data for editing. Validates admin permissions for the org/group scope.
@@ -19,9 +19,7 @@ export const updateUserLoader: LoaderFunction = async ({ request, context, param
     throw new Response("Not authorized", { status: 403 });
   }
 
-  const keycloakUser = await adminFetch<KeycloakUser>(
-    `/users/${params.userId}`,
-  );
+  const keycloakUser = await getUser(params.userId!);
 
   return { user: keycloakUser, scope };
 };
