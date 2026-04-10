@@ -2,6 +2,7 @@ import { LoaderFunction } from "react-router";
 
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getUser } from "~/.server/auth/keycloakAdmin";
+import { assertUsersInScope } from "~/routes/admin/assertUsersInScope";
 
 /**
  * Loads user data for editing. Validates admin permissions for the org/group scope.
@@ -18,6 +19,8 @@ export const updateUserLoader: LoaderFunction = async ({ request, context, param
   if (!isAdmin) {
     throw new Response("Not authorized", { status: 403 });
   }
+
+  await assertUsersInScope([params.userId!], scope);
 
   const keycloakUser = await getUser(params.userId!);
 

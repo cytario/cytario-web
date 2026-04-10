@@ -2,6 +2,7 @@ import { type ActionFunction, redirect } from "react-router";
 
 import { bulkActionSchema } from "./bulkUsers.schema";
 import { assertAdminScope } from "../assertAdminScope";
+import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import {
@@ -23,7 +24,7 @@ export const bulkUsersAction: ActionFunction = async ({
   context,
 }) => {
   const { user } = context.get(authContext);
-  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
+  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
@@ -34,6 +35,8 @@ export const bulkUsersAction: ActionFunction = async ({
   }
 
   const { intent, userIds, groupId } = result.data;
+  await assertUsersInScope(userIds, scope);
+
   const session = await getSession(request);
 
   const operations = userIds.map((userId) => {

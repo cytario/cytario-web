@@ -8,6 +8,7 @@ import {
   updateUser,
 } from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { assertUsersInScope } from "~/routes/admin/assertUsersInScope";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
 export const userDetailAction: ActionFunction = async ({
@@ -26,6 +27,8 @@ export const userDetailAction: ActionFunction = async ({
   if (!isAdmin) {
     throw new Response("Not authorized", { status: 403 });
   }
+
+  await assertUsersInScope([params.userId!], scope);
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
