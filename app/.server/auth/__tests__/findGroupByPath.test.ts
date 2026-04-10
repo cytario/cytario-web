@@ -8,6 +8,10 @@ vi.mock("~/config", () => ({
   },
 }));
 
+vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
+  getAdminToken: vi.fn().mockResolvedValue("mock-admin-token"),
+}));
+
 const mockGroupTree = [
   {
     id: "g1",
@@ -50,22 +54,22 @@ describe("findGroupByPath", () => {
   });
 
   test("finds top-level group", async () => {
-    const result = await findGroupByPath("token", "vericura");
+    const result = await findGroupByPath("vericura");
     expect(result).toMatchObject({ id: "g1", name: "vericura" });
   });
 
   test("finds nested group", async () => {
-    const result = await findGroupByPath("token", "vericura/lab");
+    const result = await findGroupByPath("vericura/lab");
     expect(result).toMatchObject({ id: "g3", name: "lab" });
   });
 
   test("finds deeply nested group", async () => {
-    const result = await findGroupByPath("token", "vericura/lab/team-x");
+    const result = await findGroupByPath("vericura/lab/team-x");
     expect(result).toMatchObject({ id: "g5", name: "team-x" });
   });
 
   test("returns undefined for non-existent path", async () => {
-    const result = await findGroupByPath("token", "vericura/nonexistent");
+    const result = await findGroupByPath("vericura/nonexistent");
     expect(result).toBeUndefined();
   });
 
@@ -77,7 +81,7 @@ describe("findGroupByPath", () => {
         json: () => Promise.resolve([]),
       }),
     );
-    const result = await findGroupByPath("token", "nonexistent");
+    const result = await findGroupByPath("nonexistent");
     expect(result).toBeUndefined();
   });
 });

@@ -1,3 +1,4 @@
+import { getAdminToken } from "./serviceAccountToken";
 import { cytarioConfig } from "~/config";
 
 export interface KeycloakGroup {
@@ -22,11 +23,12 @@ const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace(
 );
 
 async function adminRequest(
-  accessToken: string,
   method: string,
   path: string,
   body?: unknown,
 ): Promise<Response> {
+  const accessToken = await getAdminToken();
+
   const response = await fetch(`${adminApiBaseUrl}${path}`, {
     method,
     headers: {
@@ -45,19 +47,15 @@ async function adminRequest(
   return response;
 }
 
-export async function adminFetch<T>(
-  accessToken: string,
-  path: string,
-): Promise<T> {
-  const response = await adminRequest(accessToken, "GET", path);
+export async function adminFetch<T>(path: string): Promise<T> {
+  const response = await adminRequest("GET", path);
   return response.json();
 }
 
 export async function adminMutate(
-  accessToken: string,
   method: "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<Response> {
-  return adminRequest(accessToken, method, path, body);
+  return adminRequest(method, path, body);
 }

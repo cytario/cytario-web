@@ -15,7 +15,7 @@ export const userDetailAction: ActionFunction = async ({
   context,
   params,
 }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const scope = new URL(request.url).searchParams.get("scope");
   if (!scope) throw new Response("Missing scope", { status: 400 });
   const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
@@ -42,7 +42,7 @@ export const userDetailAction: ActionFunction = async ({
   const session = await getSession(request);
 
   try {
-    await updateUser(authTokens.accessToken, params.userId!, result.data);
+    await updateUser(params.userId!, result.data);
 
     // Process group membership changes
     const groupEntries = [...formData.entries()]
@@ -55,8 +55,8 @@ export const userDetailAction: ActionFunction = async ({
     await Promise.all(
       groupEntries.map(({ groupId, shouldBeMember }) =>
         shouldBeMember
-          ? addUserToGroup(authTokens.accessToken, params.userId!, groupId)
-          : removeUserFromGroup(authTokens.accessToken, params.userId!, groupId),
+          ? addUserToGroup(params.userId!, groupId)
+          : removeUserFromGroup(params.userId!, groupId),
       ),
     );
 

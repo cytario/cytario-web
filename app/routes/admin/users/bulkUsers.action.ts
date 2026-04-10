@@ -22,7 +22,7 @@ export const bulkUsersAction: ActionFunction = async ({
   request,
   context,
 }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
 
   const formData = await request.formData();
@@ -35,18 +35,17 @@ export const bulkUsersAction: ActionFunction = async ({
 
   const { intent, userIds, groupId } = result.data;
   const session = await getSession(request);
-  const token = authTokens.accessToken;
 
   const operations = userIds.map((userId) => {
     switch (intent) {
       case "addToGroup":
-        return addUserToGroup(token, userId, groupId!);
+        return addUserToGroup(userId, groupId!);
       case "removeFromGroup":
-        return removeUserFromGroup(token, userId, groupId!);
+        return removeUserFromGroup(userId, groupId!);
       case "enableAccounts":
-        return setUserEnabled(token, userId, true);
+        return setUserEnabled(userId, true);
       case "disableAccounts":
-        return setUserEnabled(token, userId, false);
+        return setUserEnabled(userId, false);
     }
   });
 

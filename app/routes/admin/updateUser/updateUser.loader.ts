@@ -7,7 +7,7 @@ import { adminFetch, KeycloakUser } from "~/.server/auth/keycloakAdmin";
  * Loads user data for editing. Validates admin permissions for the org/group scope.
  */
 export const updateUserLoader: LoaderFunction = async ({ request, context, params }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const scope = new URL(request.url).searchParams.get("scope");
 
   if (!scope) throw new Response("Missing scope", { status: 400 });
@@ -20,7 +20,6 @@ export const updateUserLoader: LoaderFunction = async ({ request, context, param
   }
 
   const keycloakUser = await adminFetch<KeycloakUser>(
-    authTokens.accessToken,
     `/users/${params.userId}`,
   );
 

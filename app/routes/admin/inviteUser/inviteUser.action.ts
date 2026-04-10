@@ -21,7 +21,7 @@ function flattenGroupPaths(group: GroupWithMembers): string[] {
 }
 
 export const loader: LoaderFunction = async ({ context, params }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const scope = [params.s0, params.s1, params.s2, params.s3].filter(Boolean).join("/");
 
   const isAdmin = user.adminScopes.some(
@@ -31,7 +31,7 @@ export const loader: LoaderFunction = async ({ context, params }) => {
     throw new Response("Not authorized", { status: 403 });
   }
 
-  const group = await getGroupWithMembers(authTokens.accessToken, scope);
+  const group = await getGroupWithMembers(scope);
 
   return { scope, groupOptions: group ? flattenGroupPaths(group) : [scope] };
 };
@@ -40,7 +40,7 @@ export const inviteUserAction: ActionFunction = async ({
   request,
   context,
 }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const scope = new URL(request.url).searchParams.get("scope");
   if (!scope) throw new Response("Missing scope", { status: 400 });
   const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
@@ -76,7 +76,6 @@ export const inviteUserAction: ActionFunction = async ({
 
   try {
     await inviteUser(
-      authTokens.accessToken,
       result.data.email,
       result.data.firstName,
       result.data.lastName,

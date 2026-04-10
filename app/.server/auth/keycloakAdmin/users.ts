@@ -2,56 +2,47 @@ import { adminFetch, adminMutate, type KeycloakUser } from "./client";
 import { findGroupByPath } from "./groups";
 
 export async function updateUser(
-  accessToken: string,
   userId: string,
   data: { firstName: string; lastName: string; email: string; enabled: boolean },
 ): Promise<void> {
-  await adminMutate(accessToken, "PUT", `/users/${userId}`, data);
+  await adminMutate("PUT", `/users/${userId}`, data);
 }
 
 export async function addUserToGroup(
-  accessToken: string,
   userId: string,
   groupId: string,
 ): Promise<void> {
-  await adminMutate(accessToken, "PUT", `/users/${userId}/groups/${groupId}`);
+  await adminMutate("PUT", `/users/${userId}/groups/${groupId}`);
 }
 
 export async function removeUserFromGroup(
-  accessToken: string,
   userId: string,
   groupId: string,
 ): Promise<void> {
-  await adminMutate(
-    accessToken,
-    "DELETE",
-    `/users/${userId}/groups/${groupId}`,
-  );
+  await adminMutate("DELETE", `/users/${userId}/groups/${groupId}`);
 }
 
 export async function setUserEnabled(
-  accessToken: string,
   userId: string,
   enabled: boolean,
 ): Promise<void> {
-  await adminMutate(accessToken, "PUT", `/users/${userId}`, { enabled });
+  await adminMutate("PUT", `/users/${userId}`, { enabled });
 }
 
 export async function inviteUser(
-  accessToken: string,
   email: string,
   firstName: string,
   lastName: string,
   groupPath: string,
   enabled: boolean,
 ): Promise<void> {
-  const group = await findGroupByPath(accessToken, groupPath);
+  const group = await findGroupByPath(groupPath);
   if (!group) throw new Error(`Group not found: ${groupPath}`);
 
   let userId: string;
   let isNewUser = true;
   try {
-    const res = await adminMutate(accessToken, "POST", "/users", {
+    const res = await adminMutate("POST", "/users", {
       username: email,
       email,
       firstName,
@@ -66,7 +57,6 @@ export async function inviteUser(
   } catch (e) {
     if (e instanceof Error && e.message.includes("409")) {
       const [existing] = await adminFetch<KeycloakUser[]>(
-        accessToken,
         `/users?email=${encodeURIComponent(email)}&exact=true`,
       );
       if (!existing) throw new Error(`User conflict but not found: ${email}`);
@@ -77,10 +67,10 @@ export async function inviteUser(
     }
   }
 
-  await adminMutate(accessToken, "PUT", `/users/${userId}/groups/${group.id}`);
+  await adminMutate("PUT", `/users/${userId}/groups/${group.id}`);
 
   if (isNewUser) {
-    await adminMutate(accessToken, "PUT", `/users/${userId}/execute-actions-email`, [
+    await adminMutate("PUT", `/users/${userId}/execute-actions-email`, [
       "UPDATE_PASSWORD",
     ]);
   }

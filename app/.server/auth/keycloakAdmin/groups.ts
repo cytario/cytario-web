@@ -22,13 +22,10 @@ export interface GroupInfo {
   isAdmin: boolean;
 }
 
-async function fetchGroups(
-  accessToken: string,
-  search?: string,
-): Promise<KeycloakGroup[]> {
+async function fetchGroups(search?: string): Promise<KeycloakGroup[]> {
   const params = new URLSearchParams({ exact: "true" });
   if (search) params.set("q", search);
-  return adminFetch(accessToken, `/groups?${params}`);
+  return adminFetch(`/groups?${params}`);
 }
 
 /**
@@ -60,7 +57,6 @@ export function flattenGroups(groups: KeycloakGroup[]): string[] {
  */
 export async function getManageableScopes(
   user: UserProfile,
-  accessToken: string,
 ): Promise<string[]> {
   if (user.adminScopes.length === 0) return [];
 
@@ -69,7 +65,7 @@ export async function getManageableScopes(
   for (const adminScope of user.adminScopes) {
     allScopes.add(adminScope);
     try {
-      const group = await findGroupByPath(accessToken, adminScope);
+      const group = await findGroupByPath(adminScope);
       if (group) {
         for (const path of flattenGroups(group.subGroups)) {
           allScopes.add(path);
@@ -90,11 +86,10 @@ export async function getManageableScopes(
  * Finds a Keycloak group by its normalized path (e.g. "cytario/lab").
  */
 export async function findGroupByPath(
-  accessToken: string,
   scope: string,
 ): Promise<KeycloakGroup | undefined> {
   const topLevel = scope.split("/")[0];
-  const groups = await fetchGroups(accessToken, topLevel);
+  const groups = await fetchGroups(topLevel);
   const targetPath = `/${scope}`;
 
   const search = (groups: KeycloakGroup[]): KeycloakGroup | undefined => {
@@ -172,10 +167,9 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
  * Fetches members for a group and all its sub-groups, returning the tree structure.
  */
 export async function getGroupWithMembers(
-  accessToken: string,
   scope: string,
 ): Promise<GroupWithMembers | undefined> {
-  const group = await findGroupByPath(accessToken, scope);
+  const group = await findGroupByPath(scope);
   if (!group) return undefined;
 
   const allIds = collectGroupIds(group);
@@ -184,7 +178,6 @@ export async function getGroupWithMembers(
   await Promise.all(
     allIds.map(async (id) => {
       const members = await adminFetch<KeycloakUser[]>(
-        accessToken,
         `/groups/${id}/members?max=500`,
       );
       membersByGroupId.set(id, members);

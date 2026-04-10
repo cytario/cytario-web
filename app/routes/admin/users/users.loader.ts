@@ -8,7 +8,7 @@ import {
 } from "~/.server/auth/keycloakAdmin";
 
 export const usersLoader: LoaderFunction = async ({ request, context }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const scope = new URL(request.url).searchParams.get("scope");
 
   if (!scope) throw new Response("Missing scope", { status: 400 });
@@ -21,7 +21,7 @@ export const usersLoader: LoaderFunction = async ({ request, context }) => {
     throw new Response("Not authorized", { status: 403 });
   }
 
-  const group = await getGroupWithMembers(authTokens.accessToken, scope);
+  const group = await getGroupWithMembers(scope);
 
   if (!group) {
     return { scope, users: [], groups: [] };

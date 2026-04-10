@@ -11,7 +11,7 @@ export const bulkInviteAction: ActionFunction = async ({
   request,
   context,
 }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user } = context.get(authContext);
   const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
 
   const json = await request.json();
@@ -33,7 +33,6 @@ export const bulkInviteAction: ActionFunction = async ({
   const results = await Promise.allSettled(
     rows.map((row) =>
       inviteUser(
-        authTokens.accessToken,
         row.email,
         row.firstName,
         row.lastName,
