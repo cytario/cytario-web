@@ -1,7 +1,7 @@
 import { ConnectionConfig } from "~/.generated/client";
-import { canSee, filterVisible } from "~/.server/auth/authorization";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { prisma } from "~/.server/db/prisma";
+import { canSee, filterVisible } from "~/utils/authorization";
 
 /** List all connection configs visible to the user. */
 export async function listConnections(

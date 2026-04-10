@@ -14,7 +14,7 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   },
   authMiddleware: vi.fn(),
 }));
-vi.mock("~/.server/auth/authorization", () => ({
+vi.mock("~/utils/authorization", () => ({
   canModify: (...args: unknown[]) => mockCanModify(...args),
 }));
 vi.mock("~/.server/auth/getS3Client", () => ({

@@ -3,12 +3,12 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 import { connectionSchema, parseS3Uri } from "./connection.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { canCreate, canModify, canSee } from "~/.server/auth/authorization";
 import { invalidateS3ClientsForBucket } from "~/.server/auth/getS3Client";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
+import { canCreate, canModify, canSee } from "~/utils/authorization";
 
 /** Update a connection config. Cascades name changes to related records. */
 export async function updateConnection(

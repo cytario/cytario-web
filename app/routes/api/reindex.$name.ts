@@ -2,12 +2,12 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { ActionFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { canModify } from "~/.server/auth/authorization";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { buildIndexParquet } from "~/.server/reindex/buildIndex";
 import { listAllObjects } from "~/.server/reindex/listAllObjects";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getConnection } from "~/routes/connections/connections.server";
+import { canModify } from "~/utils/authorization";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];

@@ -3,10 +3,10 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 import { connectionSchema, parseS3Uri } from "./connection.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { canCreate } from "~/.server/auth/authorization";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
+import { canCreate } from "~/utils/authorization";
 
 /** Create a connection config (upserts on the composite unique key). */
 export async function createConnection(

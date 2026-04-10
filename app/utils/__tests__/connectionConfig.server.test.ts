@@ -1,4 +1,3 @@
-import { canModify, canSee, filterVisible } from "~/.server/auth/authorization";
 import { prisma } from "~/.server/db/prisma";
 import {
   getConnection,
@@ -7,6 +6,7 @@ import {
 import { createConnection } from "~/routes/connections/createConnection.action";
 import { deleteConnection } from "~/routes/connections/deleteConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
+import { canModify, canSee, filterVisible } from "~/utils/authorization";
 
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
@@ -19,7 +19,7 @@ vi.mock("~/.server/db/prisma", () => ({
   },
 }));
 
-vi.mock("~/.server/auth/authorization", () => ({
+vi.mock("~/utils/authorization", () => ({
   canSee: vi.fn(),
   canModify: vi.fn(),
   filterVisible: vi.fn(),
