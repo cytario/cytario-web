@@ -2,6 +2,7 @@ import { cytarioConfig } from "~/config";
 
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
+let pendingRefresh: Promise<string> | null = null;
 
 const EXPIRY_BUFFER_MS = 30_000;
 
@@ -9,12 +10,26 @@ const EXPIRY_BUFFER_MS = 30_000;
  * Returns a valid access token for the KC admin service account.
  * Uses the existing cytario-web client credentials with client_credentials grant.
  * Caches the token in memory and refreshes before expiry.
+ * Concurrent callers share a single in-flight refresh to avoid stampeding the token endpoint.
  */
 export async function getAdminToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiresAt - EXPIRY_BUFFER_MS) {
     return cachedToken;
   }
 
+  if (pendingRefresh) {
+    return pendingRefresh;
+  }
+
+  pendingRefresh = refreshToken();
+  try {
+    return await pendingRefresh;
+  } finally {
+    pendingRefresh = null;
+  }
+}
+
+async function refreshToken(): Promise<string> {
   const { baseUrl, clientId, clientSecret } = cytarioConfig.auth;
   const tokenUrl = `${baseUrl}/protocol/openid-connect/token`;
 

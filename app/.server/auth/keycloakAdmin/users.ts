@@ -1,4 +1,9 @@
-import { adminFetch, adminMutate, type KeycloakUser } from "./client";
+import {
+  adminFetch,
+  adminMutate,
+  KeycloakAdminError,
+  type KeycloakUser,
+} from "./client";
 import { findGroupByPath } from "./groups";
 
 export async function getUser(userId: string): Promise<KeycloakUser> {
@@ -59,7 +64,7 @@ export async function inviteUser(
     if (!newUserId) throw new Error("Invalid Location header");
     userId = newUserId;
   } catch (e) {
-    if (e instanceof Error && e.message.includes("409")) {
+    if (e instanceof KeycloakAdminError && e.status === 409) {
       const [existing] = await adminFetch<KeycloakUser[]>(
         `/users?email=${encodeURIComponent(email)}&exact=true`,
       );

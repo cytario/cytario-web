@@ -17,6 +17,16 @@ export interface KeycloakUser {
   enabled: boolean;
 }
 
+export class KeycloakAdminError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "KeycloakAdminError";
+  }
+}
+
 const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace(
   "/realms/",
   "/admin/realms/",
@@ -39,7 +49,8 @@ async function adminRequest(
   });
 
   if (!response.ok) {
-    throw new Error(
+    throw new KeycloakAdminError(
+      response.status,
       `Keycloak Admin API ${method} ${path} failed: ${response.status} ${response.statusText}`,
     );
   }
