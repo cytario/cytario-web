@@ -5,6 +5,7 @@ import {
 } from "react-router";
 
 import { inviteUserSchema } from "./inviteUser.schema";
+import { assertAdminScope } from "../assertAdminScope";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import {
@@ -41,16 +42,7 @@ export const inviteUserAction: ActionFunction = async ({
   context,
 }) => {
   const { user } = context.get(authContext);
-  const scope = new URL(request.url).searchParams.get("scope");
-  if (!scope) throw new Response("Missing scope", { status: 400 });
-  const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
+  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
 
   const formData = await request.formData();
   const inviteAnother = formData.get("inviteAnother") === "true";

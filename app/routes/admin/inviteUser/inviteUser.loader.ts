@@ -1,5 +1,6 @@
 import { type LoaderFunction } from "react-router";
 
+import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import {
   getGroupWithMembers,
@@ -12,16 +13,7 @@ function flattenGroupPaths(group: GroupWithMembers): string[] {
 
 export const inviteUserLoader: LoaderFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const scope = new URL(request.url).searchParams.get("scope");
-
-  if (!scope) throw new Response("Missing scope", { status: 400 });
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
+  const { scope } = assertAdminScope(request.url, user.adminScopes);
 
   const group = await getGroupWithMembers(scope);
 

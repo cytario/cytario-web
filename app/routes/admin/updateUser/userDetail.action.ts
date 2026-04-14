@@ -1,5 +1,6 @@
 import { type ActionFunction, redirect } from "react-router";
 
+import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import {
@@ -17,16 +18,7 @@ export const userDetailAction: ActionFunction = async ({
   params,
 }) => {
   const { user } = context.get(authContext);
-  const scope = new URL(request.url).searchParams.get("scope");
-  if (!scope) throw new Response("Missing scope", { status: 400 });
-  const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
+  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
   await assertUsersInScope([params.userId!], scope);
 
