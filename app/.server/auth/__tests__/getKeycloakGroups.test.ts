@@ -1,4 +1,5 @@
-import { flattenGroups, getManageableScopes } from "../keycloakAdmin";
+import { getManageableScopes } from "../keycloakAdmin";
+import { flattenGroups } from "../keycloakAdmin/groups";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/config", () => ({
@@ -7,6 +8,10 @@ vi.mock("~/config", () => ({
       baseUrl: "http://localhost:8080/realms/master",
     },
   },
+}));
+
+vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
+  getAdminToken: vi.fn().mockResolvedValue("mock-admin-token"),
 }));
 
 const mockGroupTree = [
@@ -102,7 +107,7 @@ describe("getManageableScopes", () => {
       isRealmAdmin: false,
     });
 
-    const result = await getManageableScopes(user, "mock-token");
+    const result = await getManageableScopes(user);
 
     expect(result).toEqual([
       "vericura",
@@ -116,7 +121,9 @@ describe("getManageableScopes", () => {
         "http://localhost:8080/admin/realms/master/groups?",
       ),
       expect.objectContaining({
-        headers: { Authorization: "Bearer mock-token" },
+        headers: expect.objectContaining({
+          Authorization: expect.stringContaining("Bearer "),
+        }),
       }),
     );
   });
@@ -124,7 +131,7 @@ describe("getManageableScopes", () => {
   test("returns empty array when user has no admin scopes", async () => {
     const user = mock.user({ adminScopes: [] });
 
-    const result = await getManageableScopes(user, "mock-token");
+    const result = await getManageableScopes(user);
 
     expect(result).toEqual([]);
   });
@@ -144,7 +151,7 @@ describe("getManageableScopes", () => {
       adminScopes: ["vericura"],
     });
 
-    const result = await getManageableScopes(user, "mock-token");
+    const result = await getManageableScopes(user);
 
     expect(result).toEqual(["vericura"]);
   });
@@ -159,7 +166,7 @@ describe("getManageableScopes", () => {
       adminScopes: ["vericura"],
     });
 
-    const result = await getManageableScopes(user, "mock-token");
+    const result = await getManageableScopes(user);
 
     expect(result).toEqual(["vericura"]);
   });

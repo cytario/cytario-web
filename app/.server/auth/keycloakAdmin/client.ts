@@ -1,3 +1,4 @@
+import { getAdminToken } from "./serviceAccountToken";
 import { cytarioConfig } from "~/config";
 
 export interface KeycloakGroup {
@@ -16,17 +17,28 @@ export interface KeycloakUser {
   enabled: boolean;
 }
 
+export class KeycloakAdminError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "KeycloakAdminError";
+  }
+}
+
 const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace(
   "/realms/",
   "/admin/realms/",
 );
 
 async function adminRequest(
-  accessToken: string,
   method: string,
   path: string,
   body?: unknown,
 ): Promise<Response> {
+  const accessToken = await getAdminToken();
+
   const response = await fetch(`${adminApiBaseUrl}${path}`, {
     method,
     headers: {
@@ -37,7 +49,8 @@ async function adminRequest(
   });
 
   if (!response.ok) {
-    throw new Error(
+    throw new KeycloakAdminError(
+      response.status,
       `Keycloak Admin API ${method} ${path} failed: ${response.status} ${response.statusText}`,
     );
   }
@@ -45,19 +58,15 @@ async function adminRequest(
   return response;
 }
 
-export async function adminFetch<T>(
-  accessToken: string,
-  path: string,
-): Promise<T> {
-  const response = await adminRequest(accessToken, "GET", path);
+export async function adminFetch<T>(path: string): Promise<T> {
+  const response = await adminRequest("GET", path);
   return response.json();
 }
 
 export async function adminMutate(
-  accessToken: string,
   method: "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<Response> {
-  return adminRequest(accessToken, method, path, body);
+  return adminRequest(method, path, body);
 }

@@ -1,11 +1,11 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { authContext } from "~/.server/auth/authMiddleware";
-import { canModify, canSee } from "~/.server/auth/authorization";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
+import { canModify, canSee } from "~/utils/authorization";
 
 /** Delete a connection config by name. Checks visibility and modify authorization. */
 export async function deleteConnection(user: UserProfile, name: string) {

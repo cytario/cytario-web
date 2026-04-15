@@ -1,5 +1,5 @@
-import { canCreate, canModify, canSee, filterVisible } from "../authorization";
 import mock from "~/utils/__tests__/__mocks__";
+import { canCreate, canModify, canSee, filterVisible } from "~/utils/authorization";
 
 describe("canSee", () => {
   test("realm admin can see everything", () => {

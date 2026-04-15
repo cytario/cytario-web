@@ -1,5 +1,8 @@
 import { type ActionFunction, redirect } from "react-router";
 
+import { assertAdminScope } from "../assertAdminScope";
+import { assertGroupsInScope } from "../assertGroupsInScope";
+import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import {
@@ -15,17 +18,10 @@ export const userDetailAction: ActionFunction = async ({
   context,
   params,
 }) => {
-  const { user, authTokens } = context.get(authContext);
-  const scope = new URL(request.url).searchParams.get("scope");
-  if (!scope) throw new Response("Missing scope", { status: 400 });
-  const adminUrl = `/admin/users?scope=${encodeURIComponent(scope)}`;
+  const { user } = context.get(authContext);
+  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
+  await assertUsersInScope([params.userId!], scope);
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
@@ -41,22 +37,27 @@ export const userDetailAction: ActionFunction = async ({
 
   const session = await getSession(request);
 
-  try {
-    await updateUser(authTokens.accessToken, params.userId!, result.data);
+  // Process group membership changes
+  const groupEntries = [...formData.entries()]
+    .filter(([key]) => key.startsWith("group-"))
+    .map(([key, value]) => ({
+      groupId: key.replace("group-", ""),
+      shouldBeMember: value === "true",
+    }));
 
-    // Process group membership changes
-    const groupEntries = [...formData.entries()]
-      .filter(([key]) => key.startsWith("group-"))
-      .map(([key, value]) => ({
-        groupId: key.replace("group-", ""),
-        shouldBeMember: value === "true",
-      }));
+  await assertGroupsInScope(
+    groupEntries.map((e) => e.groupId),
+    scope,
+  );
+
+  try {
+    await updateUser(params.userId!, result.data);
 
     await Promise.all(
       groupEntries.map(({ groupId, shouldBeMember }) =>
         shouldBeMember
-          ? addUserToGroup(authTokens.accessToken, params.userId!, groupId)
-          : removeUserFromGroup(authTokens.accessToken, params.userId!, groupId),
+          ? addUserToGroup(params.userId!, groupId)
+          : removeUserFromGroup(params.userId!, groupId),
       ),
     );
 

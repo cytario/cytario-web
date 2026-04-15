@@ -1,5 +1,6 @@
 import { type LoaderFunction } from "react-router";
 
+import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import {
   getGroupWithMembers,
@@ -8,20 +9,10 @@ import {
 } from "~/.server/auth/keycloakAdmin";
 
 export const usersLoader: LoaderFunction = async ({ request, context }) => {
-  const { user, authTokens } = context.get(authContext);
-  const scope = new URL(request.url).searchParams.get("scope");
+  const { user } = context.get(authContext);
+  const { scope } = assertAdminScope(request.url, user.adminScopes);
 
-  if (!scope) throw new Response("Missing scope", { status: 400 });
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
-
-  const group = await getGroupWithMembers(authTokens.accessToken, scope);
+  const group = await getGroupWithMembers(scope);
 
   if (!group) {
     return { scope, users: [], groups: [] };

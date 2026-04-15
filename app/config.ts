@@ -13,6 +13,9 @@ interface CytarioConfig {
     clientSecret: string;
     /** Dedicated OIDC client ID for Cyberduck (public client with PKCE) */
     cyberduckClientId: string;
+    /** Dedicated service account client for KC Admin API calls (client_credentials grant) */
+    adminClientId: string;
+    adminClientSecret: string;
     scopes: string[];
   };
   redis: {
@@ -34,6 +37,8 @@ const {
   CLIENT_ID,
   CLIENT_SECRET,
   CYBERDUCK_CLIENT_ID,
+  KC_ADMIN_CLIENT_ID,
+  KC_ADMIN_CLIENT_SECRET,
   SCOPES,
   REDIS_PORT,
   REDIS_HOST,
@@ -56,6 +61,8 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     clientId: CLIENT_ID!,
     clientSecret: CLIENT_SECRET!,
     cyberduckClientId: CYBERDUCK_CLIENT_ID!,
+    adminClientId: KC_ADMIN_CLIENT_ID!,
+    adminClientSecret: KC_ADMIN_CLIENT_SECRET!,
     scopes: SCOPES!.split(","),
   },
   redis: {

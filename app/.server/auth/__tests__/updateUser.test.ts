@@ -8,6 +8,10 @@ vi.mock("~/config", () => ({
   },
 }));
 
+vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
+  getAdminToken: vi.fn().mockResolvedValue("mock-admin-token"),
+}));
+
 const BASE = "http://localhost:8080/admin/realms/master";
 
 describe("updateUser", () => {
@@ -19,7 +23,7 @@ describe("updateUser", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);
 
-    await updateUser("token", "user-123", {
+    await updateUser("user-123", {
       firstName: "Jane",
       lastName: "Doe",
       email: "jane@example.com",
@@ -44,7 +48,7 @@ describe("updateUser", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);
 
-    await updateUser("token", "user-456", {
+    await updateUser("user-456", {
       firstName: "John",
       lastName: "Smith",
       email: "john@example.com",
@@ -70,7 +74,7 @@ describe("updateUser", () => {
     );
 
     await expect(
-      updateUser("token", "nonexistent", {
+      updateUser("nonexistent", {
         firstName: "X",
         lastName: "Y",
         email: "x@y.com",

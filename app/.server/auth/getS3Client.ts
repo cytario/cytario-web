@@ -101,11 +101,3 @@ export const invalidateS3ClientsForBucket = (
   }
 };
 
-/**
- * Get cache statistics for monitoring/debugging.
- */
-export const getS3ClientCacheStats = () => ({
-  size: s3ClientCache.size,
-  maxEntries: s3ClientCache.max,
-  ttl: s3ClientCache.ttl,
-});
