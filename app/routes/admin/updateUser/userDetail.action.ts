@@ -1,6 +1,8 @@
 import { type ActionFunction, redirect } from "react-router";
 
 import { assertAdminScope } from "../assertAdminScope";
+import { assertGroupsInScope } from "../assertGroupsInScope";
+import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import {
@@ -9,7 +11,6 @@ import {
   updateUser,
 } from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { assertUsersInScope } from "~/routes/admin/assertUsersInScope";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
 export const userDetailAction: ActionFunction = async ({
@@ -36,16 +37,21 @@ export const userDetailAction: ActionFunction = async ({
 
   const session = await getSession(request);
 
+  // Process group membership changes
+  const groupEntries = [...formData.entries()]
+    .filter(([key]) => key.startsWith("group-"))
+    .map(([key, value]) => ({
+      groupId: key.replace("group-", ""),
+      shouldBeMember: value === "true",
+    }));
+
+  await assertGroupsInScope(
+    groupEntries.map((e) => e.groupId),
+    scope,
+  );
+
   try {
     await updateUser(params.userId!, result.data);
-
-    // Process group membership changes
-    const groupEntries = [...formData.entries()]
-      .filter(([key]) => key.startsWith("group-"))
-      .map(([key, value]) => ({
-        groupId: key.replace("group-", ""),
-        shouldBeMember: value === "true",
-      }));
 
     await Promise.all(
       groupEntries.map(({ groupId, shouldBeMember }) =>

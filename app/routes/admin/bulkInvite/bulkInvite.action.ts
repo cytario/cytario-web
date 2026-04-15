@@ -2,6 +2,7 @@ import { type ActionFunction, redirect } from "react-router";
 
 import { bulkInviteSchema } from "./bulkInvite.schema";
 import { assertAdminScope } from "../assertAdminScope";
+import { assertGroupPathsInScope } from "../assertGroupPathsInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
@@ -12,7 +13,7 @@ export const bulkInviteAction: ActionFunction = async ({
   context,
 }) => {
   const { user } = context.get(authContext);
-  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
+  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
   const json = await request.json();
   const result = bulkInviteSchema.safeParse(json);
@@ -23,12 +24,7 @@ export const bulkInviteAction: ActionFunction = async ({
 
   const { groupPath, enabled, rows } = result.data;
 
-  const isGroupPathAllowed = user.adminScopes.some(
-    (s) => groupPath === s || groupPath.startsWith(s + "/"),
-  );
-  if (!isGroupPathAllowed) {
-    throw new Response("Not authorized", { status: 403 });
-  }
+  await assertGroupPathsInScope([groupPath], scope);
 
   const results = await Promise.allSettled(
     rows.map((row) =>

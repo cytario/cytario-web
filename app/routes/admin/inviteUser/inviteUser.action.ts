@@ -2,6 +2,7 @@ import { type ActionFunction, redirect } from "react-router";
 
 import { inviteUserSchema } from "./inviteUser.schema";
 import { assertAdminScope } from "../assertAdminScope";
+import { assertGroupPathsInScope } from "../assertGroupPathsInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
@@ -12,7 +13,7 @@ export const inviteUserAction: ActionFunction = async ({
   context,
 }) => {
   const { user } = context.get(authContext);
-  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
+  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
   const formData = await request.formData();
   const inviteAnother = formData.get("inviteAnother") === "true";
@@ -26,13 +27,7 @@ export const inviteUserAction: ActionFunction = async ({
     return { errors: result.error.flatten().fieldErrors };
   }
 
-  const isGroupPathAllowed = user.adminScopes.some(
-    (s) =>
-      result.data.groupPath === s || result.data.groupPath.startsWith(s + "/"),
-  );
-  if (!isGroupPathAllowed) {
-    throw new Response("Not authorized", { status: 403 });
-  }
+  await assertGroupPathsInScope([result.data.groupPath], scope);
 
   const session = await getSession(request);
 
