@@ -14,6 +14,27 @@ jobs:
     name: QA Checks
     uses: ./.github/workflows/qa-checks.yml
 
+  e2e:
+    name: E2E Tests (cytario-docs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger and wait for cytario-docs E2E run
+        uses: convictional/trigger-workflow-and-wait@v1.6.5
+        with:
+          owner: cytario
+          repo: cytario-docs
+          github_token: ${{ secrets.CYTARIO_DOCS_DISPATCH_TOKEN }}
+          workflow_file_name: e2e.yml
+          ref: main
+          client_workflow_inputs: |
+            {
+              "ref": "${{ github.event.pull_request.head.sha }}",
+              "docs_branch_hint": "${{ github.head_ref }}"
+            }
+          wait_interval: 20
+          propagate_failure: true
+
   build:
     name: Build
     uses: ./.github/workflows/container.yml
