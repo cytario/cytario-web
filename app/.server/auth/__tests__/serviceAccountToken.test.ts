@@ -2,8 +2,8 @@ vi.mock("~/config", () => ({
   cytarioConfig: {
     auth: {
       baseUrl: "http://localhost:8080/realms/master",
-      clientId: "cytario-web",
-      clientSecret: "test-secret",
+      adminClientId: "cytario-web-admin",
+      adminClientSecret: "test-secret",
     },
   },
 }));
@@ -48,7 +48,7 @@ describe("getAdminToken", () => {
 
     const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
     expect(body.get("grant_type")).toBe("client_credentials");
-    expect(body.get("client_id")).toBe("cytario-web");
+    expect(body.get("client_id")).toBe("cytario-web-admin");
     expect(body.get("client_secret")).toBe("test-secret");
   });
 

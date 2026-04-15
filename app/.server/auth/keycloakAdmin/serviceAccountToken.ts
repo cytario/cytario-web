@@ -8,7 +8,7 @@ const EXPIRY_BUFFER_MS = 30_000;
 
 /**
  * Returns a valid access token for the KC admin service account.
- * Uses the existing cytario-web client credentials with client_credentials grant.
+ * Uses the dedicated cytario-web-admin client credentials with client_credentials grant.
  * Caches the token in memory and refreshes before expiry.
  * Concurrent callers share a single in-flight refresh to avoid stampeding the token endpoint.
  */
@@ -30,7 +30,7 @@ export async function getAdminToken(): Promise<string> {
 }
 
 async function refreshToken(): Promise<string> {
-  const { baseUrl, clientId, clientSecret } = cytarioConfig.auth;
+  const { baseUrl, adminClientId, adminClientSecret } = cytarioConfig.auth;
   const tokenUrl = `${baseUrl}/protocol/openid-connect/token`;
 
   const response = await fetch(tokenUrl, {
@@ -38,8 +38,8 @@ async function refreshToken(): Promise<string> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: adminClientId,
+      client_secret: adminClientSecret,
     }),
   });
 
