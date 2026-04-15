@@ -1,41 +1,11 @@
-import {
-  type ActionFunction,
-  type LoaderFunction,
-  redirect,
-} from "react-router";
+import { type ActionFunction, redirect } from "react-router";
 
 import { inviteUserSchema } from "./inviteUser.schema";
 import { assertAdminScope } from "../assertAdminScope";
-import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import {
-  getGroupWithMembers,
-  GroupWithMembers,
-} from "~/.server/auth/keycloakAdmin/groups";
 import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-
-export const middleware = [authMiddleware];
-
-function flattenGroupPaths(group: GroupWithMembers): string[] {
-  return [group.path, ...group.subGroups.flatMap(flattenGroupPaths)];
-}
-
-export const loader: LoaderFunction = async ({ context, params }) => {
-  const { user } = context.get(authContext);
-  const scope = [params.s0, params.s1, params.s2, params.s3].filter(Boolean).join("/");
-
-  const isAdmin = user.adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
-  if (!isAdmin) {
-    throw new Response("Not authorized", { status: 403 });
-  }
-
-  const group = await getGroupWithMembers(scope);
-
-  return { scope, groupOptions: group ? flattenGroupPaths(group) : [scope] };
-};
 
 export const inviteUserAction: ActionFunction = async ({
   request,
