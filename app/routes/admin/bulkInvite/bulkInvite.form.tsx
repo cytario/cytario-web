@@ -8,6 +8,7 @@ import {
   bulkInviteRowSchema,
   bulkInviteSchema,
 } from "./bulkInvite.schema";
+import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface BulkInviteFormProps {
   scope: string;
@@ -159,6 +160,7 @@ export function BulkInviteForm({
             items={selectItems}
             selectedKey={groupPath}
             onSelectionChange={(key) => setGroupPath(key as string)}
+            renderItem={(item) => <ScopePill scope={item.id} />}
           />
         ) : (
           <Field label="Group Membership">

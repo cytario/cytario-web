@@ -73,6 +73,7 @@ describe("AdminUsersRoute", () => {
           scope: "cytario/lab",
           users,
           groups,
+          connections: [],
         }),
       },
     ]);

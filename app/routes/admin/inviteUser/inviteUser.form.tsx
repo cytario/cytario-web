@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
+import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface InviteUserFormProps {
   scope: string;
@@ -121,6 +122,7 @@ export function InviteUserForm({
                 items={groupOptions.map((p) => ({ id: p, name: p }))}
                 selectedKey={field.value}
                 onSelectionChange={(key) => field.onChange(key as string)}
+                renderItem={(item) => <ScopePill scope={item.id} />}
               />
             )}
           />

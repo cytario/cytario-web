@@ -7,6 +7,7 @@ import { useSubmit } from "react-router";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { type KeycloakUser } from "~/.server/auth/keycloakAdmin/client";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
+import { ScopePill } from "~/components/Pills/ScopePill";
 import {
   type UpdateUserFormData,
   updateUserSchema,
@@ -214,7 +215,7 @@ export const UpdateUserForm = ({
                     isSelected={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
                   >
-                    {group.path}
+                    <ScopePill scope={group.path} />
                   </Checkbox>
                 </div>
               ))}
@@ -232,7 +233,7 @@ export const UpdateUserForm = ({
                     isSelected={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
                   >
-                    {group.path}
+                    <ScopePill scope={group.path} />
                   </Checkbox>
                 </div>
               ))}

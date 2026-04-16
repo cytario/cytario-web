@@ -23,7 +23,7 @@ import {
   suggestName,
 } from "./connection.schema";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
-import { VisibilityPill } from "~/components/Pills/VisibilityPill";
+import { ScopePill } from "~/components/Pills/ScopePill";
 
 const STEP_LABELS = ["Storage Type", "Connection Details", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -65,12 +65,15 @@ interface ConnectionFormProps {
   adminScopes: string[];
   userId: string;
   initialData?: ConnectBucketFormData & { originalName: string };
+  /** Pre-select owner scope (e.g. from admin page ?scope= param). Falls back to userId. */
+  defaultOwnerScope?: string;
 }
 
 export const ConnectionForm = ({
   adminScopes,
   userId,
   initialData,
+  defaultOwnerScope,
 }: ConnectionFormProps) => {
   const isEditMode = !!initialData;
   const submit = useSubmit();
@@ -108,9 +111,9 @@ export const ConnectionForm = ({
       ? {
           ...defaultFormValues,
           ...initialData,
-          ownerScope: initialData.ownerScope || userId,
+          ownerScope: initialData.ownerScope || defaultOwnerScope || userId,
         }
-      : { ...defaultFormValues, ownerScope: userId },
+      : { ...defaultFormValues, ownerScope: defaultOwnerScope || userId },
     mode: "onTouched",
   });
 
@@ -298,7 +301,7 @@ export const ConnectionForm = ({
                         selectedKey={field.value}
                         onSelectionChange={(key) => field.onChange(key)}
                         renderItem={(item) => (
-                          <VisibilityPill scope={item.id} />
+                          <ScopePill scope={item.id} />
                         )}
                       />
                     )}

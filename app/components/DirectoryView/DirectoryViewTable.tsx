@@ -11,7 +11,7 @@ import {
 } from "./buildDirectoryTree";
 import { NodeLink } from "./NodeLink/NodeLink";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
-import { VisibilityPill } from "~/components/Pills/VisibilityPill";
+import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
@@ -49,7 +49,7 @@ export const connectionColumns: ColumnConfig[] = [
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
-    filterRender: (option) => <VisibilityPill scope={option.value} />,
+    filterRender: (option) => <ScopePill scope={option.value} />,
   },
   {
     id: "provider",
@@ -97,7 +97,7 @@ export const connectionColumns: ColumnConfig[] = [
 
 const connectionCellRenderers: CellRenderers<ConnectionRow> = {
   name: (row) => <NodeLink node={row._node} viewMode="list" />,
-  ownerScope: (row) => <VisibilityPill scope={row.ownerScope} />,
+  ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
   provider: (row) => <ProviderPill provider={row.provider} />,
 };
 

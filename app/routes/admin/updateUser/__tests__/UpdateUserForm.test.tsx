@@ -63,15 +63,19 @@ describe("UpdateUserForm", () => {
       renderForm();
 
       expect(screen.getByText("Group Membership")).toBeInTheDocument();
-      expect(screen.getByText("cytario/lab")).toBeInTheDocument();
-      expect(screen.getByText("cytario/lab/team-a")).toBeInTheDocument();
+      expect(screen.getByLabelText("Path: cytario / lab")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Path: cytario / lab / team-a"),
+      ).toBeInTheDocument();
     });
 
     test("renders Admin Groups section for admin groups", () => {
       renderForm();
 
       expect(screen.getByText("Admin Groups")).toBeInTheDocument();
-      expect(screen.getByText("cytario/lab/admins")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Path: cytario / lab / admins"),
+      ).toBeInTheDocument();
     });
 
     test("hides Admin Groups section when no admin groups exist", () => {

@@ -7,6 +7,7 @@ import {
   type CreateGroupFormData,
   createGroupSchema,
 } from "./createGroup.schema";
+import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface CreateGroupFormProps {
   scope: string;
@@ -57,12 +58,9 @@ export function CreateGroupForm({ scope }: CreateGroupFormProps) {
       </Fieldset>
 
       {nameValue.trim() && (
-        <p className="text-sm text-slate-500">
-          Full path:{" "}
-          <span className="font-medium text-slate-700">
-            {scope}/{nameValue.trim()}
-          </span>
-        </p>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          Full path: <ScopePill scope={`${scope}/${nameValue.trim()}`} />
+        </div>
       )}
 
       <p className="text-sm text-slate-500">

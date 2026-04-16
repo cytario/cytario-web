@@ -1,4 +1,4 @@
-import { useRouteLoaderData } from "react-router";
+import { useRouteLoaderData, useSearchParams } from "react-router";
 
 import { ConnectionForm } from "./connection.form";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
@@ -13,12 +13,26 @@ export default function CreateConnectionModal({
     | { user?: UserProfile }
     | undefined;
   const user = rootData?.user;
+  const [searchParams] = useSearchParams();
 
   if (!user) return null;
 
+  // Pre-select the best matching admin scope from the URL's ?scope= param.
+  // Prefer exact match, then fall back to the covering parent scope.
+  const scopeParam = searchParams.get("scope");
+  const matchingScope = scopeParam
+    ? user.adminScopes.find((s) => scopeParam === s) ??
+      user.adminScopes.find((s) => scopeParam.startsWith(s + "/"))
+    : undefined;
+  const defaultScope = matchingScope ?? user.sub;
+
   return (
     <RouteModal title="Connect Storage" onClose={onClose}>
-      <ConnectionForm adminScopes={user.adminScopes} userId={user.sub} />
+      <ConnectionForm
+        adminScopes={user.adminScopes}
+        userId={user.sub}
+        defaultOwnerScope={defaultScope}
+      />
     </RouteModal>
   );
 }
