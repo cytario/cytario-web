@@ -55,9 +55,13 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
             <>
               <MenuSection header="Groups">
                 {user.groups.map((group) => (
-                  <div key={group} className="px-3 py-2 text-sm">
+                  <MenuItem
+                    key={group}
+                    id={`group-${group}`}
+                    className="hover:bg-transparent focus:bg-transparent cursor-default"
+                  >
                     <ScopePill scope={group} />
-                  </div>
+                  </MenuItem>
                 ))}
               </MenuSection>
               <MenuSeparator />
