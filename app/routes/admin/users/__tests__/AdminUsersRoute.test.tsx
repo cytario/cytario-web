@@ -64,7 +64,15 @@ const mockGroups: GroupInfo[] = [
 ];
 
 describe("AdminUsersRoute", () => {
-  function renderRoute(users = mockUsers, groups = mockGroups) {
+  const mockConnections = [
+    { name: "Exchange", provider: "aws", ownerScope: "cytario/lab" },
+  ];
+
+  function renderRoute(
+    users = mockUsers,
+    groups = mockGroups,
+    connections: typeof mockConnections = [],
+  ) {
     const RemixStub = createRoutesStub([
       {
         path: "/admin/users",
@@ -73,7 +81,7 @@ describe("AdminUsersRoute", () => {
           scope: "cytario/lab",
           users,
           groups,
-          connections: [],
+          connections,
         }),
       },
     ]);
@@ -147,5 +155,43 @@ describe("AdminUsersRoute", () => {
     // Marcus is in "cytario/lab/admins" — should appear in Admin Groups column
     // The "admins" text should appear as a visible PathPill segment
     expect(await screen.findByText("admins")).toBeInTheDocument();
+  });
+
+  test("SRS-CY-35107: renders Connections section heading", async () => {
+    renderRoute();
+
+    expect(await screen.findByText("Connections")).toBeInTheDocument();
+  });
+
+  test("SRS-CY-35107: renders connection cards when connections exist", async () => {
+    renderRoute(mockUsers, mockGroups, mockConnections);
+
+    expect(await screen.findByText("Exchange")).toBeInTheDocument();
+    expect(screen.getByText("AWS S3")).toBeInTheDocument();
+  });
+
+  test("SRS-CY-35108: renders warning banner when no connections", async () => {
+    renderRoute(mockUsers, mockGroups, []);
+
+    expect(
+      await screen.findByText(/No connections linked to this group/),
+    ).toBeInTheDocument();
+  });
+
+  test("SRS-CY-35108: no warning banner when connections exist", async () => {
+    renderRoute(mockUsers, mockGroups, mockConnections);
+
+    await screen.findByText("Exchange");
+    expect(
+      screen.queryByText(/No connections linked to this group/),
+    ).not.toBeInTheDocument();
+  });
+
+  test("SRS-CY-35109: renders Connect Storage button", async () => {
+    renderRoute();
+
+    expect(
+      await screen.findByRole("button", { name: /Connect Storage/ }),
+    ).toBeInTheDocument();
   });
 });

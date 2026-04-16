@@ -4,6 +4,23 @@ import { ConnectionForm } from "./connection.form";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { RouteModal } from "~/components/RouteModal";
 
+/**
+ * Resolve the best default owner scope from a URL scope param.
+ * Prefers exact match in adminScopes, then covering parent, then userId fallback.
+ */
+export function resolveDefaultScope(
+  scopeParam: string | null,
+  adminScopes: string[],
+  userId: string,
+): string {
+  if (!scopeParam) return userId;
+  return (
+    adminScopes.find((s) => scopeParam === s) ??
+    adminScopes.find((s) => scopeParam.startsWith(s + "/")) ??
+    userId
+  );
+}
+
 export default function CreateConnectionModal({
   onClose,
 }: {
@@ -17,14 +34,11 @@ export default function CreateConnectionModal({
 
   if (!user) return null;
 
-  // Pre-select the best matching admin scope from the URL's ?scope= param.
-  // Prefer exact match, then fall back to the covering parent scope.
-  const scopeParam = searchParams.get("scope");
-  const matchingScope = scopeParam
-    ? user.adminScopes.find((s) => scopeParam === s) ??
-      user.adminScopes.find((s) => scopeParam.startsWith(s + "/"))
-    : undefined;
-  const defaultScope = matchingScope ?? user.sub;
+  const defaultScope = resolveDefaultScope(
+    searchParams.get("scope"),
+    user.adminScopes,
+    user.sub,
+  );
 
   return (
     <RouteModal title="Connect Storage" onClose={onClose}>
