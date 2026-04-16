@@ -1,0 +1,74 @@
+import { Field, Fieldset, Input } from "@cytario/design";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { useSubmit } from "react-router";
+
+import {
+  type CreateGroupFormData,
+  createGroupSchema,
+} from "./createGroup.schema";
+
+interface CreateGroupFormProps {
+  scope: string;
+}
+
+export function CreateGroupForm({ scope }: CreateGroupFormProps) {
+  const submit = useSubmit();
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CreateGroupFormData>({
+    resolver: zodResolver(createGroupSchema),
+    defaultValues: { name: "" },
+    mode: "onBlur",
+  });
+
+  const nameValue = useWatch({ control, name: "name" });
+
+  const onSubmit = (data: CreateGroupFormData) => {
+    const formData = new FormData();
+    formData.append("name", data.name);
+    submit(formData, { method: "post" });
+  };
+
+  return (
+    <form
+      id="create-group-form"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4"
+    >
+      <Fieldset>
+        <Field label="Group name" error={errors.name}>
+          <Controller
+            control={control}
+            name="name"
+            render={({ field }) => (
+              <Input
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
+        </Field>
+      </Fieldset>
+
+      {nameValue.trim() && (
+        <p className="text-sm text-slate-500">
+          Full path:{" "}
+          <span className="font-medium text-slate-700">
+            {scope}/{nameValue.trim()}
+          </span>
+        </p>
+      )}
+
+      <p className="text-sm text-slate-500">
+        An <span className="font-medium">admins</span> subgroup will be created
+        automatically.
+      </p>
+    </form>
+  );
+}

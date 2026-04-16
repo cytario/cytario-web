@@ -56,6 +56,10 @@ const protectedRoutes = [
             file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
           },
           {
+            path: "create-group",
+            file: "routes/admin/createGroup/createGroup.modal.tsx",
+          },
+          {
             path: ":userId",
             file: "routes/admin/updateUser/updateUser.modal.tsx",
           },
