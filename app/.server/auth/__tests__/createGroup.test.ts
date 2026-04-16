@@ -75,6 +75,7 @@ describe("createGroup", () => {
     expect(result).toEqual({
       id: "new-group-id",
       path: "cytario/lab/Ultivue",
+      adminsGroupId: "admins-group-id",
     });
 
     // Created group under parent

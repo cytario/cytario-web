@@ -179,7 +179,7 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
 export async function createGroup(
   parentScope: string,
   name: string,
-): Promise<{ id: string; path: string }> {
+): Promise<{ id: string; path: string; adminsGroupId: string }> {
   const parent = await findGroupByPath(parentScope);
   if (!parent) {
     throw new KeycloakAdminError(404, `Parent group not found: ${parentScope}`);
@@ -200,10 +200,18 @@ export async function createGroup(
     throw new Error("Could not extract group ID from Location header");
   }
 
+  let adminsGroupId: string;
   try {
-    await adminMutate("POST", `/groups/${newGroupId}/children`, {
-      name: "admins",
-    });
+    const adminsResponse = await adminMutate(
+      "POST",
+      `/groups/${newGroupId}/children`,
+      { name: "admins" },
+    );
+    const adminsLocation = adminsResponse.headers.get("location");
+    adminsGroupId = adminsLocation?.split("/").pop() ?? "";
+    if (!adminsGroupId) {
+      throw new Error("Missing Location header from admins subgroup creation");
+    }
   } catch (e) {
     console.error("Failed to create admins subgroup, rolling back:", e);
     try {
@@ -217,6 +225,7 @@ export async function createGroup(
   return {
     id: newGroupId,
     path: `${parentScope}/${name}`,
+    adminsGroupId,
   };
 }
 

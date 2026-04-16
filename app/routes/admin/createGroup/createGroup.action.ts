@@ -4,7 +4,7 @@ import { createGroupSchema } from "./createGroup.schema";
 import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { createGroup } from "~/.server/auth/keycloakAdmin";
+import { addUserToGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
@@ -25,11 +25,22 @@ export const createGroupAction: ActionFunction = async ({
   const session = await getSession(request);
 
   try {
-    await createGroup(scope, result.data.name);
+    const { path, adminsGroupId } = await createGroup(
+      scope,
+      result.data.name,
+    );
+
+    await addUserToGroup(user.sub, adminsGroupId);
+
+    const newScopeUrl = `/admin/users?scope=${encodeURIComponent(path)}`;
 
     session.set("notification", {
       status: "success",
       message: `Created group "${result.data.name}" under ${scope}.`,
+    });
+
+    return redirect(newScopeUrl, {
+      headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (e) {
     console.error("Create group failed:", e);

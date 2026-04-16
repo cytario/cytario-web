@@ -6,6 +6,7 @@ import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 
 vi.mock("~/.server/auth/keycloakAdmin", () => ({
   createGroup: vi.fn(),
+  addUserToGroup: vi.fn(),
 }));
 
 vi.mock("~/.server/auth/getSession", () => ({
@@ -18,7 +19,9 @@ vi.mock("~/.server/auth/sessionStorage", () => ({
   },
 }));
 
-const { createGroup } = await import("~/.server/auth/keycloakAdmin");
+const { createGroup, addUserToGroup } = await import(
+  "~/.server/auth/keycloakAdmin"
+);
 const { getSession } = await import("~/.server/auth/getSession");
 
 let mockSession: { set: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
@@ -35,7 +38,7 @@ function makeRequest(name: string, scope = "cytario/lab") {
 function makeContext(adminScopes: string[] = ["cytario"]) {
   const ctx = new Map();
   ctx.set(authContext, {
-    user: { adminScopes },
+    user: { sub: "user-123", adminScopes },
   });
   return ctx;
 }
@@ -59,6 +62,7 @@ describe("createGroupAction", () => {
     vi.mocked(createGroup).mockResolvedValue({
       id: "new-id",
       path: "cytario/lab/Ultivue",
+      adminsGroupId: "admins-id",
     });
 
     const response = await callAction(
@@ -67,8 +71,12 @@ describe("createGroupAction", () => {
     );
 
     expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue");
+    expect(addUserToGroup).toHaveBeenCalledWith("user-123", "admins-id");
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
+    expect((response as Response).headers.get("location")).toBe(
+      "/admin/users?scope=cytario%2Flab%2FUltivue",
+    );
 
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
       status: "success",
