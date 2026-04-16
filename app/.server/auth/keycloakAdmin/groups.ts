@@ -206,7 +206,11 @@ export async function createGroup(
     });
   } catch (e) {
     console.error("Failed to create admins subgroup, rolling back:", e);
-    await adminMutate("DELETE", `/groups/${newGroupId}`);
+    try {
+      await adminMutate("DELETE", `/groups/${newGroupId}`);
+    } catch (rollbackErr) {
+      console.error("Rollback also failed, orphaned group:", rollbackErr);
+    }
     throw e;
   }
 

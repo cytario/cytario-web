@@ -27,6 +27,17 @@ describe("createGroupSchema", () => {
     expect(result.data!.name).toBe("Ultivue");
   });
 
+  test("parses unicode names", () => {
+    const result = createGroupSchema.safeParse({ name: "Forschung München" });
+    expect(result.success).toBe(true);
+    expect(result.data!.name).toBe("Forschung München");
+  });
+
+  test("fails with whitespace-only name", () => {
+    const result = createGroupSchema.safeParse({ name: "   " });
+    expect(result.success).toBe(false);
+  });
+
   test("fails with empty name", () => {
     const result = createGroupSchema.safeParse({ name: "" });
     expect(result.success).toBe(false);
