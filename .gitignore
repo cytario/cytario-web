@@ -21,6 +21,10 @@ venv
 # Prisma generated client
 app/.generated/
 
+# Playwright
+/playwright-report/
+/test-results/
+
 # LLM Support
 .claude/
 
