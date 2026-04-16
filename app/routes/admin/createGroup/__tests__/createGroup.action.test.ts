@@ -80,7 +80,7 @@ describe("createGroupAction", () => {
 
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
       status: "success",
-      message: 'Created group "Ultivue" under cytario/lab.',
+      message: 'Created group "Ultivue".',
     });
   });
 
@@ -106,7 +106,7 @@ describe("createGroupAction", () => {
     expect(response).toBeInstanceOf(Response);
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
       status: "error",
-      message: 'A group named "existing" already exists under cytario/lab.',
+      message: 'A group named "existing" already exists in this group.',
     });
   });
 

@@ -66,8 +66,7 @@ export function CreateGroupForm({ scope }: CreateGroupFormProps) {
       )}
 
       <p className="text-sm text-slate-500">
-        An <span className="font-medium">admins</span> subgroup will be created
-        automatically.
+        You will be added as an admin of this group automatically.
       </p>
     </form>
   );

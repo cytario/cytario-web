@@ -27,12 +27,11 @@ describe("CreateGroupForm", () => {
     expect(screen.getByText("Group name")).toBeInTheDocument();
   });
 
-  test("shows admins subgroup help text", () => {
+  test("shows admin help text", () => {
     renderForm();
 
-    expect(screen.getByText(/admins/)).toBeInTheDocument();
     expect(
-      screen.getByText(/subgroup will be created automatically/),
+      screen.getByText(/added as an admin of this group automatically/),
     ).toBeInTheDocument();
   });
 });

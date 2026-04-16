@@ -36,7 +36,7 @@ export const createGroupAction: ActionFunction = async ({
 
     session.set("notification", {
       status: "success",
-      message: `Created group "${result.data.name}" under ${scope}.`,
+      message: `Created group "${result.data.name}".`,
     });
 
     return redirect(newScopeUrl, {
@@ -49,7 +49,7 @@ export const createGroupAction: ActionFunction = async ({
       e instanceof KeycloakAdminError ? e.status : undefined;
     const message =
       status === 409
-        ? `A group named "${result.data.name}" already exists under ${scope}.`
+        ? `A group named "${result.data.name}" already exists in this group.`
         : "Failed to create group. Please try again.";
 
     session.set("notification", {
