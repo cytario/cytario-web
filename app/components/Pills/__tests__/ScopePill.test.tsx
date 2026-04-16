@@ -43,4 +43,24 @@ describe("ScopePill", () => {
     expect(screen.getByText("team-x")).toBeInTheDocument();
     expect(screen.queryByText("cytario")).toBeNull();
   });
+
+  test("renders Shield icon for admin scope", () => {
+    const { container } = render(
+      <ScopePill scope="cytario/Lab Services/admins" />,
+    );
+    expect(container.querySelector(".lucide-shield")).toBeInTheDocument();
+    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
+  });
+
+  test("renders Users icon for non-admin scope", () => {
+    const { container } = render(<ScopePill scope="cytario/Lab Services" />);
+    expect(container.querySelector(".lucide-users")).toBeInTheDocument();
+    expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
+  });
+
+  test("renders no icon for Personal scope", () => {
+    const { container } = render(<ScopePill scope="" />);
+    expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
+    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
+  });
 });

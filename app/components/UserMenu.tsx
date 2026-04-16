@@ -6,7 +6,7 @@ import {
   MenuSection,
   MenuSeparator,
 } from "@cytario/design";
-import { LogOut, Settings, Shield, User, Users } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
@@ -41,7 +41,6 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
                   <MenuItem
                     key={scope}
                     id={`admin-${scope}`}
-                    icon={Shield}
                     href={`/admin/users?scope=${encodeURIComponent(scope)}`}
                   >
                     <ScopePill scope={scope} />
@@ -56,7 +55,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
             <>
               <MenuSection header="Groups">
                 {user.groups.map((group) => (
-                  <MenuItem key={group} id={`group-${group}`} icon={Users}>
+                  <MenuItem key={group} id={`group-${group}`}>
                     <ScopePill scope={group} />
                   </MenuItem>
                 ))}

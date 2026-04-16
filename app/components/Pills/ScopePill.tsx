@@ -4,6 +4,7 @@ import {
   type PillColor,
   pillColorFromName,
 } from "@cytario/design";
+import { Shield, Users } from "lucide-react";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,9 +24,19 @@ export function ScopePill({ scope, visibleCount }: ScopePillProps) {
   if (!scope || UUID_RE.test(scope)) {
     return <Pill color="slate">Personal</Pill>;
   }
+
+  const isAdmin = scope.endsWith("/admins");
+
   return (
-    <PathPill visibleCount={visibleCount} colorFn={scopeColor}>
-      {scope}
-    </PathPill>
+    <div className="inline-flex items-center gap-1">
+      {isAdmin ? (
+        <Shield size={16} aria-hidden="true" className="shrink-0 text-(--color-text-secondary)" />
+      ) : (
+        <Users size={16} aria-hidden="true" className="shrink-0 text-(--color-text-secondary)" />
+      )}
+      <PathPill visibleCount={visibleCount} colorFn={scopeColor}>
+        {scope}
+      </PathPill>
+    </div>
   );
 }
