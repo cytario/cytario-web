@@ -59,7 +59,6 @@ interface UserRow {
   userId: string;
   email: string;
   enabled: string;
-  adminGroups: string;
   groups: string;
   _scope: string;
   [key: string]: unknown;
@@ -116,12 +115,8 @@ function buildGroupColumn(
 function buildColumns(
   groups: GroupInfo[],
   groupCounts: Map<string, number>,
-  adminGroupCounts: Map<string, number>,
   totalCount: number,
 ): ColumnConfig[] {
-  const nonAdminGroups = groups.filter((g) => !g.isAdmin);
-  const adminGroups = groups.filter((g) => g.isAdmin);
-
   return [
     {
       id: "name",
@@ -182,17 +177,9 @@ function buildColumns(
       },
     },
     buildGroupColumn(
-      "adminGroups",
-      "Admin Groups",
-      adminGroups,
-      adminGroupCounts,
-      totalCount,
-      { pillVisibleCount: 2 },
-    ),
-    buildGroupColumn(
       "groups",
       "Groups",
-      nonAdminGroups,
+      groups,
       groupCounts,
       totalCount,
     ),
@@ -214,16 +201,6 @@ const cellRenderers: CellRenderers<UserRow> = {
       <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>
     );
   },
-  adminGroups: (row) => (
-    <div className="flex flex-wrap gap-1">
-      {row.adminGroups
-        .split(", ")
-        .filter(Boolean)
-        .map((path) => (
-          <ScopePill key={path} scope={path} />
-        ))}
-    </div>
-  ),
   groups: (row) => (
     <div className="flex flex-wrap gap-1">
       {row.groups
@@ -256,12 +233,7 @@ export default function AdminUsersRoute() {
         userId: user.id,
         email: user.email ?? "",
         enabled: String(user.enabled),
-        adminGroups: [...groupPaths]
-          .filter((p) => p.endsWith("/admins"))
-          .join(", "),
-        groups: [...groupPaths]
-          .filter((p) => !p.endsWith("/admins"))
-          .join(", "),
+        groups: [...groupPaths].join(", "),
         _scope: scope,
       })),
     [users, scope],
@@ -277,19 +249,9 @@ export default function AdminUsersRoute() {
     return counts;
   }, [data]);
 
-  const adminGroupCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const row of data) {
-      for (const path of row.adminGroups.split(", ").filter(Boolean)) {
-        counts.set(path, (counts.get(path) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [data]);
-
   const columns = useMemo(
-    () => buildColumns(groups, groupCounts, adminGroupCounts, data.length),
-    [groups, groupCounts, adminGroupCounts, data.length],
+    () => buildColumns(groups, groupCounts, data.length),
+    [groups, groupCounts, data.length],
   );
 
   return (

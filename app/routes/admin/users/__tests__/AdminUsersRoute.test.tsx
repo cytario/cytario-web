@@ -98,7 +98,6 @@ describe("AdminUsersRoute", () => {
     expect(await screen.findByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Email")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
-    expect(screen.getByText("Admin Groups")).toBeInTheDocument();
     expect(screen.getByText("Groups")).toBeInTheDocument();
 
     // ID is hidden by default
