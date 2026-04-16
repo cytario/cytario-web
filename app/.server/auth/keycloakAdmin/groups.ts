@@ -1,5 +1,11 @@
 import type { UserProfile } from "../getUserInfo";
-import { adminFetch, type KeycloakGroup, type KeycloakUser } from "./client";
+import {
+  adminFetch,
+  adminMutate,
+  KeycloakAdminError,
+  type KeycloakGroup,
+  type KeycloakUser,
+} from "./client";
 
 export interface GroupWithMembers {
   id: string;
@@ -161,6 +167,66 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
 
   traverse(group);
   return Array.from(userMap.values());
+}
+
+/**
+ * Creates a subgroup under the given parent scope, and auto-creates an
+ * "admins" subgroup inside the new group for admin delegation.
+ *
+ * If the admins subgroup creation fails, the parent group is rolled back
+ * (deleted) to avoid leaving the hierarchy in an inconsistent state.
+ */
+export async function createGroup(
+  parentScope: string,
+  name: string,
+): Promise<{ id: string; path: string; adminsGroupId: string }> {
+  const parent = await findGroupByPath(parentScope);
+  if (!parent) {
+    throw new KeycloakAdminError(404, `Parent group not found: ${parentScope}`);
+  }
+
+  const response = await adminMutate(
+    "POST",
+    `/groups/${parent.id}/children`,
+    { name },
+  );
+
+  const location = response.headers.get("location");
+  if (!location) {
+    throw new Error("Missing Location header from group creation response");
+  }
+  const newGroupId = location.split("/").pop();
+  if (!newGroupId) {
+    throw new Error("Could not extract group ID from Location header");
+  }
+
+  let adminsGroupId: string;
+  try {
+    const adminsResponse = await adminMutate(
+      "POST",
+      `/groups/${newGroupId}/children`,
+      { name: "admins" },
+    );
+    const adminsLocation = adminsResponse.headers.get("location");
+    adminsGroupId = adminsLocation?.split("/").pop() ?? "";
+    if (!adminsGroupId) {
+      throw new Error("Missing Location header from admins subgroup creation");
+    }
+  } catch (e) {
+    console.error("Failed to create admins subgroup, rolling back:", e);
+    try {
+      await adminMutate("DELETE", `/groups/${newGroupId}`);
+    } catch (rollbackErr) {
+      console.error("Rollback also failed, orphaned group:", rollbackErr);
+    }
+    throw e;
+  }
+
+  return {
+    id: newGroupId,
+    path: `${parentScope}/${name}`,
+    adminsGroupId,
+  };
 }
 
 /**

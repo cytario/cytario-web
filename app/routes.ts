@@ -1,6 +1,7 @@
 import { type RouteConfig, layout } from "@react-router/dev/routes";
 
-const publicRoutes = [
+/** OIDC authentication flow — server-side redirects, no rendered UI, no layout needed. */
+const authRoutes = [
   {
     path: "/login",
     file: "routes/auth/login.route.tsx",
@@ -15,56 +16,61 @@ const publicRoutes = [
   },
 ];
 
-const protectedRoutes = [
-  // wrap in scroll view route layout
-  layout("routes/layouts/scrollview.layout.tsx", [
-    {
-      path: "/",
-      file: "routes/home/home.route.tsx",
-    },
-    {
-      path: "/recent",
-      file: "routes/recent.route.tsx",
-    },
-    {
-      path: "/search",
-      file: "routes/search.route.tsx",
-    },
-    {
-      path: "/config",
-      file: "routes/config.route.tsx",
-    },
-    {
-      path: "/connections",
-      file: "routes/connections/connections.route.tsx",
-    },
-    {
-      path: "/connections/:name/*",
-      file: "routes/objects.route.tsx",
-    },
-    layout("routes/admin/admin.layout.tsx", [
-      {
-        path: "/admin/users",
-        file: "routes/admin/users/users.route.tsx",
-        children: [
-          {
-            path: "invite",
-            file: "routes/admin/inviteUser/inviteUser.modal.tsx",
-          },
-          {
-            path: "bulk-invite",
-            file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
-          },
-          {
-            path: ":userId",
-            file: "routes/admin/updateUser/updateUser.modal.tsx",
-          },
-        ],
-      },
-    ]),
-  ]),
+/** Main application routes — authenticated, wrapped in scrollview layout. */
+const appRoutes = [
+  {
+    path: "/",
+    file: "routes/home/home.route.tsx",
+  },
+  {
+    path: "/recent",
+    file: "routes/recent.route.tsx",
+  },
+  {
+    path: "/search",
+    file: "routes/search.route.tsx",
+  },
+  {
+    path: "/config",
+    file: "routes/config.route.tsx",
+  },
+  {
+    path: "/connections",
+    file: "routes/connections/connections.route.tsx",
+  },
+  {
+    path: "/connections/:name/*",
+    file: "routes/objects.route.tsx",
+  },
 ];
 
+/** Admin routes — scope-gated, wrapped in scrollview layout alongside appRoutes. */
+const adminRoutes = [
+  {
+    path: "/admin/users",
+    file: "routes/admin/users/users.route.tsx",
+    children: [
+      {
+        path: "invite",
+        file: "routes/admin/inviteUser/inviteUser.modal.tsx",
+      },
+      {
+        path: "bulk-invite",
+        file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
+      },
+      {
+        path: "create-group",
+        file: "routes/admin/createGroup/createGroup.modal.tsx",
+      },
+      {
+        path: ":userId",
+        file: "routes/admin/updateUser/updateUser.modal.tsx",
+      },
+    ],
+  },
+];
+
+/** Data endpoints — authenticated, no layout (JSON responses). */
 const apiRoutes = [
   {
     path: "/api/cyberduck-profile/:name",
@@ -93,8 +99,11 @@ const apiRoutes = [
 ];
 
 export default [
-  ...publicRoutes,
-  ...protectedRoutes,
+  ...authRoutes,
+  layout("routes/layouts/scrollview.layout.tsx", [
+    ...appRoutes,
+    ...adminRoutes,
+  ]),
   ...apiRoutes,
 
   {

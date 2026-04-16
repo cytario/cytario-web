@@ -1,6 +1,7 @@
 export { type KeycloakGroup, type KeycloakUser } from "./client";
 
 export {
+  createGroup,
   findGroupByPath,
   getManageableScopes,
   getGroupWithMembers,

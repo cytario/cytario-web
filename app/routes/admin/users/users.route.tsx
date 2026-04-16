@@ -1,6 +1,6 @@
 import { ButtonLink, EmptyState, PathPill, Pill } from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
-import { UserPlus, Users, UsersRound } from "lucide-react";
+import { FolderPlus, UserPlus, Users, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   type MetaFunction,
@@ -289,6 +289,13 @@ export default function AdminUsersRoute() {
         <span className="text-sm text-slate-500">
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>
+        <ButtonLink
+          href={`/admin/users/create-group?scope=${encodeURIComponent(scope)}`}
+          variant="secondary"
+          iconLeft={FolderPlus}
+        >
+          Create Group
+        </ButtonLink>
         <ButtonLink
           href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`}
           variant="secondary"
