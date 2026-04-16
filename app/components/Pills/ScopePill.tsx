@@ -26,6 +26,7 @@ export function ScopePill({ scope, visibleCount }: ScopePillProps) {
   }
 
   const isAdmin = scope.endsWith("/admins");
+  const displayPath = isAdmin ? scope.replace(/\/admins$/, "") : scope;
 
   return (
     <div className="inline-flex items-center gap-1">
@@ -35,7 +36,7 @@ export function ScopePill({ scope, visibleCount }: ScopePillProps) {
         <Users size={16} aria-hidden="true" className="shrink-0 text-(--color-text-secondary)" />
       )}
       <PathPill visibleCount={visibleCount} colorFn={scopeColor}>
-        {scope}
+        {displayPath}
       </PathPill>
     </div>
   );
