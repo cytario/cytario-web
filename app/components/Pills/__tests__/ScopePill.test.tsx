@@ -52,14 +52,14 @@ describe("ScopePill", () => {
     expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
   });
 
-  test("strips /admins segment from display but keeps path", () => {
+  test("shows all segments including admins for admin scope", () => {
     render(<ScopePill scope="cytario/Lab Services/admins" />);
     expect(
-      screen.getByLabelText("Path: cytario / Lab Services"),
+      screen.getByLabelText("Path: cytario / Lab Services / admins"),
     ).toBeInTheDocument();
     expect(screen.getByText("cytario")).toBeInTheDocument();
     expect(screen.getByText("Lab Services")).toBeInTheDocument();
-    expect(screen.queryByText("admins")).not.toBeInTheDocument();
+    expect(screen.getByText("admins")).toBeInTheDocument();
   });
 
   test("renders Users icon for non-admin scope", () => {
