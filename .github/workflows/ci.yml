@@ -33,12 +33,13 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           BRANCH="${{ github.head_ref }}"
-          if gh api "repos/cytario/cytario-docs/branches/$BRANCH" --silent 2>/dev/null; then
+          echo "Looking for branch: $BRANCH"
+          if gh api "repos/cytario/cytario-docs/branches/$BRANCH" --jq '.name'; then
             echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
             echo "::notice::Using paired cytario-docs branch: $BRANCH"
           else
+            echo "::warning::Branch not found or access denied, falling back to main"
             echo "ref=main" >> "$GITHUB_OUTPUT"
-            echo "::notice::No paired cytario-docs branch; using main"
           fi
 
       - name: Trigger and wait for cytario-docs E2E
