@@ -27,6 +27,20 @@ jobs:
           private-key: ${{ secrets.CYTARIO_DOCS_DISPATCH_APP_PRIVATE_KEY }}
           repositories: cytario-docs
 
+      - name: Resolve paired cytario-docs branch
+        id: docs-ref
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          if gh api "repos/cytario/cytario-docs/branches/$BRANCH" --silent 2>/dev/null; then
+            echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
+            echo "::notice::Using paired cytario-docs branch: $BRANCH"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::notice::No paired cytario-docs branch; using main"
+          fi
+
       - name: Trigger and wait for cytario-docs E2E run
         uses: convictional/trigger-workflow-and-wait@v1.6.5
         with:
@@ -34,7 +48,7 @@ jobs:
           repo: cytario-docs
           github_token: ${{ steps.app-token.outputs.token }}
           workflow_file_name: e2e.yml
-          ref: main
+          ref: ${{ steps.docs-ref.outputs.ref }}
           client_payload: '{"ref": "${{ github.event.pull_request.head.sha }}", "docs_branch_hint": "${{ github.head_ref }}"}'
           wait_interval: 20
           propagate_failure: true
