@@ -165,7 +165,7 @@ export function DirectoryViewGrid({
   return (
     <div className={gridClass}>
       {nodes.map((node) => {
-        const key = `${node.provider}/${node.bucketName}/${node.pathName ?? node.name}`;
+        const key = `${node.connectionName}/${node.pathName ?? node.name}`;
         if (node.type === "bucket") {
           return <BucketCardGridItem key={key} node={node} />;
         }
