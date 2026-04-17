@@ -8,7 +8,7 @@ import { ConnectionMenu } from "./ConnectionMenu";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
-import { VisibilityPill } from "~/components/Pills/VisibilityPill";
+import { ScopePill } from "~/components/Pills/ScopePill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { selectConnection } from "~/utils/connectionsStore/selectors";
@@ -70,7 +70,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
       meta={
         connection?.connectionConfig && (
           <>
-            <VisibilityPill scope={connection.connectionConfig.ownerScope} />
+            <ScopePill scope={connection.connectionConfig.ownerScope} />
             <ProviderPill provider={connection.connectionConfig.provider} />
           </>
         )

@@ -9,6 +9,7 @@ import {
 import { LogOut, Settings, Shield, User, Users } from "lucide-react";
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
+import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface UserMenuProps {
   user: UserProfile;
@@ -43,7 +44,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
                     icon={Shield}
                     href={`/admin/users?scope=${encodeURIComponent(scope)}`}
                   >
-                    {scope.split("/").pop() || scope}
+                    <ScopePill scope={scope} />
                   </MenuItem>
                 ))}
               </MenuSection>
@@ -56,7 +57,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
               <MenuSection header="Groups">
                 {user.groups.map((group) => (
                   <MenuItem key={group} id={`group-${group}`} icon={Users}>
-                    {group}
+                    <ScopePill scope={group} />
                   </MenuItem>
                 ))}
               </MenuSection>
