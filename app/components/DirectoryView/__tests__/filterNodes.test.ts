@@ -6,11 +6,13 @@ import { filterHiddenNodes, filterNodes } from "../filterNodes";
 import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
+  id: "file.csv",
   connectionName: "aws-bucket",
   name: "file.csv",
   type: "file",
   bucketName: "bucket",
   provider: "aws",
+  pathName: "file.csv",
   children: [],
   ...overrides,
 });

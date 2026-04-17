@@ -72,6 +72,7 @@ export default function HomeRoute() {
         .map((item: SerializedRecentlyViewed) => {
           const config = configByName.get(item.connectionName)!;
           return {
+            id: item.pathName,
             connectionName: item.connectionName,
             provider: config.provider,
             bucketName: config.bucketName,
@@ -105,6 +106,7 @@ export default function HomeRoute() {
         .map((pin: SerializedPinnedPath) => {
           const config = configByName.get(pin.connectionName)!;
           return {
+            id: pin.pathName,
             connectionName: pin.connectionName,
             provider: config.provider,
             bucketName: config.bucketName,

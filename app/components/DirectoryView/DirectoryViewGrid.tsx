@@ -114,7 +114,7 @@ function FileCardGridItem({
   const isPreviewable = isImageFile(node.name) || (!!previewKey && isImageFile(previewKey));
   const hasPreview = isPreviewable && !!signedFetch;
   const previewPath = isImageFile(node.name)
-    ? (node.pathName?.replace(/\/$/, "") ?? node.name)
+    ? node.pathName.replace(/\/$/, "")
     : previewKey ?? "";
   const s3Url = hasPreview && connection?.connectionConfig
     ? constructS3Url(connection.connectionConfig, previewPath)
@@ -165,7 +165,7 @@ export function DirectoryViewGrid({
   return (
     <div className={gridClass}>
       {nodes.map((node) => {
-        const key = `${node.connectionName}/${node.pathName ?? node.name}`;
+        const key = node.id;
         if (node.type === "bucket") {
           return <BucketCardGridItem key={key} node={node} />;
         }

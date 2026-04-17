@@ -27,8 +27,8 @@ describe("toIndexS3Key", () => {
 });
 
 describe("nodeToPath", () => {
-  test("returns connection path without pathName", () => {
-    expect(nodeToPath({ connectionName: "my-conn" })).toBe("/connections/my-conn");
+  test("returns connection path with empty pathName", () => {
+    expect(nodeToPath({ connectionName: "my-conn", pathName: "" })).toBe("/connections/my-conn");
   });
 
   test("returns connection path with pathName", () => {

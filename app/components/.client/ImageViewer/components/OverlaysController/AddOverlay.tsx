@@ -1,9 +1,11 @@
 import { Button, Input, Tree, useToast } from "@cytario/design";
-import type { TreeNode as DesignTreeNode } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { findOriginalNode, toDesignTreeNodes } from "./toDesignTreeNodes";
+import {
+  type TreeNode,
+  findNodeById,
+} from "~/components/DirectoryView/buildDirectoryTree";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useConnectionsStore } from "~/utils/connectionsStore";
@@ -38,9 +40,6 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   );
   const isLoading = objectsFetcher.state === "loading";
 
-  // Convert to design system tree format
-  const treeData = useMemo(() => toDesignTreeNodes(nodes), [nodes]);
-
   // Selection state: single file selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectedId = selectedIds.size > 0 ? [...selectedIds][0] : null;
@@ -48,7 +47,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   // Hover state: show the full path of the hovered file
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
-  const handleHover = useCallback((node: DesignTreeNode) => {
+  const handleHover = useCallback((node: TreeNode) => {
     setHoveredPath(node.id);
   }, []);
 
@@ -69,7 +68,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const handleLoad = useCallback(async () => {
     if (!selectedId) return;
 
-    const originalNode = findOriginalNode(nodes, selectedId);
+    const originalNode = findNodeById(nodes, selectedId);
     if (!originalNode) return;
 
     try {
@@ -142,7 +141,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         <div className="flex items-center justify-center py-8">
           <LavaLoader />
         </div>
-      ) : treeData.length === 0 ? (
+      ) : nodes.length === 0 ? (
         <p className="py-8 text-center text-sm text-(--color-text-secondary)">
           No .{query} files found in connected buckets.
         </p>
@@ -151,7 +150,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
           <div className="overflow-hidden rounded-lg border border-(--color-border-default)">
             <Tree
               aria-label={`Select ${query} file`}
-              data={treeData}
+              data={nodes}
               selectionMode="single"
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}

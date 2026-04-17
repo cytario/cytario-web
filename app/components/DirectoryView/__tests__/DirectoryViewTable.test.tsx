@@ -39,19 +39,23 @@ describe("DirectoryViewTable", () => {
   describe("bucket type nodes", () => {
     const mockBucketNodes: TreeNode[] = [
       {
+        id: "aws-my-aws-bucket",
         connectionName: "aws-my-aws-bucket",
         type: "bucket",
         name: "my-aws-bucket",
         bucketName: "my-aws-bucket",
         provider: "aws",
+        pathName: "",
         children: [],
       },
       {
+        id: "minio-minio-bucket",
         connectionName: "minio-minio-bucket",
         type: "bucket",
         name: "minio-bucket",
         bucketName: "minio-bucket",
         provider: "minio",
+        pathName: "",
         children: [],
       },
     ];
@@ -101,6 +105,7 @@ describe("DirectoryViewTable", () => {
   describe("file type nodes", () => {
     const mockFileNodes: TreeNode[] = [
       {
+        id: "folder/data.parquet",
         connectionName: "test-connection",
         type: "file",
         name: "data.parquet",
@@ -115,6 +120,7 @@ describe("DirectoryViewTable", () => {
         },
       },
       {
+        id: "folder/results.csv",
         connectionName: "test-connection",
         type: "file",
         name: "results.csv",
@@ -166,6 +172,7 @@ describe("DirectoryViewTable", () => {
   describe("directory type nodes", () => {
     const mockDirNodes: TreeNode[] = [
       {
+        id: "images/",
         connectionName: "test-connection",
         type: "directory",
         name: "images",
@@ -175,6 +182,7 @@ describe("DirectoryViewTable", () => {
         children: [],
       },
       {
+        id: "data/",
         connectionName: "test-connection",
         type: "directory",
         name: "data",

@@ -59,6 +59,7 @@ vi.mock("@cytario/design", async (importOriginal) => {
 function makeTreeNodes(): TreeNode[] {
   return [
     {
+      id: "analysis/",
       connectionName: "aws-test-bucket",
       provider: "aws",
       bucketName: "test-bucket",
@@ -67,6 +68,7 @@ function makeTreeNodes(): TreeNode[] {
       pathName: "analysis/",
       children: [
         {
+          id: "analysis/cells.parquet",
           connectionName: "aws-test-bucket",
           provider: "aws",
           bucketName: "test-bucket",
@@ -76,6 +78,7 @@ function makeTreeNodes(): TreeNode[] {
           children: [],
         },
         {
+          id: "analysis/markers.parquet",
           connectionName: "aws-test-bucket",
           provider: "aws",
           bucketName: "test-bucket",

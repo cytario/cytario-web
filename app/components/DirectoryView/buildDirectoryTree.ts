@@ -5,14 +5,75 @@ import { isZarrPath } from "~/utils/zarrUtils";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
+/**
+ * A node in the storage directory tree.
+ *
+ * Structurally extends `@cytario/design` `TreeNode` (`{ id, name, children? }`)
+ * so it can be passed directly to the design system `<Tree>` component without
+ * conversion. Callbacks like `onActivate` return the full `TreeNode`, eliminating
+ * the need for reverse-lookup helpers.
+ *
+ * ### ID strategy
+ *
+ * | Node type   | `id` value          | Example                        |
+ * |-------------|---------------------|--------------------------------|
+ * | bucket root | `connectionName`    | `"aws-prod-bucket"`            |
+ * | directory   | `pathName`          | `"results/2024/"`              |
+ * | file        | `pathName`          | `"results/2024/output.ome.tif"`|
+ *
+ * IDs are unique within a single connection's tree. In views that mix multiple
+ * connections (e.g. the connections overview), bucket roots use `connectionName`
+ * as their ID to guarantee uniqueness.
+ *
+ * ### Example
+ *
+ * ```
+ * {
+ *   id: "results/",
+ *   connectionName: "aws-prod-bucket",
+ *   provider: "aws",
+ *   bucketName: "prod-bucket",
+ *   name: "results",
+ *   type: "directory",
+ *   pathName: "results/",
+ *   children: [
+ *     {
+ *       id: "results/output.ome.tif",
+ *       connectionName: "aws-prod-bucket",
+ *       provider: "aws",
+ *       bucketName: "prod-bucket",
+ *       name: "output.ome.tif",
+ *       type: "file",
+ *       pathName: "results/output.ome.tif",
+ *       children: [],
+ *       _Object: { Key: "results/output.ome.tif", Size: 1048576 },
+ *     },
+ *   ],
+ * }
+ * ```
+ */
 export interface TreeNode {
+  /** Unique identifier — equals `pathName` for files/directories, `connectionName` for bucket roots. */
+  id: string;
+  /** Name of the connection config this node belongs to. */
   connectionName: string;
+  /** Storage provider (e.g. `"aws"`, `"minio"`). */
   provider: string;
+  /** S3-compatible bucket name. */
   bucketName: string;
+  /** Display name — the last segment of the path (e.g. `"output.ome.tif"`). */
   name: string;
   type: TreeNodeType;
-  pathName?: string;
+  /**
+   * Full path relative to the connection root, including trailing `/` for
+   * directories. Empty string `""` for bucket root nodes.
+   *
+   * Built by `buildDirectoryTree` as the concatenation of ancestor `name`
+   * segments. Used for routing via `nodeToPath()`.
+   */
+  pathName: string;
   children: TreeNode[];
+  /** Original S3 object metadata. Present for files; for directories, holds the first image object (used for previews). */
   _Object?: _Object;
 }
 
@@ -36,6 +97,7 @@ function buildDirectoryTreeRecursive(
     if (name === "") return;
 
     currentDir.push({
+      id: pathName,
       connectionName,
       type: "file",
       name,
@@ -51,6 +113,7 @@ function buildDirectoryTreeRecursive(
     if (isZarrPath(name)) {
       if (!currentDir.find((child) => child.name === name)) {
         currentDir.push({
+          id: pathName,
           connectionName,
           type: "file",
           name,
@@ -67,6 +130,7 @@ function buildDirectoryTreeRecursive(
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
+        id: pathName,
         connectionName,
         type: "directory",
         name,
@@ -94,6 +158,21 @@ function buildDirectoryTreeRecursive(
       pathName,
     );
   }
+}
+
+/** Depth-first search for a node by its `id`. */
+export function findNodeById(
+  nodes: TreeNode[],
+  id: string,
+): TreeNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.children.length > 0) {
+      const found = findNodeById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }
 
 /** Total size of all files under a directory node. */

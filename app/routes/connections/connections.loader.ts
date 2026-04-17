@@ -78,12 +78,13 @@ export async function loadConnections({
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
     return {
+      id: config.name,
       connectionName: config.name,
       bucketName: config.bucketName,
       name: config.name,
       type: "bucket" as const,
       provider: config.provider,
-      pathName: undefined,
+      pathName: "",
       children: [],
       _Object: previewObj,
     };

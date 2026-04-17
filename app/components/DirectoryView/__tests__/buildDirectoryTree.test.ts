@@ -12,6 +12,7 @@ const testCases: [_Object[], TreeNode[]][] = [
     ],
     [
       {
+        id: "folder1/",
         connectionName: "test-connection",
         type: "directory",
         name: "folder1",
@@ -20,6 +21,7 @@ const testCases: [_Object[], TreeNode[]][] = [
         provider: "test-provider",
         children: [
           {
+            id: "folder1/file1.txt",
             connectionName: "test-connection",
             type: "file",
             name: "file1.txt",
@@ -30,6 +32,7 @@ const testCases: [_Object[], TreeNode[]][] = [
             _Object: { Key: "folder1/file1.txt" },
           },
           {
+            id: "folder1/file2.txt",
             connectionName: "test-connection",
             type: "file",
             name: "file2.txt",
@@ -43,6 +46,7 @@ const testCases: [_Object[], TreeNode[]][] = [
         _Object: { Key: "folder1/file1.txt" },
       },
       {
+        id: "folder2/",
         connectionName: "test-connection",
         type: "directory",
         name: "folder2",
@@ -51,6 +55,7 @@ const testCases: [_Object[], TreeNode[]][] = [
         provider: "test-provider",
         children: [
           {
+            id: "folder2/file3.txt",
             connectionName: "test-connection",
             type: "file",
             name: "file3.txt",
@@ -61,6 +66,7 @@ const testCases: [_Object[], TreeNode[]][] = [
             _Object: { Key: "folder2/file3.txt" },
           },
           {
+            id: "folder2/subfolder1/",
             connectionName: "test-connection",
             type: "directory",
             name: "subfolder1",
@@ -69,6 +75,7 @@ const testCases: [_Object[], TreeNode[]][] = [
             provider: "test-provider",
             children: [
               {
+                id: "folder2/subfolder1/file4.txt",
                 connectionName: "test-connection",
                 type: "file",
                 name: "file4.txt",
@@ -108,6 +115,7 @@ describe("buildDirectoryTree", () => {
 
     expect(tree).toEqual([
       {
+        id: "subdir/file.tif",
         connectionName: "my-connection",
         type: "file",
         name: "file.tif",

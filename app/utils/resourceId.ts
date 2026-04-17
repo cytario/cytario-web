@@ -90,7 +90,7 @@ export function matchesExtension(resourceId: string, pattern: RegExp): boolean {
 }
 
 /** Builds a URL path for a node using its connection name. */
-export function nodeToPath(node: { connectionName: string; pathName?: string }): string {
+export function nodeToPath(node: { connectionName: string; pathName: string }): string {
   const path = node.pathName
     ? `/connections/${node.connectionName}/${node.pathName}`
     : `/connections/${node.connectionName}`;

@@ -1,62 +1,10 @@
-import { Tree, type TreeNode as DesignTreeNode } from "@cytario/design";
-import { useMemo } from "react";
+import { Tree } from "@cytario/design";
 import { Link, useNavigate } from "react-router";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { NodeLinkIcon } from "./NodeLink/NodeLinkIcon";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
-import { getNodeIcon } from "~/utils/fileType";
 import { nodeToPath } from "~/utils/resourceId";
-
-// The design system bundles its own @types/react, so its LucideIcon type is
-// structurally identical but nominally different. A simple cast is safe here.
-type DesignIcon = DesignTreeNode["icon"];
-
-/* ------------------------------------------------------------------ */
-/*  Tree node conversion                                               */
-/* ------------------------------------------------------------------ */
-
-/**
- * Converts app TreeNodes into the design system TreeNode format.
- * Uses connectionName/pathName as the unique id to avoid collisions
- * when the same relative path exists across multiple connections.
- */
-function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
-  return nodes.map((node) => {
-    const designNode: DesignTreeNode = {
-      id: `${node.connectionName}/${node.pathName ?? node.name}`,
-      name: node.name,
-      icon: getNodeIcon(node) as DesignIcon,
-    };
-
-    if (node.children.length > 0) {
-      designNode.children = toDesignTreeNodes(node.children);
-    }
-
-    return designNode;
-  });
-}
-
-/**
- * Finds the original TreeNode from the directory tree that corresponds
- * to a design tree node id (which is connectionName/pathName or
- * connectionName/name).
- */
-function findOriginalNode(
-  nodes: TreeNode[],
-  id: string,
-): TreeNode | undefined {
-  for (const node of nodes) {
-    const nodeId = `${node.connectionName}/${node.pathName ?? node.name}`;
-    if (nodeId === id) return node;
-
-    if (node.children.length > 0) {
-      const found = findOriginalNode(node.children, id);
-      if (found) return found;
-    }
-  }
-  return undefined;
-}
 
 /* ------------------------------------------------------------------ */
 /*  DirectoryViewTree                                                  */
@@ -74,13 +22,12 @@ export function DirectoryViewTree({
   searchTerm,
 }: DirectoryViewTreeProps) {
   const navigate = useNavigate();
-  const treeData = useMemo(() => toDesignTreeNodes(nodes), [nodes]);
 
   return (
     <div className="overflow-hidden rounded-[var(--border-radius-md)] border border-[var(--color-border-default)]">
       <Tree
         aria-label="Directory tree"
-        data={treeData}
+        data={nodes}
         selectionMode="none"
         openByDefault
         size="comfortable"
@@ -89,13 +36,7 @@ export function DirectoryViewTree({
         searchMatch={(node, term) =>
           node.name.toLowerCase().includes(term.toLowerCase())
         }
-        onActivate={(designNode) => {
-          const original = findOriginalNode(nodes, designNode.id);
-          if (!original) return;
-
-          const to = nodeToPath(original);
-          navigate(to);
-        }}
+        onActivate={(node) => navigate(nodeToPath(node))}
       />
     </div>
   );
