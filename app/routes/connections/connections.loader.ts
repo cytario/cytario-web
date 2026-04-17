@@ -78,7 +78,7 @@ export async function loadConnections({
     const previewObj = result.status === "fulfilled" ? result.value : undefined;
 
     return {
-      id: config.name,
+      id: `${config.name}/`,
       connectionName: config.name,
       name: config.name,
       type: "bucket" as const,

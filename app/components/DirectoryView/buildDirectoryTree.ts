@@ -17,7 +17,7 @@ export type TreeNodeType = "bucket" | "directory" | "file";
  * every node — look it up from the connections store via `connectionName`.
  */
 export interface TreeNode {
-  /** Unique identifier — equals `pathName` for files/directories, `connectionName` for bucket roots. */
+  /** Globally unique identifier: `connectionName/pathName`. */
   id: string;
   /** Name of the connection config this node belongs to. */
   connectionName: string;
@@ -55,7 +55,7 @@ function buildDirectoryTreeRecursive(
     if (name === "") return;
 
     currentDir.push({
-      id: pathName,
+      id: `${connectionName}/${pathName}`,
       connectionName,
       type: "file",
       name,
@@ -69,7 +69,7 @@ function buildDirectoryTreeRecursive(
     if (isZarrPath(name)) {
       if (!currentDir.find((child) => child.name === name)) {
         currentDir.push({
-          id: pathName,
+          id: `${connectionName}/${pathName}`,
           connectionName,
           type: "file",
           name,
@@ -84,7 +84,7 @@ function buildDirectoryTreeRecursive(
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
-        id: pathName,
+        id: `${connectionName}/${pathName}`,
         connectionName,
         type: "directory",
         name,

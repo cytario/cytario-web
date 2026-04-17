@@ -20,6 +20,7 @@ import {
 } from "~/routes/connections/connections.loader";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
+
 const title = "Storage Connections";
 const MAX_RECENT_IMAGES = 4;
 const MAX_PINNED = 10;
@@ -71,7 +72,7 @@ export default function HomeRoute() {
         )
         .map((item: SerializedRecentlyViewed) => {
           return {
-            id: item.pathName,
+            id: `${item.connectionName}/${item.pathName}`,
             connectionName: item.connectionName,
             pathName: item.pathName,
             name: item.name,
@@ -102,7 +103,7 @@ export default function HomeRoute() {
         )
         .map((pin: SerializedPinnedPath) => {
           return {
-            id: pin.pathName,
+            id: `${pin.connectionName}/${pin.pathName}`,
             connectionName: pin.connectionName,
             pathName: pin.pathName,
             name: pin.displayName,

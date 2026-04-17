@@ -25,10 +25,7 @@ import {
 } from "~/components/DirectoryView/filterNodes";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import {
-  clearAllRecentlyViewed,
-  getRecentlyViewed,
-} from "~/utils/recentlyViewed.server";
+import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
@@ -82,7 +79,7 @@ export default function RecentRoute() {
         .filter((item) => configByName.has(item.connectionName))
         .map((item) => {
           return {
-            id: item.pathName,
+            id: `${item.connectionName}/${item.pathName}`,
             connectionName: item.connectionName,
             pathName: item.pathName,
             name: item.name,
