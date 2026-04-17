@@ -19,7 +19,6 @@ describe("ScopePill", () => {
     expect(
       screen.getByLabelText("Path: cytario / Lab Services"),
     ).toBeInTheDocument();
-    expect(screen.getByText("cytario")).toBeInTheDocument();
     expect(screen.getByText("Lab Services")).toBeInTheDocument();
   });
 
@@ -28,13 +27,11 @@ describe("ScopePill", () => {
     expect(screen.getByText("cytario")).toBeInTheDocument();
   });
 
-  test("renders deep scope path with all segments", () => {
+  test("renders deep scope path with all segments in aria-label", () => {
     render(<ScopePill scope="cytario/Lab Services/team-x" />);
     expect(
       screen.getByLabelText("Path: cytario / Lab Services / team-x"),
     ).toBeInTheDocument();
-    expect(screen.getByText("cytario")).toBeInTheDocument();
-    expect(screen.getByText("Lab Services")).toBeInTheDocument();
     expect(screen.getByText("team-x")).toBeInTheDocument();
   });
 
@@ -42,5 +39,33 @@ describe("ScopePill", () => {
     render(<ScopePill scope="cytario/Lab Services/team-x" visibleCount={1} />);
     expect(screen.getByText("team-x")).toBeInTheDocument();
     expect(screen.queryByText("cytario")).toBeNull();
+  });
+
+  test("renders Shield icon for admin scope", () => {
+    const { container } = render(
+      <ScopePill scope="cytario/Lab Services/admins" />,
+    );
+    expect(container.querySelector(".lucide-shield")).toBeInTheDocument();
+    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
+  });
+
+  test("shows last segment and full path in aria-label for admin scope", () => {
+    render(<ScopePill scope="cytario/Lab Services/admins" />);
+    expect(
+      screen.getByLabelText("Path: cytario / Lab Services / admins"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("admins")).toBeInTheDocument();
+  });
+
+  test("renders no icon for non-admin scope", () => {
+    const { container } = render(<ScopePill scope="cytario/Lab Services" />);
+    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
+    expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
+  });
+
+  test("renders no icon for Personal scope", () => {
+    const { container } = render(<ScopePill scope="" />);
+    expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
+    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
   });
 });
