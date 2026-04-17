@@ -50,7 +50,6 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  // TODO
   const connectionName = name;
 
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
@@ -134,12 +133,12 @@ export function DirectoryView({
 
       {isTree ? (
         <Container>
-          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} />
+          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} connectionName={connectionName} />
         </Container>
       ) : isGrid ? (
         <Container>
           {displayNodes.length > 0 ? (
-            <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} />
+            <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} connectionName={connectionName} />
           ) : (
             <p className="py-8 text-center text-sm text-(--color-text-secondary)">
               No items match the current filters. Try adjusting the filter, or

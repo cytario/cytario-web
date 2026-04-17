@@ -50,11 +50,11 @@ function useSignedFetch(connectionName: string) {
   return { connection, signedFetch };
 }
 
-function BucketCardGridItem({ node }: { node: TreeNode }) {
+function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
   const navigate = useNavigate();
-  const { connection, signedFetch } = useSignedFetch(node.connectionName);
+  const { connection, signedFetch } = useSignedFetch(connectionName);
 
-  const to = buildConnectionPath(node.connectionName, node.pathName);
+  const to = buildConnectionPath(connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   const key = node._Object?.Key;
@@ -98,15 +98,17 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
 function FileCardGridItem({
   node,
   compact,
+  connectionName,
 }: {
   node: TreeNode;
   compact: boolean;
+  connectionName: string;
 }) {
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
-  const { connection, signedFetch } = useSignedFetch(node.connectionName);
+  const { connection, signedFetch } = useSignedFetch(connectionName);
 
-  const to = buildConnectionPath(node.connectionName, node.pathName);
+  const to = buildConnectionPath(connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   // For files: use the node's own path. For directories: use the first image found inside.
@@ -155,9 +157,11 @@ function FileCardGridItem({
 export function DirectoryViewGrid({
   nodes,
   viewMode = "grid",
+  connectionName,
 }: {
   nodes: TreeNode[];
   viewMode?: ViewMode;
+  connectionName?: string;
 }) {
   const compact = viewMode === "grid-compact";
   const gridClass = gridClasses[viewMode] ?? gridClasses["grid"];
@@ -165,11 +169,12 @@ export function DirectoryViewGrid({
   return (
     <div className={gridClass}>
       {nodes.map((node) => {
+        const cn = connectionName ?? node.connectionName;
         const key = node.id;
         if (node.type === "bucket") {
-          return <BucketCardGridItem key={key} node={node} />;
+          return <BucketCardGridItem key={key} node={node} connectionName={cn} />;
         }
-        return <FileCardGridItem key={key} node={node} compact={compact} />;
+        return <FileCardGridItem key={key} node={node} compact={compact} connectionName={cn} />;
       })}
     </div>
   );

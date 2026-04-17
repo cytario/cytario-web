@@ -15,11 +15,14 @@ interface DirectoryViewTreeProps {
   nodes: TreeNode[];
   /** Pass-through search term for the Tree component's built-in filtering. */
   searchTerm?: string;
+  /** Connection name for single-connection views. Falls back to node.connectionName when absent. */
+  connectionName?: string;
 }
 
 export function DirectoryViewTree({
   nodes,
   searchTerm,
+  connectionName,
 }: DirectoryViewTreeProps) {
   const navigate = useNavigate();
 
@@ -36,7 +39,7 @@ export function DirectoryViewTree({
         searchMatch={(node, term) =>
           node.name.toLowerCase().includes(term.toLowerCase())
         }
-        onActivate={(node) => navigate(buildConnectionPath(node.connectionName, node.pathName))}
+        onActivate={(node) => navigate(buildConnectionPath(connectionName ?? node.connectionName, node.pathName))}
       />
     </div>
   );
