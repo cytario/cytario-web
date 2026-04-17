@@ -11,9 +11,8 @@ export function useNodeInfoModal(node: TreeNode) {
   const { openModal } = useModal();
 
   return useCallback(() => {
-    const nodeName = node.pathName ?? node.name;
     openModal(node.type === "file" ? "file-info" : "directory-info", {
-      nodeName,
+      nodeName: node.pathName,
     });
-  }, [node.type, node.pathName, node.name, openModal]);
+  }, [node.type, node.pathName, openModal]);
 }

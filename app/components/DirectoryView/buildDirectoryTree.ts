@@ -5,14 +5,35 @@ import { isZarrPath } from "~/utils/zarrUtils";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
+/**
+ * A node in the storage directory tree.
+ *
+ * Structurally extends `@cytario/design` `TreeNode` (`{ id, name, children? }`)
+ * so it can be passed directly to the design system `<Tree>` component without
+ * conversion. Callbacks like `onActivate` return the full `TreeNode`,
+ * eliminating the need for reverse-lookup helpers.
+ *
+ * Connection-level metadata (`provider`, `bucketName`, etc.) is not stored on
+ * every node — look it up from the connections store via `connectionName`.
+ */
 export interface TreeNode {
+  /** Globally unique identifier: `connectionName/pathName`. */
+  id: string;
+  /** Name of the connection config this node belongs to. */
   connectionName: string;
-  provider: string;
-  bucketName: string;
+  /** Display name — the last segment of the path (e.g. `"output.ome.tif"`). */
   name: string;
   type: TreeNodeType;
-  pathName?: string;
+  /**
+   * Full path relative to the connection root, including trailing `/` for
+   * directories. Empty string `""` for bucket root nodes.
+   *
+   * Built by `buildDirectoryTree` as the concatenation of ancestor `name`
+   * segments. Used for routing via `buildConnectionPath()`.
+   */
+  pathName: string;
   children: TreeNode[];
+  /** Original S3 object metadata. Present for files; for directories, holds the first image object (used for previews). */
   _Object?: _Object;
 }
 
@@ -20,8 +41,6 @@ function buildDirectoryTreeRecursive(
   currentDir: TreeNode[],
   keyParts: string[],
   obj: _Object,
-  bucketName: string,
-  provider: string,
   connectionName: string,
   parentPath: string = "",
 ) {
@@ -36,12 +55,11 @@ function buildDirectoryTreeRecursive(
     if (name === "") return;
 
     currentDir.push({
+      id: `${connectionName}/${pathName}`,
       connectionName,
       type: "file",
       name,
       pathName,
-      bucketName,
-      provider,
       children: [],
       _Object: obj,
     });
@@ -51,12 +69,11 @@ function buildDirectoryTreeRecursive(
     if (isZarrPath(name)) {
       if (!currentDir.find((child) => child.name === name)) {
         currentDir.push({
+          id: `${connectionName}/${pathName}`,
           connectionName,
           type: "file",
           name,
           pathName,
-          bucketName,
-          provider,
           children: [],
           _Object: obj,
         });
@@ -67,12 +84,11 @@ function buildDirectoryTreeRecursive(
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
+        id: `${connectionName}/${pathName}`,
         connectionName,
         type: "directory",
         name,
         pathName,
-        bucketName,
-        provider,
         children: [],
         _Object: obj,
       };
@@ -88,12 +104,25 @@ function buildDirectoryTreeRecursive(
       existingDir.children,
       keyParts.slice(1),
       obj,
-      bucketName,
-      provider,
       connectionName,
       pathName,
     );
   }
+}
+
+/** Depth-first search for a node by its `id`. */
+export function findNodeById(
+  nodes: TreeNode[],
+  id: string,
+): TreeNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.children.length > 0) {
+      const found = findNodeById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }
 
 /** Total size of all files under a directory node. */
@@ -132,9 +161,7 @@ export function computeDirectoryLastModified(node: TreeNode): number {
  *                pathNames so they stay routable via `/connections/:connectionName/*`)
  */
 export function buildDirectoryTree(
-  bucketName: string,
   objects: _Object[],
-  provider: string,
   connectionName: string,
   prefix?: string,
   urlPath?: string,
@@ -152,8 +179,6 @@ export function buildDirectoryTree(
       root,
       pathSegments,
       obj,
-      bucketName,
-      provider,
       connectionName,
       basePath,
     );

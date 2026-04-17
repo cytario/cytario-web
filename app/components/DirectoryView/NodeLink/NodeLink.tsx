@@ -10,7 +10,7 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ConnectionMenu } from "~/components/DirectoryView/ConnectionMenu";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
-import { nodeToPath } from "~/utils/resourceId";
+import { buildConnectionPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
   node: TreeNode;
@@ -38,7 +38,7 @@ export function NodeLink({
   const navigate = useNavigate();
   const openNodeInfoModal = useNodeInfoModal(node);
 
-  const to = nodeToPath(node);
+  const to = buildConnectionPath(node.connectionName, node.pathName);
 
   // Activate link with Space key (links natively only respond to Enter)
   const handleKeyDown: KeyboardEventHandler = useCallback(

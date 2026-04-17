@@ -20,6 +20,7 @@ import {
 } from "~/routes/connections/connections.loader";
 import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
 
+
 const title = "Storage Connections";
 const MAX_RECENT_IMAGES = 4;
 const MAX_PINNED = 10;
@@ -70,11 +71,9 @@ export default function HomeRoute() {
           configByName.has(item.connectionName),
         )
         .map((item: SerializedRecentlyViewed) => {
-          const config = configByName.get(item.connectionName)!;
           return {
+            id: `${item.connectionName}/${item.pathName}`,
             connectionName: item.connectionName,
-            provider: config.provider,
-            bucketName: config.bucketName,
             pathName: item.pathName,
             name: item.name,
             type: item.type as TreeNode["type"],
@@ -103,11 +102,9 @@ export default function HomeRoute() {
           configByName.has(pin.connectionName),
         )
         .map((pin: SerializedPinnedPath) => {
-          const config = configByName.get(pin.connectionName)!;
           return {
+            id: `${pin.connectionName}/${pin.pathName}`,
             connectionName: pin.connectionName,
-            provider: config.provider,
-            bucketName: config.bucketName,
             pathName: pin.pathName,
             name: pin.displayName,
             type: "directory" as const,

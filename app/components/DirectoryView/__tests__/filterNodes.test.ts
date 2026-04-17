@@ -6,11 +6,13 @@ import { filterHiddenNodes, filterNodes } from "../filterNodes";
 import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
+  id: "file.csv",
   connectionName: "aws-bucket",
   name: "file.csv",
   type: "file",
-  bucketName: "bucket",
-  provider: "aws",
+
+
+  pathName: "file.csv",
   children: [],
   ...overrides,
 });
@@ -200,13 +202,17 @@ describe("filterNodes", () => {
 
   test("filters bucket nodes by provider (select)", () => {
     const nodes = [
-      makeNode({ name: "bucket1", type: "bucket", provider: "aws" }),
-      makeNode({ name: "bucket2", type: "bucket", provider: "minio" }),
+      makeNode({ name: "bucket1", type: "bucket", connectionName: "conn-aws" }),
+      makeNode({ name: "bucket2", type: "bucket", connectionName: "conn-minio" }),
     ];
+    const mockConnections = {
+      "conn-aws": { connectionConfig: { provider: "aws" } },
+      "conn-minio": { connectionConfig: { provider: "minio" } },
+    } as unknown as Record<string, import("~/utils/connectionsStore/useConnectionsStore").ConnectionRecord>;
     const filters: ColumnFiltersState = [{ id: "provider", value: "aws" }];
-    const result = filterNodes(nodes, filters, bucketColumns, true);
+    const result = filterNodes(nodes, filters, bucketColumns, true, mockConnections);
     expect(result).toHaveLength(1);
-    expect(result[0].provider).toBe("aws");
+    expect(result[0].connectionName).toBe("conn-aws");
   });
 
   test("filters bucket nodes by name (text)", () => {

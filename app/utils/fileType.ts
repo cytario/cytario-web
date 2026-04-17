@@ -11,8 +11,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-
 export type { LucideIcon };
 export type LucideIconName = keyof typeof icons;
 
@@ -104,10 +102,10 @@ export function getFileTypeIcon(path: string): LucideIconName {
 }
 
 /**
- * Returns the appropriate Lucide icon component for a given tree node
- * based on its type (bucket/directory) and file extension.
+ * Returns the appropriate Lucide icon component based on node type
+ * (bucket/directory) and file extension.
  */
-export function getNodeIcon(node: TreeNode): LucideIcon {
+export function getNodeIcon(node: { type: string; name: string }): LucideIcon {
   if (node.type === "bucket") return Archive;
   if (node.type === "directory") return Folder;
 
@@ -118,11 +116,11 @@ export function getNodeIcon(node: TreeNode): LucideIcon {
 }
 
 /**
- * Returns a human-readable type label for a tree node
+ * Returns a human-readable type label for a node
  * (e.g. "Bucket", "Folder", "OME-TIFF", "OME-Zarr", "CSV").
  * Falls back to the uppercase extension or "File" for unknown types.
  */
-export function getTypeLabel(node: TreeNode): string {
+export function getTypeLabel(node: { type: string; name: string }): string {
   if (node.type === "bucket") return "Bucket";
   if (node.type === "directory") return "Folder";
 

@@ -16,6 +16,7 @@ import { filterHiddenNodes, filterNodes } from "./filterNodes";
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
@@ -50,8 +51,8 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  // TODO
   const connectionName = name;
+  const connections = useConnectionsStore((s) => s.connections);
 
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const toggleShowHiddenFiles = useLayoutStore((s) => s.toggleShowHiddenFiles);
@@ -69,9 +70,9 @@ export function DirectoryView({
   const filteredNodes = useMemo(
     () =>
       isGrid
-        ? filterNodes(visibleNodes, columnFilters, columns, isConnection)
+        ? filterNodes(visibleNodes, columnFilters, columns, isConnection, connections)
         : visibleNodes,
-    [isGrid, visibleNodes, columnFilters, columns, isConnection],
+    [isGrid, visibleNodes, columnFilters, columns, isConnection, connections],
   );
 
   // Apply inline text filter for grid and list modes
@@ -134,12 +135,12 @@ export function DirectoryView({
 
       {isTree ? (
         <Container>
-          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} />
+          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} connectionName={connectionName} />
         </Container>
       ) : isGrid ? (
         <Container>
           {displayNodes.length > 0 ? (
-            <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} />
+            <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} connectionName={connectionName} />
           ) : (
             <p className="py-8 text-center text-sm text-(--color-text-secondary)">
               No items match the current filters. Try adjusting the filter, or

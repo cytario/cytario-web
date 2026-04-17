@@ -26,11 +26,11 @@ vi.mock("~/components/DirectoryView/DirectoryViewGrid", () => ({
 
 function makeNode(name: string): TreeNode {
   return {
+    id: name,
     connectionName: "test-connection",
     name,
     type: "file",
-    bucketName: "bucket",
-    provider: "aws",
+    pathName: name,
     children: [],
   };
 }

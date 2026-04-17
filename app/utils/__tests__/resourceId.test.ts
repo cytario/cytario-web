@@ -1,4 +1,4 @@
-import { nodeToPath, toIndexS3Key } from "../resourceId";
+import { buildConnectionPath, toIndexS3Key } from "../resourceId";
 
 describe("toIndexS3Key", () => {
   test("returns index key without prefix", () => {
@@ -26,26 +26,18 @@ describe("toIndexS3Key", () => {
   });
 });
 
-describe("nodeToPath", () => {
-  test("returns connection path without pathName", () => {
-    expect(nodeToPath({ connectionName: "my-conn" })).toBe("/connections/my-conn");
+describe("buildConnectionPath", () => {
+  test("returns connection path with empty pathName", () => {
+    expect(buildConnectionPath("my-conn", "")).toBe("/connections/my-conn");
   });
 
   test("returns connection path with pathName", () => {
-    expect(nodeToPath({ connectionName: "my-conn", pathName: "folder/file.txt" })).toBe(
+    expect(buildConnectionPath("my-conn", "folder/file.txt")).toBe(
       "/connections/my-conn/folder/file.txt",
     );
   });
 
-  test("strips trailing slash from path", () => {
-    expect(nodeToPath({ connectionName: "my-conn", pathName: "folder/" })).toBe(
-      "/connections/my-conn/folder",
-    );
-  });
-
-  test("returns path without trailing slash when pathName is empty", () => {
-    expect(nodeToPath({ connectionName: "my-conn", pathName: "" })).toBe(
-      "/connections/my-conn",
-    );
+  test("strips trailing slash", () => {
+    expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder");
   });
 });

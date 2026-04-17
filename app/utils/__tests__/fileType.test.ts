@@ -21,11 +21,11 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 function makeNode(overrides: Partial<TreeNode> = {}): TreeNode {
   return {
+    id: "test",
     connectionName: "aws-bucket",
     name: "test",
     type: "file",
-    bucketName: "bucket",
-    provider: "aws",
+    pathName: "test",
     children: [],
     ...overrides,
   };

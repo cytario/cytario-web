@@ -75,11 +75,11 @@ const mock = {
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => ({
+    id: "mockPath/",
     connectionName: "test-provider-test-bucket",
     name: "mockName",
     type: "directory",
-    bucketName: "test-bucket",
-    provider: "test-provider",
+    pathName: "mockPath/",
     children: [],
     ...overrides,
   }),

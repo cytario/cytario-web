@@ -89,10 +89,10 @@ export function matchesExtension(resourceId: string, pattern: RegExp): boolean {
   return pattern.test(resourceId);
 }
 
-/** Builds a URL path for a node using its connection name. */
-export function nodeToPath(node: { connectionName: string; pathName?: string }): string {
-  const path = node.pathName
-    ? `/connections/${node.connectionName}/${node.pathName}`
-    : `/connections/${node.connectionName}`;
+/** Builds a routable URL path from a connection name and an object path. */
+export function buildConnectionPath(connectionName: string, pathName: string): string {
+  const path = pathName
+    ? `/connections/${connectionName}/${pathName}`
+    : `/connections/${connectionName}`;
   return path.replace(/\/$/, "");
 }
