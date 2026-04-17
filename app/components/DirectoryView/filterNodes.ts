@@ -5,6 +5,9 @@ import type { ColumnConfig } from "~/components/Table/types";
 import type { ConnectionRecord } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 
+// TODO(C-82): This hand-rolled accessor/filter logic exists because grid mode
+// can't use TanStack Table's built-in column filters. Unifying filters across
+// view modes (https://app.plane.so/cytario/browse/C-82/) should eliminate this file.
 type NodeAccessor = (node: TreeNode) => string;
 
 const fileAccessors: Record<string, NodeAccessor> = {
