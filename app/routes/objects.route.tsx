@@ -229,7 +229,7 @@ export default function ObjectsRoute() {
     }
   }, [notification]);
 
-  const resourceId = `${connectionName}/${pathName}`;
+  const resourceId = `${connectionName}/${urlPath}`;
   const fileType = getFileType(resourceId);
 
   // Store credentials and connection config in Zustand store (keyed by connection name)

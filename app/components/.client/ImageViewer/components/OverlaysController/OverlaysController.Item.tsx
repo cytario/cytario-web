@@ -14,10 +14,10 @@ import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
 import { LavaLoader } from "~/components/LavaLoader";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { useConnectionsStore, selectConnection } from "~/utils/connectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
-import { buildConnectionPath, getFileName, parseResourceId } from "~/utils/resourceId";
+import { getFileName, parseResourceId } from "~/utils/resourceId";
 
 interface OverlaysControllerItemProps {
   resourceId: string;
@@ -56,26 +56,16 @@ export const OverlaysControllerItem = ({
   );
 
   const { connectionName } = parseResourceId(resourceId);
-  const connection = useConnectionsStore(
-    (state) => state.connections[connectionName],
-  );
+  const connection = useConnectionsStore(selectConnection(connectionName));
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
-    if (hasMarkers) return; // Already has markers, skip fetch
+    if (hasMarkers || !connection) return;
 
     const fetchMarkers = async () => {
       setIsLoading(true);
       try {
-        if (!connection?.credentials) {
-          throw new Error(`No credentials found for connection: ${connectionName}`);
-        }
-
-        const markerInfo = await getMarkerInfoWasm(
-          resourceId,
-          connection.credentials,
-          connection.connectionConfig,
-        );
+        const markerInfo = await getMarkerInfoWasm(resourceId);
         if (markerInfo && Object.keys(markerInfo).length > 0) {
           const newOverlayState = getOverlayState(markerInfo);
           updateOverlaysState(resourceId, newOverlayState);
@@ -100,11 +90,10 @@ export const OverlaysControllerItem = ({
   }, [
     hasMarkers,
     resourceId,
+    connection,
     updateOverlaysState,
     toast,
     fileName,
-    connection,
-    connectionName,
   ]);
 
   return (
@@ -120,7 +109,7 @@ export const OverlaysControllerItem = ({
         </button>
 
         <IconButtonLink
-          href={buildConnectionPath(connectionName, parseResourceId(resourceId).pathName)}
+          href={`/connections/${resourceId}`}
           icon={ExternalLink}
           aria-label="Open file"
           variant="ghost"

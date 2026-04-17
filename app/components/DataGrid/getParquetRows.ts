@@ -1,35 +1,20 @@
-import { Credentials } from "@aws-sdk/client-sts";
-
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
-import { parseResourceId } from "../../utils/resourceId";
-import { ConnectionConfig } from "~/.generated/client";
+import { resolveResourceId } from "~/utils/connectionsStore";
 
 /**
- * Fetch rows from a data file on S3
+ * Fetch rows from a data file on S3.
  * Supports: parquet, csv, json
- * @param resourceId Resource identifier (provider/bucketName/pathName)
- * @param credentials AWS credentials with access to the S3 bucket
- * @param limit Maximum number of rows to fetch (default: 100)
- * @param offset Number of rows to skip (default: 0)
- * @param connectionConfig Optional bucket configuration for S3-compatible services
  */
 export async function getParquetRows(
   resourceId: string,
-  credentials: Credentials,
   limit = 100,
   offset = 0,
-  connectionConfig: ConnectionConfig,
 ): Promise<Record<string, unknown>[]> {
-  const connection = await createDatabase(
-    resourceId,
-    credentials,
-    connectionConfig,
-  );
+  const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+  const connection = await createDatabase(resourceId, credentials, connectionConfig);
   const fileType = getFileType(resourceId);
-  const { pathName } = parseResourceId(resourceId);
-  const s3Path = `s3://${connectionConfig.bucketName}/${pathName}`;
-  const readFn = getReadFunction(fileType, s3Path);
+  const readFn = getReadFunction(fileType, s3Uri);
 
   const result = await connection.query(/*sql*/ `
     SELECT * FROM ${readFn}

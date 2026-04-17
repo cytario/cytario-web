@@ -1,10 +1,8 @@
-import { Credentials } from "@aws-sdk/client-sts";
 import { type Table } from "apache-arrow";
 
 import { createDatabase } from "./createDatabase";
 import { getGeomQuery } from "./getGeomQuery";
-import { parseResourceId } from "../resourceId";
-import { ConnectionConfig } from "~/.generated/client";
+import { resolveResourceId } from "../connectionsStore";
 
 interface TileIndex {
   z: number;
@@ -18,28 +16,16 @@ export interface PointRow extends Record<string, unknown> {
 }
 
 /**
- * Fetch tile data from DuckDB-WASM database on S3
- * @param resourceId - S3 resource identifier (bucketName/pathName)
- * @param tileIndex - Tile index (z, x, y)
- * @param credentials - AWS credentials with access to the S3 bucket
- * @param markerColumns - Optional list of marker columns to include
- * @param connectionConfig - Optional bucket configuration for S3-compatible services
+ * Fetch tile data from DuckDB-WASM database on S3.
  */
 export async function getTileDataWasm(
   resourceId: string,
   tileIndex: TileIndex,
-  credentials: Credentials,
   markerColumns: string[] = [],
-  connectionConfig: ConnectionConfig,
 ): Promise<Table | null> {
   try {
-    const connection = await createDatabase(
-      resourceId,
-      credentials,
-      connectionConfig,
-    );
-    const { pathName } = parseResourceId(resourceId);
-    const s3Uri = `s3://${connectionConfig.bucketName}/${pathName}`;
+    const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+    const connection = await createDatabase(resourceId, credentials, connectionConfig);
     const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns);
     const arrowTable = await connection.query(tileQuery);
 

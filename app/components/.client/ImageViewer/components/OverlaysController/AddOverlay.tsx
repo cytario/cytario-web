@@ -8,7 +8,6 @@ import {
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
-import { useConnectionsStore } from "~/utils/connectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 
 interface AddOverlayProps {
@@ -71,27 +70,8 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
     if (!originalNode) return;
 
     try {
-      if (!originalNode.pathName) {
-        throw new Error("Invalid node selected");
-      }
-
-      const { connections } = useConnectionsStore.getState();
-      const conn = connections[originalNode.connectionName];
-      const credentials = conn?.credentials;
-      const connectionConfig = conn?.connectionConfig;
-
-      if (!connectionConfig) {
-        throw new Error("Connection configuration not found");
-      }
-
-      if (!credentials) {
-        throw new Error(
-          `No credentials found for connection: ${originalNode.connectionName}`,
-        );
-      }
-
       if (query === "csv") {
-        convertCsvToParquet(originalNode.id, connectionConfig, credentials);
+        convertCsvToParquet(originalNode.id);
         toast({
           variant: "success",
           message: `Started conversion: ${originalNode.name}`,

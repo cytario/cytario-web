@@ -10,4 +10,7 @@ export {
   selectCredentials,
   selectConnectionConfig,
   selectConnectionIndex,
+  selectResolvedResource,
+  resolveResourceId,
 } from "./selectors";
+export type { ResolvedResource } from "./selectors";
