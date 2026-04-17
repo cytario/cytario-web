@@ -62,9 +62,9 @@ describe("ScopePill", () => {
     expect(screen.getByText("admins")).toBeInTheDocument();
   });
 
-  test("renders Users icon for non-admin scope", () => {
+  test("renders no icon for non-admin scope", () => {
     const { container } = render(<ScopePill scope="cytario/Lab Services" />);
-    expect(container.querySelector(".lucide-users")).toBeInTheDocument();
+    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
     expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
   });
 
