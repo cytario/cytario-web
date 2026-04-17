@@ -34,7 +34,11 @@ export function ScopePill({ scope, visibleCount }: ScopePillProps) {
           size={20}
           fill="white"
           aria-hidden="true"
-          className="shrink-0 text-(--color-text-secondary) bg-slate-300 border p-0.5 rounded-2xl "
+          className={`
+            shrink-0 
+            border p-0.5 rounded-2xl
+            bg-(--color-surface-muted) text-(--color-text-secondary)
+          `}
         />
       ) : null}
       <PathPill visibleCount={visibleCount} colorFn={scopeColor}>
