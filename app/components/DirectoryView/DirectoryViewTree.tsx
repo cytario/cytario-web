@@ -18,12 +18,13 @@ type DesignIcon = DesignTreeNode["icon"];
 
 /**
  * Converts app TreeNodes into the design system TreeNode format.
- * Uses pathName as the unique id since it is unique within a bucket.
+ * Uses connectionName/pathName as the unique id to avoid collisions
+ * when the same relative path exists across multiple connections.
  */
 function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
   return nodes.map((node) => {
     const designNode: DesignTreeNode = {
-      id: node.pathName ?? node.name,
+      id: `${node.connectionName}/${node.pathName ?? node.name}`,
       name: node.name,
       icon: getNodeIcon(node) as DesignIcon,
     };
@@ -38,14 +39,15 @@ function toDesignTreeNodes(nodes: TreeNode[]): DesignTreeNode[] {
 
 /**
  * Finds the original TreeNode from the directory tree that corresponds
- * to a design tree node id (which is pathName or name).
+ * to a design tree node id (which is connectionName/pathName or
+ * connectionName/name).
  */
 function findOriginalNode(
   nodes: TreeNode[],
   id: string,
 ): TreeNode | undefined {
   for (const node of nodes) {
-    const nodeId = node.pathName ?? node.name;
+    const nodeId = `${node.connectionName}/${node.pathName ?? node.name}`;
     if (nodeId === id) return node;
 
     if (node.children.length > 0) {
