@@ -36,7 +36,6 @@ import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
-import { createResourceId } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -230,11 +229,7 @@ export default function ObjectsRoute() {
     }
   }, [notification]);
 
-  const resourceId = createResourceId(
-    connectionConfig.provider,
-    connectionConfig.bucketName,
-    pathName,
-  );
+  const resourceId = `${connectionName}/${pathName}`;
   const fileType = getFileType(resourceId);
 
   // Store credentials and connection config in Zustand store (keyed by connection name)

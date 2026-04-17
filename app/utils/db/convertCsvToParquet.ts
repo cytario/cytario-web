@@ -9,11 +9,13 @@ import {
 
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
 import { buildCreateTableQuery } from "./sqlQueries";
-import { toS3Uri } from "../resourceId";
+import { parseResourceId } from "../resourceId";
+import { ConnectionConfig } from "~/.generated/client";
 
 export async function convertCsvToParquet(
   resourceId: string,
-  credentials: Credentials
+  connectionConfig: ConnectionConfig,
+  credentials: Credentials,
 ) {
   console.log(`[CSV→Parquet] Starting conversion for: ${resourceId}`);
 
@@ -55,12 +57,11 @@ export async function convertCsvToParquet(
     if (credentials.SessionToken) {
       await conn.query(`SET s3_session_token='${credentials.SessionToken}'`);
     }
-    const AWS_REGION = "eu-central-1";
-    await conn.query(`SET s3_region='${AWS_REGION}'`);
+    await conn.query(`SET s3_region='${connectionConfig.region ?? "eu-central-1"}'`);
 
     // Write to Parquet with WKB geometry
-    const s3Uri = toS3Uri(resourceId);
-    const parquetDestination = `${s3Uri}.parquet`;
+    const { pathName } = parseResourceId(resourceId);
+    const parquetDestination = `s3://${connectionConfig.bucketName}/${pathName}.parquet`;
 
     console.log(
       `[CSV→Parquet] Writing to S3 as Parquet (ZSTD compression, 500k row groups)...`

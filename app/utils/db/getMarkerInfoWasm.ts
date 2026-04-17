@@ -1,7 +1,7 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
 import { createDatabase } from "./createDatabase";
-import { toS3Uri } from "../resourceId";
+import { parseResourceId } from "../resourceId";
 import { ConnectionConfig } from "~/.generated/client";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
 
@@ -14,7 +14,7 @@ import { MarkerInfo } from "~/components/.client/ImageViewer/components/Overlays
 export async function getMarkerInfoWasm(
   resourceId: string,
   credentials: Credentials,
-  connectionConfig?: ConnectionConfig | null,
+  connectionConfig: ConnectionConfig,
 ): Promise<MarkerInfo> {
   const connection = await createDatabase(
     resourceId,
@@ -23,7 +23,8 @@ export async function getMarkerInfoWasm(
   );
 
   try {
-    const parquetPath = toS3Uri(resourceId);
+    const { pathName } = parseResourceId(resourceId);
+    const parquetPath = `s3://${connectionConfig.bucketName}/${pathName}`;
 
     // Select and sum all marker columns
     const countResult = await connection.query(/*sql*/ `

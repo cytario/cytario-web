@@ -3,6 +3,7 @@ import { type Table } from "apache-arrow";
 
 import { createDatabase } from "./createDatabase";
 import { getGeomQuery } from "./getGeomQuery";
+import { parseResourceId } from "../resourceId";
 import { ConnectionConfig } from "~/.generated/client";
 
 interface TileIndex {
@@ -29,7 +30,7 @@ export async function getTileDataWasm(
   tileIndex: TileIndex,
   credentials: Credentials,
   markerColumns: string[] = [],
-  connectionConfig?: ConnectionConfig | null,
+  connectionConfig: ConnectionConfig,
 ): Promise<Table | null> {
   try {
     const connection = await createDatabase(
@@ -37,7 +38,9 @@ export async function getTileDataWasm(
       credentials,
       connectionConfig,
     );
-    const tileQuery = getGeomQuery(resourceId, tileIndex, markerColumns);
+    const { pathName } = parseResourceId(resourceId);
+    const s3Uri = `s3://${connectionConfig.bucketName}/${pathName}`;
+    const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns);
     const arrowTable = await connection.query(tileQuery);
 
     if (arrowTable.numRows === 0) {

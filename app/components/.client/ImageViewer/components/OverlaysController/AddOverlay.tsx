@@ -10,7 +10,6 @@ import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
-import { createResourceId } from "~/utils/resourceId";
 
 interface AddOverlayProps {
   callback?: () => void;
@@ -91,20 +90,14 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         );
       }
 
-      const resourceId = createResourceId(
-        connectionConfig.provider,
-        connectionConfig.bucketName,
-        originalNode.pathName,
-      );
-
       if (query === "csv") {
-        convertCsvToParquet(resourceId, credentials);
+        convertCsvToParquet(originalNode.id, connectionConfig, credentials);
         toast({
           variant: "success",
           message: `Started conversion: ${originalNode.name}`,
         });
       } else {
-        onOverlayAdd?.({ [resourceId]: {} });
+        onOverlayAdd?.({ [originalNode.id]: {} });
         toast({
           variant: "success",
           message: `Overlay added: ${originalNode.name}`,

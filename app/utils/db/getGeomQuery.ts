@@ -1,7 +1,6 @@
 import { type TileIndex } from "node_modules/@deck.gl/geo-layers/dist/tileset-2d/types";
 
 import { getTileBoundingBox } from "./getTileBoundingBox";
-import { toS3Uri } from "../resourceId";
 
 export const isPointMode = (z: number): boolean => z < -2;
 
@@ -25,50 +24,40 @@ function buildBitmaskExpression(markerColumns: string[]): string {
 }
 
 /**
- * Get geometries query based on zoom level
- * @param resourceId - Resource identifier (provider/bucketName/pathName)
+ * Get geometries query based on zoom level.
+ * @param s3Uri - S3 URI for the parquet file (s3://bucketName/pathName)
  * @param markerColumns - ALL marker column names from the dataset (not just enabled ones)
  */
 export function getGeomQuery(
-  resourceId: string,
+  s3Uri: string,
   tileIndex: TileIndex,
-  markerColumns: string[] = []
+  markerColumns: string[] = [],
 ): string {
   const [minX, minY, maxX, maxY] = getTileBoundingBox(tileIndex);
   const bitmaskExpression = buildBitmaskExpression(markerColumns);
 
-  const getPoints = (resourceId: string) => {
-    const s3Uri = toS3Uri(resourceId);
-    return /*sql*/ `
-      SELECT
-        object as id,
-        x,
-        y,
-        ${bitmaskExpression} AS marker_bitmask
-      FROM read_parquet('${s3Uri}')
-      WHERE x BETWEEN ${minX} AND ${maxX}
-        AND y BETWEEN ${minY} AND ${maxY}
-    `;
-  };
-
-  const getPolygons = (resourceId: string) => {
-    const s3Uri = toS3Uri(resourceId);
-    return /*sql*/ `
-      SELECT
-        object as id,
-        ST_AsWKB(ST_GeomFromText(geom)) as geom, -- Convert WKT → GEOMETRY → WKB binary
-        x,
-        y,
-        ${bitmaskExpression} AS marker_bitmask
-      FROM read_parquet('${s3Uri}')
-      WHERE x BETWEEN ${minX} AND ${maxX}
-        AND y BETWEEN ${minY} AND ${maxY}
-    `;
-  };
-
   if (isPointMode(tileIndex.z)) {
-    return getPoints(resourceId);
+    return /*sql*/ `
+      SELECT
+        object as id,
+        x,
+        y,
+        ${bitmaskExpression} AS marker_bitmask
+      FROM read_parquet('${s3Uri}')
+      WHERE x BETWEEN ${minX} AND ${maxX}
+        AND y BETWEEN ${minY} AND ${maxY}
+    `;
   }
 
-  return getPolygons(resourceId);
+  return /*sql*/ `
+    SELECT
+      object as id,
+      ST_AsWKB(ST_GeomFromText(geom)) as geom, -- Convert WKT → GEOMETRY → WKB binary
+      x,
+      y,
+      ${bitmaskExpression} AS marker_bitmask
+    FROM read_parquet('${s3Uri}')
+    WHERE x BETWEEN ${minX} AND ${maxX}
+      AND y BETWEEN ${minY} AND ${maxY}
+  `;
 }

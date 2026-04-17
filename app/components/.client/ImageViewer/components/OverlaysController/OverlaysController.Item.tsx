@@ -17,7 +17,7 @@ import { LavaLoader } from "~/components/LavaLoader";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
-import { getFileName, parseResourceId } from "~/utils/resourceId";
+import { buildConnectionPath, getFileName, parseResourceId } from "~/utils/resourceId";
 
 interface OverlaysControllerItemProps {
   resourceId: string;
@@ -55,20 +55,10 @@ export const OverlaysControllerItem = ({
     1, // Prevent division by zero
   );
 
-  // Find connection record matching this resourceId's provider/bucketName
-  const { provider, bucketName } = parseResourceId(resourceId);
-  const connection = useConnectionsStore((state) => {
-    for (const record of Object.values(state.connections)) {
-      if (
-        record.connectionConfig?.provider === provider &&
-        record.connectionConfig?.bucketName === bucketName
-      ) {
-        return record;
-      }
-    }
-    return undefined;
-  });
-  const connectionName = connection?.connectionConfig?.name;
+  const { connectionName } = parseResourceId(resourceId);
+  const connection = useConnectionsStore(
+    (state) => state.connections[connectionName],
+  );
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
@@ -78,7 +68,7 @@ export const OverlaysControllerItem = ({
       setIsLoading(true);
       try {
         if (!connection?.credentials) {
-          throw new Error(`No credentials found for bucket: ${bucketName}`);
+          throw new Error(`No credentials found for connection: ${connectionName}`);
         }
 
         const markerInfo = await getMarkerInfoWasm(
@@ -114,7 +104,7 @@ export const OverlaysControllerItem = ({
     toast,
     fileName,
     connection,
-    bucketName,
+    connectionName,
   ]);
 
   return (
@@ -130,7 +120,7 @@ export const OverlaysControllerItem = ({
         </button>
 
         <IconButtonLink
-          href={connectionName ? `/connections/${connectionName}/${parseResourceId(resourceId).pathName}` : `#`}
+          href={buildConnectionPath(connectionName, parseResourceId(resourceId).pathName)}
           icon={ExternalLink}
           aria-label="Open file"
           variant="ghost"

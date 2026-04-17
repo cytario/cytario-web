@@ -71,19 +71,14 @@ export const OverlaysLayer = ({
     loadTile(id);
 
     try {
-      // Find connection record matching this resourceId's provider/bucketName
-      const { provider, bucketName } = parseResourceId(resourceId);
+      const { connectionName } = parseResourceId(resourceId);
       const { connections } = useConnectionsStore.getState();
-      const conn = Object.values(connections).find(
-        (r) =>
-          r.connectionConfig?.provider === provider &&
-          r.connectionConfig?.bucketName === bucketName,
-      );
+      const conn = connections[connectionName];
       const credentials = conn?.credentials;
       const connectionConfig = conn?.connectionConfig;
 
       if (!credentials) {
-        throw new Error(`No credentials found for bucket: ${bucketName}`);
+        throw new Error(`No credentials found for connection: ${connectionName}`);
       }
 
       // Get ALL marker column names (not just enabled ones)

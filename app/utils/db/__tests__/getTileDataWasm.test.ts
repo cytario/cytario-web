@@ -18,6 +18,7 @@ describe("getTileDataWasm", () => {
   const mockConnection = { query: mockQuery };
   const defaultTileIndex = { z: 0, x: 0, y: 0 };
   const credentials = mock.credentials();
+  const connectionConfig = mock.connectionConfig();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,19 +31,16 @@ describe("getTileDataWasm", () => {
     mockQuery.mockResolvedValue(mockTable);
 
     const result = await getTileDataWasm(
-      "bucket/path",
+      "my-conn/data/file.parquet",
       defaultTileIndex,
       credentials,
+      [],
+      connectionConfig,
     );
 
     expect(result).toBe(mockTable);
-    expect(createDatabase).toHaveBeenCalledWith(
-      "bucket/path",
-      credentials,
-      undefined,
-    );
     expect(getGeomQuery).toHaveBeenCalledWith(
-      "bucket/path",
+      `s3://${connectionConfig.bucketName}/data/file.parquet`,
       defaultTileIndex,
       [],
     );
@@ -53,9 +51,11 @@ describe("getTileDataWasm", () => {
     mockQuery.mockResolvedValue(mockTable);
 
     const result = await getTileDataWasm(
-      "bucket/path",
+      "my-conn/data/file.parquet",
       defaultTileIndex,
       credentials,
+      [],
+      connectionConfig,
     );
 
     expect(result).toBeNull();
@@ -67,14 +67,15 @@ describe("getTileDataWasm", () => {
     const markerColumns = ["marker1", "marker2", "marker3"];
 
     await getTileDataWasm(
-      "bucket/path",
+      "my-conn/data/file.parquet",
       defaultTileIndex,
       credentials,
       markerColumns,
+      connectionConfig,
     );
 
     expect(getGeomQuery).toHaveBeenCalledWith(
-      "bucket/path",
+      `s3://${connectionConfig.bucketName}/data/file.parquet`,
       defaultTileIndex,
       markerColumns,
     );
@@ -83,22 +84,22 @@ describe("getTileDataWasm", () => {
   test("passes connection config to createDatabase", async () => {
     const mockTable = { numRows: 5 };
     mockQuery.mockResolvedValue(mockTable);
-    const connectionConfig = mock.connectionConfig({
+    const customConfig = mock.connectionConfig({
       endpoint: "https://minio.local:9000",
     });
 
     await getTileDataWasm(
-      "bucket/path",
+      "my-conn/data/file.parquet",
       defaultTileIndex,
       credentials,
       [],
-      connectionConfig,
+      customConfig,
     );
 
     expect(createDatabase).toHaveBeenCalledWith(
-      "bucket/path",
+      "my-conn/data/file.parquet",
       credentials,
-      connectionConfig,
+      customConfig,
     );
   });
 
@@ -108,7 +109,7 @@ describe("getTileDataWasm", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      getTileDataWasm("bucket/path", defaultTileIndex, credentials),
+      getTileDataWasm("my-conn/path", defaultTileIndex, credentials, [], connectionConfig),
     ).rejects.toThrow("Database connection failed");
 
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -124,7 +125,7 @@ describe("getTileDataWasm", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      getTileDataWasm("bucket/path", defaultTileIndex, credentials),
+      getTileDataWasm("my-conn/path", defaultTileIndex, credentials, [], connectionConfig),
     ).rejects.toThrow("Query failed");
 
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -139,8 +140,18 @@ describe("getTileDataWasm", () => {
     mockQuery.mockResolvedValue(mockTable);
     const tileIndex = { z: 5, x: 10, y: 20 };
 
-    await getTileDataWasm("bucket/path", tileIndex, credentials);
+    await getTileDataWasm(
+      "my-conn/data/file.parquet",
+      tileIndex,
+      credentials,
+      [],
+      connectionConfig,
+    );
 
-    expect(getGeomQuery).toHaveBeenCalledWith("bucket/path", tileIndex, []);
+    expect(getGeomQuery).toHaveBeenCalledWith(
+      `s3://${connectionConfig.bucketName}/data/file.parquet`,
+      tileIndex,
+      [],
+    );
   });
 });

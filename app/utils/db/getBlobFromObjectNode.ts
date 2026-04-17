@@ -1,4 +1,4 @@
-import { useConnectionsStore } from "../connectionsStore";
+
 import {
   useFileStore,
   type DownloadProgress,
@@ -60,35 +60,12 @@ async function downloadFileWithProgress(
 }
 
 /**
- * Find the connection name for a provider/bucketName pair from the store.
- */
-function findConnectionName(provider: string, bucketName: string): string | undefined {
-  const { connections } = useConnectionsStore.getState();
-  for (const [key, record] of Object.entries(connections)) {
-    if (
-      record.connectionConfig?.provider === provider &&
-      record.connectionConfig?.bucketName === bucketName
-    ) {
-      return key; // key is the connection name
-    }
-  }
-  return undefined;
-}
-
-/**
- * Get presigned URL for a given resourceId
+ * Get presigned URL for a given resourceId.
  */
 async function getPresignedUrl(resourceId: string): Promise<string> {
-  const { provider, bucketName, pathName } = parseResourceId(resourceId);
-  const connectionName = findConnectionName(provider, bucketName);
-
-  if (!connectionName) {
-    throw new Error(`No connection found for ${provider}/${bucketName}`);
-  }
-
+  const { connectionName, pathName } = parseResourceId(resourceId);
   const response = await fetch(`/presign/${connectionName}/${pathName}`);
   const data = await response.json();
-
   return data.url;
 }
 

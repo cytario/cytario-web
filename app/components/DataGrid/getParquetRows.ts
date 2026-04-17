@@ -2,7 +2,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
-import { toS3Uri } from "../../utils/resourceId";
+import { parseResourceId } from "../../utils/resourceId";
 import { ConnectionConfig } from "~/.generated/client";
 
 /**
@@ -19,7 +19,7 @@ export async function getParquetRows(
   credentials: Credentials,
   limit = 100,
   offset = 0,
-  connectionConfig?: ConnectionConfig | null,
+  connectionConfig: ConnectionConfig,
 ): Promise<Record<string, unknown>[]> {
   const connection = await createDatabase(
     resourceId,
@@ -27,7 +27,8 @@ export async function getParquetRows(
     connectionConfig,
   );
   const fileType = getFileType(resourceId);
-  const s3Path = toS3Uri(resourceId);
+  const { pathName } = parseResourceId(resourceId);
+  const s3Path = `s3://${connectionConfig.bucketName}/${pathName}`;
   const readFn = getReadFunction(fileType, s3Path);
 
   const result = await connection.query(/*sql*/ `
