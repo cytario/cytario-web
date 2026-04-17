@@ -13,7 +13,7 @@ import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 import { selectConnection } from "~/utils/connectionsStore/selectors";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
-import { nodeToPath } from "~/utils/resourceId";
+import { buildConnectionPath } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 import { constructS3Url } from "~/utils/zarrUtils";
 
@@ -54,7 +54,7 @@ function BucketCardGridItem({ node }: { node: TreeNode }) {
   const navigate = useNavigate();
   const { connection, signedFetch } = useSignedFetch(node.connectionName);
 
-  const to = nodeToPath(node);
+  const to = buildConnectionPath(node.connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   const key = node._Object?.Key;
@@ -106,7 +106,7 @@ function FileCardGridItem({
   const handleInfo = useNodeInfoModal(node);
   const { connection, signedFetch } = useSignedFetch(node.connectionName);
 
-  const to = nodeToPath(node);
+  const to = buildConnectionPath(node.connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   // For files: use the node's own path. For directories: use the first image found inside.

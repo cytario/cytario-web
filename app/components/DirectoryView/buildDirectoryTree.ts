@@ -69,7 +69,7 @@ export interface TreeNode {
    * directories. Empty string `""` for bucket root nodes.
    *
    * Built by `buildDirectoryTree` as the concatenation of ancestor `name`
-   * segments. Used for routing via `nodeToPath()`.
+   * segments. Used for routing via `buildConnectionPath()`.
    */
   pathName: string;
   children: TreeNode[];

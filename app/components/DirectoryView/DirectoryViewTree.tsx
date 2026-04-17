@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { type TreeNode } from "./buildDirectoryTree";
 import { NodeLinkIcon } from "./NodeLink/NodeLinkIcon";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
-import { nodeToPath } from "~/utils/resourceId";
+import { buildConnectionPath } from "~/utils/resourceId";
 
 /* ------------------------------------------------------------------ */
 /*  DirectoryViewTree                                                  */
@@ -36,7 +36,7 @@ export function DirectoryViewTree({
         searchMatch={(node, term) =>
           node.name.toLowerCase().includes(term.toLowerCase())
         }
-        onActivate={(node) => navigate(nodeToPath(node))}
+        onActivate={(node) => navigate(buildConnectionPath(node.connectionName, node.pathName))}
       />
     </div>
   );
@@ -62,7 +62,7 @@ export function DirectoryTree({
   return (
     <ul className="pl-6">
       {nodes.map((node) => {
-        const to = nodeToPath(node);
+        const to = buildConnectionPath(node.connectionName, node.pathName);
 
         return (
           <li key={node.name}>
