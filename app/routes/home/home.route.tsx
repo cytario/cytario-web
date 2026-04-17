@@ -70,12 +70,9 @@ export default function HomeRoute() {
           configByName.has(item.connectionName),
         )
         .map((item: SerializedRecentlyViewed) => {
-          const config = configByName.get(item.connectionName)!;
           return {
             id: item.pathName,
             connectionName: item.connectionName,
-            provider: config.provider,
-            bucketName: config.bucketName,
             pathName: item.pathName,
             name: item.name,
             type: item.type as TreeNode["type"],
@@ -104,12 +101,9 @@ export default function HomeRoute() {
           configByName.has(pin.connectionName),
         )
         .map((pin: SerializedPinnedPath) => {
-          const config = configByName.get(pin.connectionName)!;
           return {
             id: pin.pathName,
             connectionName: pin.connectionName,
-            provider: config.provider,
-            bucketName: config.bucketName,
             pathName: pin.pathName,
             name: pin.displayName,
             type: "directory" as const,

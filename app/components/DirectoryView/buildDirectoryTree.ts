@@ -10,57 +10,17 @@ export type TreeNodeType = "bucket" | "directory" | "file";
  *
  * Structurally extends `@cytario/design` `TreeNode` (`{ id, name, children? }`)
  * so it can be passed directly to the design system `<Tree>` component without
- * conversion. Callbacks like `onActivate` return the full `TreeNode`, eliminating
- * the need for reverse-lookup helpers.
+ * conversion. Callbacks like `onActivate` return the full `TreeNode`,
+ * eliminating the need for reverse-lookup helpers.
  *
- * ### ID strategy
- *
- * | Node type   | `id` value          | Example                        |
- * |-------------|---------------------|--------------------------------|
- * | bucket root | `connectionName`    | `"aws-prod-bucket"`            |
- * | directory   | `pathName`          | `"results/2024/"`              |
- * | file        | `pathName`          | `"results/2024/output.ome.tif"`|
- *
- * IDs are unique within a single connection's tree. In views that mix multiple
- * connections (e.g. the connections overview), bucket roots use `connectionName`
- * as their ID to guarantee uniqueness.
- *
- * ### Example
- *
- * ```
- * {
- *   id: "results/",
- *   connectionName: "aws-prod-bucket",
- *   provider: "aws",
- *   bucketName: "prod-bucket",
- *   name: "results",
- *   type: "directory",
- *   pathName: "results/",
- *   children: [
- *     {
- *       id: "results/output.ome.tif",
- *       connectionName: "aws-prod-bucket",
- *       provider: "aws",
- *       bucketName: "prod-bucket",
- *       name: "output.ome.tif",
- *       type: "file",
- *       pathName: "results/output.ome.tif",
- *       children: [],
- *       _Object: { Key: "results/output.ome.tif", Size: 1048576 },
- *     },
- *   ],
- * }
- * ```
+ * Connection-level metadata (`provider`, `bucketName`, etc.) is not stored on
+ * every node — look it up from the connections store via `connectionName`.
  */
 export interface TreeNode {
   /** Unique identifier — equals `pathName` for files/directories, `connectionName` for bucket roots. */
   id: string;
   /** Name of the connection config this node belongs to. */
   connectionName: string;
-  /** Storage provider (e.g. `"aws"`, `"minio"`). */
-  provider: string;
-  /** S3-compatible bucket name. */
-  bucketName: string;
   /** Display name — the last segment of the path (e.g. `"output.ome.tif"`). */
   name: string;
   type: TreeNodeType;
@@ -81,8 +41,6 @@ function buildDirectoryTreeRecursive(
   currentDir: TreeNode[],
   keyParts: string[],
   obj: _Object,
-  bucketName: string,
-  provider: string,
   connectionName: string,
   parentPath: string = "",
 ) {
@@ -102,8 +60,6 @@ function buildDirectoryTreeRecursive(
       type: "file",
       name,
       pathName,
-      bucketName,
-      provider,
       children: [],
       _Object: obj,
     });
@@ -118,8 +74,6 @@ function buildDirectoryTreeRecursive(
           type: "file",
           name,
           pathName,
-          bucketName,
-          provider,
           children: [],
           _Object: obj,
         });
@@ -135,8 +89,6 @@ function buildDirectoryTreeRecursive(
         type: "directory",
         name,
         pathName,
-        bucketName,
-        provider,
         children: [],
         _Object: obj,
       };
@@ -152,8 +104,6 @@ function buildDirectoryTreeRecursive(
       existingDir.children,
       keyParts.slice(1),
       obj,
-      bucketName,
-      provider,
       connectionName,
       pathName,
     );
@@ -211,9 +161,7 @@ export function computeDirectoryLastModified(node: TreeNode): number {
  *                pathNames so they stay routable via `/connections/:connectionName/*`)
  */
 export function buildDirectoryTree(
-  bucketName: string,
   objects: _Object[],
-  provider: string,
   connectionName: string,
   prefix?: string,
   urlPath?: string,
@@ -231,8 +179,6 @@ export function buildDirectoryTree(
       root,
       pathSegments,
       obj,
-      bucketName,
-      provider,
       connectionName,
       basePath,
     );

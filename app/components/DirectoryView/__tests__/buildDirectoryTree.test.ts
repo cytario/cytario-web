@@ -16,9 +16,9 @@ const testCases: [_Object[], TreeNode[]][] = [
         connectionName: "test-connection",
         type: "directory",
         name: "folder1",
-        bucketName: "test-bucket",
+
         pathName: "folder1/",
-        provider: "test-provider",
+
         children: [
           {
             id: "folder1/file1.txt",
@@ -26,8 +26,8 @@ const testCases: [_Object[], TreeNode[]][] = [
             type: "file",
             name: "file1.txt",
             pathName: "folder1/file1.txt",
-            bucketName: "test-bucket",
-            provider: "test-provider",
+    
+
             children: [],
             _Object: { Key: "folder1/file1.txt" },
           },
@@ -36,9 +36,9 @@ const testCases: [_Object[], TreeNode[]][] = [
             connectionName: "test-connection",
             type: "file",
             name: "file2.txt",
-            bucketName: "test-bucket",
+    
             pathName: "folder1/file2.txt",
-            provider: "test-provider",
+
             children: [],
             _Object: { Key: "folder1/file2.txt" },
           },
@@ -50,18 +50,18 @@ const testCases: [_Object[], TreeNode[]][] = [
         connectionName: "test-connection",
         type: "directory",
         name: "folder2",
-        bucketName: "test-bucket",
+
         pathName: "folder2/",
-        provider: "test-provider",
+
         children: [
           {
             id: "folder2/file3.txt",
             connectionName: "test-connection",
             type: "file",
             name: "file3.txt",
-            bucketName: "test-bucket",
+    
             pathName: "folder2/file3.txt",
-            provider: "test-provider",
+
             children: [],
             _Object: { Key: "folder2/file3.txt" },
           },
@@ -71,17 +71,17 @@ const testCases: [_Object[], TreeNode[]][] = [
             type: "directory",
             name: "subfolder1",
             pathName: "folder2/subfolder1/",
-            bucketName: "test-bucket",
-            provider: "test-provider",
+    
+
             children: [
               {
                 id: "folder2/subfolder1/file4.txt",
                 connectionName: "test-connection",
                 type: "file",
                 name: "file4.txt",
-                bucketName: "test-bucket",
+        
                 pathName: "folder2/subfolder1/file4.txt",
-                provider: "test-provider",
+    
                 children: [],
                 _Object: { Key: "folder2/subfolder1/file4.txt" },
               },
@@ -99,7 +99,7 @@ describe("buildDirectoryTree", () => {
   test.each(testCases)(
     "should correctly build a directory tree from a flat list of objects",
     (objects, expectedTree) => {
-      const tree = buildDirectoryTree("test-bucket", objects, "test-provider", "test-connection");
+      const tree = buildDirectoryTree(objects, "test-connection");
       expect(tree).toEqual(expectedTree);
     }
   );
@@ -110,7 +110,7 @@ describe("buildDirectoryTree", () => {
     ];
 
     const tree = buildDirectoryTree(
-      "my-bucket", objects, "aws", "my-connection", "subdir/", "subdir",
+      objects, "my-connection", "subdir/", "subdir",
     );
 
     expect(tree).toEqual([
@@ -120,8 +120,6 @@ describe("buildDirectoryTree", () => {
         type: "file",
         name: "file.tif",
         pathName: "subdir/file.tif",
-        bucketName: "my-bucket",
-        provider: "aws",
         children: [],
         _Object: { Key: "subdir/file.tif" },
       },
@@ -134,7 +132,7 @@ describe("buildDirectoryTree", () => {
       { Key: "czi/ULT-2022-16901-457_V1.czi" },
     ];
 
-    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-connection");
+    const tree = buildDirectoryTree(objects, "my-connection");
 
     expect(tree).toHaveLength(1);
     expect(tree[0].type).toBe("directory");
@@ -151,7 +149,7 @@ describe("buildDirectoryTree", () => {
       { Key: "a/b/file.txt" },
     ];
 
-    const tree = buildDirectoryTree("my-bucket", objects, "aws", "my-connection");
+    const tree = buildDirectoryTree(objects, "my-connection");
 
     expect(tree).toHaveLength(1);
     expect(tree[0].name).toBe("a");
@@ -166,9 +164,7 @@ describe("buildDirectoryTree", () => {
       { Key: "subdir/file.tif" },
     ];
 
-    const tree = buildDirectoryTree(
-      "my-bucket", objects, "aws", "my-connection",
-    );
+    const tree = buildDirectoryTree(objects, "my-connection");
 
     expect(tree[0].pathName).toBe("subdir/");
     expect(tree[0].children[0].pathName).toBe("subdir/file.tif");

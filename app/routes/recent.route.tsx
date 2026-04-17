@@ -81,12 +81,9 @@ export default function RecentRoute() {
       recentlyViewed
         .filter((item) => configByName.has(item.connectionName))
         .map((item) => {
-          const config = configByName.get(item.connectionName)!;
           return {
             id: item.pathName,
             connectionName: item.connectionName,
-            provider: config.provider,
-            bucketName: config.bucketName,
             pathName: item.pathName,
             name: item.name,
             type: item.type as TreeNode["type"],

@@ -61,8 +61,6 @@ function makeTreeNodes(): TreeNode[] {
     {
       id: "analysis/",
       connectionName: "aws-test-bucket",
-      provider: "aws",
-      bucketName: "test-bucket",
       name: "analysis",
       type: "directory",
       pathName: "analysis/",
@@ -70,8 +68,6 @@ function makeTreeNodes(): TreeNode[] {
         {
           id: "analysis/cells.parquet",
           connectionName: "aws-test-bucket",
-          provider: "aws",
-          bucketName: "test-bucket",
           name: "cells.parquet",
           type: "file",
           pathName: "analysis/cells.parquet",
@@ -80,8 +76,6 @@ function makeTreeNodes(): TreeNode[] {
         {
           id: "analysis/markers.parquet",
           connectionName: "aws-test-bucket",
-          provider: "aws",
-          bucketName: "test-bucket",
           name: "markers.parquet",
           type: "file",
           pathName: "analysis/markers.parquet",

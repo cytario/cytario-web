@@ -23,18 +23,18 @@ const mockNodes: TreeNode[] = [
     connectionName: "aws-test-bucket",
     type: "directory",
     name: "results",
-    bucketName: "test-bucket",
+
     pathName: "results/",
-    provider: "aws",
+
     children: [
       {
         id: "results/output.ome.tif",
         connectionName: "aws-test-bucket",
         type: "file",
         name: "output.ome.tif",
-        bucketName: "test-bucket",
+    
         pathName: "results/output.ome.tif",
-        provider: "aws",
+    
         children: [],
       },
     ],
@@ -44,9 +44,9 @@ const mockNodes: TreeNode[] = [
     connectionName: "aws-test-bucket",
     type: "file",
     name: "analysis.csv",
-    bucketName: "test-bucket",
+
     pathName: "analysis.csv",
-    provider: "aws",
+
     children: [],
   },
 ];

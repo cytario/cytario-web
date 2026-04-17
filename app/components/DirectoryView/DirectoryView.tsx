@@ -16,6 +16,7 @@ import { filterHiddenNodes, filterNodes } from "./filterNodes";
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
+import { useConnectionsStore } from "~/utils/connectionsStore";
 
 export interface DirectoryViewBaseProps {
   nodes: TreeNode[];
@@ -51,6 +52,7 @@ export function DirectoryView({
   const isTree = viewMode === "tree";
 
   const connectionName = name;
+  const connections = useConnectionsStore((s) => s.connections);
 
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const toggleShowHiddenFiles = useLayoutStore((s) => s.toggleShowHiddenFiles);
@@ -68,9 +70,9 @@ export function DirectoryView({
   const filteredNodes = useMemo(
     () =>
       isGrid
-        ? filterNodes(visibleNodes, columnFilters, columns, isConnection)
+        ? filterNodes(visibleNodes, columnFilters, columns, isConnection, connections)
         : visibleNodes,
-    [isGrid, visibleNodes, columnFilters, columns, isConnection],
+    [isGrid, visibleNodes, columnFilters, columns, isConnection, connections],
   );
 
   // Apply inline text filter for grid and list modes

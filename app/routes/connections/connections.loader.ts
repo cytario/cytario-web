@@ -80,10 +80,8 @@ export async function loadConnections({
     return {
       id: config.name,
       connectionName: config.name,
-      bucketName: config.bucketName,
       name: config.name,
       type: "bucket" as const,
-      provider: config.provider,
       pathName: "",
       children: [],
       _Object: previewObj,

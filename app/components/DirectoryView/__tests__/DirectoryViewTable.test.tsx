@@ -43,8 +43,7 @@ describe("DirectoryViewTable", () => {
         connectionName: "aws-my-aws-bucket",
         type: "bucket",
         name: "my-aws-bucket",
-        bucketName: "my-aws-bucket",
-        provider: "aws",
+
         pathName: "",
         children: [],
       },
@@ -53,8 +52,7 @@ describe("DirectoryViewTable", () => {
         connectionName: "minio-minio-bucket",
         type: "bucket",
         name: "minio-bucket",
-        bucketName: "minio-bucket",
-        provider: "minio",
+
         pathName: "",
         children: [],
       },
@@ -109,9 +107,9 @@ describe("DirectoryViewTable", () => {
         connectionName: "test-connection",
         type: "file",
         name: "data.parquet",
-        bucketName: "test-bucket",
+
         pathName: "folder/data.parquet",
-        provider: "test-provider",
+
         children: [],
         _Object: {
           Key: "folder/data.parquet",
@@ -124,9 +122,9 @@ describe("DirectoryViewTable", () => {
         connectionName: "test-connection",
         type: "file",
         name: "results.csv",
-        bucketName: "test-bucket",
+
         pathName: "folder/results.csv",
-        provider: "test-provider",
+
         children: [],
         _Object: {
           Key: "folder/results.csv",
@@ -176,9 +174,9 @@ describe("DirectoryViewTable", () => {
         connectionName: "test-connection",
         type: "directory",
         name: "images",
-        bucketName: "test-bucket",
+
         pathName: "images/",
-        provider: "test-provider",
+
         children: [],
       },
       {
@@ -186,9 +184,9 @@ describe("DirectoryViewTable", () => {
         connectionName: "test-connection",
         type: "directory",
         name: "data",
-        bucketName: "test-bucket",
+
         pathName: "data/",
-        provider: "test-provider",
+
         children: [],
       },
     ];

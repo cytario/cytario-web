@@ -63,15 +63,11 @@ export const loader = async ({
   const nodes: TreeNode[] = results.map(({ config, files }) => ({
     id: config.name,
     connectionName: config.name,
-    bucketName: config.bucketName,
     name: config.name,
     type: "bucket" as const,
-    provider: config.provider,
     pathName: "",
     children: buildDirectoryTree(
-      config.bucketName,
       files as _Object[],
-      config.provider,
       config.name,
       "",
     ),

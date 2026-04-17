@@ -30,8 +30,6 @@ function makeNode(name: string): TreeNode {
     connectionName: "test-connection",
     name,
     type: "file",
-    bucketName: "bucket",
-    provider: "aws",
     pathName: name,
     children: [],
   };

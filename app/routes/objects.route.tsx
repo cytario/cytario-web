@@ -148,9 +148,7 @@ export const loader = async ({
 
     if (objects.length > 0) {
       const nodes = buildDirectoryTree(
-        bucketName,
         objects,
-        connectionConfig.provider,
         connectionName,
         prefix,
         urlPath,

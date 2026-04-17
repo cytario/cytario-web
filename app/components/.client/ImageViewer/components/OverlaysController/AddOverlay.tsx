@@ -72,23 +72,12 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
     if (!originalNode) return;
 
     try {
-      if (!originalNode.pathName || !originalNode.bucketName) {
+      if (!originalNode.pathName) {
         throw new Error("Invalid node selected");
       }
 
-      const resourceId = createResourceId(
-        originalNode.provider,
-        originalNode.bucketName,
-        originalNode.pathName,
-      );
-
-      // Find connection record matching this node's provider/bucketName
       const { connections } = useConnectionsStore.getState();
-      const conn = Object.values(connections).find(
-        (r) =>
-          r.connectionConfig?.provider === originalNode.provider &&
-          r.connectionConfig?.bucketName === originalNode.bucketName,
-      );
+      const conn = connections[originalNode.connectionName];
       const credentials = conn?.credentials;
       const connectionConfig = conn?.connectionConfig;
 
@@ -98,9 +87,15 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
 
       if (!credentials) {
         throw new Error(
-          `No credentials found for bucket: ${originalNode.bucketName}`,
+          `No credentials found for connection: ${originalNode.connectionName}`,
         );
       }
+
+      const resourceId = createResourceId(
+        connectionConfig.provider,
+        connectionConfig.bucketName,
+        originalNode.pathName,
+      );
 
       if (query === "csv") {
         convertCsvToParquet(resourceId, credentials);

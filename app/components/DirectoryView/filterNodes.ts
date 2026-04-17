@@ -2,6 +2,7 @@ import type { ColumnFiltersState } from "@tanstack/react-table";
 
 import type { TreeNode } from "./buildDirectoryTree";
 import type { ColumnConfig } from "~/components/Table/types";
+import type { ConnectionRecord } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 
 type NodeAccessor = (node: TreeNode) => string;
@@ -12,10 +13,15 @@ const fileAccessors: Record<string, NodeAccessor> = {
     node.type === "file" ? getFileType(node.name) : "Directory",
 };
 
-const bucketAccessors: Record<string, NodeAccessor> = {
-  name: (node) => node.name,
-  provider: (node) => node.provider,
-};
+function makeBucketAccessors(
+  connections: Record<string, ConnectionRecord>,
+): Record<string, NodeAccessor> {
+  return {
+    name: (node) => node.name,
+    provider: (node) =>
+      connections[node.connectionName]?.connectionConfig?.provider ?? "",
+  };
+}
 
 /**
  * Filters hidden files (names starting with ".") unless showHidden is true.
@@ -47,10 +53,11 @@ export function filterNodes(
   columnFilters: ColumnFiltersState,
   columns: ColumnConfig[],
   isBucket = false,
+  connections: Record<string, ConnectionRecord> = {},
 ): TreeNode[] {
   if (columnFilters.length === 0) return nodes;
 
-  const accessors = isBucket ? bucketAccessors : fileAccessors;
+  const accessors = isBucket ? makeBucketAccessors(connections) : fileAccessors;
 
   return nodes.filter((node) =>
     columnFilters.every((filter) => {
