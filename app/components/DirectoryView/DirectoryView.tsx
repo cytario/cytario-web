@@ -51,7 +51,11 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  const connectionName = name;
+  // On the connections list, each node IS a connection and carries its own
+  // connectionName. Pass undefined so DirectoryViewGrid/Tree fall back to
+  // node.connectionName per node rather than using the page heading.
+  // TODO(C-148): Remove once connections overview has its own rendering path.
+  const connectionName = isConnection ? undefined : name;
   const connections = useConnectionsStore((s) => s.connections);
 
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
