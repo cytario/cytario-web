@@ -27,8 +27,8 @@ describe("toDesignTreeNodes", () => {
     const result = toDesignTreeNodes(nodes);
 
     expect(result).toEqual([
-      { id: "data.parquet", name: "data.parquet", icon: File },
-      { id: "other.parquet", name: "other.parquet", icon: File },
+      { id: "aws-test-bucket/data.parquet", name: "data.parquet", icon: File },
+      { id: "aws-test-bucket/other.parquet", name: "other.parquet", icon: File },
     ]);
   });
 
@@ -52,11 +52,11 @@ describe("toDesignTreeNodes", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
-      id: "results/",
+      id: "aws-test-bucket/results/",
       name: "results",
       icon: Folder,
       children: [
-        { id: "results/output.parquet", name: "output.parquet", icon: File },
+        { id: "aws-test-bucket/results/output.parquet", name: "output.parquet", icon: File },
       ],
     });
   });
@@ -78,7 +78,7 @@ describe("toDesignTreeNodes", () => {
 
     const result = toDesignTreeNodes(nodes);
 
-    expect(result[0].id).toBe("unnamed-file");
+    expect(result[0].id).toBe("aws-test-bucket/unnamed-file");
   });
 
   test("omits children property for leaf nodes", () => {
@@ -89,6 +89,27 @@ describe("toDesignTreeNodes", () => {
     const result = toDesignTreeNodes(nodes);
 
     expect(result[0]).not.toHaveProperty("children");
+  });
+
+  test("produces unique ids for same path across different connections", () => {
+    const nodes: TreeNode[] = [
+      makeNode({
+        name: "index.parquet",
+        pathName: ".cytario/index.parquet",
+        connectionName: "bucket-a",
+      }),
+      makeNode({
+        name: "index.parquet",
+        pathName: ".cytario/index.parquet",
+        connectionName: "bucket-b",
+      }),
+    ];
+
+    const result = toDesignTreeNodes(nodes);
+
+    expect(result[0].id).toBe("bucket-a/.cytario/index.parquet");
+    expect(result[1].id).toBe("bucket-b/.cytario/index.parquet");
+    expect(result[0].id).not.toBe(result[1].id);
   });
 
   test("returns empty array for empty input", () => {
@@ -129,23 +150,23 @@ describe("findOriginalNode", () => {
     }),
   ];
 
-  test("finds a root-level node by pathName", () => {
-    const found = findOriginalNode(tree, "root.parquet");
+  test("finds a root-level node by connectionName/pathName", () => {
+    const found = findOriginalNode(tree, "aws-test-bucket/root.parquet");
     expect(found?.name).toBe("root.parquet");
   });
 
-  test("finds a nested node by pathName", () => {
-    const found = findOriginalNode(tree, "analysis/cells.parquet");
+  test("finds a nested node by connectionName/pathName", () => {
+    const found = findOriginalNode(tree, "aws-test-bucket/analysis/cells.parquet");
     expect(found?.name).toBe("cells.parquet");
   });
 
-  test("finds a deeply nested node by pathName", () => {
-    const found = findOriginalNode(tree, "analysis/nested/deep.parquet");
+  test("finds a deeply nested node by connectionName/pathName", () => {
+    const found = findOriginalNode(tree, "aws-test-bucket/analysis/nested/deep.parquet");
     expect(found?.name).toBe("deep.parquet");
   });
 
   test("returns undefined for non-existent id", () => {
-    const found = findOriginalNode(tree, "nonexistent");
+    const found = findOriginalNode(tree, "aws-test-bucket/nonexistent");
     expect(found).toBeUndefined();
   });
 

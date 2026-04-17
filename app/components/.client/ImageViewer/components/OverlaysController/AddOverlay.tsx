@@ -49,7 +49,6 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
   const handleHover = useCallback((node: DesignTreeNode) => {
-    // The design tree node id is the pathName (or name for buckets)
     setHoveredPath(node.id);
   }, []);
 
