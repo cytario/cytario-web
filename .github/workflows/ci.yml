@@ -44,15 +44,13 @@ jobs:
       - name: Trigger and wait for cytario-docs E2E
         uses: the-actions-org/workflow-dispatch@v4
         id: e2e-dispatch
-        env:
-          RUN_NAME: "E2E from cytario-web ${{ github.event.pull_request.head.sha }}"
         with:
           workflow: e2e.yml
           repo: cytario/cytario-docs
           ref: ${{ steps.docs-ref.outputs.ref }}
           token: ${{ steps.app-token.outputs.token }}
-          run-name: ${{ env.RUN_NAME }}
-          inputs: '{"web_sha": "${{ github.event.pull_request.head.sha }}", "run-name": "${{ env.RUN_NAME }}"}'
+          run-name: "E2E from cytario-web ${{ github.event.pull_request.head.sha }}"
+          inputs: '{"ref": "${{ github.event.pull_request.head.sha }}"}'
           wait-for-completion: true
           wait-for-completion-timeout: 10m
 
