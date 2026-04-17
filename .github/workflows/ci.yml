@@ -27,40 +27,28 @@ jobs:
           private-key: ${{ secrets.CYTARIO_DOCS_DISPATCH_APP_PRIVATE_KEY }}
           repositories: cytario-docs
 
-      - name: Resolve paired docs branch, dispatch, and wait
+      - name: Dispatch E2E and wait
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          WEB_SHA: ${{ github.event.pull_request.head.sha }}
-          BRANCH: ${{ github.head_ref }}
         run: |
-          # 1. Check if paired branch exists in cytario-docs
-          if git ls-remote --exit-code --heads \
-               "https://x-access-token:${GH_TOKEN}@github.com/cytario/cytario-docs.git" \
-               "$BRANCH" >/dev/null 2>&1; then
-            DOCS_REF="$BRANCH"
-            echo "::notice::Using paired cytario-docs branch: $BRANCH"
-          else
-            DOCS_REF="main"
-            echo "::notice::No paired cytario-docs branch; using main"
-          fi
-
-          # 2. Dispatch E2E workflow
+          # Dispatch to main — the e2e.yml resolve step checks out the
+          # paired branch if it exists (using github.token which has
+          # contents:read on the docs repo). The App token only needs
+          # actions:write to trigger the workflow.
           gh workflow run e2e.yml \
             --repo cytario/cytario-docs \
-            --ref "$DOCS_REF" \
-            -f ref="$WEB_SHA"
+            --ref main \
+            -f ref="${{ github.event.pull_request.head.sha }}" \
+            -f docs_branch_hint="${{ github.head_ref }}"
 
-          # 3. Wait for the run to appear
           sleep 5
           RUN_ID=$(gh run list \
             --repo cytario/cytario-docs \
             --workflow e2e.yml \
-            --branch "$DOCS_REF" \
             --limit 1 \
             --json databaseId --jq '.[0].databaseId')
           echo "::notice::E2E run: https://github.com/cytario/cytario-docs/actions/runs/$RUN_ID"
 
-          # 4. Wait for completion and propagate exit status
           gh run watch "$RUN_ID" --repo cytario/cytario-docs --exit-status
 
   build:
