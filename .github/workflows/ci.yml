@@ -34,12 +34,14 @@ jobs:
         run: |
           BRANCH="${{ github.head_ref }}"
           echo "Looking for branch: $BRANCH"
-          if gh api "repos/cytario/cytario-docs/branches/$BRANCH" --jq '.name'; then
+          if git ls-remote --exit-code --heads \
+               "https://x-access-token:${GH_TOKEN}@github.com/cytario/cytario-docs.git" \
+               "$BRANCH" >/dev/null 2>&1; then
             echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
             echo "::notice::Using paired cytario-docs branch: $BRANCH"
           else
-            echo "::warning::Branch not found or access denied, falling back to main"
             echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::notice::No paired cytario-docs branch; using main"
           fi
 
       - name: Trigger and wait for cytario-docs E2E
