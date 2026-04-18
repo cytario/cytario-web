@@ -32,6 +32,8 @@ import { useConnectionsStore } from "~/utils/connectionsStore";
 export type DirectoryKind = "connections" | "entries";
 
 interface DirectoryViewProps {
+  /** What this view is listing — describes the route, not the data. */
+  kind: DirectoryKind;
   nodes: TreeNode[];
   viewMode: ViewMode;
   name: string;
@@ -43,6 +45,7 @@ interface DirectoryViewProps {
 }
 
 export function DirectoryView({
+  kind,
   viewMode,
   nodes,
   name,
@@ -50,8 +53,6 @@ export function DirectoryView({
   secondaryActions,
   flush,
 }: DirectoryViewProps) {
-  const kind: DirectoryKind =
-    nodes.length > 0 && nodes[0].type === "bucket" ? "connections" : "entries";
   const columns = kind === "connections" ? connectionColumns : fileColumns;
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";

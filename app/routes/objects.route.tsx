@@ -303,6 +303,7 @@ export default function ObjectsRoute() {
   if (nodes.length > 0) {
     return (
       <DirectoryView
+        kind="entries"
         viewMode={viewMode}
         name={connectionName}
         nodes={nodes}
