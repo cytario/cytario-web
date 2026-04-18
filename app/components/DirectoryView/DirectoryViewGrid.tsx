@@ -66,6 +66,8 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
   return (
     <StorageConnectionCard
       name={node.name}
+      // TODO(C-151): hardcoded — not reflecting real connection state.
+      // Needs real semantics (credential hydration, reachability, index status).
       status="connected"
       meta={
         connection?.connectionConfig && (
