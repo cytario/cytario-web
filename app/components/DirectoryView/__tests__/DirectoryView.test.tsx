@@ -21,7 +21,7 @@ function renderDirectoryView(
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => <DirectoryView {...props} />,
+      Component: () => <DirectoryView kind="entries" {...props} />,
     },
   ]);
   return render(<RemixStub initialEntries={["/"]} />);

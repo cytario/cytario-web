@@ -96,6 +96,7 @@ export default function RecentRoute() {
 
   return (
     <DirectoryView
+      kind="entries"
       viewMode={viewMode}
       nodes={allItems}
       name="Recent"

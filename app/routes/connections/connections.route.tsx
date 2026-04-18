@@ -84,6 +84,7 @@ export default function ConnectionsListRoute() {
 
   return (
     <DirectoryView
+      kind="connections"
       viewMode={viewMode}
       nodes={nodes}
       name={title}
