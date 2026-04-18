@@ -1,13 +1,21 @@
 import type { ColumnFiltersState } from "@tanstack/react-table";
 
 import type { TreeNode } from "./buildDirectoryTree";
+import type { DirectoryKind } from "./DirectoryView";
 import type { ColumnConfig } from "~/components/Table/types";
 import type { ConnectionRecord } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 
-// TODO(C-82): This hand-rolled accessor/filter logic exists because grid mode
-// can't use TanStack Table's built-in column filters. Unifying filters across
-// view modes (https://app.plane.so/cytario/browse/C-82/) should eliminate this file.
+// Applies a `ColumnFiltersState` to a `TreeNode[]` so every downstream view
+// (Grid, Table, Tree) receives pre-filtered data. The `ColumnFiltersState`
+// shape is produced by both the Table's column-filter UI and the FilterBar,
+// both writing to the same per-tableId Zustand store.
+//
+//   allNodes -> filteredNodes -> DirectoryView -> (Grid | Table | Tree)
+//
+// Filters only the current level (top-level `nodes`). Tree's hierarchical
+// expansion shows descendants unfiltered; name-matching inside the tree
+// relies on the design-system Tree's `searchTerm` + `searchMatch`.
 type NodeAccessor = (node: TreeNode) => string;
 
 const fileAccessors: Record<string, NodeAccessor> = {
@@ -16,14 +24,26 @@ const fileAccessors: Record<string, NodeAccessor> = {
     node.type === "file" ? getFileType(node.name) : "Directory",
 };
 
-function makeBucketAccessors(
+function makeConnectionAccessors(
   connections: Record<string, ConnectionRecord>,
 ): Record<string, NodeAccessor> {
+  const config = (node: TreeNode) =>
+    connections[node.connectionName]?.connectionConfig;
   return {
     name: (node) => node.name,
-    provider: (node) =>
-      connections[node.connectionName]?.connectionConfig?.provider ?? "",
+    provider: (node) => config(node)?.provider ?? "",
+    ownerScope: (node) => config(node)?.ownerScope ?? "",
+    region: (node) => config(node)?.region ?? "",
   };
+}
+
+export function getNodeAccessors(
+  kind: DirectoryKind,
+  connections: Record<string, ConnectionRecord> = {},
+): Record<string, NodeAccessor> {
+  return kind === "connections"
+    ? makeConnectionAccessors(connections)
+    : fileAccessors;
 }
 
 /**
@@ -55,12 +75,12 @@ export function filterNodes(
   nodes: TreeNode[],
   columnFilters: ColumnFiltersState,
   columns: ColumnConfig[],
-  isBucket = false,
+  kind: DirectoryKind = "entries",
   connections: Record<string, ConnectionRecord> = {},
 ): TreeNode[] {
   if (columnFilters.length === 0) return nodes;
 
-  const accessors = isBucket ? makeBucketAccessors(connections) : fileAccessors;
+  const accessors = getNodeAccessors(kind, connections);
 
   return nodes.filter((node) =>
     columnFilters.every((filter) => {

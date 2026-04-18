@@ -1,6 +1,6 @@
-import { Button, EmptyState, H1, Input, Switch } from "@cytario/design";
+import { Button, EmptyState, H2 } from "@cytario/design";
 import { Clock, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
@@ -12,19 +12,10 @@ import {
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
-import {
-  DirectoryViewTableDirectory,
-  fileColumns,
-} from "~/components/DirectoryView/DirectoryViewTableDirectory";
-import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
-import {
-  filterHiddenNodes,
-  filterNodes,
-} from "~/components/DirectoryView/filterNodes";
+import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
@@ -62,12 +53,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 export default function RecentRoute() {
   const { connectionConfigs, recentlyViewed } = useLoaderData<typeof loader>();
-  const { viewMode, showHiddenFiles, toggleShowHiddenFiles } = useLayoutStore();
-  // TODO(C-82): this only exists because Grid view doesn't self-filter —
-  // we have to read Table's filter state here and apply it externally via
-  // filterNodes. Push filter awareness into Grid/Tree to remove this bridge.
-  const { columnFilters } = useColumnFilters({ tableId: "directory" });
-  const [filterText, setFilterText] = useState("");
+  const viewMode = useLayoutStore((s) => s.viewMode);
   const clearFetcher = useFetcher();
 
   const configByName = useMemo(() => {
@@ -80,110 +66,53 @@ export default function RecentRoute() {
     () =>
       recentlyViewed
         .filter((item) => configByName.has(item.connectionName))
-        .map((item) => {
-          return {
-            id: `${item.connectionName}/${item.pathName}`,
-            connectionName: item.connectionName,
-            pathName: item.pathName,
-            name: item.name,
-            type: item.type as TreeNode["type"],
-            children: [],
-          };
-        }),
+        .map((item) => ({
+          id: `${item.connectionName}/${item.pathName}`,
+          connectionName: item.connectionName,
+          pathName: item.pathName,
+          name: item.name,
+          type: item.type as TreeNode["type"],
+          children: [],
+        })),
     [recentlyViewed, configByName],
   );
 
-  const isGrid = viewMode === "grid" || viewMode === "grid-compact";
-  const isTree = viewMode === "tree";
-
-  // Filter hidden (dot-prefixed) files first, then apply column filters
-  const visibleItems = useMemo(
-    () => filterHiddenNodes(allItems, showHiddenFiles),
-    [allItems, showHiddenFiles],
-  );
-
-  const filteredNodes = useMemo(
-    () =>
-      isGrid
-        ? filterNodes(visibleItems, columnFilters, fileColumns)
-        : visibleItems,
-    [isGrid, visibleItems, columnFilters],
-  );
-
-  // Apply inline text filter for grid and list modes
-  const displayNodes = useMemo(() => {
-    if (!filterText) return filteredNodes;
-    const term = filterText.toLowerCase();
-    return filteredNodes.filter((node) =>
-      node.name.toLowerCase().includes(term),
-    );
-  }, [filteredNodes, filterText]);
-
-  return (
-    <Section>
-      <Container>
-        <div className="flex items-center justify-between">
-          <H1>Recent</H1>
-          <div className="flex items-center gap-2">
-            {allItems.length > 0 && (
-              <Button
-                variant="secondary"
-                onPress={() => clearFetcher.submit({}, { method: "delete" })}
-              >
-                <Trash2 size={16} />
-                Clear history
-              </Button>
-            )}
-            <ViewModeToggle />
-          </div>
-        </div>
-      </Container>
-
-      {allItems.length > 0 && (
+  if (allItems.length === 0) {
+    return (
+      <Section>
         <Container>
-          <div className="mb-6 flex items-center justify-between gap-3 min-h-[40px]">
-            <Input
-              aria-label="Filter files"
-              placeholder="Filter files..."
-              size="sm"
-              value={filterText}
-              onChange={setFilterText}
-              className="w-64"
-            />
-            <Switch
-              isSelected={showHiddenFiles}
-              onChange={toggleShowHiddenFiles}
-              className="text-xs font-medium text-[var(--color-text-secondary)]"
-            >
-              Show hidden
-            </Switch>
-          </div>
+          <header className="flex flex-wrap items-center gap-2 mb-8">
+            <H2 className="grow">Recent</H2>
+          </header>
         </Container>
-      )}
-
-      {allItems.length > 0 ? (
-        <div className="mt-8">
-          {isTree ? (
-            <Container>
-              <DirectoryViewTree nodes={visibleItems} searchTerm={filterText} />
-            </Container>
-          ) : isGrid ? (
-            <Container>
-              <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} />
-            </Container>
-          ) : (
-            <Container>
-              <DirectoryViewTableDirectory nodes={displayNodes} showFilters />
-            </Container>
-          )}
-        </div>
-      ) : (
         <EmptyState
           icon={Clock}
           title="No recent items"
           description="Items you view or browse will appear here."
         />
-      )}
-    </Section>
+      </Section>
+    );
+  }
+
+  return (
+    <DirectoryView
+      viewMode={viewMode}
+      nodes={allItems}
+      name="Recent"
+      secondaryActions={
+        <>
+          <ShowFiltersToggle />
+          <ViewModeToggle />
+        </>
+      }
+    >
+      <Button
+        variant="secondary"
+        onPress={() => clearFetcher.submit({}, { method: "delete" })}
+      >
+        <Trash2 size={16} />
+        Clear history
+      </Button>
+    </DirectoryView>
   );
 }

@@ -210,7 +210,7 @@ describe("filterNodes", () => {
       "conn-minio": { connectionConfig: { provider: "minio" } },
     } as unknown as Record<string, import("~/utils/connectionsStore/useConnectionsStore").ConnectionRecord>;
     const filters: ColumnFiltersState = [{ id: "provider", value: "aws" }];
-    const result = filterNodes(nodes, filters, bucketColumns, true, mockConnections);
+    const result = filterNodes(nodes, filters, bucketColumns, "connections", mockConnections);
     expect(result).toHaveLength(1);
     expect(result[0].connectionName).toBe("conn-aws");
   });
@@ -221,7 +221,7 @@ describe("filterNodes", () => {
       makeNode({ name: "staging-logs", type: "bucket" }),
     ];
     const filters: ColumnFiltersState = [{ id: "name", value: "prod" }];
-    const result = filterNodes(nodes, filters, bucketColumns, true);
+    const result = filterNodes(nodes, filters, bucketColumns, "connections");
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("production-data");
   });

@@ -71,13 +71,15 @@ export function TableHeaderRow({
         };
 
         const isRight = columnConfig?.align === "right";
+        // Match FilterBar's label styling (Input/Select's internal <Label>).
         const tableHeadCx = `
-          flex items-center justify-between gap-1 h-8 text-left text-slate-500
+          flex items-center justify-between gap-1 h-8 text-left
+          text-sm font-medium text-(--color-text-primary)
         `;
 
         const tableHeadToggleCx = `
           cursor-pointer
-          hover:text-slate-700
+          hover:text-(--color-text-secondary)
           focus-visible:outline-none
           focus-visible:ring-2
           focus-visible:ring-cytario-turquoise-700

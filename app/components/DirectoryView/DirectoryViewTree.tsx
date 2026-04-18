@@ -3,6 +3,8 @@ import { icons } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
 import { type TreeNode } from "./buildDirectoryTree";
+import type { DirectoryKind } from "./DirectoryView";
+import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 import { getFileTypeIcon } from "~/utils/fileType";
 import { buildConnectionPath } from "~/utils/resourceId";
@@ -16,6 +18,7 @@ interface DirectoryViewTreeProps {
   nodes: TreeNode[];
   /** Pass-through search term for the Tree component's built-in filtering. */
   searchTerm?: string;
+  kind: DirectoryKind;
 }
 
 export function NodeLinkIcon({ node }: { node: TreeNode }) {
@@ -44,8 +47,11 @@ export function NodeLinkIcon({ node }: { node: TreeNode }) {
 export function DirectoryViewTree({
   nodes,
   searchTerm,
+  kind,
 }: DirectoryViewTreeProps) {
   const navigate = useNavigate();
+
+  if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
   return (
     <div className="overflow-hidden rounded-[var(--border-radius-md)] border border-[var(--color-border-default)]">
