@@ -74,15 +74,20 @@ const mock = {
     isRealmAdmin: false,
     ...overrides,
   }),
-  treeNode: (overrides?: Partial<TreeNode>): TreeNode => ({
-    id: "mockPath/",
-    connectionName: "test-provider-test-bucket",
-    name: "mockName",
-    type: "directory",
-    pathName: "mockPath/",
-    children: [],
-    ...overrides,
-  }),
+  treeNode: (overrides?: Partial<TreeNode>): TreeNode => {
+    const connectionName =
+      overrides?.connectionName ?? "test-provider-test-bucket";
+    const name = overrides?.name ?? "mockName";
+    return {
+      id: `${connectionName}/${name}`,
+      connectionName,
+      name,
+      type: "directory",
+      pathName: name,
+      children: [],
+      ...overrides,
+    };
+  },
   channel: (overrides?: Partial<Channel>): Channel => ({
     ID: "mockId",
     SamplesPerPixel: 1,

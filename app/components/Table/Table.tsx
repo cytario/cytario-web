@@ -22,13 +22,17 @@ import { useTableSorting } from "./useTableSorting";
 // Re-export types for external use
 export type { ColumnConfig, TableProps, CellRenderers } from "./types";
 
-function booleanSortingFn<TData>(rowA: Row<TData>, rowB: Row<TData>, columnId: string): number {
+function booleanSortingFn<TData>(
+  rowA: Row<TData>,
+  rowB: Row<TData>,
+  columnId: string,
+): number {
   const a = rowA.getValue<boolean>(columnId) ? 1 : 0;
   const b = rowB.getValue<boolean>(columnId) ? 1 : 0;
   return a - b;
 }
 
-export function Table<TData extends Record<string, unknown>>({
+export function Table<TData extends object>({
   columns,
   data,
   cellRenderers = {} as CellRenderers<TData>,
@@ -38,8 +42,6 @@ export function Table<TData extends Record<string, unknown>>({
   rowSelection,
   onRowSelectionChange,
   getRowId,
-  columnFilters: controlledColumnFilters,
-  onColumnFiltersChange,
   showFilters = true,
 }: TablePropsType<TData>) {
   const { columnSizing, setColumnSizing } = useColumnWidths(columns, tableId);
@@ -53,8 +55,6 @@ export function Table<TData extends Record<string, unknown>>({
   } = useColumnVisibility(columns, tableId);
   const { columnFilters, setColumnFilters, resetFilters } = useColumnFilters({
     tableId,
-    controlledFilters: controlledColumnFilters,
-    onControlledFiltersChange: onColumnFiltersChange,
   });
 
   const indexColumnSize = enableRowSelection ? 80 : 48;

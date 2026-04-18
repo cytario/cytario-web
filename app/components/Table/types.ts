@@ -1,6 +1,5 @@
 import type {
   ColumnDefBase,
-  ColumnFiltersState,
   FilterFn,
   OnChangeFn,
   RowSelectionState,
@@ -68,7 +67,7 @@ export type CellRenderers<TData> = Partial<
   Record<string, (row: TData) => ReactNode>
 >;
 
-export interface TableProps<TData extends Record<string, unknown>> {
+export interface TableProps<TData extends object> {
   columns: ColumnConfig[];
   data: TData[];
   cellRenderers?: CellRenderers<TData>;
@@ -78,7 +77,5 @@ export interface TableProps<TData extends Record<string, unknown>> {
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   getRowId?: (row: TData) => string;
-  columnFilters?: ColumnFiltersState;
-  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
   showFilters?: boolean;
 }

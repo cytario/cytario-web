@@ -6,56 +6,37 @@ import { useTableStore } from "./state/useTableStore";
 
 interface UseColumnFiltersOptions {
   tableId: string;
-  controlledFilters?: ColumnFiltersState;
-  onControlledFiltersChange?: OnChangeFn<ColumnFiltersState>;
 }
 
 /**
- * Manages column filter state in controlled or uncontrolled mode.
+ * Manages column filter state via the per-table Zustand store (persisted to
+ * localStorage). Callers sharing a `tableId` — Table, Grid, Tree — all see
+ * the same filter state without prop drilling.
  *
- * Controlled: when `controlledFilters` and `onControlledFiltersChange` are
- * provided, the parent owns the state (same pattern as rowSelection).
- *
- * Uncontrolled: falls back to the per-table Zustand store with persistence.
+ * See C-82 for the unification of filter UI across view modes; this hook is
+ * the state layer that enables it.
  */
-export function useColumnFilters({
-  tableId,
-  controlledFilters,
-  onControlledFiltersChange,
-}: UseColumnFiltersOptions) {
+export function useColumnFilters({ tableId }: UseColumnFiltersOptions) {
   const store = useTableStore(tableId);
 
-  const storeFilters = useStore(store, (s) => s.columnFilters);
+  const columnFilters = useStore(store, (s) => s.columnFilters);
   const setFiltersStore = useStore(store, (s) => s.setColumnFilters);
-
-  const isControlled =
-    controlledFilters !== undefined && onControlledFiltersChange !== undefined;
-
-  const columnFilters = isControlled ? controlledFilters : storeFilters;
 
   const setColumnFilters: OnChangeFn<ColumnFiltersState> = useCallback(
     (updaterOrValue) => {
-      if (isControlled) {
-        onControlledFiltersChange(updaterOrValue);
-      } else {
-        const current = store.getState().columnFilters;
-        const next =
-          typeof updaterOrValue === "function"
-            ? updaterOrValue(current)
-            : updaterOrValue;
-        setFiltersStore(next);
-      }
+      const current = store.getState().columnFilters;
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(current)
+          : updaterOrValue;
+      setFiltersStore(next);
     },
-    [isControlled, onControlledFiltersChange, store, setFiltersStore],
+    [store, setFiltersStore],
   );
 
   const resetFilters = useCallback(() => {
-    if (isControlled) {
-      onControlledFiltersChange([]);
-    } else {
-      setFiltersStore([]);
-    }
-  }, [isControlled, onControlledFiltersChange, setFiltersStore]);
+    setFiltersStore([]);
+  }, [setFiltersStore]);
 
   return { columnFilters, setColumnFilters, resetFilters };
 }
