@@ -157,11 +157,9 @@ function FileCardGridItem({
 export function DirectoryViewGrid({
   nodes,
   viewMode = "grid",
-  connectionName,
 }: {
   nodes: TreeNode[];
   viewMode?: ViewMode;
-  connectionName?: string;
 }) {
   const compact = viewMode === "grid-compact";
   const gridClass = gridClasses[viewMode] ?? gridClasses["grid"];
@@ -169,12 +167,11 @@ export function DirectoryViewGrid({
   return (
     <div className={gridClass}>
       {nodes.map((node) => {
-        const cn = connectionName ?? node.connectionName;
         const key = node.id;
         if (node.type === "bucket") {
-          return <BucketCardGridItem key={key} node={node} connectionName={cn} />;
+          return <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />;
         }
-        return <FileCardGridItem key={key} node={node} compact={compact} connectionName={cn} />;
+        return <FileCardGridItem key={key} node={node} compact={compact} connectionName={node.connectionName} />;
       })}
     </div>
   );

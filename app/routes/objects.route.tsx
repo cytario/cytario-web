@@ -239,18 +239,24 @@ export default function ObjectsRoute() {
     }
   }, [connectionName, credentials, connectionConfig, setConnection]);
 
-  // Track recently viewed files (DB-backed via server action)
+  // Track recently viewed files and directories (DB-backed via server action).
+  // Only track when urlPath is non-empty — the connection root itself isn't a viewable item.
+  // Server-side loader split for read path is covered by C-81.
   const recentFetcher = useFetcher();
   useEffect(() => {
-    if (isSingleFile) {
-      recentFetcher.submit(
-        { connectionName, pathName: urlPath, name, type: "file" },
-        { method: "post", action: "/api/recently-viewed" },
-      );
-    }
-    // Intentionally depends only on resourceId — it is derived from connectionName + pathName + provider,
+    if (!urlPath) return;
+    recentFetcher.submit(
+      {
+        connectionName,
+        pathName: urlPath,
+        name,
+        type: isSingleFile ? "file" : "directory",
+      },
+      { method: "post", action: "/api/recently-viewed" },
+    );
+    // Intentionally depends only on resourceId — it is derived from connectionName + pathName,
     // so a resourceId change guarantees the captured values are fresh. Other deps (recentFetcher,
-    // connectionName, urlPath, name) are stable within the same resourceId.
+    // connectionName, urlPath, name, isSingleFile) are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId]);
 
@@ -300,7 +306,6 @@ export default function ObjectsRoute() {
         name={connectionName}
         showFilters
         nodes={nodes}
-        urlPath={urlPath}
         secondaryActions={<ViewModeToggle />}
       >
         <Button
