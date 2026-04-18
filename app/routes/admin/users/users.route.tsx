@@ -60,8 +60,6 @@ interface UserRow {
   email: string;
   enabled: string;
   groups: string;
-  _scope: string;
-  [key: string]: unknown;
 }
 
 function buildGroupColumn(
@@ -186,32 +184,34 @@ function buildColumns(
   ];
 }
 
-const cellRenderers: CellRenderers<UserRow> = {
-  name: (row) => (
-    <Link
-      to={`${row.userId}?scope=${encodeURIComponent(row._scope)}`}
-      className="text-cytario-turquoise-700 hover:underline"
-    >
-      {row.name}
-    </Link>
-  ),
-  enabled: (row) => {
-    const label = row.enabled === "true" ? "Active" : "Disabled";
-    return (
-      <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>
-    );
-  },
-  groups: (row) => (
-    <div className="flex flex-wrap gap-1">
-      {row.groups
-        .split(", ")
-        .filter(Boolean)
-        .map((path) => (
-          <ScopePill key={path} scope={path} />
-        ))}
-    </div>
-  ),
-};
+function buildCellRenderers(scope: string): CellRenderers<UserRow> {
+  return {
+    name: (row) => (
+      <Link
+        to={`${row.userId}?scope=${encodeURIComponent(scope)}`}
+        className="text-cytario-turquoise-700 hover:underline"
+      >
+        {row.name}
+      </Link>
+    ),
+    enabled: (row) => {
+      const label = row.enabled === "true" ? "Active" : "Disabled";
+      return (
+        <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>
+      );
+    },
+    groups: (row) => (
+      <div className="flex flex-wrap gap-1">
+        {row.groups
+          .split(", ")
+          .filter(Boolean)
+          .map((path) => (
+            <ScopePill key={path} scope={path} />
+          ))}
+      </div>
+    ),
+  };
+}
 
 export default function AdminUsersRoute() {
   const { scope, users, groups, connections } = useLoaderData<{
@@ -234,10 +234,11 @@ export default function AdminUsersRoute() {
         email: user.email ?? "",
         enabled: String(user.enabled),
         groups: [...groupPaths].join(", "),
-        _scope: scope,
       })),
-    [users, scope],
+    [users],
   );
+
+  const cellRenderers = useMemo(() => buildCellRenderers(scope), [scope]);
 
   const groupCounts = useMemo(() => {
     const counts = new Map<string, number>();

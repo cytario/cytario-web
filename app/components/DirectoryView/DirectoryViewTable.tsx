@@ -2,6 +2,7 @@ import { Pill } from "@cytario/design";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { useMemo } from "react";
+import { Link } from "react-router";
 
 import {
   TreeNode,
@@ -9,7 +10,6 @@ import {
   computeDirectorySize,
   computeDirectoryLastModified,
 } from "./buildDirectoryTree";
-import { NodeLink } from "./NodeLink/NodeLink";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
@@ -20,7 +20,7 @@ import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 // --- Connection view ---
 
 interface ConnectionRow {
-  [key: string]: unknown;
+  id: string;
   name: string;
   provider: string;
   endpoint: string;
@@ -28,7 +28,6 @@ interface ConnectionRow {
   rolearn: string;
   ownerScope: string;
   createdBy: string;
-  _node: TreeNode;
 }
 
 export const connectionColumns: ColumnConfig[] = [
@@ -95,8 +94,11 @@ export const connectionColumns: ColumnConfig[] = [
   },
 ];
 
+// TODO(C-151): the name cell should render `[activity indicator] name` to
+// match the grid's StorageConnectionCard visual. Blocked on extracting a
+// StatusDot atom from @cytario/design and wiring real connection status.
 const connectionCellRenderers: CellRenderers<ConnectionRow> = {
-  name: (row) => <NodeLink node={row._node} viewMode="list" />,
+  name: (row) => <Link to={`/connections/${row.id}`}>{row.name}</Link>,
   ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
   provider: (row) => <ProviderPill provider={row.provider} />,
 };
@@ -104,12 +106,11 @@ const connectionCellRenderers: CellRenderers<ConnectionRow> = {
 // --- File/directory view ---
 
 interface FileRow {
-  [key: string]: unknown;
+  id: string;
   name: string;
   file_type: string;
   last_modified: number;
   size: number;
-  _node: TreeNode;
 }
 
 export const fileColumns: ColumnConfig[] = [
@@ -161,8 +162,10 @@ export const fileColumns: ColumnConfig[] = [
   },
 ];
 
+// TODO(C-151): the name cell should render `[type icon] name` (folder icon
+// for directories, file-type icon for files) to match the grid's FileCard.
 const fileCellRenderers: CellRenderers<FileRow> = {
-  name: (row) => <NodeLink node={row._node} viewMode="list" />,
+  name: (row) => <Link to={`/connections/${row.id}`}>{row.name}</Link>,
   file_type: (row) => <Pill>{row.file_type}</Pill>,
   last_modified: (row) =>
     row.last_modified ? formatHumanReadableDate(row.last_modified) : null,
@@ -191,41 +194,43 @@ export function DirectoryViewTable({
   const tableType: TableType =
     nodes[0].type === "bucket" ? "bucket" : "directory";
 
-  const connectionData: ConnectionRow[] = useMemo(() => {
-    if (tableType !== "bucket") return [];
-    return nodes.flatMap((node) => {
-      const config = connections[node.connectionName]?.connectionConfig;
-      if (!config) return [];
-      return {
-        name: node.name,
-        provider: config.provider,
-        endpoint: config.endpoint,
-        region: config.region ?? "",
-        rolearn: config.roleArn ?? "",
-        ownerScope: config.ownerScope,
-        createdBy: config.createdBy,
-        _node: node,
-      };
-    });
-  }, [tableType, nodes, connections]);
+  const connectionData: ConnectionRow[] = useMemo(
+    () =>
+      nodes.flatMap((node) => {
+        const config = connections[node.connectionName]?.connectionConfig;
+        if (!config) return [];
+        return {
+          id: node.id,
+          name: node.name,
+          provider: config.provider,
+          endpoint: config.endpoint,
+          region: config.region ?? "",
+          rolearn: config.roleArn ?? "",
+          ownerScope: config.ownerScope,
+          createdBy: config.createdBy,
+        };
+      }),
+    [nodes, connections],
+  );
 
-  const fileData: FileRow[] = useMemo(() => {
-    if (tableType === "bucket") return [];
-    return nodes.map((node) => {
-      const isFile = node.type === "file";
-      return {
-        name: node.name,
-        file_type: isFile ? getFileType(node.name) : "Directory",
-        last_modified: isFile
-          ? node._Object?.LastModified
-            ? new Date(node._Object.LastModified).getTime()
-            : 0
-          : computeDirectoryLastModified(node),
-        size: isFile ? (node._Object?.Size ?? 0) : computeDirectorySize(node),
-        _node: node,
-      };
-    });
-  }, [tableType, nodes]);
+  const fileData: FileRow[] = useMemo(
+    () =>
+      nodes.map((node) => {
+        const isFile = node.type === "file";
+        return {
+          id: node.id,
+          name: node.name,
+          file_type: isFile ? getFileType(node.name) : "Directory",
+          last_modified: isFile
+            ? node._Object?.LastModified
+              ? new Date(node._Object.LastModified).getTime()
+              : 0
+            : computeDirectoryLastModified(node),
+          size: isFile ? (node._Object?.Size ?? 0) : computeDirectorySize(node),
+        };
+      }),
+    [nodes],
+  );
 
   if (tableType === "bucket") {
     return (
