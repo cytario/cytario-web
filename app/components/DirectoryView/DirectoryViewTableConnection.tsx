@@ -126,7 +126,7 @@ export function DirectoryViewTableConnection({
       columns={connectionColumns}
       data={data}
       cellRenderers={connectionCellRenderers}
-      tableId="bucket"
+      tableId="connections"
       ariaLabel="Storage connections"
       showFilters={showFilters}
     />

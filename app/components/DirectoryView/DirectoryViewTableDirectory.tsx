@@ -112,7 +112,7 @@ export function DirectoryViewTableDirectory({
       columns={fileColumns}
       data={data}
       cellRenderers={fileCellRenderers}
-      tableId="directory"
+      tableId="entries"
       ariaLabel="Files and folders"
       showFilters={showFilters}
     />

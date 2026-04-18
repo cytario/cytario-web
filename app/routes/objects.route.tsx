@@ -25,6 +25,7 @@ import {
   TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
@@ -304,9 +305,13 @@ export default function ObjectsRoute() {
       <DirectoryView
         viewMode={viewMode}
         name={connectionName}
-        showFilters
         nodes={nodes}
-        secondaryActions={<ViewModeToggle />}
+        secondaryActions={
+          <>
+            <ShowFiltersToggle />
+            <ViewModeToggle />
+          </>
+        }
       >
         <Button
           onPress={togglePin}

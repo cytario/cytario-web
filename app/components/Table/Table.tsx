@@ -202,7 +202,7 @@ export function Table<TData extends object>({
       >
         <table className="min-w-full" aria-hidden="true">
           <tbody>
-            {table.getRowModel().rows.length === 0 && data.length > 0 ? (
+            {data.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + 1}>
                   <EmptyState

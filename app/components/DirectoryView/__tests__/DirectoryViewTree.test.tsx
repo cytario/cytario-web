@@ -56,7 +56,7 @@ describe("DirectoryViewTree", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
-        Component: () => <DirectoryViewTree nodes={mockNodes} />,
+        Component: () => <DirectoryViewTree nodes={mockNodes} kind="entries" />,
       },
     ]);
 
@@ -71,7 +71,7 @@ describe("DirectoryViewTree", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
-        Component: () => <DirectoryViewTree nodes={mockNodes} />,
+        Component: () => <DirectoryViewTree nodes={mockNodes} kind="entries" />,
       },
     ]);
 

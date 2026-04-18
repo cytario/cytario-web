@@ -5,6 +5,8 @@ import { useNavigate } from "react-router";
 
 import { TreeNode } from "./buildDirectoryTree";
 import { ConnectionMenu } from "./ConnectionMenu";
+import type { DirectoryKind } from "./DirectoryView";
+import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
@@ -159,10 +161,14 @@ function FileCardGridItem({
 export function DirectoryViewGrid({
   nodes,
   viewMode = "grid",
+  kind,
 }: {
   nodes: TreeNode[];
   viewMode?: ViewMode;
+  kind: DirectoryKind;
 }) {
+  if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
+
   const compact = viewMode === "grid-compact";
   const gridClass = gridClasses[viewMode] ?? gridClasses["grid"];
 
@@ -170,7 +176,7 @@ export function DirectoryViewGrid({
     <div className={gridClass}>
       {nodes.map((node) => {
         const key = node.id;
-        if (node.type === "bucket") {
+        if (kind === "connections") {
           return <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />;
         }
         return <FileCardGridItem key={key} node={node} compact={compact} connectionName={node.connectionName} />;
