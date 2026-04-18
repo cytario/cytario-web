@@ -26,8 +26,11 @@ export const loader = async ({
     throw new Error("Connection configuration not found");
   }
 
-  const { provider, bucketName } = connectionConfig;
-  console.info(`${label} Presign route: ${provider}/${bucketName}/${pathName}`);
+  const { provider, bucketName, prefix: connPrefix } = connectionConfig;
+  const s3Key = connPrefix
+    ? `${connPrefix.replace(/\/$/, "")}/${pathName}`
+    : pathName;
+  console.info(`${label} Presign route: ${provider}/${bucketName}/${s3Key}`);
 
   const credentials = bucketsCredentials[bucketName];
   if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
@@ -37,7 +40,7 @@ export const loader = async ({
     const presignedUrl = await getPresignedUrl(
       connectionConfig,
       s3Client,
-      pathName,
+      s3Key,
     );
 
     return Response.json({ url: presignedUrl });

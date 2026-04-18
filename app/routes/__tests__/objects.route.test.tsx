@@ -134,6 +134,7 @@ describe("Bucket Route", () => {
             user: mock.user(),
             nodes: [],
             pathName: "test/path/to/file.ome.tiff",
+            urlPath: "test/path/to/file.ome.tiff",
             bucketName: "test-bucket",
             name: "file.ome.tiff",
             isSingleFile: true,

@@ -36,7 +36,6 @@ import { getFileType } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
 import { getName, getPrefix } from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
-import { createResourceId } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -230,11 +229,7 @@ export default function ObjectsRoute() {
     }
   }, [notification]);
 
-  const resourceId = createResourceId(
-    connectionConfig.provider,
-    connectionConfig.bucketName,
-    pathName,
-  );
+  const resourceId = `${connectionName}/${urlPath}`;
   const fileType = getFileType(resourceId);
 
   // Store credentials and connection config in Zustand store (keyed by connection name)
@@ -244,18 +239,24 @@ export default function ObjectsRoute() {
     }
   }, [connectionName, credentials, connectionConfig, setConnection]);
 
-  // Track recently viewed files (DB-backed via server action)
+  // Track recently viewed files and directories (DB-backed via server action).
+  // Only track when urlPath is non-empty — the connection root itself isn't a viewable item.
+  // Server-side loader split for read path is covered by C-81.
   const recentFetcher = useFetcher();
   useEffect(() => {
-    if (isSingleFile) {
-      recentFetcher.submit(
-        { connectionName, pathName: urlPath, name, type: "file" },
-        { method: "post", action: "/api/recently-viewed" },
-      );
-    }
-    // Intentionally depends only on resourceId — it is derived from connectionName + pathName + provider,
+    if (!urlPath) return;
+    recentFetcher.submit(
+      {
+        connectionName,
+        pathName: urlPath,
+        name,
+        type: isSingleFile ? "file" : "directory",
+      },
+      { method: "post", action: "/api/recently-viewed" },
+    );
+    // Intentionally depends only on resourceId — it is derived from connectionName + pathName,
     // so a resourceId change guarantees the captured values are fresh. Other deps (recentFetcher,
-    // connectionName, urlPath, name) are stable within the same resourceId.
+    // connectionName, urlPath, name, isSingleFile) are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId]);
 
@@ -305,7 +306,6 @@ export default function ObjectsRoute() {
         name={connectionName}
         showFilters
         nodes={nodes}
-        urlPath={urlPath}
         secondaryActions={<ViewModeToggle />}
       >
         <Button

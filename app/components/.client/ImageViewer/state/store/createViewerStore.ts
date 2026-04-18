@@ -728,7 +728,7 @@ export const createViewerStore = (id: string) =>
       ),
       {
         name: "ViewerStore-" + id,
-        version: 1,
+        version: 2,
         migrate: createMigrate<PersistedViewerState>(
           {
             0: (state) => {
@@ -739,6 +739,19 @@ export const createViewerStore = (id: string) =>
                 imagePanels: [],
                 layersStates: [],
                 viewStateActive: s?.viewStateActive ?? null,
+              };
+            },
+            // C-149: resourceId format changed from provider/bucket/path to
+            // connectionName/path. Clear persisted overlay keys — they'll be
+            // re-added on next use.
+            1: (state) => {
+              const s = state as PersistedViewerState;
+              return {
+                ...s,
+                layersStates: (s.layersStates ?? []).map((ls) => ({
+                  ...ls,
+                  overlays: {},
+                })),
               };
             },
           },

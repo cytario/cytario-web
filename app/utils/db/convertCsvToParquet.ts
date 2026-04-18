@@ -1,4 +1,3 @@
-import { Credentials } from "@aws-sdk/client-sts";
 import {
   getJsDelivrBundles,
   selectBundle,
@@ -9,12 +8,9 @@ import {
 
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
 import { buildCreateTableQuery } from "./sqlQueries";
-import { toS3Uri } from "../resourceId";
+import { resolveResourceId } from "../connectionsStore";
 
-export async function convertCsvToParquet(
-  resourceId: string,
-  credentials: Credentials
-) {
+export async function convertCsvToParquet(resourceId: string) {
   console.log(`[CSV→Parquet] Starting conversion for: ${resourceId}`);
 
   let db: AsyncDuckDB | null = null;
@@ -46,20 +42,16 @@ export async function convertCsvToParquet(
     const createTableSQL = buildCreateTableQuery(resourceId, "polygon");
     await conn.query(createTableSQL);
 
+    const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+
     await conn.query(`SET s3_access_key_id='${credentials.AccessKeyId}'`);
-
-    await conn.query(
-      `SET s3_secret_access_key='${credentials.SecretAccessKey}'`
-    );
-
+    await conn.query(`SET s3_secret_access_key='${credentials.SecretAccessKey}'`);
     if (credentials.SessionToken) {
       await conn.query(`SET s3_session_token='${credentials.SessionToken}'`);
     }
-    const AWS_REGION = "eu-central-1";
-    await conn.query(`SET s3_region='${AWS_REGION}'`);
+    await conn.query(`SET s3_region='${connectionConfig.region ?? "eu-central-1"}'`);
 
     // Write to Parquet with WKB geometry
-    const s3Uri = toS3Uri(resourceId);
     const parquetDestination = `${s3Uri}.parquet`;
 
     console.log(

@@ -70,7 +70,7 @@ export const loader = async ({
     children: buildDirectoryTree(
       files as _Object[],
       config.name,
-      "",
+      config.prefix ?? "",
     ),
   }));
 

@@ -1,40 +1,25 @@
-import { Credentials } from "@aws-sdk/client-sts";
-
 import { createDatabase } from "./createDatabase";
-import { toS3Uri } from "../resourceId";
-import { ConnectionConfig } from "~/.generated/client";
+import { resolveResourceId } from "../connectionsStore";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
 
 /**
  * Extract marker information from DuckDB-WASM database.
- * @param resourceId - S3 resource identifier (bucketName/pathName)
- * @param credentials - AWS credentials with access to the S3 bucket
- * @param connectionConfig - Optional bucket configuration for S3-compatible services
  */
 export async function getMarkerInfoWasm(
   resourceId: string,
-  credentials: Credentials,
-  connectionConfig?: ConnectionConfig | null,
 ): Promise<MarkerInfo> {
-  const connection = await createDatabase(
-    resourceId,
-    credentials,
-    connectionConfig,
-  );
+  const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+  const connection = await createDatabase(resourceId, credentials, connectionConfig);
 
   try {
-    const parquetPath = toS3Uri(resourceId);
-
-    // Select and sum all marker columns
     const countResult = await connection.query(/*sql*/ `
       SELECT SUM(COLUMNS('marker_positive_.*'))
-      FROM read_parquet('${parquetPath}')
+      FROM read_parquet('${s3Uri}')
     `);
 
     const row = countResult.toArray()[0] as Record<string, bigint>;
     const markerInfo: Record<string, { count: number }> = {};
 
-    // Column names are preserved in the result
     for (const [column, value] of Object.entries(row)) {
       markerInfo[column] = { count: Number(value || 0) };
     }

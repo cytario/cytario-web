@@ -1,9 +1,6 @@
-import { Credentials } from "@aws-sdk/client-sts";
-
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
-import { toS3Uri } from "../../utils/resourceId";
-import { ConnectionConfig } from "~/.generated/client";
+import { resolveResourceId } from "~/utils/connectionsStore";
 
 export interface ParquetColumn {
   name: string;
@@ -11,37 +8,26 @@ export interface ParquetColumn {
 }
 
 /**
- * Fetch the schema (column names and types) from a data file on S3
+ * Fetch the schema (column names and types) from a data file on S3.
  * Supports: parquet, csv, json
- * @param resourceId Resource identifier (provider/bucketName/pathName)
- * @param credentials AWS credentials with access to the S3 bucket
- * @param connectionConfig Optional bucket configuration for S3-compatible services
  */
 export async function getParquetSchema(
   resourceId: string,
-  credentials: Credentials,
-  connectionConfig?: ConnectionConfig | null,
 ): Promise<ParquetColumn[]> {
-  const connection = await createDatabase(
-    resourceId,
-    credentials,
-    connectionConfig,
-  );
+  const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+  const connection = await createDatabase(resourceId, credentials, connectionConfig);
   const fileType = getFileType(resourceId);
-  const s3Path = toS3Uri(resourceId);
 
   let result;
 
   if (fileType === "parquet") {
-    // Parquet has dedicated schema function
     result = await connection.query(/*sql*/ `
       SELECT name, type
-      FROM parquet_schema('${s3Path}')
+      FROM parquet_schema('${s3Uri}')
       WHERE type IS NOT NULL
     `);
   } else {
-    // CSV/JSON: use DESCRIBE on the read function
-    const readFn = getReadFunction(fileType, s3Path);
+    const readFn = getReadFunction(fileType, s3Uri);
     result = await connection.query(/*sql*/ `
       DESCRIBE SELECT * FROM ${readFn}
     `);
@@ -51,7 +37,6 @@ export async function getParquetSchema(
   for (let i = 0; i < result.numRows; i++) {
     const row = result.get(i);
     if (row) {
-      // DESCRIBE returns column_name and column_type
       const name = (row.name ?? row.column_name) as string;
       const type = (row.type ?? row.column_type) as string;
       columns.push({ name, type });

@@ -1,4 +1,4 @@
-import { buildConnectionPath, toIndexS3Key } from "../resourceId";
+import { buildConnectionPath, parseResourceId, toIndexS3Key } from "../resourceId";
 
 describe("toIndexS3Key", () => {
   test("returns index key without prefix", () => {
@@ -23,6 +23,37 @@ describe("toIndexS3Key", () => {
     expect(toIndexS3Key("org/lab/experiment")).toBe(
       "org/lab/experiment/.cytario/index.parquet",
     );
+  });
+});
+
+describe("parseResourceId", () => {
+  test("parses connectionName and pathName", () => {
+    expect(parseResourceId("my-conn/folder/file.txt")).toEqual({
+      connectionName: "my-conn",
+      pathName: "folder/file.txt",
+    });
+  });
+
+  test("handles empty pathName", () => {
+    expect(parseResourceId("my-conn/")).toEqual({
+      connectionName: "my-conn",
+      pathName: "",
+    });
+  });
+
+  test("handles pathName with multiple slashes", () => {
+    expect(parseResourceId("my-conn/a/b/c.parquet")).toEqual({
+      connectionName: "my-conn",
+      pathName: "a/b/c.parquet",
+    });
+  });
+
+  test("throws on missing slash", () => {
+    expect(() => parseResourceId("no-slash")).toThrow("Invalid resourceId");
+  });
+
+  test("throws on empty connectionName", () => {
+    expect(() => parseResourceId("/path")).toThrow("empty connectionName");
   });
 });
 

@@ -27,17 +27,29 @@ jobs:
           private-key: ${{ secrets.CYTARIO_DOCS_DISPATCH_APP_PRIVATE_KEY }}
           repositories: cytario-docs
 
-      - name: Trigger and wait for cytario-docs E2E run
-        uses: convictional/trigger-workflow-and-wait@v1.6.5
-        with:
-          owner: cytario
-          repo: cytario-docs
-          github_token: ${{ steps.app-token.outputs.token }}
-          workflow_file_name: e2e.yml
-          ref: main
-          client_payload: '{"ref": "${{ github.event.pull_request.head.sha }}", "docs_branch_hint": "${{ github.head_ref }}"}'
-          wait_interval: 20
-          propagate_failure: true
+      - name: Dispatch E2E and wait
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Dispatch to main — the e2e.yml resolve step checks out the
+          # paired branch if it exists (using github.token which has
+          # contents:read on the docs repo). The App token only needs
+          # actions:write to trigger the workflow.
+          gh workflow run e2e.yml \
+            --repo cytario/cytario-docs \
+            --ref main \
+            -f ref="${{ github.event.pull_request.head.sha }}" \
+            -f docs_branch_hint="${{ github.head_ref }}"
+
+          sleep 5
+          RUN_ID=$(gh run list \
+            --repo cytario/cytario-docs \
+            --workflow e2e.yml \
+            --limit 1 \
+            --json databaseId --jq '.[0].databaseId')
+          echo "::notice::E2E run: https://github.com/cytario/cytario-docs/actions/runs/$RUN_ID"
+
+          gh run watch "$RUN_ID" --repo cytario/cytario-docs --exit-status
 
   build:
     name: Build

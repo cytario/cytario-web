@@ -12,10 +12,8 @@ import { getPolygon } from "./getPolygon";
 import { MarkerProps } from "./markerUniforms";
 import { CellMarker } from "../../../state/store/types";
 import { toastBridge } from "~/toast-bridge";
-import { useConnectionsStore } from "~/utils/connectionsStore";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
-import { parseResourceId } from "~/utils/resourceId";
 
 type SetTooltip = (
   tooltip: { content: ReactNode; x: number; y: number } | null
@@ -71,30 +69,13 @@ export const OverlaysLayer = ({
     loadTile(id);
 
     try {
-      // Find connection record matching this resourceId's provider/bucketName
-      const { provider, bucketName } = parseResourceId(resourceId);
-      const { connections } = useConnectionsStore.getState();
-      const conn = Object.values(connections).find(
-        (r) =>
-          r.connectionConfig?.provider === provider &&
-          r.connectionConfig?.bucketName === bucketName,
-      );
-      const credentials = conn?.credentials;
-      const connectionConfig = conn?.connectionConfig;
-
-      if (!credentials) {
-        throw new Error(`No credentials found for bucket: ${bucketName}`);
-      }
-
       // Get ALL marker column names (not just enabled ones)
       const allMarkerKeys = Object.keys(fileMarkers);
 
       const data = await getTileDataWasm(
         resourceId,
         index,
-        credentials,
         allMarkerKeys,
-        connectionConfig
       );
 
       return data;

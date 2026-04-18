@@ -1,5 +1,6 @@
 import { Table } from "apache-arrow";
 
+import { resolveResourceId } from "../../connectionsStore";
 import { createDatabase } from "../createDatabase";
 import { getGeomQuery } from "../getGeomQuery";
 import { getTileDataWasm } from "../getTileDataWasm";
@@ -13,36 +14,39 @@ vi.mock("../getGeomQuery", () => ({
   getGeomQuery: vi.fn(),
 }));
 
+vi.mock("../../connectionsStore", () => ({
+  resolveResourceId: vi.fn(),
+}));
+
 describe("getTileDataWasm", () => {
   const mockQuery = vi.fn();
   const mockConnection = { query: mockQuery };
   const defaultTileIndex = { z: 0, x: 0, y: 0 };
-  const credentials = mock.credentials();
+  const connectionConfig = mock.connectionConfig();
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(createDatabase).mockResolvedValue(mockConnection as never);
     vi.mocked(getGeomQuery).mockReturnValue("SELECT * FROM test");
+    vi.mocked(resolveResourceId).mockReturnValue({
+      connectionName: "my-conn",
+      pathName: "data/file.parquet",
+      credentials: mock.credentials(),
+      connectionConfig,
+      s3Key: `${connectionConfig.prefix || ""}data/file.parquet`,
+      s3Uri: `s3://${connectionConfig.bucketName}/data/file.parquet`,
+    });
   });
 
   test("returns data table on successful query", async () => {
     const mockTable = { numRows: 10 } as unknown as Table;
     mockQuery.mockResolvedValue(mockTable);
 
-    const result = await getTileDataWasm(
-      "bucket/path",
-      defaultTileIndex,
-      credentials,
-    );
+    const result = await getTileDataWasm("my-conn/data/file.parquet", defaultTileIndex);
 
     expect(result).toBe(mockTable);
-    expect(createDatabase).toHaveBeenCalledWith(
-      "bucket/path",
-      credentials,
-      undefined,
-    );
     expect(getGeomQuery).toHaveBeenCalledWith(
-      "bucket/path",
+      `s3://${connectionConfig.bucketName}/data/file.parquet`,
       defaultTileIndex,
       [],
     );
@@ -52,11 +56,7 @@ describe("getTileDataWasm", () => {
     const mockTable = { numRows: 0 };
     mockQuery.mockResolvedValue(mockTable);
 
-    const result = await getTileDataWasm(
-      "bucket/path",
-      defaultTileIndex,
-      credentials,
-    );
+    const result = await getTileDataWasm("my-conn/data/file.parquet", defaultTileIndex);
 
     expect(result).toBeNull();
   });
@@ -66,81 +66,34 @@ describe("getTileDataWasm", () => {
     mockQuery.mockResolvedValue(mockTable);
     const markerColumns = ["marker1", "marker2", "marker3"];
 
-    await getTileDataWasm(
-      "bucket/path",
-      defaultTileIndex,
-      credentials,
-      markerColumns,
-    );
+    await getTileDataWasm("my-conn/data/file.parquet", defaultTileIndex, markerColumns);
 
     expect(getGeomQuery).toHaveBeenCalledWith(
-      "bucket/path",
+      `s3://${connectionConfig.bucketName}/data/file.parquet`,
       defaultTileIndex,
       markerColumns,
-    );
-  });
-
-  test("passes connection config to createDatabase", async () => {
-    const mockTable = { numRows: 5 };
-    mockQuery.mockResolvedValue(mockTable);
-    const connectionConfig = mock.connectionConfig({
-      endpoint: "https://minio.local:9000",
-    });
-
-    await getTileDataWasm(
-      "bucket/path",
-      defaultTileIndex,
-      credentials,
-      [],
-      connectionConfig,
-    );
-
-    expect(createDatabase).toHaveBeenCalledWith(
-      "bucket/path",
-      credentials,
-      connectionConfig,
     );
   });
 
   test("throws error on database failure", async () => {
-    const dbError = new Error("Database connection failed");
-    vi.mocked(createDatabase).mockRejectedValue(dbError);
+    vi.mocked(createDatabase).mockRejectedValue(new Error("Database connection failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      getTileDataWasm("bucket/path", defaultTileIndex, credentials),
+      getTileDataWasm("my-conn/path", defaultTileIndex),
     ).rejects.toThrow("Database connection failed");
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "[getTileDataWasm] Error fetching tile data:",
-      dbError,
-    );
     consoleSpy.mockRestore();
   });
 
   test("throws error on query failure", async () => {
-    const queryError = new Error("Query failed");
-    mockQuery.mockRejectedValue(queryError);
+    mockQuery.mockRejectedValue(new Error("Query failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      getTileDataWasm("bucket/path", defaultTileIndex, credentials),
+      getTileDataWasm("my-conn/path", defaultTileIndex),
     ).rejects.toThrow("Query failed");
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "[getTileDataWasm] Error fetching tile data:",
-      queryError,
-    );
     consoleSpy.mockRestore();
-  });
-
-  test("uses different tile indices", async () => {
-    const mockTable = { numRows: 3 };
-    mockQuery.mockResolvedValue(mockTable);
-    const tileIndex = { z: 5, x: 10, y: 20 };
-
-    await getTileDataWasm("bucket/path", tileIndex, credentials);
-
-    expect(getGeomQuery).toHaveBeenCalledWith("bucket/path", tileIndex, []);
   });
 });

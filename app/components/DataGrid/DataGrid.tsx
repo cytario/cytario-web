@@ -12,7 +12,7 @@ import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { WktSvg } from "./WktSvg";
 import { LavaLoader } from "../LavaLoader";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { useConnectionsStore, selectConnection } from "~/utils/connectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
 const isWkt = (value: unknown): value is string => {
@@ -34,31 +34,18 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const { provider, bucketName } = parseResourceId(resourceId);
-  const connection = useConnectionsStore((state) =>
-    Object.values(state.connections).find(
-      (r) =>
-        r.connectionConfig?.provider === provider &&
-        r.connectionConfig?.bucketName === bucketName,
-    ),
-  );
+  const { connectionName } = parseResourceId(resourceId);
+  const connection = useConnectionsStore(selectConnection(connectionName));
 
   // Initial data fetch
   useEffect(() => {
+    if (!connection) return;
+
     const fetchData = async () => {
-      const credentials = connection?.credentials;
-      const connectionConfig = connection?.connectionConfig;
-
-      if (!credentials) {
-        setError(`No credentials available for bucket: ${bucketName}`);
-        setLoading(false);
-        return;
-      }
-
       try {
         const [schema, data] = await Promise.all([
-          getParquetSchema(resourceId, credentials, connectionConfig),
-          getParquetRows(resourceId, credentials, PAGE_SIZE, 0, connectionConfig),
+          getParquetSchema(resourceId),
+          getParquetRows(resourceId, PAGE_SIZE, 0),
         ]);
         setColumns(schema);
         setRows(data);
@@ -71,25 +58,15 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     };
 
     fetchData();
-  }, [resourceId, connection, bucketName]);
+  }, [resourceId, connection]);
 
   // Fetch more rows
   const fetchMore = useCallback(async () => {
     if (isFetchingMore || !hasMore) return;
 
-    const credentials = connection?.credentials;
-    const connectionConfig = connection?.connectionConfig;
-    if (!credentials) return;
-
     setIsFetchingMore(true);
     try {
-      const newRows = await getParquetRows(
-        resourceId,
-        credentials,
-        PAGE_SIZE,
-        rows.length,
-        connectionConfig,
-      );
+      const newRows = await getParquetRows(resourceId, PAGE_SIZE, rows.length);
       setRows((prev) => [...prev, ...newRows]);
       setHasMore(newRows.length === PAGE_SIZE);
     } catch (err) {
@@ -99,7 +76,6 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     }
   }, [
     resourceId,
-    connection,
     rows.length,
     isFetchingMore,
     hasMore,

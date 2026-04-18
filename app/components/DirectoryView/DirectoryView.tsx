@@ -1,8 +1,7 @@
 import { EmptyState, Input, Switch } from "@cytario/design";
 import { FolderOpen } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { useFetcher } from "react-router";
+import { useMemo, useState } from "react";
 
 import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
@@ -18,12 +17,8 @@ import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { useConnectionsStore } from "~/utils/connectionsStore";
 
-export interface DirectoryViewBaseProps {
+interface DirectoryViewProps {
   nodes: TreeNode[];
-  urlPath?: string;
-}
-
-interface DirectoryViewProps extends DirectoryViewBaseProps {
   viewMode: ViewMode;
   name: string;
   showFilters?: boolean;
@@ -39,8 +34,6 @@ export function DirectoryView({
   nodes,
   name,
   showFilters = false,
-  // connectionName,
-  urlPath,
   children,
   secondaryActions,
   flush,
@@ -51,7 +44,6 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  const connectionName = name;
   const connections = useConnectionsStore((s) => s.connections);
 
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
@@ -83,17 +75,6 @@ export function DirectoryView({
       node.name.toLowerCase().includes(term),
     );
   }, [filteredNodes, filterText]);
-
-  // Track recently viewed directories (DB-backed via server action)
-  const recentFetcher = useFetcher();
-  useEffect(() => {
-    if (!connectionName || !urlPath) return;
-    recentFetcher.submit(
-      { connectionName, pathName: urlPath, name, type: "directory" },
-      { method: "post", action: "/api/recently-viewed" },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionName, urlPath, name]);
 
   if (nodes.length === 0) {
     return (
@@ -135,12 +116,12 @@ export function DirectoryView({
 
       {isTree ? (
         <Container>
-          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} connectionName={connectionName} />
+          <DirectoryViewTree nodes={visibleNodes} searchTerm={filterText} />
         </Container>
       ) : isGrid ? (
         <Container>
           {displayNodes.length > 0 ? (
-            <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} connectionName={connectionName} />
+            <DirectoryViewGrid nodes={displayNodes} viewMode={viewMode} />
           ) : (
             <p className="py-8 text-center text-sm text-(--color-text-secondary)">
               No items match the current filters. Try adjusting the filter, or

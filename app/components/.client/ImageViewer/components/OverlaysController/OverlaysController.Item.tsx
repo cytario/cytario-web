@@ -14,7 +14,7 @@ import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
 import { LavaLoader } from "~/components/LavaLoader";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { useConnectionsStore, selectConnection } from "~/utils/connectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { getFileName, parseResourceId } from "~/utils/resourceId";
@@ -55,37 +55,17 @@ export const OverlaysControllerItem = ({
     1, // Prevent division by zero
   );
 
-  // Find connection record matching this resourceId's provider/bucketName
-  const { provider, bucketName } = parseResourceId(resourceId);
-  const connection = useConnectionsStore((state) => {
-    for (const record of Object.values(state.connections)) {
-      if (
-        record.connectionConfig?.provider === provider &&
-        record.connectionConfig?.bucketName === bucketName
-      ) {
-        return record;
-      }
-    }
-    return undefined;
-  });
-  const connectionName = connection?.connectionConfig?.name;
+  const { connectionName } = parseResourceId(resourceId);
+  const connection = useConnectionsStore(selectConnection(connectionName));
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
-    if (hasMarkers) return; // Already has markers, skip fetch
+    if (hasMarkers || !connection) return;
 
     const fetchMarkers = async () => {
       setIsLoading(true);
       try {
-        if (!connection?.credentials) {
-          throw new Error(`No credentials found for bucket: ${bucketName}`);
-        }
-
-        const markerInfo = await getMarkerInfoWasm(
-          resourceId,
-          connection.credentials,
-          connection.connectionConfig,
-        );
+        const markerInfo = await getMarkerInfoWasm(resourceId);
         if (markerInfo && Object.keys(markerInfo).length > 0) {
           const newOverlayState = getOverlayState(markerInfo);
           updateOverlaysState(resourceId, newOverlayState);
@@ -110,11 +90,10 @@ export const OverlaysControllerItem = ({
   }, [
     hasMarkers,
     resourceId,
+    connection,
     updateOverlaysState,
     toast,
     fileName,
-    connection,
-    bucketName,
   ]);
 
   return (
@@ -130,7 +109,7 @@ export const OverlaysControllerItem = ({
         </button>
 
         <IconButtonLink
-          href={connectionName ? `/connections/${connectionName}/${parseResourceId(resourceId).pathName}` : `#`}
+          href={`/connections/${resourceId}`}
           icon={ExternalLink}
           aria-label="Open file"
           variant="ghost"
