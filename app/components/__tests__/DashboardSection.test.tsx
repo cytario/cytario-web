@@ -4,8 +4,8 @@ import { MemoryRouter } from "react-router";
 import { DashboardSection } from "../DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
-vi.mock("~/components/DirectoryView/DirectoryViewTable", () => ({
-  DirectoryViewTable: ({ nodes }: { nodes: TreeNode[] }) => (
+vi.mock("~/components/DirectoryView/DirectoryViewTableDirectory", () => ({
+  DirectoryViewTableDirectory: ({ nodes }: { nodes: TreeNode[] }) => (
     <div data-testid="directory-view-table">{nodes.length} items</div>
   ),
 }));
