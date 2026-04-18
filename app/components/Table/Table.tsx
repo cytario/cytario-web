@@ -42,8 +42,6 @@ export function Table<TData extends object>({
   rowSelection,
   onRowSelectionChange,
   getRowId,
-  columnFilters: controlledColumnFilters,
-  onColumnFiltersChange,
   showFilters = true,
 }: TablePropsType<TData>) {
   const { columnSizing, setColumnSizing } = useColumnWidths(columns, tableId);
@@ -57,8 +55,6 @@ export function Table<TData extends object>({
   } = useColumnVisibility(columns, tableId);
   const { columnFilters, setColumnFilters, resetFilters } = useColumnFilters({
     tableId,
-    controlledFilters: controlledColumnFilters,
-    onControlledFiltersChange: onColumnFiltersChange,
   });
 
   const indexColumnSize = enableRowSelection ? 80 : 48;

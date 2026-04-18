@@ -1,5 +1,4 @@
 import { Button, EmptyState, H1, Input, Switch } from "@cytario/design";
-import type { ColumnFiltersState } from "@tanstack/react-table";
 import { Clock, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -15,9 +14,9 @@ import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
 import {
-  DirectoryViewTable,
+  DirectoryViewTableDirectory,
   fileColumns,
-} from "~/components/DirectoryView/DirectoryViewTable";
+} from "~/components/DirectoryView/DirectoryViewTableDirectory";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import {
   filterHiddenNodes,
@@ -25,6 +24,7 @@ import {
 } from "~/components/DirectoryView/filterNodes";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
+import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
@@ -63,7 +63,10 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 export default function RecentRoute() {
   const { connectionConfigs, recentlyViewed } = useLoaderData<typeof loader>();
   const { viewMode, showHiddenFiles, toggleShowHiddenFiles } = useLayoutStore();
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  // TODO(C-82): this only exists because Grid view doesn't self-filter —
+  // we have to read Table's filter state here and apply it externally via
+  // filterNodes. Push filter awareness into Grid/Tree to remove this bridge.
+  const { columnFilters } = useColumnFilters({ tableId: "directory" });
   const [filterText, setFilterText] = useState("");
   const clearFetcher = useFetcher();
 
@@ -170,12 +173,7 @@ export default function RecentRoute() {
             </Container>
           ) : (
             <Container>
-              <DirectoryViewTable
-                nodes={displayNodes}
-                showFilters
-                columnFilters={columnFilters}
-                onColumnFiltersChange={setColumnFilters}
-              />
+              <DirectoryViewTableDirectory nodes={displayNodes} showFilters />
             </Container>
           )}
         </div>

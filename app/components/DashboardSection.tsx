@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Container, Section } from "~/components/Container";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewGrid } from "~/components/DirectoryView/DirectoryViewGrid";
-import { DirectoryViewTable } from "~/components/DirectoryView/DirectoryViewTable";
+import { DirectoryViewTableDirectory } from "~/components/DirectoryView/DirectoryViewTableDirectory";
 import { type ViewMode } from "~/components/DirectoryView/useLayoutStore";
 
 interface DashboardSectionProps {
@@ -50,7 +50,7 @@ export function DashboardSection({
       </Container>
       <Container>
         {viewMode === "list" ? (
-          <DirectoryViewTable nodes={visible} />
+          <DirectoryViewTableDirectory nodes={visible} />
         ) : (
           <DirectoryViewGrid nodes={visible} viewMode={viewMode} />
         )}

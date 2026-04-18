@@ -6,10 +6,13 @@ import { useMemo, useState } from "react";
 import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import {
+  DirectoryViewTableConnection,
   connectionColumns,
-  DirectoryViewTable,
+} from "./DirectoryViewTableConnection";
+import {
+  DirectoryViewTableDirectory,
   fileColumns,
-} from "./DirectoryViewTable";
+} from "./DirectoryViewTableDirectory";
 import { DirectoryViewTree } from "./DirectoryViewTree";
 import { filterHiddenNodes, filterNodes } from "./filterNodes";
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
@@ -51,6 +54,8 @@ export function DirectoryView({
 
   const [filterText, setFilterText] = useState("");
 
+  // TODO(C-82): bridge between Table's internal filter state and Grid/Tree
+  // rendering. Push filter awareness into Grid/Tree to remove this.
   const { columnFilters } = useColumnFilters({ tableId });
 
   // Filter hidden (dot-prefixed) files first, then apply column filters
@@ -133,10 +138,17 @@ export function DirectoryView({
       ) : (
         <Container>
           {displayNodes.length > 0 ? (
-            <DirectoryViewTable
-              nodes={displayNodes}
-              showFilters={showFilters}
-            />
+            isConnection ? (
+              <DirectoryViewTableConnection
+                nodes={displayNodes}
+                showFilters={showFilters}
+              />
+            ) : (
+              <DirectoryViewTableDirectory
+                nodes={displayNodes}
+                showFilters={showFilters}
+              />
+            )
           ) : (
             <p className="py-8 text-center text-sm text-(--color-text-secondary)">
               No items match the current filters. Enable &ldquo;Show hidden
