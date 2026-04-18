@@ -3,13 +3,15 @@ import { devtools, persist } from "zustand/middleware";
 
 import { createMigrate } from "~/utils/persistMigration";
 
-export type ViewMode = "list" | "grid" | "grid-compact" | "tree";
+export type ViewMode = "list" | "grid-compact" | "grid" | "tree";
 
 interface LayoutStore {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   showHiddenFiles: boolean;
   toggleShowHiddenFiles: () => void;
+  showFilters: boolean;
+  toggleShowFilters: () => void;
   headerSlot: React.ReactNode;
   setHeaderSlot: (slot: React.ReactNode) => void;
 }
@@ -17,6 +19,7 @@ interface LayoutStore {
 interface PersistedLayoutState {
   viewMode: ViewMode;
   showHiddenFiles: boolean;
+  showFilters: boolean;
 }
 
 const name = "LayoutStore";
@@ -39,6 +42,13 @@ export const useLayoutStore = create<LayoutStore>()(
             false,
             "toggleShowHiddenFiles",
           ),
+        showFilters: false,
+        toggleShowFilters: () =>
+          set(
+            (state) => ({ showFilters: !state.showFilters }),
+            false,
+            "toggleShowFilters",
+          ),
         headerSlot: null,
         setHeaderSlot: (headerSlot) => set({ headerSlot }),
       }),
@@ -46,7 +56,7 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
-      version: 3,
+      version: 4,
       migrate: createMigrate<PersistedLayoutState>(
         {
           0: (state) => {
@@ -62,6 +72,8 @@ export const useLayoutStore = create<LayoutStore>()(
               viewMode: OLD_VALID.includes(s?.viewMode ?? "")
                 ? (s.viewMode as string)
                 : "grid",
+              showHiddenFiles: false,
+              showFilters: false,
             };
           },
           1: (state) => {
@@ -78,6 +90,7 @@ export const useLayoutStore = create<LayoutStore>()(
                 ? (s.viewMode as string)
                 : "grid",
               showHiddenFiles: false,
+              showFilters: false,
             };
           },
           2: (state) => {
@@ -92,14 +105,27 @@ export const useLayoutStore = create<LayoutStore>()(
             return {
               viewMode: modeMap[s?.viewMode ?? ""] ?? "grid",
               showHiddenFiles: s?.showHiddenFiles ?? false,
+              showFilters: false,
+            };
+          },
+          3: (state) => {
+            const s = state as {
+              viewMode?: ViewMode;
+              showHiddenFiles?: boolean;
+            };
+            return {
+              viewMode: s?.viewMode ?? "grid",
+              showHiddenFiles: s?.showHiddenFiles ?? false,
+              showFilters: false,
             };
           },
         },
-        { viewMode: "grid", showHiddenFiles: false },
+        { viewMode: "grid", showHiddenFiles: false, showFilters: false },
       ),
       partialize: (state) => ({
         viewMode: state.viewMode,
         showHiddenFiles: state.showHiddenFiles,
+        showFilters: state.showFilters,
       }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) console.error("[LayoutStore] Rehydration failed:", error);

@@ -14,6 +14,7 @@ import { updateAction } from "./updateConnection.action";
 import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
+import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useInitConnections } from "~/hooks/useInitConnections";
@@ -83,11 +84,16 @@ export default function ConnectionsListRoute() {
 
   return (
     <DirectoryView
+      kind="connections"
       viewMode={viewMode}
       nodes={nodes}
       name={title}
-      showFilters
-      secondaryActions={<ViewModeToggle />}
+      secondaryActions={
+        <>
+          <ShowFiltersToggle />
+          <ViewModeToggle />
+        </>
+      }
     >
       <Button variant="secondary" onPress={() => openModal("add-connection")}>
         <Plug size={16} /> Connect Storage

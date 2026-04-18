@@ -4,6 +4,7 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryView } from "../DirectoryView";
 import { useLayoutStore } from "../useLayoutStore";
+import { useTableStore } from "~/components/Table/state/useTableStore";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
@@ -20,7 +21,7 @@ function renderDirectoryView(
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => <DirectoryView {...props} />,
+      Component: () => <DirectoryView kind="entries" {...props} />,
     },
   ]);
   return render(<RemixStub initialEntries={["/"]} />);
@@ -33,7 +34,11 @@ describe("DirectoryView Component", () => {
   ];
 
   beforeEach(() => {
-    useLayoutStore.setState({ showHiddenFiles: false });
+    useLayoutStore.setState({ showHiddenFiles: false, showFilters: false });
+    // Reset shared filter store between tests to avoid leakage from the
+    // FilterBar writes across tests.
+    useTableStore("entries").getState().setColumnFilters([]);
+    useTableStore("connections").getState().setColumnFilters([]);
   });
 
   test("renders the component with the correct name", () => {
@@ -53,13 +58,9 @@ describe("DirectoryView Component", () => {
       name: "Empty Directory",
     });
 
-    expect(screen.queryByText("Empty Directory")).not.toBeInTheDocument();
-    expect(screen.getByText("Empty directory")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "This folder is empty or you may not have permission to view its contents.",
-      ),
-    ).toBeInTheDocument();
+    // Header still renders — empty state lives inside the child view.
+    expect(screen.getByText("Empty Directory")).toBeInTheDocument();
+    expect(screen.getByText("No results")).toBeInTheDocument();
   });
 
   test("renders the DirectoryTable in list mode", () => {
@@ -107,53 +108,47 @@ describe("DirectoryView Component", () => {
     ).toBeInTheDocument();
   });
 
-  test("renders inline filter controls when showFilters is true", () => {
+  test("renders FilterBar when showFilters is true (non-list mode)", () => {
+    useLayoutStore.setState({ showFilters: true });
     renderDirectoryView({
-      viewMode: "list",
+      viewMode: "grid",
       nodes: mockNodes,
       name: "Test Directory",
-      showFilters: true,
     });
 
-    expect(
-      screen.getByRole("textbox", { name: "Filter files" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Show hidden")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
   });
 
-  test("does not render inline filter controls when showFilters is false", () => {
+  test("hides FilterBar in list mode (table column filters take over)", () => {
+    useLayoutStore.setState({ showFilters: true });
     renderDirectoryView({
       viewMode: "list",
       nodes: mockNodes,
       name: "Test Directory",
-      showFilters: false,
     });
 
     expect(
-      screen.queryByRole("textbox", { name: "Filter files" }),
+      screen.queryByRole("textbox", { name: "Name" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Show hidden")).not.toBeInTheDocument();
   });
 
-  test("inline text filter narrows displayed nodes in list mode", async () => {
-    const { userEvent } = await import("@testing-library/user-event");
-    const user = userEvent.setup();
-
+  test("does not render FilterBar when showFilters is false", () => {
     renderDirectoryView({
       viewMode: "list",
       nodes: mockNodes,
       name: "Test Directory",
-      showFilters: true,
     });
 
-    const input = screen.getByRole("textbox", { name: "Filter files" });
-    await user.type(input, "File1");
-
-    expect(screen.getByText("File1.txt")).toBeInTheDocument();
-    expect(screen.queryByText("Folder1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Name" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Filter by Name" }),
+    ).not.toBeInTheDocument();
   });
 
-  test("inline text filter narrows displayed nodes in grid mode", async () => {
+  test("name filter narrows displayed nodes in grid mode", async () => {
+    useLayoutStore.setState({ showFilters: true });
     const { userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
 
@@ -161,36 +156,17 @@ describe("DirectoryView Component", () => {
       viewMode: "grid-compact",
       nodes: mockNodes,
       name: "Test Directory",
-      showFilters: true,
     });
 
-    const input = screen.getByRole("textbox", { name: "Filter files" });
+    const input = screen.getByRole("textbox", { name: "Name" });
     await user.type(input, "Folder");
 
     expect(screen.getByText("Folder1")).toBeInTheDocument();
     expect(screen.queryByText("File1.txt")).not.toBeInTheDocument();
   });
 
-  test("shows no-matches message in list mode when filter excludes all nodes", async () => {
-    const { userEvent } = await import("@testing-library/user-event");
-    const user = userEvent.setup();
-
-    renderDirectoryView({
-      viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
-      showFilters: true,
-    });
-
-    const input = screen.getByRole("textbox", { name: "Filter files" });
-    await user.type(input, "zzz-no-match");
-
-    expect(
-      screen.getByText(/No items match the current filters/),
-    ).toBeInTheDocument();
-  });
-
   test("shows no-matches message in grid mode when filter excludes all nodes", async () => {
+    useLayoutStore.setState({ showFilters: true });
     const { userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
 
@@ -198,15 +174,12 @@ describe("DirectoryView Component", () => {
       viewMode: "grid",
       nodes: mockNodes,
       name: "Test Directory",
-      showFilters: true,
     });
 
-    const input = screen.getByRole("textbox", { name: "Filter files" });
+    const input = screen.getByRole("textbox", { name: "Name" });
     await user.type(input, "zzz-no-match");
 
-    expect(
-      screen.getByText(/No items match the current filters/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No results")).toBeInTheDocument();
   });
 
   test("hidden files are excluded by default", () => {
