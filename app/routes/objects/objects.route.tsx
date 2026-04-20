@@ -3,6 +3,7 @@ import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
   type MetaFunction,
+  type ShouldRevalidateFunction,
   useFetcher,
   useLoaderData,
   useNavigate,
@@ -66,6 +67,22 @@ export const handle = {
       dataConnectionPath: basePath,
     });
   },
+};
+
+/**
+ * Prevent redundant loader revalidation when auxiliary fetchers (e.g.
+ * POST /api/recently-viewed, POST /api/pinned) complete. React Router's
+ * default is to revalidate every active loader after any action, which on
+ * this route fires the loader 1.5-3x per client-side navigation (see
+ * TSPEC-PERF-001 Table 10.2 in cytario-docs). Only revalidate when a form
+ * submission targets this route.
+ */
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  formAction,
+  defaultShouldRevalidate,
+}) => {
+  if (formAction) return defaultShouldRevalidate;
+  return false;
 };
 
 export default function ObjectsRoute() {
