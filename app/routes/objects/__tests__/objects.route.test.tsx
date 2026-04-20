@@ -3,7 +3,7 @@ import { ActionFunctionArgs, createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
-import ObjectsRoute, { handle } from "~/routes/objects.route";
+import ObjectsRoute, { handle } from "~/routes/objects/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/.server/auth/authMiddleware", () => ({

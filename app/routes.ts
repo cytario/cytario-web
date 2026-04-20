@@ -40,7 +40,7 @@ const appRoutes = [
   },
   {
     path: "/connections/:name/*",
-    file: "routes/objects.route.tsx",
+    file: "routes/objects/objects.route.tsx",
   },
 ];
 

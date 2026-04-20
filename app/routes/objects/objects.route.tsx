@@ -1,50 +1,47 @@
-import { _Object } from "@aws-sdk/client-s3";
-import { Credentials } from "@aws-sdk/client-sts";
 import { Button, EmptyState } from "@cytario/design";
 import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect } from "react";
 import {
-  type LoaderFunctionArgs,
   type MetaFunction,
   useFetcher,
   useLoaderData,
   useNavigate,
 } from "react-router";
 
-import { ConnectionConfig } from "~/.generated/client";
-import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
+import {
+  type BucketRouteLoaderResponse,
+  loader,
+} from "./objects.loader";
+import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import {
-  buildDirectoryTree,
   computeDirectoryLastModified,
   computeDirectorySize,
-  TreeNode,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { useModal } from "~/hooks/useModal";
-import { getConnection } from "~/routes/connections/connections.server";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
-import { getObjects } from "~/utils/getObjects";
-import { getName, getPrefix } from "~/utils/pathUtils";
-import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
+import { getName } from "~/utils/pathUtils";
 import { createSignedFetch } from "~/utils/signedFetch";
-import { constructS3Url, isZarrPath } from "~/utils/zarrUtils";
+import { constructS3Url } from "~/utils/zarrUtils";
+
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then(
     (module) => ({ default: module.Viewer }),
   ),
 );
+
+export { loader };
+export type { BucketRouteLoaderResponse };
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -69,136 +66,6 @@ export const handle = {
       dataConnectionPath: basePath,
     });
   },
-};
-
-export interface BucketRouteLoaderResponse {
-  connectionName: string;
-  nodes: TreeNode[];
-  bucketName: string;
-  /** URL path segment after /connections/:name/ (relative to connection root) */
-  urlPath: string;
-  /** Full S3 key (connection prefix + urlPath) */
-  pathName: string;
-  name: string;
-  /** True when navigating to a single viewable file (not a directory listing) */
-  isSingleFile?: boolean;
-  notification?: NotificationInput;
-  credentials: Credentials;
-  connectionConfig: ConnectionConfig;
-  isPinned: boolean;
-}
-
-export const loader = async ({
-  params,
-  context,
-}: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
-  const { user, credentials: bucketsCredentials } = context.get(authContext);
-  const { name: connectionName } = params;
-
-  if (!connectionName) throw new Error("Connection name is required");
-
-  const connectionConfig = await getConnection(user, connectionName);
-  if (!connectionConfig) {
-    throw new Error("Connection configuration not found");
-  }
-
-  const { bucketName } = connectionConfig;
-
-  const credentials = bucketsCredentials[bucketName];
-  if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
-
-  const urlPath = params["*"] ?? "";
-  const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";
-  const pathName = connPrefix
-    ? urlPath
-      ? `${connPrefix}/${urlPath}`
-      : connPrefix
-    : urlPath;
-  const prefix = getPrefix(pathName);
-  const name = getName(pathName, bucketName);
-
-  const isPinned = await checkIsPinnedPath(user.sub, connectionName, urlPath);
-
-  try {
-    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
-
-    // Check for zarr before listing objects — zarr directories can contain
-    // thousands of chunk files, so we skip the expensive ListObjects call.
-    if (isZarrPath(pathName)) {
-      return {
-        credentials,
-        connectionConfig,
-        isPinned,
-        name,
-        nodes: [],
-        bucketName,
-        connectionName,
-        pathName,
-        urlPath,
-        isSingleFile: true,
-      };
-    }
-
-    const objects: Readonly<_Object>[] = await getObjects(
-      connectionConfig,
-      s3Client,
-      undefined,
-      prefix,
-    );
-
-    if (objects.length > 0) {
-      const nodes = buildDirectoryTree(
-        objects,
-        connectionName,
-        prefix,
-        urlPath,
-      );
-
-      return {
-        connectionName,
-        credentials,
-        connectionConfig,
-        name,
-        nodes,
-        bucketName,
-        urlPath,
-        pathName,
-        isPinned,
-      };
-    }
-
-    // Single file — viewer or unsupported format
-    return {
-      connectionName,
-      credentials,
-      connectionConfig,
-      name,
-      nodes: [],
-      bucketName,
-      urlPath,
-      pathName,
-      isSingleFile: true,
-      isPinned,
-    };
-  } catch (error) {
-    console.error("Error in objects loader:", error);
-    return {
-      connectionName,
-      credentials,
-      connectionConfig,
-      name,
-      nodes: [],
-      bucketName,
-      urlPath,
-      pathName,
-      isPinned,
-      notification: {
-        message:
-          "We couldn't load the objects for this bucket. Please check your connection or try again later.",
-        status: "error",
-      },
-    };
-  }
 };
 
 export default function ObjectsRoute() {
