@@ -94,16 +94,8 @@ function BucketCardGridItem({
       onPress={handlePress}
       actions={<ConnectionMenu connectionName={node.name} />}
     >
-      {/*
-        Preview depends on client-only state (persisted Zustand store hydrates
-        synchronously from localStorage before first client render, but is
-        empty server-side). Gating the conditional outside ClientOnly causes a
-        hydration mismatch — React #418 — and abandons the subtree. Always
-        render the ClientOnly wrapper so server and client produce identical
-        SSR output; the viewer appears after commit.
-      */}
-      <ClientOnly>
-        {hasPreview && signedFetch && (
+      {hasPreview && signedFetch && (
+        <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
@@ -113,8 +105,8 @@ function BucketCardGridItem({
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>
-        )}
-      </ClientOnly>
+        </ClientOnly>
+      )}
     </StorageConnectionCard>
   );
 }
@@ -166,9 +158,8 @@ function FileCardGridItem({
       onPress={handlePress}
       onInfo={handleInfo}
     >
-      {/* See BucketCardGridItem — ClientOnly must wrap the conditional. */}
-      <ClientOnly>
-        {hasPreview && signedFetch && (
+      {hasPreview && signedFetch && (
+        <ClientOnly>
           <Suspense
             fallback={
               <div className="animate-pulse w-full h-full bg-slate-600" />
@@ -178,8 +169,8 @@ function FileCardGridItem({
               <ImagePreview />
             </ViewerStoreProvider>
           </Suspense>
-        )}
-      </ClientOnly>
+        </ClientOnly>
+      )}
     </FileCard>
   );
 }
