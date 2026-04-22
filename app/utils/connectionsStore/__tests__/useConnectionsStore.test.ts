@@ -1,8 +1,10 @@
 import {
+  resolveResourceId,
   selectConnection,
   selectConnectionConfig,
   selectConnectionIndex,
   selectCredentials,
+  selectHttpsUrl,
 } from "../selectors";
 import {
   useConnectionsStore,
@@ -254,6 +256,78 @@ describe("useConnectionsStore", () => {
         objectCount: 42,
         builtAt: "2025-01-01T00:00:00Z",
       });
+    });
+
+    test("selectHttpsUrl returns null when connection is not in store", () => {
+      const state = useConnectionsStore.getState();
+      expect(selectHttpsUrl("missing/data/file.ome.tif")(state)).toBeNull();
+    });
+
+    test("selectHttpsUrl rejoins configured prefix before the pathName (C-161)", () => {
+      useConnectionsStore.getState().setConnection(
+        "prefixed-conn",
+        credentials,
+        mock.connectionConfig({
+          name: "prefixed-conn",
+          bucketName: "my-bucket",
+          region: "eu-central-1",
+          endpoint: "",
+          prefix: "vericura",
+        }),
+      );
+
+      const url = selectHttpsUrl("prefixed-conn/USL-2022-42307-42.ome.tif")(
+        useConnectionsStore.getState(),
+      );
+
+      expect(url).toBe(
+        "https://my-bucket.s3.eu-central-1.amazonaws.com/vericura/USL-2022-42307-42.ome.tif",
+      );
+    });
+
+    test("selectHttpsUrl omits prefix join when prefix is empty", () => {
+      useConnectionsStore.getState().setConnection(
+        "no-prefix",
+        credentials,
+        mock.connectionConfig({
+          name: "no-prefix",
+          bucketName: "my-bucket",
+          region: "eu-central-1",
+          endpoint: "",
+          prefix: "",
+        }),
+      );
+
+      const url = selectHttpsUrl("no-prefix/file.ome.tif")(
+        useConnectionsStore.getState(),
+      );
+
+      expect(url).toBe(
+        "https://my-bucket.s3.eu-central-1.amazonaws.com/file.ome.tif",
+      );
+    });
+
+    test("resolveResourceId exposes httpsUrl matching selectHttpsUrl", () => {
+      useConnectionsStore.getState().setConnection(
+        "prefixed-conn",
+        credentials,
+        mock.connectionConfig({
+          name: "prefixed-conn",
+          bucketName: "my-bucket",
+          region: "eu-central-1",
+          endpoint: "",
+          prefix: "data",
+        }),
+      );
+
+      const resourceId = "prefixed-conn/image.ome.tif";
+      const resolved = resolveResourceId(resourceId);
+      const selectorUrl = selectHttpsUrl(resourceId)(
+        useConnectionsStore.getState(),
+      );
+
+      expect(resolved.httpsUrl).toBe(selectorUrl);
+      expect(resolved.s3Key).toBe("data/image.ome.tif");
     });
   });
 

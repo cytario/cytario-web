@@ -1,4 +1,10 @@
-import { buildConnectionPath, parseResourceId, toIndexS3Key } from "../resourceId";
+import {
+  buildConnectionPath,
+  buildHttpsUrl,
+  constructS3Url,
+  parseResourceId,
+  toIndexS3Key,
+} from "../resourceId";
 
 describe("toIndexS3Key", () => {
   test("returns index key without prefix", () => {
@@ -70,5 +76,229 @@ describe("buildConnectionPath", () => {
 
   test("strips trailing slash", () => {
     expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder");
+  });
+});
+
+describe("buildHttpsUrl", () => {
+  test("rejoins configured prefix before the pathName (C-161)", () => {
+    const config = {
+      bucketName: "my-bucket",
+      region: "eu-central-1",
+      endpoint: "",
+      prefix: "vericura",
+    };
+
+    expect(buildHttpsUrl(config, "USL-2022-42307-42.ome.tif")).toBe(
+      "https://my-bucket.s3.eu-central-1.amazonaws.com/vericura/USL-2022-42307-42.ome.tif",
+    );
+  });
+
+  test("strips trailing slash from prefix before joining", () => {
+    const config = {
+      bucketName: "bucket",
+      region: "eu-central-1",
+      endpoint: "",
+      prefix: "data/",
+    };
+
+    expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
+      "https://bucket.s3.eu-central-1.amazonaws.com/data/file.ome.tif",
+    );
+  });
+
+  test("omits prefix join when prefix is empty", () => {
+    const config = {
+      bucketName: "bucket",
+      region: "eu-central-1",
+      endpoint: "",
+      prefix: "",
+    };
+
+    expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
+      "https://bucket.s3.eu-central-1.amazonaws.com/file.ome.tif",
+    );
+  });
+
+  test("works for custom endpoints (MinIO)", () => {
+    const config = {
+      bucketName: "bucket",
+      region: null,
+      endpoint: "http://localhost:9000",
+      prefix: "data",
+    };
+
+    expect(buildHttpsUrl(config, "sample.zarr")).toBe(
+      "http://localhost:9000/bucket/data/sample.zarr",
+    );
+  });
+});
+
+describe("constructS3Url", () => {
+  describe("AWS S3 URLs", () => {
+    test("constructs virtual-hosted style URL with region", () => {
+      const config = {
+        bucketName: "my-bucket",
+        region: "us-west-2",
+        endpoint: "",
+      };
+
+      const result = constructS3Url(config, "images/sample.zarr");
+
+      expect(result).toBe(
+        "https://my-bucket.s3.us-west-2.amazonaws.com/images/sample.zarr",
+      );
+    });
+
+    test("uses eu-central-1 as default region", () => {
+      const config = {
+        bucketName: "my-bucket",
+        region: null,
+        endpoint: "",
+      };
+
+      const result = constructS3Url(config, "data.zarr");
+
+      expect(result).toBe(
+        "https://my-bucket.s3.eu-central-1.amazonaws.com/data.zarr",
+      );
+    });
+
+    test("handles path with trailing slash", () => {
+      const config = {
+        bucketName: "bucket",
+        region: "eu-west-1",
+        endpoint: "",
+      };
+
+      const result = constructS3Url(config, "images/sample.zarr/");
+
+      expect(result).toBe(
+        "https://bucket.s3.eu-west-1.amazonaws.com/images/sample.zarr/",
+      );
+    });
+  });
+
+  describe("Custom endpoint URLs (MinIO, R2)", () => {
+    test("constructs URL with custom endpoint", () => {
+      const config = {
+        bucketName: "my-bucket",
+        endpoint: "http://localhost:9000",
+        region: null,
+      };
+
+      const result = constructS3Url(config, "data.zarr");
+
+      expect(result).toBe("http://localhost:9000/my-bucket/data.zarr");
+    });
+
+    test("strips trailing slash from endpoint", () => {
+      const config = {
+        bucketName: "bucket",
+        endpoint: "http://localhost:9000/",
+        region: null,
+      };
+
+      const result = constructS3Url(config, "images/sample.zarr");
+
+      expect(result).toBe("http://localhost:9000/bucket/images/sample.zarr");
+    });
+
+    test("handles HTTPS custom endpoint", () => {
+      const config = {
+        bucketName: "bucket",
+        endpoint: "https://minio.example.com",
+        region: null,
+      };
+
+      const result = constructS3Url(config, "data.zarr");
+
+      expect(result).toBe("https://minio.example.com/bucket/data.zarr");
+    });
+
+    test("handles R2 endpoint", () => {
+      const config = {
+        bucketName: "my-r2-bucket",
+        endpoint: "https://account-id.r2.cloudflarestorage.com",
+        region: null,
+      };
+
+      const result = constructS3Url(config, "images/test.zarr");
+
+      expect(result).toBe(
+        "https://account-id.r2.cloudflarestorage.com/my-r2-bucket/images/test.zarr",
+      );
+    });
+
+    test("ignores region when endpoint is provided", () => {
+      const config = {
+        bucketName: "bucket",
+        region: "us-west-2",
+        endpoint: "http://localhost:9000",
+      };
+
+      const result = constructS3Url(config, "data.zarr");
+
+      expect(result).toBe("http://localhost:9000/bucket/data.zarr");
+      expect(result).not.toContain("s3.us-west-2");
+    });
+  });
+
+  describe("edge cases", () => {
+    test("handles empty path", () => {
+      const config = {
+        bucketName: "bucket",
+        region: "us-east-1",
+        endpoint: "",
+      };
+
+      const result = constructS3Url(config, "");
+
+      expect(result).toBe("https://bucket.s3.us-east-1.amazonaws.com/");
+    });
+
+    test("handles deeply nested path", () => {
+      const config = {
+        bucketName: "bucket",
+        endpoint: "http://localhost:9000",
+        region: null,
+      };
+
+      const result = constructS3Url(config, "a/b/c/d/e/f/data.zarr");
+
+      expect(result).toBe(
+        "http://localhost:9000/bucket/a/b/c/d/e/f/data.zarr",
+      );
+    });
+
+    test("falls back to path-style for AWS buckets whose name contains dots", () => {
+      // Virtual-hosted style breaks TLS because the wildcard cert
+      // `*.s3.<region>.amazonaws.com` only matches a single DNS label —
+      // matches AWS SDK v3 behaviour for dotted buckets over HTTPS.
+      const config = {
+        bucketName: "my.bucket.name",
+        region: "us-west-2",
+        endpoint: "",
+      };
+
+      const result = constructS3Url(config, "data.zarr");
+
+      expect(result).toBe(
+        "https://s3.us-west-2.amazonaws.com/my.bucket.name/data.zarr",
+      );
+    });
+
+    test("uses path-style for dotted AWS bucket with explicit amazonaws endpoint", () => {
+      const config = {
+        bucketName: "ultivue.cytario",
+        region: "us-east-1",
+        endpoint: "https://s3.us-east-1.amazonaws.com",
+      };
+
+      const result = constructS3Url(config, "USL-2023-52702-11.ome.tif");
+
+      expect(result).toBe(
+        "https://s3.us-east-1.amazonaws.com/ultivue.cytario/USL-2023-52702-11.ome.tif",
+      );
+    });
   });
 });

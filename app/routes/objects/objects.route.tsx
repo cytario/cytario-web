@@ -31,8 +31,8 @@ import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
+import { buildHttpsUrl } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
-import { constructS3Url } from "~/utils/zarrUtils";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -70,18 +70,26 @@ export const handle = {
 };
 
 /**
- * Prevent redundant loader revalidation when auxiliary fetchers (e.g.
- * POST /api/recently-viewed, POST /api/pinned) complete. React Router's
- * default is to revalidate every active loader after any action, which on
- * this route fires the loader 1.5-3x per client-side navigation (see
- * TSPEC-PERF-001 Table 10.2 in cytario-docs). Only revalidate when a form
- * submission targets this route.
+ * Revalidate only when the URL actually changes. React Router's default
+ * is to revalidate every active loader after any action, which on this
+ * route fires the loader 1.5-3x per client-side navigation (see
+ * TSPEC-PERF-001 Table 10.2 in cytario-docs) — auxiliary fetchers
+ * (POST /api/recently-viewed, POST /api/pinned) fire on every file view
+ * and would each trigger a full S3 listing re-run.
+ *
+ * Keying on URL change only also avoids a subtle trap: `formAction` is
+ * populated for fetcher submissions too, not just Form submissions on
+ * this route, so the obvious `if (formAction) return defaultShouldRevalidate`
+ * check would re-trigger revalidation for every aux-fetcher completion.
+ * This route has no mutating forms of its own, so skipping the
+ * `formAction` branch is safe.
  */
 export const shouldRevalidate: ShouldRevalidateFunction = ({
-  formAction,
-  defaultShouldRevalidate,
+  currentUrl,
+  nextUrl,
 }) => {
-  if (formAction) return defaultShouldRevalidate;
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
+  if (currentUrl.search !== nextUrl.search) return true;
   return false;
 };
 
@@ -247,7 +255,7 @@ export default function ObjectsRoute() {
       fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
 
     if (isViewableImage) {
-      const s3Url = constructS3Url(connectionConfig, pathName);
+      const s3Url = buildHttpsUrl(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () =>
           useConnectionsStore.getState().connections[connectionName]

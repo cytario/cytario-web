@@ -35,6 +35,7 @@ export default defineConfig({
         globals: true,
         silent: true,
         environment: "happy-dom",
+        exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/**"],
         server: {
             deps: {
                 inline: [
