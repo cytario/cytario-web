@@ -257,7 +257,10 @@ describe("constructS3Url", () => {
       );
     });
 
-    test("handles bucket name with dots", () => {
+    test("falls back to path-style for AWS buckets whose name contains dots", () => {
+      // Virtual-hosted style breaks TLS because the wildcard cert
+      // `*.s3.<region>.amazonaws.com` only matches a single DNS label —
+      // matches AWS SDK v3 behaviour for dotted buckets over HTTPS.
       const config = {
         bucketName: "my.bucket.name",
         region: "us-west-2",
@@ -267,7 +270,21 @@ describe("constructS3Url", () => {
       const result = constructS3Url(config, "data.zarr");
 
       expect(result).toBe(
-        "https://my.bucket.name.s3.us-west-2.amazonaws.com/data.zarr",
+        "https://s3.us-west-2.amazonaws.com/my.bucket.name/data.zarr",
+      );
+    });
+
+    test("uses path-style for dotted AWS bucket with explicit amazonaws endpoint", () => {
+      const config = {
+        bucketName: "ultivue.cytario",
+        region: "us-east-1",
+        endpoint: "https://s3.us-east-1.amazonaws.com",
+      };
+
+      const result = constructS3Url(config, "USL-2023-52702-11.ome.tif");
+
+      expect(result).toBe(
+        "https://s3.us-east-1.amazonaws.com/ultivue.cytario/USL-2023-52702-11.ome.tif",
       );
     });
   });
