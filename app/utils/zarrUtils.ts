@@ -32,6 +32,13 @@ export function constructS3Url(
   const isAwsEndpoint = !endpoint || /\.amazonaws\.com$/i.test(endpoint);
 
   if (isAwsEndpoint) {
+    // Bucket names containing dots break the TLS wildcard cert
+    // `*.s3.<region>.amazonaws.com` (wildcards match a single DNS label),
+    // so fall back to path-style for dotted buckets — mirrors what the
+    // AWS SDK does automatically.
+    if (bucket.includes(".")) {
+      return `https://s3.${region}.amazonaws.com/${bucket}/${encodedPath}`;
+    }
     return `https://${bucket}.s3.${region}.amazonaws.com/${encodedPath}`;
   }
 
