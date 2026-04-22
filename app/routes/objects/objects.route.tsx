@@ -74,14 +74,18 @@ export const handle = {
  * POST /api/recently-viewed, POST /api/pinned) complete. React Router's
  * default is to revalidate every active loader after any action, which on
  * this route fires the loader 1.5-3x per client-side navigation (see
- * TSPEC-PERF-001 Table 10.2 in cytario-docs). Only revalidate when a form
- * submission targets this route.
+ * TSPEC-PERF-001 Table 10.2 in cytario-docs). Revalidate on URL change
+ * (drilling into subdirectories) and when a form submission targets this
+ * route; skip aux-fetcher completions that don't change the URL.
  */
 export const shouldRevalidate: ShouldRevalidateFunction = ({
   formAction,
+  currentUrl,
+  nextUrl,
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
   return false;
 };
 
