@@ -1,5 +1,6 @@
 import {
   buildConnectionPath,
+  buildHttpsUrl,
   constructS3Url,
   parseResourceId,
   toIndexS3Key,
@@ -75,6 +76,60 @@ describe("buildConnectionPath", () => {
 
   test("strips trailing slash", () => {
     expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder");
+  });
+});
+
+describe("buildHttpsUrl", () => {
+  test("rejoins configured prefix before the pathName (C-161)", () => {
+    const config = {
+      bucketName: "my-bucket",
+      region: "eu-central-1",
+      endpoint: "",
+      prefix: "vericura",
+    };
+
+    expect(buildHttpsUrl(config, "USL-2022-42307-42.ome.tif")).toBe(
+      "https://my-bucket.s3.eu-central-1.amazonaws.com/vericura/USL-2022-42307-42.ome.tif",
+    );
+  });
+
+  test("strips trailing slash from prefix before joining", () => {
+    const config = {
+      bucketName: "bucket",
+      region: "eu-central-1",
+      endpoint: "",
+      prefix: "data/",
+    };
+
+    expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
+      "https://bucket.s3.eu-central-1.amazonaws.com/data/file.ome.tif",
+    );
+  });
+
+  test("omits prefix join when prefix is empty", () => {
+    const config = {
+      bucketName: "bucket",
+      region: "eu-central-1",
+      endpoint: "",
+      prefix: "",
+    };
+
+    expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
+      "https://bucket.s3.eu-central-1.amazonaws.com/file.ome.tif",
+    );
+  });
+
+  test("works for custom endpoints (MinIO)", () => {
+    const config = {
+      bucketName: "bucket",
+      region: null,
+      endpoint: "http://localhost:9000",
+      prefix: "data",
+    };
+
+    expect(buildHttpsUrl(config, "sample.zarr")).toBe(
+      "http://localhost:9000/bucket/data/sample.zarr",
+    );
   });
 });
 
