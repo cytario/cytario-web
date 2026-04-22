@@ -35,6 +35,7 @@ describe("getTileDataWasm", () => {
       connectionConfig,
       s3Key: `${connectionConfig.prefix || ""}data/file.parquet`,
       s3Uri: `s3://${connectionConfig.bucketName}/data/file.parquet`,
+      httpsUrl: `https://${connectionConfig.bucketName}.s3.eu-central-1.amazonaws.com/data/file.parquet`,
     });
   });
 

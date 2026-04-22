@@ -31,8 +31,8 @@ import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
+import { buildHttpsUrl } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
-import { constructS3Url } from "~/utils/zarrUtils";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
@@ -247,7 +247,7 @@ export default function ObjectsRoute() {
       fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
 
     if (isViewableImage) {
-      const s3Url = constructS3Url(connectionConfig, pathName);
+      const s3Url = buildHttpsUrl(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () =>
           useConnectionsStore.getState().connections[connectionName]

@@ -10,7 +10,9 @@ export {
   selectCredentials,
   selectConnectionConfig,
   selectConnectionIndex,
-  selectResolvedResource,
+  selectS3Key,
+  selectS3Uri,
+  selectHttpsUrl,
   resolveResourceId,
 } from "./selectors";
 export type { ResolvedResource } from "./selectors";

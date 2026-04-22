@@ -17,6 +17,7 @@ export default [
       "**/node_modules/**",
       "**/build/**",
       "**/.cache/**",
+      "**/.claude/**",
       "**/.react-router/**",
       "**/coverage/**",
       "**/devenv/**",

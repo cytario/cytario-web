@@ -23,14 +23,14 @@ vi.mock("~/utils/signedFetch", () => ({
 
 vi.mock("~/utils/zarrUtils", () => ({
   isZarrPath: vi.fn((p: string) => /\.zarr(\/|$|\?)/.test(p)),
-  constructS3Url: vi.fn(
-    (_config: unknown, pathName: string) =>
-      `https://bucket.s3.amazonaws.com/${pathName}`,
-  ),
 }));
 
 vi.mock("~/utils/resourceId", () => ({
   createResourceId: vi.fn((...args: string[]) => args.join("/")),
+  constructS3Url: vi.fn(
+    (_config: unknown, s3Key: string) =>
+      `https://bucket.s3.amazonaws.com/${s3Key}`,
+  ),
 }));
 
 const mockSignedFetch = vi.fn();
