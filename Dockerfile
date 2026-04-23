@@ -37,7 +37,7 @@ COPY package.json package-lock.json ./
 COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --ignore-scripts
+    npm ci --omit=dev
 COPY --from=build /app/build ./build
 COPY server.ts ./
 
