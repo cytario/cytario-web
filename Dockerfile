@@ -1,18 +1,30 @@
+#
+# -- deps stage: install npm dependencies -------
+#
 FROM node:24-slim AS deps
 ENV HUSKY=0
+
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+COPY patches ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+#
+# -- build stage: compile the app ---------------
+#
 FROM node:24-slim AS build
 ENV HUSKY=0
+
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate && npm run build
 
+#
+# -- runtime stage: minimal production image ----
+#
 FROM node:24-slim
 ENV HUSKY=0
 
