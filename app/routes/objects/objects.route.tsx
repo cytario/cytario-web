@@ -31,7 +31,7 @@ import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
-import { buildHttpsUrl } from "~/utils/resourceId";
+import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
@@ -255,7 +255,11 @@ export default function ObjectsRoute() {
       fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
 
     if (isViewableImage) {
-      const s3Url = buildHttpsUrl(connectionConfig, pathName);
+      // `pathName` from objects.loader is ALREADY the full S3 key (connection
+      // prefix joined with the URL splat server-side — see objects.loader.ts).
+      // Use `constructS3Url` directly; `buildHttpsUrl` would re-join the
+      // prefix and produce a double-prefixed URL.
+      const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () =>
           useConnectionsStore.getState().connections[connectionName]
