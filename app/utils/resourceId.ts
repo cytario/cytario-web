@@ -18,7 +18,11 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
   }
 
   const connectionName = resourceId.slice(0, slashIndex);
-  const pathName = resourceId.slice(slashIndex + 1);
+
+  const pathName = resourceId
+    .slice(slashIndex + 1)
+    // Strip leading slash
+    .replace(/^\/+/, "");
 
   if (!connectionName) {
     throw new Error(
