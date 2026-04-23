@@ -51,17 +51,6 @@ export function getS3ProviderConfig(
 }
 
 /**
- * Gets the DuckDB URL style setting based on provider
- * @param endpoint - The S3 endpoint URL
- * @returns 'vhost' for AWS S3, 'path' for S3-compatible services
- */
-export function getDuckDbUrlStyle(
-  endpoint?: string | null
-): "vhost" | "path" {
-  return isAwsS3Endpoint(endpoint) ? "vhost" : "path";
-}
-
-/**
  * Determines if SSL should be used based on endpoint
  * @param endpoint - The S3 endpoint URL
  * @returns True if endpoint starts with https://

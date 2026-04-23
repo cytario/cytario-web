@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import {
   isAwsS3Endpoint,
   getS3ProviderConfig,
-  getDuckDbUrlStyle,
   shouldUseSSL,
   getEndpointHostname,
 } from "./s3Provider";
@@ -71,20 +70,6 @@ describe("s3Provider utilities", () => {
       expect(config.usePathStyle).toBe(true);
       expect(config.stsEndpoint).toBe("http://localhost:9000");
       expect(config.s3Endpoint).toBe("http://localhost:9000");
-    });
-  });
-
-  describe("getDuckDbUrlStyle", () => {
-    it("returns 'vhost' for AWS S3", () => {
-      expect(getDuckDbUrlStyle(undefined)).toBe("vhost");
-      expect(getDuckDbUrlStyle(null)).toBe("vhost");
-      expect(getDuckDbUrlStyle("https://s3.amazonaws.com")).toBe("vhost");
-    });
-
-    it("returns 'path' for S3-compatible services", () => {
-      expect(getDuckDbUrlStyle("https://s3.cytar.io")).toBe("path");
-      expect(getDuckDbUrlStyle("http://localhost:9000")).toBe("path");
-      expect(getDuckDbUrlStyle("https://s3.wasabisys.com")).toBe("path");
     });
   });
 
