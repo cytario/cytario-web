@@ -6,7 +6,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "postinstall": "patch-package || true",
+    "postinstall": "patch-package",
     "prepare": "husky || true",
     "build": "react-router build",
     "dev": "react-router dev",
