@@ -6,11 +6,7 @@ import {
   ConsoleLogger,
 } from "@duckdb/duckdb-wasm";
 
-import {
-  getDuckDbUrlStyle,
-  shouldUseSSL,
-  getEndpointHostname,
-} from "../../s3Provider";
+import { shouldUseSSL, getEndpointHostname } from "../../s3Provider";
 import { createDatabase } from "../createDatabase";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -23,7 +19,6 @@ vi.mock("@duckdb/duckdb-wasm", () => ({
 }));
 
 vi.mock("../../s3Provider", () => ({
-  getDuckDbUrlStyle: vi.fn(),
   shouldUseSSL: vi.fn(),
   getEndpointHostname: vi.fn(),
 }));
@@ -58,7 +53,6 @@ describe("createDatabase", () => {
     mockQuery.mockResolvedValue({});
 
     // Setup s3Provider mocks
-    vi.mocked(getDuckDbUrlStyle).mockReturnValue("vhost");
     vi.mocked(shouldUseSSL).mockReturnValue(true);
     vi.mocked(getEndpointHostname).mockReturnValue("s3.amazonaws.com");
   });
@@ -116,7 +110,7 @@ describe("createDatabase", () => {
     expect(mockQuery).toHaveBeenCalledWith(
       "SET s3_endpoint='s3.amazonaws.com'",
     );
-    expect(mockQuery).toHaveBeenCalledWith("SET s3_url_style='vhost'");
+    expect(mockQuery).toHaveBeenCalledWith("SET s3_url_style='path'");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_use_ssl=true");
   });
 
@@ -133,7 +127,6 @@ describe("createDatabase", () => {
       endpoint: "https://minio.local:9000",
     });
     vi.mocked(getEndpointHostname).mockReturnValue("minio.local:9000");
-    vi.mocked(getDuckDbUrlStyle).mockReturnValue("path");
     vi.mocked(shouldUseSSL).mockReturnValue(true);
 
     await createDatabase("test-resource-minio", credentials, connectionConfig);
@@ -141,7 +134,6 @@ describe("createDatabase", () => {
     expect(getEndpointHostname).toHaveBeenCalledWith(
       "https://minio.local:9000",
     );
-    expect(getDuckDbUrlStyle).toHaveBeenCalledWith("https://minio.local:9000");
     expect(mockQuery).toHaveBeenCalledWith(
       "SET s3_endpoint='minio.local:9000'",
     );

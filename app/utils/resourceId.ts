@@ -18,7 +18,11 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
   }
 
   const connectionName = resourceId.slice(0, slashIndex);
-  const pathName = resourceId.slice(slashIndex + 1);
+
+  const pathName = resourceId
+    .slice(slashIndex + 1)
+    // Strip leading slash
+    .replace(/^\/+/, "");
 
   if (!connectionName) {
     throw new Error(
@@ -81,24 +85,19 @@ export function buildHttpsUrl(
 }
 
 /**
- * Builds the HTTPS URL for a full S3 object key. Uses virtual-hosted style
- * for AWS S3, falls back to path-style for dotted bucket names (TLS wildcard
- * cert limitation), and uses path-style for custom endpoints (MinIO, R2).
- * Path segments are URI-encoded — callers pass raw keys.
+ * Builds the HTTPS URL for a full S3 object key. Always path-style — works
+ * for every bucket shape (including dotted names, which break the vhost
+ * wildcard cert) and keeps a single URL form across AWS and S3-compatible
+ * endpoints. Path segments are URI-encoded — callers pass raw keys.
  *
  * The `s3Key` is the **full object key including any connection prefix**.
  * If you have a prefix-relative `pathName`, use `buildHttpsUrl` instead to
  * have the prefix rejoined for you.
  *
  * @example
- * // AWS virtual-hosted:
+ * // AWS:
  * constructS3Url({ bucketName: "my-bucket", region: "eu-central-1" }, "data/image.ome.tif")
- * // → "https://my-bucket.s3.eu-central-1.amazonaws.com/data/image.ome.tif"
- *
- * @example
- * // Dotted bucket (path-style fallback):
- * constructS3Url({ bucketName: "my.bucket", region: "us-east-1" }, "file.txt")
- * // → "https://s3.us-east-1.amazonaws.com/my.bucket/file.txt"
+ * // → "https://s3.eu-central-1.amazonaws.com/my-bucket/data/image.ome.tif"
  *
  * @example
  * // MinIO / R2 custom endpoint:
@@ -120,13 +119,9 @@ export function constructS3Url(
 
   const isAwsEndpoint = !endpoint || /\.amazonaws\.com$/i.test(endpoint);
 
+  // TODO: Check if this can be fixed on db-level
   if (isAwsEndpoint) {
-    // Dotted bucket names break the wildcard cert `*.s3.<region>.amazonaws.com`
-    // (wildcards match a single DNS label). AWS SDK v3 does the same fallback.
-    if (bucket.includes(".")) {
-      return `https://s3.${region}.amazonaws.com/${bucket}/${encodedPath}`;
-    }
-    return `https://${bucket}.s3.${region}.amazonaws.com/${encodedPath}`;
+    return `https://s3.${region}.amazonaws.com/${bucket}/${encodedPath}`;
   }
 
   return `${endpoint}/${bucket}/${encodedPath}`;

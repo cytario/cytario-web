@@ -31,6 +31,7 @@ export function DashboardSection({
 
   const visible = nodes.slice(0, maxItems);
   const hasMore = nodes.length > maxItems;
+  const kind = nodes[0].type === "bucket" ? "connections" : "entries";
 
   return (
     <Section flush>
@@ -52,7 +53,7 @@ export function DashboardSection({
         {viewMode === "list" ? (
           <DirectoryViewTableDirectory nodes={visible} />
         ) : (
-          <DirectoryViewGrid nodes={visible} viewMode={viewMode} kind="entries" />
+          <DirectoryViewGrid nodes={visible} viewMode={viewMode} kind={kind} />
         )}
       </Container>
     </Section>

@@ -8,11 +8,7 @@ import {
 } from "@duckdb/duckdb-wasm";
 
 import { createSingleton } from "./createSingleton";
-import {
-  getDuckDbUrlStyle,
-  shouldUseSSL,
-  getEndpointHostname,
-} from "../s3Provider";
+import { shouldUseSSL, getEndpointHostname } from "../s3Provider";
 import { ConnectionConfig } from "~/.generated/client";
 
 /**
@@ -61,20 +57,21 @@ const createDatabaseInternal = async (
   await connection.query(`SET s3_secret_access_key='${SecretAccessKey}'`);
   await connection.query(`SET s3_session_token='${SessionToken}'`);
 
-  // Configure S3 endpoint and URL style for S3-compatible services (MinIO, etc.)
+  // Configure S3 endpoint. Always path-style: works for every bucket shape
+  // (dotted names break the vhost wildcard cert `*.s3.<region>.amazonaws.com`)
+  // and keeps a single URL form across AWS and S3-compatible endpoints.
   const endpoint = connectionConfig?.endpoint;
   const region = connectionConfig?.region ?? "eu-central-1";
-  const urlStyle = getDuckDbUrlStyle(endpoint);
   const useSSL = shouldUseSSL(endpoint);
   const hostname = getEndpointHostname(endpoint);
 
   await connection.query(`SET s3_region='${region}'`);
   await connection.query(`SET s3_endpoint='${hostname}'`);
-  await connection.query(`SET s3_url_style='${urlStyle}'`);
+  await connection.query(`SET s3_url_style='path'`);
   await connection.query(`SET s3_use_ssl=${useSSL}`);
 
   console.info(
-    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: ${urlStyle})`,
+    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: path)`,
   );
 
   return connection;

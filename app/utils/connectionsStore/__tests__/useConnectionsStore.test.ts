@@ -281,7 +281,7 @@ describe("useConnectionsStore", () => {
       );
 
       expect(url).toBe(
-        "https://my-bucket.s3.eu-central-1.amazonaws.com/vericura/USL-2022-42307-42.ome.tif",
+        "https://s3.eu-central-1.amazonaws.com/my-bucket/vericura/USL-2022-42307-42.ome.tif",
       );
     });
 
@@ -303,7 +303,7 @@ describe("useConnectionsStore", () => {
       );
 
       expect(url).toBe(
-        "https://my-bucket.s3.eu-central-1.amazonaws.com/file.ome.tif",
+        "https://s3.eu-central-1.amazonaws.com/my-bucket/file.ome.tif",
       );
     });
 

@@ -89,7 +89,7 @@ describe("buildHttpsUrl", () => {
     };
 
     expect(buildHttpsUrl(config, "USL-2022-42307-42.ome.tif")).toBe(
-      "https://my-bucket.s3.eu-central-1.amazonaws.com/vericura/USL-2022-42307-42.ome.tif",
+      "https://s3.eu-central-1.amazonaws.com/my-bucket/vericura/USL-2022-42307-42.ome.tif",
     );
   });
 
@@ -102,7 +102,7 @@ describe("buildHttpsUrl", () => {
     };
 
     expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
-      "https://bucket.s3.eu-central-1.amazonaws.com/data/file.ome.tif",
+      "https://s3.eu-central-1.amazonaws.com/bucket/data/file.ome.tif",
     );
   });
 
@@ -115,7 +115,7 @@ describe("buildHttpsUrl", () => {
     };
 
     expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
-      "https://bucket.s3.eu-central-1.amazonaws.com/file.ome.tif",
+      "https://s3.eu-central-1.amazonaws.com/bucket/file.ome.tif",
     );
   });
 
@@ -135,7 +135,7 @@ describe("buildHttpsUrl", () => {
 
 describe("constructS3Url", () => {
   describe("AWS S3 URLs", () => {
-    test("constructs virtual-hosted style URL with region", () => {
+    test("constructs path-style URL with region", () => {
       const config = {
         bucketName: "my-bucket",
         region: "us-west-2",
@@ -145,7 +145,7 @@ describe("constructS3Url", () => {
       const result = constructS3Url(config, "images/sample.zarr");
 
       expect(result).toBe(
-        "https://my-bucket.s3.us-west-2.amazonaws.com/images/sample.zarr",
+        "https://s3.us-west-2.amazonaws.com/my-bucket/images/sample.zarr",
       );
     });
 
@@ -159,7 +159,7 @@ describe("constructS3Url", () => {
       const result = constructS3Url(config, "data.zarr");
 
       expect(result).toBe(
-        "https://my-bucket.s3.eu-central-1.amazonaws.com/data.zarr",
+        "https://s3.eu-central-1.amazonaws.com/my-bucket/data.zarr",
       );
     });
 
@@ -173,7 +173,7 @@ describe("constructS3Url", () => {
       const result = constructS3Url(config, "images/sample.zarr/");
 
       expect(result).toBe(
-        "https://bucket.s3.eu-west-1.amazonaws.com/images/sample.zarr/",
+        "https://s3.eu-west-1.amazonaws.com/bucket/images/sample.zarr/",
       );
     });
   });
@@ -253,7 +253,7 @@ describe("constructS3Url", () => {
 
       const result = constructS3Url(config, "");
 
-      expect(result).toBe("https://bucket.s3.us-east-1.amazonaws.com/");
+      expect(result).toBe("https://s3.us-east-1.amazonaws.com/bucket/");
     });
 
     test("handles deeply nested path", () => {
@@ -270,10 +270,10 @@ describe("constructS3Url", () => {
       );
     });
 
-    test("falls back to path-style for AWS buckets whose name contains dots", () => {
-      // Virtual-hosted style breaks TLS because the wildcard cert
-      // `*.s3.<region>.amazonaws.com` only matches a single DNS label —
-      // matches AWS SDK v3 behaviour for dotted buckets over HTTPS.
+    test("handles AWS buckets whose name contains dots", () => {
+      // Dotted buckets must not end up in a vhost URL because the wildcard
+      // TLS cert `*.s3.<region>.amazonaws.com` only matches one DNS label.
+      // Path-style (the only style constructS3Url emits) sidesteps this.
       const config = {
         bucketName: "my.bucket.name",
         region: "us-west-2",
