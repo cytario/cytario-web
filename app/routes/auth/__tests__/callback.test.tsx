@@ -44,6 +44,36 @@ vi.mock("~/config", () => ({
 
 const { getSession } = await import("~/.server/auth/getSession");
 
+/**
+ * Loader error responses use react-router's `data()` helper, which returns a
+ * `DataWithResponseInit` wrapper rather than a Response. Treat the wrapper as
+ * an error envelope and expose status/data for assertions.
+ */
+type ErrorEnvelope = { status: number; data: { error: string } };
+
+interface ResponseInitLike {
+  status?: number;
+}
+const isDataWithResponseInit = (
+  value: unknown,
+): value is { init: ResponseInitLike | null; data: unknown } =>
+  typeof value === "object" &&
+  value !== null &&
+  "init" in value &&
+  "data" in value;
+
+const asErrorEnvelope = (value: unknown): ErrorEnvelope => {
+  if (!isDataWithResponseInit(value)) {
+    throw new Error(
+      `Expected DataWithResponseInit, got ${JSON.stringify(value)}`,
+    );
+  }
+  return {
+    status: value.init?.status ?? 200,
+    data: value.data as { error: string },
+  };
+};
+
 describe("callback loader", () => {
   const mockUser = mock.user();
   const mockStateData = {
@@ -82,35 +112,41 @@ describe("callback loader", () => {
     );
   });
 
-  test("redirects to login with flash on missing code/state", async () => {
+  test("returns 400 with error data on missing code/state (no /login redirect)", async () => {
     const request = new Request("http://localhost/auth/callback");
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const result = await loader({ request } as LoaderFunctionArgs);
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "Authentication failed. Missing required parameters.",
+    expect(result).not.toBeInstanceOf(Response);
+    const envelope = asErrorEnvelope(result);
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "Authentication failed. Missing required parameters.",
     });
+    expect(mockSession.set).not.toHaveBeenCalledWith(
+      "notification",
+      expect.anything(),
+    );
   });
 
-  test("redirects to login with flash on invalid state", async () => {
+  test("returns 400 with error data on invalid state", async () => {
     vi.mocked(validateOAuthState).mockResolvedValue(null);
 
     const request = new Request(
       "http://localhost/auth/callback?code=auth-code&state=invalid",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "Authentication session expired. Please try again.",
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "Authentication session expired. Please try again.",
     });
   });
 
-  test("redirects to login when state is missing codeVerifier", async () => {
+  test("returns 400 with error data when state is missing codeVerifier", async () => {
     vi.mocked(validateOAuthState).mockResolvedValue({
       ...mockStateData,
       codeVerifier: "",
@@ -120,16 +156,17 @@ describe("callback loader", () => {
       "http://localhost/auth/callback?code=auth-code&state=valid",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "Authentication session invalid. Please try again.",
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "Authentication session invalid. Please try again.",
     });
   });
 
-  test("redirects to login when state is missing nonce", async () => {
+  test("returns 400 when state is missing nonce", async () => {
     vi.mocked(validateOAuthState).mockResolvedValue({
       ...mockStateData,
       nonce: "",
@@ -139,12 +176,14 @@ describe("callback loader", () => {
       "http://localhost/auth/callback?code=auth-code&state=valid",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
+    expect(envelope.status).toBe(400);
   });
 
-  test("redirects to login when ID token signature verification fails", async () => {
+  test("returns 400 when ID token signature verification fails", async () => {
     vi.mocked(verifyIdToken).mockResolvedValue(null);
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -152,17 +191,18 @@ describe("callback loader", () => {
       "http://localhost/auth/callback?code=auth-code&state=valid-state",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "Authentication failed. Please try again.",
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "Authentication failed. Please try again.",
     });
     consoleSpy.mockRestore();
   });
 
-  test("redirects to login on nonce mismatch", async () => {
+  test("returns 400 on nonce mismatch", async () => {
     vi.mocked(verifyIdToken).mockResolvedValue({ nonce: "wrong-nonce", sub: "user-123" });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -170,31 +210,33 @@ describe("callback loader", () => {
       "http://localhost/auth/callback?code=auth-code&state=valid-state",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "Authentication failed. Please try again.",
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "Authentication failed. Please try again.",
     });
     consoleSpy.mockRestore();
   });
 
-  test("handles authorization server errors with flash notification", async () => {
+  test("handles authorization server errors with error page data", async () => {
     const request = new Request(
       "http://localhost/auth/callback?error=access_denied&error_description=User+denied+access",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "User denied access",
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "User denied access",
     });
   });
 
-  test("catches errors and shows generic message", async () => {
+  test("catches errors and returns generic error page data", async () => {
     vi.mocked(exchangeAuthCode).mockRejectedValue(
       new Error("Token exchange failed: 400"),
     );
@@ -204,12 +246,13 @@ describe("callback loader", () => {
       "http://localhost/auth/callback?code=auth-code&state=valid-state",
     );
 
-    const response = await loader({ request } as LoaderFunctionArgs);
+    const envelope = asErrorEnvelope(
+      await loader({ request } as LoaderFunctionArgs),
+    );
 
-    expect((response as Response).status).toBe(302);
-    expect(mockSession.set).toHaveBeenCalledWith("notification", {
-      status: "error",
-      message: "Authentication failed. Please try again.",
+    expect(envelope.status).toBe(400);
+    expect(envelope.data).toEqual({
+      error: "Authentication failed. Please try again.",
     });
     consoleSpy.mockRestore();
   });
@@ -240,5 +283,19 @@ describe("callback loader", () => {
     await loader({ request } as LoaderFunctionArgs);
 
     expect(sessionStorage.commitSession).toHaveBeenCalled();
+  });
+
+  test("failure path never redirects to /login (regression: email-verify redirect loop)", async () => {
+    vi.mocked(validateOAuthState).mockResolvedValue(null);
+
+    const request = new Request(
+      "http://localhost/auth/callback?code=auth-code&state=expired",
+    );
+
+    const result = await loader({ request } as LoaderFunctionArgs);
+
+    // Must not return a redirect Response — that's what used to loop
+    // against Keycloak's live SSO session.
+    expect(result).not.toBeInstanceOf(Response);
   });
 });
