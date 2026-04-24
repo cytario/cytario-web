@@ -128,7 +128,7 @@ export default function ObjectsRoute() {
   // Store credentials and connection config in Zustand store (keyed by connection name)
   useEffect(() => {
     if (credentials && connectionConfig) {
-      setConnection(connectionName, credentials, connectionConfig);
+      setConnection(credentials, connectionConfig);
     }
   }, [connectionName, credentials, connectionConfig, setConnection]);
 
@@ -262,8 +262,9 @@ export default function ObjectsRoute() {
       const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () =>
-          useConnectionsStore.getState().connections[connectionName]
-            ?.credentials,
+          useConnectionsStore.getState().bucketCredentials[
+            connectionConfig.bucketName
+          ],
         connectionConfig,
       );
       return (

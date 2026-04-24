@@ -43,8 +43,8 @@ describe("useInitConnections", () => {
     renderHook(() => useInitConnections(configs, credentials));
 
     expect(mockSetConnection).toHaveBeenCalledTimes(2);
-    expect(mockSetConnection).toHaveBeenCalledWith("conn-1", creds1, configs[0]);
-    expect(mockSetConnection).toHaveBeenCalledWith("conn-2", creds2, configs[1]);
+    expect(mockSetConnection).toHaveBeenCalledWith(creds1, configs[0]);
+    expect(mockSetConnection).toHaveBeenCalledWith(creds2, configs[1]);
   });
 
   test("skips configs without matching credentials", () => {
@@ -62,7 +62,6 @@ describe("useInitConnections", () => {
 
     expect(mockSetConnection).toHaveBeenCalledTimes(1);
     expect(mockSetConnection).toHaveBeenCalledWith(
-      "conn-1",
       expect.objectContaining({ AccessKeyId: "mockAccessKey" }),
       configs[0],
     );

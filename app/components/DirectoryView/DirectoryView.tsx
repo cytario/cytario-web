@@ -21,7 +21,7 @@ import {
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { select, useConnectionsStore } from "~/utils/connectionsStore";
 
 /**
  * What the DirectoryView is listing. Drives column config, the table
@@ -57,7 +57,7 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  const connections = useConnectionsStore((s) => s.connections);
+  const connectionConfigs = useConnectionsStore(select.connectionConfigs);
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const showFilters = useLayoutStore((s) => s.showFilters);
 
@@ -72,15 +72,22 @@ export function DirectoryView({
   );
 
   const filteredNodes = useMemo(
-    () => filterNodes(visibleNodes, columnFilters, columns, kind, connections),
-    [visibleNodes, columnFilters, columns, kind, connections],
+    () =>
+      filterNodes(
+        visibleNodes,
+        columnFilters,
+        columns,
+        kind,
+        connectionConfigs,
+      ),
+    [visibleNodes, columnFilters, columns, kind, connectionConfigs],
   );
 
   // Derive unique values per filterable select column so FilterBar's select
   // inputs offer real options (mirrors tanstack's getFacetedUniqueValues used
   // by the table column-header filter).
   const dynamicOptions = useMemo(() => {
-    const accessors = getNodeAccessors(kind, connections);
+    const accessors = getNodeAccessors(kind, connectionConfigs);
     const result: Record<string, { label: string; value: string }[]> = {};
     for (const col of columns) {
       if (col.filterType !== "select" || col.filterOptions) continue;
@@ -91,12 +98,10 @@ export function DirectoryView({
         const v = accessor(node);
         if (v) unique.add(v);
       }
-      result[col.id] = [...unique]
-        .sort()
-        .map((v) => ({ label: v, value: v }));
+      result[col.id] = [...unique].sort().map((v) => ({ label: v, value: v }));
     }
     return result;
-  }, [visibleNodes, columns, kind, connections]);
+  }, [visibleNodes, columns, kind, connectionConfigs]);
 
   // Tree mode only filters by name (via the design-system Tree's `searchTerm`).
   // Non-name filters (type, scope, provider) are inert in tree mode. The tree

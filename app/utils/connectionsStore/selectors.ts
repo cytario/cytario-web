@@ -2,7 +2,7 @@ import type { Credentials } from "@aws-sdk/client-sts";
 
 import { ConnectionsStore, useConnectionsStore } from "./useConnectionsStore";
 import type { ConnectionConfig } from "~/.generated/client";
-import { buildHttpsUrl, parseResourceId } from "~/utils/resourceId";
+import { constructS3Url, parseResourceId } from "~/utils/resourceId";
 
 export interface ResolvedResource {
   connectionName: string;
@@ -10,35 +10,41 @@ export interface ResolvedResource {
   pathName: string;
   connectionConfig: ConnectionConfig;
   credentials: Credentials;
-  /** Full S3 object key (prefix + pathName). */
-  s3Key: string;
-  /** S3 URI: `s3://bucketName/s3Key`. */
+  /** S3 URI: `s3://bucketName/<prefix>/<pathName>`. */
   s3Uri: string;
   /** HTTPS URL for the object (virtual-hosted or path-style per bucket shape). */
   httpsUrl: string;
 }
 
 export const select = {
-  connections: (state: ConnectionsStore) => state.connections,
+  connectionConfig: (connectionName: string) => (state: ConnectionsStore) =>
+    state.connectionConfigs[connectionName],
+  connectionConfigs: (state: ConnectionsStore) => state.connectionConfigs,
+  credentials: (connectionName: string) => (state: ConnectionsStore) => {
+    const config = state.connectionConfigs[connectionName];
+    if (!config) return undefined;
+    return state.bucketCredentials[config.bucketName];
+  },
   setConnection: (state: ConnectionsStore) => state.setConnection,
-  setConnectionIndex: (state: ConnectionsStore) => state.setConnectionIndex,
-  clearConnection: (state: ConnectionsStore) => state.clearConnection,
-  clearAll: (state: ConnectionsStore) => state.clearAll,
 };
 
-export const selectConnection = (key: string) => (state: ConnectionsStore) =>
-  state.connections[key] ?? null;
-
-export const selectCredentials = (key: string) => (state: ConnectionsStore) =>
-  state.connections[key]?.credentials ?? null;
-
-export const selectConnectionConfig =
-  (key: string) => (state: ConnectionsStore) =>
-    state.connections[key]?.connectionConfig ?? null;
-
-export const selectConnectionIndex =
-  (key: string) => (state: ConnectionsStore) =>
-    state.connections[key]?.connectionIndex ?? null;
+/**
+ * Joined view: config + credentials for a connection, or `null` if either
+ * side is missing from the store.
+ *
+ * **Not primitive** — returns a fresh object literal on every call. Avoid
+ * subscribing to this directly in a component; use `select.connectionConfig`
+ * + `select.credentials` separately (credentials refresh shouldn't re-render
+ * UI).
+ */
+export const selectConnection =
+  (connectionName: string) => (state: ConnectionsStore) => {
+    const connectionConfig = state.connectionConfigs[connectionName];
+    if (!connectionConfig) return null;
+    const credentials = state.bucketCredentials[connectionConfig.bucketName];
+    if (!credentials) return null;
+    return { connectionConfig, credentials };
+  };
 
 /**
  * Non-reactive resolve for use in async callbacks and utility functions.
@@ -61,28 +67,10 @@ export function resolveResourceId(resourceId: string): ResolvedResource {
 }
 
 /**
- * Reactive selector: full S3 object key (prefix + pathName) for a resourceId,
- * or `null` if the connection isn't in the store yet.
- *
- * Primitive return — safe to subscribe to directly (stable `Object.is`).
- *
- * @example
- * const s3Key = useConnectionsStore(selectS3Key(resourceId));
- */
-export const selectS3Key =
-  (resourceId: string) =>
-  (state: ConnectionsStore): string | null =>
-    resolveResource(resourceId, state)?.s3Key ?? null;
-
-/**
  * Reactive selector: HTTPS URL for a resourceId, or `null` if the connection
  * isn't in the store yet. Virtual-hosted or path-style per bucket shape.
  *
  * Primitive return — safe to subscribe to directly (stable `Object.is`).
- *
- * @example
- * const httpsUrl = useConnectionsStore(selectHttpsUrl(resourceId));
- * // → "https://bucket.s3.eu-central-1.amazonaws.com/prefix/path/to/file.ome.tif"
  */
 export const selectHttpsUrl =
   (resourceId: string) =>
@@ -90,47 +78,39 @@ export const selectHttpsUrl =
     resolveResource(resourceId, state)?.httpsUrl ?? null;
 
 /**
- * Reactive selector: `s3://bucket/key` URI for a resourceId, or `null` if the
- * connection isn't in the store yet.
- *
- * Primitive return — safe to subscribe to directly (stable `Object.is`).
- *
- * @example
- * const s3Uri = useConnectionsStore(selectS3Uri(resourceId));
- */
-export const selectS3Uri =
-  (resourceId: string) =>
-  (state: ConnectionsStore): string | null =>
-    resolveResource(resourceId, state)?.s3Uri ?? null;
-
-/**
  * Internal: resolves a resourceId against a store snapshot into the full
  * `ResolvedResource` record. **Not safe to use as a reactive selector** — each
- * call returns a fresh object literal, so subscribing via
- * `useConnectionsStore(selectResolvedResource(id))` triggers a re-render on
- * every store tick.
+ * call returns a fresh object literal.
  *
- * For reactive use, subscribe to a primitive via `selectS3Key`, `selectHttpsUrl`,
- * or `selectS3Uri`. For non-reactive use (async callbacks), use `resolveResourceId`.
+ * For reactive use, subscribe to `selectHttpsUrl`. For non-reactive use
+ * (async callbacks), use `resolveResourceId`.
  */
 function resolveResource(
   resourceId: string,
   state: ConnectionsStore,
 ): ResolvedResource | null {
-  const { connectionName, pathName } = parseResourceId(resourceId);
-  const conn = state.connections[connectionName];
-  if (!conn?.connectionConfig || !conn?.credentials) return null;
+  const { connectionName, pathName: connectionPathName } =
+    parseResourceId(resourceId);
 
-  const prefix = conn.connectionConfig.prefix?.replace(/\/$/, "");
-  const s3Key = prefix ? `${prefix}/${pathName}` : pathName;
+  const connectionConfig = state.connectionConfigs[connectionName];
+  if (!connectionConfig) return null;
+
+  const bucketCredentials =
+    state.bucketCredentials[connectionConfig.bucketName];
+  if (!bucketCredentials) return null;
+
+  const bucketPrefix = connectionConfig.prefix?.replace(/\/$/, "");
+
+  const bucketPathName = bucketPrefix
+    ? `${bucketPrefix}/${connectionPathName}`
+    : connectionPathName;
 
   return {
     connectionName,
-    pathName,
-    connectionConfig: conn.connectionConfig,
-    credentials: conn.credentials,
-    s3Key,
-    s3Uri: `s3://${conn.connectionConfig.bucketName}/${s3Key}`,
-    httpsUrl: buildHttpsUrl(conn.connectionConfig, pathName),
+    connectionConfig,
+    pathName: connectionPathName,
+    credentials: bucketCredentials,
+    s3Uri: `s3://${connectionConfig.bucketName}/${bucketPathName}`,
+    httpsUrl: constructS3Url(connectionConfig, bucketPathName),
   };
 }

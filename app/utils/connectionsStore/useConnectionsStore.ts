@@ -6,122 +6,75 @@ import { immer } from "zustand/middleware/immer";
 import type { ConnectionConfig } from "~/.generated/client";
 import { createMigrate } from "~/utils/persistMigration";
 
-export interface ConnectionIndex {
-  status: "unknown" | "loading" | "ready" | "missing" | "error";
-  objectCount: number;
-  builtAt: string | null;
-}
-
+/**
+ * The joined view of a single connection — produced by `selectConnection` for
+ * callers that want config + credentials together. Not the persisted shape.
+ */
 export interface ConnectionRecord {
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
-  connectionIndex?: ConnectionIndex;
 }
 
 /**
- * Connections store for managing S3 bucket connections (credentials, config, index state).
+ * Connections store. Two concerns, two maps:
  *
- * Keys are connection names (globally unique, e.g. "my-bucket" or "my-bucket-deliverables").
+ * - `connectionConfigs` keyed by `config.name` — static metadata from the DB.
+ * - `bucketCredentials` keyed by `config.bucketName` — STS-minted per bucket,
+ *   shared across any connections that point at the same bucket (one mint,
+ *   one refresh, no torn state).
  */
 export interface ConnectionsStore {
-  connections: Record<string, ConnectionRecord>;
+  connectionConfigs: Record<string, ConnectionConfig>;
+  bucketCredentials: Record<string, Credentials>;
   setConnection: (
-    key: string,
     credentials: Credentials,
     connectionConfig: ConnectionConfig,
   ) => void;
-  setConnectionIndex: (key: string, index: ConnectionIndex) => void;
-  clearConnection: (key: string) => void;
-  clearAll: () => void;
 }
 
 const name = "ConnectionsStore";
 
-const FALLBACK_STATE = { connections: {} };
+const FALLBACK_STATE: Pick<
+  ConnectionsStore,
+  "connectionConfigs" | "bucketCredentials"
+> = {
+  connectionConfigs: {},
+  bucketCredentials: {},
+};
 
 export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
     persist(
       immer((set) => ({
-        connections: {},
+        connectionConfigs: {},
+        bucketCredentials: {},
 
-        setConnection: (
-          key: string,
-          credentials: Credentials,
-          connectionConfig: ConnectionConfig,
-        ) => {
+        setConnection: (credentials, connectionConfig) => {
           set(
             (state) => {
-              state.connections[key] = {
-                ...state.connections[key],
-                credentials,
-                connectionConfig,
-              };
+              state.connectionConfigs[connectionConfig.name] = connectionConfig;
+              state.bucketCredentials[connectionConfig.bucketName] = credentials;
             },
             false,
             "setConnection",
-          );
-        },
-
-        setConnectionIndex: (key: string, index: ConnectionIndex) => {
-          set(
-            (state) => {
-              // Only set index on existing connection records
-              if (state.connections[key]) {
-                state.connections[key].connectionIndex = index;
-              }
-            },
-            false,
-            "setConnectionIndex",
-          );
-        },
-
-        clearConnection: (key: string) => {
-          set(
-            (state) => {
-              delete state.connections[key];
-            },
-            false,
-            "clearConnection",
-          );
-        },
-
-        clearAll: () => {
-          set(
-            (state) => {
-              state.connections = {};
-            },
-            false,
-            "clearAll",
           );
         },
       })),
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
-        version: 3,
-        migrate: createMigrate<Pick<ConnectionsStore, "connections">>(
+        version: 4,
+        migrate: createMigrate<typeof FALLBACK_STATE>(
           {
             1: () => FALLBACK_STATE,
             2: () => FALLBACK_STATE,
+            3: () => FALLBACK_STATE,
           },
           FALLBACK_STATE,
         ),
         partialize: (state) => ({
-          connections: Object.fromEntries(
-            (
-              Object.entries(state.connections) as [
-                string,
-                ConnectionRecord,
-              ][]
-            ).map(([key, record]) => [
-              key,
-              {
-                credentials: record.credentials,
-                connectionConfig: record.connectionConfig,
-              },
-            ]),
-          ),
+          connectionConfigs: state.connectionConfigs,
+          bucketCredentials: state.bucketCredentials,
         }),
         onRehydrateStorage: () => (_state, error) => {
           if (error)

@@ -2,8 +2,8 @@ import type { ColumnFiltersState } from "@tanstack/react-table";
 
 import type { TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
+import type { ConnectionConfig } from "~/.generated/client";
 import type { ColumnConfig } from "~/components/Table/types";
-import type { ConnectionRecord } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 
 // Applies a `ColumnFiltersState` to a `TreeNode[]` so every downstream view
@@ -25,10 +25,9 @@ const fileAccessors: Record<string, NodeAccessor> = {
 };
 
 function makeConnectionAccessors(
-  connections: Record<string, ConnectionRecord>,
+  connectionConfigs: Record<string, ConnectionConfig>,
 ): Record<string, NodeAccessor> {
-  const config = (node: TreeNode) =>
-    connections[node.connectionName]?.connectionConfig;
+  const config = (node: TreeNode) => connectionConfigs[node.connectionName];
   return {
     name: (node) => node.name,
     provider: (node) => config(node)?.provider ?? "",
@@ -39,10 +38,10 @@ function makeConnectionAccessors(
 
 export function getNodeAccessors(
   kind: DirectoryKind,
-  connections: Record<string, ConnectionRecord> = {},
+  connectionConfigs: Record<string, ConnectionConfig> = {},
 ): Record<string, NodeAccessor> {
   return kind === "connections"
-    ? makeConnectionAccessors(connections)
+    ? makeConnectionAccessors(connectionConfigs)
     : fileAccessors;
 }
 
@@ -76,11 +75,11 @@ export function filterNodes(
   columnFilters: ColumnFiltersState,
   columns: ColumnConfig[],
   kind: DirectoryKind = "entries",
-  connections: Record<string, ConnectionRecord> = {},
+  connectionConfigs: Record<string, ConnectionConfig> = {},
 ): TreeNode[] {
   if (columnFilters.length === 0) return nodes;
 
-  const accessors = getNodeAccessors(kind, connections);
+  const accessors = getNodeAccessors(kind, connectionConfigs);
 
   return nodes.filter((node) =>
     columnFilters.every((filter) => {

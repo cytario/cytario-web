@@ -7,7 +7,7 @@ import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { useModal } from "~/hooks/useModal";
 import { canModify } from "~/utils/authorization";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { select, useConnectionsStore } from "~/utils/connectionsStore";
 
 interface ConnectionMenuProps {
   connectionName: string;
@@ -20,7 +20,7 @@ export function ConnectionMenu({ connectionName }: ConnectionMenuProps) {
   const { openModal } = useModal();
 
   const connectionConfig = useConnectionsStore(
-    (state) => state.connections[connectionName]?.connectionConfig,
+    select.connectionConfig(connectionName),
   );
 
   const rootData = useRouteLoaderData("root") as

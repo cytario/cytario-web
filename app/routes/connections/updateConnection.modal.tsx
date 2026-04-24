@@ -14,7 +14,7 @@ export default function UpdateConnectionModal({
   const nodeName = searchParams.get("nodeName");
 
   const connectionConfig = useConnectionsStore((state) =>
-    nodeName ? state.connections[nodeName]?.connectionConfig : undefined,
+    nodeName ? state.connectionConfigs[nodeName] : undefined,
   );
 
   const rootData = useRouteLoaderData("root") as
