@@ -42,9 +42,12 @@ jobs:
           repositories: cytario-infrastructure
 
       - name: Dispatch to cytario-infrastructure
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          repository: cytario/cytario-infrastructure
-          event-type: deploy-cytario-web
-          client-payload: '{"environment": "dev", "image_tag": "${{ needs.release.outputs.version }}"}'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          jq -n --arg tag "$VERSION" '{
+            event_type: "deploy-cytario-web",
+            client_payload: { environment: "dev", image_tag: $tag }
+          }' | gh api repos/cytario/cytario-infrastructure/dispatches \
+            --method POST --input -
