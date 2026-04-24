@@ -1,4 +1,11 @@
-import { LoaderFunctionArgs, redirect, MetaFunction } from "react-router";
+import { H1 } from "@cytario/design";
+import {
+  data,
+  LoaderFunctionArgs,
+  MetaFunction,
+  redirect,
+  useLoaderData,
+} from "react-router";
 
 import { getSession } from "~/.server/auth/getSession";
 import {
@@ -7,6 +14,7 @@ import {
 } from "~/.server/auth/oauthState";
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 import { createLabel } from "~/.server/logging";
+import { Section } from "~/components/Container";
 import { cytarioConfig } from "~/config";
 
 export const meta: MetaFunction = () => {
@@ -21,6 +29,27 @@ export const meta: MetaFunction = () => {
 };
 
 const label = createLabel("login", "blue");
+
+/**
+ * True if the request's Referer is this app's own /auth/callback.
+ * Used as a belt-and-braces loop breaker: if a callback failure ever leaks
+ * back into /login, we refuse to restart OIDC rather than bouncing through
+ * a live Keycloak SSO session indefinitely.
+ */
+const cameFromCallback = (request: Request): boolean => {
+  const referer = request.headers.get("referer");
+  if (!referer) return false;
+  try {
+    const refererUrl = new URL(referer);
+    const webappUrl = new URL(cytarioConfig.endpoints.webapp);
+    return (
+      refererUrl.origin === webappUrl.origin &&
+      refererUrl.pathname === "/auth/callback"
+    );
+  } catch {
+    return false;
+  }
+};
 
 /**
  * OAuth 2.0 Authorization Code Flow - Login Initiator
@@ -39,6 +68,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (user) {
     console.info(`${label} User already authenticated, redirecting`);
     return redirect("/");
+  }
+
+  // Refuse to restart OIDC if we just bounced out of a failed callback.
+  // Keycloak's SSO session would silently hand us a fresh code, creating a
+  // tight redirect loop the browser can only escape via ERR_TOO_MANY_REDIRECTS.
+  if (cameFromCallback(request)) {
+    console.error(`${label} Refusing to restart OIDC flow from /auth/callback referer`);
+    return data(
+      {
+        error:
+          "Sign-in could not be completed. Please start a new sign-in attempt.",
+      },
+      { status: 400 },
+    );
   }
 
   try {
@@ -82,8 +125,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-// Loading state shown briefly before redirect fires
 export default function LoginRoute() {
+  const loaderData = useLoaderData<typeof loader>();
+
+  if (loaderData && "error" in loaderData) {
+    return (
+      <Section>
+        <div className="container mx-auto px-4 max-w-lg" role="alert">
+          <H1>Sign-in failed</H1>
+          <p className="mt-4 text-slate-700">{loaderData.error}</p>
+          <a
+            href="/"
+            className="text-cytario-purple-500 underline mt-6 inline-block"
+          >
+            Back to home
+          </a>
+        </div>
+      </Section>
+    );
+  }
+
   return (
     <div className="flex items-center justify-center h-screen">
       <p role="status" className="text-slate-500">Redirecting to login...</p>

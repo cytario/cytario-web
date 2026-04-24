@@ -158,6 +158,71 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     expect(validateRedirectTo).toHaveBeenCalledWith("/profile");
   });
 
+  test("refuses to restart OIDC flow when referer is /auth/callback", async () => {
+    const mockSession = {
+      get: vi.fn(() => null),
+      set: vi.fn(),
+    };
+
+    (getSession as Mock).mockResolvedValue(mockSession);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // `Referer` is a forbidden header name in the Fetch API, so it gets
+    // silently dropped when passed via `new Request(url, { headers })` init.
+    // Build a Request-like whose Headers preserves it, mirroring what a real
+    // Node server receives from a browser.
+    const headers = new Headers();
+    headers.set("referer", "https://app.example.com/auth/callback");
+    const request = {
+      url: "http://localhost/login",
+      headers,
+    } as unknown as Request;
+
+    const result = await loader({ request } as LoaderFunctionArgs);
+
+    // Must NOT redirect to Keycloak (that's how the email-verify loop formed)
+    expect(generateOAuthState).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+
+    // Returns DataWithResponseInit with 400 + error message
+    expect(result).toMatchObject({
+      init: expect.objectContaining({ status: 400 }),
+      data: expect.objectContaining({ error: expect.any(String) }),
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  test("still starts OIDC flow when referer is not our /auth/callback", async () => {
+    const mockSession = {
+      get: vi.fn(() => null),
+      set: vi.fn(),
+    };
+
+    (getSession as Mock).mockResolvedValue(mockSession);
+    (generateOAuthState as Mock).mockResolvedValue({
+      state: "state-ext",
+      codeChallenge: "challenge",
+      nonce: "nonce",
+    });
+    (getWellKnownEndpoints as Mock).mockResolvedValue({
+      authorization_endpoint: "https://keycloak.example.com/auth",
+    });
+
+    const headers = new Headers();
+    // External referer (e.g. user clicked a link from somewhere else)
+    headers.set("referer", "https://some-other-site.example.com/page");
+    const request = {
+      url: "http://localhost/login",
+      headers,
+    } as unknown as Request;
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(generateOAuthState).toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalled();
+  });
+
   test("throws 502 response when auth service is unreachable", async () => {
     const mockSession = {
       get: vi.fn(() => null),
