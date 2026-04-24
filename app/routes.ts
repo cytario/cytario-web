@@ -42,6 +42,10 @@ const appRoutes = [
     path: "/connections/:name/*",
     file: "routes/objects/objects.route.tsx",
   },
+  {
+    path: "/connectionIndex/:connectionName",
+    file: "routes/connectionIndex/connectionIndex.route.tsx",
+  },
 ];
 
 /** Admin routes — scope-gated, wrapped in protected layout alongside appRoutes. */

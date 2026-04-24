@@ -6,6 +6,8 @@ import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import ObjectsRoute, { handle } from "~/routes/objects/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
 
+const mockUseDirectoryListing = vi.fn();
+
 vi.mock("~/.server/auth/authMiddleware", () => ({
   authContext: {},
   authMiddleware: vi.fn(),
@@ -19,13 +21,15 @@ vi.mock("~/.server/requestDurationMiddleware", () => ({
 vi.mock("~/routes/connections/connections.server", () => ({
   getConnection: vi.fn(),
 }));
-vi.mock("~/utils/getObjects", () => ({
-  getObjects: vi.fn(),
+vi.mock("~/routes/connectionIndex/useDirectoryListing", () => ({
+  useDirectoryListing: (...args: unknown[]) => mockUseDirectoryListing(...args),
+}));
+vi.mock("~/routes/connectionIndex/useDriftCheck", () => ({
+  useDriftCheck: vi.fn(),
 }));
 
 vi.mock("@cytario/design", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@cytario/design")>();
+  const actual = await importOriginal<typeof import("@cytario/design")>();
   return {
     ...actual,
     useToast: () => ({ toast: vi.fn(), toasts: [], removeToast: vi.fn() }),
@@ -36,33 +40,26 @@ vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   Viewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));
 
-vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
-  getSelectionStats: vi.fn(
-    () =>
-      new Promise((resolve) =>
-        resolve({
-          domain: [0, 65535],
-          contrastLimits: [655, 64879],
-          histogram: expect.any(Uint32Array),
-        })
-      )
-  ),
-}));
-
-vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
-  loadSingleFileOmeTiff: vi.fn(
-    () =>
-      new Promise((resolve) =>
-        resolve([{ data: [], metadata: mock.metadata() }])
-      )
-  ),
-}));
-
 vi.mock("~/components/Breadcrumbs/getCrumbs", () => ({
   getCrumbs: vi.fn(() => []),
 }));
 
+/** A connection-stable loader stub. Path-derived state is now client-side. */
+const connectionStableLoader = () => ({
+  connectionName: "aws-test-bucket",
+  credentials: mock.credentials(),
+  connectionConfig: mock.connectionConfig(),
+  bucketName: "test-bucket",
+});
+
+/** Stub /api/pinned loader returning isPinned=false. */
+const pinnedLoaderStub = { path: "/api/pinned", loader: () => ({ isPinned: false }) };
+
 describe("Bucket Route", () => {
+  beforeEach(() => {
+    mockUseDirectoryListing.mockReset();
+  });
+
   test("handle calls `getCrumbs` with correct arguments", () => {
     const mockArgs = {
       params: {
@@ -88,72 +85,148 @@ describe("Bucket Route", () => {
     );
   });
 
-  test("renders `DirectoryView`, if there are multiple nodes", async () => {
+  test("renders `DirectoryView` when useDirectoryListing returns nodes", async () => {
+    mockUseDirectoryListing.mockReturnValue({
+      nodes: [
+        mock.treeNode({ name: "First Test Directory" }),
+        mock.treeNode({ name: "Second Test Directory" }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+
     const RemixStub = createRoutesStub([
       {
         path: "/connections/:name",
         Component: ObjectsRoute,
         handle,
-        loader: () => {
-          return {
-            connectionName: "aws-test-bucket",
-            credentials: mock.credentials(),
-            connectionConfig: mock.connectionConfig(),
-            user: mock.user(),
-            nodes: [
-              mock.treeNode({ name: "First Test Directory" }),
-              mock.treeNode({ name: "Second Test Directory" }),
-            ],
-            bucketName: "test-bucket",
-            pathName: "",
-            name: "test-bucket",
-            isPinned: false,
-          };
-        },
+        loader: connectionStableLoader,
       },
+      pinnedLoaderStub,
     ]);
 
     render(<RemixStub initialEntries={["/connections/aws-test-bucket"]} />);
 
     expect(
-      await screen.findByText(/Second Test Directory/i)
+      await screen.findByText(/Second Test Directory/i),
     ).toBeInTheDocument();
   });
 
-  test("renders `Viewer` for given `pathName`", async () => {
+  test("calls useDirectoryListing with enabled=false for viewable file paths", async () => {
+    mockUseDirectoryListing.mockReturnValue({
+      nodes: [],
+      isLoading: false,
+      error: null,
+    });
+
     const RemixStub = createRoutesStub([
       {
         path: "/connections/:name/*",
         Component: ObjectsRoute,
         handle,
-        loader: () => {
-          return {
-            connectionName: "aws-test-bucket",
-            credentials: mock.credentials(),
-            connectionConfig: mock.connectionConfig(),
-            user: mock.user(),
-            nodes: [],
-            pathName: "test/path/to/file.ome.tiff",
-            urlPath: "test/path/to/file.ome.tiff",
-            bucketName: "test-bucket",
-            name: "file.ome.tiff",
-            isSingleFile: true,
-            isPinned: false,
-          };
-        },
+        loader: connectionStableLoader,
       },
+      pinnedLoaderStub,
     ]);
 
     const { container } = render(
       <RemixStub
-        initialEntries={["/connections/aws-test-bucket/test-file.ome.tiff"]}
-      />
+        initialEntries={[
+          "/connections/aws-test-bucket/test/path/to/file.ome.tiff",
+        ]}
+      />,
     );
 
     await waitFor(() => {
       expect(
-        container.querySelector("canvas#deckgl-overlay")
+        container.querySelector("canvas#deckgl-overlay"),
       ).toBeInTheDocument();
     });
+
+    const lastCall =
+      mockUseDirectoryListing.mock.calls[
+        mockUseDirectoryListing.mock.calls.length - 1
+      ];
+    expect(lastCall[0].enabled).toBe(false);
+  });
+
+  test("renders loading spinner while listing is in flight", async () => {
+    mockUseDirectoryListing.mockReturnValue({
+      nodes: [],
+      isLoading: true,
+      error: null,
+    });
+
+    const RemixStub = createRoutesStub([
+      {
+        path: "/connections/:name",
+        Component: ObjectsRoute,
+        handle,
+        loader: connectionStableLoader,
+      },
+      pinnedLoaderStub,
+    ]);
+
+    render(<RemixStub initialEntries={["/connections/aws-test-bucket"]} />);
+
+    expect(
+      await screen.findByLabelText(/loading directory listing/i),
+    ).toBeInTheDocument();
+  });
+
+  test("renders empty state when listing returns no nodes", async () => {
+    mockUseDirectoryListing.mockReturnValue({
+      nodes: [],
+      isLoading: false,
+      error: null,
+    });
+
+    const RemixStub = createRoutesStub([
+      {
+        path: "/connections/:name",
+        Component: ObjectsRoute,
+        handle,
+        loader: connectionStableLoader,
+      },
+      pinnedLoaderStub,
+    ]);
+
+    render(<RemixStub initialEntries={["/connections/aws-test-bucket"]} />);
+
+    expect(
+      await screen.findByText(/No objects found/i),
+    ).toBeInTheDocument();
+  });
+
+  test("useDirectoryListing receives path-derived prefix from useParams (splat)", async () => {
+    mockUseDirectoryListing.mockReturnValue({
+      nodes: [mock.treeNode({ name: "Inner" })],
+      isLoading: false,
+      error: null,
+    });
+
+    const RemixStub = createRoutesStub([
+      {
+        path: "/connections/:name/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: connectionStableLoader,
+      },
+      pinnedLoaderStub,
+    ]);
+
+    render(
+      <RemixStub initialEntries={["/connections/aws-test-bucket/foo/bar/"]} />,
+    );
+
+    await screen.findByText(/Inner/i);
+
+    const lastCall =
+      mockUseDirectoryListing.mock.calls[
+        mockUseDirectoryListing.mock.calls.length - 1
+      ];
+    expect(lastCall[0].urlPath).toBe("foo/bar/");
+    // prefix = connectionConfig.prefix ("") joined with urlPath + trailing slash
+    expect(lastCall[0].prefix).toBe("foo/bar/");
   });
 });

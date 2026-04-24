@@ -1,36 +1,26 @@
-import { _Object } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, NotFound } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
-import { type LoaderFunctionArgs } from "react-router";
+import { redirect, type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
-import {
-  buildDirectoryTree,
-  TreeNode,
-} from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
-import { getObjects } from "~/utils/getObjects";
-import { getName, getPrefix } from "~/utils/pathUtils";
-import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
-import { isZarrPath } from "~/utils/zarrUtils";
+import { toIndexS3Key } from "~/utils/resourceId";
 
+/**
+ * Connection-stable loader data — returned once per connection, not per path.
+ * Path-derived state (urlPath, pathName, name, isPinned) is computed in the
+ * route component from `useParams()` so client-side navigation within a
+ * connection doesn't need to re-run the loader.
+ */
 export interface BucketRouteLoaderResponse {
   connectionName: string;
-  nodes: TreeNode[];
   bucketName: string;
-  /** URL path segment after /connections/:name/ (relative to connection root) */
-  urlPath: string;
-  /** Full S3 key (connection prefix + urlPath) */
-  pathName: string;
-  name: string;
-  /** True when navigating to a single viewable file (not a directory listing) */
-  isSingleFile?: boolean;
-  notification?: NotificationInput;
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
-  isPinned: boolean;
+  notification?: NotificationInput;
 }
 
 export const loader = async ({
@@ -54,94 +44,38 @@ export const loader = async ({
   if (!credentials)
     throw new Error(`No credentials for connection: ${connectionName}`);
 
-  const urlPath = params["*"] ?? "";
-  const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";
-  const pathName = connPrefix
-    ? urlPath
-      ? `${connPrefix}/${urlPath}`
-      : connPrefix
-    : urlPath;
-  const prefix = getPrefix(pathName);
-  const name = getName(pathName, bucketName);
-
-  const isPinned = await checkIsPinnedPath(user.sub, connectionName, urlPath);
-
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
 
-    // Check for zarr before listing objects — zarr directories can contain
-    // thousands of chunk files, so we skip the expensive ListObjects call.
-    if (isZarrPath(pathName)) {
-      return {
-        credentials,
-        connectionConfig,
-        isPinned,
-        name,
-        nodes: [],
-        bucketName,
-        connectionName,
-        pathName,
-        urlPath,
-        isSingleFile: true,
-      };
-    }
-
-    const objects: Readonly<_Object>[] = await getObjects(
-      connectionConfig,
-      s3Client,
-      undefined,
-      prefix,
+    // Probe the parquet index. On miss, redirect to the index page where the
+    // user can kick off the build explicitly. We do not auto-build here —
+    // large buckets would block navigation for seconds with no feedback.
+    await s3Client.send(
+      new HeadObjectCommand({
+        Bucket: bucketName,
+        Key: toIndexS3Key(connectionConfig.prefix),
+      }),
     );
 
-    if (objects.length > 0) {
-      const nodes = buildDirectoryTree(
-        objects,
-        connectionName,
-        prefix,
-        urlPath,
-      );
-
-      return {
-        connectionName,
-        credentials,
-        connectionConfig,
-        name,
-        nodes,
-        bucketName,
-        urlPath,
-        pathName,
-        isPinned,
-      };
-    }
-
-    // Single file — viewer or unsupported format
     return {
       connectionName,
+      bucketName,
       credentials,
       connectionConfig,
-      name,
-      nodes: [],
-      bucketName,
-      urlPath,
-      pathName,
-      isSingleFile: true,
-      isPinned,
     };
   } catch (error) {
+    if (error instanceof NotFound) {
+      throw redirect(`/connectionIndex/${encodeURIComponent(connectionName)}`);
+    }
     console.error("Error in objects loader:", error);
     return {
       connectionName,
+      bucketName,
       credentials,
       connectionConfig,
-      name,
-      nodes: [],
-      bucketName,
-      urlPath,
-      pathName,
-      isPinned,
       notification: {
         message:
-          "We couldn't load the objects for this bucket. Please check your connection or try again later.",
+          "We couldn't check the index for this connection. Please try again later.",
         status: "error",
       },
     };

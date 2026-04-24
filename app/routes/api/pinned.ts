@@ -1,9 +1,13 @@
-import { ActionFunctionArgs } from "react-router";
+import { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getConnection } from "~/routes/connections/connections.server";
-import { addPinnedPath, removePinnedPath } from "~/utils/pinnedPaths.server";
+import {
+  addPinnedPath,
+  checkIsPinnedPath,
+  removePinnedPath,
+} from "~/utils/pinnedPaths.server";
 
 const pinSchema = z.object({
   connectionName: z.string().min(1),
@@ -19,6 +23,30 @@ const unpinSchema = z.object({
 });
 
 export const middleware = [authMiddleware];
+
+/**
+ * GET /api/pinned?connectionName=X&pathName=Y — returns whether the given
+ * (connection, path) is pinned by the authenticated user. Called from the
+ * objects route on navigation to populate the pin button state, since the
+ * route loader is connection-stable and doesn't re-run on path changes.
+ */
+export const loader = async ({ request, context }: LoaderFunctionArgs) => {
+  const { user } = context.get(authContext);
+
+  const url = new URL(request.url);
+  const connectionName = url.searchParams.get("connectionName");
+  const pathName = url.searchParams.get("pathName");
+
+  if (!connectionName || pathName === null) {
+    return new Response(
+      "connectionName and pathName query params are required",
+      { status: 400 },
+    );
+  }
+
+  const isPinned = await checkIsPinnedPath(user.sub, connectionName, pathName);
+  return Response.json({ isPinned });
+};
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
