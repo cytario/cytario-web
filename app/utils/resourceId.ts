@@ -39,6 +39,23 @@ export function getFileName(resourceId: string): string {
   return pathName.split("/").pop() || pathName;
 }
 
+/**
+ * Returns the S3 key for a connection's Parquet index file.
+ * Empty prefix -> ".cytario/index.parquet"
+ * With prefix  -> "<prefix>/.cytario/index.parquet"
+ */
+export function toIndexS3Key(prefix = ""): string {
+  const normalized = prefix.replace(/\/$/, "");
+  return normalized
+    ? `${normalized}/.cytario/index.parquet`
+    : ".cytario/index.parquet";
+}
+
+/** Builds an `s3://bucket/key` URI — the format DuckDB httpfs and the AWS CLI expect. */
+export function toS3Uri(bucketName: string, key: string): string {
+  return `s3://${bucketName}/${key}`;
+}
+
 /** Builds a routable URL path from a connection name and an object path. */
 export function buildConnectionPath(
   connectionName: string,

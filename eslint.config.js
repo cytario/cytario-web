@@ -22,6 +22,7 @@ export default [
       "**/coverage/**",
       "**/devenv/**",
       "**/e2e/**",
+      "**/.claude/**",
       "playwright.config.ts",
     ],
   },
