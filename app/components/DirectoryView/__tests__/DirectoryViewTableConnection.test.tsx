@@ -28,10 +28,13 @@ const connectionConfigs = {
   }),
 };
 
-vi.mock("~/utils/connectionsStore", () => ({
+vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
   useConnectionsStore: vi.fn((selector) =>
     selector({ connectionConfigs, bucketCredentials: {} }),
   ),
+}));
+
+vi.mock("~/utils/connectionsStore/selectors", () => ({
   select: {
     connectionConfigs: (state: { connectionConfigs: unknown }) =>
       state.connectionConfigs,

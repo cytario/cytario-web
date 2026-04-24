@@ -1,6 +1,6 @@
 import { Table } from "apache-arrow";
 
-import { resolveResourceId } from "../../connectionsStore";
+import { resolveResourceId } from "../../connectionsStore/selectors";
 import { createDatabase } from "../createDatabase";
 import { getGeomQuery } from "../getGeomQuery";
 import { getTileDataWasm } from "../getTileDataWasm";
@@ -14,7 +14,7 @@ vi.mock("../getGeomQuery", () => ({
   getGeomQuery: vi.fn(),
 }));
 
-vi.mock("../../connectionsStore", () => ({
+vi.mock("../../connectionsStore/selectors", () => ({
   resolveResourceId: vi.fn(),
 }));
 

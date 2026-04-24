@@ -21,7 +21,8 @@ import {
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 /**
  * What the DirectoryView is listing. Drives column config, the table

@@ -12,7 +12,8 @@ import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { WktSvg } from "./WktSvg";
 import { LavaLoader } from "../LavaLoader";
-import { useConnectionsStore, selectConnection } from "~/utils/connectionsStore";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
 const isWkt = (value: unknown): value is string => {
@@ -35,11 +36,13 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const { connectionName } = parseResourceId(resourceId);
-  const connection = useConnectionsStore(selectConnection(connectionName));
+  const connectionConfig = useConnectionsStore(
+    select.connectionConfig(connectionName),
+  );
 
   // Initial data fetch
   useEffect(() => {
-    if (!connection) return;
+    if (!connectionConfig) return;
 
     const fetchData = async () => {
       try {
@@ -58,7 +61,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     };
 
     fetchData();
-  }, [resourceId, connection]);
+  }, [resourceId, connectionConfig]);
 
   // Fetch more rows
   const fetchMore = useCallback(async () => {

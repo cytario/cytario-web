@@ -1,13 +1,5 @@
-import {
-  resolveResourceId,
-  select,
-  selectConnection,
-  selectHttpsUrl,
-} from "../selectors";
-import {
-  useConnectionsStore,
-  type ConnectionRecord,
-} from "../useConnectionsStore";
+import { resolveResourceId, select, selectHttpsUrl } from "../selectors";
+import { useConnectionsStore } from "../useConnectionsStore";
 import mock from "~/utils/__tests__/__mocks__";
 
 describe("useConnectionsStore", () => {
@@ -73,25 +65,6 @@ describe("useConnectionsStore", () => {
   });
 
   describe("selectors", () => {
-    test("selectConnection returns joined record or null", () => {
-      expect(
-        selectConnection("missing")(useConnectionsStore.getState()),
-      ).toBeNull();
-
-      useConnectionsStore
-        .getState()
-        .setConnection(credentials, connectionConfig);
-
-      const record = selectConnection("test-conn")(
-        useConnectionsStore.getState(),
-      );
-      expect(record).not.toBeNull();
-      expect((record as ConnectionRecord).credentials).toEqual(credentials);
-      expect((record as ConnectionRecord).connectionConfig).toEqual(
-        connectionConfig,
-      );
-    });
-
     test("selectCredentials joins via bucketName", () => {
       expect(
         select.credentials("missing")(useConnectionsStore.getState()),

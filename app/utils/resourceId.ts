@@ -69,8 +69,8 @@ export function buildConnectionPath(
  * endpoints. Path segments are URI-encoded — callers pass raw keys.
  *
  * The `s3Key` is the **full object key including any connection prefix**.
- * If you have a prefix-relative `pathName`, use `buildHttpsUrl` instead to
- * have the prefix rejoined for you.
+ * If you have a prefix-relative `pathName` and a resourceId, use
+ * `selectHttpsUrl` / `resolveResourceId` — they rejoin the prefix for you.
  *
  * @example
  * // AWS:

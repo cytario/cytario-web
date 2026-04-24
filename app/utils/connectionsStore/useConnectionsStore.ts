@@ -30,6 +30,16 @@ export interface ConnectionsStore {
     credentials: Credentials,
     connectionConfig: ConnectionConfig,
   ) => void;
+  /**
+   * Replace the whole store contents in a single write. Use when you have
+   * the authoritative set of visible connections + per-bucket credentials
+   * (e.g. from the auth context) and want to prune stale entries for
+   * connections that were deleted server-side.
+   */
+  reconcileConnections: (
+    connectionConfigs: ConnectionConfig[],
+    bucketCredentials: Record<string, Credentials>,
+  ) => void;
 }
 
 const name = "ConnectionsStore";
@@ -57,6 +67,19 @@ export const useConnectionsStore = create<ConnectionsStore>()(
             },
             false,
             "setConnection",
+          );
+        },
+
+        reconcileConnections: (connectionConfigs, bucketCredentials) => {
+          set(
+            (state) => {
+              state.connectionConfigs = Object.fromEntries(
+                connectionConfigs.map((c) => [c.name, c]),
+              );
+              state.bucketCredentials = { ...bucketCredentials };
+            },
+            false,
+            "reconcileConnections",
           );
         },
       })),

@@ -28,7 +28,8 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
@@ -257,8 +258,7 @@ export default function ObjectsRoute() {
     if (isViewableImage) {
       // `pathName` from objects.loader is ALREADY the full S3 key (connection
       // prefix joined with the URL splat server-side — see objects.loader.ts).
-      // Use `constructS3Url` directly; `buildHttpsUrl` would re-join the
-      // prefix and produce a double-prefixed URL.
+      // Feed it directly to `constructS3Url`, which expects a full key.
       const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () =>

@@ -26,31 +26,20 @@ export const select = {
     return state.bucketCredentials[config.bucketName];
   },
   setConnection: (state: ConnectionsStore) => state.setConnection,
+  reconcileConnections: (state: ConnectionsStore) => state.reconcileConnections,
 };
-
-/**
- * Joined view: config + credentials for a connection, or `null` if either
- * side is missing from the store.
- *
- * **Not primitive** — returns a fresh object literal on every call. Avoid
- * subscribing to this directly in a component; use `select.connectionConfig`
- * + `select.credentials` separately (credentials refresh shouldn't re-render
- * UI).
- */
-export const selectConnection =
-  (connectionName: string) => (state: ConnectionsStore) => {
-    const connectionConfig = state.connectionConfigs[connectionName];
-    if (!connectionConfig) return null;
-    const credentials = state.bucketCredentials[connectionConfig.bucketName];
-    if (!credentials) return null;
-    return { connectionConfig, credentials };
-  };
 
 /**
  * Non-reactive resolve for use in async callbacks and utility functions.
  * Reads current state snapshot — does not subscribe to changes.
  *
- * @throws Error if the connection is not found in the store
+ * Contrast with reactive selectors (`selectConnection`, `selectHttpsUrl`):
+ * those return `null` when the store doesn't yet hold the connection. This
+ * throws — callers that can fire before store hydration should either guard
+ * upstream or catch the error.
+ *
+ * @throws Error if the connection's config is missing, or if its bucket's
+ *   credentials are missing (e.g. during the initial hydration window).
  *
  * @example
  * // Inside an async callback / non-reactive utility:
@@ -58,10 +47,20 @@ export const selectConnection =
  * const response = await signedFetch(httpsUrl);
  */
 export function resolveResourceId(resourceId: string): ResolvedResource {
-  const resolved = resolveResource(resourceId, useConnectionsStore.getState());
+  const state = useConnectionsStore.getState();
+  const { connectionName } = parseResourceId(resourceId);
+  const connectionConfig = state.connectionConfigs[connectionName];
+  if (!connectionConfig) {
+    throw new Error(`No connection config found for: ${connectionName}`);
+  }
+  if (!state.bucketCredentials[connectionConfig.bucketName]) {
+    throw new Error(
+      `No credentials found for bucket "${connectionConfig.bucketName}" (connection: ${connectionName})`,
+    );
+  }
+  const resolved = resolveResource(resourceId, state);
   if (!resolved) {
-    const { connectionName } = parseResourceId(resourceId);
-    throw new Error(`No connection found for: ${connectionName}`);
+    throw new Error(`Failed to resolve resourceId: ${resourceId}`);
   }
   return resolved;
 }

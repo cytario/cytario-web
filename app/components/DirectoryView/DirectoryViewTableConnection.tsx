@@ -6,7 +6,8 @@ import { type ConnectionConfig } from "~/.generated/client";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
-import { select, useConnectionsStore } from "~/utils/connectionsStore";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export const connectionColumns: ColumnConfig[] = [
   {

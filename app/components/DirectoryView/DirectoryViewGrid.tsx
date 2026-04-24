@@ -12,8 +12,11 @@ import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
-import { useConnectionsStore } from "~/utils/connectionsStore";
-import { select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
+import {
+  select,
+  selectHttpsUrl,
+} from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
 import { buildConnectionPath, constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
