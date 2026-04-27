@@ -13,8 +13,8 @@ const userProfileSchema = z.object({
   given_name: z.string(),
   family_name: z.string(),
   email: z.string(),
-  policy: z.array(z.string()),
-  groups: z.array(z.string()),
+  policy: z.array(z.string()).default([]),
+  groups: z.array(z.string()).default([]),
 });
 
 type UserProfileRaw = z.infer<typeof userProfileSchema>;
@@ -68,8 +68,11 @@ export const getUserInfo = async (
       );
     }
 
-    const raw = userProfileSchema.parse(await response.json());
-    return enrichUserProfile(raw);
+    const rawUserProfile = await response.json();
+    const validatedUserProfile = userProfileSchema.parse(rawUserProfile);
+    const enrichedUserProfile = enrichUserProfile(validatedUserProfile);
+
+    return enrichedUserProfile;
   } catch (error) {
     console.error("Keycloak getUserInfo failed:", error);
     throw error;

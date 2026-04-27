@@ -133,7 +133,10 @@ describe("getUserInfo", () => {
       consoleSpy.mockRestore();
     });
 
-    test("throws when policy field is missing", async () => {
+    test("defaults policy and groups to [] when omitted by Keycloak", async () => {
+      // Keycloak omits these claims entirely when the user has no group
+      // memberships (the protocol mappers only emit them from group state).
+      // Freshly-registered users hit this path before any group is assigned.
       const profileWithoutPolicy = {
         sub: "uuid-123",
         email_verified: true,
@@ -142,17 +145,19 @@ describe("getUserInfo", () => {
         given_name: "Test",
         family_name: "User",
         email: "test@example.com",
-        // Missing policy and groups
       };
 
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(profileWithoutPolicy),
       });
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await expect(getUserInfo("access-token")).rejects.toThrow();
-      consoleSpy.mockRestore();
+      const result = await getUserInfo("access-token");
+
+      expect(result.policy).toEqual([]);
+      expect(result.groups).toEqual([]);
+      expect(result.adminScopes).toEqual([]);
+      expect(result.isRealmAdmin).toBe(false);
     });
   });
 
