@@ -1,5 +1,8 @@
 import { getManageableScopes } from "../keycloakAdmin";
-import { flattenGroups } from "../keycloakAdmin/groups";
+import {
+  __resetGroupIdCache,
+  flattenGroups,
+} from "../keycloakAdmin/groups";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/config", () => ({
@@ -90,6 +93,7 @@ describe("flattenGroups", () => {
 describe("getManageableScopes", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    __resetGroupIdCache();
   });
 
   test("fetches and returns descendant groups for admin scopes", async () => {

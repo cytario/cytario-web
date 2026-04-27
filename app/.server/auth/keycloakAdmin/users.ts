@@ -4,7 +4,7 @@ import {
   KeycloakAdminError,
   type KeycloakUser,
 } from "./client";
-import { findGroupByPath } from "./groups";
+import { findGroupIdByPath, invalidateGroupIdCache } from "./groups";
 
 export async function getUser(userId: string): Promise<KeycloakUser> {
   return adminFetch<KeycloakUser>(`/users/${userId}`);
@@ -45,8 +45,8 @@ export async function inviteUser(
   groupPath: string,
   enabled: boolean,
 ): Promise<void> {
-  const group = await findGroupByPath(groupPath);
-  if (!group) throw new Error(`Group not found: ${groupPath}`);
+  const groupId = await findGroupIdByPath(groupPath);
+  if (!groupId) throw new Error(`Group not found: ${groupPath}`);
 
   let userId: string;
   let isNewUser = true;
@@ -76,7 +76,14 @@ export async function inviteUser(
     }
   }
 
-  await adminMutate("PUT", `/users/${userId}/groups/${group.id}`);
+  try {
+    await adminMutate("PUT", `/users/${userId}/groups/${groupId}`);
+  } catch (e) {
+    if (e instanceof KeycloakAdminError && e.status === 404) {
+      invalidateGroupIdCache(groupPath);
+    }
+    throw e;
+  }
 
   if (isNewUser) {
     await adminMutate("PUT", `/users/${userId}/execute-actions-email`, [

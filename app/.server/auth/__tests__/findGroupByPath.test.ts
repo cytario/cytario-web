@@ -1,4 +1,5 @@
 import { findGroupByPath } from "../keycloakAdmin";
+import { __resetGroupIdCache } from "../keycloakAdmin/groups";
 
 vi.mock("~/config", () => ({
   cytarioConfig: {
@@ -44,6 +45,7 @@ const mockGroupTree = [
 describe("findGroupByPath", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    __resetGroupIdCache();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({

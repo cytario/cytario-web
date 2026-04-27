@@ -1,4 +1,5 @@
 import { createGroup } from "../keycloakAdmin";
+import { __resetGroupIdCache } from "../keycloakAdmin/groups";
 
 vi.mock("~/config", () => ({
   cytarioConfig: {
@@ -38,6 +39,7 @@ function mockFetchSequence(responses: Array<Partial<Response>>) {
 describe("createGroup", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    __resetGroupIdCache();
   });
 
   test("creates group and admins subgroup under parent", async () => {

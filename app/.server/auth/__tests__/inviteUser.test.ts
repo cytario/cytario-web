@@ -1,4 +1,5 @@
 import { inviteUser } from "../keycloakAdmin";
+import { __resetGroupIdCache } from "../keycloakAdmin/groups";
 
 vi.mock("~/config", () => ({
   cytarioConfig: {
@@ -38,6 +39,7 @@ function mockFetchSequence(responses: Array<Partial<Response>>) {
 describe("inviteUser", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    __resetGroupIdCache();
   });
 
   test("creates user, adds to group, sends email", async () => {

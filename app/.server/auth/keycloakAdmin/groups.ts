@@ -1,3 +1,5 @@
+import { LRUCache } from "lru-cache";
+
 import type { UserProfile } from "../getUserInfo";
 import {
   adminFetch,
@@ -6,6 +8,19 @@ import {
   type KeycloakGroup,
   type KeycloakUser,
 } from "./client";
+
+/**
+ * Maps a normalized group path (e.g. "cytario/lab") to its Keycloak group ID.
+ *
+ * Group IDs are stable for the lifetime of a group, but a path may go stale if
+ * a group is renamed or deleted. The TTL bounds staleness; mutating callers
+ * (createGroup) refresh entries explicitly. On a write that targets a cached
+ * parent ID and gets a 404, the entry is dropped so the next attempt rebuilds it.
+ */
+const groupIdByPath = new LRUCache<string, string>({
+  max: 500,
+  ttl: 10 * 60 * 1000,
+});
 
 export interface GroupWithMembers {
   id: string;
@@ -28,9 +43,15 @@ export interface GroupInfo {
   isAdmin: boolean;
 }
 
+/**
+ * Searches Keycloak groups by name. `exact=true` is load-bearing — it makes
+ * `search` an exact-name match instead of a substring match. `max=1000`
+ * defeats Keycloak's default page size of 20, which would silently truncate
+ * results for realms with many top-level groups.
+ */
 async function fetchGroups(search?: string): Promise<KeycloakGroup[]> {
-  const params = new URLSearchParams({ exact: "true" });
-  if (search) params.set("q", search);
+  const params = new URLSearchParams({ exact: "true", max: "1000" });
+  if (search) params.set("search", search);
   return adminFetch(`/groups?${params}`);
 }
 
@@ -90,6 +111,8 @@ export async function getManageableScopes(
 
 /**
  * Finds a Keycloak group by its normalized path (e.g. "cytario/lab").
+ * Populates the path-to-id cache as a side effect so subsequent ID-only
+ * lookups (createGroup, addUserToGroup) skip the round trip.
  */
 export async function findGroupByPath(
   scope: string,
@@ -106,7 +129,46 @@ export async function findGroupByPath(
     }
   };
 
-  return search(groups);
+  const result = search(groups);
+  if (result) groupIdByPath.set(scope, result.id);
+  return result;
+}
+
+/**
+ * Resolves a normalized group path to its Keycloak group ID. Uses an in-memory
+ * cache to avoid the `/groups` round trip on warm paths. On a cache miss,
+ * falls back to {@link findGroupByPath}, which also populates the cache.
+ */
+export async function findGroupIdByPath(
+  scope: string,
+): Promise<string | undefined> {
+  const cached = groupIdByPath.get(scope);
+  if (cached) return cached;
+
+  const group = await findGroupByPath(scope);
+  return group?.id;
+}
+
+/**
+ * Drops the cached ID for a group path. Call when a write fails with 404,
+ * indicating the underlying group was deleted or renamed.
+ */
+export function invalidateGroupIdCache(scope: string): void {
+  groupIdByPath.delete(scope);
+}
+
+/**
+ * Records a known path → ID mapping. Used after createGroup so the freshly
+ * created group's children/members lookups (e.g. the post-redirect loader)
+ * hit the cache immediately.
+ */
+export function cacheGroupId(scope: string, id: string): void {
+  groupIdByPath.set(scope, id);
+}
+
+/** Test-only: clears all cached path → ID mappings. */
+export function __resetGroupIdCache(): void {
+  groupIdByPath.clear();
 }
 
 function collectGroupIds(group: KeycloakGroup): string[] {
@@ -180,16 +242,22 @@ export async function createGroup(
   parentScope: string,
   name: string,
 ): Promise<{ id: string; path: string; adminsGroupId: string }> {
-  const parent = await findGroupByPath(parentScope);
-  if (!parent) {
+  const parentId = await findGroupIdByPath(parentScope);
+  if (!parentId) {
     throw new KeycloakAdminError(404, `Parent group not found: ${parentScope}`);
   }
 
-  const response = await adminMutate(
-    "POST",
-    `/groups/${parent.id}/children`,
-    { name },
-  );
+  let response: Response;
+  try {
+    response = await adminMutate("POST", `/groups/${parentId}/children`, {
+      name,
+    });
+  } catch (e) {
+    if (e instanceof KeycloakAdminError && e.status === 404) {
+      invalidateGroupIdCache(parentScope);
+    }
+    throw e;
+  }
 
   const location = response.headers.get("location");
   if (!location) {
@@ -222,9 +290,13 @@ export async function createGroup(
     throw e;
   }
 
+  const newGroupPath = `${parentScope}/${name}`;
+  cacheGroupId(newGroupPath, newGroupId);
+  cacheGroupId(`${newGroupPath}/admins`, adminsGroupId);
+
   return {
     id: newGroupId,
-    path: `${parentScope}/${name}`,
+    path: newGroupPath,
     adminsGroupId,
   };
 }

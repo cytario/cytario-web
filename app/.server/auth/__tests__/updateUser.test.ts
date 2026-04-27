@@ -1,4 +1,5 @@
 import { updateUser } from "../keycloakAdmin";
+import { __resetGroupIdCache } from "../keycloakAdmin/groups";
 
 vi.mock("~/config", () => ({
   cytarioConfig: {
@@ -17,6 +18,7 @@ const BASE = "http://localhost:8080/admin/realms/master";
 describe("updateUser", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    __resetGroupIdCache();
   });
 
   test("sends PUT request with user data", async () => {

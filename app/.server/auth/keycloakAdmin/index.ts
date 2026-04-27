@@ -3,6 +3,8 @@ export { type KeycloakGroup, type KeycloakUser } from "./client";
 export {
   createGroup,
   findGroupByPath,
+  findGroupIdByPath,
+  invalidateGroupIdCache,
   getManageableScopes,
   getGroupWithMembers,
   flattenGroupsWithIds,
