@@ -4,6 +4,10 @@ vi.mock("~/config", () => ({
   cytarioConfig: {
     auth: {
       baseUrl: "http://localhost:8080/realms/master",
+      clientId: "cytario-web",
+    },
+    endpoints: {
+      webapp: "https://webapp.example.com",
     },
   },
 }));
@@ -75,9 +79,9 @@ describe("inviteUser", () => {
       expect.objectContaining({ method: "PUT" }),
     );
 
-    // PUT to send email action
+    // PUT to send email action with redirect back to the webapp after password setup
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/users/new-user-id/execute-actions-email`,
+      `${BASE}/users/new-user-id/execute-actions-email?client_id=cytario-web&redirect_uri=https%3A%2F%2Fwebapp.example.com`,
       expect.objectContaining({
         method: "PUT",
         body: JSON.stringify(["UPDATE_PASSWORD"]),
@@ -107,7 +111,9 @@ describe("inviteUser", () => {
 
     // Should NOT send email to existing user
     expect(fetchMock).not.toHaveBeenCalledWith(
-      `${BASE}/users/existing-user-id/execute-actions-email`,
+      expect.stringContaining(
+        `${BASE}/users/existing-user-id/execute-actions-email`,
+      ),
       expect.anything(),
     );
   });
