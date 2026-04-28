@@ -5,6 +5,7 @@ import {
   type KeycloakUser,
 } from "./client";
 import { findGroupByPath } from "./groups";
+import { cytarioConfig } from "~/config";
 
 export async function getUser(userId: string): Promise<KeycloakUser> {
   return adminFetch<KeycloakUser>(`/users/${userId}`);
@@ -79,8 +80,14 @@ export async function inviteUser(
   await adminMutate("PUT", `/users/${userId}/groups/${group.id}`);
 
   if (isNewUser) {
-    await adminMutate("PUT", `/users/${userId}/execute-actions-email`, [
-      "UPDATE_PASSWORD",
-    ]);
+    const params = new URLSearchParams({
+      client_id: cytarioConfig.auth.clientId,
+      redirect_uri: cytarioConfig.endpoints.webapp,
+    });
+    await adminMutate(
+      "PUT",
+      `/users/${userId}/execute-actions-email?${params}`,
+      ["UPDATE_PASSWORD"],
+    );
   }
 }
