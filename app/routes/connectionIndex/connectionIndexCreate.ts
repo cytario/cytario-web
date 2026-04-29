@@ -110,9 +110,8 @@ async function fetchIndexableObjects(
 
 /**
  * Turn a list of S3 objects into a ZSTD-compressed parquet buffer.
- * Schema mirrors the AWS SDK `_Object` shape so reads can hand rows
- * straight to consumers without renaming.
- * Columns: Key (VARCHAR), Size (BIGINT), LastModified (TIMESTAMP), ETag (VARCHAR).
+ * Schema: key (VARCHAR), size (BIGINT), last_modified (TIMESTAMP), etag (VARCHAR).
+ * Reads project these to the AWS-SDK `_Object` shape via SELECT aliases.
  */
 async function buildIndexParquet(objects: _Object[]): Promise<Buffer> {
   const id = randomUUID();
@@ -130,10 +129,10 @@ async function buildIndexParquet(objects: _Object[]): Promise<Buffer> {
 
     await connection.run(/* sql */ `
       CREATE TABLE objects (
-        Key VARCHAR,
-        Size BIGINT,
-        LastModified TIMESTAMP,
-        ETag VARCHAR
+        key VARCHAR,
+        size BIGINT,
+        last_modified TIMESTAMP,
+        etag VARCHAR
       )
     `);
 
@@ -148,10 +147,10 @@ async function buildIndexParquet(objects: _Object[]): Promise<Buffer> {
 
       try {
         const jsonData = objects.map((obj) => ({
-          Key: obj.Key ?? "",
-          Size: obj.Size ?? 0,
-          LastModified: obj.LastModified?.toISOString() ?? null,
-          ETag: (obj.ETag ?? "").replace(/"/g, ""),
+          key: obj.Key ?? "",
+          size: obj.Size ?? 0,
+          last_modified: obj.LastModified?.toISOString() ?? null,
+          etag: (obj.ETag ?? "").replace(/"/g, ""),
         }));
 
         await writeFile(jsonPath, JSON.stringify(jsonData));
@@ -165,7 +164,7 @@ async function buildIndexParquet(objects: _Object[]): Promise<Buffer> {
     }
 
     await connection.run(
-      /* sql */ `COPY (SELECT * FROM objects ORDER BY Key) TO '${parquetPath}' (FORMAT PARQUET, COMPRESSION ZSTD)`,
+      /* sql */ `COPY (SELECT * FROM objects ORDER BY key) TO '${parquetPath}' (FORMAT PARQUET, COMPRESSION ZSTD)`,
     );
 
     return await readFile(parquetPath);

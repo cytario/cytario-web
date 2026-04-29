@@ -63,11 +63,17 @@ export async function connectionIndexRead({
   }
 
   try {
+    // Project the snake_case parquet columns to the AWS-SDK `_Object` shape
+    // so consumers receive rows in the same shape they'd get from S3 directly.
     const stmt = await db.prepare(/* sql */ `
-      SELECT Key, Size, LastModified, ETag
+      SELECT
+        key AS "Key",
+        size AS "Size",
+        last_modified AS "LastModified",
+        etag AS "ETag"
       FROM read_parquet('${s3Uri}')
-      WHERE Key LIKE $1
-      ORDER BY Key
+      WHERE key LIKE $1
+      ORDER BY key
       LIMIT $2
     `);
     const result = await stmt.query(`${prefix}%`, limit);
