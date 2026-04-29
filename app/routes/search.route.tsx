@@ -39,16 +39,16 @@ export const loader = async ({
 
   const {
     user,
-    credentials: bucketsCredentials,
+    credentials: connectionsCredentials,
     connectionConfigs,
   } = context.get(authContext);
 
   const results: ConfigFiles[] = [];
 
   for (const connectionConfig of connectionConfigs) {
-    const credentials = bucketsCredentials[connectionConfig.bucketName];
+    const credentials = connectionsCredentials[connectionConfig.name];
     if (!credentials) {
-      console.warn(`No credentials for bucket: ${connectionConfig.bucketName}`);
+      console.warn(`No credentials for connection: ${connectionConfig.name}`);
       continue;
     }
 

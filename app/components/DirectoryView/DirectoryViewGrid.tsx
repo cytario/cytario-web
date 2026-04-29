@@ -3,20 +3,20 @@ import { filesize } from "filesize";
 import { lazy, Suspense, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
-import { TreeNode } from "./buildDirectoryTree";
+import { type TreeNode } from "./buildDirectoryTree";
 import { ConnectionMenu } from "./ConnectionMenu";
-import type { DirectoryKind } from "./DirectoryView";
+import { type DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
-import { useConnectionsStore } from "~/utils/connectionsStore";
 import {
-  selectConnection,
+  select,
   selectHttpsUrl,
 } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
 import { buildConnectionPath, constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
@@ -40,19 +40,20 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
 
 /** Create a signedFetch that lazily resolves credentials from the connections store. */
 function useSignedFetch(connectionName: string) {
-  const connection = useConnectionsStore(selectConnection(connectionName));
-  const config = connection?.connectionConfig;
+  const connectionConfig = useConnectionsStore(
+    select.connectionConfig(connectionName),
+  );
 
   const signedFetch = useMemo(() => {
-    if (!config) return null;
+    if (!connectionConfig) return null;
     return createSignedFetch(
       () =>
         useConnectionsStore.getState().connections[connectionName]?.credentials,
-      config,
+      connectionConfig,
     );
-  }, [connectionName, config]);
+  }, [connectionName, connectionConfig]);
 
-  return { connection, signedFetch };
+  return { connectionConfig, signedFetch };
 }
 
 function BucketCardGridItem({
@@ -63,18 +64,18 @@ function BucketCardGridItem({
   connectionName: string;
 }) {
   const navigate = useNavigate();
-  const { connection, signedFetch } = useSignedFetch(connectionName);
-  // Bucket nodes carry the first-image key from the connections loader on
-  // `_Object.Key` (already absolute — includes any configured prefix).
-  const previewKey = node._Object?.Key ?? null;
+  const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
 
   const to = buildConnectionPath(connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
+  // Bucket nodes carry the first-image key from the connections loader on
+  // `_Object.Key` (already absolute — includes any configured prefix).
+  const previewKey = node._Object?.Key ?? null;
   const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
   const s3Url =
-    hasPreview && connection?.connectionConfig
-      ? constructS3Url(connection.connectionConfig, previewKey)
+    hasPreview && connectionConfig
+      ? constructS3Url(connectionConfig, previewKey)
       : "";
 
   return (
@@ -84,10 +85,10 @@ function BucketCardGridItem({
       // Needs real semantics (credential hydration, reachability, index status).
       status="connected"
       meta={
-        connection?.connectionConfig && (
+        connectionConfig && (
           <>
-            <ScopePill scope={connection.connectionConfig.ownerScope} />
-            <ProviderPill provider={connection.connectionConfig.provider} />
+            <ScopePill scope={connectionConfig.ownerScope} />
+            <ProviderPill provider={connectionConfig.provider} />
           </>
         )
       }
@@ -123,7 +124,8 @@ function FileCardGridItem({
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
 
-  const { connection, signedFetch } = useSignedFetch(connectionName);
+  const { connectionConfig: config, signedFetch } =
+    useSignedFetch(connectionName);
   // `_Object.Key` is absolute (prefix already applied) and set for both file
   // nodes (from listing) and directory nodes (first image inside, via
   // buildDirectoryTree). File nodes without `_Object` — e.g. recently-viewed
@@ -136,8 +138,8 @@ function FileCardGridItem({
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   const s3Url =
-    explicitKey && isImageFile(explicitKey) && connection?.connectionConfig
-      ? constructS3Url(connection.connectionConfig, explicitKey)
+    explicitKey && isImageFile(explicitKey) && config
+      ? constructS3Url(config, explicitKey)
       : isImageFile(node.name)
         ? (resolvedHttpsUrl ?? "")
         : "";

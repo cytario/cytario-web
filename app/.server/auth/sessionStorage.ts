@@ -15,12 +15,13 @@ export interface AuthTokens {
   idToken: string;
 }
 
-export type SessionCredentials = Record<string, Credentials>;
+/** Per-connection credentials map, keyed by `connectionConfig.name`. */
+export type ConnectionsCredentials = Record<string, Credentials>;
 
 export interface SessionData {
   user: UserProfile;
   authTokens: AuthTokens;
-  credentials: SessionCredentials;
+  credentials: ConnectionsCredentials;
   notification?: NotificationInput;
 }
 

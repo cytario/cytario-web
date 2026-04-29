@@ -40,36 +40,14 @@ export function getFileName(resourceId: string): string {
 }
 
 /** Builds a routable URL path from a connection name and an object path. */
-export function buildConnectionPath(connectionName: string, pathName: string): string {
+export function buildConnectionPath(
+  connectionName: string,
+  pathName: string,
+): string {
   const path = pathName
     ? `/connections/${connectionName}/${pathName}`
     : `/connections/${connectionName}`;
   return path.replace(/\/$/, "");
-}
-
-/**
- * Builds the HTTPS URL for a connection-root-relative `pathName` by rejoining
- * the configured prefix and delegating to `constructS3Url`. Use this when
- * you already have a `ConnectionConfig` in hand (e.g. from a loader) and
- * don't want to round-trip through the store.
- *
- * For reactive use inside components, prefer `selectHttpsUrl(resourceId)`
- * — it reads from the Zustand store and keeps in sync with state changes.
- *
- * @example
- * buildHttpsUrl({ bucketName: "b", prefix: "data" }, "file.tif")
- * // → "https://b.s3.eu-central-1.amazonaws.com/data/file.tif"
- */
-export function buildHttpsUrl(
-  connectionConfig: Pick<
-    ConnectionConfig,
-    "bucketName" | "region" | "endpoint" | "prefix"
-  >,
-  pathName: string,
-): string {
-  const prefix = connectionConfig.prefix?.replace(/\/$/, "");
-  const s3Key = prefix ? `${prefix}/${pathName}` : pathName;
-  return constructS3Url(connectionConfig, s3Key);
 }
 
 /**
@@ -79,8 +57,8 @@ export function buildHttpsUrl(
  * endpoints. Path segments are URI-encoded — callers pass raw keys.
  *
  * The `s3Key` is the **full object key including any connection prefix**.
- * If you have a prefix-relative `pathName`, use `buildHttpsUrl` instead to
- * have the prefix rejoined for you.
+ * If you have a prefix-relative `pathName` and a resourceId, use
+ * `selectHttpsUrl` / `resolveResourceId` — they rejoin the prefix for you.
  *
  * @example
  * // AWS:
@@ -93,14 +71,11 @@ export function buildHttpsUrl(
  * // → "http://localhost:9000/b/x.zarr"
  */
 export function constructS3Url(
-  connectionConfig: Pick<ConnectionConfig, "bucketName" | "region" | "endpoint">,
+  connectionConfig: ConnectionConfig,
   s3Key: string,
 ): string {
   const bucket = connectionConfig.bucketName;
-  const encodedPath = s3Key
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/");
+  const encodedPath = s3Key.split("/").map(encodeURIComponent).join("/");
 
   const region = connectionConfig.region || "eu-central-1";
   const endpoint = connectionConfig.endpoint?.replace(/\/$/, "");

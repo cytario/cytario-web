@@ -3,53 +3,63 @@ import { createRoutesStub } from "react-router";
 
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTableConnection } from "../DirectoryViewTableConnection";
+import mock from "~/utils/__tests__/__mocks__";
 
-// Mock the connections store
-vi.mock("~/utils/connectionsStore", () => ({
-  useConnectionsStore: vi.fn((selector) => {
-    const connections: Record<string, { connectionConfig: Record<string, unknown> }> = {
-      "aws-my-aws-bucket": {
-        connectionConfig: {
-          bucketName: "my-aws-bucket",
-          provider: "aws",
-          endpoint: "",
-          region: "eu-central-1",
-          roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
-          ownerScope: "cytario",
-          createdBy: "admin@cytario.com",
-        },
-      },
-      "minio-minio-bucket": {
-        connectionConfig: {
-          bucketName: "minio-bucket",
-          provider: "minio",
-          endpoint: "https://s3.cytar.io",
-          region: null,
-          roleArn: null,
-          ownerScope: "cytario/lab",
-          createdBy: "lab@cytario.com",
-        },
-      },
-    };
-    return selector({ connections });
-  }),
+const credentials = mock.credentials();
+const connections = {
+  "aws-my-aws-bucket": {
+    connectionConfig: mock.connectionConfig({
+      name: "aws-my-aws-bucket",
+      bucketName: "my-aws-bucket",
+      provider: "aws",
+      endpoint: "",
+      region: "eu-central-1",
+      roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
+      ownerScope: "cytario",
+      createdBy: "admin@cytario.com",
+    }),
+    credentials,
+  },
+  "minio-minio-bucket": {
+    connectionConfig: mock.connectionConfig({
+      name: "minio-minio-bucket",
+      bucketName: "minio-bucket",
+      provider: "minio",
+      endpoint: "https://s3.cytar.io",
+      region: null,
+      roleArn: null,
+      ownerScope: "cytario/lab",
+      createdBy: "lab@cytario.com",
+    }),
+    credentials,
+  },
+};
+
+vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
+  useConnectionsStore: vi.fn((selector) => selector({ connections })),
+}));
+
+vi.mock("~/utils/connectionsStore/selectors", () => ({
+  select: {
+    connections: (state: { connections: unknown }) => state.connections,
+  },
 }));
 
 describe("DirectoryViewTableConnection", () => {
   const mockBucketNodes: TreeNode[] = [
     {
-      id: "aws-my-aws-bucket",
+      id: "aws-my-aws-bucket/",
       connectionName: "aws-my-aws-bucket",
       type: "bucket",
-      name: "my-aws-bucket",
+      name: "aws-my-aws-bucket",
       pathName: "",
       children: [],
     },
     {
-      id: "minio-minio-bucket",
+      id: "minio-minio-bucket/",
       connectionName: "minio-minio-bucket",
       type: "bucket",
-      name: "minio-bucket",
+      name: "minio-minio-bucket",
       pathName: "",
       children: [],
     },
@@ -85,9 +95,9 @@ describe("DirectoryViewTableConnection", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Check bucket names
-    expect(screen.getByText("my-aws-bucket")).toBeInTheDocument();
-    expect(screen.getByText("minio-bucket")).toBeInTheDocument();
+    // Check connection names
+    expect(screen.getByText("aws-my-aws-bucket")).toBeInTheDocument();
+    expect(screen.getByText("minio-minio-bucket")).toBeInTheDocument();
 
     // Provider and region values appear in body cells (inside aria-hidden table)
     const body = document.body.textContent ?? "";

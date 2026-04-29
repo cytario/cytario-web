@@ -1,6 +1,6 @@
 import { Table } from "apache-arrow";
 
-import { resolveResourceId } from "../../connectionsStore";
+import { resolveResourceId } from "../../connectionsStore/selectors";
 import { createDatabase } from "../createDatabase";
 import { getGeomQuery } from "../getGeomQuery";
 import { getTileDataWasm } from "../getTileDataWasm";
@@ -14,7 +14,7 @@ vi.mock("../getGeomQuery", () => ({
   getGeomQuery: vi.fn(),
 }));
 
-vi.mock("../../connectionsStore", () => ({
+vi.mock("../../connectionsStore/selectors", () => ({
   resolveResourceId: vi.fn(),
 }));
 
@@ -33,7 +33,6 @@ describe("getTileDataWasm", () => {
       pathName: "data/file.parquet",
       credentials: mock.credentials(),
       connectionConfig,
-      s3Key: `${connectionConfig.prefix || ""}data/file.parquet`,
       s3Uri: `s3://${connectionConfig.bucketName}/data/file.parquet`,
       httpsUrl: `https://${connectionConfig.bucketName}.s3.eu-central-1.amazonaws.com/data/file.parquet`,
     });

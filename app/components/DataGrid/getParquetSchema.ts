@@ -1,6 +1,7 @@
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
-import { resolveResourceId } from "~/utils/connectionsStore";
+import { resolveResourceId } from "~/utils/connectionsStore/selectors";
+
 
 export interface ParquetColumn {
   name: string;

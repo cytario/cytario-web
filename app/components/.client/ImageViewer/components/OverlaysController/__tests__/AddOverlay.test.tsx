@@ -18,19 +18,6 @@ vi.mock("react-router", () => ({
   }),
 }));
 
-vi.mock("~/utils/connectionsStore", () => ({
-  useConnectionsStore: {
-    getState: vi.fn(() => ({
-      connections: {
-        "aws-test-bucket": {
-          credentials: { accessKeyId: "key", secretAccessKey: "secret" },
-          connectionConfig: { bucketName: "test-bucket", provider: "aws" },
-        },
-      },
-    })),
-  },
-}));
-
 vi.mock("~/utils/db/convertCsvToParquet", () => ({
   convertCsvToParquet: vi.fn(),
 }));

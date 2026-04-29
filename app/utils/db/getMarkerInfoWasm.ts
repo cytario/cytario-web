@@ -1,5 +1,5 @@
 import { createDatabase } from "./createDatabase";
-import { resolveResourceId } from "../connectionsStore";
+import { resolveResourceId } from "../connectionsStore/selectors";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
 
 /**
