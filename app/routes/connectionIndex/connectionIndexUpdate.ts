@@ -109,10 +109,10 @@ export const connectionIndexUpdate = async ({
     const liveRows = (listResponse.Contents ?? [])
       .filter((obj) => connectionIndexFilter(obj, seen))
       .map((obj) => ({
-        key: obj.Key ?? "",
-        size: obj.Size ?? 0,
-        last_modified: obj.LastModified?.toISOString() ?? null,
-        etag: (obj.ETag ?? "").replace(/"/g, ""),
+        Key: obj.Key ?? "",
+        Size: obj.Size ?? 0,
+        LastModified: obj.LastModified?.toISOString() ?? null,
+        ETag: (obj.ETag ?? "").replace(/"/g, ""),
       }));
 
     // 3. Rebuild the parquet: existing minus old slice, plus fresh slice.
@@ -128,10 +128,10 @@ export const connectionIndexUpdate = async ({
     // The trailing-slash check covers directory-marker objects.
     await connection.run(/* sql */ `
       DELETE FROM objects
-      WHERE key LIKE '${normalizedSlice}%'
+      WHERE Key LIKE '${normalizedSlice}%'
         AND (
-          position('/' IN substr(key, ${normalizedSlice.length + 1})) = 0
-          OR substr(key, ${normalizedSlice.length + 1}) LIKE '%/'
+          position('/' IN substr(Key, ${normalizedSlice.length + 1})) = 0
+          OR substr(Key, ${normalizedSlice.length + 1}) LIKE '%/'
         )
     `);
 
@@ -149,7 +149,7 @@ export const connectionIndexUpdate = async ({
     const objectCount = Number(rows[0]?.c ?? 0);
 
     await connection.run(
-      /* sql */ `COPY (SELECT * FROM objects ORDER BY key) TO '${newParquetPath}' (FORMAT PARQUET, COMPRESSION ZSTD)`,
+      /* sql */ `COPY (SELECT * FROM objects ORDER BY Key) TO '${newParquetPath}' (FORMAT PARQUET, COMPRESSION ZSTD)`,
     );
 
     // 4. Upload new parquet.

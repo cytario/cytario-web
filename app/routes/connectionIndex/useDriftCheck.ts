@@ -84,11 +84,15 @@ function filterImmediateChildren(
   slicePrefix: string,
 ): ConnectionIndexRow[] {
   if (!slicePrefix) {
-    return rows.filter((r) => !r.key.includes("/") || r.key.endsWith("/"));
+    return rows.filter((r) => {
+      const key = r.Key ?? "";
+      return !key.includes("/") || key.endsWith("/");
+    });
   }
   return rows.filter((r) => {
-    if (!r.key.startsWith(slicePrefix)) return false;
-    const rest = r.key.slice(slicePrefix.length);
+    const key = r.Key ?? "";
+    if (!key.startsWith(slicePrefix)) return false;
+    const rest = key.slice(slicePrefix.length);
     if (rest.length === 0) return false;
     // Depth-1 = no further '/' in rest, or exactly one trailing '/' (directory marker).
     const slashIdx = rest.indexOf("/");
@@ -97,16 +101,21 @@ function filterImmediateChildren(
 }
 
 /**
- * Drift = the set of (key, etag) pairs differs between index and live.
+ * Drift = the set of (Key, ETag) pairs differs between index and live.
  * Name-only comparison catches the common cases (new files, deletions);
  * etag catches in-place modifications.
+ *
+ * The live-side shape comes from `LiveSlice` over the wire (lowercase);
+ * the index-side rows match the AWS SDK `_Object` shape (PascalCase).
  */
 function isDrifted(
   indexSubset: ConnectionIndexRow[],
   liveObjects: { key: string; etag: string }[],
 ): boolean {
   if (indexSubset.length !== liveObjects.length) return true;
-  const indexBy = new Map(indexSubset.map((r) => [r.key, r.etag]));
+  const indexBy = new Map(
+    indexSubset.map((r) => [r.Key ?? "", r.ETag ?? ""]),
+  );
   for (const obj of liveObjects) {
     const indexed = indexBy.get(obj.key);
     if (indexed === undefined) return true;

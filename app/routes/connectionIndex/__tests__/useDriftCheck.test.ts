@@ -102,8 +102,8 @@ describe("useDriftCheck", () => {
         connectionName: "Exchange",
         urlPath: "foo/",
         indexRows: [
-          { key: "foo/a.txt", size: 1, etag: "A", lastModified: null },
-          { key: "foo/b.txt", size: 2, etag: "B", lastModified: null },
+          { Key: "foo/a.txt", Size: 1, ETag: "A" },
+          { Key: "foo/b.txt", Size: 2, ETag: "B" },
         ],
         enabled: true,
       }),
@@ -135,9 +135,7 @@ describe("useDriftCheck", () => {
       useDriftCheck({
         connectionName: "Exchange",
         urlPath: "foo/",
-        indexRows: [
-          { key: "foo/a.txt", size: 1, etag: "A", lastModified: null },
-        ],
+        indexRows: [{ Key: "foo/a.txt", Size: 1, ETag: "A" }],
         enabled: true,
       }),
     );
@@ -170,9 +168,7 @@ describe("useDriftCheck", () => {
       useDriftCheck({
         connectionName: "Exchange",
         urlPath: "foo/",
-        indexRows: [
-          { key: "foo/a.txt", size: 1, etag: "OLD-ETAG", lastModified: null },
-        ],
+        indexRows: [{ Key: "foo/a.txt", Size: 1, ETag: "OLD-ETAG" }],
         enabled: true,
       }),
     );
@@ -203,9 +199,9 @@ describe("useDriftCheck", () => {
         connectionName: "Exchange",
         urlPath: "foo/",
         indexRows: [
-          { key: "foo/a.txt", size: 1, etag: "A", lastModified: null },
+          { Key: "foo/a.txt", Size: 1, ETag: "A" },
           // Not depth-1: should be ignored when comparing.
-          { key: "foo/sub/b.txt", size: 2, etag: "B", lastModified: null },
+          { Key: "foo/sub/b.txt", Size: 2, ETag: "B" },
         ],
         enabled: true,
       }),

@@ -1,28 +1,48 @@
+import type { _Object } from "@aws-sdk/client-s3";
+
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { createDatabase } from "~/utils/db/createDatabase";
 import { toIndexS3Key, toS3Uri } from "~/utils/resourceId";
 
-export interface ConnectionIndexRow {
-  key: string;
-  size: number;
-  lastModified: string | null;
-  etag: string;
-}
+/**
+ * The thin AWS-SDK `_Object` projection we materialize from the parquet:
+ * just the four fields the index stores. Picked from `_Object` so consumers
+ * (e.g. `buildDirectoryTree`) can take rows directly without remapping.
+ */
+export type ConnectionIndexRow = Pick<
+  _Object,
+  "Key" | "Size" | "LastModified" | "ETag"
+>;
 
 interface ConnectionIndexReadArgs {
   connection: Connection;
-  /** Full S3 key prefix to filter on (key LIKE `${listPath}%`). */
-  listPath: string;
+  prefix: string;
   limit?: number;
 }
 
 /**
- * Read rows from the connection index whose key begins with `listPath`.
+ * Thrown when the parquet index doesn't exist on S3. Callers (typically the
+ * objects route) catch this and redirect the user to the index-build page.
+ */
+export class IndexNotFoundError extends Error {
+  constructor(public readonly s3Uri: string) {
+    super(`Connection index not found at ${s3Uri}`);
+    this.name = "IndexNotFoundError";
+  }
+}
+
+/**
+ * Read rows from the connection index whose Key begins with `prefix`.
  * Runs in the browser against the parquet file via DuckDB-WASM.
+ *
+ * Throws `IndexNotFoundError` when the parquet file is missing — DuckDB's
+ * httpfs surfaces a 404 in the error message, which we translate so the
+ * caller can redirect rather than treat the missing index as a generic
+ * failure.
  */
 export async function connectionIndexRead({
   connection: { credentials, connectionConfig },
-  listPath,
+  prefix,
   limit = 1000,
 }: ConnectionIndexReadArgs): Promise<ConnectionIndexRow[]> {
   const db = await createDatabase(
@@ -42,16 +62,33 @@ export async function connectionIndexRead({
     throw new Error("Invalid S3 URI for DuckDB query: contains single quote");
   }
 
-  const stmt = await db.prepare(/* sql */ `
-    SELECT key, size, last_modified, etag
-    FROM read_parquet('${s3Uri}')
-    WHERE key LIKE $1
-    ORDER BY key
-    LIMIT $2
-  `);
-  const result = await stmt.query(`${listPath}%`, limit);
+  try {
+    const stmt = await db.prepare(/* sql */ `
+      SELECT Key, Size, LastModified, ETag
+      FROM read_parquet('${s3Uri}')
+      WHERE Key LIKE $1
+      ORDER BY Key
+      LIMIT $2
+    `);
+    const result = await stmt.query(`${prefix}%`, limit);
 
-  return extractRows(result);
+    return extractRows(result);
+  } catch (err) {
+    if (isHttpNotFound(err)) {
+      throw new IndexNotFoundError(s3Uri);
+    }
+    throw err;
+  }
+}
+
+/**
+ * httpfs surfaces a 404 as e.g. `IO Error: HTTP GET error on '<url>': HTTP 404`.
+ * The message is the only reliable signal — DuckDB-WASM doesn't expose a
+ * structured error code for HTTP failures.
+ */
+function isHttpNotFound(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return /HTTP 404|404 Not Found/i.test(err.message);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DuckDB WASM result type is not exported
@@ -59,15 +96,15 @@ function extractRows(result: any): ConnectionIndexRow[] {
   const rows: ConnectionIndexRow[] = [];
   for (let i = 0; i < result.numRows; i++) {
     const row = result.get(i);
-    if (row) {
-      const json = row.toJSON();
-      rows.push({
-        key: String(json.key),
-        size: Number(json.size),
-        lastModified: json.last_modified ? String(json.last_modified) : null,
-        etag: String(json.etag),
-      });
-    }
+    if (!row) continue;
+    const json = row.toJSON();
+    rows.push({
+      Key: String(json.Key),
+      Size: Number(json.Size),
+      LastModified:
+        json.LastModified != null ? new Date(String(json.LastModified)) : undefined,
+      ETag: String(json.ETag),
+    });
   }
   return rows;
 }

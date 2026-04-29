@@ -55,10 +55,10 @@ describe("useDirectoryListing", () => {
   test("builds nodes from fetched rows", async () => {
     const fetched = [
       {
-        key: "data/foo/a.txt",
-        size: 10,
-        lastModified: "2025-06-15T12:00:00Z",
-        etag: "abc",
+        Key: "data/foo/a.txt",
+        Size: 10,
+        LastModified: new Date("2025-06-15T12:00:00Z"),
+        ETag: "abc",
       },
     ];
     mockListPrefix.mockResolvedValue(fetched);
@@ -76,7 +76,7 @@ describe("useDirectoryListing", () => {
     expect(result.current.nodes).toHaveLength(1);
   });
 
-  test("calls connectionIndexRead with the current prefix as listPath", async () => {
+  test("calls connectionIndexRead with the current prefix", async () => {
     mockListPrefix.mockResolvedValue([]);
 
     renderHook(() =>
@@ -91,23 +91,23 @@ describe("useDirectoryListing", () => {
     await waitFor(() => expect(mockListPrefix).toHaveBeenCalledTimes(1));
     expect(mockListPrefix).toHaveBeenCalledWith({
       connection: { connectionConfig, credentials },
-      listPath: "data/foo/",
+      prefix: "data/foo/",
     });
   });
 
   test("builds tree nodes from index rows", async () => {
     mockListPrefix.mockResolvedValue([
       {
-        key: "data/foo/bar.txt",
-        size: 42,
-        lastModified: "2025-06-15T12:00:00Z",
-        etag: "abc",
+        Key: "data/foo/bar.txt",
+        Size: 42,
+        LastModified: new Date("2025-06-15T12:00:00Z"),
+        ETag: "abc",
       },
       {
-        key: "data/foo/baz.png",
-        size: 1024,
-        lastModified: "2025-06-16T08:30:00Z",
-        etag: "def",
+        Key: "data/foo/baz.png",
+        Size: 1024,
+        LastModified: new Date("2025-06-16T08:30:00Z"),
+        ETag: "def",
       },
     ]);
 

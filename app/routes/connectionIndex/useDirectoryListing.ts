@@ -55,21 +55,14 @@ export function useDirectoryListing({
 
     let cancelled = false;
 
-    connectionIndexRead({ connection, listPath: prefix })
+    connectionIndexRead({ connection, prefix })
       .then((rows) => {
         if (cancelled) return;
-        const objects = rows.map((row) => ({
-          Key: row.key,
-          Size: row.size,
-          LastModified: row.lastModified
-            ? new Date(row.lastModified)
-            : undefined,
-          ETag: row.etag,
-        }));
+
         setRows(rows);
         setNodes(
           buildDirectoryTree(
-            objects,
+            rows,
             connection.connectionConfig.name,
             prefix,
             urlPath,
