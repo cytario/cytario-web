@@ -1,8 +1,4 @@
-import {
-  GetObjectCommand,
-  ListObjectsV2Command,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DuckDBInstance } from "@duckdb/node-api";
 import { randomUUID } from "crypto";
 import { readFile, unlink, writeFile } from "fs/promises";
@@ -10,10 +6,9 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { ActionFunctionArgs } from "react-router";
 
-import { connectionIndexFilter } from "./connectionIndexFilter";
+import { listConnectionIndexObjects } from "./listConnectionIndexObjects";
 import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
-
 
 /**
  * HTTP PATCH handler for `/connectionIndex/:connectionName?slice=<path>`.
@@ -49,7 +44,9 @@ export const connectionIndexUpdate = async ({
 
   // Defend against SQL injection — the slice is derived from URL params.
   if (normalizedSlice.includes("'")) {
-    return new Response("Invalid slice: contains single quote", { status: 400 });
+    return new Response("Invalid slice: contains single quote", {
+      status: 400,
+    });
   }
 
   const indexKey = toIndexS3Key(connectionPrefix);
@@ -76,22 +73,18 @@ export const connectionIndexUpdate = async ({
     await writeFile(oldParquetPath, Buffer.from(bodyBytes));
 
     // 2. Fetch the live slice (depth-1 children only).
-    const listResponse = await s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: normalizedSlice || undefined,
-        Delimiter: "/",
-      }),
-    );
-    const seen = new Set<string>();
-    const liveRows = (listResponse.Contents ?? [])
-      .filter((obj) => connectionIndexFilter(obj, seen))
-      .map((obj) => ({
-        key: obj.Key ?? "",
-        size: obj.Size ?? 0,
-        last_modified: obj.LastModified?.toISOString() ?? null,
-        etag: (obj.ETag ?? "").replace(/"/g, ""),
-      }));
+    const { Contents } = await listConnectionIndexObjects({
+      s3Client,
+      Bucket: bucketName,
+      Prefix: normalizedSlice,
+      Delimiter: "/",
+    });
+    const liveRows = Contents.map((obj) => ({
+      key: obj.Key ?? "",
+      size: obj.Size ?? 0,
+      last_modified: obj.LastModified?.toISOString() ?? null,
+      etag: (obj.ETag ?? "").replace(/"/g, ""),
+    }));
 
     // 3. Rebuild the parquet: existing minus old slice, plus fresh slice.
     const instance = await DuckDBInstance.create();
@@ -121,7 +114,7 @@ export const connectionIndexUpdate = async ({
     }
 
     const countResult = await connection.run(
-      /* sql */ "SELECT COUNT(*)::INTEGER AS c FROM objects",
+      /* sql */ `SELECT COUNT(*)::INTEGER AS c FROM objects`,
     );
     const rows = await countResult.getRowObjects();
     const objectCount = Number(rows[0]?.c ?? 0);
@@ -138,6 +131,7 @@ export const connectionIndexUpdate = async ({
         Key: indexKey,
         Body: newParquet,
         ContentType: "application/octet-stream",
+        CacheControl: "no-cache",
         Metadata: {
           "object-count": String(objectCount),
         },

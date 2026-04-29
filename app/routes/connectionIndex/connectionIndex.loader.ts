@@ -1,12 +1,7 @@
-import {
-  type S3Client,
-  HeadObjectCommand,
-  ListObjectsV2Command,
-  NotFound,
-} from "@aws-sdk/client-s3";
+import { type S3Client, HeadObjectCommand, NotFound } from "@aws-sdk/client-s3";
 import { LoaderFunctionArgs } from "react-router";
 
-import { connectionIndexFilter } from "./connectionIndexFilter";
+import { listConnectionIndexObjects } from "./listConnectionIndexObjects";
 import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
 
@@ -116,27 +111,19 @@ async function fetchLiveSlice(
       : `${fullSlicePrefix}/`
     : "";
 
-  const response = await s3Client.send(
-    new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: normalized || undefined,
-      Delimiter: "/",
-    }),
-  );
+  const { Contents, CommonPrefixes } = await listConnectionIndexObjects({
+    s3Client,
+    Bucket: bucketName,
+    Prefix: normalized,
+    Delimiter: "/",
+  });
 
-  const seen = new Set<string>();
-  const objects: LiveSliceObject[] = (response.Contents ?? [])
-    .filter((obj) => connectionIndexFilter(obj, seen))
-    .map((obj) => ({
-      key: obj.Key ?? "",
-      size: obj.Size ?? 0,
-      etag: (obj.ETag ?? "").replace(/"/g, ""),
-      lastModified: obj.LastModified?.toISOString() ?? null,
-    }));
+  const objects: LiveSliceObject[] = Contents.map((obj) => ({
+    key: obj.Key ?? "",
+    size: obj.Size ?? 0,
+    etag: (obj.ETag ?? "").replace(/"/g, ""),
+    lastModified: obj.LastModified?.toISOString() ?? null,
+  }));
 
-  const directories = (response.CommonPrefixes ?? [])
-    .map((cp) => cp.Prefix ?? "")
-    .filter(Boolean);
-
-  return { prefix: normalized, objects, directories };
+  return { prefix: normalized, objects, directories: CommonPrefixes };
 }

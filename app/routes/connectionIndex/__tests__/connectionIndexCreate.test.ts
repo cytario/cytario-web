@@ -81,7 +81,7 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
     expect(response.headers.get("Location")).toBe("/connections/test-conn");
   });
 
-  test("applies the connectionIndex filter while listing (drops zarr chunks + .cytario/)", async () => {
+  test("applies the connectionIndex filter while listing (drops zarr chunks; .cytario/ entries are kept)", async () => {
     const sendMock = vi.fn().mockImplementation((cmd) => {
       const commandName = cmd?.constructor?.name ?? "";
       if (commandName === "ListObjectsV2Command") {
@@ -89,8 +89,8 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
           Contents: [
             { Key: "data/a.txt", Size: 1, ETag: '"a"', LastModified: new Date() },
             { Key: "data/sample.zarr/.zattrs", Size: 2, ETag: '"z1"', LastModified: new Date() },
-            { Key: "data/sample.zarr/0/0", Size: 3, ETag: '"z2"', LastModified: new Date() }, // dropped
-            { Key: "data/.cytario/index.parquet", Size: 9, ETag: '"c"', LastModified: new Date() }, // dropped
+            { Key: "data/sample.zarr/0/0", Size: 3, ETag: '"z2"', LastModified: new Date() }, // dropped (zarr chunk)
+            { Key: "data/.cytario/index.parquet", Size: 9, ETag: '"c"', LastModified: new Date() }, // kept
           ],
         };
       }
@@ -103,7 +103,7 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
     const putCall = sendMock.mock.calls.find(
       ([c]) => c?.constructor?.name === "PutObjectCommand",
     );
-    expect(putCall?.[0].input.Metadata["object-count"]).toBe("2");
+    expect(putCall?.[0].input.Metadata["object-count"]).toBe("3");
   });
 
   test("returns 500 on S3 failure", async () => {

@@ -82,11 +82,17 @@ describe("createDatabase", () => {
     expect(mockQuery).toHaveBeenCalledWith("LOAD spatial;");
   });
 
-  test("enables caching settings", async () => {
+  test("enables object cache by default", async () => {
     await createDatabase("test-caching", credentials, undefined);
 
     expect(mockQuery).toHaveBeenCalledWith("SET enable_object_cache = true;");
     expect(mockQuery).toHaveBeenCalledWith("SET http_keep_alive = true;");
+  });
+
+  test("opts out of object cache when fourth arg is false", async () => {
+    await createDatabase("test-no-cache", credentials, undefined, false);
+
+    expect(mockQuery).toHaveBeenCalledWith("SET enable_object_cache = false;");
   });
 
   test("configures S3 credentials", async () => {

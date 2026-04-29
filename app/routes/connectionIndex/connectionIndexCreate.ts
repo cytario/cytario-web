@@ -1,9 +1,4 @@
-import {
-  _Object,
-  ListObjectsV2Command,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { _Object, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DuckDBInstance } from "@duckdb/node-api";
 import { randomUUID } from "crypto";
 import { readFile, unlink, writeFile } from "fs/promises";
@@ -11,10 +6,9 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { ActionFunctionArgs, redirect } from "react-router";
 
-import { connectionIndexFilter } from "./connectionIndexFilter";
+import { listConnectionIndexObjects } from "./listConnectionIndexObjects";
 import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
-
 
 /**
  * HTTP POST handler for `/connectionIndex/:connectionName`.
@@ -31,12 +25,17 @@ import { toIndexS3Key } from "~/utils/resourceId";
 export const connectionIndexCreate = async ({
   context,
 }: ActionFunctionArgs) => {
-  const { connectionConfig, s3Client } = context.get(connectionContext);
-  const { name: connectionName, provider, bucketName, prefix } =
-    connectionConfig;
+  const {
+    connectionConfig: { name: connectionName, provider, bucketName, prefix },
+    s3Client,
+  } = context.get(connectionContext);
 
   try {
-    const objects = await fetchIndexableObjects(s3Client, bucketName, prefix);
+    const { Contents: objects } = await listConnectionIndexObjects({
+      s3Client,
+      Bucket: bucketName,
+      Prefix: prefix,
+    });
     const parquetBuffer = await buildIndexParquet(objects);
 
     await s3Client.send(
@@ -45,6 +44,7 @@ export const connectionIndexCreate = async ({
         Key: toIndexS3Key(prefix),
         Body: parquetBuffer,
         ContentType: "application/octet-stream",
+        CacheControl: "no-cache",
         Metadata: {
           "object-count": String(objects.length),
         },
@@ -64,49 +64,6 @@ export const connectionIndexCreate = async ({
     return new Response("Indexing failed", { status: 500 });
   }
 };
-
-/**
- * Paginated ListObjectsV2 + `connectionIndexFilter`. Returns every object
- * under `prefix` minus zarr chunks (one kept per root) and `.cytario/`
- * contents.
- */
-async function fetchIndexableObjects(
-  s3Client: S3Client,
-  bucketName: string,
-  prefix = "",
-  maxObjects = 500_000,
-): Promise<_Object[]> {
-  const objects: _Object[] = [];
-  const seenZarrRoots = new Set<string>();
-  let continuationToken: string | undefined;
-
-  do {
-    const response = await s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: prefix || undefined,
-        ContinuationToken: continuationToken,
-      }),
-    );
-
-    for (const obj of response.Contents ?? []) {
-      if (connectionIndexFilter(obj, seenZarrRoots)) {
-        objects.push(obj);
-      }
-    }
-
-    if (objects.length >= maxObjects) {
-      console.warn(
-        `[connectionIndexCreate] Hit max object limit (${maxObjects}) for ${bucketName}/${prefix}`,
-      );
-      break;
-    }
-
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
-
-  return objects;
-}
 
 /**
  * Turn a list of S3 objects into a ZSTD-compressed parquet buffer.

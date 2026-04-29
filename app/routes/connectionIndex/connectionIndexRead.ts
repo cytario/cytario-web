@@ -45,10 +45,13 @@ export async function connectionIndexRead({
   prefix,
   limit = 1000,
 }: ConnectionIndexReadArgs): Promise<ConnectionIndexRow[]> {
+  // Distinct key + cache off: the index parquet is rewritten under the
+  // same URL on every rebuild/patch.
   const db = await createDatabase(
-    connectionConfig.name,
+    `${connectionConfig.name}:index`,
     credentials,
     connectionConfig,
+    false,
   );
 
   // DuckDB's read_parquet() doesn't support parameterized file paths, so the

@@ -12,17 +12,21 @@ import { shouldUseSSL, getEndpointHostname } from "../s3Provider";
 import { ConnectionConfig } from "~/.generated/client";
 
 /**
- * Initialize DuckDB WASM with S3 support (singleton per resourceId)
- * @param resourceId - S3 resource identifier (bucketName/pathName)
- * @param credentials - AWS credentials
- * @param connectionConfig - Optional bucket configuration for S3-compatible services
+ * Initialize DuckDB-WASM with S3 httpfs (singleton per `resourceId`).
+ * @param resourceId      Singleton cache key (e.g. `connectionName`).
+ * @param connectionConfig  Connection config; `null` for non-S3 setups.
+ * @param enableObjectCache  Default `true`. Pass `false` when the parquet
+ *                           is rewritten under the same URL (e.g. the
+ *                           connection index) so the footer cache doesn't
+ *                           serve stale data.
  */
 const createDatabaseInternal = async (
-  resourceId: string,
+  _resourceId: string,
   credentials: Credentials,
   connectionConfig?: ConnectionConfig | null,
+  enableObjectCache = true,
 ) => {
-  console.info("[getTileDataWasm] Initializing DuckDB WASM with S3 support...");
+  console.info("[createDatabase] Initializing DuckDB WASM with S3 support...");
 
   // Load DuckDB WASM bundle
   const JSDELIVR_BUNDLES = getJsDelivrBundles();
@@ -47,8 +51,12 @@ const createDatabaseInternal = async (
   await connection.query("INSTALL spatial;");
   await connection.query("LOAD spatial;");
 
-  // Enable caching for parquet metadata and HTTP connections
-  await connection.query("SET enable_object_cache = true;");
+  // Object cache: parquet footer/schema reuse across queries. See
+  // `CreateDatabaseOptions.enableObjectCache`. http_keep_alive is always
+  // safe (just reuses the TCP socket; no parquet bytes are cached by it).
+  await connection.query(
+    `SET enable_object_cache = ${enableObjectCache};`,
+  );
   await connection.query("SET http_keep_alive = true;");
 
   // Configure S3 credentials
@@ -71,7 +79,7 @@ const createDatabaseInternal = async (
   await connection.query(`SET s3_use_ssl=${useSSL}`);
 
   console.info(
-    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: path)`,
+    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: path, objectCache: ${enableObjectCache})`,
   );
 
   return connection;
