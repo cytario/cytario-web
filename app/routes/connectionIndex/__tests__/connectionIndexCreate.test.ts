@@ -1,23 +1,17 @@
+import { type S3Client } from "@aws-sdk/client-s3";
 import { ActionFunctionArgs } from "react-router";
 
 import mock from "~/utils/__tests__/__mocks__";
 
-const mockGetConnection = vi.fn();
-const mockGetS3Client = vi.fn();
+const mockContextGet = vi.fn();
 const mockDuckRun = vi.fn();
 const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 const mockReadFile = vi.fn().mockResolvedValue(Buffer.from("fake-parquet"));
 const mockUnlink = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("~/.server/auth/authMiddleware", () => ({
-  authContext: { get: vi.fn() },
-  authMiddleware: vi.fn(),
-}));
-vi.mock("~/.server/auth/getS3Client", () => ({
-  getS3Client: (...args: unknown[]) => mockGetS3Client(...args),
-}));
-vi.mock("~/routes/connections/connections.server", () => ({
-  getConnection: (...args: unknown[]) => mockGetConnection(...args),
+vi.mock("~/.server/connection/connectionMiddleware", () => ({
+  connectionContext: { get: vi.fn() },
+  connectionMiddleware: vi.fn(),
 }));
 
 // Stub DuckDB + fs so the test doesn't actually spin up the native engine.
@@ -41,8 +35,6 @@ vi.spyOn(console, "info").mockImplementation(() => {});
 vi.spyOn(console, "error").mockImplementation(() => {});
 
 describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => {
-  const user = mock.user();
-  const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
     name: "test-conn",
     bucketName: "test-bucket",
@@ -51,25 +43,22 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
     ownerScope: "org1/lab",
   });
 
-  const createContext = () => ({
-    get: () => ({
-      user,
-      credentials: { "test-conn": credentials },
-    }),
-    set: vi.fn(),
-  });
+  const seedContext = (sendMock: ReturnType<typeof vi.fn>) => {
+    mockContextGet.mockReturnValue({
+      connectionConfig,
+      credentials: mock.credentials(),
+      s3Client: { send: sendMock } as unknown as S3Client,
+    });
+  };
 
-  const invoke = async (
-    params: Record<string, string>,
-    context: unknown = createContext(),
-  ) => {
+  const invoke = async () => {
     const { connectionIndexCreate } = await import(
       "~/routes/connectionIndex/connectionIndexCreate"
     );
     return connectionIndexCreate({
-      params,
-      context,
-      request: new Request("http://localhost/connectionIndex/x", {
+      params: { connectionName: "test-conn" },
+      context: { get: mockContextGet, set: vi.fn() } as never,
+      request: new Request("http://localhost/connectionIndex/test-conn", {
         method: "POST",
       }),
     } as unknown as ActionFunctionArgs);
@@ -83,39 +72,16 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
     mockUnlink.mockResolvedValue(undefined);
   });
 
-  test("returns 400 when connectionName is missing", async () => {
-    const response = (await invoke({})) as Response;
-    expect(response.status).toBe(400);
-  });
-
-  test("returns 404 when connection config not found", async () => {
-    mockGetConnection.mockResolvedValue(null);
-    const response = (await invoke({ connectionName: "missing" })) as Response;
-    expect(response.status).toBe(404);
-  });
-
-  test("returns 401 when no credentials for bucket", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    const response = (await invoke(
-      { connectionName: "test-conn" },
-      { get: () => ({ user, credentials: {} }), set: vi.fn() },
-    )) as Response;
-    expect(response.status).toBe(401);
-  });
-
   test("redirects to /connections/:name on success", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    const sendMock = vi.fn().mockResolvedValue({ Contents: [] });
-    mockGetS3Client.mockResolvedValue({ send: sendMock });
+    seedContext(vi.fn().mockResolvedValue({ Contents: [] }));
 
-    const response = (await invoke({ connectionName: "test-conn" })) as Response;
+    const response = (await invoke()) as Response;
 
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe("/connections/test-conn");
   });
 
   test("applies the connectionIndex filter while listing (drops zarr chunks + .cytario/)", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
     const sendMock = vi.fn().mockImplementation((cmd) => {
       const commandName = cmd?.constructor?.name ?? "";
       if (commandName === "ListObjectsV2Command") {
@@ -130,12 +96,10 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
       }
       return {};
     });
-    mockGetS3Client.mockResolvedValue({ send: sendMock });
+    seedContext(sendMock);
 
-    await invoke({ connectionName: "test-conn" });
+    await invoke();
 
-    // Both the ListObjectsV2 and PutObject calls happened; PutObject's Metadata
-    // reflects the filtered count (2: a.txt + .zattrs).
     const putCall = sendMock.mock.calls.find(
       ([c]) => c?.constructor?.name === "PutObjectCommand",
     );
@@ -143,9 +107,8 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
   });
 
   test("returns 500 on S3 failure", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockRejectedValue(new Error("S3 connection failed"));
-    const response = (await invoke({ connectionName: "test-conn" })) as Response;
+    seedContext(vi.fn().mockRejectedValue(new Error("S3 connection failed")));
+    const response = (await invoke()) as Response;
     expect(response.status).toBe(500);
   });
 });

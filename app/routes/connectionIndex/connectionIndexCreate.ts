@@ -12,9 +12,7 @@ import { join } from "path";
 import { ActionFunctionArgs, redirect } from "react-router";
 
 import { connectionIndexFilter } from "./connectionIndexFilter";
-import { authContext } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
-import { getConnection } from "~/routes/connections/connections.server";
+import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 
@@ -31,32 +29,13 @@ import { toIndexS3Key } from "~/utils/resourceId";
  * — they just revalidate.
  */
 export const connectionIndexCreate = async ({
-  params,
   context,
 }: ActionFunctionArgs) => {
-  const { user, credentials: connectionsCredentials } =
-    context.get(authContext);
-  const { connectionName } = params;
-
-  if (!connectionName) {
-    return new Response("Connection name is required", { status: 400 });
-  }
-
-  const connectionConfig = await getConnection(user, connectionName);
-  if (!connectionConfig) {
-    return new Response("Connection configuration not found", { status: 404 });
-  }
-
-  const { provider, bucketName, prefix } = connectionConfig;
-
-  const credentials = connectionsCredentials[connectionName];
-  if (!credentials) {
-    return new Response("No credentials for connection", { status: 401 });
-  }
+  const { connectionConfig, s3Client } = context.get(connectionContext);
+  const { name: connectionName, provider, bucketName, prefix } =
+    connectionConfig;
 
   try {
-    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
-
     const objects = await fetchIndexableObjects(s3Client, bucketName, prefix);
     const parquetBuffer = await buildIndexParquet(objects);
 

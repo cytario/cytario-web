@@ -39,7 +39,7 @@ const appRoutes = [
     file: "routes/connections/connections.route.tsx",
   },
   {
-    path: "/connections/:name/*",
+    path: "/connections/:connectionName/*",
     file: "routes/objects/objects.route.tsx",
   },
   {
@@ -77,8 +77,8 @@ const adminRoutes = [
 /** Data endpoints — authenticated, no layout (JSON responses). */
 const apiRoutes = [
   {
-    path: "/api/cyberduck-profile/:name",
-    file: "routes/api/cyberduck-profile.$name.ts",
+    path: "/api/cyberduck-profile/:connectionName",
+    file: "routes/api/cyberduck-profile.$connectionName.ts",
   },
   {
     path: "/api/recently-viewed",
@@ -89,7 +89,7 @@ const apiRoutes = [
     file: "routes/api/pinned.ts",
   },
   {
-    path: "/presign/:name/*",
+    path: "/presign/:connectionName/*",
     file: "routes/presign.route.tsx",
   },
 ];

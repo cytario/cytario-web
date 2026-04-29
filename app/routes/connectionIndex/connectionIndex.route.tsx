@@ -14,12 +14,12 @@ import {
 } from "react-router";
 
 import { loader } from "./connectionIndex.loader";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
+import { connectionMiddleware } from "~/.server/connection/connectionMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 
 
-export const middleware = [requestDurationMiddleware, authMiddleware];
+export const middleware = [requestDurationMiddleware, connectionMiddleware];
 
 export { loader } from "./connectionIndex.loader";
 export { action } from "./connectionIndex.action";

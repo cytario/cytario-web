@@ -3,10 +3,8 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { redirect, type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
-import { authContext } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
+import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
-import { getConnection } from "~/routes/connections/connections.server";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 /**
@@ -24,29 +22,13 @@ export interface BucketRouteLoaderResponse {
 }
 
 export const loader = async ({
-  params,
   context,
 }: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
-  const { user, credentials: connectionsCredentials } =
-    context.get(authContext);
-  const { name: connectionName } = params;
-
-  if (!connectionName) throw new Error("Connection name is required");
-
-  const connectionConfig = await getConnection(user, connectionName);
-  if (!connectionConfig) {
-    throw new Error("Connection configuration not found");
-  }
-
-  const { bucketName } = connectionConfig;
-
-  const credentials = connectionsCredentials[connectionName];
-  if (!credentials)
-    throw new Error(`No credentials for connection: ${connectionName}`);
+  const { connectionConfig, credentials, s3Client } =
+    context.get(connectionContext);
+  const { name: connectionName, bucketName } = connectionConfig;
 
   try {
-    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
-
     // Probe the parquet index. On miss, redirect to the index page where the
     // user can kick off the build explicitly. We do not auto-build here —
     // large buckets would block navigation for seconds with no feedback.

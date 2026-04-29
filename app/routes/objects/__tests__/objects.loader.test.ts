@@ -3,29 +3,36 @@ import { LoaderFunctionArgs } from "react-router";
 
 import mock from "~/utils/__tests__/__mocks__";
 
-const mockGetConnection = vi.fn();
-const mockGetS3Client = vi.fn();
+const mockContextGet = vi.fn();
 
-vi.mock("~/.server/auth/authMiddleware", () => ({
-  authContext: { get: vi.fn() },
-  authMiddleware: vi.fn(),
-}));
-vi.mock("~/.server/auth/getS3Client", () => ({
-  getS3Client: (...args: unknown[]) => mockGetS3Client(...args),
-}));
-vi.mock("~/routes/connections/connections.server", () => ({
-  getConnection: (...args: unknown[]) => mockGetConnection(...args),
+vi.mock("~/.server/connection/connectionMiddleware", () => ({
+  connectionContext: { get: vi.fn() },
+  connectionMiddleware: vi.fn(),
 }));
 
 vi.spyOn(console, "error").mockImplementation(() => {});
 
-async function runLoader(params: Record<string, string>, context: unknown) {
+const connectionConfig = mock.connectionConfig({
+  name: "test-conn",
+  bucketName: "test-bucket",
+  prefix: "data",
+});
+
+const seedContext = (sendMock: ReturnType<typeof vi.fn>) => {
+  mockContextGet.mockReturnValue({
+    connectionConfig,
+    credentials: mock.credentials(),
+    s3Client: { send: sendMock } as unknown as S3Client,
+  });
+};
+
+async function runLoader() {
   const { loader } = await import("~/routes/objects/objects.loader");
   try {
     const result = await loader({
-      params,
-      context,
-      request: new Request("http://localhost/connections/" + params.name),
+      params: { name: "test-conn", "*": "" },
+      context: { get: mockContextGet, set: vi.fn() } as never,
+      request: new Request("http://localhost/connections/test-conn"),
     } as unknown as LoaderFunctionArgs);
     return { result, thrown: undefined as undefined | Response };
   } catch (error) {
@@ -35,36 +42,14 @@ async function runLoader(params: Record<string, string>, context: unknown) {
 }
 
 describe("objects.loader", () => {
-  const user = mock.user();
-  const credentials = mock.credentials();
-  const connectionConfig = mock.connectionConfig({
-    name: "test-conn",
-    bucketName: "test-bucket",
-    prefix: "data",
-  });
-
-  const createContext = () => ({
-    get: () => ({
-      user,
-      credentials: { "test-conn": credentials },
-    }),
-    set: vi.fn(),
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   test("returns connection-stable metadata only (no urlPath / pathName / name / isPinned)", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockResolvedValue({
-      send: vi.fn().mockResolvedValue({}),
-    } as unknown as S3Client);
+    seedContext(vi.fn().mockResolvedValue({}));
 
-    const { result } = await runLoader(
-      { name: "test-conn", "*": "foo/bar" },
-      createContext(),
-    );
+    const { result } = await runLoader();
 
     expect(result.connectionName).toBe("test-conn");
     expect(result.bucketName).toBe("test-bucket");
@@ -80,14 +65,10 @@ describe("objects.loader", () => {
   });
 
   test("returns metadata when HeadObject succeeds (index exists)", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
     const sendMock = vi.fn().mockResolvedValue({});
-    mockGetS3Client.mockResolvedValue({ send: sendMock } as unknown as S3Client);
+    seedContext(sendMock);
 
-    const { result, thrown } = await runLoader(
-      { name: "test-conn", "*": "" },
-      createContext(),
-    );
+    const { result, thrown } = await runLoader();
 
     expect(thrown).toBeUndefined();
     expect(result).toBeTruthy();
@@ -95,16 +76,11 @@ describe("objects.loader", () => {
   });
 
   test("redirects to /connectionIndex/:name when HeadObject returns NotFound", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    const sendMock = vi
-      .fn()
-      .mockRejectedValue(new NotFound({ message: "nf", $metadata: {} }));
-    mockGetS3Client.mockResolvedValue({ send: sendMock } as unknown as S3Client);
-
-    const { thrown } = await runLoader(
-      { name: "test-conn", "*": "" },
-      createContext(),
+    seedContext(
+      vi.fn().mockRejectedValue(new NotFound({ message: "nf", $metadata: {} })),
     );
+
+    const { thrown } = await runLoader();
 
     expect(thrown).toBeInstanceOf(Response);
     expect(thrown?.status).toBe(302);
@@ -112,14 +88,9 @@ describe("objects.loader", () => {
   });
 
   test("returns notification when probe fails with a non-NotFound error", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    const sendMock = vi.fn().mockRejectedValue(new Error("Network error"));
-    mockGetS3Client.mockResolvedValue({ send: sendMock } as unknown as S3Client);
+    seedContext(vi.fn().mockRejectedValue(new Error("Network error")));
 
-    const { result } = await runLoader(
-      { name: "test-conn", "*": "" },
-      createContext(),
-    );
+    const { result } = await runLoader();
 
     expect(result.notification?.status).toBe("error");
     expect(result.notification?.message).toMatch(/index/i);

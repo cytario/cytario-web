@@ -10,7 +10,7 @@ export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
-  const { name: connectionName } = params;
+  const { connectionName } = params;
 
   if (!connectionName) {
     return new Response("Connection name is required", { status: 400 });

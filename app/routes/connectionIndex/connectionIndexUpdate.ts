@@ -11,9 +11,7 @@ import { join } from "path";
 import { ActionFunctionArgs } from "react-router";
 
 import { connectionIndexFilter } from "./connectionIndexFilter";
-import { authContext } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
-import { getConnection } from "~/routes/connections/connections.server";
+import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 
@@ -32,29 +30,11 @@ import { toIndexS3Key } from "~/utils/resourceId";
  * doesn't PATCH).
  */
 export const connectionIndexUpdate = async ({
-  params,
   request,
   context,
 }: ActionFunctionArgs) => {
-  const { user, credentials: connectionsCredentials } =
-    context.get(authContext);
-  const { connectionName } = params;
-
-  if (!connectionName) {
-    return new Response("Connection name is required", { status: 400 });
-  }
-
-  const connectionConfig = await getConnection(user, connectionName);
-  if (!connectionConfig) {
-    return new Response("Connection configuration not found", { status: 404 });
-  }
-
+  const { connectionConfig, s3Client } = context.get(connectionContext);
   const { provider, bucketName, prefix: connectionPrefix } = connectionConfig;
-
-  const credentials = connectionsCredentials[connectionName];
-  if (!credentials) {
-    return new Response("No credentials for connection", { status: 401 });
-  }
 
   const slice = new URL(request.url).searchParams.get("slice") ?? "";
 
@@ -85,8 +65,6 @@ export const connectionIndexUpdate = async ({
   }
 
   try {
-    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
-
     // 1. Download current parquet.
     const existing = await s3Client.send(
       new GetObjectCommand({ Bucket: bucketName, Key: indexKey }),

@@ -1,114 +1,60 @@
-import { NotFound } from "@aws-sdk/client-s3";
+import { type S3Client, NotFound } from "@aws-sdk/client-s3";
 import { LoaderFunctionArgs } from "react-router";
 
 import mock from "~/utils/__tests__/__mocks__";
 
-const mockGetConnection = vi.fn();
-const mockGetS3Client = vi.fn();
+const mockContextGet = vi.fn();
 
-vi.mock("~/.server/auth/authMiddleware", () => ({
-  authContext: { get: vi.fn() },
-  authMiddleware: vi.fn(),
-}));
-vi.mock("~/.server/auth/getS3Client", () => ({
-  getS3Client: (...args: unknown[]) => mockGetS3Client(...args),
-}));
-vi.mock("~/routes/connections/connections.server", () => ({
-  getConnection: (...args: unknown[]) => mockGetConnection(...args),
+vi.mock("~/.server/connection/connectionMiddleware", () => ({
+  connectionContext: { get: vi.fn() },
+  connectionMiddleware: vi.fn(),
 }));
 
 async function runLoader(
   args: {
-    params?: Record<string, string>;
-    context?: unknown;
+    sendMock?: ReturnType<typeof vi.fn>;
     url?: string;
   } = {},
 ) {
+  const send = args.sendMock ?? vi.fn();
+  mockContextGet.mockReturnValue({
+    connectionConfig: mock.connectionConfig({
+      name: "test-conn",
+      bucketName: "test-bucket",
+      prefix: "",
+    }),
+    credentials: mock.credentials(),
+    s3Client: { send } as unknown as S3Client,
+  });
+
   const { loader } = await import(
     "~/routes/connectionIndex/connectionIndex.loader"
   );
   try {
     const result = await loader({
-      params: args.params ?? {},
-      context: args.context,
-      request: new Request(args.url ?? "http://localhost/connectionIndex/x"),
+      params: { connectionName: "test-conn" },
+      context: { get: mockContextGet, set: vi.fn() } as never,
+      request: new Request(args.url ?? "http://localhost/connectionIndex/test-conn"),
     } as unknown as LoaderFunctionArgs);
     return { result, thrown: undefined as undefined | Response };
   } catch (error) {
-    if (error instanceof Response) {
-      return {
-        result: undefined as never,
-        thrown: error,
-      };
-    }
+    if (error instanceof Response) return { result: undefined as never, thrown: error };
     throw error;
   }
 }
 
 describe("loader (GET /connectionIndex/:connectionName)", () => {
-  const user = mock.user();
-  const credentials = mock.credentials();
-  const connectionConfig = mock.connectionConfig({
-    name: "test-conn",
-    bucketName: "test-bucket",
-    prefix: "",
-  });
-
-  const createContext = () => ({
-    get: () => ({
-      user,
-      credentials: { "test-conn": credentials },
-    }),
-    set: vi.fn(),
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test("throws 400 Response when connectionName is missing", async () => {
-    const { thrown } = await runLoader({ context: createContext() });
-    expect(thrown?.status).toBe(400);
-  });
-
-  test("throws 404 Response when connection config not found", async () => {
-    mockGetConnection.mockResolvedValue(null);
-
-    const { thrown } = await runLoader({
-      params: { connectionName: "nonexistent" },
-      context: createContext(),
-    });
-
-    expect(thrown?.status).toBe(404);
-  });
-
-  test("throws 401 Response when no credentials for bucket", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-
-    const { thrown } = await runLoader({
-      params: { connectionName: "test-conn" },
-      context: {
-        get: () => ({ user, credentials: {} }),
-        set: vi.fn(),
-      },
-    });
-
-    expect(thrown?.status).toBe(401);
-  });
-
   test("returns exists:true with metadata + sizeBytes when index exists", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockResolvedValue({
-      send: vi.fn().mockResolvedValue({
+    const { result } = await runLoader({
+      sendMock: vi.fn().mockResolvedValue({
         Metadata: { "object-count": "1500" },
         LastModified: new Date("2025-06-15T12:00:00Z"),
         ContentLength: 204800,
       }),
-    });
-
-    const { result } = await runLoader({
-      params: { connectionName: "test-conn" },
-      context: createContext(),
     });
 
     expect(result).toEqual({
@@ -121,55 +67,28 @@ describe("loader (GET /connectionIndex/:connectionName)", () => {
   });
 
   test("returns exists:false when index file not found", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockResolvedValue({
-      send: vi
+    const { result } = await runLoader({
+      sendMock: vi
         .fn()
         .mockRejectedValue(new NotFound({ message: "Not found", $metadata: {} })),
-    });
-
-    const { result } = await runLoader({
-      params: { connectionName: "test-conn" },
-      context: createContext(),
     });
 
     expect(result).toEqual({ connectionName: "test-conn", exists: false });
   });
 
   test("rethrows non-NotFound errors", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockResolvedValue({
-      send: vi.fn().mockRejectedValue(new Error("Network error")),
-    });
-
-    const { loader } = await import(
-      "~/routes/connectionIndex/connectionIndex.loader"
-    );
-
     await expect(
-      loader({
-        params: { connectionName: "test-conn" },
-        context: createContext(),
-        request: new Request(
-          "http://localhost/connectionIndex/test-conn",
-        ),
-      } as unknown as LoaderFunctionArgs),
+      runLoader({ sendMock: vi.fn().mockRejectedValue(new Error("Network error")) }),
     ).rejects.toThrow("Network error");
   });
 
   test("returns objectCount 0 when metadata has no object-count", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockResolvedValue({
-      send: vi.fn().mockResolvedValue({
+    const { result } = await runLoader({
+      sendMock: vi.fn().mockResolvedValue({
         Metadata: {},
         LastModified: new Date("2025-06-15T12:00:00Z"),
         ContentLength: 0,
       }),
-    });
-
-    const { result } = await runLoader({
-      params: { connectionName: "test-conn" },
-      context: createContext(),
     });
 
     expect(result).toEqual({
@@ -182,17 +101,11 @@ describe("loader (GET /connectionIndex/:connectionName)", () => {
   });
 
   test("returns sizeBytes: null when ContentLength is missing", async () => {
-    mockGetConnection.mockResolvedValue(connectionConfig);
-    mockGetS3Client.mockResolvedValue({
-      send: vi.fn().mockResolvedValue({
+    const { result } = await runLoader({
+      sendMock: vi.fn().mockResolvedValue({
         Metadata: { "object-count": "100" },
         LastModified: new Date("2025-06-15T12:00:00Z"),
       }),
-    });
-
-    const { result } = await runLoader({
-      params: { connectionName: "test-conn" },
-      context: createContext(),
     });
 
     expect(result).toMatchObject({ sizeBytes: null });
@@ -200,28 +113,20 @@ describe("loader (GET /connectionIndex/:connectionName)", () => {
 
   describe("?slice=… live slice", () => {
     test("omits liveSlice when ?slice is absent", async () => {
-      mockGetConnection.mockResolvedValue(connectionConfig);
-      mockGetS3Client.mockResolvedValue({
-        send: vi.fn().mockResolvedValue({
+      const { result } = await runLoader({
+        sendMock: vi.fn().mockResolvedValue({
           Metadata: { "object-count": "10" },
           LastModified: new Date(),
           ContentLength: 100,
         }),
       });
 
-      const { result } = await runLoader({
-        params: { connectionName: "test-conn" },
-        context: createContext(),
-      });
-
       expect(result).not.toHaveProperty("liveSlice");
     });
 
     test("includes liveSlice built from ListObjectsV2(Delimiter=/) when ?slice present", async () => {
-      mockGetConnection.mockResolvedValue(connectionConfig);
       const sendMock = vi
         .fn()
-        // first call: ListObjectsV2 for the slice
         .mockResolvedValueOnce({
           Contents: [
             {
@@ -239,17 +144,14 @@ describe("loader (GET /connectionIndex/:connectionName)", () => {
           ],
           CommonPrefixes: [{ Prefix: "foo/sub/" }],
         })
-        // second call: HeadObject probe
         .mockResolvedValueOnce({
           Metadata: { "object-count": "123" },
           LastModified: new Date("2025-06-14T09:00:00Z"),
           ContentLength: 4096,
         });
-      mockGetS3Client.mockResolvedValue({ send: sendMock });
 
       const { result } = await runLoader({
-        params: { connectionName: "test-conn" },
-        context: createContext(),
+        sendMock,
         url: "http://localhost/connectionIndex/test-conn?slice=foo/",
       });
 
@@ -275,20 +177,13 @@ describe("loader (GET /connectionIndex/:connectionName)", () => {
     });
 
     test("liveSlice still populated when index is missing", async () => {
-      mockGetConnection.mockResolvedValue(connectionConfig);
       const sendMock = vi
         .fn()
-        // ListObjectsV2 returns fine
         .mockResolvedValueOnce({ Contents: [], CommonPrefixes: [] })
-        // HeadObject 404s
-        .mockRejectedValueOnce(
-          new NotFound({ message: "nf", $metadata: {} }),
-        );
-      mockGetS3Client.mockResolvedValue({ send: sendMock });
+        .mockRejectedValueOnce(new NotFound({ message: "nf", $metadata: {} }));
 
       const { result } = await runLoader({
-        params: { connectionName: "test-conn" },
-        context: createContext(),
+        sendMock,
         url: "http://localhost/connectionIndex/test-conn?slice=",
       });
 

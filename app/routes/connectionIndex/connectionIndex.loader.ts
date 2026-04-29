@@ -1,4 +1,5 @@
 import {
+  type S3Client,
   HeadObjectCommand,
   ListObjectsV2Command,
   NotFound,
@@ -6,9 +7,7 @@ import {
 import { LoaderFunctionArgs } from "react-router";
 
 import { connectionIndexFilter } from "./connectionIndexFilter";
-import { authContext } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
-import { getConnection } from "~/routes/connections/connections.server";
+import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 
@@ -58,31 +57,11 @@ export type ConnectionIndexLoaderData =
  * the index currently holds for the same slice.
  */
 export const loader = async ({
-  params,
   request,
   context,
 }: LoaderFunctionArgs): Promise<ConnectionIndexLoaderData> => {
-  const { user, credentials: connectionsCredentials } =
-    context.get(authContext);
-  const { connectionName } = params;
-
-  if (!connectionName) {
-    throw new Response("Connection name is required", { status: 400 });
-  }
-
-  const connectionConfig = await getConnection(user, connectionName);
-  if (!connectionConfig) {
-    throw new Response("Connection configuration not found", { status: 404 });
-  }
-
-  const { bucketName, prefix } = connectionConfig;
-
-  const credentials = connectionsCredentials[connectionName];
-  if (!credentials) {
-    throw new Response("No credentials for connection", { status: 401 });
-  }
-
-  const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
+  const { connectionConfig, s3Client } = context.get(connectionContext);
+  const { name: connectionName, bucketName, prefix } = connectionConfig;
 
   const sliceParam = new URL(request.url).searchParams.get("slice");
   const liveSlice =
@@ -123,7 +102,7 @@ export const loader = async ({
 };
 
 async function fetchLiveSlice(
-  s3Client: Awaited<ReturnType<typeof getS3Client>>,
+  s3Client: S3Client,
   bucketName: string,
   connectionPrefix: string,
   slice: string,

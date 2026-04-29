@@ -11,6 +11,7 @@ import {
 } from "react-router";
 
 import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
+import { connectionMiddleware } from "~/.server/connection/connectionMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
@@ -43,7 +44,7 @@ const Viewer = lazy(() =>
 export { loader };
 export type { BucketRouteLoaderResponse };
 
-export const middleware = [requestDurationMiddleware];
+export const middleware = [requestDurationMiddleware, connectionMiddleware];
 
 export const meta: MetaFunction<typeof loader> = ({ params, loaderData }) => {
   const urlPath = params["*"] ?? "";
@@ -57,7 +58,7 @@ export const handle = {
     data?: BucketRouteLoaderResponse;
   }) => {
     const { params, data } = match;
-    const connectionName = data?.connectionName ?? params.name ?? "";
+    const connectionName = data?.connectionName ?? params.connectionName ?? "";
     const pathName = params["*"] ?? "";
 
     const segments = pathName ? pathName.split("/") : [];
@@ -80,7 +81,7 @@ export const handle = {
 export const shouldRevalidate: ShouldRevalidateFunction = ({
   currentParams,
   nextParams,
-}) => currentParams.name !== nextParams.name;
+}) => currentParams.connectionName !== nextParams.connectionName;
 
 export default function ObjectsRoute() {
   const {
