@@ -90,6 +90,60 @@ export async function connectionIndexRead({
   }
 }
 
+interface ConnectionIndexSearchArgs {
+  connection: Connection;
+  /** Substring to match against `key` (case-insensitive). */
+  query: string;
+  limit?: number;
+}
+
+/**
+ * Substring-match search across a connection's parquet index. Empty `query`
+ * returns no rows. Missing index returns an empty list (search is best-effort
+ * across many connections — one missing index shouldn't break the whole run).
+ */
+export async function connectionIndexSearch({
+  connection: { credentials, connectionConfig },
+  query,
+  limit = 1000,
+}: ConnectionIndexSearchArgs): Promise<ConnectionIndexRow[]> {
+  if (!query) return [];
+
+  const db = await createDatabase(
+    `${connectionConfig.name}:index`,
+    credentials,
+    connectionConfig,
+    false,
+  );
+
+  const s3Uri = toS3Uri(
+    connectionConfig.bucketName,
+    toIndexS3Key(connectionConfig.prefix ?? ""),
+  );
+  if (s3Uri.includes("'")) {
+    throw new Error("Invalid S3 URI for DuckDB query: contains single quote");
+  }
+
+  try {
+    const stmt = await db.prepare(/* sql */ `
+      SELECT
+        key AS "Key",
+        size AS "Size",
+        last_modified AS "LastModified",
+        etag AS "ETag"
+      FROM read_parquet('${s3Uri}')
+      WHERE LOWER(key) LIKE LOWER($1)
+      ORDER BY key
+      LIMIT $2
+    `);
+    const result = await stmt.query(`%${query}%`, limit);
+    return extractRows(result);
+  } catch (err) {
+    if (isHttpNotFound(err)) return [];
+    throw err;
+  }
+}
+
 /**
  * httpfs surfaces a 404 as e.g. `IO Error: HTTP GET error on '<url>': HTTP 404`.
  * The message is the only reliable signal — DuckDB-WASM doesn't expose a

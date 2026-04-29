@@ -1,13 +1,12 @@
 import { Button, Input, Tree, useToast } from "@cytario/design";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFetcher } from "react-router";
+import { useCallback, useState } from "react";
 
 import {
   type TreeNode,
   findNodeById,
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { LavaLoader } from "~/components/LavaLoader";
-import { SearchRouteLoaderResponse } from "~/routes/search.route";
+import { useSearchAcrossConnections } from "~/routes/connectionIndex/useSearchAcrossConnections";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 
 interface AddOverlayProps {
@@ -20,23 +19,7 @@ interface AddOverlayProps {
 export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const { toast } = useToast();
 
-  const searchString = `/search?query=${query}`;
-
-  // Fetch available files on mount
-  const objectsFetcher = useFetcher<SearchRouteLoaderResponse>();
-
-  useEffect(() => {
-    if (!objectsFetcher.data && objectsFetcher.state === "idle") {
-      objectsFetcher.load(searchString);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on state transitions
-  }, [objectsFetcher.state, objectsFetcher.data, searchString]);
-
-  const nodes = useMemo(
-    () => objectsFetcher.data?.nodes ?? [],
-    [objectsFetcher.data?.nodes],
-  );
-  const isLoading = objectsFetcher.state === "loading";
+  const { nodes, isLoading } = useSearchAcrossConnections(query);
 
   // Selection state: single file selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

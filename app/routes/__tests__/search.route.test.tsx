@@ -1,74 +1,30 @@
-import { S3Client } from "@aws-sdk/client-s3";
-import { createContext } from "react-router";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
-import { type SessionData } from "~/.server/auth/sessionStorage";
 import { loader, handle } from "~/routes/search.route";
-import mock from "~/utils/__tests__/__mocks__";
-
-vi.mock("~/.server/auth/authMiddleware", () => ({
-  authContext: createContext<Partial<SessionData>>(),
-  authMiddleware: vi.fn(async (_ctx, next) => next()),
-}));
-
-vi.mock("~/.server/auth/getS3Client", () => ({
-  getS3Client: vi.fn(),
-}));
-
-vi.mock("~/utils/getObjects", () => ({
-  getObjects: vi.fn(),
-}));
-
-const { authContext } = await import("~/.server/auth/authMiddleware");
-const { getS3Client } = await import("~/.server/auth/getS3Client");
-const { getObjects } = await import("~/utils/getObjects");
 
 describe("SearchRoute", () => {
-  test("loader should propagate errors from getGlobalSearch", async () => {
-    // Setup mocks with return values
-    vi.mocked(getS3Client).mockResolvedValue({} as S3Client);
-    vi.mocked(getObjects).mockRejectedValue(
-      new Error("Search service unavailable")
-    );
-
-    const request = new Request("http://localhost/search?query=test");
-
-    // Mock the context.get(authContext) call
-    const mockContext = {
-      get: vi.fn((ctx) => {
-        if (ctx === authContext) {
-          return {
-            user: mock.user(),
-            authTokens: {
-              idToken: mock.idToken(),
-              accessToken: "mock-access-token",
-              refreshToken: "mock-refresh-token",
-            },
-            credentials: {
-              "aws-mock-bucket": mock.credentials(),
-            },
-            connectionConfigs: [mock.connectionConfig()],
-          };
-        }
-        return undefined;
-      }),
-    };
-
-    await expect(
-      loader({
-        request,
-        params: {},
-        context: mockContext as never,
-        unstable_pattern: "",
-        unstable_url: new URL(request.url),
-      })
-    ).rejects.toThrow("Search service unavailable");
+  test("loader extracts query from the URL", () => {
+    const request = new Request("http://localhost/search?query=patient-x");
+    const result = loader({
+      request,
+      params: {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    expect(result).toEqual({ searchQuery: "patient-x" });
   });
 
-  test("handle should return correct breadcrumb", () => {
-    const breadcrumb = handle.breadcrumb();
+  test("loader defaults missing query to empty string", () => {
+    const request = new Request("http://localhost/search");
+    const result = loader({
+      request,
+      params: {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    expect(result).toEqual({ searchQuery: "" });
+  });
 
-    expect(breadcrumb).toEqual({ label: "Search", to: "/search" });
+  test("handle returns the search breadcrumb", () => {
+    expect(handle.breadcrumb()).toEqual({ label: "Search", to: "/search" });
   });
 
   test("loader scopes each connection's listing to its own prefix and produces sibling top-level nodes when connections share a bucket", async () => {

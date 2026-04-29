@@ -6,16 +6,14 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 // --- Mocks ---
 
-const mockUseFetcherLoad = vi.fn();
-let mockFetcherData: { nodes: TreeNode[] } | undefined;
-let mockFetcherState: string;
+const mockUseSearchAcrossConnections = vi.fn();
+mockUseSearchAcrossConnections.mockReturnValue({
+  nodes: [] as TreeNode[],
+  isLoading: false,
+});
 
-vi.mock("react-router", () => ({
-  useFetcher: () => ({
-    load: mockUseFetcherLoad,
-    data: mockFetcherData,
-    state: mockFetcherState,
-  }),
+vi.mock("~/routes/connectionIndex/useSearchAcrossConnections", () => ({
+  useSearchAcrossConnections: (q: string) => mockUseSearchAcrossConnections(q),
 }));
 
 vi.mock("~/utils/db/convertCsvToParquet", () => ({
@@ -30,8 +28,6 @@ vi.mock("~/utils/resourceId", () => ({
 vi.mock("~/components/LavaLoader", () => ({
   LavaLoader: () => <div data-testid="lava-loader" />,
 }));
-
-// --- Helpers ---
 
 const mockToast = vi.fn();
 
@@ -78,28 +74,27 @@ function makeTreeNodes(): TreeNode[] {
 describe("AddOverlay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetcherData = undefined;
-    mockFetcherState = "idle";
+    mockUseSearchAcrossConnections.mockReturnValue({
+      nodes: [],
+      isLoading: false,
+    });
   });
 
-  test("fetches files on mount with correct search query for parquet", () => {
-    mockFetcherState = "idle";
-
+  test("calls the search hook with the parquet query on mount", () => {
     render(<AddOverlay query="parquet" />);
-
-    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?query=parquet");
+    expect(mockUseSearchAcrossConnections).toHaveBeenCalledWith("parquet");
   });
 
-  test("fetches files on mount with correct search query for csv", () => {
-    mockFetcherState = "idle";
-
+  test("calls the search hook with the csv query on mount", () => {
     render(<AddOverlay query="csv" />);
-
-    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?query=csv");
+    expect(mockUseSearchAcrossConnections).toHaveBeenCalledWith("csv");
   });
 
-  test("shows loading state while fetcher is loading", () => {
-    mockFetcherState = "loading";
+  test("shows loading state while the search is in flight", () => {
+    mockUseSearchAcrossConnections.mockReturnValue({
+      nodes: [],
+      isLoading: true,
+    });
 
     render(<AddOverlay query="parquet" />);
 
@@ -107,9 +102,6 @@ describe("AddOverlay", () => {
   });
 
   test("shows empty state when no files found", () => {
-    mockFetcherData = { nodes: [] };
-    mockFetcherState = "idle";
-
     render(<AddOverlay query="parquet" />);
 
     expect(
@@ -118,8 +110,10 @@ describe("AddOverlay", () => {
   });
 
   test("renders tree with file nodes", () => {
-    mockFetcherData = { nodes: makeTreeNodes() };
-    mockFetcherState = "idle";
+    mockUseSearchAcrossConnections.mockReturnValue({
+      nodes: makeTreeNodes(),
+      isLoading: false,
+    });
 
     render(<AddOverlay query="parquet" />);
 
@@ -129,8 +123,10 @@ describe("AddOverlay", () => {
   });
 
   test("renders search input with correct placeholder for parquet", () => {
-    mockFetcherData = { nodes: makeTreeNodes() };
-    mockFetcherState = "idle";
+    mockUseSearchAcrossConnections.mockReturnValue({
+      nodes: makeTreeNodes(),
+      isLoading: false,
+    });
 
     render(<AddOverlay query="parquet" />);
 
@@ -140,8 +136,10 @@ describe("AddOverlay", () => {
   });
 
   test("Load button is disabled when no file is selected", () => {
-    mockFetcherData = { nodes: makeTreeNodes() };
-    mockFetcherState = "idle";
+    mockUseSearchAcrossConnections.mockReturnValue({
+      nodes: makeTreeNodes(),
+      isLoading: false,
+    });
 
     render(<AddOverlay query="parquet" />);
 
@@ -150,9 +148,6 @@ describe("AddOverlay", () => {
   });
 
   test("shows Convert button for csv query", () => {
-    mockFetcherData = { nodes: [] };
-    mockFetcherState = "idle";
-
     render(<AddOverlay query="csv" />);
 
     expect(
@@ -161,8 +156,6 @@ describe("AddOverlay", () => {
   });
 
   test("shows Cancel button when callback is provided", () => {
-    mockFetcherData = { nodes: [] };
-    mockFetcherState = "idle";
     const callback = vi.fn();
 
     render(<AddOverlay query="parquet" callback={callback} />);
@@ -173,9 +166,6 @@ describe("AddOverlay", () => {
   });
 
   test("does not show Cancel button when callback is not provided", () => {
-    mockFetcherData = { nodes: [] };
-    mockFetcherState = "idle";
-
     render(<AddOverlay query="parquet" />);
 
     expect(
@@ -184,8 +174,6 @@ describe("AddOverlay", () => {
   });
 
   test("calls callback when Cancel is pressed", async () => {
-    mockFetcherData = { nodes: [] };
-    mockFetcherState = "idle";
     const callback = vi.fn();
     const user = userEvent.setup();
 
