@@ -11,13 +11,11 @@ import type { LoaderData } from "./connections.loader";
 import { createAction } from "./createConnection.action";
 import { deleteAction } from "./deleteConnection.action";
 import { updateAction } from "./updateConnection.action";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { useInitConnections } from "~/hooks/useInitConnections";
 import { useModal } from "~/hooks/useModal";
 
 export const action = async (args: ActionFunctionArgs) => {
@@ -51,14 +49,10 @@ export const handle = {
   breadcrumb: () => ({ label: "Connections", to: "/connections" }),
 };
 
-export const middleware = [authMiddleware];
-
 export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
-  const { nodes, credentials, connectionConfigs } =
-    useLoaderData<LoaderData>();
+  const { nodes } = useLoaderData<LoaderData>();
 
-  useInitConnections(connectionConfigs, credentials);
   const { openModal } = useModal();
 
   if (nodes.length === 0) {

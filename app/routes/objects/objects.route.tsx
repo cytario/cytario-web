@@ -13,7 +13,6 @@ import {
   type BucketRouteLoaderResponse,
   loader,
 } from "./objects.loader";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
@@ -28,7 +27,6 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
@@ -45,7 +43,7 @@ const Viewer = lazy(() =>
 export { loader };
 export type { BucketRouteLoaderResponse };
 
-export const middleware = [requestDurationMiddleware, authMiddleware];
+export const middleware = [requestDurationMiddleware];
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
   { title: loaderData?.name ?? "Cytario" },
@@ -101,7 +99,6 @@ export default function ObjectsRoute() {
     nodes,
     urlPath,
     pathName,
-    credentials,
     connectionConfig,
     isPinned: loaderIsPinned,
     isSingleFile,
@@ -111,7 +108,6 @@ export default function ObjectsRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const { openModal } = useModal();
-  const setConnection = useConnectionsStore(select.setConnection);
 
   // Handle notifications from loader
   useEffect(() => {
@@ -125,13 +121,6 @@ export default function ObjectsRoute() {
 
   const resourceId = `${connectionName}/${urlPath}`;
   const fileType = getFileType(resourceId);
-
-  // Store credentials and connection config in Zustand store (keyed by connection name)
-  useEffect(() => {
-    if (credentials && connectionConfig) {
-      setConnection(credentials, connectionConfig);
-    }
-  }, [connectionName, credentials, connectionConfig, setConnection]);
 
   // Track recently viewed files and directories (DB-backed via server action).
   // Only track when urlPath is non-empty — the connection root itself isn't a viewable item.
