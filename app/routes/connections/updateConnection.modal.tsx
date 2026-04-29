@@ -3,7 +3,7 @@ import { useRouteLoaderData, useSearchParams } from "react-router";
 import { ConnectionForm } from "./connection.form";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { RouteModal } from "~/components/RouteModal";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export default function UpdateConnectionModal({
   onClose,

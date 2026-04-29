@@ -14,7 +14,8 @@ import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
 import { LavaLoader } from "~/components/LavaLoader";
-import { useConnectionsStore, selectConnection } from "~/utils/connectionsStore";
+import { select as connectionsSelect } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { getFileName, parseResourceId } from "~/utils/resourceId";
@@ -56,11 +57,13 @@ export const OverlaysControllerItem = ({
   );
 
   const { connectionName } = parseResourceId(resourceId);
-  const connection = useConnectionsStore(selectConnection(connectionName));
+  const connectionConfig = useConnectionsStore(
+    connectionsSelect.connectionConfig(connectionName),
+  );
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
-    if (hasMarkers || !connection) return;
+    if (hasMarkers || !connectionConfig) return;
 
     const fetchMarkers = async () => {
       setIsLoading(true);
@@ -90,7 +93,7 @@ export const OverlaysControllerItem = ({
   }, [
     hasMarkers,
     resourceId,
-    connection,
+    connectionConfig,
     updateOverlaysState,
     toast,
     fileName,

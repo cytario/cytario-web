@@ -1,6 +1,6 @@
 import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
-import { resolveResourceId } from "~/utils/connectionsStore";
+import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 
 /**
  * Fetch rows from a data file on S3.

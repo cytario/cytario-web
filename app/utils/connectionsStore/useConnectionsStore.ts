@@ -6,38 +6,46 @@ import { immer } from "zustand/middleware/immer";
 import type { ConnectionConfig } from "~/.generated/client";
 import { createMigrate } from "~/utils/persistMigration";
 
-export interface ConnectionIndex {
-  status: "unknown" | "loading" | "ready" | "missing" | "error";
-  objectCount: number;
-  builtAt: string | null;
-}
-
-export interface ConnectionRecord {
-  credentials: Credentials;
+/**
+ * A connection joins the static config (DB metadata) with the credentials
+ * (STS-minted) needed to make signed requests.
+ */
+export interface Connection {
   connectionConfig: ConnectionConfig;
-  connectionIndex?: ConnectionIndex;
+  credentials: Credentials;
 }
 
 /**
- * Connections store for managing S3 bucket connections (credentials, config, index state).
+ * Connections store. Single map keyed by `config.name`.
  *
- * Keys are connection names (globally unique, e.g. "my-bucket" or "my-bucket-deliverables").
+ * Note: credentials are stored per-connection, not per-bucket. STS dedup
+ * happens server-side at mint time (`getAllSessionCredentials`); on the
+ * client we keep a flat per-connection mapping so connections that share
+ * a bucket but differ in role can hold distinct credentials.
  */
 export interface ConnectionsStore {
-  connections: Record<string, ConnectionRecord>;
+  connections: Record<string, Connection>;
   setConnection: (
-    key: string,
     credentials: Credentials,
     connectionConfig: ConnectionConfig,
   ) => void;
-  setConnectionIndex: (key: string, index: ConnectionIndex) => void;
-  clearConnection: (key: string) => void;
-  clearAll: () => void;
+  /**
+   * Replace the whole store contents in a single write. Both inputs are
+   * keyed by connection name (server's `getAllSessionCredentials` mints one
+   * set of credentials per connection). Prunes entries for connections
+   * deleted server-side.
+   */
+  reconcileConnections: (
+    configs: ConnectionConfig[],
+    credentials: Record<string, Credentials>,
+  ) => void;
 }
 
 const name = "ConnectionsStore";
 
-const FALLBACK_STATE = { connections: {} };
+const FALLBACK_STATE: Pick<ConnectionsStore, "connections"> = {
+  connections: {},
+};
 
 export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
@@ -45,17 +53,12 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       immer((set) => ({
         connections: {},
 
-        setConnection: (
-          key: string,
-          credentials: Credentials,
-          connectionConfig: ConnectionConfig,
-        ) => {
+        setConnection: (credentials, connectionConfig) => {
           set(
             (state) => {
-              state.connections[key] = {
-                ...state.connections[key],
-                credentials,
+              state.connections[connectionConfig.name] = {
                 connectionConfig,
+                credentials,
               };
             },
             false,
@@ -63,65 +66,40 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           );
         },
 
-        setConnectionIndex: (key: string, index: ConnectionIndex) => {
+        reconcileConnections: (configs, credentials) => {
           set(
             (state) => {
-              // Only set index on existing connection records
-              if (state.connections[key]) {
-                state.connections[key].connectionIndex = index;
+              const next: Record<string, Connection> = {};
+              for (const connectionConfig of configs) {
+                const creds = credentials[connectionConfig.name];
+                if (!creds) continue;
+                next[connectionConfig.name] = {
+                  connectionConfig,
+                  credentials: creds,
+                };
               }
+              state.connections = next;
             },
             false,
-            "setConnectionIndex",
-          );
-        },
-
-        clearConnection: (key: string) => {
-          set(
-            (state) => {
-              delete state.connections[key];
-            },
-            false,
-            "clearConnection",
-          );
-        },
-
-        clearAll: () => {
-          set(
-            (state) => {
-              state.connections = {};
-            },
-            false,
-            "clearAll",
+            "reconcileConnections",
           );
         },
       })),
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
-        version: 3,
-        migrate: createMigrate<Pick<ConnectionsStore, "connections">>(
+        version: 5,
+        migrate: createMigrate<typeof FALLBACK_STATE>(
           {
             1: () => FALLBACK_STATE,
             2: () => FALLBACK_STATE,
+            3: () => FALLBACK_STATE,
+            4: () => FALLBACK_STATE,
           },
           FALLBACK_STATE,
         ),
         partialize: (state) => ({
-          connections: Object.fromEntries(
-            (
-              Object.entries(state.connections) as [
-                string,
-                ConnectionRecord,
-              ][]
-            ).map(([key, record]) => [
-              key,
-              {
-                credentials: record.credentials,
-                connectionConfig: record.connectionConfig,
-              },
-            ]),
-          ),
+          connections: state.connections,
         }),
         onRehydrateStorage: () => (_state, error) => {
           if (error)

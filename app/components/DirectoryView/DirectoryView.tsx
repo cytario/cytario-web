@@ -21,7 +21,8 @@ import {
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
-import { useConnectionsStore } from "~/utils/connectionsStore";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 /**
  * What the DirectoryView is listing. Drives column config, the table
@@ -57,7 +58,7 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  const connections = useConnectionsStore((s) => s.connections);
+  const connections = useConnectionsStore(select.connections);
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const showFilters = useLayoutStore((s) => s.showFilters);
 
@@ -72,7 +73,14 @@ export function DirectoryView({
   );
 
   const filteredNodes = useMemo(
-    () => filterNodes(visibleNodes, columnFilters, columns, kind, connections),
+    () =>
+      filterNodes(
+        visibleNodes,
+        columnFilters,
+        columns,
+        kind,
+        connections,
+      ),
     [visibleNodes, columnFilters, columns, kind, connections],
   );
 
@@ -91,9 +99,7 @@ export function DirectoryView({
         const v = accessor(node);
         if (v) unique.add(v);
       }
-      result[col.id] = [...unique]
-        .sort()
-        .map((v) => ({ label: v, value: v }));
+      result[col.id] = [...unique].sort().map((v) => ({ label: v, value: v }));
     }
     return result;
   }, [visibleNodes, columns, kind, connections]);

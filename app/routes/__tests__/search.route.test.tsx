@@ -45,7 +45,7 @@ describe("SearchRoute", () => {
               refreshToken: "mock-refresh-token",
             },
             credentials: {
-              "mock-bucket": mock.credentials(),
+              "aws-mock-bucket": mock.credentials(),
             },
             connectionConfigs: [mock.connectionConfig()],
           };
