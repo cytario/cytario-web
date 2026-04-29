@@ -113,7 +113,7 @@ describe("getAllSessionCredentials", () => {
 
   test("returns existing credentials when all are valid", async () => {
     const validCredentials = {
-      "bucket-a": mock.credentials(),
+      "conn-a": mock.credentials(),
     };
     const sessionData = {
       ...mockSessionData,
@@ -121,65 +121,74 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ bucketName: "bucket-a" }),
+      mock.connectionConfig({ name: "conn-a" }),
     ]);
 
     expect(result).toBe(validCredentials);
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  test("fetches credentials for buckets with missing credentials", async () => {
+  test("fetches credentials for connections with missing credentials", async () => {
     const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "new-bucket" }),
+      mock.connectionConfig({ name: "new-conn" }),
     ]);
 
-    expect(result).toEqual({ "new-bucket": mockCredentials });
+    expect(result).toEqual({ "new-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
-  test("fetches credentials for buckets with expired credentials", async () => {
+  test("fetches credentials for connections with expired credentials", async () => {
     const sessionData = {
       ...mockSessionData,
       credentials: {
-        "expired-bucket": mock.credentials({
+        "expired-conn": mock.credentials({
           Expiration: new Date(Date.now() - 60 * 1000),
         }),
       },
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ bucketName: "expired-bucket" }),
+      mock.connectionConfig({ name: "expired-conn" }),
     ]);
 
-    expect(result).toEqual({ "expired-bucket": mockCredentials });
+    expect(result).toEqual({ "expired-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
-  test("deduplicates by bucket name (multiple prefix configs)", async () => {
+  test("mints separately for connections sharing a bucket but differing in role", async () => {
     const configs = [
-      mock.connectionConfig({ bucketName: "shared-bucket", prefix: "" }),
-      mock.connectionConfig({ bucketName: "shared-bucket", prefix: "data/images" }),
-      mock.connectionConfig({ bucketName: "shared-bucket", prefix: "data/tiles" }),
+      mock.connectionConfig({
+        name: "internal",
+        bucketName: "shared-bucket",
+        roleArn: "arn:aws:iam::123:role/internal",
+      }),
+      mock.connectionConfig({
+        name: "external",
+        bucketName: "shared-bucket",
+        roleArn: "arn:aws:iam::123:role/external",
+      }),
     ];
 
-    await getAllSessionCredentials(mockSessionData, configs);
+    const result = await getAllSessionCredentials(mockSessionData, configs);
 
-    // Only one STS call despite three configs for the same bucket
-    expect(mockSend).toHaveBeenCalledTimes(1);
+    // No bucket dedup — each connection gets its own STS mint.
+    expect(mockSend).toHaveBeenCalledTimes(2);
+    expect(result["internal"]).toEqual(mockCredentials);
+    expect(result["external"]).toEqual(mockCredentials);
   });
 
-  test("fetches multiple buckets in parallel", async () => {
+  test("fetches multiple connections in parallel", async () => {
     const configs = [
-      mock.connectionConfig({ bucketName: "bucket-a" }),
-      mock.connectionConfig({ bucketName: "bucket-b" }),
+      mock.connectionConfig({ name: "conn-a" }),
+      mock.connectionConfig({ name: "conn-b" }),
     ];
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
 
     expect(mockSend).toHaveBeenCalledTimes(2);
     expect(result).toEqual({
-      "bucket-a": mockCredentials,
-      "bucket-b": mockCredentials,
+      "conn-a": mockCredentials,
+      "conn-b": mockCredentials,
     });
   });
 
@@ -187,17 +196,17 @@ describe("getAllSessionCredentials", () => {
     const existingCredentials = mock.credentials();
     const sessionData = {
       ...mockSessionData,
-      credentials: { "existing-bucket": existingCredentials },
+      credentials: { "existing-conn": existingCredentials },
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ bucketName: "existing-bucket" }),
-      mock.connectionConfig({ bucketName: "new-bucket" }),
+      mock.connectionConfig({ name: "existing-conn" }),
+      mock.connectionConfig({ name: "new-conn" }),
     ]);
 
-    expect(result["existing-bucket"]).toBe(existingCredentials);
-    expect(result["new-bucket"]).toEqual(mockCredentials);
-    // Only fetched for new-bucket, not existing-bucket
+    expect(result["existing-conn"]).toBe(existingCredentials);
+    expect(result["new-conn"]).toEqual(mockCredentials);
+    // Only fetched for new-conn, not existing-conn
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
@@ -207,15 +216,15 @@ describe("getAllSessionCredentials", () => {
       .mockRejectedValueOnce(new Error("STS service unavailable"));
 
     const configs = [
-      mock.connectionConfig({ bucketName: "bucket-a" }),
-      mock.connectionConfig({ bucketName: "bucket-b" }),
+      mock.connectionConfig({ name: "conn-a" }),
+      mock.connectionConfig({ name: "conn-b" }),
     ];
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
 
-    // bucket-a succeeds, bucket-b fails silently
-    expect(result["bucket-a"]).toEqual(mockCredentials);
-    expect(result["bucket-b"]).toBeUndefined();
+    // conn-a succeeds, conn-b fails silently
+    expect(result["conn-a"]).toEqual(mockCredentials);
+    expect(result["conn-b"]).toBeUndefined();
   });
 
   test("calls STS with correct configuration", async () => {

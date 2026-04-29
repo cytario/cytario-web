@@ -43,6 +43,7 @@ export async function updateConnection(
     }
   }
 
+  const previousName = config.name;
   const previousBucketName = config.bucketName;
 
   // FKs on recentlyViewed/pinnedPath have ON UPDATE CASCADE,
@@ -61,7 +62,7 @@ export async function updateConnection(
     },
   });
 
-  return { ...updated, previousBucketName };
+  return { ...updated, previousName, previousBucketName };
 }
 
 export const updateAction = async ({
@@ -121,11 +122,12 @@ export const updateAction = async ({
       region: validated.providerType === "aws" ? validated.bucketRegion : null,
     });
 
-    // Invalidate cached credentials and S3 clients for the old bucket
+    // Invalidate cached credentials (keyed by connection name) and the S3
+    // client cache (keyed by bucket) for the previous identity.
     const credentials = session.get("credentials") ?? {};
-    delete credentials[updatedConfig.previousBucketName];
-    if (updatedConfig.bucketName !== updatedConfig.previousBucketName) {
-      delete credentials[updatedConfig.bucketName];
+    delete credentials[updatedConfig.previousName];
+    if (updatedConfig.name !== updatedConfig.previousName) {
+      delete credentials[updatedConfig.name];
     }
     session.set("credentials", credentials);
     invalidateS3ClientsForBucket(user.sub, updatedConfig.previousBucketName);

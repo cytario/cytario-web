@@ -62,19 +62,17 @@ describe("useConnectionsStore", () => {
   });
 
   describe("reconcileConnections", () => {
-    test("joins configs[] with bucket-keyed credentials", () => {
+    test("joins configs[] with name-keyed credentials", () => {
       const configs = [
-        mock.connectionConfig({ name: "conn-a", bucketName: "bucket-a" }),
-        mock.connectionConfig({ name: "conn-b", bucketName: "bucket-b" }),
+        mock.connectionConfig({ name: "conn-a" }),
+        mock.connectionConfig({ name: "conn-b" }),
       ];
-      const bucketCredentials = {
-        "bucket-a": mock.credentials({ AccessKeyId: "key-a" }),
-        "bucket-b": mock.credentials({ AccessKeyId: "key-b" }),
+      const credentials = {
+        "conn-a": mock.credentials({ AccessKeyId: "key-a" }),
+        "conn-b": mock.credentials({ AccessKeyId: "key-b" }),
       };
 
-      useConnectionsStore
-        .getState()
-        .reconcileConnections(configs, bucketCredentials);
+      useConnectionsStore.getState().reconcileConnections(configs, credentials);
 
       const { connections } = useConnectionsStore.getState();
       expect(connections["conn-a"]?.credentials.AccessKeyId).toBe("key-a");
@@ -91,19 +89,19 @@ describe("useConnectionsStore", () => {
       expect(useConnectionsStore.getState().connections).toEqual({});
     });
 
-    test("skips configs without matching bucket credentials", () => {
+    test("skips configs without matching credentials", () => {
       const configs = [
-        mock.connectionConfig({ name: "conn-a", bucketName: "bucket-a" }),
-        mock.connectionConfig({ name: "conn-b", bucketName: "bucket-b" }),
+        mock.connectionConfig({ name: "conn-a" }),
+        mock.connectionConfig({ name: "conn-b" }),
       ];
-      const bucketCredentials = {
-        "bucket-a": mock.credentials(),
-        // bucket-b has no credentials
+      const partialCredentials = {
+        "conn-a": mock.credentials(),
+        // conn-b has no credentials
       };
 
       useConnectionsStore
         .getState()
-        .reconcileConnections(configs, bucketCredentials);
+        .reconcileConnections(configs, partialCredentials);
 
       const { connections } = useConnectionsStore.getState();
       expect(connections["conn-a"]).toBeDefined();

@@ -30,14 +30,14 @@ export interface ConnectionsStore {
     connectionConfig: ConnectionConfig,
   ) => void;
   /**
-   * Replace the whole store contents in a single write. Joins the
-   * server-shaped inputs (configs[] + bucket-keyed credentials) into the
-   * client's per-connection structure. Prunes connections deleted
-   * server-side.
+   * Replace the whole store contents in a single write. Both inputs are
+   * keyed by connection name (server's `getAllSessionCredentials` mints one
+   * set of credentials per connection). Prunes entries for connections
+   * deleted server-side.
    */
   reconcileConnections: (
     configs: ConnectionConfig[],
-    bucketCredentials: Record<string, Credentials>,
+    credentials: Record<string, Credentials>,
   ) => void;
 }
 
@@ -66,15 +66,17 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           );
         },
 
-        reconcileConnections: (configs, bucketCredentials) => {
+        reconcileConnections: (configs, credentials) => {
           set(
             (state) => {
               const next: Record<string, Connection> = {};
               for (const connectionConfig of configs) {
-                const credentials =
-                  bucketCredentials[connectionConfig.bucketName];
-                if (!credentials) continue;
-                next[connectionConfig.name] = { connectionConfig, credentials };
+                const creds = credentials[connectionConfig.name];
+                if (!creds) continue;
+                next[connectionConfig.name] = {
+                  connectionConfig,
+                  credentials: creds,
+                };
               }
               state.connections = next;
             },

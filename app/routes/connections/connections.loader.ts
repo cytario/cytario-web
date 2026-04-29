@@ -5,7 +5,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
-import { SessionCredentials } from "~/.server/auth/sessionStorage";
+import { ConnectionsCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { isImageFile } from "~/utils/fileType";
 import { getObjects } from "~/utils/getObjects";
@@ -15,10 +15,10 @@ import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
 /** Find the first image file in a connection for the bucket card preview. */
 const fetchPreviewObject = async (
   config: ConnectionConfig,
-  credentials: SessionCredentials,
+  credentials: ConnectionsCredentials,
   userId: string,
 ): Promise<_Object | undefined> => {
-  const creds = credentials[config.bucketName];
+  const creds = credentials[config.name];
   if (!creds) return undefined;
   const s3 = await getS3Client(config, creds, userId);
   const objects = await getObjects(
