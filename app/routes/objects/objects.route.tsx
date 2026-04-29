@@ -26,7 +26,6 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { LavaLoader } from "~/components/LavaLoader";
 import { useModal } from "~/hooks/useModal";
 import { useDirectoryListing } from "~/routes/connectionIndex/useDirectoryListing";
-import { useDriftCheck } from "~/routes/connectionIndex/useDriftCheck";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
@@ -128,25 +127,11 @@ export default function ObjectsRoute() {
     }
   }, [notification]);
 
-  const {
-    nodes,
-    rows: indexRows,
-    isLoading: isListingLoading,
-  } = useDirectoryListing({
+  const { nodes, isLoading: isListingLoading } = useDirectoryListing({
     connection,
     prefix: getPrefix(absolutePath) ?? "",
     urlPath,
     enabled: !isViewableFile,
-  });
-
-  // Drift heal: compare the live S3 slice against what the index gave us.
-  // On mismatch, fire-and-forget a partial reindex. The rendered tree stays
-  // off `indexRows` — the patched index is picked up on next visit.
-  useDriftCheck({
-    connectionName,
-    urlPath,
-    indexRows,
-    enabled: !isViewableFile && !isListingLoading,
   });
 
   // Track recently viewed files and directories (DB-backed via server action).

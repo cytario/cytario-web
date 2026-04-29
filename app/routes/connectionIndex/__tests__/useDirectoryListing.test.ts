@@ -9,6 +9,21 @@ vi.mock("~/routes/connectionIndex/connectionIndexRead", () => ({
   connectionIndexRead: (...args: unknown[]) => mockListPrefix(...args),
 }));
 
+// Drift detection inside the hook uses `useFetcher` which requires a data
+// router. The listing-side tests don't exercise drift, so stub it out.
+vi.mock("react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router")>();
+  return {
+    ...actual,
+    useFetcher: () => ({
+      state: "idle",
+      data: undefined,
+      load: vi.fn(),
+      submit: vi.fn(),
+    }),
+  };
+});
+
 describe("useDirectoryListing", () => {
   const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
@@ -33,12 +48,11 @@ describe("useDirectoryListing", () => {
 
     expect(mockListPrefix).not.toHaveBeenCalled();
     expect(result.current.nodes).toEqual([]);
-    expect(result.current.rows).toEqual([]);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
 
-  test("exposes raw rows alongside built nodes", async () => {
+  test("builds nodes from fetched rows", async () => {
     const fetched = [
       {
         key: "data/foo/a.txt",
@@ -59,7 +73,6 @@ describe("useDirectoryListing", () => {
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.rows).toEqual(fetched);
     expect(result.current.nodes).toHaveLength(1);
   });
 

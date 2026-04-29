@@ -4,6 +4,7 @@ import {
   type ConnectionIndexRow,
   connectionIndexRead,
 } from "./connectionIndexRead";
+import { useDriftCheck } from "./useDriftCheck";
 import {
   buildDirectoryTree,
   type TreeNode,
@@ -22,15 +23,14 @@ interface UseDirectoryListingArgs {
 
 interface UseDirectoryListingResult {
   nodes: TreeNode[];
-  /** Raw rows from the index — exposed so drift detection can compare against the live slice. */
-  rows: ConnectionIndexRow[];
   isLoading: boolean;
   error: Error | null;
 }
 
 /**
  * Client-side directory listing backed by the parquet index. Reads via
- * DuckDB-WASM (`connectionIndexRead`) and constructs the tree in the browser.
+ * DuckDB-WASM (`connectionIndexRead`), constructs the tree in the browser,
+ * and fires drift detection in the background once the listing settles.
  *
  * Assumes the index already exists — the objects loader redirects to the
  * /connectionIndex/:name page on miss, so by the time this hook runs the
@@ -91,8 +91,15 @@ export function useDirectoryListing({
     };
   }, [enabled, connection, prefix, urlPath]);
 
+  useDriftCheck({
+    connectionName: connection.connectionConfig.name,
+    urlPath,
+    indexRows: rows,
+    enabled: enabled && !isLoading,
+  });
+
   if (!enabled) {
-    return { nodes: [], rows: [], isLoading: false, error: null };
+    return { nodes: [], isLoading: false, error: null };
   }
-  return { nodes, rows, isLoading, error };
+  return { nodes, isLoading, error };
 }

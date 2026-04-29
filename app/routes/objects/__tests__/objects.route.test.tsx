@@ -24,9 +24,6 @@ vi.mock("~/routes/connections/connections.server", () => ({
 vi.mock("~/routes/connectionIndex/useDirectoryListing", () => ({
   useDirectoryListing: (...args: unknown[]) => mockUseDirectoryListing(...args),
 }));
-vi.mock("~/routes/connectionIndex/useDriftCheck", () => ({
-  useDriftCheck: vi.fn(),
-}));
 
 vi.mock("@cytario/design", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@cytario/design")>();
