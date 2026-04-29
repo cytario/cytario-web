@@ -1,15 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { twMerge } from "tailwind-merge";
 
-export const LavaLoader = ({
-  absolute = false,
-  rows = 3,
-  cols = 3,
-}: {
+import { ClientOnly } from "./ClientOnly";
+
+interface LavaLoaderProps {
   absolute?: boolean;
   rows?: number;
   cols?: number;
-}) => {
+}
+
+export const LavaLoader = (props: LavaLoaderProps) => (
+  // Inner uses Math.random() during render — wrap in ClientOnly so SSR
+  // doesn't disagree with hydration on the active dot's `r` attribute.
+  <ClientOnly>
+    <LavaLoaderInner {...props} />
+  </ClientOnly>
+);
+
+const LavaLoaderInner = ({
+  absolute = false,
+  rows = 3,
+  cols = 3,
+}: LavaLoaderProps) => {
   const totalDots = rows * cols;
   const size = 12;
   const duration = 500;

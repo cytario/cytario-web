@@ -99,6 +99,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
   const location = useLocation();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const isInitialRender = useRef(true);
 
   useEffect(() => {
@@ -154,14 +155,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {data?.user && <AppHeader />}
+        <RouterProvider navigate={navigate} useHref={useHref}>
+          {data?.user && <AppHeader />}
 
-        <main
-          id="main-content"
-          className="relative flex-1 min-h-0 outline-none"
-        >
-          {children}
-        </main>
+          <main
+            id="main-content"
+            className="relative flex-1 min-h-0 outline-none"
+          >
+            {children}
+          </main>
+        </RouterProvider>
 
         <div id="tooltip" />
         <ScrollRestoration />
@@ -172,14 +175,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const navigate = useNavigate();
-
   return (
-    <RouterProvider navigate={navigate} useHref={useHref}>
-      <ToastProvider bridge={toastBridge} placement="top-center">
-        <Outlet />
-      </ToastProvider>
-    </RouterProvider>
+    <ToastProvider bridge={toastBridge} placement="top-center">
+      <Outlet />
+    </ToastProvider>
   );
 }
 
