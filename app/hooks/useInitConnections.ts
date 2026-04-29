@@ -2,12 +2,10 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { useEffect } from "react";
 
 import { ConnectionConfig } from "~/.generated/client";
-import { probeIndex } from "~/utils/connectionIndex";
 import { select, useConnectionsStore } from "~/utils/connectionsStore";
 
 /**
- * Stores credentials and config for all connections in the Zustand store,
- * then probes each connection's index status.
+ * Stores credentials and config for all connections in the Zustand store.
  * Safe to call from multiple routes -- idempotent per connection name.
  */
 export function useInitConnections(
@@ -22,7 +20,6 @@ export function useInitConnections(
       if (!creds) continue;
 
       setConnection(config.name, creds, config);
-      probeIndex(config.name);
     }
   }, [credentials, connectionConfigs, setConnection]);
 }

@@ -5,7 +5,6 @@ import { ConnectionConfig } from "~/.generated/client";
 import mock from "~/utils/__tests__/__mocks__";
 
 const mockSetConnection = vi.fn();
-const mockProbeIndex = vi.fn();
 
 vi.mock("~/utils/connectionsStore", () => ({
   useConnectionsStore: vi.fn((selector) =>
@@ -16,14 +15,9 @@ vi.mock("~/utils/connectionsStore", () => ({
   },
 }));
 
-vi.mock("~/utils/connectionIndex", () => ({
-  probeIndex: (...args: unknown[]) => mockProbeIndex(...args),
-}));
-
 describe("useInitConnections", () => {
   beforeEach(() => {
     mockSetConnection.mockClear();
-    mockProbeIndex.mockClear();
   });
 
   test("calls setConnection for each config with matching credentials", () => {
