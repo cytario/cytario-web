@@ -58,7 +58,7 @@ export function DirectoryView({
   const isGrid = viewMode === "grid" || viewMode === "grid-compact";
   const isTree = viewMode === "tree";
 
-  const connectionConfigs = useConnectionsStore(select.connectionConfigs);
+  const connections = useConnectionsStore(select.connections);
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const showFilters = useLayoutStore((s) => s.showFilters);
 
@@ -79,16 +79,16 @@ export function DirectoryView({
         columnFilters,
         columns,
         kind,
-        connectionConfigs,
+        connections,
       ),
-    [visibleNodes, columnFilters, columns, kind, connectionConfigs],
+    [visibleNodes, columnFilters, columns, kind, connections],
   );
 
   // Derive unique values per filterable select column so FilterBar's select
   // inputs offer real options (mirrors tanstack's getFacetedUniqueValues used
   // by the table column-header filter).
   const dynamicOptions = useMemo(() => {
-    const accessors = getNodeAccessors(kind, connectionConfigs);
+    const accessors = getNodeAccessors(kind, connections);
     const result: Record<string, { label: string; value: string }[]> = {};
     for (const col of columns) {
       if (col.filterType !== "select" || col.filterOptions) continue;
@@ -102,7 +102,7 @@ export function DirectoryView({
       result[col.id] = [...unique].sort().map((v) => ({ label: v, value: v }));
     }
     return result;
-  }, [visibleNodes, columns, kind, connectionConfigs]);
+  }, [visibleNodes, columns, kind, connections]);
 
   // Tree mode only filters by name (via the design-system Tree's `searchTerm`).
   // Non-name filters (type, scope, provider) are inert in tree mode. The tree

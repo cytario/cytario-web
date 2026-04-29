@@ -7,76 +7,76 @@ import type { ConnectionConfig } from "~/.generated/client";
 import { createMigrate } from "~/utils/persistMigration";
 
 /**
- * The joined view of a single connection — produced by `selectConnection` for
- * callers that want config + credentials together. Not the persisted shape.
+ * A connection joins the static config (DB metadata) with the credentials
+ * (STS-minted) needed to make signed requests.
  */
-export interface ConnectionRecord {
-  credentials: Credentials;
+export interface Connection {
   connectionConfig: ConnectionConfig;
+  credentials: Credentials;
 }
 
 /**
- * Connections store. Two concerns, two maps:
+ * Connections store. Single map keyed by `config.name`.
  *
- * - `connectionConfigs` keyed by `config.name` — static metadata from the DB.
- * - `bucketCredentials` keyed by `config.bucketName` — STS-minted per bucket,
- *   shared across any connections that point at the same bucket (one mint,
- *   one refresh, no torn state).
+ * Note: credentials are stored per-connection, not per-bucket. STS dedup
+ * happens server-side at mint time (`getAllSessionCredentials`); on the
+ * client we keep a flat per-connection mapping so connections that share
+ * a bucket but differ in role can hold distinct credentials.
  */
 export interface ConnectionsStore {
-  connectionConfigs: Record<string, ConnectionConfig>;
-  bucketCredentials: Record<string, Credentials>;
+  connections: Record<string, Connection>;
   setConnection: (
     credentials: Credentials,
     connectionConfig: ConnectionConfig,
   ) => void;
   /**
-   * Replace the whole store contents in a single write. Use when you have
-   * the authoritative set of visible connections + per-bucket credentials
-   * (e.g. from the auth context) and want to prune stale entries for
-   * connections that were deleted server-side.
+   * Replace the whole store contents in a single write. Joins the
+   * server-shaped inputs (configs[] + bucket-keyed credentials) into the
+   * client's per-connection structure. Prunes connections deleted
+   * server-side.
    */
   reconcileConnections: (
-    connectionConfigs: ConnectionConfig[],
+    configs: ConnectionConfig[],
     bucketCredentials: Record<string, Credentials>,
   ) => void;
 }
 
 const name = "ConnectionsStore";
 
-const FALLBACK_STATE: Pick<
-  ConnectionsStore,
-  "connectionConfigs" | "bucketCredentials"
-> = {
-  connectionConfigs: {},
-  bucketCredentials: {},
+const FALLBACK_STATE: Pick<ConnectionsStore, "connections"> = {
+  connections: {},
 };
 
 export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
     persist(
       immer((set) => ({
-        connectionConfigs: {},
-        bucketCredentials: {},
+        connections: {},
 
         setConnection: (credentials, connectionConfig) => {
           set(
             (state) => {
-              state.connectionConfigs[connectionConfig.name] = connectionConfig;
-              state.bucketCredentials[connectionConfig.bucketName] = credentials;
+              state.connections[connectionConfig.name] = {
+                connectionConfig,
+                credentials,
+              };
             },
             false,
             "setConnection",
           );
         },
 
-        reconcileConnections: (connectionConfigs, bucketCredentials) => {
+        reconcileConnections: (configs, bucketCredentials) => {
           set(
             (state) => {
-              state.connectionConfigs = Object.fromEntries(
-                connectionConfigs.map((c) => [c.name, c]),
-              );
-              state.bucketCredentials = { ...bucketCredentials };
+              const next: Record<string, Connection> = {};
+              for (const connectionConfig of configs) {
+                const credentials =
+                  bucketCredentials[connectionConfig.bucketName];
+                if (!credentials) continue;
+                next[connectionConfig.name] = { connectionConfig, credentials };
+              }
+              state.connections = next;
             },
             false,
             "reconcileConnections",
@@ -86,18 +86,18 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       {
         name: "connections-storage",
         storage: createJSONStorage(() => sessionStorage),
-        version: 4,
+        version: 5,
         migrate: createMigrate<typeof FALLBACK_STATE>(
           {
             1: () => FALLBACK_STATE,
             2: () => FALLBACK_STATE,
             3: () => FALLBACK_STATE,
+            4: () => FALLBACK_STATE,
           },
           FALLBACK_STATE,
         ),
         partialize: (state) => ({
-          connectionConfigs: state.connectionConfigs,
-          bucketCredentials: state.bucketCredentials,
+          connections: state.connections,
         }),
         onRehydrateStorage: () => (_state, error) => {
           if (error)

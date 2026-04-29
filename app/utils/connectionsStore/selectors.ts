@@ -17,14 +17,13 @@ export interface ResolvedResource {
 }
 
 export const select = {
+  connection: (connectionName: string) => (state: ConnectionsStore) =>
+    state.connections[connectionName],
+  connections: (state: ConnectionsStore) => state.connections,
   connectionConfig: (connectionName: string) => (state: ConnectionsStore) =>
-    state.connectionConfigs[connectionName],
-  connectionConfigs: (state: ConnectionsStore) => state.connectionConfigs,
-  credentials: (connectionName: string) => (state: ConnectionsStore) => {
-    const config = state.connectionConfigs[connectionName];
-    if (!config) return undefined;
-    return state.bucketCredentials[config.bucketName];
-  },
+    state.connections[connectionName]?.connectionConfig,
+  credentials: (connectionName: string) => (state: ConnectionsStore) =>
+    state.connections[connectionName]?.credentials,
   setConnection: (state: ConnectionsStore) => state.setConnection,
   reconcileConnections: (state: ConnectionsStore) => state.reconcileConnections,
 };
@@ -33,30 +32,23 @@ export const select = {
  * Non-reactive resolve for use in async callbacks and utility functions.
  * Reads current state snapshot — does not subscribe to changes.
  *
- * Contrast with reactive selectors (`selectConnection`, `selectHttpsUrl`):
- * those return `null` when the store doesn't yet hold the connection. This
- * throws — callers that can fire before store hydration should either guard
- * upstream or catch the error.
+ * Contrast with reactive selectors (`selectHttpsUrl`): those return `null`
+ * when the store doesn't yet hold the connection. This throws — callers
+ * that can fire before store hydration should either guard upstream or
+ * catch the error.
  *
- * @throws Error if the connection's config is missing, or if its bucket's
- *   credentials are missing (e.g. during the initial hydration window).
+ * @throws Error if the connection isn't in the store (typically the
+ *   initial hydration window).
  *
  * @example
- * // Inside an async callback / non-reactive utility:
  * const { credentials, connectionConfig, httpsUrl } = resolveResourceId(resourceId);
  * const response = await signedFetch(httpsUrl);
  */
 export function resolveResourceId(resourceId: string): ResolvedResource {
   const state = useConnectionsStore.getState();
   const { connectionName } = parseResourceId(resourceId);
-  const connectionConfig = state.connectionConfigs[connectionName];
-  if (!connectionConfig) {
-    throw new Error(`No connection config found for: ${connectionName}`);
-  }
-  if (!state.bucketCredentials[connectionConfig.bucketName]) {
-    throw new Error(
-      `No credentials found for bucket "${connectionConfig.bucketName}" (connection: ${connectionName})`,
-    );
+  if (!state.connections[connectionName]) {
+    throw new Error(`No connection found for: ${connectionName}`);
   }
   const resolved = resolveResource(resourceId, state);
   if (!resolved) {
@@ -91,15 +83,11 @@ function resolveResource(
   const { connectionName, pathName: connectionPathName } =
     parseResourceId(resourceId);
 
-  const connectionConfig = state.connectionConfigs[connectionName];
-  if (!connectionConfig) return null;
+  const connection = state.connections[connectionName];
+  if (!connection) return null;
 
-  const bucketCredentials =
-    state.bucketCredentials[connectionConfig.bucketName];
-  if (!bucketCredentials) return null;
-
+  const { connectionConfig, credentials } = connection;
   const bucketPrefix = connectionConfig.prefix?.replace(/\/$/, "");
-
   const bucketPathName = bucketPrefix
     ? `${bucketPrefix}/${connectionPathName}`
     : connectionPathName;
@@ -108,7 +96,7 @@ function resolveResource(
     connectionName,
     connectionConfig,
     pathName: connectionPathName,
-    credentials: bucketCredentials,
+    credentials,
     s3Uri: `s3://${connectionConfig.bucketName}/${bucketPathName}`,
     httpsUrl: constructS3Url(connectionConfig, bucketPathName),
   };

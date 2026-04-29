@@ -48,12 +48,10 @@ function useSignedFetch(connectionName: string) {
     if (!connectionConfig) return null;
     return createSignedFetch(
       () =>
-        useConnectionsStore.getState().bucketCredentials[
-          connectionConfig.bucketName
-        ],
+        useConnectionsStore.getState().connections[connectionName]?.credentials,
       connectionConfig,
     );
-  }, [connectionConfig]);
+  }, [connectionName, connectionConfig]);
 
   return { connectionConfig, signedFetch };
 }

@@ -205,12 +205,21 @@ describe("filterNodes", () => {
       makeNode({ name: "bucket1", type: "bucket", connectionName: "conn-aws" }),
       makeNode({ name: "bucket2", type: "bucket", connectionName: "conn-minio" }),
     ];
-    const mockConfigs = {
-      "conn-aws": { provider: "aws" },
-      "conn-minio": { provider: "minio" },
-    } as unknown as Record<string, import("~/.generated/client").ConnectionConfig>;
+    const mockConnections = {
+      "conn-aws": { connectionConfig: { provider: "aws" } },
+      "conn-minio": { connectionConfig: { provider: "minio" } },
+    } as unknown as Record<
+      string,
+      import("~/utils/connectionsStore/useConnectionsStore").Connection
+    >;
     const filters: ColumnFiltersState = [{ id: "provider", value: "aws" }];
-    const result = filterNodes(nodes, filters, bucketColumns, "connections", mockConfigs);
+    const result = filterNodes(
+      nodes,
+      filters,
+      bucketColumns,
+      "connections",
+      mockConnections,
+    );
     expect(result).toHaveLength(1);
     expect(result[0].connectionName).toBe("conn-aws");
   });

@@ -10,24 +10,22 @@ describe("useConnectionsStore", () => {
   });
 
   beforeEach(() => {
-    useConnectionsStore.setState({
-      connectionConfigs: {},
-      bucketCredentials: {},
-    });
+    useConnectionsStore.setState({ connections: {} });
   });
 
   describe("setConnection", () => {
-    test("stores credentials (by bucketName) and connectionConfig (by name)", () => {
+    test("stores connection keyed by config.name", () => {
       useConnectionsStore
         .getState()
         .setConnection(credentials, connectionConfig);
 
-      const state = useConnectionsStore.getState();
-      expect(state.connectionConfigs["test-conn"]).toEqual(connectionConfig);
-      expect(state.bucketCredentials["test-bucket"]).toEqual(credentials);
+      const entry = useConnectionsStore.getState().connections["test-conn"];
+      expect(entry).toBeDefined();
+      expect(entry.connectionConfig).toEqual(connectionConfig);
+      expect(entry.credentials).toEqual(credentials);
     });
 
-    test("overwrites existing connection credentials atomically (same bucket)", () => {
+    test("overwrites existing entry on subsequent calls", () => {
       useConnectionsStore
         .getState()
         .setConnection(credentials, connectionConfig);
@@ -38,12 +36,12 @@ describe("useConnectionsStore", () => {
         .setConnection(newCredentials, connectionConfig);
 
       expect(
-        useConnectionsStore.getState().bucketCredentials["test-bucket"]
+        useConnectionsStore.getState().connections["test-conn"]?.credentials
           .AccessKeyId,
       ).toBe("newKey");
     });
 
-    test("sibling connections sharing a bucket share credentials", () => {
+    test("sibling connections sharing a bucket each get their own entry", () => {
       const configA = mock.connectionConfig({
         name: "conn-a",
         bucketName: "shared-bucket",
@@ -56,16 +54,65 @@ describe("useConnectionsStore", () => {
       useConnectionsStore.getState().setConnection(credentials, configA);
       useConnectionsStore.getState().setConnection(credentials, configB);
 
-      const state = useConnectionsStore.getState();
-      expect(state.connectionConfigs["conn-a"]).toEqual(configA);
-      expect(state.connectionConfigs["conn-b"]).toEqual(configB);
-      // One credentials entry, shared by both.
-      expect(Object.keys(state.bucketCredentials)).toEqual(["shared-bucket"]);
+      const { connections } = useConnectionsStore.getState();
+      expect(connections["conn-a"]?.connectionConfig).toEqual(configA);
+      expect(connections["conn-b"]?.connectionConfig).toEqual(configB);
+      expect(Object.keys(connections)).toEqual(["conn-a", "conn-b"]);
+    });
+  });
+
+  describe("reconcileConnections", () => {
+    test("joins configs[] with bucket-keyed credentials", () => {
+      const configs = [
+        mock.connectionConfig({ name: "conn-a", bucketName: "bucket-a" }),
+        mock.connectionConfig({ name: "conn-b", bucketName: "bucket-b" }),
+      ];
+      const bucketCredentials = {
+        "bucket-a": mock.credentials({ AccessKeyId: "key-a" }),
+        "bucket-b": mock.credentials({ AccessKeyId: "key-b" }),
+      };
+
+      useConnectionsStore
+        .getState()
+        .reconcileConnections(configs, bucketCredentials);
+
+      const { connections } = useConnectionsStore.getState();
+      expect(connections["conn-a"]?.credentials.AccessKeyId).toBe("key-a");
+      expect(connections["conn-b"]?.credentials.AccessKeyId).toBe("key-b");
+    });
+
+    test("prunes connections deleted server-side", () => {
+      useConnectionsStore
+        .getState()
+        .setConnection(credentials, connectionConfig);
+
+      useConnectionsStore.getState().reconcileConnections([], {});
+
+      expect(useConnectionsStore.getState().connections).toEqual({});
+    });
+
+    test("skips configs without matching bucket credentials", () => {
+      const configs = [
+        mock.connectionConfig({ name: "conn-a", bucketName: "bucket-a" }),
+        mock.connectionConfig({ name: "conn-b", bucketName: "bucket-b" }),
+      ];
+      const bucketCredentials = {
+        "bucket-a": mock.credentials(),
+        // bucket-b has no credentials
+      };
+
+      useConnectionsStore
+        .getState()
+        .reconcileConnections(configs, bucketCredentials);
+
+      const { connections } = useConnectionsStore.getState();
+      expect(connections["conn-a"]).toBeDefined();
+      expect(connections["conn-b"]).toBeUndefined();
     });
   });
 
   describe("selectors", () => {
-    test("selectCredentials joins via bucketName", () => {
+    test("select.credentials returns the connection's credentials", () => {
       expect(
         select.credentials("missing")(useConnectionsStore.getState()),
       ).toBeUndefined();
@@ -152,7 +199,7 @@ describe("useConnectionsStore", () => {
   });
 
   describe("partialize", () => {
-    test("persists configs + credentials; excludes methods", () => {
+    test("persists connections; excludes methods", () => {
       useConnectionsStore
         .getState()
         .setConnection(credentials, connectionConfig);
@@ -171,11 +218,9 @@ describe("useConnectionsStore", () => {
         useConnectionsStore.getState(),
       ) as Record<string, unknown>;
 
-      expect(partialized).toHaveProperty("connectionConfigs");
-      expect(partialized).toHaveProperty("bucketCredentials");
+      expect(partialized).toHaveProperty("connections");
       expect(partialized).not.toHaveProperty("setConnection");
-      expect(partialized).not.toHaveProperty("clearConnection");
-      expect(partialized).not.toHaveProperty("clearAll");
+      expect(partialized).not.toHaveProperty("reconcileConnections");
     });
   });
 });

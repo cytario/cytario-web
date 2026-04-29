@@ -262,9 +262,8 @@ export default function ObjectsRoute() {
       const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () =>
-          useConnectionsStore.getState().bucketCredentials[
-            connectionConfig.bucketName
-          ],
+          useConnectionsStore.getState().connections[connectionName]
+            ?.credentials,
         connectionConfig,
       );
       return (

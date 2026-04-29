@@ -5,39 +5,43 @@ import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTableConnection } from "../DirectoryViewTableConnection";
 import mock from "~/utils/__tests__/__mocks__";
 
-const connectionConfigs = {
-  "aws-my-aws-bucket": mock.connectionConfig({
-    name: "aws-my-aws-bucket",
-    bucketName: "my-aws-bucket",
-    provider: "aws",
-    endpoint: "",
-    region: "eu-central-1",
-    roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
-    ownerScope: "cytario",
-    createdBy: "admin@cytario.com",
-  }),
-  "minio-minio-bucket": mock.connectionConfig({
-    name: "minio-minio-bucket",
-    bucketName: "minio-bucket",
-    provider: "minio",
-    endpoint: "https://s3.cytar.io",
-    region: null,
-    roleArn: null,
-    ownerScope: "cytario/lab",
-    createdBy: "lab@cytario.com",
-  }),
+const credentials = mock.credentials();
+const connections = {
+  "aws-my-aws-bucket": {
+    connectionConfig: mock.connectionConfig({
+      name: "aws-my-aws-bucket",
+      bucketName: "my-aws-bucket",
+      provider: "aws",
+      endpoint: "",
+      region: "eu-central-1",
+      roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
+      ownerScope: "cytario",
+      createdBy: "admin@cytario.com",
+    }),
+    credentials,
+  },
+  "minio-minio-bucket": {
+    connectionConfig: mock.connectionConfig({
+      name: "minio-minio-bucket",
+      bucketName: "minio-bucket",
+      provider: "minio",
+      endpoint: "https://s3.cytar.io",
+      region: null,
+      roleArn: null,
+      ownerScope: "cytario/lab",
+      createdBy: "lab@cytario.com",
+    }),
+    credentials,
+  },
 };
 
 vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
-  useConnectionsStore: vi.fn((selector) =>
-    selector({ connectionConfigs, bucketCredentials: {} }),
-  ),
+  useConnectionsStore: vi.fn((selector) => selector({ connections })),
 }));
 
 vi.mock("~/utils/connectionsStore/selectors", () => ({
   select: {
-    connectionConfigs: (state: { connectionConfigs: unknown }) =>
-      state.connectionConfigs,
+    connections: (state: { connections: unknown }) => state.connections,
   },
 }));
 
