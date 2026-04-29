@@ -8,7 +8,7 @@ interface UseDriftCheckArgs {
   connectionName: string;
   /** Current route splat — path relative to the connection root. */
   urlPath: string;
-  /** Rows `listPrefix` returned for the current slice. */
+  /** Rows the listing returned for the current slice. */
   indexRows: ConnectionIndexRow[];
   /** Skip the check entirely (e.g. viewing a single file). */
   enabled: boolean;
@@ -18,13 +18,16 @@ const TTL_MS = 60_000;
 
 /**
  * Asks the server for the live one-level slice under `urlPath` and compares
- * against `indexRows`. On drift, fire-and-forget POSTs a partial reindex to
- * `/connectionIndex/:name?slice=<urlPath>`.
+ * against `indexRows`. On drift, fire-and-forget POSTs a full rebuild to
+ * `/connectionIndex/:name`.
  *
  * The rendered tree is NOT updated — user sees the index's stale-but-close
- * data on this visit; the next visit renders off the patched index.
+ * data on this visit; the next visit renders off the rebuilt index.
  *
- * Throttled per (connection, slice): at most one live check per 60 seconds.
+ * Throttled per (connection, slice) to one live check per 60 seconds. The
+ * rebuild itself is fired at most once per connection per session: the first
+ * drift detected anywhere in the connection triggers a full rebuild, and
+ * subsequent drift checks (in any slice) won't queue a second one.
  */
 export function useDriftCheck({
   connectionName,
@@ -33,46 +36,43 @@ export function useDriftCheck({
   enabled,
 }: UseDriftCheckArgs): void {
   const liveFetcher = useFetcher<ConnectionIndexLoaderData>();
-  const patchFetcher = useFetcher();
+  const rebuildFetcher = useFetcher();
   const lastCheckedAt = useRef<Record<string, number>>({});
-  /**
-   * Slices we've already submitted a patch for in this session.
-   * Without this, revalidation after the patch re-fires the liveFetcher →
-   * we'd compare against still-stale indexRows and patch in a loop.
-   * The entry is cleared on URL change since the key includes the slice.
-   */
-  const patchedSlicesRef = useRef<Set<string>>(new Set());
+  const rebuiltConnectionsRef = useRef<Set<string>>(new Set());
 
-  const url = `/connectionIndex/${encodeURIComponent(connectionName)}?slice=${encodeURIComponent(urlPath)}`;
+  const sliceUrl = `/connectionIndex/${encodeURIComponent(connectionName)}?slice=${encodeURIComponent(urlPath)}`;
+  const rebuildUrl = `/connectionIndex/${encodeURIComponent(connectionName)}`;
   const throttleKey = `${connectionName}/${urlPath}`;
 
   // Fire the live-slice fetch once per URL change, throttled per slice.
   useEffect(() => {
     if (!enabled) return;
+    if (rebuiltConnectionsRef.current.has(connectionName)) return;
     const last = lastCheckedAt.current[throttleKey] ?? 0;
     if (Date.now() - last < TTL_MS) return;
     lastCheckedAt.current[throttleKey] = Date.now();
-    liveFetcher.load(url);
+    liveFetcher.load(sliceUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable; re-fire only on slice change
-  }, [enabled, url, throttleKey]);
+  }, [enabled, sliceUrl, throttleKey, connectionName]);
 
-  // When the live slice arrives, compare and patch if drifted. At most once
-  // per (connection, slice) per session — revalidation after the patch would
-  // otherwise loop us forever.
+  // When the live slice arrives, compare and trigger a full rebuild on drift.
+  // At most once per connection per session — once the rebuild is queued the
+  // current page keeps its stale rows; the rebuilt index is picked up on the
+  // next navigation.
   useEffect(() => {
     if (!enabled) return;
     if (liveFetcher.state !== "idle" || !liveFetcher.data?.liveSlice) return;
-    if (patchedSlicesRef.current.has(throttleKey)) return;
+    if (rebuiltConnectionsRef.current.has(connectionName)) return;
 
     const live = liveFetcher.data.liveSlice;
     const indexSubset = filterImmediateChildren(indexRows, live.prefix);
 
     if (!isDrifted(indexSubset, live.objects)) return;
 
-    patchedSlicesRef.current.add(throttleKey);
-    patchFetcher.submit(null, { method: "PATCH", action: url });
+    rebuiltConnectionsRef.current.add(connectionName);
+    rebuildFetcher.submit(null, { method: "POST", action: rebuildUrl });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: react only to fetcher resolution
-  }, [enabled, liveFetcher.state, liveFetcher.data, indexRows, throttleKey]);
+  }, [enabled, liveFetcher.state, liveFetcher.data, indexRows, connectionName]);
 }
 
 /**

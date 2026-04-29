@@ -16,10 +16,9 @@ type FetcherLike = {
   submit: ReturnType<typeof vi.fn>;
 };
 
-/** First useFetcher() = liveFetcher; second = patchFetcher. */
+/** First useFetcher() = liveFetcher (slice fetch); second = rebuildFetcher (POST). */
 function setupFetchers(
   liveState: { state?: FetcherLike["state"]; data?: unknown } = {},
-  patchState: { state?: FetcherLike["state"] } = {},
 ) {
   const liveLoad = vi.fn();
   const liveFetcher: FetcherLike = {
@@ -28,17 +27,17 @@ function setupFetchers(
     load: liveLoad,
     submit: vi.fn(),
   };
-  const patchSubmit = vi.fn();
-  const patchFetcher: FetcherLike = {
-    state: patchState.state ?? "idle",
+  const rebuildSubmit = vi.fn();
+  const rebuildFetcher: FetcherLike = {
+    state: "idle",
     data: null,
     load: vi.fn(),
-    submit: patchSubmit,
+    submit: rebuildSubmit,
   };
   (useFetcher as Mock)
     .mockReturnValueOnce(liveFetcher)
-    .mockReturnValueOnce(patchFetcher);
-  return { liveLoad, patchSubmit };
+    .mockReturnValueOnce(rebuildFetcher);
+  return { liveLoad, rebuildSubmit };
 }
 
 describe("useDriftCheck", () => {
@@ -47,7 +46,7 @@ describe("useDriftCheck", () => {
   });
 
   test("does nothing when disabled", () => {
-    const { liveLoad, patchSubmit } = setupFetchers();
+    const { liveLoad, rebuildSubmit } = setupFetchers();
 
     renderHook(() =>
       useDriftCheck({
@@ -59,7 +58,7 @@ describe("useDriftCheck", () => {
     );
 
     expect(liveLoad).not.toHaveBeenCalled();
-    expect(patchSubmit).not.toHaveBeenCalled();
+    expect(rebuildSubmit).not.toHaveBeenCalled();
   });
 
   test("fires liveFetcher.load on mount when enabled", () => {
@@ -79,7 +78,7 @@ describe("useDriftCheck", () => {
     );
   });
 
-  test("no patch submit when liveSlice matches index rows", async () => {
+  test("no rebuild when liveSlice matches index rows", async () => {
     const liveData: ConnectionIndexLoaderData = {
       connectionName: "Exchange",
       exists: true,
@@ -95,7 +94,7 @@ describe("useDriftCheck", () => {
         directories: [],
       },
     };
-    const { patchSubmit } = setupFetchers({ state: "idle", data: liveData });
+    const { rebuildSubmit } = setupFetchers({ state: "idle", data: liveData });
 
     renderHook(() =>
       useDriftCheck({
@@ -110,10 +109,10 @@ describe("useDriftCheck", () => {
     );
 
     await new Promise((r) => setTimeout(r, 0));
-    expect(patchSubmit).not.toHaveBeenCalled();
+    expect(rebuildSubmit).not.toHaveBeenCalled();
   });
 
-  test("fires patch submit when a new live key appears", async () => {
+  test("fires a full rebuild when a new live key appears", async () => {
     const liveData: ConnectionIndexLoaderData = {
       connectionName: "Exchange",
       exists: true,
@@ -129,7 +128,7 @@ describe("useDriftCheck", () => {
         directories: [],
       },
     };
-    const { patchSubmit } = setupFetchers({ state: "idle", data: liveData });
+    const { rebuildSubmit } = setupFetchers({ state: "idle", data: liveData });
 
     renderHook(() =>
       useDriftCheck({
@@ -140,14 +139,14 @@ describe("useDriftCheck", () => {
       }),
     );
 
-    await waitFor(() => expect(patchSubmit).toHaveBeenCalledTimes(1));
-    expect(patchSubmit).toHaveBeenCalledWith(null, {
-      method: "PATCH",
-      action: "/connectionIndex/Exchange?slice=foo%2F",
+    await waitFor(() => expect(rebuildSubmit).toHaveBeenCalledTimes(1));
+    expect(rebuildSubmit).toHaveBeenCalledWith(null, {
+      method: "POST",
+      action: "/connectionIndex/Exchange",
     });
   });
 
-  test("fires patch submit when etag differs (in-place modification)", async () => {
+  test("fires a full rebuild when etag differs (in-place modification)", async () => {
     const liveData: ConnectionIndexLoaderData = {
       connectionName: "Exchange",
       exists: true,
@@ -162,7 +161,7 @@ describe("useDriftCheck", () => {
         directories: [],
       },
     };
-    const { patchSubmit } = setupFetchers({ state: "idle", data: liveData });
+    const { rebuildSubmit } = setupFetchers({ state: "idle", data: liveData });
 
     renderHook(() =>
       useDriftCheck({
@@ -173,7 +172,7 @@ describe("useDriftCheck", () => {
       }),
     );
 
-    await waitFor(() => expect(patchSubmit).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(rebuildSubmit).toHaveBeenCalledTimes(1));
   });
 
   test("ignores rows outside the slice prefix when computing the subset", async () => {
@@ -192,7 +191,7 @@ describe("useDriftCheck", () => {
         directories: [],
       },
     };
-    const { patchSubmit } = setupFetchers({ state: "idle", data: liveData });
+    const { rebuildSubmit } = setupFetchers({ state: "idle", data: liveData });
 
     renderHook(() =>
       useDriftCheck({
@@ -208,6 +207,6 @@ describe("useDriftCheck", () => {
     );
 
     await new Promise((r) => setTimeout(r, 0));
-    expect(patchSubmit).not.toHaveBeenCalled();
+    expect(rebuildSubmit).not.toHaveBeenCalled();
   });
 });
