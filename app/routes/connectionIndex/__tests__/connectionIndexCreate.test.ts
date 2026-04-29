@@ -54,7 +54,7 @@ describe("connectionIndexCreate (POST /connectionIndex/:connectionName)", () => 
   const createContext = () => ({
     get: () => ({
       user,
-      credentials: { "test-bucket": credentials },
+      credentials: { "test-conn": credentials },
     }),
     set: vi.fn(),
   });

@@ -57,7 +57,7 @@ describe("loader (GET /connectionIndex/:connectionName)", () => {
   const createContext = () => ({
     get: () => ({
       user,
-      credentials: { "test-bucket": credentials },
+      credentials: { "test-conn": credentials },
     }),
     set: vi.fn(),
   });

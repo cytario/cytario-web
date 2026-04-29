@@ -34,7 +34,8 @@ export const connectionIndexCreate = async ({
   params,
   context,
 }: ActionFunctionArgs) => {
-  const { user, credentials: bucketsCredentials } = context.get(authContext);
+  const { user, credentials: connectionsCredentials } =
+    context.get(authContext);
   const { connectionName } = params;
 
   if (!connectionName) {
@@ -48,9 +49,9 @@ export const connectionIndexCreate = async ({
 
   const { provider, bucketName, prefix } = connectionConfig;
 
-  const credentials = bucketsCredentials[bucketName];
+  const credentials = connectionsCredentials[connectionName];
   if (!credentials) {
-    return new Response("No credentials for bucket", { status: 401 });
+    return new Response("No credentials for connection", { status: 401 });
   }
 
   try {

@@ -62,7 +62,8 @@ export const loader = async ({
   request,
   context,
 }: LoaderFunctionArgs): Promise<ConnectionIndexLoaderData> => {
-  const { user, credentials: bucketsCredentials } = context.get(authContext);
+  const { user, credentials: connectionsCredentials } =
+    context.get(authContext);
   const { connectionName } = params;
 
   if (!connectionName) {
@@ -76,9 +77,9 @@ export const loader = async ({
 
   const { bucketName, prefix } = connectionConfig;
 
-  const credentials = bucketsCredentials[bucketName];
+  const credentials = connectionsCredentials[connectionName];
   if (!credentials) {
-    throw new Response("No credentials for bucket", { status: 401 });
+    throw new Response("No credentials for connection", { status: 401 });
   }
 
   const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
