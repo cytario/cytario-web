@@ -7,11 +7,16 @@ import { ImageContainer } from "./ImageContainer";
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
 import { useInitializeChannels } from "./useInitializeChannels";
 import { useView } from "./useView";
+import { registerDecoders } from "../../state/decoders/registerDecoders";
 import { select } from "../../state/store/selectors";
 import { ViewPort } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ActiveViewStatePreview } from "../Measurements/ActiveViewStatePreview";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
+
+// Register geotiff decoders so dashboard thumbnails and the full viewer
+// can decode the same set of TIFF compression methods.
+registerDecoders();
 
 interface ViewProps {
   viewPort: ViewPort;

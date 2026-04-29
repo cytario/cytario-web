@@ -10,8 +10,16 @@ import { WorkerPool } from "./workerPool";
 const DEFAULT_WORKER_POOL_SIZE = 8;
 const CACHE_SIZE_LIMIT = 1000; // Limit cache to prevent memory leaks
 
-// Create a shared worker pool
-const workerPool = new WorkerPool(DecoderWorkerUrl, DEFAULT_WORKER_POOL_SIZE);
+// Lazy worker pool — instantiated on first decode so module load stays
+// side-effect free (test environments without Web Workers can import this
+// module just to register the decoder class).
+let workerPool: WorkerPool | null = null;
+const getWorkerPool = (): WorkerPool => {
+  if (!workerPool) {
+    workerPool = new WorkerPool(DecoderWorkerUrl, DEFAULT_WORKER_POOL_SIZE);
+  }
+  return workerPool;
+};
 
 // Cache for decoded blocks with LRU eviction
 const bufferCache = new LRUCache<number, ArrayBuffer>({
@@ -69,7 +77,7 @@ export class GenericDecoder extends BaseDecoder {
         }
 
         try {
-            const outputBuffer = await workerPool.runTask({
+            const outputBuffer = await getWorkerPool().runTask({
                 buffer: inputBuffer,
                 maxUncompressedSize: this.maxUncompressedSize,
                 decoderId: this.getDecoderId(),
@@ -125,6 +133,7 @@ export function clearDecoderCache(): void {
  * Terminates the worker pool and releases resources
  */
 export function shutdownDecoderPool(): void {
-    workerPool.terminate();
+    workerPool?.terminate();
+    workerPool = null;
     bufferCache.clear();
 }
