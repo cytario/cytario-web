@@ -12,6 +12,7 @@ import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
+import { useConnectionPreview } from "~/routes/connectionIndex/useConnectionPreview";
 import {
   select,
   selectHttpsUrl,
@@ -69,9 +70,9 @@ function BucketCardGridItem({
   const to = buildConnectionPath(connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  // Bucket nodes carry the first-image key from the connections loader on
-  // `_Object.Key` (already absolute — includes any configured prefix).
-  const previewKey = node._Object?.Key ?? null;
+  // First image key from the parquet index (client-side query). Null until
+  // the index responds, or if no images / no index.
+  const previewKey = useConnectionPreview(connectionName);
   const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
   const s3Url =
     hasPreview && connectionConfig

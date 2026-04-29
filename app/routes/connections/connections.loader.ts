@@ -1,35 +1,11 @@
-import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 import { type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
-import { ConnectionsCredentials } from "~/.server/auth/sessionStorage";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { isImageFile } from "~/utils/fileType";
-import { getObjects } from "~/utils/getObjects";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
-
-/** Find the first image file in a connection for the bucket card preview. */
-const fetchPreviewObject = async (
-  config: ConnectionConfig,
-  credentials: ConnectionsCredentials,
-  userId: string,
-): Promise<_Object | undefined> => {
-  const creds = credentials[config.name];
-  if (!creds) return undefined;
-  const s3 = await getS3Client(config, creds, userId);
-  const objects = await getObjects(
-    config,
-    s3,
-    null,
-    config.prefix || undefined,
-    100,
-  );
-  return objects.find((obj) => isImageFile(obj.Key ?? ""));
-};
 
 export type SerializedRecentlyViewed = {
   id: number;
@@ -57,36 +33,23 @@ export interface LoaderData {
   pinnedPaths: SerializedPinnedPath[];
 }
 
-export async function loadConnections({
-  context,
-}: LoaderFunctionArgs) {
+export async function loadConnections({ context }: LoaderFunctionArgs) {
   const { connectionConfigs, credentials, user } = context.get(authContext);
   const userId = user.sub;
 
-  const [previews, recentlyViewedRaw, pinnedPathsRaw] = await Promise.all([
-    Promise.allSettled(
-      connectionConfigs.map((config) =>
-        fetchPreviewObject(config, credentials, userId),
-      ),
-    ),
+  const [recentlyViewedRaw, pinnedPathsRaw] = await Promise.all([
     getRecentlyViewed(userId, 20),
     getPinnedPaths(userId),
   ]);
 
-  const nodes: TreeNode[] = connectionConfigs.map((config, i) => {
-    const result = previews[i];
-    const previewObj = result.status === "fulfilled" ? result.value : undefined;
-
-    return {
-      id: `${config.name}/`,
-      connectionName: config.name,
-      name: config.name,
-      type: "bucket" as const,
-      pathName: "",
-      children: [],
-      _Object: previewObj,
-    };
-  });
+  const nodes: TreeNode[] = connectionConfigs.map((config) => ({
+    id: `${config.name}/`,
+    connectionName: config.name,
+    name: config.name,
+    type: "bucket" as const,
+    pathName: "",
+    children: [],
+  }));
 
   const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
     (item) => ({
