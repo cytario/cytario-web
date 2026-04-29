@@ -12,11 +12,13 @@ import {
 } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { getObjects } from "~/utils/getObjects";
+import { getPrefix } from "~/utils/pathUtils";
 
 
 interface ConfigFiles {
   config: ConnectionConfig;
   files: _Object[];
+  prefix?: string;
 }
 
 export interface SearchRouteLoaderResponse {
@@ -51,15 +53,16 @@ export const loader = async ({
     }
 
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
+    const prefix = getPrefix(connectionConfig.prefix);
     const files =
-      (await getObjects(connectionConfig, s3Client, searchQuery)) ?? [];
+      (await getObjects(connectionConfig, s3Client, searchQuery, prefix)) ?? [];
 
     if (files.length > 0) {
-      results.push({ config: connectionConfig, files });
+      results.push({ config: connectionConfig, files, prefix });
     }
   }
 
-  const nodes: TreeNode[] = results.map(({ config, files }) => ({
+  const nodes: TreeNode[] = results.map(({ config, files, prefix }) => ({
     id: `${config.name}/`,
     connectionName: config.name,
     name: config.name,
@@ -68,7 +71,7 @@ export const loader = async ({
     children: buildDirectoryTree(
       files as _Object[],
       config.name,
-      config.prefix ?? "",
+      prefix ?? "",
     ),
   }));
 
