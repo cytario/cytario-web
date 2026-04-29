@@ -14,9 +14,9 @@ export function useInitConnections(
   connectionConfigs: ConnectionConfig[],
   credentials: Record<string, Credentials>,
 ) {
-  const reconcileConnections = useConnectionsStore(select.reconcileConnections);
+  const setConnections = useConnectionsStore(select.setConnections);
 
   useEffect(() => {
-    reconcileConnections(connectionConfigs, credentials);
-  }, [connectionConfigs, credentials, reconcileConnections]);
+    setConnections(connectionConfigs, credentials);
+  }, [connectionConfigs, credentials, setConnections]);
 }

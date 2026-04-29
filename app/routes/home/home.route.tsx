@@ -7,11 +7,9 @@ import {
   useLoaderData,
 } from "react-router";
 
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { useInitConnections } from "~/hooks/useInitConnections";
 import { useModal } from "~/hooks/useModal";
 import {
   type LoaderData,
@@ -47,15 +45,12 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
-export const middleware = [authMiddleware];
-
 export { loadConnections as loader } from "~/routes/connections/connections.loader";
 
 export default function HomeRoute() {
-  const { nodes, credentials, connectionConfigs, recentlyViewed, pinnedPaths } =
+  const { nodes, connectionConfigs, recentlyViewed, pinnedPaths } =
     useLoaderData<LoaderData>();
 
-  useInitConnections(connectionConfigs, credentials);
   const { openModal } = useModal();
 
   const configByName = useMemo(() => {

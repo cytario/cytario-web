@@ -24,8 +24,7 @@ export const select = {
     state.connections[connectionName]?.connectionConfig,
   credentials: (connectionName: string) => (state: ConnectionsStore) =>
     state.connections[connectionName]?.credentials,
-  setConnection: (state: ConnectionsStore) => state.setConnection,
-  reconcileConnections: (state: ConnectionsStore) => state.reconcileConnections,
+  setConnections: (state: ConnectionsStore) => state.setConnections,
 };
 
 /**

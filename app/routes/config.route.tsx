@@ -1,12 +1,9 @@
 import { Button, H2, Switch } from "@cytario/design";
 import { LoaderFunction, useLoaderData } from "react-router";
 
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { Section } from "~/components/Container";
 import { DescriptionList } from "~/components/DescriptionList";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
-
-export const middleware = [authMiddleware];
 
 export const handle = {
   breadcrumb: () => ({ label: "Config", to: "/config" }),

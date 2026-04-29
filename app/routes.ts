@@ -16,7 +16,7 @@ const authRoutes = [
   },
 ];
 
-/** Main application routes — authenticated, wrapped in scrollview layout. */
+/** Main application routes — authenticated, wrapped in protected layout. */
 const appRoutes = [
   {
     path: "/",
@@ -44,7 +44,7 @@ const appRoutes = [
   },
 ];
 
-/** Admin routes — scope-gated, wrapped in scrollview layout alongside appRoutes. */
+/** Admin routes — scope-gated, wrapped in protected layout alongside appRoutes. */
 const adminRoutes = [
   {
     path: "/admin/users",
@@ -92,7 +92,7 @@ const apiRoutes = [
 
 export default [
   ...authRoutes,
-  layout("routes/layouts/scrollview.layout.tsx", [
+  layout("routes/layouts/protected.layout.tsx", [
     ...appRoutes,
     ...adminRoutes,
   ]),
