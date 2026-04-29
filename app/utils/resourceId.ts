@@ -39,18 +39,6 @@ export function getFileName(resourceId: string): string {
   return pathName.split("/").pop() || pathName;
 }
 
-/**
- * Returns the S3 key for a connection's Parquet index file.
- * Empty prefix -> ".cytario/index.parquet"
- * With prefix  -> "<prefix>/.cytario/index.parquet"
- */
-export function toIndexS3Key(prefix = ""): string {
-  const normalized = prefix.replace(/\/$/, "");
-  return normalized
-    ? `${normalized}/.cytario/index.parquet`
-    : ".cytario/index.parquet";
-}
-
 /** Builds a routable URL path from a connection name and an object path. */
 export function buildConnectionPath(connectionName: string, pathName: string): string {
   const path = pathName
