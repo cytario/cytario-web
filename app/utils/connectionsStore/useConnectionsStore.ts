@@ -25,17 +25,13 @@ export interface Connection {
  */
 export interface ConnectionsStore {
   connections: Record<string, Connection>;
-  setConnection: (
-    credentials: Credentials,
-    connectionConfig: ConnectionConfig,
-  ) => void;
   /**
    * Replace the whole store contents in a single write. Both inputs are
    * keyed by connection name (server's `getAllSessionCredentials` mints one
    * set of credentials per connection). Prunes entries for connections
    * deleted server-side.
    */
-  reconcileConnections: (
+  setConnections: (
     configs: ConnectionConfig[],
     credentials: Record<string, Credentials>,
   ) => void;
@@ -53,20 +49,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       immer((set) => ({
         connections: {},
 
-        setConnection: (credentials, connectionConfig) => {
-          set(
-            (state) => {
-              state.connections[connectionConfig.name] = {
-                connectionConfig,
-                credentials,
-              };
-            },
-            false,
-            "setConnection",
-          );
-        },
-
-        reconcileConnections: (configs, credentials) => {
+        setConnections: (configs, credentials) => {
           set(
             (state) => {
               const next: Record<string, Connection> = {};
@@ -81,7 +64,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
               state.connections = next;
             },
             false,
-            "reconcileConnections",
+            "setConnections",
           );
         },
       })),

@@ -9,36 +9,56 @@ describe("useConnectionsStore", () => {
     bucketName: "test-bucket",
   });
 
+  /** Helper: seed the store with a single connection. */
+  const seed = (config = connectionConfig, creds = credentials) => {
+    useConnectionsStore
+      .getState()
+      .setConnections([config], { [config.name]: creds });
+  };
+
   beforeEach(() => {
     useConnectionsStore.setState({ connections: {} });
   });
 
-  describe("setConnection", () => {
-    test("stores connection keyed by config.name", () => {
-      useConnectionsStore
-        .getState()
-        .setConnection(credentials, connectionConfig);
+  describe("setConnections", () => {
+    test("joins configs[] with name-keyed credentials", () => {
+      const configs = [
+        mock.connectionConfig({ name: "conn-a" }),
+        mock.connectionConfig({ name: "conn-b" }),
+      ];
+      const credsByName = {
+        "conn-a": mock.credentials({ AccessKeyId: "key-a" }),
+        "conn-b": mock.credentials({ AccessKeyId: "key-b" }),
+      };
 
-      const entry = useConnectionsStore.getState().connections["test-conn"];
-      expect(entry).toBeDefined();
-      expect(entry.connectionConfig).toEqual(connectionConfig);
-      expect(entry.credentials).toEqual(credentials);
+      useConnectionsStore.getState().setConnections(configs, credsByName);
+
+      const { connections } = useConnectionsStore.getState();
+      expect(connections["conn-a"]?.credentials.AccessKeyId).toBe("key-a");
+      expect(connections["conn-b"]?.credentials.AccessKeyId).toBe("key-b");
     });
 
-    test("overwrites existing entry on subsequent calls", () => {
-      useConnectionsStore
-        .getState()
-        .setConnection(credentials, connectionConfig);
+    test("prunes connections that are no longer in the input", () => {
+      seed();
+      useConnectionsStore.getState().setConnections([], {});
+      expect(useConnectionsStore.getState().connections).toEqual({});
+    });
 
-      const newCredentials = mock.credentials({ AccessKeyId: "newKey" });
-      useConnectionsStore
-        .getState()
-        .setConnection(newCredentials, connectionConfig);
+    test("skips configs without matching credentials", () => {
+      const configs = [
+        mock.connectionConfig({ name: "conn-a" }),
+        mock.connectionConfig({ name: "conn-b" }),
+      ];
+      const partial = {
+        "conn-a": mock.credentials(),
+        // conn-b has no credentials
+      };
 
-      expect(
-        useConnectionsStore.getState().connections["test-conn"]?.credentials
-          .AccessKeyId,
-      ).toBe("newKey");
+      useConnectionsStore.getState().setConnections(configs, partial);
+
+      const { connections } = useConnectionsStore.getState();
+      expect(connections["conn-a"]).toBeDefined();
+      expect(connections["conn-b"]).toBeUndefined();
     });
 
     test("sibling connections sharing a bucket each get their own entry", () => {
@@ -51,61 +71,15 @@ describe("useConnectionsStore", () => {
         bucketName: "shared-bucket",
       });
 
-      useConnectionsStore.getState().setConnection(credentials, configA);
-      useConnectionsStore.getState().setConnection(credentials, configB);
+      useConnectionsStore.getState().setConnections([configA, configB], {
+        "conn-a": credentials,
+        "conn-b": credentials,
+      });
 
       const { connections } = useConnectionsStore.getState();
       expect(connections["conn-a"]?.connectionConfig).toEqual(configA);
       expect(connections["conn-b"]?.connectionConfig).toEqual(configB);
       expect(Object.keys(connections)).toEqual(["conn-a", "conn-b"]);
-    });
-  });
-
-  describe("reconcileConnections", () => {
-    test("joins configs[] with name-keyed credentials", () => {
-      const configs = [
-        mock.connectionConfig({ name: "conn-a" }),
-        mock.connectionConfig({ name: "conn-b" }),
-      ];
-      const credentials = {
-        "conn-a": mock.credentials({ AccessKeyId: "key-a" }),
-        "conn-b": mock.credentials({ AccessKeyId: "key-b" }),
-      };
-
-      useConnectionsStore.getState().reconcileConnections(configs, credentials);
-
-      const { connections } = useConnectionsStore.getState();
-      expect(connections["conn-a"]?.credentials.AccessKeyId).toBe("key-a");
-      expect(connections["conn-b"]?.credentials.AccessKeyId).toBe("key-b");
-    });
-
-    test("prunes connections deleted server-side", () => {
-      useConnectionsStore
-        .getState()
-        .setConnection(credentials, connectionConfig);
-
-      useConnectionsStore.getState().reconcileConnections([], {});
-
-      expect(useConnectionsStore.getState().connections).toEqual({});
-    });
-
-    test("skips configs without matching credentials", () => {
-      const configs = [
-        mock.connectionConfig({ name: "conn-a" }),
-        mock.connectionConfig({ name: "conn-b" }),
-      ];
-      const partialCredentials = {
-        "conn-a": mock.credentials(),
-        // conn-b has no credentials
-      };
-
-      useConnectionsStore
-        .getState()
-        .reconcileConnections(configs, partialCredentials);
-
-      const { connections } = useConnectionsStore.getState();
-      expect(connections["conn-a"]).toBeDefined();
-      expect(connections["conn-b"]).toBeUndefined();
     });
   });
 
@@ -115,9 +89,7 @@ describe("useConnectionsStore", () => {
         select.credentials("missing")(useConnectionsStore.getState()),
       ).toBeUndefined();
 
-      useConnectionsStore
-        .getState()
-        .setConnection(credentials, connectionConfig);
+      seed();
 
       expect(
         select.credentials("test-conn")(useConnectionsStore.getState()),
@@ -133,8 +105,7 @@ describe("useConnectionsStore", () => {
     });
 
     test("selectHttpsUrl rejoins configured prefix before the pathName (C-161)", () => {
-      useConnectionsStore.getState().setConnection(
-        credentials,
+      seed(
         mock.connectionConfig({
           name: "prefixed-conn",
           bucketName: "my-bucket",
@@ -154,8 +125,7 @@ describe("useConnectionsStore", () => {
     });
 
     test("selectHttpsUrl omits prefix join when prefix is empty", () => {
-      useConnectionsStore.getState().setConnection(
-        credentials,
+      seed(
         mock.connectionConfig({
           name: "no-prefix",
           bucketName: "my-bucket",
@@ -175,8 +145,7 @@ describe("useConnectionsStore", () => {
     });
 
     test("resolveResourceId exposes httpsUrl matching selectHttpsUrl", () => {
-      useConnectionsStore.getState().setConnection(
-        credentials,
+      seed(
         mock.connectionConfig({
           name: "prefixed-conn",
           bucketName: "my-bucket",
@@ -198,9 +167,7 @@ describe("useConnectionsStore", () => {
 
   describe("partialize", () => {
     test("persists connections; excludes methods", () => {
-      useConnectionsStore
-        .getState()
-        .setConnection(credentials, connectionConfig);
+      seed();
 
       const persistConfig = (
         useConnectionsStore as unknown as {
@@ -217,8 +184,7 @@ describe("useConnectionsStore", () => {
       ) as Record<string, unknown>;
 
       expect(partialized).toHaveProperty("connections");
-      expect(partialized).not.toHaveProperty("setConnection");
-      expect(partialized).not.toHaveProperty("reconcileConnections");
+      expect(partialized).not.toHaveProperty("setConnections");
     });
   });
 });

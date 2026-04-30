@@ -2,12 +2,9 @@ import { Button } from "@cytario/design";
 import { useNavigate, useNavigation, useOutletContext } from "react-router";
 
 import { CreateGroupForm } from "./createGroup.form";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { RouteModal } from "~/components/RouteModal";
 
 export { createGroupAction as action } from "./createGroup.action";
-
-export const middleware = [authMiddleware];
 
 export default function CreateGroupModal() {
   const navigate = useNavigate();

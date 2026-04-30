@@ -7,7 +7,6 @@ import {
 } from "react-router";
 
 import { UpdateUserForm } from "./updateUser.form";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   type UserWithGroups,
   type GroupInfo,
@@ -15,8 +14,6 @@ import {
 import { RouteModal } from "~/components/RouteModal";
 
 export { userDetailAction as action } from "./userDetail.action";
-
-export const middleware = [authMiddleware];
 
 export default function UserModal() {
   const navigate = useNavigate();

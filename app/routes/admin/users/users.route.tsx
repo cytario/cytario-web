@@ -19,7 +19,6 @@ import {
 
 import { BulkActions } from "./BulkActions";
 import type { ConnectionConfig } from "~/.generated/client";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   type UserWithGroups,
   type GroupInfo,
@@ -36,8 +35,6 @@ import {
 import { useModal } from "~/hooks/useModal";
 
 export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
-
-export const middleware = [authMiddleware];
 
 export { bulkUsersAction as action } from "./bulkUsers.action";
 export { usersLoader as loader } from "./users.loader";

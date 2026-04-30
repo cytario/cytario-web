@@ -3,7 +3,7 @@ import { H1 } from "@cytario/design";
 import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 
 import type { ConnectionConfig } from "~/.generated/client";
-import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { authContext } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { Section } from "~/components/Container";
 import {
@@ -23,8 +23,6 @@ export interface SearchRouteLoaderResponse {
   searchQuery: string;
   nodes: TreeNode[];
 }
-
-export const middleware = [authMiddleware];
 
 export const handle = {
   breadcrumb: () => ({ label: "Search", to: "/search" }),

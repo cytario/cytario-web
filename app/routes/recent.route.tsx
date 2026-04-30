@@ -9,7 +9,7 @@ import {
   useLoaderData,
 } from "react-router";
 
-import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { authContext } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -23,8 +23,6 @@ export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 export const handle = {
   breadcrumb: () => ({ label: "Recent", to: "/recent" }),
 };
-
-export const middleware = [authMiddleware];
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);

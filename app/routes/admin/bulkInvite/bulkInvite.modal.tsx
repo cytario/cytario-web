@@ -3,13 +3,10 @@ import { useState } from "react";
 import { useNavigate, useNavigation, useOutletContext } from "react-router";
 
 import { BulkInviteForm } from "./bulkInvite.form";
-import { authMiddleware } from "~/.server/auth/authMiddleware";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { RouteModal } from "~/components/RouteModal";
 
 export { bulkInviteAction as action } from "./bulkInvite.action";
-
-export const middleware = [authMiddleware];
 
 export default function BulkInviteModal() {
   const navigate = useNavigate();
