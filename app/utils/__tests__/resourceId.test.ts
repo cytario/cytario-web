@@ -1,6 +1,6 @@
+import mock from "./__mocks__";
 import {
   buildConnectionPath,
-  buildHttpsUrl,
   constructS3Url,
   parseResourceId,
 } from "../resourceId";
@@ -48,60 +48,8 @@ describe("buildConnectionPath", () => {
   });
 
   test("strips trailing slash", () => {
-    expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder");
-  });
-});
-
-describe("buildHttpsUrl", () => {
-  test("rejoins configured prefix before the pathName (C-161)", () => {
-    const config = {
-      bucketName: "my-bucket",
-      region: "eu-central-1",
-      endpoint: "",
-      prefix: "vericura",
-    };
-
-    expect(buildHttpsUrl(config, "USL-2022-42307-42.ome.tif")).toBe(
-      "https://s3.eu-central-1.amazonaws.com/my-bucket/vericura/USL-2022-42307-42.ome.tif",
-    );
-  });
-
-  test("strips trailing slash from prefix before joining", () => {
-    const config = {
-      bucketName: "bucket",
-      region: "eu-central-1",
-      endpoint: "",
-      prefix: "data/",
-    };
-
-    expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
-      "https://s3.eu-central-1.amazonaws.com/bucket/data/file.ome.tif",
-    );
-  });
-
-  test("omits prefix join when prefix is empty", () => {
-    const config = {
-      bucketName: "bucket",
-      region: "eu-central-1",
-      endpoint: "",
-      prefix: "",
-    };
-
-    expect(buildHttpsUrl(config, "file.ome.tif")).toBe(
-      "https://s3.eu-central-1.amazonaws.com/bucket/file.ome.tif",
-    );
-  });
-
-  test("works for custom endpoints (MinIO)", () => {
-    const config = {
-      bucketName: "bucket",
-      region: null,
-      endpoint: "http://localhost:9000",
-      prefix: "data",
-    };
-
-    expect(buildHttpsUrl(config, "sample.zarr")).toBe(
-      "http://localhost:9000/bucket/data/sample.zarr",
+    expect(buildConnectionPath("my-conn", "folder/")).toBe(
+      "/connections/my-conn/folder",
     );
   });
 });
@@ -109,11 +57,11 @@ describe("buildHttpsUrl", () => {
 describe("constructS3Url", () => {
   describe("AWS S3 URLs", () => {
     test("constructs path-style URL with region", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "my-bucket",
         region: "us-west-2",
         endpoint: "",
-      };
+      });
 
       const result = constructS3Url(config, "images/sample.zarr");
 
@@ -123,11 +71,11 @@ describe("constructS3Url", () => {
     });
 
     test("uses eu-central-1 as default region", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "my-bucket",
         region: null,
         endpoint: "",
-      };
+      });
 
       const result = constructS3Url(config, "data.zarr");
 
@@ -137,11 +85,11 @@ describe("constructS3Url", () => {
     });
 
     test("handles path with trailing slash", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "bucket",
         region: "eu-west-1",
         endpoint: "",
-      };
+      });
 
       const result = constructS3Url(config, "images/sample.zarr/");
 
@@ -153,11 +101,11 @@ describe("constructS3Url", () => {
 
   describe("Custom endpoint URLs (MinIO, R2)", () => {
     test("constructs URL with custom endpoint", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "my-bucket",
         endpoint: "http://localhost:9000",
         region: null,
-      };
+      });
 
       const result = constructS3Url(config, "data.zarr");
 
@@ -165,11 +113,11 @@ describe("constructS3Url", () => {
     });
 
     test("strips trailing slash from endpoint", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "bucket",
         endpoint: "http://localhost:9000/",
         region: null,
-      };
+      });
 
       const result = constructS3Url(config, "images/sample.zarr");
 
@@ -177,11 +125,11 @@ describe("constructS3Url", () => {
     });
 
     test("handles HTTPS custom endpoint", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "bucket",
         endpoint: "https://minio.example.com",
         region: null,
-      };
+      });
 
       const result = constructS3Url(config, "data.zarr");
 
@@ -189,11 +137,11 @@ describe("constructS3Url", () => {
     });
 
     test("handles R2 endpoint", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "my-r2-bucket",
         endpoint: "https://account-id.r2.cloudflarestorage.com",
         region: null,
-      };
+      });
 
       const result = constructS3Url(config, "images/test.zarr");
 
@@ -203,11 +151,11 @@ describe("constructS3Url", () => {
     });
 
     test("ignores region when endpoint is provided", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "bucket",
         region: "us-west-2",
         endpoint: "http://localhost:9000",
-      };
+      });
 
       const result = constructS3Url(config, "data.zarr");
 
@@ -218,11 +166,11 @@ describe("constructS3Url", () => {
 
   describe("edge cases", () => {
     test("handles empty path", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "bucket",
         region: "us-east-1",
         endpoint: "",
-      };
+      });
 
       const result = constructS3Url(config, "");
 
@@ -230,28 +178,26 @@ describe("constructS3Url", () => {
     });
 
     test("handles deeply nested path", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "bucket",
         endpoint: "http://localhost:9000",
         region: null,
-      };
+      });
 
       const result = constructS3Url(config, "a/b/c/d/e/f/data.zarr");
 
-      expect(result).toBe(
-        "http://localhost:9000/bucket/a/b/c/d/e/f/data.zarr",
-      );
+      expect(result).toBe("http://localhost:9000/bucket/a/b/c/d/e/f/data.zarr");
     });
 
     test("handles AWS buckets whose name contains dots", () => {
       // Dotted buckets must not end up in a vhost URL because the wildcard
       // TLS cert `*.s3.<region>.amazonaws.com` only matches one DNS label.
       // Path-style (the only style constructS3Url emits) sidesteps this.
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "my.bucket.name",
         region: "us-west-2",
         endpoint: "",
-      };
+      });
 
       const result = constructS3Url(config, "data.zarr");
 
@@ -261,11 +207,11 @@ describe("constructS3Url", () => {
     });
 
     test("uses path-style for dotted AWS bucket with explicit amazonaws endpoint", () => {
-      const config = {
+      const config = mock.connectionConfig({
         bucketName: "ultivue.cytario",
         region: "us-east-1",
         endpoint: "https://s3.us-east-1.amazonaws.com",
-      };
+      });
 
       const result = constructS3Url(config, "USL-2023-52702-11.ome.tif");
 

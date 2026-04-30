@@ -2,7 +2,7 @@ import { type Table } from "apache-arrow";
 
 import { createDatabase } from "./createDatabase";
 import { getGeomQuery } from "./getGeomQuery";
-import { resolveResourceId } from "../connectionsStore";
+import { resolveResourceId } from "../connectionsStore/selectors";
 
 interface TileIndex {
   z: number;

@@ -4,7 +4,10 @@ import {
   STSClient,
 } from "@aws-sdk/client-sts";
 
-import { type SessionData, type SessionCredentials } from "./sessionStorage";
+import {
+  type ConnectionsCredentials,
+  type SessionData,
+} from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
@@ -72,40 +75,32 @@ const fetchTemporaryCredentials = async (
 
 /**
  * Fetches credentials for all connection configs in parallel.
- * Deduplicates by bucket name (multiple prefix configs share STS credentials).
- * Only fetches for connections with missing or expired credentials.
+ * Keys credentials by `config.name` so connections that share a bucket but
+ * differ in `roleArn` each get their own STS mint. Only fetches for
+ * connections with missing or expired credentials.
  */
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
   connectionConfigs: ConnectionConfig[],
-): Promise<SessionCredentials> => {
-  // Deduplicate: one STS call per unique bucket name
-  const uniqueBuckets = new Map<string, ConnectionConfig>();
-  for (const config of connectionConfigs) {
-    if (!uniqueBuckets.has(config.bucketName)) {
-      uniqueBuckets.set(config.bucketName, config);
-    }
-  }
-
-  // Filter to only buckets needing credential refresh
-  const bucketsNeedingCredentials = Array.from(uniqueBuckets.entries()).filter(
-    ([bucketName]) => !isValidCredentials(sessionData.credentials[bucketName]),
+): Promise<ConnectionsCredentials> => {
+  const stale = connectionConfigs.filter(
+    (config) => !isValidCredentials(sessionData.credentials[config.name]),
   );
 
-  if (bucketsNeedingCredentials.length === 0) {
+  if (stale.length === 0) {
     return sessionData.credentials;
   }
 
   console.info(
-    `${label} Fetching credentials for ${bucketsNeedingCredentials.length} bucket(s)`,
+    `${label} Fetching credentials for ${stale.length} connection(s)`,
   );
 
   const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
 
   // Fetch all in parallel — one failure doesn't block others
   const results = await Promise.allSettled(
-    bucketsNeedingCredentials.map(async ([name, config]) => ({
-      name,
+    stale.map(async (config) => ({
+      name: config.name,
       credentials: await fetchTemporaryCredentials(
         config,
         sessionData.authTokens.idToken,
@@ -120,7 +115,7 @@ export const getAllSessionCredentials = async (
       newCredentials[result.value.name] = result.value.credentials;
     } else {
       console.warn(
-        `${label} Failed to fetch credentials for a bucket:`,
+        `${label} Failed to fetch credentials for a connection:`,
         result.reason,
       );
     }

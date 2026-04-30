@@ -37,7 +37,8 @@ export const loader = async ({
   params,
   context,
 }: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
-  const { user, credentials: bucketsCredentials } = context.get(authContext);
+  const { user, credentials: connectionsCredentials } =
+    context.get(authContext);
   const { name: connectionName } = params;
 
   if (!connectionName) throw new Error("Connection name is required");
@@ -49,8 +50,9 @@ export const loader = async ({
 
   const { bucketName } = connectionConfig;
 
-  const credentials = bucketsCredentials[bucketName];
-  if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
+  const credentials = connectionsCredentials[connectionName];
+  if (!credentials)
+    throw new Error(`No credentials for connection: ${connectionName}`);
 
   const urlPath = params["*"] ?? "";
   const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";

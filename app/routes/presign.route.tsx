@@ -15,7 +15,7 @@ export const loader = async ({
   params,
   context,
 }: ActionFunctionArgs): Promise<Response> => {
-  const { user, credentials: bucketsCredentials } = context.get(authContext);
+  const { user, credentials: connectionsCredentials } = context.get(authContext);
   const { name: connectionName } = params;
   const pathName = params["*"] ?? "";
 
@@ -32,8 +32,9 @@ export const loader = async ({
     : pathName;
   console.info(`${label} Presign route: ${provider}/${bucketName}/${s3Key}`);
 
-  const credentials = bucketsCredentials[bucketName];
-  if (!credentials) throw new Error(`No credentials for bucket: ${bucketName}`);
+  const credentials = connectionsCredentials[connectionName];
+  if (!credentials)
+    throw new Error(`No credentials for connection: ${connectionName}`);
 
   try {
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);

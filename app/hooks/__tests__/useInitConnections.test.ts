@@ -4,67 +4,46 @@ import { useInitConnections } from "../useInitConnections";
 import { ConnectionConfig } from "~/.generated/client";
 import mock from "~/utils/__tests__/__mocks__";
 
-const mockSetConnection = vi.fn();
+const mockReconcile = vi.fn();
 
-vi.mock("~/utils/connectionsStore", () => ({
+vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
   useConnectionsStore: vi.fn((selector) =>
-    selector({ setConnection: mockSetConnection }),
+    selector({ reconcileConnections: mockReconcile }),
   ),
+}));
+
+vi.mock("~/utils/connectionsStore/selectors", () => ({
   select: {
-    setConnection: (state: { setConnection: unknown }) => state.setConnection,
+    reconcileConnections: (state: { reconcileConnections: unknown }) =>
+      state.reconcileConnections,
   },
 }));
 
 describe("useInitConnections", () => {
   beforeEach(() => {
-    mockSetConnection.mockClear();
+    mockReconcile.mockClear();
   });
 
-  test("calls setConnection for each config with matching credentials", () => {
+  test("reconciles configs and credentials on mount", () => {
     const configs: ConnectionConfig[] = [
       mock.connectionConfig({ name: "conn-1", bucketName: "bucket-1" }),
       mock.connectionConfig({ name: "conn-2", bucketName: "bucket-2" }),
     ];
-
-    const creds1 = mock.credentials({ AccessKeyId: "key-1" });
-    const creds2 = mock.credentials({ AccessKeyId: "key-2" });
-
     const credentials = {
-      "bucket-1": creds1,
-      "bucket-2": creds2,
+      "bucket-1": mock.credentials({ AccessKeyId: "key-1" }),
+      "bucket-2": mock.credentials({ AccessKeyId: "key-2" }),
     };
 
     renderHook(() => useInitConnections(configs, credentials));
 
-    expect(mockSetConnection).toHaveBeenCalledTimes(2);
-    expect(mockSetConnection).toHaveBeenCalledWith("conn-1", creds1, configs[0]);
-    expect(mockSetConnection).toHaveBeenCalledWith("conn-2", creds2, configs[1]);
+    expect(mockReconcile).toHaveBeenCalledTimes(1);
+    expect(mockReconcile).toHaveBeenCalledWith(configs, credentials);
   });
 
-  test("skips configs without matching credentials", () => {
-    const configs: ConnectionConfig[] = [
-      mock.connectionConfig({ name: "conn-1", bucketName: "bucket-1" }),
-      mock.connectionConfig({ name: "conn-2", bucketName: "bucket-2" }),
-    ];
-
-    const credentials = {
-      "bucket-1": mock.credentials(),
-      // bucket-2 has no credentials
-    };
-
-    renderHook(() => useInitConnections(configs, credentials));
-
-    expect(mockSetConnection).toHaveBeenCalledTimes(1);
-    expect(mockSetConnection).toHaveBeenCalledWith(
-      "conn-1",
-      expect.objectContaining({ AccessKeyId: "mockAccessKey" }),
-      configs[0],
-    );
-  });
-
-  test("does nothing with empty configs", () => {
+  test("reconciles with empty inputs", () => {
     renderHook(() => useInitConnections([], {}));
 
-    expect(mockSetConnection).not.toHaveBeenCalled();
+    expect(mockReconcile).toHaveBeenCalledTimes(1);
+    expect(mockReconcile).toHaveBeenCalledWith([], {});
   });
 });

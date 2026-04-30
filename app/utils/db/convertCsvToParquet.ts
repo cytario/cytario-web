@@ -8,7 +8,7 @@ import {
 
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
 import { buildCreateTableQuery } from "./sqlQueries";
-import { resolveResourceId } from "../connectionsStore";
+import { resolveResourceId } from "../connectionsStore/selectors";
 
 export async function convertCsvToParquet(resourceId: string) {
   console.log(`[CSV→Parquet] Starting conversion for: ${resourceId}`);

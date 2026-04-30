@@ -1,22 +1,13 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
 
-import { TreeNode } from "./buildDirectoryTree";
+import { type TreeNode } from "./buildDirectoryTree";
+import { type ConnectionConfig } from "~/.generated/client";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
-import { useConnectionsStore } from "~/utils/connectionsStore";
-
-interface ConnectionRow {
-  id: string;
-  name: string;
-  provider: string;
-  endpoint: string;
-  region: string;
-  rolearn: string;
-  ownerScope: string;
-  createdBy: string;
-}
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export const connectionColumns: ColumnConfig[] = [
   {
@@ -65,7 +56,7 @@ export const connectionColumns: ColumnConfig[] = [
     copyable: true,
   },
   {
-    id: "rolearn",
+    id: "roleArn",
     header: "RoleARN",
     size: 480,
     enableSorting: true,
@@ -82,11 +73,11 @@ export const connectionColumns: ColumnConfig[] = [
   },
 ];
 
-const connectionCellRenderers: CellRenderers<ConnectionRow> = {
+const connectionCellRenderers: CellRenderers<ConnectionConfig> = {
   // TODO(C-151): the name cell should render `[activity indicator] name` to
   // match the grid's StorageConnectionCard visual. Blocked on extracting a
   // StatusDot atom from @cytario/design and wiring real connection status.
-  name: (row) => <Link to={`/connections/${row.id}`}>{row.name}</Link>,
+  name: (row) => <Link to={`/connections/${row.name}`}>{row.name}</Link>,
   ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
   provider: (row) => <ProviderPill provider={row.provider} />,
 };
@@ -100,24 +91,13 @@ export function DirectoryViewTableConnection({
   nodes,
   showFilters = false,
 }: DirectoryViewTableConnectionProps) {
-  const connections = useConnectionsStore((state) => state.connections);
+  const connections = useConnectionsStore(select.connections);
 
-  const data: ConnectionRow[] = useMemo(
+  const data = useMemo(
     () =>
-      nodes.flatMap((node) => {
-        const config = connections[node.connectionName]?.connectionConfig;
-        if (!config) return [];
-        return {
-          id: node.id,
-          name: node.name,
-          provider: config.provider,
-          endpoint: config.endpoint,
-          region: config.region ?? "",
-          rolearn: config.roleArn ?? "",
-          ownerScope: config.ownerScope,
-          createdBy: config.createdBy,
-        };
-      }),
+      nodes
+        .map((n) => connections[n.connectionName]?.connectionConfig)
+        .filter(Boolean),
     [nodes, connections],
   );
 
@@ -125,6 +105,7 @@ export function DirectoryViewTableConnection({
     <Table
       columns={connectionColumns}
       data={data}
+      getRowId={(row) => row.name}
       cellRenderers={connectionCellRenderers}
       tableId="connections"
       ariaLabel="Storage connections"

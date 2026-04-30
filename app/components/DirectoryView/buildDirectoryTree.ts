@@ -21,7 +21,14 @@ export interface TreeNode {
   id: string;
   /** Name of the connection config this node belongs to. */
   connectionName: string;
-  /** Display name — the last segment of the path (e.g. `"output.ome.tif"`). */
+  /**
+   * Display name — the last segment of the path (e.g. `"output.ome.tif"`).
+   *
+   * For `type: "bucket"` nodes, this equals `connectionName` by convention —
+   * loaders set it that way (`connections.loader.ts`, `search.route.tsx`) so
+   * `DirectoryViewTableConnection` can use `node.name` as the row's stable
+   * id and URL segment without a separate lookup.
+   */
   name: string;
   type: TreeNodeType;
   /**
