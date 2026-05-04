@@ -1,4 +1,8 @@
-import { _Object, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  _Object,
+  PutObjectCommand,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 import { DuckDBInstance } from "@duckdb/node-api";
 import { randomUUID } from "crypto";
 import { readFile, unlink, writeFile } from "fs/promises";
@@ -11,16 +15,49 @@ import { connectionContext } from "~/.server/connection/connectionMiddleware";
 import { toIndexS3Key } from "~/utils/resourceId";
 
 /**
+ * Walks the bucket prefix, builds the parquet, uploads to
+ * `<prefix>/.cytario/index.parquet`. Shared between the POST action below
+ * and the inline build in createConnection.action.
+ */
+export async function buildAndUploadIndex({
+  s3Client,
+  bucketName,
+  prefix,
+}: {
+  s3Client: S3Client;
+  bucketName: string;
+  prefix: string;
+}): Promise<{ objectCount: number }> {
+  const { Contents: objects } = await listConnectionIndexObjects({
+    s3Client,
+    Bucket: bucketName,
+    Prefix: prefix,
+  });
+  const parquetBuffer = await buildIndexParquet(objects);
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: toIndexS3Key(prefix),
+      Body: parquetBuffer,
+      ContentType: "application/octet-stream",
+      CacheControl: "no-cache",
+      Metadata: {
+        "object-count": String(objects.length),
+      },
+    }),
+  );
+
+  return { objectCount: objects.length };
+}
+
+/**
  * HTTP POST handler for `/connectionIndex/:connectionName`.
  *
- * Full (re)build of the index: walks the whole S3 prefix, applies the
- * connectionIndex filter, builds a parquet with DuckDB node-api, uploads to
- * `<prefix>/.cytario/index.parquet`. Idempotent; no `canModify` gate (reads
- * and writes only data the caller already has access to).
- *
- * Redirects on success so the page's <Form method="POST"> lands the user on
- * /connections/:name. Fetcher-driven submissions don't navigate on redirect
- * — they just revalidate.
+ * Idempotent; no `canModify` gate (reads and writes only data the caller
+ * already has access to). Redirects on success so the page's
+ * <Form method="POST"> lands the user on /connections/:name. Fetcher-driven
+ * submissions don't navigate on redirect — they just revalidate.
  */
 export const connectionIndexCreate = async ({
   context,
@@ -31,28 +68,14 @@ export const connectionIndexCreate = async ({
   } = context.get(connectionContext);
 
   try {
-    const { Contents: objects } = await listConnectionIndexObjects({
+    const { objectCount } = await buildAndUploadIndex({
       s3Client,
-      Bucket: bucketName,
-      Prefix: prefix,
+      bucketName,
+      prefix: prefix ?? "",
     });
-    const parquetBuffer = await buildIndexParquet(objects);
-
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: bucketName,
-        Key: toIndexS3Key(prefix),
-        Body: parquetBuffer,
-        ContentType: "application/octet-stream",
-        CacheControl: "no-cache",
-        Metadata: {
-          "object-count": String(objects.length),
-        },
-      }),
-    );
 
     console.info(
-      `[connectionIndex] Created for ${provider}/${bucketName} (prefix: "${prefix}"): ${objects.length} objects`,
+      `[connectionIndex] Created for ${provider}/${bucketName} (prefix: "${prefix}"): ${objectCount} objects`,
     );
 
     return redirect(`/connections/${encodeURIComponent(connectionName)}`);

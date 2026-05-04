@@ -3,9 +3,12 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 import { connectionSchema, parseS3Uri } from "./connection.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
+import { getS3Client } from "~/.server/auth/getS3Client";
+import { getAllSessionCredentials } from "~/.server/auth/getSessionCredentials";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
+import { buildAndUploadIndex } from "~/routes/connectionIndex/connectionIndexCreate";
 import { canCreate } from "~/utils/authorization";
 
 /** Create a connection config (upserts on the composite unique key). */
@@ -97,7 +100,36 @@ export const createAction = async ({
       prefix,
     };
 
-    await createConnection(data.ownerScope, user.sub, newConfig);
+    const created = await createConnection(data.ownerScope, user.sub, newConfig);
+
+    // Build the parquet index inline so the user lands on the directory
+    // listing instead of the manual /connectionIndex/<name> build page.
+    // Modal stays open while the walk runs — fast for empty/small buckets,
+    // slow for large ones. On failure, fall through to the redirect;
+    // objects.loader's HEAD probe will route to /connectionIndex/<name>
+    // for a manual retry.
+    try {
+      const authData = context.get(authContext);
+      const credentialsMap = await getAllSessionCredentials(authData, [created]);
+      const credentials = credentialsMap[created.name];
+      if (credentials) {
+        const s3Client = await getS3Client(created, credentials, user.sub);
+        await buildAndUploadIndex({
+          s3Client,
+          bucketName: created.bucketName,
+          prefix: created.prefix ?? "",
+        });
+      } else {
+        console.warn(
+          `[createConnection] No credentials minted for ${created.name}; skipping inline index build`,
+        );
+      }
+    } catch (buildErr) {
+      console.error(
+        `[createConnection] Inline index build failed for ${created.name}:`,
+        buildErr,
+      );
+    }
 
     session.set("notification", {
       status: "success",
