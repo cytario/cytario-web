@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { hexToRgb, hexToRgba, isValidHex, rgbToHex } from "../colorUtils";
+import { hexToRgb, hexToRgba, isValidHex, rgbToHex } from "../ColorPicker/colorUtils";
 
 describe("isValidHex", () => {
   test.each([

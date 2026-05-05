@@ -1,9 +1,4 @@
-import {
-  IconButton,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@cytario/design";
+import { IconButton, Popover, PopoverContent } from "@cytario/design";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import {
@@ -36,18 +31,6 @@ interface ColorPickerProps {
   onColorChange: (color: RGBA) => void;
 }
 
-const swatchStyle = `
-
-  flex flex-shrink-0
-  w-6 h-6 p-12
-  rounded-full
-  border-2
-  border-[var(--color-border-strong)] hover:border-[var(--color-text-secondary)]
-  cursor-pointer
-  transition-colors
-  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-`;
-
 function emitColor(
   c: Color,
   alpha: number,
@@ -63,9 +46,8 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
 
   return (
     <Popover onOpenChange={(isOpen) => !isOpen && setExpanded(false)}>
-      <PopoverTrigger>
-        <span className={swatchStyle} style={{ backgroundColor: rgb(color) }} />
-      </PopoverTrigger>
+      {/* ColorSwatch as PopoverTrigger */}
+      <ColorSwatch color={color} aria-label="Open color picker" />
 
       <PopoverContent placement="bottom start" className="">
         {() => (
@@ -74,16 +56,20 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
             onChange={(c) => emitColor(c, alpha, onColorChange)}
           >
             <div className="flex flex-col">
-              <div className="flex items-center gap-0">
-                {QUICK_PICKS.map((color, index) => (
+              <div className="flex items-center px-2 py-1">
+                {QUICK_PICKS.map((preset, index) => (
                   <ColorSwatch
                     key={index}
-                    color={color}
-                    onColorChange={onColorChange}
+                    color={preset}
+                    onPress={() =>
+                      onColorChange([preset[0], preset[1], preset[2], alpha])
+                    }
+                    aria-label={`Preset color ${preset}`}
                   />
                 ))}
 
                 <IconButton
+                  size="sm"
                   icon={expanded ? ChevronUp : ChevronDown}
                   onClick={() => setExpanded((value) => !value)}
                   aria-label={`${expanded ? "Hide" : "Show"} advanced picker`}
@@ -92,7 +78,7 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
               </div>
 
               {expanded && (
-                <div className="flex flex-col gap-2 border-t">
+                <div className="flex flex-col gap-2 border-t p-2">
                   <ColorArea
                     colorSpace="hsb"
                     xChannel="saturation"

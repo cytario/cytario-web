@@ -7,8 +7,7 @@ import { ColorPicker } from "../ColorPicker/ColorPicker";
 const RED_RGBA: [number, number, number, number] = [255, 0, 0, 255];
 
 const openPopover = () => {
-  // The trigger has aria-haspopup; click it.
-  const trigger = screen.getByRole("button", { expanded: false });
+  const trigger = screen.getByLabelText("Open color picker");
   fireEvent.click(trigger);
 };
 

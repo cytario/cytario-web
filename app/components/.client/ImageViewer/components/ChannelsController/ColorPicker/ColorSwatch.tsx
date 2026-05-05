@@ -1,33 +1,26 @@
+import { Button, ButtonProps } from "react-aria-components";
+
 import { rgb } from "./ColorPicker";
 import { RGBA } from "../../../state/store/types";
 
-export function ColorSwatch({
-  color,
-  onColorChange,
-}: {
+interface ColorSwatchProps extends ButtonProps {
   color: RGBA;
-  onColorChange: (rgba: RGBA) => void;
-}) {
+}
+
+export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
   return (
-    <button
-      onClick={() => {
-        onColorChange(color);
-      }}
-      className={`
-        group
-        cursor-pointer
-        flex items-center justify-center
-      `}
-      aria-label={`Preset color ${color}`}
+    <Button
+      className="group cursor-pointer flex items-center justify-center"
+      {...props}
     >
       <div
         className={`
-          w-6 h-6 m-1 rounded-full border-2 
-          group-hover:scale-120
+          w-5 h-5 m-1 rounded-full border-2 
+          border-lime-400 group-hover:border-orange-400
           transition-transform
         `}
         style={{ backgroundColor: rgb(color) }}
       />
-    </button>
+    </Button>
   );
 }
