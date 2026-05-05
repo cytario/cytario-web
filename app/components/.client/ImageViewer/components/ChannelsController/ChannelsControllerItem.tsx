@@ -4,7 +4,7 @@ import { Switch } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { ColorPicker, rgb } from "./ColorPicker";
+import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
 import { select } from "../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";

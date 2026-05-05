@@ -1,4 +1,4 @@
-import { RGB, RGBA } from "../../state/store/types";
+import { RGB, RGBA } from "../../../state/store/types";
 
 const HEX6 = /^#?[0-9a-fA-F]{6}$/;
 

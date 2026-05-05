@@ -1,4 +1,9 @@
-import { Popover, PopoverContent, PopoverTrigger } from "@cytario/design";
+import {
+  IconButton,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@cytario/design";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import {
@@ -13,9 +18,10 @@ import {
   type Color,
 } from "react-aria-components";
 
+import { ColorSwatch } from "./ColorSwatch";
 import { hexToRgb, rgbToHex } from "./colorUtils";
-import { RGB, RGBA } from "../../state/store/types";
-import { OVERLAY_COLORS } from "../OverlaysController/getOverlayState";
+import { RGB, RGBA } from "../../../state/store/types";
+import { OVERLAY_COLORS } from "../../OverlaysController/getOverlayState";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
   const rgb = color.slice(0, 3);
@@ -31,19 +37,12 @@ interface ColorPickerProps {
 }
 
 const swatchStyle = `
+
   flex flex-shrink-0
-  w-5 h-5 rounded-full
+  w-6 h-6 p-12
+  rounded-full
   border-2
   border-[var(--color-border-strong)] hover:border-[var(--color-text-secondary)]
-  cursor-pointer
-  transition-colors
-  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-`;
-
-const chevronStyle = `
-  flex flex-shrink-0 items-center justify-center
-  w-5 h-5 rounded-full
-  text-(--color-text-secondary) hover:text-(--color-text-primary)
   cursor-pointer
   transition-colors
   focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
@@ -68,45 +67,32 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
         <span className={swatchStyle} style={{ backgroundColor: rgb(color) }} />
       </PopoverTrigger>
 
-      <PopoverContent placement="bottom start" className="p-3 w-56">
-        {({ close }) => (
+      <PopoverContent placement="bottom start" className="">
+        {() => (
           <RacColorPicker
             value={parseColor(rgbToHex(color)).toFormat("hsb")}
             onChange={(c) => emitColor(c, alpha, onColorChange)}
           >
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                {QUICK_PICKS.map((preset, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      onColorChange([preset[0], preset[1], preset[2], alpha]);
-                      if (!expanded) close();
-                    }}
-                    className={swatchStyle}
-                    style={{ backgroundColor: rgb(preset) }}
-                    aria-label={`Preset color ${idx + 1}`}
+            <div className="flex flex-col">
+              <div className="flex items-center gap-0">
+                {QUICK_PICKS.map((color, index) => (
+                  <ColorSwatch
+                    key={index}
+                    color={color}
+                    onColorChange={onColorChange}
                   />
                 ))}
-                <button
-                  type="button"
+
+                <IconButton
+                  icon={expanded ? ChevronUp : ChevronDown}
                   onClick={() => setExpanded((value) => !value)}
-                  className={chevronStyle}
-                  aria-label={
-                    expanded ? "Hide advanced picker" : "Show advanced picker"
-                  }
+                  aria-label={`${expanded ? "Hide" : "Show"} advanced picker`}
                   aria-expanded={expanded}
-                >
-                  {expanded ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  )}
-                </button>
+                />
               </div>
 
               {expanded && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 border-t">
                   <ColorArea
                     colorSpace="hsb"
                     xChannel="saturation"

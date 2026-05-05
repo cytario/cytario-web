@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { rgb } from "./ColorPicker";
+import { rgb } from "./ColorPicker/ColorPicker";
 import { DomainSlider } from "./DomainSlider";
 import { HistogramChannel } from "./HistogramChannel";
 import { MinMaxSettings } from "./MinMaxSettings";
@@ -62,7 +62,7 @@ export function Histogram() {
                   contrastLimit={contrastLimits}
                 />
               );
-            }
+            },
           )}
         </svg>
 

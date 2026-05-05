@@ -1,6 +1,6 @@
 import Slider from "rc-slider";
 
-import { rgb } from "./ColorPicker";
+import { rgb } from "./ColorPicker/ColorPicker";
 import { select } from "../../state/store/selectors";
 import { ByteDomain } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
@@ -31,7 +31,10 @@ export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
           }}
           styles={{
             rail: { backgroundColor: "transparent", height: 1 },
-            track: { backgroundColor: "var(--color-surface-default)", height: 1 },
+            track: {
+              backgroundColor: "var(--color-surface-default)",
+              height: 1,
+            },
             handle: {
               width: 16,
               height: 16,
