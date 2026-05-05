@@ -49,7 +49,7 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
       {/* ColorSwatch as PopoverTrigger */}
       <ColorSwatch color={color} aria-label="Open color picker" />
 
-      <PopoverContent placement="bottom start" className="">
+      <PopoverContent placement="bottom start" data-theme="dark">
         {() => (
           <RacColorPicker
             value={parseColor(rgbToHex(color)).toFormat("hsb")}

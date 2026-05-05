@@ -16,8 +16,7 @@ export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
       <div
         className={`
           w-5 h-5 m-1 rounded-full border-2 
-          border-lime-400 group-hover:border-orange-400
-          transition-transform
+          border-(--color-border-default) group-hover:border-(--color-border-strong)
         `}
         style={{ backgroundColor: rgb(color) }}
       />
