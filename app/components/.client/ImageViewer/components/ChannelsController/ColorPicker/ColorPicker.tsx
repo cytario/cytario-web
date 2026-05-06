@@ -1,119 +1,100 @@
-import { IconButton, Popover, PopoverContent } from "@cytario/design";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { Input, Popover, PopoverContent } from "@cytario/design";
 import {
   ColorArea,
   ColorField,
   ColorPicker as RacColorPicker,
   ColorSlider,
   ColorThumb,
-  Input,
   parseColor,
   SliderTrack,
-  type Color,
 } from "react-aria-components";
 
 import { ColorSwatch } from "./ColorSwatch";
-import { hexToRgb, rgbToHex } from "./colorUtils";
 import { RGB, RGBA } from "../../../state/store/types";
 import { OVERLAY_COLORS } from "../../OverlaysController/getOverlayState";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
   const rgb = color.slice(0, 3);
-  return `rgba(${rgb.join(", ")}, ${alpha})`;
+  return `rgba(${[...rgb, alpha].join(", ")})`;
 }
 
 const WHITE: RGBA = [255, 255, 255, 255];
-const QUICK_PICKS: RGBA[] = [...OVERLAY_COLORS, WHITE];
+const COLOR_PALLETTE_WITH_WHITE: RGBA[] = [...OVERLAY_COLORS, WHITE];
 
 interface ColorPickerProps {
   color: RGBA;
   onColorChange: (color: RGBA) => void;
 }
 
-function emitColor(
-  c: Color,
-  alpha: number,
-  onColorChange: (rgba: RGBA) => void,
-) {
-  const rgb = hexToRgb(c.toString("hex"));
-  if (rgb) onColorChange([rgb[0], rgb[1], rgb[2], alpha]);
-}
-
 export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
-  const [expanded, setExpanded] = useState(false);
-  const alpha = color[3];
-
   return (
-    <Popover onOpenChange={(isOpen) => !isOpen && setExpanded(false)}>
-      {/* ColorSwatch as PopoverTrigger */}
-      <ColorSwatch color={color} aria-label="Open color picker" />
+    // Isolate trigger events from any parent press target (e.g. RAC <Radio>):
+    // mousedown bubbling into the parent puts it in "press" state, whose global
+    // listener then preventDefaults nested input clicks (the hex field).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <Popover>
+        {/* ColorSwatch as PopoverTrigger */}
+        <ColorSwatch color={color} aria-label="Open color picker" />
 
-      <PopoverContent placement="bottom start" data-theme="dark">
-        {() => (
+        <PopoverContent placement="bottom start" data-theme="dark">
           <RacColorPicker
-            value={parseColor(rgbToHex(color)).toFormat("hsb")}
-            onChange={(c) => emitColor(c, alpha, onColorChange)}
+            value={parseColor(
+              `rgb(${color[0]}, ${color[1]}, ${color[2]})`,
+            ).toFormat("hsb")}
+            onChange={(color) => {
+              const rgb = color.toFormat("rgb");
+              onColorChange([
+                rgb.getChannelValue("red"),
+                rgb.getChannelValue("green"),
+                rgb.getChannelValue("blue"),
+                255,
+              ]);
+            }}
           >
             <div className="flex flex-col">
               <div className="flex items-center px-2 py-1">
-                {QUICK_PICKS.map((preset, index) => (
+                {COLOR_PALLETTE_WITH_WHITE.map((color, index) => (
                   <ColorSwatch
                     key={index}
-                    color={preset}
-                    onPress={() =>
-                      onColorChange([preset[0], preset[1], preset[2], alpha])
-                    }
-                    aria-label={`Preset color ${preset}`}
+                    color={color}
+                    onPress={() => onColorChange(color)}
+                    aria-label={`Preset color ${color}`}
                   />
                 ))}
-
-                <IconButton
-                  size="sm"
-                  icon={expanded ? ChevronUp : ChevronDown}
-                  onClick={() => setExpanded((value) => !value)}
-                  aria-label={`${expanded ? "Hide" : "Show"} advanced picker`}
-                  aria-expanded={expanded}
-                />
               </div>
 
-              {expanded && (
-                <div className="flex flex-col gap-2 border-t p-2">
-                  <ColorArea
-                    colorSpace="hsb"
-                    xChannel="saturation"
-                    yChannel="brightness"
-                    className="relative w-full h-40 rounded touch-none"
-                  >
-                    <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
-                  </ColorArea>
+              <div className="flex flex-col gap-2 border-t p-2">
+                <ColorArea
+                  colorSpace="hsb"
+                  xChannel="saturation"
+                  yChannel="brightness"
+                  className="relative w-full h-40 rounded touch-none"
+                >
+                  <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
+                </ColorArea>
 
-                  <ColorSlider
-                    colorSpace="hsb"
-                    channel="hue"
-                    className="w-full"
-                    aria-label="Hue"
-                  >
-                    <SliderTrack className="relative h-3 rounded touch-none">
-                      <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md top-1/2 focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
-                    </SliderTrack>
-                  </ColorSlider>
+                <ColorSlider
+                  colorSpace="hsb"
+                  channel="hue"
+                  className="w-full"
+                  aria-label="Hue"
+                >
+                  <SliderTrack className="relative h-3 rounded touch-none">
+                    <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md top-1/2 focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
+                  </SliderTrack>
+                </ColorSlider>
 
-                  <ColorField
-                    className="flex items-center gap-1"
-                    aria-label="Hex"
-                  >
-                    <span className="text-xs text-(--color-text-secondary)">
-                      #
-                    </span>
-                    <Input className="flex-1 px-2 py-1 text-xs font-mono uppercase rounded border border-(--color-border-default) bg-(--color-surface-default) text-(--color-text-primary) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus) data-invalid:border-(--color-text-error)" />
-                  </ColorField>
-                </div>
-              )}
+                <Input as={ColorField} size="sm" prefix="#" aria-label="Hex" />
+              </div>
             </div>
           </RacColorPicker>
-        )}
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

@@ -81,7 +81,10 @@ export function MinMaxSettings() {
   return (
     <div className="m-2 flex gap-2 items-center">
       <div className="relative flex min-w-0">
-        <label htmlFor="min-contrast" className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
+        <label
+          htmlFor="min-contrast"
+          className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]"
+        >
           Min
         </label>
         <input
@@ -96,7 +99,10 @@ export function MinMaxSettings() {
         />
       </div>
       <div className="relative flex min-w-0">
-        <label htmlFor="max-contrast" className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]">
+        <label
+          htmlFor="max-contrast"
+          className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]"
+        >
           Max
         </label>
         <input
