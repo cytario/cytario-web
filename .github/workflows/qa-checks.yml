@@ -32,6 +32,10 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Check formatting
+        id: format_step
+        run: npm run format:check
+
       - name: Run linter
         id: lint_step
         run: npm run lint
@@ -52,6 +56,11 @@ jobs:
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Checks Completed**:" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.format_step.outcome }}" == "success" ]; then
+            echo "  - Prettier: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - Prettier: ✗" >> $GITHUB_STEP_SUMMARY
+          fi
           if [ "${{ steps.lint_step.outcome }}" == "success" ]; then
             echo "  - ESLint: ✓" >> $GITHUB_STEP_SUMMARY
           else

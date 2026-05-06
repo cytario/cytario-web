@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import prettierConfig from "eslint-config-prettier";
 import importPlugin from "eslint-plugin-import";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";
@@ -196,4 +197,8 @@ export default [
       },
     },
   },
+
+  // Disable ESLint rules that conflict with Prettier — must be last so it wins.
+  // Formatting itself is enforced by `npm run format:check` (CI), not ESLint.
+  prettierConfig,
 ];
