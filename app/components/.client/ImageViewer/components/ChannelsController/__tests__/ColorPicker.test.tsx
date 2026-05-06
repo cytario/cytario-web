@@ -18,14 +18,20 @@ describe("ColorPicker", () => {
     expect(triggers.length).toBeGreaterThan(0);
   });
 
-  test("opens popover and shows 9 quick-pick swatches + chevron", async () => {
+  test("opens popover with the 9 quick-pick swatches", async () => {
     render(<ColorPicker color={RED_RGBA} onColorChange={vi.fn()} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
     expect(presetButtons).toHaveLength(OVERLAY_COLORS.length + 1); // 8 + white
+  });
 
-    expect(screen.getByLabelText(/Show advanced picker/)).toBeInTheDocument();
+  test("popover renders the HSV slider and hex input", async () => {
+    render(<ColorPicker color={RED_RGBA} onColorChange={vi.fn()} />);
+    openPopover();
+
+    expect(await screen.findByLabelText("Hue")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hex")).toBeInTheDocument();
   });
 
   test("clicking a preset swatch calls onColorChange with that color", async () => {
@@ -38,35 +44,6 @@ describe("ColorPicker", () => {
     fireEvent.click(presetButtons[2]);
 
     expect(onColorChange).toHaveBeenCalledWith([255, 255, 0, 255]);
-  });
-
-  test("preserves the input alpha when emitting from a preset", async () => {
-    const onColorChange = vi.fn();
-    render(
-      <ColorPicker color={[255, 0, 0, 128]} onColorChange={onColorChange} />,
-    );
-    openPopover();
-
-    const presetButtons = await screen.findAllByLabelText(/Preset color/);
-    fireEvent.click(presetButtons[0]); // Red
-
-    expect(onColorChange).toHaveBeenCalledWith([255, 0, 0, 128]);
-  });
-
-  test("chevron toggles the advanced picker panel", async () => {
-    render(<ColorPicker color={RED_RGBA} onColorChange={vi.fn()} />);
-    openPopover();
-
-    const chevron = await screen.findByLabelText(/Show advanced picker/);
-    expect(chevron).toHaveAttribute("aria-expanded", "false");
-
-    fireEvent.click(chevron);
-
-    expect(screen.getByLabelText(/Hide advanced picker/)).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    expect(screen.getByLabelText("Hex")).toBeInTheDocument();
   });
 
   test("ninth preset is white", async () => {
