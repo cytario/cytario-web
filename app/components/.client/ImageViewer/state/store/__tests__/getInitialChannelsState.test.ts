@@ -14,7 +14,7 @@ describe("getInitialChannelsState", () => {
       },
     }) as unknown as Image;
 
-  const mockLoader: Loader = [] as unknown as Loader;
+  const mockLoader: Loader = [{ dtype: "Uint16" }] as unknown as Loader;
 
   beforeEach(() => {
     vi.mocked(getSelectionStats).mockResolvedValue({
@@ -100,9 +100,9 @@ describe("getInitialChannelsState", () => {
     expect(result.channelsState["DAPI"].domain).toEqual([0, 65535]);
     expect(result.channelsState["DAPI"].contrastLimits).toEqual([100, 50000]);
 
-    // Other channels get default values
-    expect(result.channelsState["GFP"].domain).toEqual([0, 65536]);
-    expect(result.channelsState["GFP"].contrastLimits).toEqual([0, 65536]);
+    // Other channels get dtype-max default (Uint16 max = 65535)
+    expect(result.channelsState["GFP"].domain).toEqual([0, 65535]);
+    expect(result.channelsState["GFP"].contrastLimits).toEqual([0, 65535]);
   });
 
   test("channels use color from metadata when available", async () => {

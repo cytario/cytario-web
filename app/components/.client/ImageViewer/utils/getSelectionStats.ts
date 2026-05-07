@@ -1,5 +1,6 @@
 import { getContrastLimits } from "./getContrastLimits";
 import { getDomain } from "./getDomain";
+import { getDtypeBitDepth } from "./getDtypeMax";
 import { getHistogram } from "./getHistogram";
 import { Loader } from "../state/store/ome.tif.types";
 import { ByteDomain, Selection } from "../state/store/types";
@@ -27,7 +28,7 @@ export async function getSelectionStats({
 
   const pixels = raster.data;
   const sortedPixels = [...pixels].sort((a, b) => a - b);
-  const histogram = getHistogram(sortedPixels);
+  const histogram = getHistogram(sortedPixels, getDtypeBitDepth(data.dtype));
   const domain = getDomain(sortedPixels);
   const contrastLimits = getContrastLimits(sortedPixels);
 
