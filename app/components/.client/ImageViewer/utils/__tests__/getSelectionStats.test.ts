@@ -6,6 +6,7 @@ for (let i = 0; i < mockData.length; i++) {
   mockData[i] = i;
 }
 const mockLoader = {
+  dtype: "Uint16",
   getRaster: vi.fn(
     () =>
       new Promise((resolve) =>

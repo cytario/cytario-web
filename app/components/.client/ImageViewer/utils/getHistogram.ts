@@ -1,5 +1,4 @@
-// TODO: Don't just assume 16-bit data
-export function getHistogram(data: number[], bitDepth = 16): number[] {
+export function getHistogram(data: number[], bitDepth: number): number[] {
   const numBuckets = 256;
   const maxValue = 2 ** bitDepth;
   const binSize = maxValue / numBuckets;
@@ -8,7 +7,7 @@ export function getHistogram(data: number[], bitDepth = 16): number[] {
 
   for (let i = 0; i < data.length; i++) {
     const value = data[i];
-    const bucketIndex = Math.floor(value / binSize);
+    const bucketIndex = Math.min(numBuckets - 1, Math.floor(value / binSize));
     histogram[bucketIndex]++;
   }
 
