@@ -13,12 +13,9 @@ function getOffsetsUrl(tiffUrl: string): string | null {
 }
 
 /**
- * Load an OME-TIFF using SigV4-signed S3 requests (no presigned URLs).
+ * Load an OME-TIFF using SigV4-signed S3 requests.
  * Uses fromCustomClient for the GeoTIFF transport, then delegates to viv's
  * loadOmeTiff for OME-XML parsing and TiffPixelSource construction.
- *
- * Requires @vivjs/loaders to be patched to accept a `source` option
- * (see patches/@vivjs+loaders+0.20.0.patch).
  */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
@@ -52,8 +49,6 @@ export async function loadOmeTiffWithCredentials(
 
   // Delegate to viv — it handles OME-XML parsing, TiffPixelSource construction,
   // and pyramid indexing using the pre-constructed GeoTIFF.
-  // The `source` option is from our patch (see patches/@vivjs+loaders+0.20.0.patch)
-  // and is not in viv's type definitions yet.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (loadOmeTiff as any)("", { source, offsets });
 

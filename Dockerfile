@@ -7,7 +7,6 @@ ENV HUSKY=0
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-COPY patches ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 #

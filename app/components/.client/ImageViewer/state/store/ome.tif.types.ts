@@ -1,4 +1,4 @@
-import { loadOmeTiff } from "@vivjs/loaders";
+import { loadOmeTiff } from "@hms-dbmi/viv";
 import type { PixelData, SupportedDtype } from "@vivjs/types";
 
 import { RGBA } from "./types";
