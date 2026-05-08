@@ -17,6 +17,7 @@ export const FeatureBar = () => {
       {/* FeatureBar */}
       <motion.div
         role="toolbar"
+        data-theme="dark"
         className="relative shrink-0 bg-[var(--color-surface-default)] h-full overflow-hidden border-l border-[var(--color-border-default)]"
         style={{ width: motionWidth }}
       >

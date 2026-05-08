@@ -1,10 +1,8 @@
-/* eslint-disable jsx-a11y/no-static-element-interactions */
-/* eslint-disable jsx-a11y/click-events-have-key-events */
 import { Switch } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { ColorPicker, rgb } from "./ColorPicker";
+import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
 import { select } from "../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
@@ -83,15 +81,7 @@ export function ChannelsControllerItem({
       </div>
 
       {/* Color Picker (dot) */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <ColorPicker
-          color={color}
-          onColorChange={onColorChange ?? (() => {})}
-        />
-      </div>
+      <ColorPicker color={color} onColorChange={onColorChange ?? (() => {})} />
 
       {/* Channel Name */}
       <span className="flex-1 text-sm truncate">{name}</span>
