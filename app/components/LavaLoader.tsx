@@ -17,11 +17,7 @@ export const LavaLoader = (props: LavaLoaderProps) => (
   </ClientOnly>
 );
 
-const LavaLoaderInner = ({
-  absolute = false,
-  rows = 3,
-  cols = 3,
-}: LavaLoaderProps) => {
+const LavaLoaderInner = ({ absolute = false, rows = 3, cols = 3 }: LavaLoaderProps) => {
   const totalDots = rows * cols;
   const size = 12;
   const duration = 500;
@@ -48,7 +44,7 @@ const LavaLoaderInner = ({
       }
       return neighbors[Math.floor(Math.random() * neighbors.length)];
     },
-    [rows, cols]
+    [rows, cols],
   );
 
   const [activeDot, setActiveDot] = useState<{
@@ -57,16 +53,13 @@ const LavaLoaderInner = ({
   }>(pickRandomDot());
 
   useEffect(() => {
-    const interval = setInterval(
-      () => setActiveDot((prev) => pickNeighbor(prev)),
-      duration
-    );
+    const interval = setInterval(() => setActiveDot((prev) => pickNeighbor(prev)), duration);
     return () => clearInterval(interval);
   }, [pickNeighbor, duration]);
 
   const cx = twMerge(
     "flex items-center justify-center w-full h-full",
-    absolute ? "absolute" : "relative"
+    absolute ? "absolute" : "relative",
   );
 
   return (

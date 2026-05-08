@@ -1,9 +1,5 @@
 import mock from "./__mocks__";
-import {
-  buildConnectionPath,
-  constructS3Url,
-  parseResourceId,
-} from "../resourceId";
+import { buildConnectionPath, constructS3Url, parseResourceId } from "../resourceId";
 
 describe("parseResourceId", () => {
   test("parses connectionName and pathName", () => {
@@ -48,9 +44,7 @@ describe("buildConnectionPath", () => {
   });
 
   test("strips trailing slash", () => {
-    expect(buildConnectionPath("my-conn", "folder/")).toBe(
-      "/connections/my-conn/folder",
-    );
+    expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder");
   });
 });
 
@@ -65,9 +59,7 @@ describe("constructS3Url", () => {
 
       const result = constructS3Url(config, "images/sample.zarr");
 
-      expect(result).toBe(
-        "https://s3.us-west-2.amazonaws.com/my-bucket/images/sample.zarr",
-      );
+      expect(result).toBe("https://s3.us-west-2.amazonaws.com/my-bucket/images/sample.zarr");
     });
 
     test("uses eu-central-1 as default region", () => {
@@ -79,9 +71,7 @@ describe("constructS3Url", () => {
 
       const result = constructS3Url(config, "data.zarr");
 
-      expect(result).toBe(
-        "https://s3.eu-central-1.amazonaws.com/my-bucket/data.zarr",
-      );
+      expect(result).toBe("https://s3.eu-central-1.amazonaws.com/my-bucket/data.zarr");
     });
 
     test("handles path with trailing slash", () => {
@@ -93,9 +83,7 @@ describe("constructS3Url", () => {
 
       const result = constructS3Url(config, "images/sample.zarr/");
 
-      expect(result).toBe(
-        "https://s3.eu-west-1.amazonaws.com/bucket/images/sample.zarr/",
-      );
+      expect(result).toBe("https://s3.eu-west-1.amazonaws.com/bucket/images/sample.zarr/");
     });
   });
 
@@ -201,9 +189,7 @@ describe("constructS3Url", () => {
 
       const result = constructS3Url(config, "data.zarr");
 
-      expect(result).toBe(
-        "https://s3.us-west-2.amazonaws.com/my.bucket.name/data.zarr",
-      );
+      expect(result).toBe("https://s3.us-west-2.amazonaws.com/my.bucket.name/data.zarr");
     });
 
     test("uses path-style for dotted AWS bucket with explicit amazonaws endpoint", () => {

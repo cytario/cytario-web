@@ -17,15 +17,12 @@ export default function UpdateConnectionModal({
     nodeName ? state.connections[nodeName]?.connectionConfig : undefined,
   );
 
-  const rootData = useRouteLoaderData("root") as
-    | { user?: UserProfile }
-    | undefined;
+  const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
   const user = rootData?.user;
 
   if (!user || !nodeName || !connectionConfig) return null;
 
-  const { bucketName, prefix, provider, ownerScope, roleArn, region, endpoint } =
-    connectionConfig;
+  const { bucketName, prefix, provider, ownerScope, roleArn, region, endpoint } = connectionConfig;
 
   const s3Uri = prefix ? `${bucketName}/${prefix}` : bucketName;
 
@@ -41,15 +38,8 @@ export default function UpdateConnectionModal({
   };
 
   return (
-    <RouteModal
-      title="Edit Connection"
-      onClose={() => onClose(["nodeName"])}
-    >
-      <ConnectionForm
-        adminScopes={user.adminScopes}
-        userId={user.sub}
-        initialData={initialData}
-      />
+    <RouteModal title="Edit Connection" onClose={() => onClose(["nodeName"])}>
+      <ConnectionForm adminScopes={user.adminScopes} userId={user.sub} initialData={initialData} />
     </RouteModal>
   );
 }

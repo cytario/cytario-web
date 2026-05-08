@@ -5,19 +5,11 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import {
-  addUserToGroup,
-  removeUserFromGroup,
-  updateUser,
-} from "~/.server/auth/keycloakAdmin";
+import { addUserToGroup, removeUserFromGroup, updateUser } from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
-export const userDetailAction: ActionFunction = async ({
-  request,
-  context,
-  params,
-}) => {
+export const userDetailAction: ActionFunction = async ({ request, context, params }) => {
   const { user } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 

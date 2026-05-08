@@ -67,9 +67,7 @@ describe("callback loader", () => {
   });
 
   test("successful authentication creates session and redirects", async () => {
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid-state",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -97,9 +95,7 @@ describe("callback loader", () => {
   test("redirects to login with flash on invalid state", async () => {
     vi.mocked(validateOAuthState).mockResolvedValue(null);
 
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=invalid",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=invalid");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -116,9 +112,7 @@ describe("callback loader", () => {
       codeVerifier: "",
     });
 
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -135,9 +129,7 @@ describe("callback loader", () => {
       nonce: "",
     });
 
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -148,9 +140,7 @@ describe("callback loader", () => {
     vi.mocked(verifyIdToken).mockResolvedValue(null);
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid-state",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -166,9 +156,7 @@ describe("callback loader", () => {
     vi.mocked(verifyIdToken).mockResolvedValue({ nonce: "wrong-nonce", sub: "user-123" });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid-state",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -195,14 +183,10 @@ describe("callback loader", () => {
   });
 
   test("catches errors and shows generic message", async () => {
-    vi.mocked(exchangeAuthCode).mockRejectedValue(
-      new Error("Token exchange failed: 400"),
-    );
+    vi.mocked(exchangeAuthCode).mockRejectedValue(new Error("Token exchange failed: 400"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid-state",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
 
     const response = await loader({ request } as LoaderFunctionArgs);
 
@@ -233,9 +217,7 @@ describe("callback loader", () => {
   });
 
   test("includes Set-Cookie header on all responses", async () => {
-    const request = new Request(
-      "http://localhost/auth/callback?code=auth-code&state=valid-state",
-    );
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
 
     await loader({ request } as LoaderFunctionArgs);
 

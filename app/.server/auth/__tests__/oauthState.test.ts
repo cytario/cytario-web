@@ -77,9 +77,7 @@ describe("oauthState", () => {
     });
 
     test("preserves query params and hash", () => {
-      expect(validateRedirectTo("/page?q=1#section")).toBe(
-        "/page?q=1#section",
-      );
+      expect(validateRedirectTo("/page?q=1#section")).toBe("/page?q=1#section");
     });
 
     test("rejects absolute URLs (different origin)", () => {
@@ -139,9 +137,7 @@ describe("oauthState", () => {
         expect.any(String),
       );
 
-      const storedData = JSON.parse(
-        vi.mocked(redis.setex).mock.calls[0][2] as string,
-      );
+      const storedData = JSON.parse(vi.mocked(redis.setex).mock.calls[0][2] as string);
       expect(storedData.codeVerifier).toBeDefined();
       expect(storedData.nonce).toBe(result.nonce);
     });
@@ -151,9 +147,7 @@ describe("oauthState", () => {
 
       await generateOAuthState("/buckets");
 
-      const storedData = JSON.parse(
-        vi.mocked(redis.setex).mock.calls[0][2] as string,
-      );
+      const storedData = JSON.parse(vi.mocked(redis.setex).mock.calls[0][2] as string);
       expect(storedData.redirectTo).toBe("/buckets");
     });
 
@@ -162,12 +156,8 @@ describe("oauthState", () => {
 
       const result = await generateOAuthState();
 
-      const storedData = JSON.parse(
-        vi.mocked(redis.setex).mock.calls[0][2] as string,
-      );
-      const expectedChallenge = generateCodeChallenge(
-        storedData.codeVerifier,
-      );
+      const storedData = JSON.parse(vi.mocked(redis.setex).mock.calls[0][2] as string);
+      const expectedChallenge = generateCodeChallenge(storedData.codeVerifier);
       expect(result.codeChallenge).toBe(expectedChallenge);
     });
 
@@ -191,9 +181,7 @@ describe("oauthState", () => {
     };
 
     test("returns state data for valid state using atomic GETDEL", async () => {
-      vi.mocked(redis.getdel).mockResolvedValue(
-        JSON.stringify(validStateData),
-      );
+      vi.mocked(redis.getdel).mockResolvedValue(JSON.stringify(validStateData));
 
       const result = await validateOAuthState("abc123");
 
@@ -211,17 +199,12 @@ describe("oauthState", () => {
 
     test("returns null for invalid JSON in Redis", async () => {
       vi.mocked(redis.getdel).mockResolvedValue("invalid json{");
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const result = await validateOAuthState("corrupted");
 
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to parse OAuth state:",
-        expect.any(Error),
-      );
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to parse OAuth state:", expect.any(Error));
       consoleSpy.mockRestore();
     });
 

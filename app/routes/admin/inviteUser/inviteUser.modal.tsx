@@ -1,11 +1,6 @@
 import { Button, Checkbox } from "@cytario/design";
 import { useEffect, useState } from "react";
-import {
-  useActionData,
-  useNavigate,
-  useNavigation,
-  useOutletContext,
-} from "react-router";
+import { useActionData, useNavigate, useNavigation, useOutletContext } from "react-router";
 
 import { InviteUserForm } from "./inviteUser.form";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
@@ -50,21 +45,13 @@ export default function InviteModal() {
         actionData={actionData}
       />
       <footer className="flex items-center gap-3 mt-6">
-        <Checkbox
-          isSelected={inviteAnother}
-          onChange={setInviteAnother}
-          className="mr-auto"
-        >
+        <Checkbox isSelected={inviteAnother} onChange={setInviteAnother} className="mr-auto">
           <span className="text-sm text-slate-600">Invite another</span>
         </Checkbox>
         <Button onPress={() => navigate(-1)} variant="secondary">
           Cancel
         </Button>
-        <Button
-          type="submit"
-          form="invite-form"
-          isDisabled={isSubmitting}
-        >
+        <Button type="submit" form="invite-form" isDisabled={isSubmitting}>
           {isSubmitting ? "Inviting..." : "Send Invite"}
         </Button>
       </footer>

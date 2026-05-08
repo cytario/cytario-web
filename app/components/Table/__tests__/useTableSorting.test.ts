@@ -60,9 +60,7 @@ describe("useTableSorting", () => {
   });
 
   it("returns default sorting when store is empty and defaultSortColumnId is provided", () => {
-    const { result } = renderHook(() =>
-      useTableSorting("test-table", "name"),
-    );
+    const { result } = renderHook(() => useTableSorting("test-table", "name"));
 
     expect(result.current.sorting).toEqual([{ id: "name", desc: false }]);
   });
@@ -77,9 +75,7 @@ describe("useTableSorting", () => {
     const existingSorting = [{ id: "date", desc: true }];
     setupMock(existingSorting);
 
-    const { result } = renderHook(() =>
-      useTableSorting("test-table", "name"),
-    );
+    const { result } = renderHook(() => useTableSorting("test-table", "name"));
 
     expect(result.current.sorting).toEqual(existingSorting);
   });
@@ -97,15 +93,10 @@ describe("useTableSorting", () => {
 
   it("setSorting handles updater function with default sorting as base", () => {
     // Store is empty, default is "name"
-    const { result } = renderHook(() =>
-      useTableSorting("test-table", "name"),
-    );
+    const { result } = renderHook(() => useTableSorting("test-table", "name"));
 
     act(() => {
-      result.current.setSorting((prev) => [
-        ...prev,
-        { id: "date", desc: true },
-      ]);
+      result.current.setSorting((prev) => [...prev, { id: "date", desc: true }]);
     });
 
     expect(mockSetSorting).toHaveBeenCalledWith([

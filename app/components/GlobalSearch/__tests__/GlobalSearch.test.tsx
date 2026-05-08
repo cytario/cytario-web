@@ -49,7 +49,7 @@ describe("GlobalSearch", () => {
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalledWith(
         { query: "test" },
-        { method: "get", action: "/search" }
+        { method: "get", action: "/search" },
       );
     });
   });

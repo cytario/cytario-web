@@ -44,11 +44,7 @@ export function NodeLinkIcon({ node }: { node: TreeNode }) {
  * this wrapper and {@link DirectoryTree} should collapse into a single
  * component used across the app.
  */
-export function DirectoryViewTree({
-  nodes,
-  searchTerm,
-  kind,
-}: DirectoryViewTreeProps) {
+export function DirectoryViewTree({ nodes, searchTerm, kind }: DirectoryViewTreeProps) {
   const navigate = useNavigate();
 
   if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
@@ -63,12 +59,8 @@ export function DirectoryViewTree({
         size="comfortable"
         height={600}
         searchTerm={searchTerm}
-        searchMatch={(node, term) =>
-          node.name.toLowerCase().includes(term.toLowerCase())
-        }
-        onActivate={(node) =>
-          navigate(buildConnectionPath(node.connectionName, node.pathName))
-        }
+        searchMatch={(node, term) => node.name.toLowerCase().includes(term.toLowerCase())}
+        onActivate={(node) => navigate(buildConnectionPath(node.connectionName, node.pathName))}
       />
     </div>
   );
@@ -84,11 +76,7 @@ interface DirectoryTreeProps {
   className?: string;
 }
 
-function DirectoryTreeRecursive({
-  nodes,
-  action,
-  className,
-}: DirectoryTreeProps) {
+function DirectoryTreeRecursive({ nodes, action, className }: DirectoryTreeProps) {
   return (
     <ul className="pl-6">
       {nodes.map((node) => {
@@ -121,11 +109,7 @@ function DirectoryTreeRecursive({
               </Link>
             </div>
             {node.children && node.children.length > 0 && (
-              <DirectoryTreeRecursive
-                nodes={node.children}
-                action={action}
-                className={className}
-              />
+              <DirectoryTreeRecursive nodes={node.children} action={action} className={className} />
             )}
           </li>
         );

@@ -6,8 +6,7 @@ const normalizeY = (value: number, maxLogValue: number, height: number) => {
   return height - normalizedY;
 };
 
-const normalizeX = (index: number, length: number, width: number) =>
-  (index / (length - 1)) * width;
+const normalizeX = (index: number, length: number, width: number) => (index / (length - 1)) * width;
 
 interface HistogramChannelProps {
   channelIndex: number;
@@ -76,12 +75,7 @@ export const HistogramChannel = ({
         fill={color}
         fillOpacity={0.1}
       />
-      <polygon
-        points={points}
-        fill={color}
-        fillOpacity={0.5}
-        clipPath={`url(#${id})`}
-      />
+      <polygon points={points} fill={color} fillOpacity={0.5} clipPath={`url(#${id})`} />
     </g>
   );
 };

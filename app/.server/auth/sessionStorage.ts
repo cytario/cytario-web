@@ -47,10 +47,7 @@ const sessionCache = new LRUCache<string, SessionData>({
   ttl: 5000, // 5 seconds TTL - short enough to keep data fresh
 });
 
-export const sessionStorage = createSessionStorage<
-  SessionData,
-  SessionFlashData
->({
+export const sessionStorage = createSessionStorage<SessionData, SessionFlashData>({
   cookie: {
     name: "__session",
     ...cookie,

@@ -18,9 +18,7 @@ export interface AuthTokensResponse {
 /**
  * Refreshes the access token using the provided refresh token.
  */
-export async function refreshAccessToken(
-  refreshToken: string,
-): Promise<AuthTokens> {
+export async function refreshAccessToken(refreshToken: string): Promise<AuthTokens> {
   const wellKnownEndpoints = await getWellKnownEndpoints();
 
   const response = await fetch(wellKnownEndpoints.token_endpoint, {
@@ -34,8 +32,7 @@ export async function refreshAccessToken(
     }),
   });
   if (!response.ok) throw new Error("Failed to refresh token");
-  const { access_token, id_token, refresh_token } =
-    (await response.json()) as AuthTokensResponse;
+  const { access_token, id_token, refresh_token } = (await response.json()) as AuthTokensResponse;
 
   const authTokens: AuthTokens = {
     accessToken: access_token,
@@ -69,9 +66,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * Reads the current session auth tokens directly from Redis,
  * bypassing the in-memory LRU cache to get the freshest data.
  */
-async function readSessionTokensFromStore(
-  sessionId: string,
-): Promise<AuthTokens | null> {
+async function readSessionTokensFromStore(sessionId: string): Promise<AuthTokens | null> {
   const data = await redis.hget(sessionId, "data");
   if (!data) return null;
 
@@ -96,13 +91,7 @@ export async function refreshAccessTokenWithLock(
   const lockValue = randomUUID();
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const acquired = await redis.set(
-      lockKey,
-      lockValue,
-      "EX",
-      LOCK_TTL_SECONDS,
-      "NX",
-    );
+    const acquired = await redis.set(lockKey, lockValue, "EX", LOCK_TTL_SECONDS, "NX");
 
     if (acquired === "OK") {
       try {
@@ -110,10 +99,7 @@ export async function refreshAccessTokenWithLock(
         // by a previous lock holder (handles refresh token rotation)
         const currentTokens = await readSessionTokensFromStore(sessionId);
 
-        if (
-          currentTokens &&
-          currentTokens.refreshToken !== refreshToken
-        ) {
+        if (currentTokens && currentTokens.refreshToken !== refreshToken) {
           return currentTokens;
         }
 

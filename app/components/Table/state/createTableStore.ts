@@ -1,8 +1,4 @@
-import type {
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-} from "@tanstack/react-table";
+import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
 import { createStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -47,8 +43,7 @@ export const createTableStore = (tableId: string) =>
               "setColumnWidth",
             ),
 
-          setSorting: (sorting: SortingState) =>
-            set({ sorting }, false, "setSorting"),
+          setSorting: (sorting: SortingState) => set({ sorting }, false, "setSorting"),
 
           setColumnVisibility: (columnVisibility: VisibilityState) =>
             set({ columnVisibility }, false, "setColumnVisibility"),
@@ -90,8 +85,7 @@ export const createTableStore = (tableId: string) =>
           },
         ),
         onRehydrateStorage: () => (_state, error) => {
-          if (error)
-            console.error(`[TableStore-${tableId}] Rehydration failed:`, error);
+          if (error) console.error(`[TableStore-${tableId}] Rehydration failed:`, error);
         },
       },
     ),

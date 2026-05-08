@@ -31,18 +31,14 @@ const revokeRefreshToken = async (
     });
 
     if (!response.ok) {
-      console.warn(
-        `${label} Token revocation returned ${response.status}`,
-      );
+      console.warn(`${label} Token revocation returned ${response.status}`);
     }
   } catch (error) {
     console.warn(`${label} Token revocation failed:`, error);
   }
 };
 
-export const loader = async ({
-  request,
-}: LoaderFunctionArgs): Promise<Response> => {
+export const loader = async ({ request }: LoaderFunctionArgs): Promise<Response> => {
   const session = await getSession(request);
   const { authTokens } = await getSessionData(session);
 
@@ -52,18 +48,12 @@ export const loader = async ({
   // Revoke refresh token before ending session (best-effort)
   if (authTokens?.refreshToken) {
     console.info(`${label} Revoking refresh token`);
-    await revokeRefreshToken(
-      authTokens.refreshToken,
-      wellKnownEndpoints.revocation_endpoint,
-    );
+    await revokeRefreshToken(authTokens.refreshToken, wellKnownEndpoints.revocation_endpoint);
   }
 
   // Build the logout URL with post_logout_redirect_uri
   const logoutUrl = new URL(wellKnownEndpoints.end_session_endpoint);
-  logoutUrl.searchParams.set(
-    "post_logout_redirect_uri",
-    `${cytarioConfig.endpoints.webapp}/login`,
-  );
+  logoutUrl.searchParams.set("post_logout_redirect_uri", `${cytarioConfig.endpoints.webapp}/login`);
 
   // Include id_token_hint for better logout behavior
   if (authTokens?.idToken) {

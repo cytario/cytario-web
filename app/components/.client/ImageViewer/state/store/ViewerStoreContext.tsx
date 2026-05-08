@@ -82,32 +82,18 @@ interface ViewerStoreProviderProps {
 }
 
 // Viewer is auth-agnostic — caller owns URL construction and signing.
-export const ViewerStoreProvider = ({
-  url,
-  signedFetch,
-  children,
-}: ViewerStoreProviderProps) => {
+export const ViewerStoreProvider = ({ url, signedFetch, children }: ViewerStoreProviderProps) => {
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
 
-  const store = useMemo(
-    () => registerViewer(url, signedFetch),
-    [url, signedFetch, registerViewer],
-  );
+  const store = useMemo(() => registerViewer(url, signedFetch), [url, signedFetch, registerViewer]);
 
-  return (
-    <ViewerStoreContext.Provider value={store}>
-      {children}
-    </ViewerStoreContext.Provider>
-  );
+  return <ViewerStoreContext.Provider value={store}>{children}</ViewerStoreContext.Provider>;
 };
 
 /** Access the viewer store from within a ViewerStoreProvider. */
 export const useViewerStore = <T,>(selector: (state: ViewerStore) => T): T => {
   const store = useContext(ViewerStoreContext);
 
-  if (!store)
-    throw new Error(
-      "useViewerStoreContext must be used within ViewerStoreProvider",
-    );
+  if (!store) throw new Error("useViewerStoreContext must be used within ViewerStoreProvider");
   return useStore(store, selector);
 };

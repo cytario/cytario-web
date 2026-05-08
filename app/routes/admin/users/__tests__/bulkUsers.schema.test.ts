@@ -12,20 +12,15 @@ describe("bulkActionSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.intent).toBe("addToGroup");
-      expect(result.data.userIds).toEqual([
-        "550e8400-e29b-41d4-a716-446655440000",
-      ]);
-      expect(result.data.groupId).toBe(
-        "660e8400-e29b-41d4-a716-446655440001",
-      );
+      expect(result.data.userIds).toEqual(["550e8400-e29b-41d4-a716-446655440000"]);
+      expect(result.data.groupId).toBe("660e8400-e29b-41d4-a716-446655440001");
     }
   });
 
   test("parses multiple comma-separated userIds", () => {
     const result = bulkActionSchema.safeParse({
       intent: "enableAccounts",
-      userIds:
-        "550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001",
+      userIds: "550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001",
     });
     expect(result.success).toBe(true);
     if (result.success) {

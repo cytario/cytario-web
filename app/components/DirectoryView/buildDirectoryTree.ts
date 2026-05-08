@@ -100,10 +100,7 @@ function buildDirectoryTreeRecursive(
         _Object: obj,
       };
       currentDir.push(existingDir);
-    } else if (
-      isImageFile(obj.Key ?? "") &&
-      !isImageFile(existingDir._Object?.Key ?? "")
-    ) {
+    } else if (isImageFile(obj.Key ?? "") && !isImageFile(existingDir._Object?.Key ?? "")) {
       existingDir._Object = obj;
     }
 
@@ -118,10 +115,7 @@ function buildDirectoryTreeRecursive(
 }
 
 /** Depth-first search for a node by its `id`. */
-export function findNodeById(
-  nodes: TreeNode[],
-  id: string,
-): TreeNode | undefined {
+export function findNodeById(nodes: TreeNode[], id: string): TreeNode | undefined {
   for (const node of nodes) {
     if (node.id === id) return node;
     if (node.children.length > 0) {
@@ -136,23 +130,16 @@ export function findNodeById(
 export function computeDirectorySize(node: TreeNode): number {
   if (node.type === "file") return node._Object?.Size ?? 0;
   if (node.children.length === 0) return node._Object?.Size ?? 0;
-  return node.children.reduce(
-    (sum, child) => sum + computeDirectorySize(child),
-    0,
-  );
+  return node.children.reduce((sum, child) => sum + computeDirectorySize(child), 0);
 }
 
 /** Latest LastModified timestamp under a directory node. */
 export function computeDirectoryLastModified(node: TreeNode): number {
   if (node.type === "file") {
-    return node._Object?.LastModified
-      ? new Date(node._Object.LastModified).getTime()
-      : 0;
+    return node._Object?.LastModified ? new Date(node._Object.LastModified).getTime() : 0;
   }
   if (node.children.length === 0) {
-    return node._Object?.LastModified
-      ? new Date(node._Object.LastModified).getTime()
-      : 0;
+    return node._Object?.LastModified ? new Date(node._Object.LastModified).getTime() : 0;
   }
   return node.children.reduce(
     (max, child) => Math.max(max, computeDirectoryLastModified(child)),
@@ -182,13 +169,7 @@ export function buildDirectoryTree(
     const pathName = obj.Key.replace(prefix || "", "");
     const pathSegments = pathName.split("/");
 
-    buildDirectoryTreeRecursive(
-      root,
-      pathSegments,
-      obj,
-      connectionName,
-      basePath,
-    );
+    buildDirectoryTreeRecursive(root, pathSegments, obj, connectionName, basePath);
   });
 
   return root;

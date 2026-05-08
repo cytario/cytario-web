@@ -161,9 +161,13 @@ ${scopesXml}
         <key>STS Endpoint</key>
         <string>${escapeXml(stsEndpoint)}</string>
         <key>Properties</key>
-        <dict>${roleArn ? `
+        <dict>${
+          roleArn
+            ? `
             <key>s3.assumerole.rolearn</key>
-            <string>${escapeXml(roleArn)}</string>` : ""}
+            <string>${escapeXml(roleArn)}</string>`
+            : ""
+        }
 ${s3PropertiesXml}        </dict>
     </dict>
 </plist>`;

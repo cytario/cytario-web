@@ -7,12 +7,7 @@ vi.mock("~/config", () => ({
   cytarioConfig: { setup: { allowedFiles: /\.((tif|tiff))$/ } },
 }));
 
-const testCases: [
-  string,
-  _Object[],
-  { prefix?: string; query?: string },
-  _Object[]
-][] = [
+const testCases: [string, _Object[], { prefix?: string; query?: string }, _Object[]][] = [
   [
     "filter objects by query",
     [{ Key: "folder1/file1.tif" }, { Key: "folder2/file2.tif" }],

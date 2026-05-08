@@ -32,10 +32,7 @@ export type MarkerProps = {
 
 export interface MarkerLayerProps {
   markerProps?: MarkerProps;
-  getMarkerMask?: (
-    d: unknown,
-    info: { index: number; data: unknown; target: unknown[] }
-  ) => number; // Returns a 32-bit bitmask
+  getMarkerMask?: (d: unknown, info: { index: number; data: unknown; target: unknown[] }) => number; // Returns a 32-bit bitmask
 }
 
 // Export the ShaderModule with uniform types
@@ -75,7 +72,7 @@ export const markerUniforms = {
  */
 export function createMarkerProps(
   fileMarkers: Record<string, { color: RGBA }>,
-  opacity: number
+  opacity: number,
 ): MarkerProps {
   const keys = Object.keys(fileMarkers);
 

@@ -17,7 +17,7 @@ function buildBitmaskExpression(markerColumns: string[]): string {
   const limitedMarkers = markerColumns.slice(0, 32);
 
   const expressions = limitedMarkers.map(
-    (col, idx) => `(CAST(CAST("${col}" AS BOOLEAN) AS INTEGER) << ${idx})`
+    (col, idx) => `(CAST(CAST("${col}" AS BOOLEAN) AS INTEGER) << ${idx})`,
   );
 
   return `(${expressions.join(" | ")})`;

@@ -19,9 +19,7 @@ describe("s3Provider utilities", () => {
 
     it("returns true for AWS S3 endpoints", () => {
       expect(isAwsS3Endpoint("https://s3.amazonaws.com")).toBe(true);
-      expect(isAwsS3Endpoint("https://s3.eu-central-1.amazonaws.com")).toBe(
-        true
-      );
+      expect(isAwsS3Endpoint("https://s3.eu-central-1.amazonaws.com")).toBe(true);
       expect(isAwsS3Endpoint("https://bucket.s3.amazonaws.com")).toBe(true);
     });
 
@@ -97,14 +95,12 @@ describe("s3Provider utilities", () => {
       expect(getEndpointHostname("https://s3.cytar.io")).toBe("s3.cytar.io");
       expect(getEndpointHostname("http://localhost:9000")).toBe("localhost:9000");
       expect(getEndpointHostname("https://s3.eu-central-1.amazonaws.com")).toBe(
-        "s3.eu-central-1.amazonaws.com"
+        "s3.eu-central-1.amazonaws.com",
       );
     });
 
     it("includes port in hostname when present", () => {
-      expect(getEndpointHostname("http://minio.local:9000")).toBe(
-        "minio.local:9000"
-      );
+      expect(getEndpointHostname("http://minio.local:9000")).toBe("minio.local:9000");
     });
   });
 });

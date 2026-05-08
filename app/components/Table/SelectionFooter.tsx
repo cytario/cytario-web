@@ -23,16 +23,14 @@ export function SelectionFooter({
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-600">
-            <span className="font-medium text-slate-900">{selectedCount}</span>
-            {" "}of {totalCount} selected
+            <span className="font-medium text-slate-900">{selectedCount}</span> of {totalCount}{" "}
+            selected
           </span>
           <Button variant="secondary" size="sm" onPress={onReset}>
             Clear selection
           </Button>
         </div>
-        {children && (
-          <div className="flex items-center gap-2">{children}</div>
-        )}
+        {children && <div className="flex items-center gap-2">{children}</div>}
       </div>
     </div>
   );

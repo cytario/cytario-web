@@ -49,8 +49,7 @@ const FIELD_TO_STEP: Record<string, number> = {
 };
 
 const dtClass = "text-[var(--color-text-secondary)]";
-const ddClass =
-  "font-[number:var(--font-weight-medium)] text-[var(--color-text-primary)]";
+const ddClass = "font-[number:var(--font-weight-medium)] text-[var(--color-text-primary)]";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -83,8 +82,7 @@ export const ConnectionForm = ({
   }>();
   const navigation = useNavigation();
 
-  const serverErrors =
-    actionData?.status === "error" ? actionData.errors : undefined;
+  const serverErrors = actionData?.status === "error" ? actionData.errors : undefined;
   const isSubmitting = navigation.state === "submitting";
 
   // Compute the initial step from server errors so we navigate to the
@@ -151,9 +149,7 @@ export const ConnectionForm = ({
 
   const fieldsPerStep: Record<number, (keyof ConnectBucketFormData)[]> = {
     0: ["providerType", "s3Uri", "name"],
-    1: isAWS
-      ? ["ownerScope", "roleArn", "bucketRegion"]
-      : ["ownerScope", "bucketEndpoint"],
+    1: isAWS ? ["ownerScope", "roleArn", "bucketRegion"] : ["ownerScope", "bucketEndpoint"],
   };
 
   const onSubmit = (data: ConnectBucketFormData) => {
@@ -300,9 +296,7 @@ export const ConnectionForm = ({
                         ]}
                         selectedKey={field.value}
                         onSelectionChange={(key) => field.onChange(key)}
-                        renderItem={(item) => (
-                          <ScopePill scope={item.id} />
-                        )}
+                        renderItem={(item) => <ScopePill scope={item.id} />}
                       />
                     )}
                   />
@@ -389,10 +383,7 @@ export const ConnectionForm = ({
                 ].join(" ")}
               >
                 <dl className="flex flex-col gap-[var(--spacing-2)] text-[length:var(--font-size-sm)]">
-                  <SummaryRow
-                    label="Provider"
-                    value={isAWS ? "AWS S3" : "MinIO"}
-                  />
+                  <SummaryRow label="Provider" value={isAWS ? "AWS S3" : "MinIO"} />
                   <SummaryRow label="Name" value={nameValue} />
                   <SummaryRow label="Bucket" value={bucketName} />
                   {prefix && <SummaryRow label="Prefix" value={prefix} />}

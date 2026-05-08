@@ -43,10 +43,7 @@ app.use(
 );
 
 // Other build assets — short cache
-app.use(
-  buildModule.publicPath,
-  express.static(buildModule.assetsBuildDirectory, { maxAge: "1h" }),
-);
+app.use(buildModule.publicPath, express.static(buildModule.assetsBuildDirectory, { maxAge: "1h" }));
 
 // Public static files (fonts, logos, etc.)
 app.use(express.static("public", { maxAge: "1h" }));

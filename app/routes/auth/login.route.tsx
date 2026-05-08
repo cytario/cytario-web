@@ -1,10 +1,7 @@
 import { LoaderFunctionArgs, redirect, MetaFunction } from "react-router";
 
 import { getSession } from "~/.server/auth/getSession";
-import {
-  generateOAuthState,
-  validateRedirectTo,
-} from "~/.server/auth/oauthState";
+import { generateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 import { createLabel } from "~/.server/logging";
 import { cytarioConfig } from "~/config";
@@ -14,8 +11,7 @@ export const meta: MetaFunction = () => {
     { title: "Cytario | Login" },
     {
       name: "description",
-      content:
-        "Log in to Cytario to access your secure workspace and manage your data.",
+      content: "Log in to Cytario to access your secure workspace and manage your data.",
     },
   ];
 };
@@ -75,10 +71,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect(authUrl.toString());
   } catch (error) {
     console.error(`${label} Failed to initiate login:`, error);
-    throw new Response(
-      "Unable to connect to authentication service. Please try again later.",
-      { status: 502 },
-    );
+    throw new Response("Unable to connect to authentication service. Please try again later.", {
+      status: 502,
+    });
   }
 };
 
@@ -86,7 +81,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function LoginRoute() {
   return (
     <div className="flex items-center justify-center h-screen">
-      <p role="status" className="text-slate-500">Redirecting to login...</p>
+      <p role="status" className="text-slate-500">
+        Redirecting to login...
+      </p>
     </div>
   );
 }

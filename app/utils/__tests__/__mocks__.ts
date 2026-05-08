@@ -3,21 +3,12 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { ConnectionConfig } from "~/.generated/client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
-import {
-  type CytarioSession,
-  SessionData,
-  SessionFlashData,
-} from "~/.server/auth/sessionStorage";
-import {
-  Channel,
-  Image,
-} from "~/components/.client/ImageViewer/state/store/ome.tif.types";
+import { type CytarioSession, SessionData, SessionFlashData } from "~/.server/auth/sessionStorage";
+import { Channel, Image } from "~/components/.client/ImageViewer/state/store/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 
 const mock = {
-  connectionConfig: (
-    data: Partial<ConnectionConfig> = {},
-  ): ConnectionConfig => ({
+  connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
     bucketName: "mock-bucket",
     id: 0,
     name: "aws-mock-bucket",
@@ -30,9 +21,7 @@ const mock = {
     prefix: "",
     ...data,
   }),
-  session: (
-    data: Partial<SessionData & SessionFlashData> = {},
-  ): CytarioSession => ({
+  session: (data: Partial<SessionData & SessionFlashData> = {}): CytarioSession => ({
     id: "session",
     data,
     has: vi.fn(() => false),
@@ -41,9 +30,7 @@ const mock = {
     flash: vi.fn(),
     unset: vi.fn(),
   }),
-  tokenReponse: (
-    overrides?: Partial<AuthTokensResponse>,
-  ): AuthTokensResponse => ({
+  tokenReponse: (overrides?: Partial<AuthTokensResponse>): AuthTokensResponse => ({
     access_token: "access_token",
     expires_in: 60 * 60, // 1 hour
     refresh_token: "refresh_token",
@@ -75,8 +62,7 @@ const mock = {
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => {
-    const connectionName =
-      overrides?.connectionName ?? "test-provider-test-bucket";
+    const connectionName = overrides?.connectionName ?? "test-provider-test-bucket";
     const name = overrides?.name ?? "mockName";
     return {
       id: `${connectionName}/${name}`,

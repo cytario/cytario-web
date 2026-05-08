@@ -41,9 +41,7 @@ describe("getSession", () => {
   });
 
   test("propagates errors from sessionStorage", async () => {
-    vi.mocked(sessionStorage.getSession).mockRejectedValue(
-      new Error("Session storage error")
-    );
+    vi.mocked(sessionStorage.getSession).mockRejectedValue(new Error("Session storage error"));
 
     const request = new Request("http://localhost/test");
 

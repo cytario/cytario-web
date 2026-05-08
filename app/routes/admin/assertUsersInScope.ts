@@ -1,12 +1,6 @@
-import {
-  collectAllUsers,
-  getGroupWithMembers,
-} from "~/.server/auth/keycloakAdmin";
+import { collectAllUsers, getGroupWithMembers } from "~/.server/auth/keycloakAdmin";
 
-export async function assertUsersInScope(
-  userIds: string[],
-  scope: string,
-): Promise<void> {
+export async function assertUsersInScope(userIds: string[], scope: string): Promise<void> {
   const group = await getGroupWithMembers(scope);
   if (!group) throw new Response("Scope not found", { status: 404 });
 

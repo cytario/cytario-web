@@ -1,15 +1,15 @@
 export interface FrameInfo {
-    width: number;
-    height: number;
-    componentCount: number;
-    bitsPerSample: number;
-    isSigned: boolean;
-    isReversible: boolean;
+  width: number;
+  height: number;
+  componentCount: number;
+  bitsPerSample: number;
+  isSigned: boolean;
+  isReversible: boolean;
 }
 
 export interface DecodedImage {
-    info: FrameInfo;
-    pixels: Uint8Array;
+  info: FrameInfo;
+  pixels: Uint8Array;
 }
 
 /**
@@ -25,9 +25,7 @@ export function loadJp2KDecoder(decodeConfig?: unknown): Promise<void>;
  * @returns Promise resolving to decoded image data with frame info and pixels
  * @throws Error if the compressed frame is invalid or decoding fails
  */
-export function decodeJPEG2000(
-    compressedImageFrame: Uint8Array,
-): Promise<DecodedImage>;
+export function decodeJPEG2000(compressedImageFrame: Uint8Array): Promise<DecodedImage>;
 
 /**
  * Cleanup function to release decoder resources

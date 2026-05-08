@@ -5,9 +5,7 @@ import { getSession, getSessionData } from "~/.server/auth/getSession";
 /**
  * Redirects the user to the profile page if they are already authenticated.
  */
-export const redirectIfAuthenticated = async ({
-  request,
-}: LoaderFunctionArgs): Promise<void> => {
+export const redirectIfAuthenticated = async ({ request }: LoaderFunctionArgs): Promise<void> => {
   const session = await getSession(request);
   const { user } = await getSessionData(session);
 

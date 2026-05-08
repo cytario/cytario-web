@@ -37,9 +37,7 @@ describe("getWellKnownEndpoints", () => {
       });
 
       // Re-import to get fresh module without cache
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
       await freshGet();
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -53,9 +51,7 @@ describe("getWellKnownEndpoints", () => {
         json: () => Promise.resolve(mockEndpoints),
       });
 
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
       const result = await freshGet();
 
       expect(result).toEqual(mockEndpoints);
@@ -71,9 +67,7 @@ describe("getWellKnownEndpoints", () => {
         json: () => Promise.resolve(mockEndpoints),
       });
 
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
 
       await freshGet();
       await freshGet();
@@ -91,9 +85,7 @@ describe("getWellKnownEndpoints", () => {
         json: () => Promise.resolve(mockEndpoints),
       });
 
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
 
       await freshGet();
       expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -117,9 +109,7 @@ describe("getWellKnownEndpoints", () => {
         text: () => Promise.resolve("Realm not found"),
       });
 
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
 
       await expect(freshGet()).rejects.toThrow(
         "Failed to fetch well-known endpoints: 404 Not Found - Realm not found",
@@ -129,9 +119,7 @@ describe("getWellKnownEndpoints", () => {
     test("throws on network error", async () => {
       mockFetch.mockRejectedValue(new Error("Network error"));
 
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
 
       await expect(freshGet()).rejects.toThrow("Network error");
     });
@@ -143,18 +131,14 @@ describe("getWellKnownEndpoints", () => {
         json: () => Promise.resolve(mockEndpoints),
       });
 
-      const { getWellKnownEndpoints: freshGet } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet } = await import("../wellKnownEndpoints");
       await freshGet();
 
       // Reset for second module import
       vi.resetModules();
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
-      const { getWellKnownEndpoints: freshGet2 } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet2 } = await import("../wellKnownEndpoints");
 
       await expect(freshGet2()).rejects.toThrow("Network error");
 
@@ -164,9 +148,7 @@ describe("getWellKnownEndpoints", () => {
         json: () => Promise.resolve(mockEndpoints),
       });
 
-      const { getWellKnownEndpoints: freshGet3 } = await import(
-        "../wellKnownEndpoints"
-      );
+      const { getWellKnownEndpoints: freshGet3 } = await import("../wellKnownEndpoints");
       const result = await freshGet3();
       expect(result).toEqual(mockEndpoints);
     });

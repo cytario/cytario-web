@@ -47,7 +47,12 @@ describe("inviteUser", () => {
   test("creates user, adds to group, sends email", async () => {
     const fetchMock = mockFetchSequence([
       // findGroupByPath → fetchGroups
-      { json: () => Promise.resolve([{ ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] }]) },
+      {
+        json: () =>
+          Promise.resolve([
+            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
+          ]),
+      },
       // POST /users → 201
       { status: 201, headers: new Headers({ location: `${BASE}/users/new-user-id` }) },
       // PUT /users/{id}/groups/{groupId} → 204
@@ -92,7 +97,12 @@ describe("inviteUser", () => {
   test("handles 409 conflict by adding existing user to group without email", async () => {
     const fetchMock = mockFetchSequence([
       // findGroupByPath → fetchGroups
-      { json: () => Promise.resolve([{ ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] }]) },
+      {
+        json: () =>
+          Promise.resolve([
+            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
+          ]),
+      },
       // POST /users → 409
       { ok: false, status: 409, statusText: "Conflict" },
       // GET /users?email=... → existing user
@@ -111,9 +121,7 @@ describe("inviteUser", () => {
 
     // Should NOT send email to existing user
     expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining(
-        `${BASE}/users/existing-user-id/execute-actions-email`,
-      ),
+      expect.stringContaining(`${BASE}/users/existing-user-id/execute-actions-email`),
       expect.anything(),
     );
   });
@@ -132,7 +140,12 @@ describe("inviteUser", () => {
   test("throws when 409 but user lookup returns empty", async () => {
     mockFetchSequence([
       // findGroupByPath
-      { json: () => Promise.resolve([{ ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] }]) },
+      {
+        json: () =>
+          Promise.resolve([
+            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
+          ]),
+      },
       // POST /users → 409
       { ok: false, status: 409, statusText: "Conflict" },
       // GET /users?email=... → empty
@@ -147,7 +160,12 @@ describe("inviteUser", () => {
   test("throws on non-409 API error", async () => {
     mockFetchSequence([
       // findGroupByPath
-      { json: () => Promise.resolve([{ ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] }]) },
+      {
+        json: () =>
+          Promise.resolve([
+            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
+          ]),
+      },
       // POST /users → 500
       { ok: false, status: 500, statusText: "Internal Server Error" },
     ]);
@@ -160,7 +178,12 @@ describe("inviteUser", () => {
   test("throws when Location header is missing", async () => {
     mockFetchSequence([
       // findGroupByPath
-      { json: () => Promise.resolve([{ ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] }]) },
+      {
+        json: () =>
+          Promise.resolve([
+            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
+          ]),
+      },
       // POST /users → 201 but no Location header
       { status: 201, headers: new Headers() },
     ]);

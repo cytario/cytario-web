@@ -2,9 +2,7 @@ import { select } from "../selectors";
 import { ViewerStore } from "../types";
 
 describe("selectors", () => {
-  const createMockState = (
-    overrides: Partial<ViewerStore> = {}
-  ): ViewerStore => ({
+  const createMockState = (overrides: Partial<ViewerStore> = {}): ViewerStore => ({
     id: "test",
     error: null,
     selectedChannelId: null,

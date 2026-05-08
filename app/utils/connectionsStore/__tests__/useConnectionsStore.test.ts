@@ -11,9 +11,7 @@ describe("useConnectionsStore", () => {
 
   /** Helper: seed the store with a single connection. */
   const seed = (config = connectionConfig, creds = credentials) => {
-    useConnectionsStore
-      .getState()
-      .setConnections([config], { [config.name]: creds });
+    useConnectionsStore.getState().setConnections([config], { [config.name]: creds });
   };
 
   beforeEach(() => {
@@ -85,22 +83,16 @@ describe("useConnectionsStore", () => {
 
   describe("selectors", () => {
     test("select.credentials returns the connection's credentials", () => {
-      expect(
-        select.credentials("missing")(useConnectionsStore.getState()),
-      ).toBeUndefined();
+      expect(select.credentials("missing")(useConnectionsStore.getState())).toBeUndefined();
 
       seed();
 
-      expect(
-        select.credentials("test-conn")(useConnectionsStore.getState()),
-      ).toEqual(credentials);
+      expect(select.credentials("test-conn")(useConnectionsStore.getState())).toEqual(credentials);
     });
 
     test("selectHttpsUrl returns null when connection is not in store", () => {
       expect(
-        selectHttpsUrl("missing/data/file.ome.tif")(
-          useConnectionsStore.getState(),
-        ),
+        selectHttpsUrl("missing/data/file.ome.tif")(useConnectionsStore.getState()),
       ).toBeNull();
     });
 
@@ -135,13 +127,9 @@ describe("useConnectionsStore", () => {
         }),
       );
 
-      const url = selectHttpsUrl("no-prefix/file.ome.tif")(
-        useConnectionsStore.getState(),
-      );
+      const url = selectHttpsUrl("no-prefix/file.ome.tif")(useConnectionsStore.getState());
 
-      expect(url).toBe(
-        "https://s3.eu-central-1.amazonaws.com/my-bucket/file.ome.tif",
-      );
+      expect(url).toBe("https://s3.eu-central-1.amazonaws.com/my-bucket/file.ome.tif");
     });
 
     test("resolveResourceId exposes httpsUrl matching selectHttpsUrl", () => {
@@ -157,9 +145,7 @@ describe("useConnectionsStore", () => {
 
       const resourceId = "prefixed-conn/image.ome.tif";
       const resolved = resolveResourceId(resourceId);
-      const selectorUrl = selectHttpsUrl(resourceId)(
-        useConnectionsStore.getState(),
-      );
+      const selectorUrl = selectHttpsUrl(resourceId)(useConnectionsStore.getState());
 
       expect(resolved.httpsUrl).toBe(selectorUrl);
     });
@@ -179,9 +165,10 @@ describe("useConnectionsStore", () => {
         }
       ).persist.getOptions();
 
-      const partialized = persistConfig.partialize(
-        useConnectionsStore.getState(),
-      ) as Record<string, unknown>;
+      const partialized = persistConfig.partialize(useConnectionsStore.getState()) as Record<
+        string,
+        unknown
+      >;
 
       expect(partialized).toHaveProperty("connections");
       expect(partialized).not.toHaveProperty("setConnections");

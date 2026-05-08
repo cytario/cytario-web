@@ -79,9 +79,9 @@ describe("getTileDataWasm", () => {
     vi.mocked(createDatabase).mockRejectedValue(new Error("Database connection failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(
-      getTileDataWasm("my-conn/path", defaultTileIndex),
-    ).rejects.toThrow("Database connection failed");
+    await expect(getTileDataWasm("my-conn/path", defaultTileIndex)).rejects.toThrow(
+      "Database connection failed",
+    );
 
     consoleSpy.mockRestore();
   });
@@ -90,9 +90,7 @@ describe("getTileDataWasm", () => {
     mockQuery.mockRejectedValue(new Error("Query failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(
-      getTileDataWasm("my-conn/path", defaultTileIndex),
-    ).rejects.toThrow("Query failed");
+    await expect(getTileDataWasm("my-conn/path", defaultTileIndex)).rejects.toThrow("Query failed");
 
     consoleSpy.mockRestore();
   });

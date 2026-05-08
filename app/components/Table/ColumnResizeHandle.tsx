@@ -1,10 +1,6 @@
 import { Header } from "@tanstack/react-table";
 
-export const ColumnResizeHandle = ({
-  header,
-}: {
-  header: Header<unknown, unknown>;
-}) => {
+export const ColumnResizeHandle = ({ header }: { header: Header<unknown, unknown> }) => {
   return (
     <button
       type="button"

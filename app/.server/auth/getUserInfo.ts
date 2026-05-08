@@ -48,9 +48,7 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
 }
 
 /** Retrieves and enriches user profile data from Keycloak. */
-export const getUserInfo = async (
-  accessToken: string,
-): Promise<UserProfile> => {
+export const getUserInfo = async (accessToken: string): Promise<UserProfile> => {
   try {
     const wellKnownEndpoints = await getWellKnownEndpoints();
     const { userinfo_endpoint } = wellKnownEndpoints;
@@ -63,9 +61,7 @@ export const getUserInfo = async (
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `UserInfo fetch failed: ${response.status} - ${errorText}`,
-      );
+      throw new Error(`UserInfo fetch failed: ${response.status} - ${errorText}`);
     }
 
     const rawUserProfile = await response.json();

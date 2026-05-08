@@ -9,10 +9,7 @@ import {
   useNavigate,
 } from "react-router";
 
-import {
-  type BucketRouteLoaderResponse,
-  loader,
-} from "./objects.loader";
+import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
@@ -35,9 +32,9 @@ import { createSignedFetch } from "~/utils/signedFetch";
 
 // Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
-  import("~/components/.client/ImageViewer/components/ImageViewer").then(
-    (module) => ({ default: module.Viewer }),
-  ),
+  import("~/components/.client/ImageViewer/components/ImageViewer").then((module) => ({
+    default: module.Viewer,
+  })),
 );
 
 export { loader };
@@ -82,10 +79,7 @@ export const handle = {
  * This route has no mutating forms of its own, so skipping the
  * `formAction` branch is safe.
  */
-export const shouldRevalidate: ShouldRevalidateFunction = ({
-  currentUrl,
-  nextUrl,
-}) => {
+export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl }) => {
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   if (currentUrl.search !== nextUrl.search) return true;
   return false;
@@ -157,10 +151,7 @@ export default function ObjectsRoute() {
         { method: "delete", action: "/api/pinned" },
       );
     } else {
-      const totalSize = nodes.reduce(
-        (sum, node) => sum + computeDirectorySize(node),
-        0,
-      );
+      const totalSize = nodes.reduce((sum, node) => sum + computeDirectorySize(node), 0);
       const lastModified = nodes.reduce(
         (max, node) => Math.max(max, computeDirectoryLastModified(node)),
         0,
@@ -169,9 +160,7 @@ export default function ObjectsRoute() {
         {
           connectionName,
           pathName: urlPath,
-          displayName: urlPath
-            ? getName(urlPath, connectionName)
-            : connectionName,
+          displayName: urlPath ? getName(urlPath, connectionName) : connectionName,
           totalSize: String(totalSize),
           lastModified: lastModified ? String(lastModified) : "",
         },
@@ -203,10 +192,7 @@ export default function ObjectsRoute() {
           {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
           {isPinned ? "Pinned" : "Pin"}
         </Button>
-        <Button
-          onPress={() => openModal("cyberduck", { connectionName })}
-          variant="secondary"
-        >
+        <Button onPress={() => openModal("cyberduck", { connectionName })} variant="secondary">
           <Download size={16} />
           Access with Cyberduck
         </Button>
@@ -226,13 +212,10 @@ export default function ObjectsRoute() {
             <header className="flex items-center justify-between p-4 bg-amber-100 border-b border-amber-300 text-amber-900">
               <div className="flex items-center gap-2">
                 <span className="text-sm">
-                  CSV files are slow to query. Convert to Parquet for better
-                  performance.
+                  CSV files are slow to query. Convert to Parquet for better performance.
                 </span>
               </div>
-              <Button onPress={() => openModal("convert-overlay")}>
-                Convert to Parquet
-              </Button>
+              <Button onPress={() => openModal("convert-overlay")}>Convert to Parquet</Button>
             </header>
           )}
           <DataGrid resourceId={resourceId} />
@@ -251,9 +234,7 @@ export default function ObjectsRoute() {
       // Feed it directly to `constructS3Url`, which expects a full key.
       const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
-        () =>
-          useConnectionsStore.getState().connections[connectionName]
-            ?.credentials,
+        () => useConnectionsStore.getState().connections[connectionName]?.credentials,
         connectionConfig,
       );
       return (

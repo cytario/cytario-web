@@ -1,7 +1,4 @@
-import {
-  AssumeRoleWithWebIdentityCommand,
-  STSClient,
-} from "@aws-sdk/client-sts";
+import { AssumeRoleWithWebIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 
 import {
   getAllSessionCredentials,

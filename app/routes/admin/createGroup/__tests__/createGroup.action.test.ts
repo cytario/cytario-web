@@ -19,9 +19,7 @@ vi.mock("~/.server/auth/sessionStorage", () => ({
   },
 }));
 
-const { createGroup, addUserToGroup } = await import(
-  "~/.server/auth/keycloakAdmin"
-);
+const { createGroup, addUserToGroup } = await import("~/.server/auth/keycloakAdmin");
 const { getSession } = await import("~/.server/auth/getSession");
 
 let mockSession: { set: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
@@ -65,10 +63,7 @@ describe("createGroupAction", () => {
       adminsGroupId: "admins-id",
     });
 
-    const response = await callAction(
-      makeRequest("Ultivue"),
-      makeContext(),
-    );
+    const response = await callAction(makeRequest("Ultivue"), makeContext());
 
     expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue");
     expect(addUserToGroup).toHaveBeenCalledWith("user-123", "admins-id");
@@ -94,14 +89,9 @@ describe("createGroupAction", () => {
   });
 
   test("returns 409 duplicate-name error message", async () => {
-    vi.mocked(createGroup).mockRejectedValue(
-      new KeycloakAdminError(409, "409 Conflict"),
-    );
+    vi.mocked(createGroup).mockRejectedValue(new KeycloakAdminError(409, "409 Conflict"));
 
-    const response = await callAction(
-      makeRequest("existing"),
-      makeContext(),
-    );
+    const response = await callAction(makeRequest("existing"), makeContext());
 
     expect(response).toBeInstanceOf(Response);
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
@@ -115,10 +105,7 @@ describe("createGroupAction", () => {
       new KeycloakAdminError(500, "500 Internal Server Error"),
     );
 
-    const response = await callAction(
-      makeRequest("broken"),
-      makeContext(),
-    );
+    const response = await callAction(makeRequest("broken"), makeContext());
 
     expect(response).toBeInstanceOf(Response);
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
@@ -128,26 +115,21 @@ describe("createGroupAction", () => {
   });
 
   test("throws 403 when user lacks admin scope", async () => {
-    await expect(
-      callAction(makeRequest("foo"), makeContext(["other/scope"])),
-    ).rejects.toThrow(Response);
+    await expect(callAction(makeRequest("foo"), makeContext(["other/scope"]))).rejects.toThrow(
+      Response,
+    );
   });
 
   test("throws 400 when scope query param is missing", async () => {
-    const request = new Request(
-      "http://localhost/admin/users/create-group",
-      {
-        method: "POST",
-        body: (() => {
-          const f = new FormData();
-          f.append("name", "foo");
-          return f;
-        })(),
-      },
-    );
+    const request = new Request("http://localhost/admin/users/create-group", {
+      method: "POST",
+      body: (() => {
+        const f = new FormData();
+        f.append("name", "foo");
+        return f;
+      })(),
+    });
 
-    await expect(
-      callAction(request, makeContext()),
-    ).rejects.toThrow(Response);
+    await expect(callAction(request, makeContext())).rejects.toThrow(Response);
   });
 });

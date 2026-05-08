@@ -16,13 +16,7 @@ describe("Select", () => {
   });
 
   test("should render placeholder text", () => {
-    render(
-      <Select
-        label="Test Select"
-        items={items}
-        placeholder="Choose an option"
-      />,
-    );
+    render(<Select label="Test Select" items={items} placeholder="Choose an option" />);
 
     expect(screen.getByText("Choose an option")).toBeInTheDocument();
   });
@@ -35,13 +29,7 @@ describe("Select", () => {
   });
 
   test("should display error message", () => {
-    render(
-      <Select
-        label="Test Select"
-        items={items}
-        errorMessage="Selection is required"
-      />,
-    );
+    render(<Select label="Test Select" items={items} errorMessage="Selection is required" />);
 
     expect(screen.getByText("Selection is required")).toBeInTheDocument();
   });

@@ -5,10 +5,7 @@ import { Mock } from "vitest";
 
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import {
-  useFeatureBarStore,
-  useFeatureItemStore,
-} from "../../FeatureBar/useFeatureBar";
+import { useFeatureBarStore, useFeatureItemStore } from "../../FeatureBar/useFeatureBar";
 import { ChannelsController } from "../ChannelsController";
 
 vi.mock("../../../state/store/ViewerStoreContext", () => ({
@@ -18,8 +15,7 @@ vi.mock("../../../state/store/ViewerStoreContext", () => ({
 vi.mock("../../FeatureBar/useFeatureBar", () => ({
   useFeatureBarStore: vi.fn(),
   useFeatureItemStore: vi.fn(),
-  FeatureItemStoreProvider: ({ children }: { children: React.ReactNode }) =>
-    children,
+  FeatureItemStoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock("../Histogram", () => ({
@@ -120,7 +116,7 @@ describe("ChannelsController", () => {
           <Tab id="0">1</Tab>
         </TabList>
         <ChannelsController />
-      </Tabs>
+      </Tabs>,
     );
   };
 

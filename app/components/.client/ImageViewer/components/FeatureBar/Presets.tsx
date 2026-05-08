@@ -6,12 +6,8 @@ import { rgb } from "../ChannelsController/ColorPicker/ColorPicker";
 import { SplitViewToggle } from "../SplitViewToggle";
 
 export function Presets({ children }: { children: React.ReactNode }) {
-  const activeChannelsStateIndex = useViewerStore(
-    select.activeChannelsStateIndex,
-  );
-  const setActiveChannelsStateIndex = useViewerStore(
-    select.setActiveChannelsStateIndex,
-  );
+  const activeChannelsStateIndex = useViewerStore(select.activeChannelsStateIndex);
+  const setActiveChannelsStateIndex = useViewerStore(select.setActiveChannelsStateIndex);
 
   const handleSelectionChange = (key: Key) => {
     setActiveChannelsStateIndex(Number(key));
@@ -121,11 +117,7 @@ export const PresetLabel = ({ index }: { index: number }) => {
       {colors.length > 0 && (
         <div className="mt-auto flex w-full">
           {colors.map((color, i) => (
-            <div
-              key={i}
-              className="h-1.5 flex-1"
-              style={{ backgroundColor: color }}
-            />
+            <div key={i} className="h-1.5 flex-1" style={{ backgroundColor: color }} />
           ))}
         </div>
       )}

@@ -22,11 +22,7 @@ import { useTableSorting } from "./useTableSorting";
 // Re-export types for external use
 export type { ColumnConfig, TableProps, CellRenderers } from "./types";
 
-function booleanSortingFn<TData>(
-  rowA: Row<TData>,
-  rowB: Row<TData>,
-  columnId: string,
-): number {
+function booleanSortingFn<TData>(rowA: Row<TData>, rowB: Row<TData>, columnId: string): number {
   const a = rowA.getValue<boolean>(columnId) ? 1 : 0;
   const b = rowB.getValue<boolean>(columnId) ? 1 : 0;
   return a - b;
@@ -47,12 +43,8 @@ export function Table<TData extends object>({
   const { columnSizing, setColumnSizing } = useColumnWidths(columns, tableId);
   const anchorColumnId = columns.find((c) => c.anchor)?.id ?? columns[0]?.id;
   const { sorting, setSorting } = useTableSorting(tableId, anchorColumnId);
-  const {
-    columnVisibility,
-    setColumnVisibility,
-    toggleableColumns,
-    toggleColumn,
-  } = useColumnVisibility(columns, tableId);
+  const { columnVisibility, setColumnVisibility, toggleableColumns, toggleColumn } =
+    useColumnVisibility(columns, tableId);
   const { columnFilters, setColumnFilters, resetFilters } = useColumnFilters({
     tableId,
   });
@@ -195,11 +187,7 @@ export function Table<TData extends object>({
       </div>
 
       {/* Scrollable body — horizontal scrollbar visible */}
-      <div
-        ref={bodyRef}
-        className="overflow-x-auto"
-        onScroll={handleBodyScroll}
-      >
+      <div ref={bodyRef} className="overflow-x-auto" onScroll={handleBodyScroll}>
         <table className="min-w-full" aria-hidden="true">
           <tbody>
             {data.length === 0 ? (
@@ -210,11 +198,7 @@ export function Table<TData extends object>({
                     title="No results"
                     description="No results match your filters"
                     action={
-                      <Button
-                        variant="secondary"
-                        iconLeft={FilterX}
-                        onPress={resetFilters}
-                      >
+                      <Button variant="secondary" iconLeft={FilterX} onPress={resetFilters}>
                         Clear all filters
                       </Button>
                     }

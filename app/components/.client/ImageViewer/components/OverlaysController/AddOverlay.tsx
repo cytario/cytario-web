@@ -2,10 +2,7 @@ import { Button, Input, Tree, useToast } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
-import {
-  type TreeNode,
-  findNodeById,
-} from "~/components/DirectoryView/buildDirectoryTree";
+import { type TreeNode, findNodeById } from "~/components/DirectoryView/buildDirectoryTree";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
@@ -32,10 +29,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on state transitions
   }, [objectsFetcher.state, objectsFetcher.data, searchString]);
 
-  const nodes = useMemo(
-    () => objectsFetcher.data?.nodes ?? [],
-    [objectsFetcher.data?.nodes],
-  );
+  const nodes = useMemo(() => objectsFetcher.data?.nodes ?? [], [objectsFetcher.data?.nodes]);
   const isLoading = objectsFetcher.state === "loading";
 
   // Selection state: single file selection
@@ -57,8 +51,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const searchMatch = useCallback(
-    (node: { name: string }, term: string) =>
-      node.name.toLowerCase().includes(term.toLowerCase()),
+    (node: { name: string }, term: string) => node.name.toLowerCase().includes(term.toLowerCase()),
     [],
   );
 
@@ -131,9 +124,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
               searchMatch={searchMatch}
             />
           </div>
-          <p className="truncate text-xs text-(--color-text-tertiary)">
-            {hoveredPath ?? "…"}
-          </p>
+          <p className="truncate text-xs text-(--color-text-tertiary)">{hoveredPath ?? "…"}</p>
         </>
       )}
 

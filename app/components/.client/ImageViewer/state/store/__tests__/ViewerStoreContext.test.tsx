@@ -31,8 +31,7 @@ vi.mock("~/utils/signedFetch", () => ({
 vi.mock("~/utils/resourceId", () => ({
   createResourceId: vi.fn((...args: string[]) => args.join("/")),
   constructS3Url: vi.fn(
-    (_config: unknown, s3Key: string) =>
-      `https://bucket.s3.amazonaws.com/${s3Key}`,
+    (_config: unknown, s3Key: string) => `https://bucket.s3.amazonaws.com/${s3Key}`,
   ),
 }));
 
@@ -261,9 +260,7 @@ describe("ViewerStoreContext", () => {
 
   describe("useViewerStore", () => {
     test("throws error when used outside ViewerStoreProvider", () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       expect(() => {
         const TestComponent = () => {
@@ -271,9 +268,7 @@ describe("ViewerStoreContext", () => {
           return null;
         };
         render(<TestComponent />);
-      }).toThrow(
-        "useViewerStoreContext must be used within ViewerStoreProvider",
-      );
+      }).toThrow("useViewerStoreContext must be used within ViewerStoreProvider");
 
       consoleSpy.mockRestore();
     });

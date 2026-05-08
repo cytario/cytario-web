@@ -8,10 +8,7 @@ import { addUserToGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
-export const createGroupAction: ActionFunction = async ({
-  request,
-  context,
-}) => {
+export const createGroupAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
@@ -25,10 +22,7 @@ export const createGroupAction: ActionFunction = async ({
   const session = await getSession(request);
 
   try {
-    const { path, adminsGroupId } = await createGroup(
-      scope,
-      result.data.name,
-    );
+    const { path, adminsGroupId } = await createGroup(scope, result.data.name);
 
     await addUserToGroup(user.sub, adminsGroupId);
 
@@ -45,8 +39,7 @@ export const createGroupAction: ActionFunction = async ({
   } catch (e) {
     console.error("Create group failed:", e);
 
-    const status =
-      e instanceof KeycloakAdminError ? e.status : undefined;
+    const status = e instanceof KeycloakAdminError ? e.status : undefined;
     const message =
       status === 409
         ? `A group named "${result.data.name}" already exists in this group.`

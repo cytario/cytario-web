@@ -10,7 +10,6 @@ interface SuggestionsProps {
   showResults: boolean;
 }
 export const Suggestions = ({ nodes, showResults }: SuggestionsProps) => {
-
   return (
     <AnimatePresence>
       {showResults && (

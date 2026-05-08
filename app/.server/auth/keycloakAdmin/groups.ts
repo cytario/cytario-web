@@ -61,9 +61,7 @@ export function flattenGroups(groups: KeycloakGroup[]): string[] {
  * For each admin scope, finds the exact group by path and flattens its descendants.
  * Uses findGroupByPath instead of search to avoid returning unrelated groups.
  */
-export async function getManageableScopes(
-  user: UserProfile,
-): Promise<string[]> {
+export async function getManageableScopes(user: UserProfile): Promise<string[]> {
   if (user.adminScopes.length === 0) return [];
 
   const allScopes = new Set<string>();
@@ -78,10 +76,7 @@ export async function getManageableScopes(
         }
       }
     } catch (error) {
-      console.warn(
-        `Failed to fetch group tree for admin scope "${adminScope}":`,
-        error,
-      );
+      console.warn(`Failed to fetch group tree for admin scope "${adminScope}":`, error);
     }
   }
 
@@ -91,9 +86,7 @@ export async function getManageableScopes(
 /**
  * Finds a Keycloak group by its normalized path (e.g. "cytario/lab").
  */
-export async function findGroupByPath(
-  scope: string,
-): Promise<KeycloakGroup | undefined> {
+export async function findGroupByPath(scope: string): Promise<KeycloakGroup | undefined> {
   const topLevel = scope.split("/")[0];
   const groups = await fetchGroups(topLevel);
   const targetPath = `/${scope}`;
@@ -185,11 +178,7 @@ export async function createGroup(
     throw new KeycloakAdminError(404, `Parent group not found: ${parentScope}`);
   }
 
-  const response = await adminMutate(
-    "POST",
-    `/groups/${parent.id}/children`,
-    { name },
-  );
+  const response = await adminMutate("POST", `/groups/${parent.id}/children`, { name });
 
   const location = response.headers.get("location");
   if (!location) {
@@ -202,11 +191,9 @@ export async function createGroup(
 
   let adminsGroupId: string;
   try {
-    const adminsResponse = await adminMutate(
-      "POST",
-      `/groups/${newGroupId}/children`,
-      { name: "admins" },
-    );
+    const adminsResponse = await adminMutate("POST", `/groups/${newGroupId}/children`, {
+      name: "admins",
+    });
     const adminsLocation = adminsResponse.headers.get("location");
     adminsGroupId = adminsLocation?.split("/").pop() ?? "";
     if (!adminsGroupId) {
@@ -232,9 +219,7 @@ export async function createGroup(
 /**
  * Fetches members for a group and all its sub-groups, returning the tree structure.
  */
-export async function getGroupWithMembers(
-  scope: string,
-): Promise<GroupWithMembers | undefined> {
+export async function getGroupWithMembers(scope: string): Promise<GroupWithMembers | undefined> {
   const group = await findGroupByPath(scope);
   if (!group) return undefined;
 
@@ -243,9 +228,7 @@ export async function getGroupWithMembers(
 
   await Promise.all(
     allIds.map(async (id) => {
-      const members = await adminFetch<KeycloakUser[]>(
-        `/groups/${id}/members?max=500`,
-      );
+      const members = await adminFetch<KeycloakUser[]>(`/groups/${id}/members?max=500`);
       membersByGroupId.set(id, members);
     }),
   );

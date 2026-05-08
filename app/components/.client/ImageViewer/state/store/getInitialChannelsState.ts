@@ -8,16 +8,12 @@ import { getSelectionStats } from "../../utils/getSelectionStats";
 
 /** Returns the RGB color for a channel, falling back to OVERLAY_COLORS if metadata lacks a Color. */
 const getInitialColor = (channels: Channel[], index: number): RGB => {
-  const colorRaw =
-    channels[index]?.Color ?? OVERLAY_COLORS[index % OVERLAY_COLORS.length];
+  const colorRaw = channels[index]?.Color ?? OVERLAY_COLORS[index % OVERLAY_COLORS.length];
   return colorRaw.slice(0, 3) as RGB;
 };
 
 /** Builds the initial channel configs (color, domain, contrast limits) from OME-TIFF metadata. */
-export const getInitialChannelsState = async (
-  metadata: Image,
-  loader: Loader,
-) => {
+export const getInitialChannelsState = async (metadata: Image, loader: Loader) => {
   const channels = metadata.Pixels.Channels as Channel[];
 
   const selection = { c: 0, x: 0, y: 0, z: 0, t: 0 };

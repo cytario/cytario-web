@@ -1,8 +1,4 @@
-import {
-  DuplicateRegistrationError,
-  UnknownFormatError,
-  formatRegistry,
-} from "../formatRegistry";
+import { DuplicateRegistrationError, UnknownFormatError, formatRegistry } from "../formatRegistry";
 import type { FormatHandler } from "@cytario/plugin-api";
 
 const stubHandler = (overrides: Partial<FormatHandler> = {}): FormatHandler => ({
@@ -69,25 +65,23 @@ describe("FormatRegistry.add", () => {
 
   test("cross-plugin collision on any string in an alias array throws", () => {
     formatRegistry.add("p1", ["foo", "bar"], stubHandler());
-    expect(() =>
-      formatRegistry.add("p2", ["baz", "bar"], stubHandler()),
-    ).toThrow(DuplicateRegistrationError);
+    expect(() => formatRegistry.add("p2", ["baz", "bar"], stubHandler())).toThrow(
+      DuplicateRegistrationError,
+    );
   });
 
   test("cross-plugin collision on a structurally equal regex throws", () => {
     formatRegistry.add("p1", /\.zarr(\/|$|\?)/, stubHandler());
-    expect(() =>
-      formatRegistry.add("p2", /\.zarr(\/|$|\?)/, stubHandler()),
-    ).toThrow(DuplicateRegistrationError);
+    expect(() => formatRegistry.add("p2", /\.zarr(\/|$|\?)/, stubHandler())).toThrow(
+      DuplicateRegistrationError,
+    );
   });
 
   test("string keys and regex keys do not collide structurally", () => {
     formatRegistry.add("p1", "zarr", stubHandler());
     // Regex coverage overlaps but the keys are not structurally equal,
     // so the host accepts the registration; documented behaviour.
-    expect(() =>
-      formatRegistry.add("p2", /\.zarr$/, stubHandler()),
-    ).not.toThrow();
+    expect(() => formatRegistry.add("p2", /\.zarr$/, stubHandler())).not.toThrow();
   });
 });
 
@@ -126,9 +120,7 @@ describe("FormatRegistry.resolve", () => {
 
   test("throws UnknownFormatError when no key matches", () => {
     formatRegistry.add("p1", "foo", stubHandler());
-    expect(() => formatRegistry.resolve("https://x/nope.bar")).toThrow(
-      UnknownFormatError,
-    );
+    expect(() => formatRegistry.resolve("https://x/nope.bar")).toThrow(UnknownFormatError);
   });
 
   test("returns first registration when several would match", () => {

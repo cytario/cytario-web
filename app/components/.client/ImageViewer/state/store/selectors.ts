@@ -14,7 +14,12 @@ const EMPTY_ARRAY: readonly string[] = Object.freeze([]);
 // Zustand uses Object.is for equality — returning a new object on every call
 // causes infinite re-render loops.
 let _bfGroupCache: { ids: readonly string[]; result: BrightfieldGroup | null } | null = null;
-let _bfSelectedCache: { r: ChannelConfig; g: ChannelConfig; b: ChannelConfig; result: ChannelConfig } | null = null;
+let _bfSelectedCache: {
+  r: ChannelConfig;
+  g: ChannelConfig;
+  b: ChannelConfig;
+  result: ChannelConfig;
+} | null = null;
 export const select = {
   id: (state: ViewerStore) => state.id,
   error: (state: ViewerStore) => state.error,
@@ -54,10 +59,8 @@ export const select = {
   setCursorPosition: (state: ViewerStore) => state.setCursorPosition,
 
   /* Channels State Management */
-  setActiveChannelsStateIndex: (state: ViewerStore) =>
-    state.setActiveChannelsStateIndex,
-  activeChannelsStateIndex: (state: ViewerStore) =>
-    state.imagePanels[state.imagePanelIndex],
+  setActiveChannelsStateIndex: (state: ViewerStore) => state.setActiveChannelsStateIndex,
+  activeChannelsStateIndex: (state: ViewerStore) => state.imagePanels[state.imagePanelIndex],
 
   /* Layers */
   layersState: (state: ViewerStore) => {
@@ -112,10 +115,7 @@ export const select = {
 
   /* Channels > Selected */
   selectedChannelId: (state: ViewerStore) =>
-    state.selectedChannelId as
-      | keyof ChannelsStateColumns
-      | typeof BRIGHTFIELD_GROUP_ID
-      | null,
+    state.selectedChannelId as keyof ChannelsStateColumns | typeof BRIGHTFIELD_GROUP_ID | null,
   setSelectedChannelId: (state: ViewerStore) => state.setSelectedChannelId,
   selectedChannel: (state: ViewerStore): ChannelConfig | null => {
     const selectedChannelId = select.selectedChannelId(state);

@@ -23,11 +23,7 @@ function PreferencesSection() {
   return (
     <div className="flex flex-col gap-3">
       <H2>Preferences</H2>
-      <Switch
-        isSelected={showHiddenFiles}
-        onChange={toggleShowHiddenFiles}
-        className="text-sm"
-      >
+      <Switch isSelected={showHiddenFiles} onChange={toggleShowHiddenFiles} className="text-sm">
         Show hidden files
       </Switch>
       <p className="text-xs text-(--color-text-secondary)">

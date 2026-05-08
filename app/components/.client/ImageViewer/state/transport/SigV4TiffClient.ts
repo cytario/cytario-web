@@ -15,20 +15,13 @@ export class SigV4TiffClient {
   private signedFetch: SignedFetch;
   private extraHeaders: Record<string, string>;
 
-  constructor(
-    url: string,
-    signedFetch: SignedFetch,
-    extraHeaders?: Record<string, string>,
-  ) {
+  constructor(url: string, signedFetch: SignedFetch, extraHeaders?: Record<string, string>) {
     this.url = url;
     this.signedFetch = signedFetch;
     this.extraHeaders = extraHeaders ?? {};
   }
 
-  async request({
-    headers,
-    signal,
-  }: { headers?: HeadersInit; signal?: AbortSignal } = {}) {
+  async request({ headers, signal }: { headers?: HeadersInit; signal?: AbortSignal } = {}) {
     const response = await this.signedFetch(this.url, {
       headers: {
         ...this.extraHeaders,

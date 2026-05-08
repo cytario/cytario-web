@@ -56,7 +56,7 @@ export function ImageContainer({
     border-[16px]
     box-border border-[var(--color-text-secondary)]
   `,
-    isActivePanel ? "animate-pulse-once" : "border-none"
+    isActivePanel ? "animate-pulse-once" : "border-none",
   );
 
   return (

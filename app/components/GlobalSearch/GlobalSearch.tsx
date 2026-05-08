@@ -40,10 +40,7 @@ export const GlobalSearch = () => {
   };
 
   const handleClickOutside = (event: Event) => {
-    if (
-      parentRef.current &&
-      !parentRef.current.contains(event.target as Node)
-    ) {
+    if (parentRef.current && !parentRef.current.contains(event.target as Node)) {
       setShowResults(false);
     }
   };

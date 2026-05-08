@@ -25,10 +25,7 @@ export function useColumnFilters({ tableId }: UseColumnFiltersOptions) {
   const setColumnFilters: OnChangeFn<ColumnFiltersState> = useCallback(
     (updaterOrValue) => {
       const current = store.getState().columnFilters;
-      const next =
-        typeof updaterOrValue === "function"
-          ? updaterOrValue(current)
-          : updaterOrValue;
+      const next = typeof updaterOrValue === "function" ? updaterOrValue(current) : updaterOrValue;
       setFiltersStore(next);
     },
     [store, setFiltersStore],

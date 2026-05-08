@@ -15,9 +15,7 @@ import { toastBridge } from "~/toast-bridge";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
 
-type SetTooltip = (
-  tooltip: { content: ReactNode; x: number; y: number } | null
-) => void;
+type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
 
 interface OverlaysLayerProps {
   resourceId: string;
@@ -37,10 +35,7 @@ interface OverlaysLayerProps {
 const MarkerLabel = ({ color, name }: { color: string; name: string }) => {
   return (
     <div key={name} className="flex items-center gap-2">
-      <div
-        className="w-4 h-4 rounded-full"
-        style={{ backgroundColor: color }}
-      />
+      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }} />
       {name}
     </div>
   );
@@ -62,29 +57,20 @@ export const OverlaysLayer = ({
 }: OverlaysLayerProps) => {
   const markerPrefix = "marker_positive_";
 
-  const getTileData = async ({
-    id,
-    index,
-  }: TileLoadProps): Promise<Table | null> => {
+  const getTileData = async ({ id, index }: TileLoadProps): Promise<Table | null> => {
     loadTile(id);
 
     try {
       // Get ALL marker column names (not just enabled ones)
       const allMarkerKeys = Object.keys(fileMarkers);
 
-      const data = await getTileDataWasm(
-        resourceId,
-        index,
-        allMarkerKeys,
-      );
+      const data = await getTileDataWasm(resourceId, index, allMarkerKeys);
 
       return data;
     } catch (error) {
       toastBridge.emit({
         variant: "error",
-        message: `Error fetching tile data: ${
-          (error as Error).message ?? error
-        }`,
+        message: `Error fetching tile data: ${(error as Error).message ?? error}`,
       });
       console.error("Error fetching tile data:", error);
       return null;
@@ -243,11 +229,7 @@ export const OverlaysLayer = ({
           const fullBitmask = new Float32Array(numRows);
           let outputIndex = 0;
 
-          for (
-            let chunkIdx = 0;
-            chunkIdx < bitmaskCol.data.length;
-            chunkIdx++
-          ) {
+          for (let chunkIdx = 0; chunkIdx < bitmaskCol.data.length; chunkIdx++) {
             const chunk = bitmaskCol.data[chunkIdx];
             const values = chunk.values as Float32Array;
             const chunkLength = chunk.length;

@@ -1,8 +1,4 @@
-import {
-  InvalidPluginNameError,
-  generatePluginsModule,
-  parseCytarioPluginsEnv,
-} from "../codegen";
+import { InvalidPluginNameError, generatePluginsModule, parseCytarioPluginsEnv } from "../codegen";
 
 describe("parseCytarioPluginsEnv", () => {
   test("undefined returns empty list", () => {
@@ -20,9 +16,10 @@ describe("parseCytarioPluginsEnv", () => {
   });
 
   test("accepts scoped and unscoped npm names", () => {
-    expect(
-      parseCytarioPluginsEnv("@cytario/czi-loader,my-loader").plugins,
-    ).toEqual(["@cytario/czi-loader", "my-loader"]);
+    expect(parseCytarioPluginsEnv("@cytario/czi-loader,my-loader").plugins).toEqual([
+      "@cytario/czi-loader",
+      "my-loader",
+    ]);
   });
 
   test.each([
@@ -34,9 +31,7 @@ describe("parseCytarioPluginsEnv", () => {
     "../scary",
     "a\nb",
   ])("rejects invalid name: %s", (invalid) => {
-    expect(() => parseCytarioPluginsEnv(invalid)).toThrow(
-      InvalidPluginNameError,
-    );
+    expect(() => parseCytarioPluginsEnv(invalid)).toThrow(InvalidPluginNameError);
   });
 });
 
@@ -80,9 +75,7 @@ describe("generatePluginsModule", () => {
     // unit-testable in isolation. The generated module's only job is to
     // bind the static plugin list to that helper.
     const out = generatePluginsModule({ plugins: ["any-plugin"] });
-    expect(out).toContain(
-      'import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";',
-    );
+    expect(out).toContain('import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";');
     expect(out).toMatch(/return bootstrapPluginsCore\(plugins, logger\);/);
   });
 });

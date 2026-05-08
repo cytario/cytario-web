@@ -25,8 +25,7 @@ export function useColumnVisibility(columns: ColumnConfig[], tableId: string) {
       if (col.anchor) {
         vis[col.id] = true;
       } else {
-        vis[col.id] =
-          storedVisibility[col.id] ?? (col.defaultVisible !== false);
+        vis[col.id] = storedVisibility[col.id] ?? col.defaultVisible !== false;
       }
     });
     return vis;
@@ -37,14 +36,11 @@ export function useColumnVisibility(columns: ColumnConfig[], tableId: string) {
       const current = store.getState().columnVisibility;
       const currentFull: VisibilityState = {};
       columns.forEach((col) => {
-        currentFull[col.id] =
-          current[col.id] ?? (col.defaultVisible !== false);
+        currentFull[col.id] = current[col.id] ?? col.defaultVisible !== false;
       });
 
       const next =
-        typeof updaterOrValue === "function"
-          ? updaterOrValue(currentFull)
-          : updaterOrValue;
+        typeof updaterOrValue === "function" ? updaterOrValue(currentFull) : updaterOrValue;
 
       // Enforce anchors
       columns.forEach((col) => {
@@ -56,10 +52,7 @@ export function useColumnVisibility(columns: ColumnConfig[], tableId: string) {
     [store, columns, setVisibilityStore],
   );
 
-  const toggleableColumns = useMemo(
-    () => columns.filter((col) => !col.anchor),
-    [columns],
-  );
+  const toggleableColumns = useMemo(() => columns.filter((col) => !col.anchor), [columns]);
 
   const toggleColumn = useCallback(
     (columnId: string) => {

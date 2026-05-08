@@ -3,10 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useSubmit } from "react-router";
 
-import {
-  type CreateGroupFormData,
-  createGroupSchema,
-} from "./createGroup.schema";
+import { type CreateGroupFormData, createGroupSchema } from "./createGroup.schema";
 import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface CreateGroupFormProps {
@@ -35,11 +32,7 @@ export function CreateGroupForm({ scope }: CreateGroupFormProps) {
   };
 
   return (
-    <form
-      id="create-group-form"
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
-    >
+    <form id="create-group-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Fieldset>
         <Field label="Group name" error={errors.name}>
           <Controller

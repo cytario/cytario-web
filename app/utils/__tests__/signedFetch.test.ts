@@ -97,9 +97,7 @@ describe("createSignedFetch", () => {
 
   test("decodes percent-encoded paths before signing", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
-    await sf(
-      "https://bucket.s3.eu-central-1.amazonaws.com/Ascent%20Pharma%20Group/image.ome.tif",
-    );
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/Ascent%20Pharma%20Group/image.ome.tif");
 
     // The request should succeed (no signature mismatch from double-encoding)
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -187,33 +185,23 @@ describe("createSignedFetch", () => {
 
   test("appends 7-day response-cache-control for image tile URLs", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
-    await sf(
-      "https://bucket.s3.eu-central-1.amazonaws.com/image.ome.tif",
-    );
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.ome.tif");
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toContain(
-      "response-cache-control=private%2C%20max-age%3D604800",
-    );
+    expect(url).toContain("response-cache-control=private%2C%20max-age%3D604800");
   });
 
   test("appends 1-hour response-cache-control for non-image URLs", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
-    await sf(
-      "https://bucket.s3.eu-central-1.amazonaws.com/image.offsets.json",
-    );
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.offsets.json");
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toContain(
-      "response-cache-control=private%2C%20max-age%3D3600",
-    );
+    expect(url).toContain("response-cache-control=private%2C%20max-age%3D3600");
   });
 
   test("classifies OME-Zarr chunk paths as image data", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.zarr/0/0/0");
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toContain(
-      "response-cache-control=private%2C%20max-age%3D604800",
-    );
+    expect(url).toContain("response-cache-control=private%2C%20max-age%3D604800");
   });
 
   test("SDS-CY-010014: concurrent calls do not serialize", async () => {

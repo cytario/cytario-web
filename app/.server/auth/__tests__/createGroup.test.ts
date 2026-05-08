@@ -126,9 +126,7 @@ describe("createGroup", () => {
       { ok: false, status: 409, statusText: "Conflict" },
     ]);
 
-    await expect(
-      createGroup("cytario/lab", "existing"),
-    ).rejects.toThrow("409 Conflict");
+    await expect(createGroup("cytario/lab", "existing")).rejects.toThrow("409 Conflict");
   });
 
   test("rolls back parent group when admins subgroup creation fails", async () => {
@@ -158,9 +156,7 @@ describe("createGroup", () => {
       { ok: true, status: 204 },
     ]);
 
-    await expect(
-      createGroup("cytario/lab", "broken"),
-    ).rejects.toThrow("500 Internal Server Error");
+    await expect(createGroup("cytario/lab", "broken")).rejects.toThrow("500 Internal Server Error");
 
     // Verify rollback DELETE was called
     expect(fetchMock).toHaveBeenCalledWith(
@@ -187,8 +183,6 @@ describe("createGroup", () => {
       { status: 201, headers: new Headers() },
     ]);
 
-    await expect(
-      createGroup("cytario/lab", "noheader"),
-    ).rejects.toThrow("Missing Location header");
+    await expect(createGroup("cytario/lab", "noheader")).rejects.toThrow("Missing Location header");
   });
 });

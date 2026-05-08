@@ -1,8 +1,4 @@
-import {
-  InteractionState,
-  OrthographicViewState,
-  PickingInfo,
-} from "@deck.gl/core";
+import { InteractionState, OrthographicViewState, PickingInfo } from "@deck.gl/core";
 import DeckGL from "@deck.gl/react";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -57,10 +53,7 @@ const ImagePanelInner = ({
   );
 
   /** Setup Orthographic View */
-  const { ids } = useMemo(
-    () => mapChannelConfigsToState(channelsState ?? {}),
-    [channelsState],
-  );
+  const { ids } = useMemo(() => mapChannelConfigsToState(channelsState ?? {}), [channelsState]);
   const setPixelValues = useFeatureBarStore((state) => state.setPixelValues);
 
   const onMultiscaleLayerHover = useCallback(
@@ -73,10 +66,7 @@ const ImagePanelInner = ({
   );
 
   /* Setup Layers */
-  const multiscaleLayer = useChannelsLayer(
-    imagePanelId,
-    onMultiscaleLayerHover,
-  );
+  const multiscaleLayer = useChannelsLayer(imagePanelId, onMultiscaleLayerHover);
   const markersLayers = useOverlaysLayers(imagePanelId, setTooltip);
   const layers = [multiscaleLayer, ...markersLayers];
 
@@ -84,17 +74,10 @@ const ImagePanelInner = ({
     if (!metadata || !width || !height) return;
 
     if (!viewStateActive) {
-      const initViewState = calculateViewStateToFit(
-        metadata,
-        { width, height },
-        { padding },
-      );
+      const initViewState = calculateViewStateToFit(metadata, { width, height }, { padding });
 
       setViewStateActive(initViewState);
-    } else if (
-      viewStateActive.width !== width ||
-      viewStateActive.height !== height
-    ) {
+    } else if (viewStateActive.width !== width || viewStateActive.height !== height) {
       setViewStateActive({ ...viewStateActive, width, height });
     }
   }, [metadata, padding, setViewStateActive, width, height, viewStateActive]);
@@ -109,10 +92,7 @@ const ImagePanelInner = ({
   const handleInteractionStateChange = useCallback(
     (event: InteractionState) => {
       const { isDragging, isPanning, isZooming } = event;
-      if (
-        (isDragging || isPanning || isZooming) &&
-        activeImagePanelId !== imagePanelId
-      ) {
+      if ((isDragging || isPanning || isZooming) && activeImagePanelId !== imagePanelId) {
         setActiveImagePanelId(imagePanelId);
       }
     },

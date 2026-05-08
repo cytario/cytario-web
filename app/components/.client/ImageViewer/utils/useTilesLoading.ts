@@ -2,7 +2,7 @@ import { useRef, useCallback } from "react";
 
 export const useTilesLoading = (
   imagePanelId: number,
-  setIsTilesLoading: (imagePanelId: number, count: number) => void
+  setIsTilesLoading: (imagePanelId: number, count: number) => void,
 ) => {
   const loadingSet = useRef(new Set<string>());
 
@@ -12,7 +12,7 @@ export const useTilesLoading = (
       loadingSet.current.add(id);
       setIsTilesLoading(imagePanelId, loadingSet.current.size);
     },
-    [imagePanelId, setIsTilesLoading]
+    [imagePanelId, setIsTilesLoading],
   );
 
   const finishTile = useCallback(
@@ -20,7 +20,7 @@ export const useTilesLoading = (
       loadingSet.current.delete(id);
       setIsTilesLoading(imagePanelId, loadingSet.current.size);
     },
-    [imagePanelId, setIsTilesLoading]
+    [imagePanelId, setIsTilesLoading],
   );
 
   return { loadTile, finishTile };

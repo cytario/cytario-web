@@ -30,8 +30,6 @@ describe("CreateGroupForm", () => {
   test("shows admin help text", () => {
     renderForm();
 
-    expect(
-      screen.getByText(/added as an admin of this group automatically/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/added as an admin of this group automatically/)).toBeInTheDocument();
   });
 });

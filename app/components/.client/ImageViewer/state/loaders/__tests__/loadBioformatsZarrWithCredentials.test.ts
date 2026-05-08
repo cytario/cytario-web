@@ -8,31 +8,36 @@ import {
 } from "../loadBioformatsZarrWithCredentials";
 
 // Helper to create a mock loader with shape and labels
-function createMockLoader(
-  shape: number[],
-  labels: string[],
-  dtype = "uint16",
-): Loader {
+function createMockLoader(shape: number[], labels: string[], dtype = "uint16"): Loader {
   return [{ shape, labels, dtype }] as unknown as Loader;
 }
 
 // Helper to create minimal RootAttrs
 function createRootAttrs(
   overrides: {
-    channels?: Array<{ label: string; color: string; channelsVisible?: boolean; window?: { start: number; end: number } }>;
+    channels?: Array<{
+      label: string;
+      color: string;
+      channelsVisible?: boolean;
+      window?: { start: number; end: number };
+    }>;
     name?: string;
     axes?: string[] | Array<{ name: string; type?: string; unit?: string }>;
-    datasets?: Array<{ path: string; coordinateTransformations?: Array<{ type: string; scale?: number[] }> }>;
+    datasets?: Array<{
+      path: string;
+      coordinateTransformations?: Array<{ type: string; scale?: number[] }>;
+    }>;
   } = {},
 ): RootAttrs {
   return {
     omero: {
-      channels: overrides.channels?.map((ch) => ({
-        channelsVisible: ch.channelsVisible ?? true,
-        color: ch.color,
-        label: ch.label,
-        window: ch.window ?? { start: 0, end: 255 },
-      })) ?? [],
+      channels:
+        overrides.channels?.map((ch) => ({
+          channelsVisible: ch.channelsVisible ?? true,
+          color: ch.color,
+          label: ch.label,
+          window: ch.window ?? { start: 0, end: 255 },
+        })) ?? [],
       rdefs: { model: "color" },
       name: overrides.name,
     },
@@ -136,9 +141,7 @@ describe("extractPhysicalSizes", () => {
       datasets: [
         {
           path: "0",
-          coordinateTransformations: [
-            { type: "scale" as const, scale: [1.0, 1.0, 1.0, 0.5, 0.5] },
-          ],
+          coordinateTransformations: [{ type: "scale" as const, scale: [1.0, 1.0, 1.0, 0.5, 0.5] }],
         },
       ],
       axes,
@@ -155,10 +158,7 @@ describe("extractPhysicalSizes", () => {
 describe("rootAttrsToImage", () => {
   test("maps basic RootAttrs to Image with correct dimensions", () => {
     const rootAttrs = createRootAttrs({ name: "Test Image" });
-    const loader = createMockLoader(
-      [1, 3, 1, 1024, 1024],
-      ["t", "c", "z", "y", "x"],
-    );
+    const loader = createMockLoader([1, 3, 1, 1024, 1024], ["t", "c", "z", "y", "x"]);
 
     const result = rootAttrsToImage(rootAttrs, loader);
 
@@ -180,10 +180,7 @@ describe("rootAttrsToImage", () => {
         { label: "GFP", color: "00FF00" },
       ],
     });
-    const loader = createMockLoader(
-      [1, 2, 1, 512, 512],
-      ["t", "c", "z", "y", "x"],
-    );
+    const loader = createMockLoader([1, 2, 1, 512, 512], ["t", "c", "z", "y", "x"]);
 
     const result = rootAttrsToImage(rootAttrs, loader);
 
@@ -212,16 +209,11 @@ describe("rootAttrsToImage", () => {
       datasets: [
         {
           path: "0",
-          coordinateTransformations: [
-            { type: "scale", scale: [1.0, 1.0, 1.0, 0.65, 0.65] },
-          ],
+          coordinateTransformations: [{ type: "scale", scale: [1.0, 1.0, 1.0, 0.65, 0.65] }],
         },
       ],
     });
-    const loader = createMockLoader(
-      [1, 1, 1, 1024, 1024],
-      ["t", "c", "z", "y", "x"],
-    );
+    const loader = createMockLoader([1, 1, 1, 1024, 1024], ["t", "c", "z", "y", "x"]);
 
     const result = rootAttrsToImage(rootAttrs, loader);
 
@@ -266,11 +258,7 @@ describe("rootAttrsToImage", () => {
 
   test("uses loader dtype for pixel type", () => {
     const rootAttrs = createRootAttrs();
-    const loader = createMockLoader(
-      [1, 1, 1, 512, 512],
-      ["t", "c", "z", "y", "x"],
-      "float32",
-    );
+    const loader = createMockLoader([1, 1, 1, 512, 512], ["t", "c", "z", "y", "x"], "float32");
 
     const result = rootAttrsToImage(rootAttrs, loader);
 
@@ -279,7 +267,9 @@ describe("rootAttrsToImage", () => {
 
   test("defaults pixel type to Uint16 when loader has no dtype", () => {
     const rootAttrs = createRootAttrs();
-    const loader = [{ shape: [1, 1, 1, 512, 512], labels: ["t", "c", "z", "y", "x"] }] as unknown as Loader;
+    const loader = [
+      { shape: [1, 1, 1, 512, 512], labels: ["t", "c", "z", "y", "x"] },
+    ] as unknown as Loader;
 
     const result = rootAttrsToImage(rootAttrs, loader);
 

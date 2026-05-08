@@ -94,12 +94,7 @@ describe("FilterBar", () => {
         { id: "file_type", value: "CSV" },
       ]);
 
-    render(
-      <FilterBar
-        columns={[textColumn, selectColumn]}
-        tableId={TEST_TABLE_ID}
-      />,
-    );
+    render(<FilterBar columns={[textColumn, selectColumn]} tableId={TEST_TABLE_ID} />);
 
     await user.click(screen.getByRole("button", { name: /clear all/i }));
 

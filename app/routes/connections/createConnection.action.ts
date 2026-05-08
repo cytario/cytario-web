@@ -42,10 +42,7 @@ export async function createConnection(
   });
 }
 
-export const createAction = async ({
-  request,
-  context,
-}: ActionFunctionArgs) => {
+export const createAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
 
   const formData = await request.formData();
@@ -108,10 +105,7 @@ export const createAction = async ({
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return {
         errors: {
           name: ["This name is already taken. Please choose another."],

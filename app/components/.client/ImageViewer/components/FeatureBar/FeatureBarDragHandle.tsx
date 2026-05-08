@@ -2,11 +2,7 @@ import { motion, MotionValue } from "motion/react";
 
 import { useFeatureBarStore } from "./useFeatureBar";
 
-export const FeatureBarDragHandle = ({
-  motionWidth,
-}: {
-  motionWidth: MotionValue<number>;
-}) => {
+export const FeatureBarDragHandle = ({ motionWidth }: { motionWidth: MotionValue<number> }) => {
   const { minWidth, maxWidth } = useFeatureBarStore();
 
   return (

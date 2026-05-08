@@ -5,10 +5,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
-import {
-  buildDirectoryTree,
-  TreeNode,
-} from "~/components/DirectoryView/buildDirectoryTree";
+import { buildDirectoryTree, TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
 import { getObjects } from "~/utils/getObjects";
@@ -37,8 +34,7 @@ export const loader = async ({
   params,
   context,
 }: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
-  const { user, credentials: connectionsCredentials } =
-    context.get(authContext);
+  const { user, credentials: connectionsCredentials } = context.get(authContext);
   const { name: connectionName } = params;
 
   if (!connectionName) throw new Error("Connection name is required");
@@ -51,16 +47,11 @@ export const loader = async ({
   const { bucketName } = connectionConfig;
 
   const credentials = connectionsCredentials[connectionName];
-  if (!credentials)
-    throw new Error(`No credentials for connection: ${connectionName}`);
+  if (!credentials) throw new Error(`No credentials for connection: ${connectionName}`);
 
   const urlPath = params["*"] ?? "";
   const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";
-  const pathName = connPrefix
-    ? urlPath
-      ? `${connPrefix}/${urlPath}`
-      : connPrefix
-    : urlPath;
+  const pathName = connPrefix ? (urlPath ? `${connPrefix}/${urlPath}` : connPrefix) : urlPath;
   const prefix = getPrefix(pathName);
   const name = getName(pathName, bucketName);
 
@@ -94,12 +85,7 @@ export const loader = async ({
     );
 
     if (objects.length > 0) {
-      const nodes = buildDirectoryTree(
-        objects,
-        connectionName,
-        prefix,
-        urlPath,
-      );
+      const nodes = buildDirectoryTree(objects, connectionName, prefix, urlPath);
 
       return {
         connectionName,

@@ -4,11 +4,7 @@ import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
-import {
-  type CytarioSession,
-  type SessionData,
-  sessionStorage,
-} from "./sessionStorage";
+import { type CytarioSession, type SessionData, sessionStorage } from "./sessionStorage";
 import { verifyIdToken } from "./verifyIdToken";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
@@ -52,10 +48,7 @@ const fetchAllCredentials = async (
 ): Promise<{ sessionData: SessionData; connectionConfigs: ConnectionConfig[] }> => {
   const connectionConfigs = await listConnections(sessionData.user);
 
-  const newCredentials = await getAllSessionCredentials(
-    sessionData,
-    connectionConfigs,
-  );
+  const newCredentials = await getAllSessionCredentials(sessionData, connectionConfigs);
 
   return {
     sessionData: {
@@ -72,18 +65,13 @@ const fetchAllCredentials = async (
  * Sets validated session data in authContext for downstream use.
  * Export this from protected routes that require authentication.
  */
-export const authMiddleware: MiddlewareFunction = async (
-  { request, context },
-  next,
-) => {
+export const authMiddleware: MiddlewareFunction = async ({ request, context }, next) => {
   console.info(`${label} ${request.method} ${request.url}`);
 
   const session = context.get(sessionContext);
 
   if (!session) {
-    throw new Error(
-      "Session not found in context. Ensure sessionMiddleware runs first.",
-    );
+    throw new Error("Session not found in context. Ensure sessionMiddleware runs first.");
   }
 
   const sessionData = await getSessionData(session);
@@ -116,10 +104,7 @@ export const authMiddleware: MiddlewareFunction = async (
 
       let newAuthTokens;
       try {
-        newAuthTokens = await refreshAccessTokenWithLock(
-          session.id,
-          authTokens.refreshToken,
-        );
+        newAuthTokens = await refreshAccessTokenWithLock(session.id, authTokens.refreshToken);
       } catch (error) {
         console.error(`${label} Token refresh failed:`, error);
       }
@@ -127,11 +112,10 @@ export const authMiddleware: MiddlewareFunction = async (
       if (newAuthTokens) {
         session.set("authTokens", newAuthTokens);
 
-        const { sessionData: withCredentials, connectionConfigs } =
-          await fetchAllCredentials({
-            ...updatedSessionData,
-            authTokens: newAuthTokens,
-          });
+        const { sessionData: withCredentials, connectionConfigs } = await fetchAllCredentials({
+          ...updatedSessionData,
+          authTokens: newAuthTokens,
+        });
         updatedSessionData = withCredentials;
 
         session.set("credentials", updatedSessionData.credentials);

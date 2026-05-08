@@ -1,8 +1,4 @@
-
-import {
-  useFileStore,
-  type DownloadProgress,
-} from "../localFilesStore/useFileStore";
+import { useFileStore, type DownloadProgress } from "../localFilesStore/useFileStore";
 import { parseResourceId } from "../resourceId";
 
 export type ProgressCallback = (progress: DownloadProgress) => void;
@@ -12,7 +8,7 @@ export type ProgressCallback = (progress: DownloadProgress) => void;
  */
 async function downloadFileWithProgress(
   url: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
 ): Promise<Uint8Array> {
   const response = await fetch(url);
 
@@ -73,9 +69,7 @@ async function getPresignedUrl(resourceId: string): Promise<string> {
  * Get file data for a resourceId, with caching and progress tracking
  * @param resourceId - S3 resource identifier (provider/bucketName/pathName)
  */
-export const getUint8ArrayForResourceId = async (
-  resourceId: string
-): Promise<Uint8Array> => {
+export const getUint8ArrayForResourceId = async (resourceId: string): Promise<Uint8Array> => {
   const { getFile, saveFile, setFileProgress } = useFileStore.getState();
 
   // Check cache first

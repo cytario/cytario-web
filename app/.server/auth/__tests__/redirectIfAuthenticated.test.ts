@@ -44,9 +44,7 @@ describe("redirectIfAuthenticated", () => {
     const request = new Request("http://localhost/login");
 
     await expect(
-      redirectIfAuthenticated({ request } as Parameters<
-        typeof redirectIfAuthenticated
-      >[0])
+      redirectIfAuthenticated({ request } as Parameters<typeof redirectIfAuthenticated>[0]),
     ).rejects.toThrow();
 
     expect(redirect).toHaveBeenCalledWith("/");
@@ -80,9 +78,7 @@ describe("redirectIfAuthenticated", () => {
 
     const request = new Request("http://localhost/login");
 
-    await redirectIfAuthenticated({ request } as Parameters<
-      typeof redirectIfAuthenticated
-    >[0]);
+    await redirectIfAuthenticated({ request } as Parameters<typeof redirectIfAuthenticated>[0]);
 
     expect(getSession).toHaveBeenCalledWith(request);
   });
@@ -97,9 +93,7 @@ describe("redirectIfAuthenticated", () => {
 
     const request = new Request("http://localhost/login");
 
-    await redirectIfAuthenticated({ request } as Parameters<
-      typeof redirectIfAuthenticated
-    >[0]);
+    await redirectIfAuthenticated({ request } as Parameters<typeof redirectIfAuthenticated>[0]);
 
     expect(getSessionData).toHaveBeenCalledWith(mockSession);
   });

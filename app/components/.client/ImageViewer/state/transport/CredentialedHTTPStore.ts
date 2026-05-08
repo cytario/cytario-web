@@ -13,11 +13,7 @@ export class CredentialedHTTPStore {
   private signedFetch: SignedFetch;
   private extraHeaders: Record<string, string>;
 
-  constructor(
-    url: string,
-    signedFetch: SignedFetch,
-    extraHeaders?: Record<string, string>,
-  ) {
+  constructor(url: string, signedFetch: SignedFetch, extraHeaders?: Record<string, string>) {
     this.baseUrl = new URL(url.endsWith("/") ? url : url + "/");
     this.signedFetch = signedFetch;
     this.extraHeaders = extraHeaders ?? {};

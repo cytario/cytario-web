@@ -8,9 +8,7 @@ export class IncompatiblePluginError extends Error {
 }
 
 /** Hand-rolled in lieu of zod to keep the published bundle dependency-free. */
-function isPluginShape(
-  plugin: unknown,
-): plugin is { name: string; apiVersion: string } {
+function isPluginShape(plugin: unknown): plugin is { name: string; apiVersion: string } {
   if (plugin === null || typeof plugin !== "object") return false;
   const obj = plugin as { name?: unknown; apiVersion?: unknown };
   return (

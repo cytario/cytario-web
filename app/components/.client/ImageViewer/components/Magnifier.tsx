@@ -5,15 +5,11 @@ import { type ViewerStore, type ViewState } from "../state/store/types";
 
 const MAGNIFICATION_PRESETS = [5, 10, 20, 40, 80] as const;
 
-export const zoomFromMagnification = (
-  magnification: number,
-  objectivePower = 20,
-): number => Math.log2(magnification / objectivePower);
+export const zoomFromMagnification = (magnification: number, objectivePower = 20): number =>
+  Math.log2(magnification / objectivePower);
 
-export const magnificationFromZoom = (
-  zoom: number,
-  objectivePower = 20,
-): number => objectivePower * Math.pow(2, zoom);
+export const magnificationFromZoom = (zoom: number, objectivePower = 20): number =>
+  objectivePower * Math.pow(2, zoom);
 
 export const Magnifier = ({
   metadata,
@@ -42,11 +38,7 @@ export const Magnifier = ({
         setViewState={setViewStateActive}
       />
 
-      <SegmentedControl
-        selectionMode="none"
-        size="sm"
-        aria-label="Magnification presets"
-      >
+      <SegmentedControl selectionMode="none" size="sm" aria-label="Magnification presets">
         {MAGNIFICATION_PRESETS.map((mag) => (
           <SegmentedControlItem
             key={mag}

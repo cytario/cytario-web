@@ -1,5 +1,5 @@
-import openjpegWasmUrl from '@cornerstonejs/codec-openjpeg/decodewasm?url'
-import openJpegFactory from '@cornerstonejs/codec-openjpeg/decodewasmjs';
+import openjpegWasmUrl from "@cornerstonejs/codec-openjpeg/decodewasm?url";
+import openJpegFactory from "@cornerstonejs/codec-openjpeg/decodewasmjs";
 
 const local = {
   codec: undefined,
@@ -16,7 +16,7 @@ const local = {
  */
 export function loadJp2KDecoder(decodeConfig) {
   local.decodeConfig = decodeConfig;
-  
+
   // Return existing codec or loading promise
   if (local.codec) {
     return Promise.resolve();
@@ -28,7 +28,7 @@ export function loadJp2KDecoder(decodeConfig) {
   local.isLoading = true;
   local.loadPromise = openJpegFactory({
     locateFile: (f) => {
-      if (typeof f === 'string' && f.endsWith('.wasm')) {
+      if (typeof f === "string" && f.endsWith(".wasm")) {
         return openjpegWasmUrl;
       }
       return f;
@@ -57,30 +57,30 @@ export function loadJp2KDecoder(decodeConfig) {
  */
 export async function decodeJPEG2000(compressedImageFrame) {
   if (!compressedImageFrame || compressedImageFrame.length === 0) {
-    throw new Error('Invalid compressed image frame: empty or null');
+    throw new Error("Invalid compressed image frame: empty or null");
   }
 
   await loadJp2KDecoder();
-  
+
   if (!local.decoder) {
-    throw new Error('JPEG2000 decoder not initialized');
+    throw new Error("JPEG2000 decoder not initialized");
   }
 
   const decoder = local.decoder;
-  
+
   // Get encoded buffer and copy data
   const encodedBufferInWASM = decoder.getEncodedBuffer(compressedImageFrame.length);
   encodedBufferInWASM.set(compressedImageFrame);
-  
+
   // Decode the image
   decoder.decode();
-  
+
   // Extract decoded data
   const frameInfo = decoder.getFrameInfo();
   const decodedBufferInWASM = decoder.getDecodedBuffer();
   const imageFrame = new Uint8Array(decodedBufferInWASM.length);
   imageFrame.set(decodedBufferInWASM);
-  
+
   return {
     info: frameInfo,
     pixels: imageFrame,

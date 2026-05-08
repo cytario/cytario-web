@@ -16,9 +16,7 @@ const DescriptionList = ({ data, className }: DescriptionListProps<any>) => {
           <React.Fragment key={key}>
             <dt className="font-bold text-sm w-32 truncate">{key}</dt>
             <dd>
-              <code className="text-slate-700 px-2 py-1 bg-slate-50">
-                {String(value)}
-              </code>
+              <code className="text-slate-700 px-2 py-1 bg-slate-50">{String(value)}</code>
             </dd>
           </React.Fragment>
         ))}

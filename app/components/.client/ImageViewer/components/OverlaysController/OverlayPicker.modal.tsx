@@ -8,12 +8,7 @@ export function LoadOverlayModal({ onClose }: { onClose: () => void }) {
   const addOverlaysState = useViewerStore(select.addOverlaysState);
 
   return (
-    <RouteModal
-      title="Select Overlay File"
-      onClose={onClose}
-      size="lg"
-      isDismissable={false}
-    >
+    <RouteModal title="Select Overlay File" onClose={onClose} size="lg" isDismissable={false}>
       <AddOverlay callback={onClose} query="parquet" onOverlayAdd={addOverlaysState} />
     </RouteModal>
   );

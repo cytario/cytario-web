@@ -11,11 +11,7 @@ function createStub(isDismissable?: boolean) {
     {
       path: "/connect-bucket",
       Component: () => (
-        <RouteModal
-          title="Connect Bucket"
-          onClose={onClose}
-          isDismissable={isDismissable}
-        >
+        <RouteModal title="Connect Bucket" onClose={onClose} isDismissable={isDismissable}>
           <div>Modal Content</div>
         </RouteModal>
       ),

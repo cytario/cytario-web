@@ -21,24 +21,14 @@ export function resolveDefaultScope(
   );
 }
 
-export default function CreateConnectionModal({
-  onClose,
-}: {
-  onClose: () => void;
-}) {
-  const rootData = useRouteLoaderData("root") as
-    | { user?: UserProfile }
-    | undefined;
+export default function CreateConnectionModal({ onClose }: { onClose: () => void }) {
+  const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
   const user = rootData?.user;
   const [searchParams] = useSearchParams();
 
   if (!user) return null;
 
-  const defaultScope = resolveDefaultScope(
-    searchParams.get("scope"),
-    user.adminScopes,
-    user.sub,
-  );
+  const defaultScope = resolveDefaultScope(searchParams.get("scope"), user.adminScopes, user.sub);
 
   return (
     <RouteModal title="Connect Storage" onClose={onClose}>

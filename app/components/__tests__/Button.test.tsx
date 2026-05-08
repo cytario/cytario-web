@@ -2,7 +2,6 @@ import { Button } from "@cytario/design";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-
 describe("Button component", () => {
   test("renders the button with children", () => {
     render(<Button onPress={() => {}}>Click me</Button>);

@@ -20,10 +20,7 @@ import {
 } from "react-router";
 
 import { UserProfile } from "./.server/auth/getUserInfo";
-import {
-  sessionContext,
-  sessionMiddleware,
-} from "./.server/auth/sessionMiddleware";
+import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
 import { Section } from "./components/Container";
@@ -75,9 +72,7 @@ interface RootLoaderResponse {
   accountSettingsUrl?: string;
 }
 
-export const loader = async ({
-  context,
-}: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
+export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
   const session = context.get(sessionContext);
   const user = session.get("user");
   const notification = session.get("notification");
@@ -158,10 +153,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <RouterProvider navigate={navigate} useHref={useHref}>
           {data?.user && <AppHeader />}
 
-          <main
-            id="main-content"
-            className="relative flex-1 min-h-0 outline-none"
-          >
+          <main id="main-content" className="relative flex-1 min-h-0 outline-none">
             {children}
           </main>
         </RouterProvider>
@@ -202,10 +194,7 @@ export function ErrorBoundary() {
       <div role="alert">
         <H1>{title}</H1>
         <p>{message}</p>
-        <a
-          href="/"
-          className="text-cytario-purple-500 underline mt-4 inline-block"
-        >
+        <a href="/" className="text-cytario-purple-500 underline mt-4 inline-block">
           Go home
         </a>
       </div>

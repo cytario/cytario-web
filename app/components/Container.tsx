@@ -18,18 +18,8 @@ export function Section({ children, className, flush }: SectionProps) {
   );
 }
 
-export const Container = ({
-  children,
-  wide,
-}: {
-  children: ReactNode;
-  wide?: boolean;
-}) => {
-  return (
-    <div className={wide ? "mx-auto px-4" : "container mx-auto px-4"}>
-      {children}
-    </div>
-  );
+export const Container = ({ children, wide }: { children: ReactNode; wide?: boolean }) => {
+  return <div className={wide ? "mx-auto px-4" : "container mx-auto px-4"}>{children}</div>;
 };
 
 export function SectionHeader({
@@ -48,9 +38,7 @@ export function SectionHeader({
           {name && <H2 className="grow">{name}</H2>}
           {children}
         </div>
-        {secondaryActions && (
-          <div className="flex items-center gap-2">{secondaryActions}</div>
-        )}
+        {secondaryActions && <div className="flex items-center gap-2">{secondaryActions}</div>}
       </header>
     </Container>
   );

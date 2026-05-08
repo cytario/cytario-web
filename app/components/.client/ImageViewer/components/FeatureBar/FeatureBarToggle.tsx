@@ -4,11 +4,7 @@ import { MotionValue } from "motion/react";
 
 import { useFeatureBarStore } from "./useFeatureBar";
 
-export const FeatureBarToggle = ({
-  motionWidth,
-}: {
-  motionWidth: MotionValue<number>;
-}) => {
+export const FeatureBarToggle = ({ motionWidth }: { motionWidth: MotionValue<number> }) => {
   const { minWidth, setWidth, width } = useFeatureBarStore();
 
   return (

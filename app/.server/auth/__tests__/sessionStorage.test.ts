@@ -22,7 +22,6 @@ vi.mock("~/config", () => ({
   },
 }));
 
-
 describe("sessionStorage", () => {
   const mockUser = mock.user({ sub: "user-123" });
   const mockSessionData: SessionData = {
@@ -51,9 +50,7 @@ describe("sessionStorage", () => {
 
       // Get empty session from request without cookie
       const request = new Request("http://localhost/");
-      const session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+      const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
       expect(session).toBeDefined();
       expect(session.id).toBe("");
@@ -61,9 +58,7 @@ describe("sessionStorage", () => {
 
     test("commitSession returns Set-Cookie header", async () => {
       const request = new Request("http://localhost/");
-      const session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+      const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
       session.set("user", mockUser);
       session.set("authTokens", mockSessionData.authTokens);
@@ -81,9 +76,7 @@ describe("sessionStorage", () => {
   describe("createData", () => {
     test("stores session data in Redis with UUID session ID", async () => {
       const request = new Request("http://localhost/");
-      const session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+      const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
       session.set("user", mockUser);
       session.set("authTokens", mockSessionData.authTokens);
@@ -95,17 +88,13 @@ describe("sessionStorage", () => {
 
       const sessionId = vi.mocked(redis.hset).mock.calls[0][0] as string;
       // Session ID should be a UUID, not user.sub
-      expect(sessionId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
+      expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
       expect(sessionId).not.toBe("user-123");
     });
 
     test("sets session expiry in Redis", async () => {
       const request = new Request("http://localhost/");
-      const session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+      const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
       session.set("user", mockUser);
       session.set("authTokens", mockSessionData.authTokens);
@@ -116,18 +105,14 @@ describe("sessionStorage", () => {
       });
 
       expect(redis.expireat).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-        ),
-        Math.floor(mockExpires.getTime() / 1000)
+        expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
+        Math.floor(mockExpires.getTime() / 1000),
       );
     });
 
     test("always uses randomUUID for session ID, never user.sub", async () => {
       const request = new Request("http://localhost/");
-      const session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+      const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
       session.set("user", mock.user({ sub: "custom-user-id" }));
       session.set("authTokens", mockSessionData.authTokens);
@@ -139,9 +124,7 @@ describe("sessionStorage", () => {
 
       const sessionId = vi.mocked(redis.hset).mock.calls[0][0] as string;
       expect(sessionId).not.toBe("custom-user-id");
-      expect(sessionId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
+      expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
   });
 
@@ -170,9 +153,7 @@ describe("sessionStorage", () => {
   describe("destroySession", () => {
     test("returns cookie header that clears session", async () => {
       const request = new Request("http://localhost/");
-      const session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+      const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
       session.set("user", mockUser);
 

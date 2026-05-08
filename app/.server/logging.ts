@@ -9,8 +9,5 @@ const ansiColors = {
   gray: "\x1b[90m",
 };
 
-export const createLabel = (
-  str: string,
-  color: keyof typeof ansiColors = "white"
-) =>
+export const createLabel = (str: string, color: keyof typeof ansiColors = "white") =>
   `${ansiColors[color]}[${str.slice(0, 10).toUpperCase().padEnd(10, " ")}]\x1b[0m`;

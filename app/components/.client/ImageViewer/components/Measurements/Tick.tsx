@@ -17,7 +17,7 @@ export const Tick = ({ number, offset, vertical = false }: TickProps) => {
     "border-l border-l-[var(--color-text-secondary)]",
     isMajor ? "h-4" : "h-2",
     vertical ? "rotate-90" : "",
-    vertical ? "bottom-0" : "top-0"
+    vertical ? "bottom-0" : "top-0",
   );
 
   const adjustedOffset = Math.floor(offset) - (vertical ? 2 : 3);

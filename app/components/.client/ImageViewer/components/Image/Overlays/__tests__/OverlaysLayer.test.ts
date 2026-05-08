@@ -43,9 +43,7 @@ const makeFileMarkers = (): Record<string, CellMarker> => ({
   },
 });
 
-const buildLayer = (
-  overrides: Partial<Parameters<typeof OverlaysLayer>[0]> = {}
-) => {
+const buildLayer = (overrides: Partial<Parameters<typeof OverlaysLayer>[0]> = {}) => {
   const fileMarkers = makeFileMarkers();
   const markerProps = createMarkerProps(fileMarkers, 0.8);
 
@@ -88,18 +86,15 @@ describe("OverlaysLayer", () => {
           color: [0, 255, 0, 1],
         },
       },
-      0.8
+      0.8,
     );
 
     const before = buildLayer({ markerProps: propsBefore });
     const after = buildLayer({ markerProps: propsAfter });
 
-    const getTileDataBefore = (
-      before.props.updateTriggers as { getTileData: unknown[] }
-    ).getTileData;
-    const getTileDataAfter = (
-      after.props.updateTriggers as { getTileData: unknown[] }
-    ).getTileData;
+    const getTileDataBefore = (before.props.updateTriggers as { getTileData: unknown[] })
+      .getTileData;
+    const getTileDataAfter = (after.props.updateTriggers as { getTileData: unknown[] }).getTileData;
 
     expect(getTileDataBefore).toEqual(getTileDataAfter);
   });

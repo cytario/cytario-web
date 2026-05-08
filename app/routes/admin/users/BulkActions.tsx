@@ -3,17 +3,10 @@ import { Ban, Check, UserMinus, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
-import {
-  type GroupInfo,
-  type UserWithGroups,
-} from "~/.server/auth/keycloakAdmin";
+import { type GroupInfo, type UserWithGroups } from "~/.server/auth/keycloakAdmin";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 
-type BulkIntent =
-  | "addToGroup"
-  | "removeFromGroup"
-  | "enableAccounts"
-  | "disableAccounts";
+type BulkIntent = "addToGroup" | "removeFromGroup" | "enableAccounts" | "disableAccounts";
 
 interface BulkActionsProps {
   selectedUserIds: string[];
@@ -81,12 +74,7 @@ function GroupSelector({
   );
 }
 
-export function BulkActions({
-  selectedUserIds,
-  users,
-  groups,
-  onSuccess,
-}: BulkActionsProps) {
+export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkActionsProps) {
   const submit = useSubmit();
   const { state } = useNavigation();
   const isSubmitting = state === "submitting";
@@ -96,10 +84,7 @@ export function BulkActions({
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   const allGroupOptions = useMemo(
-    () =>
-      groups
-        .filter((g) => !g.isAdmin)
-        .map((g) => ({ id: g.id, name: g.path })),
+    () => groups.filter((g) => !g.isAdmin).map((g) => ({ id: g.id, name: g.path })),
     [groups],
   );
 
@@ -110,19 +95,13 @@ export function BulkActions({
 
   // Remove: only groups at least one selected user is in
   const removeGroupOptions = useMemo(
-    () =>
-      allGroupOptions.filter((o) =>
-        selectedUsers.some((u) => u.groupPaths.has(o.name)),
-      ),
+    () => allGroupOptions.filter((o) => selectedUsers.some((u) => u.groupPaths.has(o.name))),
     [allGroupOptions, selectedUsers],
   );
 
   // Add: only groups where at least one selected user is NOT yet a member
   const addGroupOptions = useMemo(
-    () =>
-      allGroupOptions.filter((o) =>
-        selectedUsers.some((u) => !u.groupPaths.has(o.name)),
-      ),
+    () => allGroupOptions.filter((o) => selectedUsers.some((u) => !u.groupPaths.has(o.name))),
     [allGroupOptions, selectedUsers],
   );
 
@@ -145,10 +124,7 @@ export function BulkActions({
     const formData = new FormData();
     formData.set("intent", intent);
     formData.set("userIds", selectedUserIds.join(","));
-    if (
-      selectedGroupId &&
-      (intent === "addToGroup" || intent === "removeFromGroup")
-    ) {
+    if (selectedGroupId && (intent === "addToGroup" || intent === "removeFromGroup")) {
       formData.set("groupId", selectedGroupId);
     }
 
@@ -215,15 +191,16 @@ export function BulkActions({
           confirmVariant={config.confirmVariant}
         >
           <p className="text-sm text-slate-600">
-            This will affect{" "}
-            <span className="font-medium text-slate-900">{count}</span> user
+            This will affect <span className="font-medium text-slate-900">{count}</span> user
             {count !== 1 ? "s" : ""}.
           </p>
-          {config.needsGroup && <GroupSelector
-            options={getGroupOptions(intent)}
-            value={selectedGroupId}
-            onChange={setSelectedGroupId}
-          />}
+          {config.needsGroup && (
+            <GroupSelector
+              options={getGroupOptions(intent)}
+              value={selectedGroupId}
+              onChange={setSelectedGroupId}
+            />
+          )}
         </ConfirmDialog>
       )}
     </>

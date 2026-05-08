@@ -49,8 +49,7 @@ describe("createSingleton", () => {
 
   test("passes additional arguments to initFn", async () => {
     const initFn = vi.fn(
-      async (key: string, multiplier: number, prefix: string) =>
-        `${prefix}-${key}-${multiplier}`
+      async (key: string, multiplier: number, prefix: string) => `${prefix}-${key}-${multiplier}`,
     );
     const singleton = createSingleton(initFn);
 
@@ -66,7 +65,7 @@ describe("createSingleton", () => {
       async () =>
         new Promise<string>((resolve) => {
           resolvePromise = resolve;
-        })
+        }),
     );
     const singleton = createSingleton(initFn);
 

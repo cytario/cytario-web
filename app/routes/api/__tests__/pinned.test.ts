@@ -182,11 +182,7 @@ describe("DELETE /api/pinned", () => {
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
-    expect(mockRemovePinnedPath).toHaveBeenCalledWith(
-      "user-1",
-      "my-bucket",
-      "data/images/",
-    );
+    expect(mockRemovePinnedPath).toHaveBeenCalledWith("user-1", "my-bucket", "data/images/");
   });
 
   test("returns 400 with missing connectionName on DELETE", async () => {

@@ -7,9 +7,7 @@ interface UseCopyToClipboardResult {
   isCopied: boolean;
 }
 
-export function useCopyToClipboard(
-  copyValue: string | undefined,
-): UseCopyToClipboardResult {
+export function useCopyToClipboard(copyValue: string | undefined): UseCopyToClipboardResult {
   const [isCopied, setIsCopied] = useState(false);
   const timerRef = useRef<number | null>(null);
 

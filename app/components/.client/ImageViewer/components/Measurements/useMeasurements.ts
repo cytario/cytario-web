@@ -55,15 +55,11 @@ const measurementsDataInitial: UseMeasurementsData = {
   target: [0, 0],
 };
 
-const absolutePixelsToScreenPixels = (n = 0, zoom: number) =>
-  n / (1 / 2 ** zoom);
+const absolutePixelsToScreenPixels = (n = 0, zoom: number) => n / (1 / 2 ** zoom);
 
-const screenPixelsToAbsolutePixels = (n = 0, zoom: number) =>
-  n * (1 / 2 ** zoom);
+const screenPixelsToAbsolutePixels = (n = 0, zoom: number) => n * (1 / 2 ** zoom);
 
-export const useMeasurements = (
-  viewStateOptional?: ViewState | null,
-): UseMeasurementsData => {
+export const useMeasurements = (viewStateOptional?: ViewState | null): UseMeasurementsData => {
   const viewStateActive = useViewerStore(select.viewStateActive);
   const viewState = viewStateOptional ?? viewStateActive;
   const metadata = useViewerStore(select.metadata);
@@ -85,37 +81,22 @@ export const useMeasurements = (
     unit,
   );
 
-  const metricToAbsolute = metricToAbsoluteFactory(
-    metadata.Pixels.PhysicalSizeX ?? 1,
-    unit,
-  );
+  const metricToAbsolute = metricToAbsoluteFactory(metadata.Pixels.PhysicalSizeX ?? 1, unit);
 
   const widthTotalMm = absoluteToMetric(metadata.Pixels.SizeX);
   const heightTotalMm = absoluteToMetric(metadata.Pixels.SizeY);
 
-  const imageWidthScreen = absolutePixelsToScreenPixels(
-    metadata.Pixels.SizeX,
-    zoom,
-  );
-  const imageHeightScreen = absolutePixelsToScreenPixels(
-    metadata.Pixels.SizeY,
-    zoom,
-  );
+  const imageWidthScreen = absolutePixelsToScreenPixels(metadata.Pixels.SizeX, zoom);
+  const imageHeightScreen = absolutePixelsToScreenPixels(metadata.Pixels.SizeY, zoom);
 
   const screenOffsetLeft = -target[0] / (1 / 2 ** zoom) + viewPortWidth / 2;
   const screenOffsetRight = viewPortWidth - screenOffsetLeft;
   const screenOffsetTop = -target[1] / (1 / 2 ** zoom) + viewPortHeight / 2;
   const screenOffsetBottom = viewPortHeight - screenOffsetTop;
 
-  const metricOffsetLeft = absoluteToMetric(
-    screenPixelsToAbsolutePixels(-screenOffsetLeft, zoom),
-  );
-  const metricOffsetTop = absoluteToMetric(
-    screenPixelsToAbsolutePixels(-screenOffsetTop, zoom),
-  );
-  const metricOffsetRight = absoluteToMetric(
-    screenPixelsToAbsolutePixels(screenOffsetRight, zoom),
-  );
+  const metricOffsetLeft = absoluteToMetric(screenPixelsToAbsolutePixels(-screenOffsetLeft, zoom));
+  const metricOffsetTop = absoluteToMetric(screenPixelsToAbsolutePixels(-screenOffsetTop, zoom));
+  const metricOffsetRight = absoluteToMetric(screenPixelsToAbsolutePixels(screenOffsetRight, zoom));
   const metricOffsetBottom = absoluteToMetric(
     screenPixelsToAbsolutePixels(screenOffsetBottom, zoom),
   );

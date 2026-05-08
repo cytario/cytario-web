@@ -107,10 +107,7 @@ describe("/healthz endpoint", () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
 
-    const serverSource = fs.readFileSync(
-      path.resolve(__dirname, "..", "server.ts"),
-      "utf-8",
-    );
+    const serverSource = fs.readFileSync(path.resolve(__dirname, "..", "server.ts"), "utf-8");
 
     const healthzIndex = serverSource.indexOf('app.get("/healthz"');
     const compressionIndex = serverSource.indexOf("app.use(compression()");
@@ -136,10 +133,7 @@ describe("/healthz endpoint", () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
 
-    const serverSource = fs.readFileSync(
-      path.resolve(__dirname, "..", "server.ts"),
-      "utf-8",
-    );
+    const serverSource = fs.readFileSync(path.resolve(__dirname, "..", "server.ts"), "utf-8");
 
     // Verify the initial value of isShuttingDown is false
     expect(serverSource).toContain("let isShuttingDown = false");
@@ -149,10 +143,7 @@ describe("/healthz endpoint", () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
 
-    const serverSource = fs.readFileSync(
-      path.resolve(__dirname, "..", "server.ts"),
-      "utf-8",
-    );
+    const serverSource = fs.readFileSync(path.resolve(__dirname, "..", "server.ts"), "utf-8");
 
     // Verify both signals are handled
     expect(serverSource).toMatch(/["']SIGTERM["']/);

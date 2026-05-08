@@ -14,11 +14,7 @@ function getStyle(sortDirection: false | SortDirection) {
 }
 
 /** Sort indicator icon for a table column header. Shows on hover when unsorted, always visible when active. */
-export const ColumnSortButton = ({
-  header,
-}: {
-  header: Header<unknown, unknown>;
-}) => {
+export const ColumnSortButton = ({ header }: { header: Header<unknown, unknown> }) => {
   const sortDirection = header.column.getIsSorted();
   const cx = twMerge("shrink-0", getStyle(sortDirection));
 

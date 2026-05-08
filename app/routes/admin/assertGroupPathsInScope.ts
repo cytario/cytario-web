@@ -1,7 +1,4 @@
-import {
-  flattenGroupsWithIds,
-  getGroupWithMembers,
-} from "~/.server/auth/keycloakAdmin";
+import { flattenGroupsWithIds, getGroupWithMembers } from "~/.server/auth/keycloakAdmin";
 
 /**
  * Validates that every groupPath belongs to the group tree of the given scope.
@@ -11,18 +8,13 @@ import {
  *
  * Throws 404 if the scope does not exist, 403 if any groupPath is out of scope.
  */
-export async function assertGroupPathsInScope(
-  groupPaths: string[],
-  scope: string,
-): Promise<void> {
+export async function assertGroupPathsInScope(groupPaths: string[], scope: string): Promise<void> {
   if (groupPaths.length === 0) return;
 
   const group = await getGroupWithMembers(scope);
   if (!group) throw new Response("Scope not found", { status: 404 });
 
-  const scopeGroupPaths = new Set(
-    flattenGroupsWithIds(group).map((g) => g.path),
-  );
+  const scopeGroupPaths = new Set(flattenGroupsWithIds(group).map((g) => g.path));
 
   for (const groupPath of groupPaths) {
     if (!scopeGroupPaths.has(groupPath)) {

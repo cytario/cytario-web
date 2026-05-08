@@ -5,9 +5,7 @@ import { MarkerInfo } from "~/components/.client/ImageViewer/components/Overlays
 /**
  * Extract marker information from DuckDB-WASM database.
  */
-export async function getMarkerInfoWasm(
-  resourceId: string,
-): Promise<MarkerInfo> {
+export async function getMarkerInfoWasm(resourceId: string): Promise<MarkerInfo> {
   const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
   const connection = await createDatabase(resourceId, credentials, connectionConfig);
 

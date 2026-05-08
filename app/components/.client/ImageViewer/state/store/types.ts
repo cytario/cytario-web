@@ -55,9 +55,7 @@ export interface BrightfieldGroup {
 }
 
 /** Detects brightfield R/G/B channels by name from UltiStacker output. */
-export const detectBrightfieldGroup = (
-  channelIds: readonly string[],
-): BrightfieldGroup | null => {
+export const detectBrightfieldGroup = (channelIds: readonly string[]): BrightfieldGroup | null => {
   const red = channelIds.find((id) => id.toLowerCase() === "red");
   const green = channelIds.find((id) => id.toLowerCase() === "green");
   const blue = channelIds.find((id) => id.toLowerCase() === "blue");
@@ -140,16 +138,9 @@ interface ViewerStoreActions {
   setContrastLimits: (contrastLimits: ByteDomain) => void;
   resetContrastLimits: () => void;
 
-  setChannelVisibility: (
-    key: keyof ChannelsStateColumns,
-    isVisible: boolean
-  ) => void;
+  setChannelVisibility: (key: keyof ChannelsStateColumns, isVisible: boolean) => void;
 
-  setMarkerVisibility: (
-    fileName: string,
-    markerName: string,
-    isVisible: boolean
-  ) => void;
+  setMarkerVisibility: (fileName: string, markerName: string, isVisible: boolean) => void;
 
   setChannelColor: (key: keyof ChannelsState, color: RGBA) => void;
   setMarkerColor: (fileName: string, markerName: string, color: RGBA) => void;

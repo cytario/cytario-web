@@ -59,6 +59,10 @@ redis.on("error", (err) => {
 });
 
 redis.on("connect", () => {
-  const authInfo = username ? ` (authenticated as ${username})` : password ? " (authenticated)" : "";
+  const authInfo = username
+    ? ` (authenticated as ${username})`
+    : password
+      ? " (authenticated)"
+      : "";
   console.log(`Connected to Redis/Valkey at ${host}:${port}${authInfo}`);
 });

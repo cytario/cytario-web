@@ -19,10 +19,7 @@ describe("CredentialedHTTPStore", () => {
     region: "us-west-2",
   };
 
-  const signedFetch = createSignedFetch(
-    () => mockCredentials,
-    mockConnectionConfig,
-  );
+  const signedFetch = createSignedFetch(() => mockCredentials, mockConnectionConfig);
 
   beforeEach(() => {
     mockFetch.mockReset();
@@ -38,18 +35,12 @@ describe("CredentialedHTTPStore", () => {
     });
 
     test("adds trailing slash to URL if missing", () => {
-      const store = new CredentialedHTTPStore(
-        "https://bucket.s3.amazonaws.com/path",
-        signedFetch,
-      );
+      const store = new CredentialedHTTPStore("https://bucket.s3.amazonaws.com/path", signedFetch);
       expect(store).toBeDefined();
     });
 
     test("preserves trailing slash if present", () => {
-      const store = new CredentialedHTTPStore(
-        "https://bucket.s3.amazonaws.com/path/",
-        signedFetch,
-      );
+      const store = new CredentialedHTTPStore("https://bucket.s3.amazonaws.com/path/", signedFetch);
       expect(store).toBeDefined();
     });
   });
@@ -61,10 +52,7 @@ describe("CredentialedHTTPStore", () => {
         AccessKeyId: undefined,
       } as unknown as Credentials;
 
-      const sf = createSignedFetch(
-        () => invalidCredentials,
-        mockConnectionConfig,
-      );
+      const sf = createSignedFetch(() => invalidCredentials, mockConnectionConfig);
       await expect(sf("https://bucket.s3.amazonaws.com/key")).rejects.toThrow(
         "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
@@ -76,10 +64,7 @@ describe("CredentialedHTTPStore", () => {
         SecretAccessKey: undefined,
       } as unknown as Credentials;
 
-      const sf = createSignedFetch(
-        () => invalidCredentials,
-        mockConnectionConfig,
-      );
+      const sf = createSignedFetch(() => invalidCredentials, mockConnectionConfig);
       await expect(sf("https://bucket.s3.amazonaws.com/key")).rejects.toThrow(
         "Invalid credentials: AccessKeyId and SecretAccessKey are required",
       );
@@ -199,9 +184,7 @@ describe("CredentialedHTTPStore", () => {
         signedFetch,
       );
 
-      await expect(store.get("error-key")).rejects.toThrow(
-        "HTTP 500 fetching error-key:",
-      );
+      await expect(store.get("error-key")).rejects.toThrow("HTTP 500 fetching error-key:");
     });
 
     test("strips leading slash from keys", async () => {
@@ -320,10 +303,7 @@ describe("CredentialedHTTPStore", () => {
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
       });
 
-      const store = new CredentialedHTTPStore(
-        "http://localhost:9000/bucket/path",
-        signedFetch,
-      );
+      const store = new CredentialedHTTPStore("http://localhost:9000/bucket/path", signedFetch);
 
       await store.get("key");
 

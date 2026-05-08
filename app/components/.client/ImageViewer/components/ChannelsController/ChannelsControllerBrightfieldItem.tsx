@@ -50,8 +50,7 @@ export function ChannelsControllerBrightfieldItem({
 
   // Brightfield needs 3 channel slots
   const disabled =
-    !isVisible &&
-    visibleChannelCount + BRIGHTFIELD_CHANNEL_COUNT > MAX_VISIBLE_CHANNELS;
+    !isVisible && visibleChannelCount + BRIGHTFIELD_CHANNEL_COUNT > MAX_VISIBLE_CHANNELS;
 
   let tooltip = `${isVisible ? "Hide" : "Show"} Brightfield`;
   if (disabled)

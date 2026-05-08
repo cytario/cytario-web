@@ -20,4 +20,3 @@
 - [ ] I have added tests that prove my fix/feature works
 - [ ] New and existing tests pass locally
 - [ ] I have updated documentation as needed
-

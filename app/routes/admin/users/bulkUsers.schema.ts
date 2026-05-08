@@ -2,12 +2,7 @@ import { z } from "zod";
 
 export const bulkActionSchema = z
   .object({
-    intent: z.enum([
-      "addToGroup",
-      "removeFromGroup",
-      "enableAccounts",
-      "disableAccounts",
-    ]),
+    intent: z.enum(["addToGroup", "removeFromGroup", "enableAccounts", "disableAccounts"]),
     userIds: z
       .string()
       .min(1, "At least one user is required")

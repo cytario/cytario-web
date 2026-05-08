@@ -5,17 +5,14 @@ import { RefObject, useLayoutEffect, useState } from "react";
  * Uses ResizeObserver to recheck on any container size change
  * (column resize, flex layout shifts, not just window resize).
  */
-export function useOverflowDetection(
-  ref: RefObject<HTMLElement | null>,
-): boolean {
+export function useOverflowDetection(ref: RefObject<HTMLElement | null>): boolean {
   const [isTruncated, setIsTruncated] = useState(false);
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    const check = () =>
-      setIsTruncated(el.scrollWidth > el.offsetWidth);
+    const check = () => setIsTruncated(el.scrollWidth > el.offsetWidth);
 
     check();
 

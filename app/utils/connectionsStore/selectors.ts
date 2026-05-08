@@ -75,12 +75,8 @@ export const selectHttpsUrl =
  * For reactive use, subscribe to `selectHttpsUrl`. For non-reactive use
  * (async callbacks), use `resolveResourceId`.
  */
-function resolveResource(
-  resourceId: string,
-  state: ConnectionsStore,
-): ResolvedResource | null {
-  const { connectionName, pathName: connectionPathName } =
-    parseResourceId(resourceId);
+function resolveResource(resourceId: string, state: ConnectionsStore): ResolvedResource | null {
+  const { connectionName, pathName: connectionPathName } = parseResourceId(resourceId);
 
   const connection = state.connections[connectionName];
   if (!connection) return null;

@@ -16,9 +16,7 @@ describe("ScopePill", () => {
 
   test("renders PathPill for group scope", () => {
     render(<ScopePill scope="cytario/Lab Services" />);
-    expect(
-      screen.getByLabelText("Path: cytario / Lab Services"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Path: cytario / Lab Services")).toBeInTheDocument();
     expect(screen.getByText("Lab Services")).toBeInTheDocument();
   });
 
@@ -29,9 +27,7 @@ describe("ScopePill", () => {
 
   test("renders deep scope path with all segments in aria-label", () => {
     render(<ScopePill scope="cytario/Lab Services/team-x" />);
-    expect(
-      screen.getByLabelText("Path: cytario / Lab Services / team-x"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Path: cytario / Lab Services / team-x")).toBeInTheDocument();
     expect(screen.getByText("team-x")).toBeInTheDocument();
   });
 
@@ -42,18 +38,14 @@ describe("ScopePill", () => {
   });
 
   test("renders Shield icon for admin scope", () => {
-    const { container } = render(
-      <ScopePill scope="cytario/Lab Services/admins" />,
-    );
+    const { container } = render(<ScopePill scope="cytario/Lab Services/admins" />);
     expect(container.querySelector(".lucide-shield")).toBeInTheDocument();
     expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
   });
 
   test("shows last segment and full path in aria-label for admin scope", () => {
     render(<ScopePill scope="cytario/Lab Services/admins" />);
-    expect(
-      screen.getByLabelText("Path: cytario / Lab Services / admins"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Path: cytario / Lab Services / admins")).toBeInTheDocument();
     expect(screen.getByText("admins")).toBeInTheDocument();
   });
 

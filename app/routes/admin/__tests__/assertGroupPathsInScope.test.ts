@@ -51,17 +51,13 @@ describe("assertGroupPathsInScope", () => {
   test("passes when path is the scope root", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertGroupPathsInScope(["vericura"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupPathsInScope(["vericura"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when path is a subgroup", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertGroupPathsInScope(["vericura/lab"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupPathsInScope(["vericura/lab"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when path is a deeply nested subgroup", async () => {
@@ -76,17 +72,12 @@ describe("assertGroupPathsInScope", () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
     await expect(
-      assertGroupPathsInScope(
-        ["vericura", "vericura/lab", "vericura/lab/team-x"],
-        "vericura",
-      ),
+      assertGroupPathsInScope(["vericura", "vericura/lab", "vericura/lab/team-x"], "vericura"),
     ).resolves.toBeUndefined();
   });
 
   test("passes (no API call) when groupPaths array is empty", async () => {
-    await expect(
-      assertGroupPathsInScope([], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupPathsInScope([], "vericura")).resolves.toBeUndefined();
 
     expect(mockGetGroupWithMembers).not.toHaveBeenCalled();
   });
@@ -122,10 +113,7 @@ describe("assertGroupPathsInScope", () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
     try {
-      await assertGroupPathsInScope(
-        ["vericura/lab", "another-org/foo"],
-        "vericura",
-      );
+      await assertGroupPathsInScope(["vericura/lab", "another-org/foo"], "vericura");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);

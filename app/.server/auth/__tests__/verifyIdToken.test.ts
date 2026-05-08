@@ -41,17 +41,14 @@ describe("verifyIdToken", () => {
     const result = await verifyIdToken("valid-token");
 
     expect(result).toEqual(mockPayload);
-    expect(jwtVerify).toHaveBeenCalledWith(
-      "valid-token",
-      "mock-jwks-function",
-      { issuer: "https://auth.example.com/realms/test", clockTolerance: 30 },
-    );
+    expect(jwtVerify).toHaveBeenCalledWith("valid-token", "mock-jwks-function", {
+      issuer: "https://auth.example.com/realms/test",
+      clockTolerance: 30,
+    });
   });
 
   test("returns null for an invalid signature", async () => {
-    vi.mocked(jwtVerify).mockRejectedValue(
-      new Error("signature verification failed"),
-    );
+    vi.mocked(jwtVerify).mockRejectedValue(new Error("signature verification failed"));
 
     const result = await verifyIdToken("tampered-token");
 
@@ -59,9 +56,7 @@ describe("verifyIdToken", () => {
   });
 
   test("returns null for an expired token", async () => {
-    vi.mocked(jwtVerify).mockRejectedValue(
-      new Error('"exp" claim timestamp check failed'),
-    );
+    vi.mocked(jwtVerify).mockRejectedValue(new Error('"exp" claim timestamp check failed'));
 
     const result = await verifyIdToken("expired-token");
 
@@ -69,9 +64,7 @@ describe("verifyIdToken", () => {
   });
 
   test("returns null for wrong issuer", async () => {
-    vi.mocked(jwtVerify).mockRejectedValue(
-      new Error('"iss" claim check failed'),
-    );
+    vi.mocked(jwtVerify).mockRejectedValue(new Error('"iss" claim check failed'));
 
     const result = await verifyIdToken("wrong-issuer-token");
 

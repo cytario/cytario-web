@@ -1,7 +1,4 @@
-export function buildCreateTableQuery(
-  id: string,
-  geometryColumn: string = "polygon"
-): string {
+export function buildCreateTableQuery(id: string, geometryColumn: string = "polygon"): string {
   return /*sql*/ `
     CREATE TABLE IF NOT EXISTS geometries AS
     SELECT

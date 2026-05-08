@@ -31,19 +31,9 @@ export function SlideCarrier() {
   );
 }
 
-const Size = ({
-  value,
-  vertical = false,
-}: {
-  value: number;
-  vertical?: boolean;
-}) => {
-  const {
-    imageWidthScreen,
-    imageHeightScreen,
-    screenOffsetLeft,
-    screenOffsetTop,
-  } = useMeasurements();
+const Size = ({ value, vertical = false }: { value: number; vertical?: boolean }) => {
+  const { imageWidthScreen, imageHeightScreen, screenOffsetLeft, screenOffsetTop } =
+    useMeasurements();
 
   const transform = vertical
     ? `translate(${screenOffsetLeft}px, ${screenOffsetTop - 18}px) rotate(90deg)`

@@ -11,18 +11,13 @@ export function ActiveViewStatePreview() {
   const measurementsPreview = useMeasurements(viewStatePreview);
 
   const { width, height, x, y } = useMemo(() => {
-    const scaleFactor =
-      2 ** (measurementsPreview.zoom - measurementsActive.zoom);
+    const scaleFactor = 2 ** (measurementsPreview.zoom - measurementsActive.zoom);
 
     return {
       width: measurementsActive.viewPortWidth * scaleFactor,
       height: measurementsActive.viewPortHeight * scaleFactor,
-      x:
-        measurementsPreview.screenOffsetLeft -
-        measurementsActive.screenOffsetLeft * scaleFactor,
-      y:
-        measurementsPreview.screenOffsetTop -
-        measurementsActive.screenOffsetTop * scaleFactor,
+      x: measurementsPreview.screenOffsetLeft - measurementsActive.screenOffsetLeft * scaleFactor,
+      y: measurementsPreview.screenOffsetTop - measurementsActive.screenOffsetTop * scaleFactor,
     };
   }, [
     measurementsActive.viewPortWidth,

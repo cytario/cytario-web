@@ -58,11 +58,7 @@ describe("createDatabase", () => {
   });
 
   test("initializes DuckDB WASM and returns connection", async () => {
-    const connection = await createDatabase(
-      "test-resource",
-      credentials,
-      undefined,
-    );
+    const connection = await createDatabase("test-resource", credentials, undefined);
 
     expect(connection).toBe(mockConnection);
     expect(getJsDelivrBundles).toHaveBeenCalled();
@@ -92,24 +88,18 @@ describe("createDatabase", () => {
   test("configures S3 credentials", async () => {
     await createDatabase("test-credentials", credentials, undefined);
 
-    expect(mockQuery).toHaveBeenCalledWith(
-      `SET s3_access_key_id='${credentials.AccessKeyId}'`,
-    );
+    expect(mockQuery).toHaveBeenCalledWith(`SET s3_access_key_id='${credentials.AccessKeyId}'`);
     expect(mockQuery).toHaveBeenCalledWith(
       `SET s3_secret_access_key='${credentials.SecretAccessKey}'`,
     );
-    expect(mockQuery).toHaveBeenCalledWith(
-      `SET s3_session_token='${credentials.SessionToken}'`,
-    );
+    expect(mockQuery).toHaveBeenCalledWith(`SET s3_session_token='${credentials.SessionToken}'`);
   });
 
   test("configures S3 endpoint with default region", async () => {
     await createDatabase("test-endpoint", credentials, undefined);
 
     expect(mockQuery).toHaveBeenCalledWith("SET s3_region='eu-central-1'");
-    expect(mockQuery).toHaveBeenCalledWith(
-      "SET s3_endpoint='s3.amazonaws.com'",
-    );
+    expect(mockQuery).toHaveBeenCalledWith("SET s3_endpoint='s3.amazonaws.com'");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_url_style='path'");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_use_ssl=true");
   });
@@ -131,12 +121,8 @@ describe("createDatabase", () => {
 
     await createDatabase("test-resource-minio", credentials, connectionConfig);
 
-    expect(getEndpointHostname).toHaveBeenCalledWith(
-      "https://minio.local:9000",
-    );
-    expect(mockQuery).toHaveBeenCalledWith(
-      "SET s3_endpoint='minio.local:9000'",
-    );
+    expect(getEndpointHostname).toHaveBeenCalledWith("https://minio.local:9000");
+    expect(mockQuery).toHaveBeenCalledWith("SET s3_endpoint='minio.local:9000'");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_url_style='path'");
   });
 
@@ -146,22 +132,14 @@ describe("createDatabase", () => {
       mainModule: "module.wasm",
     } as never);
 
-    await expect(
-      createDatabase("test-resource-no-worker", credentials, undefined),
-    ).rejects.toThrow("DuckDB WASM worker is not available");
+    await expect(createDatabase("test-resource-no-worker", credentials, undefined)).rejects.toThrow(
+      "DuckDB WASM worker is not available",
+    );
   });
 
   test("returns cached connection for same resourceId (singleton behavior)", async () => {
-    const connection1 = await createDatabase(
-      "cached-resource",
-      credentials,
-      undefined,
-    );
-    const connection2 = await createDatabase(
-      "cached-resource",
-      credentials,
-      undefined,
-    );
+    const connection1 = await createDatabase("cached-resource", credentials, undefined);
+    const connection2 = await createDatabase("cached-resource", credentials, undefined);
 
     expect(connection1).toBe(connection2);
     // Should only initialize once for same resource

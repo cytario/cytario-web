@@ -28,10 +28,7 @@ export async function upsertRecentlyViewed(
 }
 
 /** Get the most recently viewed items for a user, ordered newest-first. */
-export async function getRecentlyViewed(
-  userId: string,
-  limit = 20,
-): Promise<RecentlyViewed[]> {
+export async function getRecentlyViewed(userId: string, limit = 20): Promise<RecentlyViewed[]> {
   return prisma.recentlyViewed.findMany({
     where: { userId },
     orderBy: { viewedAt: "desc" },

@@ -43,7 +43,7 @@ describe("useMeasurements", () => {
 
   test(`returns correct measurements`, () => {
     (useViewerStore as Mock).mockImplementation((selector) =>
-      selector({ viewStateActive: mockViewState, metadata: mockMetadata })
+      selector({ viewStateActive: mockViewState, metadata: mockMetadata }),
     );
     const { result } = renderHook(() => useMeasurements());
     expect(result.current).toEqual({

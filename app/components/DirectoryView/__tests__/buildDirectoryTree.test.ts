@@ -26,7 +26,6 @@ const testCases: [_Object[], TreeNode[]][] = [
             type: "file",
             name: "file1.txt",
             pathName: "folder1/file1.txt",
-    
 
             children: [],
             _Object: { Key: "folder1/file1.txt" },
@@ -36,7 +35,7 @@ const testCases: [_Object[], TreeNode[]][] = [
             connectionName: "test-connection",
             type: "file",
             name: "file2.txt",
-    
+
             pathName: "folder1/file2.txt",
 
             children: [],
@@ -59,7 +58,7 @@ const testCases: [_Object[], TreeNode[]][] = [
             connectionName: "test-connection",
             type: "file",
             name: "file3.txt",
-    
+
             pathName: "folder2/file3.txt",
 
             children: [],
@@ -71,7 +70,6 @@ const testCases: [_Object[], TreeNode[]][] = [
             type: "directory",
             name: "subfolder1",
             pathName: "folder2/subfolder1/",
-    
 
             children: [
               {
@@ -79,9 +77,9 @@ const testCases: [_Object[], TreeNode[]][] = [
                 connectionName: "test-connection",
                 type: "file",
                 name: "file4.txt",
-        
+
                 pathName: "folder2/subfolder1/file4.txt",
-    
+
                 children: [],
                 _Object: { Key: "folder2/subfolder1/file4.txt" },
               },
@@ -101,17 +99,13 @@ describe("buildDirectoryTree", () => {
     (objects, expectedTree) => {
       const tree = buildDirectoryTree(objects, "test-connection");
       expect(tree).toEqual(expectedTree);
-    }
+    },
   );
 
   test("should prepend urlPath to node pathNames when navigating into a subdirectory", () => {
-    const objects: _Object[] = [
-      { Key: "subdir/file.tif" },
-    ];
+    const objects: _Object[] = [{ Key: "subdir/file.tif" }];
 
-    const tree = buildDirectoryTree(
-      objects, "my-connection", "subdir/", "subdir",
-    );
+    const tree = buildDirectoryTree(objects, "my-connection", "subdir/", "subdir");
 
     expect(tree).toEqual([
       {
@@ -127,10 +121,7 @@ describe("buildDirectoryTree", () => {
   });
 
   test("should skip S3 folder marker objects (keys ending with /)", () => {
-    const objects: _Object[] = [
-      { Key: "czi/" },
-      { Key: "czi/ULT-2022-16901-457_V1.czi" },
-    ];
+    const objects: _Object[] = [{ Key: "czi/" }, { Key: "czi/ULT-2022-16901-457_V1.czi" }];
 
     const tree = buildDirectoryTree(objects, "my-connection");
 
@@ -143,11 +134,7 @@ describe("buildDirectoryTree", () => {
   });
 
   test("should handle nested folder markers without creating phantom nodes", () => {
-    const objects: _Object[] = [
-      { Key: "a/" },
-      { Key: "a/b/" },
-      { Key: "a/b/file.txt" },
-    ];
+    const objects: _Object[] = [{ Key: "a/" }, { Key: "a/b/" }, { Key: "a/b/file.txt" }];
 
     const tree = buildDirectoryTree(objects, "my-connection");
 
@@ -160,9 +147,7 @@ describe("buildDirectoryTree", () => {
   });
 
   test("should produce paths relative to connection root without urlPath", () => {
-    const objects: _Object[] = [
-      { Key: "subdir/file.tif" },
-    ];
+    const objects: _Object[] = [{ Key: "subdir/file.tif" }];
 
     const tree = buildDirectoryTree(objects, "my-connection");
 

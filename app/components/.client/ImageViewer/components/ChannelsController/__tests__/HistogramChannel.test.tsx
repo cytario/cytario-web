@@ -18,7 +18,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} />
-      </svg>
+      </svg>,
     );
 
     const clipPath = container.querySelector("clipPath");
@@ -30,7 +30,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} />
-      </svg>
+      </svg>,
     );
 
     const lines = container.querySelectorAll("line");
@@ -49,7 +49,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} />
-      </svg>
+      </svg>,
     );
 
     const polygons = container.querySelectorAll("polygon");
@@ -69,7 +69,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} channelIndex={3} />
-      </svg>
+      </svg>,
     );
 
     const clipPath = container.querySelector("clipPath");
@@ -83,7 +83,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} />
-      </svg>
+      </svg>,
     );
 
     const rect = container.querySelector("clipPath rect");
@@ -103,7 +103,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} color="rgb(0, 255, 0)" />
-      </svg>
+      </svg>,
     );
 
     const polygons = container.querySelectorAll("polygon");
@@ -120,7 +120,7 @@ describe("HistogramChannel", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} histogram={simpleHistogram} />
-      </svg>
+      </svg>,
     );
 
     const polygon = container.querySelector("polygon");
@@ -133,12 +133,8 @@ describe("HistogramChannel", () => {
   test("handles full range contrast limits", () => {
     const { container } = render(
       <svg>
-        <HistogramChannel
-          {...defaultProps}
-          contrastLimit={[0, 255]}
-          range={255}
-        />
-      </svg>
+        <HistogramChannel {...defaultProps} contrastLimit={[0, 255]} range={255} />
+      </svg>,
     );
 
     const rect = container.querySelector("clipPath rect");
@@ -152,12 +148,8 @@ describe("HistogramChannel", () => {
   test("handles zero-width contrast limits", () => {
     const { container } = render(
       <svg>
-        <HistogramChannel
-          {...defaultProps}
-          contrastLimit={[100, 100]}
-          range={255}
-        />
-      </svg>
+        <HistogramChannel {...defaultProps} contrastLimit={[100, 100]} range={255} />
+      </svg>,
     );
 
     const rect = container.querySelector("clipPath rect");

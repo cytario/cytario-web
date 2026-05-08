@@ -20,11 +20,12 @@ export function ChannelsController() {
 
   // Show grouped counts: brightfield R/G/B counts as 1 item in the UI
   const groupOffset = brightfieldGroup ? 2 : 0; // 3 channels → 1 item = -2
-  const isBrightfieldVisible = brightfieldGroup && channelsState
-    ? channelsState[brightfieldGroup.red]?.isVisible &&
-      channelsState[brightfieldGroup.green]?.isVisible &&
-      channelsState[brightfieldGroup.blue]?.isVisible
-    : false;
+  const isBrightfieldVisible =
+    brightfieldGroup && channelsState
+      ? channelsState[brightfieldGroup.red]?.isVisible &&
+        channelsState[brightfieldGroup.green]?.isVisible &&
+        channelsState[brightfieldGroup.blue]?.isVisible
+      : false;
   const visibleGrouped = visibleChannelCount - (isBrightfieldVisible ? 2 : 0);
   const totalGrouped = channelIds.length - groupOffset;
   const badge = `${visibleGrouped}/${totalGrouped}`;
@@ -39,10 +40,7 @@ export function ChannelsController() {
     >
       {layersStates.map((_, index) => (
         <TabPanel key={index} id={String(index)}>
-          <ChannelsControllerItemList
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-          />
+          <ChannelsControllerItemList isExpanded={isExpanded} setIsExpanded={setIsExpanded} />
         </TabPanel>
       ))}
     </FeatureItem>

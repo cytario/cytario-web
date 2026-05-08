@@ -8,8 +8,7 @@ vi.mock("~/config", () => ({
   },
 }));
 
-const TOKEN_URL =
-  "http://localhost:8080/realms/master/protocol/openid-connect/token";
+const TOKEN_URL = "http://localhost:8080/realms/master/protocol/openid-connect/token";
 
 describe("getAdminToken", () => {
   beforeEach(async () => {
@@ -31,8 +30,7 @@ describe("getAdminToken", () => {
   test("fetches token via client_credentials grant", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({ access_token: "token-abc", expires_in: 300 }),
+      json: () => Promise.resolve({ access_token: "token-abc", expires_in: 300 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -55,8 +53,7 @@ describe("getAdminToken", () => {
   test("returns cached token on subsequent calls", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({ access_token: "token-abc", expires_in: 300 }),
+      json: () => Promise.resolve({ access_token: "token-abc", expires_in: 300 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -73,13 +70,11 @@ describe("getAdminToken", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ access_token: "token-1", expires_in: 60 }),
+        json: () => Promise.resolve({ access_token: "token-1", expires_in: 60 }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ access_token: "token-2", expires_in: 300 }),
+        json: () => Promise.resolve({ access_token: "token-2", expires_in: 300 }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -99,8 +94,7 @@ describe("getAdminToken", () => {
   test("does not refresh token before expiry buffer", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({ access_token: "token-1", expires_in: 300 }),
+      json: () => Promise.resolve({ access_token: "token-1", expires_in: 300 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -123,8 +117,7 @@ describe("getAdminToken", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ access_token: "token-retry", expires_in: 300 }),
+        json: () => Promise.resolve({ access_token: "token-retry", expires_in: 300 }),
       });
     vi.stubGlobal("fetch", fetchMock);
 

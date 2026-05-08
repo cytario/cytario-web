@@ -62,10 +62,7 @@ describe("createMigrate", () => {
   });
 
   test("returns state unchanged when already at current version", () => {
-    const migrate = createMigrate(
-      { 0: () => ({ migrated: true }) },
-      fallback,
-    );
+    const migrate = createMigrate({ 0: () => ({ migrated: true }) }, fallback);
 
     const state = { already: "current" };
     expect(migrate(state, 1)).toEqual(state);
@@ -93,10 +90,7 @@ describe("createMigrate", () => {
   });
 
   test("handles null persisted state", () => {
-    const migrate = createMigrate(
-      { 0: (state) => state ?? { reset: true } },
-      fallback,
-    );
+    const migrate = createMigrate({ 0: (state) => state ?? { reset: true } }, fallback);
 
     expect(migrate(null, 0)).toEqual({ reset: true });
   });

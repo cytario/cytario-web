@@ -112,9 +112,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="parquet" />);
 
-    expect(
-      screen.getByText("No .parquet files found in connected buckets."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No .parquet files found in connected buckets.")).toBeInTheDocument();
   });
 
   test("renders tree with file nodes", () => {
@@ -134,9 +132,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="parquet" />);
 
-    expect(
-      screen.getByPlaceholderText("Search .parquet files..."),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search .parquet files...")).toBeInTheDocument();
   });
 
   test("Load button is disabled when no file is selected", () => {
@@ -155,9 +151,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="csv" />);
 
-    expect(
-      screen.getByRole("button", { name: "Convert" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Convert" })).toBeInTheDocument();
   });
 
   test("shows Cancel button when callback is provided", () => {
@@ -167,9 +161,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="parquet" callback={callback} />);
 
-    expect(
-      screen.getByRole("button", { name: "Cancel" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   test("does not show Cancel button when callback is not provided", () => {
@@ -178,9 +170,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="parquet" />);
 
-    expect(
-      screen.queryByRole("button", { name: "Cancel" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 
   test("calls callback when Cancel is pressed", async () => {

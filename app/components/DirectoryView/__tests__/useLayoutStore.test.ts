@@ -61,32 +61,16 @@ describe("useLayoutStore persist migrations", () => {
     {
       0: (state) => {
         const s = state as { viewMode?: string };
-        const OLD_VALID = [
-          "list",
-          "list-wide",
-          "grid-sm",
-          "grid-md",
-          "grid-lg",
-        ];
+        const OLD_VALID = ["list", "list-wide", "grid-sm", "grid-md", "grid-lg"];
         return {
-          viewMode: OLD_VALID.includes(s?.viewMode ?? "")
-            ? (s.viewMode as string)
-            : "grid",
+          viewMode: OLD_VALID.includes(s?.viewMode ?? "") ? (s.viewMode as string) : "grid",
         };
       },
       1: (state) => {
         const s = state as { viewMode?: string };
-        const OLD_VALID = [
-          "list",
-          "list-wide",
-          "grid-sm",
-          "grid-md",
-          "grid-lg",
-        ];
+        const OLD_VALID = ["list", "list-wide", "grid-sm", "grid-md", "grid-lg"];
         return {
-          viewMode: OLD_VALID.includes(s?.viewMode ?? "")
-            ? (s.viewMode as string)
-            : "grid",
+          viewMode: OLD_VALID.includes(s?.viewMode ?? "") ? (s.viewMode as string) : "grid",
           showHiddenFiles: false,
         };
       },
@@ -183,10 +167,7 @@ describe("useLayoutStore persist migrations", () => {
     });
 
     test("preserves showHiddenFiles value during migration", () => {
-      const result = migrate(
-        { viewMode: "grid-sm", showHiddenFiles: true },
-        2,
-      );
+      const result = migrate({ viewMode: "grid-sm", showHiddenFiles: true }, 2);
       expect(result.showHiddenFiles).toBe(true);
     });
 

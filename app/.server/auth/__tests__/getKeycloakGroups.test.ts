@@ -117,9 +117,7 @@ describe("getManageableScopes", () => {
     ]);
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "http://localhost:8080/admin/realms/master/groups?",
-      ),
+      expect.stringContaining("http://localhost:8080/admin/realms/master/groups?"),
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: expect.stringContaining("Bearer "),
@@ -157,10 +155,7 @@ describe("getManageableScopes", () => {
   });
 
   test("falls back to adminScopes on network error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("Network error")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
 
     const user = mock.user({
       adminScopes: ["vericura"],

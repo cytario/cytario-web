@@ -4,10 +4,7 @@ import { assertAdminScope } from "../assertAdminScope";
 
 describe("assertAdminScope", () => {
   test("returns scope and adminUrl when user has exact scope", () => {
-    const result = assertAdminScope(
-      "http://localhost/admin/users?scope=cytario",
-      ["cytario"],
-    );
+    const result = assertAdminScope("http://localhost/admin/users?scope=cytario", ["cytario"]);
     expect(result).toEqual({
       scope: "cytario",
       adminUrl: "/admin/users?scope=cytario",
@@ -15,10 +12,7 @@ describe("assertAdminScope", () => {
   });
 
   test("returns scope and adminUrl when user has parent scope", () => {
-    const result = assertAdminScope(
-      "http://localhost/admin/users?scope=cytario/lab",
-      ["cytario"],
-    );
+    const result = assertAdminScope("http://localhost/admin/users?scope=cytario/lab", ["cytario"]);
     expect(result).toEqual({
       scope: "cytario/lab",
       adminUrl: "/admin/users?scope=cytario%2Flab",
@@ -26,9 +20,7 @@ describe("assertAdminScope", () => {
   });
 
   test("throws 400 when scope is missing", () => {
-    expect(() =>
-      assertAdminScope("http://localhost/admin/users", ["cytario"]),
-    ).toThrow();
+    expect(() => assertAdminScope("http://localhost/admin/users", ["cytario"])).toThrow();
 
     try {
       assertAdminScope("http://localhost/admin/users", ["cytario"]);
@@ -40,10 +32,7 @@ describe("assertAdminScope", () => {
 
   test("throws 403 when user is not admin for scope", () => {
     try {
-      assertAdminScope(
-        "http://localhost/admin/users?scope=other-org",
-        ["cytario"],
-      );
+      assertAdminScope("http://localhost/admin/users?scope=other-org", ["cytario"]);
     } catch (e) {
       expect(e).toBeInstanceOf(Response);
       expect((e as Response).status).toBe(403);
@@ -52,20 +41,14 @@ describe("assertAdminScope", () => {
 
   test("does not match partial scope prefixes", () => {
     expect(() =>
-      assertAdminScope(
-        "http://localhost/admin/users?scope=cytario-extra",
-        ["cytario"],
-      ),
+      assertAdminScope("http://localhost/admin/users?scope=cytario-extra", ["cytario"]),
     ).toThrow();
   });
 
   test("encodes special characters in adminUrl", () => {
-    const result = assertAdminScope(
-      "http://localhost/admin/users?scope=cytario/team%20alpha",
-      ["cytario"],
-    );
-    expect(result.adminUrl).toBe(
-      "/admin/users?scope=cytario%2Fteam%20alpha",
-    );
+    const result = assertAdminScope("http://localhost/admin/users?scope=cytario/team%20alpha", [
+      "cytario",
+    ]);
+    expect(result.adminUrl).toBe("/admin/users?scope=cytario%2Fteam%20alpha");
   });
 });

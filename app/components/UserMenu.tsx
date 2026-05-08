@@ -26,9 +26,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
               <div className="font-semibold">
                 {user.given_name} {user.family_name}
               </div>
-              <div className="text-[var(--color-text-secondary)]">
-                {user.email}
-              </div>
+              <div className="text-[var(--color-text-secondary)]">{user.email}</div>
             </div>
           </MenuHeader>
 
@@ -68,12 +66,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
             </>
           )}
 
-          <MenuItem
-            id="account-settings"
-            icon={Settings}
-            href={accountSettingsUrl}
-            target="_blank"
-          >
+          <MenuItem id="account-settings" icon={Settings} href={accountSettingsUrl} target="_blank">
             Account Settings
           </MenuItem>
           <MenuItem id="logout" icon={LogOut} href="/logout">

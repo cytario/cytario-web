@@ -7,15 +7,12 @@ import mock from "~/utils/__tests__/__mocks__";
 const mockSetConnections = vi.fn();
 
 vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
-  useConnectionsStore: vi.fn((selector) =>
-    selector({ setConnections: mockSetConnections }),
-  ),
+  useConnectionsStore: vi.fn((selector) => selector({ setConnections: mockSetConnections })),
 }));
 
 vi.mock("~/utils/connectionsStore/selectors", () => ({
   select: {
-    setConnections: (state: { setConnections: unknown }) =>
-      state.setConnections,
+    setConnections: (state: { setConnections: unknown }) => state.setConnections,
   },
 }));
 
