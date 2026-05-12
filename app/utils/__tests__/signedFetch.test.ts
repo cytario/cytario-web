@@ -143,4 +143,35 @@ describe("createSignedFetch", () => {
     const [, init] = mockFetch.mock.calls[0];
     expect(init.signal).toBe(controller.signal);
   });
+
+  test("appends 7-day response-cache-control for image tile URLs", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf(
+      "https://bucket.s3.eu-central-1.amazonaws.com/image.ome.tif",
+    );
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toContain(
+      "response-cache-control=private%2C%20max-age%3D604800",
+    );
+  });
+
+  test("appends 1-hour response-cache-control for non-image URLs", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf(
+      "https://bucket.s3.eu-central-1.amazonaws.com/image.offsets.json",
+    );
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toContain(
+      "response-cache-control=private%2C%20max-age%3D3600",
+    );
+  });
+
+  test("classifies OME-Zarr chunk paths as image data", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.zarr/0/0/0");
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toContain(
+      "response-cache-control=private%2C%20max-age%3D604800",
+    );
+  });
 });
