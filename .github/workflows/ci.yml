@@ -30,16 +30,28 @@ jobs:
       - name: Dispatch E2E and wait
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_REF: ${{ github.head_ref }}
+          WEB_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # Dispatch to main — the e2e.yml resolve step checks out the
-          # paired branch if it exists (using github.token which has
-          # contents:read on the docs repo). The App token only needs
-          # actions:write to trigger the workflow.
-          gh workflow run e2e.yml \
-            --repo cytario/cytario-docs \
-            --ref main \
-            -f ref="${{ github.event.pull_request.head.sha }}" \
-            -f docs_branch_hint="${{ github.head_ref }}"
+          # Dispatch the docs e2e workflow against the paired cytario-docs
+          # branch directly when one exists, falling back to main. This
+          # makes `--ref` carry the correct branch on first try; the docs
+          # workflow uses `actions/checkout` with no explicit `ref:` so it
+          # checks out whatever `--ref` was set to.
+          DOCS_REF="$HEAD_REF"
+          if ! gh workflow run e2e.yml \
+              --repo cytario/cytario-docs \
+              --ref "$DOCS_REF" \
+              -f ref="$WEB_SHA" 2>/dev/null; then
+            echo "::notice::No paired cytario-docs/$HEAD_REF branch; dispatching against main"
+            DOCS_REF="main"
+            gh workflow run e2e.yml \
+              --repo cytario/cytario-docs \
+              --ref "$DOCS_REF" \
+              -f ref="$WEB_SHA"
+          else
+            echo "::notice::Using paired cytario-docs branch: $HEAD_REF"
+          fi
 
           sleep 5
           RUN_ID=$(gh run list \

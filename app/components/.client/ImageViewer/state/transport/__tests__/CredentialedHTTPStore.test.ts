@@ -103,8 +103,11 @@ describe("CredentialedHTTPStore", () => {
       const result = await store.get(".zattrs");
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
+      // `signedFetch` appends `?response-cache-control=...` so the browser
+      // HTTP cache can store the response. `.zattrs` is non-image data
+      // (1-hour ceiling).
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://bucket.s3.us-west-2.amazonaws.com/zarr/.zattrs",
+        "https://bucket.s3.us-west-2.amazonaws.com/zarr/.zattrs?response-cache-control=private%2C%20max-age%3D3600",
         expect.objectContaining({
           method: "GET",
           headers: expect.objectContaining({
@@ -216,7 +219,7 @@ describe("CredentialedHTTPStore", () => {
       await store.get("/.zattrs");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://bucket.s3.us-west-2.amazonaws.com/zarr/.zattrs",
+        "https://bucket.s3.us-west-2.amazonaws.com/zarr/.zattrs?response-cache-control=private%2C%20max-age%3D3600",
         expect.anything(),
       );
     });
@@ -235,8 +238,10 @@ describe("CredentialedHTTPStore", () => {
 
       await store.get("0/0/0/0/0/0/42");
 
+      // OME-Zarr chunk path (digits-only trailing segment) → image data
+      // → 7-day ceiling.
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://bucket.s3.us-west-2.amazonaws.com/data.zarr/0/0/0/0/0/0/42",
+        "https://bucket.s3.us-west-2.amazonaws.com/data.zarr/0/0/0/0/0/0/42?response-cache-control=private%2C%20max-age%3D604800",
         expect.anything(),
       );
     });
@@ -258,7 +263,7 @@ describe("CredentialedHTTPStore", () => {
       await store.get(".zattrs");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:9000/bucket/data.zarr/.zattrs",
+        "http://localhost:9000/bucket/data.zarr/.zattrs?response-cache-control=private%2C%20max-age%3D3600",
         expect.anything(),
       );
     });
@@ -278,7 +283,7 @@ describe("CredentialedHTTPStore", () => {
       await store.get("key");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:9000/bucket/path/key",
+        "http://localhost:9000/bucket/path/key?response-cache-control=private%2C%20max-age%3D3600",
         expect.anything(),
       );
     });
