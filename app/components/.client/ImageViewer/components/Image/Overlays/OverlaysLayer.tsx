@@ -159,13 +159,15 @@ export const OverlaysLayer = ({
   };
 
   return new TileLayer({
-    id: `MarkersLayer`,
+    // Unique id per overlay resource — multiple overlays would otherwise collide
+    // and deck.gl would reconcile them as the same layer, clobbering each other.
+    id: `MarkersLayer-${resourceId}`,
     refinementStrategy: "no-overlap",
     maxZoom,
     minZoom,
     extent: [0, 0, imageWidth, imageHeight],
 
-    // Only recalculate when relevant data changes
+    // Only recalculate when relevant data changes.
     updateTriggers: {
       // Tile data only changes when the dataset or markers change
       getTileData: [resourceId, Object.keys(fileMarkers).join(",")],
@@ -173,7 +175,6 @@ export const OverlaysLayer = ({
       getMarkerMask: [enabledMarkers, fileMarkers],
       getFillColor: [enabledMarkers, fileMarkers],
       getLineColor: [enabledMarkers, strokeOpacity],
-      markerOpacity: [markerProps.opacity], // GPU-only update
     },
     pickable: true,
     getTileData,
