@@ -5,9 +5,11 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "workspaces": ["packages/*"],
   "scripts": {
     "prepare": "husky || true",
     "build": "react-router build",
+    "codegen:check": "tsx scripts/codegen-check.ts",
     "dev": "react-router dev",
     "predev": "if [ -L node_modules/@cytario/design ]; then npm unlink @cytario/design --no-save 2>/dev/null && npm install @cytario/design --quiet; fi",
     "predev:design": "cd ../cytario-design && npm link --quiet && cd - > /dev/null && npm link @cytario/design --quiet && for p in react react-dom react-aria-components; do rm -rf ../cytario-design/node_modules/$p && ln -s \"$(pwd)/node_modules/$p\" ../cytario-design/node_modules/$p; done",
