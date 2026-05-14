@@ -58,8 +58,20 @@ export const markerUniforms = {
 
 /**
  * Create MarkerProps from fileMarkers record.
- * The shader supports 32 marker bits but only 8 color slots (cycling with i % 8).
- * For each color slot, we use the last marker that maps to it (indices: slot, slot+8, slot+16, slot+24).
+ *
+ * The shader supports 32 marker bits but only 8 color slots (the bit-to-color
+ * mapping is `i % 8` in the fragment shader). Multiple markers can therefore
+ * collide on a single slot; the OverlaysController exposes a per-marker color
+ * picker that lets the user override any individual marker's color.
+ *
+ * Slot assignment is FIRST-wins: slot `s` takes its color from
+ * `fileMarkers[keys[s]]` (the lowest-indexed marker that maps to that slot).
+ * Last-wins (the previous behaviour) caused C-180: editing the colour of any
+ * marker with index < 8 had no visible effect once a higher-indexed marker
+ * shared its slot, because the higher index silently overwrote the slot on
+ * every recompute. Markers at indices 8+ still cycle through the same eight
+ * colour slots — a fundamental limit of the 8-slot shader uniform — so they
+ * render in the colour of their cycle partner.
  */
 export function createMarkerProps(
   fileMarkers: Record<string, { color: RGBA }>,
@@ -67,17 +79,9 @@ export function createMarkerProps(
 ): MarkerProps {
   const keys = Object.keys(fileMarkers);
 
-  // For each color slot, find the marker(s) that map to it (i % 8 === slot)
-  // Use the last one that exists to ensure colors for markers 8+ are respected
   const getColor = (slot: number): RGBA => {
-    let color: RGBA = [0, 0, 0, 0];
-    for (let i = slot; i < keys.length; i += 8) {
-      const c = fileMarkers[keys[i]]?.color;
-      if (c) {
-        color = [c[0], c[1], c[2], 1.0];
-      }
-    }
-    return color;
+    const c = fileMarkers[keys[slot]]?.color;
+    return c ? [c[0], c[1], c[2], 1.0] : [0, 0, 0, 0];
   };
 
   return {

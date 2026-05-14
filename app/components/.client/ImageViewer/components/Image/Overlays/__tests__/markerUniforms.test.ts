@@ -37,8 +37,12 @@ describe("createMarkerProps", () => {
     });
   });
 
-  describe("cycling behavior for markers >= 8", () => {
-    test("marker at index 8 maps to color slot 0 (8 % 8 = 0)", () => {
+  describe("cycling behavior for markers >= 8 (C-180 regression)", () => {
+    // The shader does color[i % 8] for marker bit i, so markers at indices
+    // 0 and 8 unavoidably share slot 0. The fix here is first-wins: slot 0's
+    // colour comes from marker 0, not marker 8. Editing marker 0's colour
+    // (the visible scenario for users) therefore propagates to the GPU.
+    test("first-wins: marker at index 0 owns slot 0 even when marker 8 exists", () => {
       const markers: Record<string, { color: RGBA }> = {};
       for (let i = 0; i <= 8; i++) {
         markers[`marker${i}`] = { color: [i * 10, i * 10, i * 10, 1] };
@@ -46,35 +50,32 @@ describe("createMarkerProps", () => {
 
       const result = createMarkerProps(markers, 0.8);
 
-      // Marker 8 should override slot 0 (last one wins)
-      expect(result.color0).toEqual([80, 80, 80, 1.0]);
+      expect(result.color0).toEqual([0, 0, 0, 1.0]);
     });
 
-    test("marker at index 9 maps to color slot 1 (9 % 8 = 1)", () => {
-      const markers: Record<string, { color: RGBA }> = {};
-      for (let i = 0; i <= 9; i++) {
-        markers[`marker${i}`] = { color: [i * 10, i * 10, i * 10, 1] };
-      }
-
-      const result = createMarkerProps(markers, 0.8);
-
-      // Marker 9 should override slot 1
-      expect(result.color1).toEqual([90, 90, 90, 1.0]);
-    });
-
-    test("last marker in each slot wins when multiple markers map to same slot", () => {
-      // Create 17 markers so indices 0, 8, 16 all map to slot 0
+    test("first-wins: editing marker 0's colour propagates to color0 (C-180)", () => {
       const markers: Record<string, { color: RGBA }> = {};
       for (let i = 0; i <= 16; i++) {
-        markers[`marker${i}`] = { color: [i * 10, i * 10, i * 10, 1] };
+        markers[`marker${i}`] = { color: [255, 0, 0, 1] };
       }
+      // User flips marker 0 to magenta. Slot 0 must follow.
+      markers["marker0"] = { color: [255, 0, 255, 1] };
 
       const result = createMarkerProps(markers, 0.8);
 
-      // Index 16 maps to slot 0 (16 % 8 = 0), overriding indices 0 and 8
-      expect(result.color0).toEqual([160, 160, 160, 1.0]);
-      // Index 9 maps to slot 1 (9 % 8 = 1), overriding index 1
-      expect(result.color1).toEqual([90, 90, 90, 1.0]);
+      expect(result.color0).toEqual([255, 0, 255, 1.0]);
+    });
+
+    test("slots beyond the marker count default to transparent black", () => {
+      const markers: Record<string, { color: RGBA }> = {
+        marker0: { color: [255, 0, 0, 1] },
+      };
+
+      const result = createMarkerProps(markers, 0.8);
+
+      expect(result.color0).toEqual([255, 0, 0, 1.0]);
+      expect(result.color1).toEqual([0, 0, 0, 0]);
+      expect(result.color7).toEqual([0, 0, 0, 0]);
     });
   });
 
