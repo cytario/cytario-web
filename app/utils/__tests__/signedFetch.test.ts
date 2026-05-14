@@ -54,6 +54,47 @@ describe("createSignedFetch", () => {
     expect(init.headers).toHaveProperty("authorization");
   });
 
+  test("caller-supplied Authorization cannot override the signed Authorization", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key", {
+      headers: { Authorization: "Bearer evil-token" },
+    });
+
+    const [, init] = mockFetch.mock.calls[0];
+    // The signed Authorization (AWS SigV4) must win — never replaced by the
+    // caller-supplied bearer.
+    expect(init.headers.authorization).toMatch(/^AWS4-HMAC-SHA256 /);
+    expect(init.headers.authorization).not.toContain("evil-token");
+  });
+
+  test("caller-supplied x-amz-* headers are dropped by sanitizeHeaders", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key", {
+      headers: {
+        "x-amz-acl": "public-read",
+        "X-Amz-Server-Side-Encryption": "AES256",
+      },
+    });
+
+    const [, init] = mockFetch.mock.calls[0];
+    // Plugin-supplied x-amz-acl never reaches the wire request.
+    expect(init.headers).not.toHaveProperty("x-amz-acl");
+    expect(init.headers).not.toHaveProperty("X-Amz-Server-Side-Encryption");
+  });
+
+  test("caller-supplied Host / Cookie headers are dropped by sanitizeHeaders", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key", {
+      headers: { Host: "evil.example.com", Cookie: "stolen=yes" },
+    });
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers).not.toHaveProperty("Cookie");
+    // host: the signed request sets it internally; verify the caller's
+    // attempt to point at "evil.example.com" did not land.
+    expect(JSON.stringify(init.headers)).not.toContain("evil.example.com");
+  });
+
   test("decodes percent-encoded paths before signing", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await sf(
