@@ -156,20 +156,20 @@ describe("AdminUsersRoute", () => {
     expect(await screen.findByText("admins")).toBeInTheDocument();
   });
 
-  test("SRS-CY-35107: renders Connections section heading", async () => {
+  test("renders Connections section heading", async () => {
     renderRoute();
 
     expect(await screen.findByText("Connections")).toBeInTheDocument();
   });
 
-  test("SRS-CY-35107: renders connection cards when connections exist", async () => {
+  test("renders connection cards when connections exist", async () => {
     renderRoute(mockUsers, mockGroups, mockConnections);
 
     expect(await screen.findByText("Exchange")).toBeInTheDocument();
     expect(screen.getByText("AWS S3")).toBeInTheDocument();
   });
 
-  test("SRS-CY-35108: renders warning banner when no connections", async () => {
+  test("renders warning banner when no connections", async () => {
     renderRoute(mockUsers, mockGroups, []);
 
     expect(
@@ -177,7 +177,7 @@ describe("AdminUsersRoute", () => {
     ).toBeInTheDocument();
   });
 
-  test("SRS-CY-35108: no warning banner when connections exist", async () => {
+  test("no warning banner when connections exist", async () => {
     renderRoute(mockUsers, mockGroups, mockConnections);
 
     await screen.findByText("Exchange");
@@ -186,7 +186,7 @@ describe("AdminUsersRoute", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("SRS-CY-35109: renders Connect Storage button", async () => {
+  test("renders Connect Storage button", async () => {
     renderRoute();
 
     expect(

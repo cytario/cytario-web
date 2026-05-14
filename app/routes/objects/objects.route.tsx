@@ -71,10 +71,9 @@ export const handle = {
 /**
  * Revalidate only when the URL actually changes. React Router's default
  * is to revalidate every active loader after any action, which on this
- * route fires the loader 1.5-3x per client-side navigation (see
- * TSPEC-PERF-001 Table 10.2 in cytario-docs) — auxiliary fetchers
- * (POST /api/recently-viewed, POST /api/pinned) fire on every file view
- * and would each trigger a full S3 listing re-run.
+ * route fires the loader 1.5-3x per client-side navigation — auxiliary
+ * fetchers (POST /api/recently-viewed, POST /api/pinned) fire on every
+ * file view and would each trigger a full S3 listing re-run.
  *
  * Keying on URL change only also avoids a subtle trap: `formAction` is
  * populated for fetcher submissions too, not just Form submissions on

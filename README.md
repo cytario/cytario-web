@@ -26,6 +26,61 @@ For the hosted product, see [cytario.com](https://www.cytario.com).
 | Cloud | AWS SDK v3 (S3, STS), presigned URLs |
 | CI/CD | GitHub Actions, semantic-release, GHCR |
 
+## Plugin model
+
+Cytario Web supports third-party plugins that contribute additional image
+formats to the viewer. A plugin is a regular npm package whose default
+export satisfies the `@cytario/plugin-api` contract (see
+`packages/plugin-api/src/`):
+
+```ts
+import type { CytarioPlugin } from "@cytario/plugin-api";
+
+const plugin: CytarioPlugin = {
+  name: "@vendor/my-loader",
+  apiVersion: "^1.0.0",
+  register(ctx) {
+    ctx.formats.register("myext", {
+      match: (url) => url.endsWith(".myext"),
+      load: async (url, opts) => {
+        const res = await opts.signedFetch(url, { signal: opts.signal });
+        // …parse and return { data: Loader, metadata: Image }
+      },
+      fileTypeMeta: { label: "My Format", icon: "Microscope" },
+    });
+  },
+};
+
+export default plugin;
+```
+
+**Loading.** The set of plugins is fixed at build time. The
+`CYTARIO_PLUGINS` env var (comma-separated npm package names) drives a
+Vite codegen step that writes `app/plugins.generated.ts`; the host
+imports that module at startup, calls `plugin.register(ctx)` for each
+entry, and hands the plugin a `PluginContext` containing a scoped
+`FormatRegistry` and a `Logger`. A plugin can only register handlers
+under its own name — the registry rejects cross-plugin extension
+collisions.
+
+**Compatibility gate.** Each plugin declares an `apiVersion` semver
+range, checked against the host's bundled `@cytario/plugin-api` version
+on bootstrap. Mismatched plugins are logged and skipped — the host keeps
+running.
+
+**Security boundary.** All S3 traffic flows through the host-supplied
+`signedFetch`. Plugin-supplied headers pass through `sanitizeHeaders`
+(allowlist: `Range`, `If-None-Match`, `Accept`, `Cache-Control`;
+always denied: `Authorization`, `Host`, `Cookie`, `x-amz-*`) before
+being merged behind the signed headers, so a plugin cannot override the
+SigV4 signature or smuggle credentials.
+
+**Reference.** Built-in OME-TIFF and OME-Zarr handlers in
+`app/components/.client/ImageViewer/state/formats/builtins.ts` are
+implemented against the same contract. A minimal stub plugin lives in
+`__tests__/fixtures/noop-plugin/` and exercises the registry, the
+apiVersion gate, and the FILE_TYPE_REGISTRY auto-derivation.
+
 ## License
 
 This project is licensed under [AGPL-3.0](LICENSE). The source code is publicly available to provide full transparency and ensure long-term access for our users, independent of Cytario as a company.
@@ -78,7 +133,7 @@ npm test              # Unit & component tests (vitest, watch mode)
 npm run coverage      # Unit tests with coverage report
 ```
 
-E2E tests (Playwright) live in [cytario-docs](https://github.com/cytario/cytario-docs) and are triggered automatically on every PR via cross-repo dispatch. See the [E2E Testing Guide](https://cytario.github.io/cytario-docs/tech-doc/guides/e2e-testing/) for details.
+E2E tests (Playwright) live in a sibling repository and are triggered automatically on every PR via cross-repo dispatch.
 
 ### Design System
 
