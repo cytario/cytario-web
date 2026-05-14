@@ -76,7 +76,7 @@ export const authMiddleware: MiddlewareFunction = async (
   { request, context },
   next,
 ) => {
-  console.info(`${label} Request: ${request.url}`);
+  console.info(`${label} ${request.method} ${request.url}`);
 
   const session = context.get(sessionContext);
 
