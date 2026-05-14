@@ -18,7 +18,7 @@ venv
 # React Router
 .react-router/
 
-# Prisma generated client
+# Prisma generated client (owned exclusively by `prisma generate`).
 app/.generated/
 
 # Playwright
