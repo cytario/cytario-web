@@ -1,3 +1,5 @@
+import type { SupportedDtype } from "@vivjs/types";
+
 import { Channel, Image, Loader } from "./ome.tif.types";
 import { ChannelConfig, ChannelsState, RGB } from "./types";
 import { OVERLAY_COLORS } from "../../components/OverlaysController/getOverlayState";
@@ -25,7 +27,9 @@ export const getInitialChannelsState = async (
   });
 
   const channelIds = channels.map((ch, i) => ch.Name ?? `Channel ${i}`);
-  const dtypeMax = getDtypeMax(loader[0].dtype);
+  // dtype is structurally `string` in @cytario/plugin-api; one of the
+  // canonical PixelType values is guaranteed at runtime.
+  const dtypeMax = getDtypeMax(loader[0].dtype as SupportedDtype);
   const defaultRange: [number, number] = [0, dtypeMax];
 
   const initialChannelsState = channels.reduce((acc, channel, index) => {

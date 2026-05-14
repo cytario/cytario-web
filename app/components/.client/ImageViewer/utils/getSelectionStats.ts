@@ -1,3 +1,5 @@
+import type { SupportedDtype } from "@vivjs/types";
+
 import { getContrastLimits } from "./getContrastLimits";
 import { getDomain } from "./getDomain";
 import { getDtypeBitDepth } from "./getDtypeMax";
@@ -28,7 +30,12 @@ export async function getSelectionStats({
 
   const pixels = raster.data;
   const sortedPixels = [...pixels].sort((a, b) => a - b);
-  const histogram = getHistogram(sortedPixels, getDtypeBitDepth(data.dtype));
+  // dtype is structurally `string` in @cytario/plugin-api; one of the
+  // canonical PixelType values is guaranteed at runtime.
+  const histogram = getHistogram(
+    sortedPixels,
+    getDtypeBitDepth(data.dtype as SupportedDtype),
+  );
   const domain = getDomain(sortedPixels);
   const contrastLimits = getContrastLimits(sortedPixels);
 

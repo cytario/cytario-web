@@ -1,80 +1,24 @@
-import { loadOmeTiff } from "@hms-dbmi/viv";
-import type { PixelData, SupportedDtype } from "@vivjs/types";
+// Re-export shim. The viewer's Image / Loader / Channel / Wavelength types
+// are now defined structurally in @cytario/plugin-api and consumed back here.
+// Existing call sites (~9) continue to import from this file unchanged;
+// new code should prefer importing directly from "@cytario/plugin-api".
+//
+// Follow-up: migrate the 9 consumers + remove this shim after adding an
+// ESLint no-restricted-imports rule.
 
-import { RGBA } from "./types";
+export type {
+  Image,
+  Loader,
+  LoaderLevel,
+  Channel,
+  Wavelength,
+  WavelengthUnit,
+  PixelType,
+  PixelsMetadata,
+} from "@cytario/plugin-api";
 
-type OmeTiffImage = Awaited<ReturnType<typeof loadOmeTiff>>;
-
-// Metadata type - same for both OME-TIFF and bioformats2raw zarr
-export type Image = OmeTiffImage["metadata"];
-
-/**
- * Generic pixel source that works for both TIFF and Zarr loaders.
- * Both TiffPixelSource and ZarrPixelSource implement this interface.
- */
-export interface GenericPixelSource {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getRaster(sel: any): Promise<PixelData>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getTile(sel: any): Promise<PixelData>;
-  onTileError(err: Error): void;
-  shape: number[];
-  dtype: SupportedDtype;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  labels: any;
-  tileSize: number;
-}
-
-// Loader type - array of pixel sources (works for both TIFF and Zarr)
-export type Loader = GenericPixelSource[];
-
-export interface Channel {
-  ID: string;
-  Name?: string;
-  SamplesPerPixel?: number;
-  Color?: RGBA;
-  EmissionWavelength?: Wavelength;
-  ExcitationWavelength?: Wavelength;
-  Fluor?: string;
-}
-
-interface Wavelength {
-  Unit: WavelengthUnit;
-  Value: number;
-}
-
-export type WavelengthUnit =
-  | "Ym"
-  | "Zm"
-  | "Em"
-  | "Pm"
-  | "Tm"
-  | "Gm"
-  | "Mm"
-  | "km"
-  | "hm"
-  | "dam"
-  | "m"
-  | "dm"
-  | "cm"
-  | "mm"
-  | "µm"
-  | "nm"
-  | "pm"
-  | "fm"
-  | "am"
-  | "zm"
-  | "ym"
-  | "Å"
-  | "thou"
-  | "li"
-  | "in"
-  | "ft"
-  | "yd"
-  | "mi"
-  | "ua"
-  | "ly"
-  | "pc"
-  | "pt"
-  | "pixel"
-  | "reference frame";
+// GenericPixelSource was the previous local alias for a viv-compatible
+// pixel-source level. LoaderLevel from the plugin API covers the same
+// surface; keep this alias so the existing call sites do not need to
+// update their imports in this PR.
+export type { LoaderLevel as GenericPixelSource } from "@cytario/plugin-api";
