@@ -26,11 +26,12 @@ beforeEach(() => {
 });
 
 describe("registerBuiltinFormats", () => {
-  test("registers OME-TIFF and OME-Zarr under cytario-web", () => {
+  test("registers OME-TIFF and OME-Zarr under cytario-web with aliases", () => {
     registerBuiltinFormats();
     const regs = formatRegistry.list();
-    const extensions = regs.map((r) => r.extension).sort();
-    expect(extensions).toEqual(["ome.tif", "ome.zarr"]);
+    expect(regs).toHaveLength(2);
+    const allKeys = regs.flatMap((r) => r.keys).sort();
+    expect(allKeys).toEqual(["ome.tif", "ome.tiff", "ome.zarr", "zarr"]);
     for (const r of regs) {
       expect(r.pluginName).toBe("cytario-web");
     }
@@ -49,11 +50,11 @@ describe("FormatRegistry.resolve with built-ins", () => {
   });
 
   test.each([
-    ["https://x/a.ome.tif", "ome.tif"],
-    ["https://x/a.ome.tiff", "ome.tif"],
-    ["https://x/A.OME.TIF", "ome.tif"],
-  ])("%s resolves to ome.tif", (url, expectedExtension) => {
-    expect(formatRegistry.resolve(url).extension).toBe(expectedExtension);
+    "https://x/a.ome.tif",
+    "https://x/a.ome.tiff",
+    "https://x/A.OME.TIF",
+  ])("%s routes to the OME-TIFF handler", (url) => {
+    expect(formatRegistry.resolve(url).keys).toEqual(["ome.tif", "ome.tiff"]);
   });
 
   test.each([
@@ -61,8 +62,8 @@ describe("FormatRegistry.resolve with built-ins", () => {
     "https://x/a.zarr/",
     "https://x/a.ome.zarr",
     "https://x/a.ome.zarr/",
-  ])("%s resolves to ome.zarr", (url) => {
-    expect(formatRegistry.resolve(url).extension).toBe("ome.zarr");
+  ])("%s routes to the OME-Zarr handler", (url) => {
+    expect(formatRegistry.resolve(url).keys).toEqual(["ome.zarr", "zarr"]);
   });
 
   test("forwards signal and signedFetch to the resolved handler", async () => {

@@ -29,9 +29,9 @@ describe("noop-plugin integration", () => {
     await noopPlugin.register(ctx);
 
     const url = "https://x/sample.noop";
-    const { handler, pluginName, extension } = formatRegistry.resolve(url);
+    const { handler, pluginName, keys } = formatRegistry.resolve(url);
     expect(pluginName).toBe("noop-plugin");
-    expect(extension).toBe("noop");
+    expect(keys).toEqual(["noop"]);
 
     const result = await handler.load(url, {
       signedFetch: vi.fn(),

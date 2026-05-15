@@ -13,7 +13,6 @@ const noopPlugin: CytarioPlugin = {
   apiVersion: "^1.0.0",
   register(ctx) {
     ctx.formats.register("noop", {
-      match: (url) => url.endsWith(".noop"),
       load: async () => ({
         data: [],
         metadata: {

@@ -4,6 +4,7 @@ export type { CytarioPlugin, PluginContext, Logger } from "./plugin";
 export type {
   FormatRegistry,
   FormatHandler,
+  FormatExtension,
   FileTypeMeta,
   LoadOptions,
   SignedFetch,

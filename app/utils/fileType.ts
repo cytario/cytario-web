@@ -70,25 +70,29 @@ function resolveLucideIcon(name: string | undefined): LucideIcon {
 }
 
 // Built-ins filtered out (pluginName === "cytario-web") to avoid doubling up
-// with STATIC_FILE_TYPES. Sorted by descending extension length so compound
-// extensions outrank plain ones.
+// with STATIC_FILE_TYPES. Sorted by descending pattern-source length so
+// compound extensions outrank plain ones. One FileTypeEntry is emitted per
+// key in the registration — array aliases produce N entries sharing the
+// same label/icon; regex keys are used directly as the pattern.
 function pluginFileTypes(): FileTypeEntry[] {
-  return formatRegistry
-    .list()
-    .filter((r) => r.pluginName !== "cytario-web")
-    .map(({ extension, handler, pluginName }) => {
-      const label = handler.fileTypeMeta?.label ?? pluginName;
-      const iconName = handler.fileTypeMeta?.icon ?? "Image";
-      return {
-        pattern: extensionToPattern(extension),
+  const entries: FileTypeEntry[] = [];
+  for (const { keys, handler, pluginName } of formatRegistry.list()) {
+    if (pluginName === "cytario-web") continue;
+    const label = handler.fileTypeMeta?.label ?? pluginName;
+    const iconName = handler.fileTypeMeta?.icon ?? "Image";
+    const iconComponent = resolveLucideIcon(iconName);
+    for (const key of keys) {
+      entries.push({
+        pattern: typeof key === "string" ? extensionToPattern(key) : key,
         type: label,
         label,
         icon: iconName as LucideIconName,
-        iconComponent: resolveLucideIcon(iconName),
+        iconComponent,
         isImage: true,
-      };
-    })
-    .sort((a, b) => b.pattern.source.length - a.pattern.source.length);
+      });
+    }
+  }
+  return entries.sort((a, b) => b.pattern.source.length - a.pattern.source.length);
 }
 
 // Plugin entries first so a plugin can shadow a static type for the same
