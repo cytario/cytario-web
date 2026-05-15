@@ -5,13 +5,8 @@ exports[`generatePluginsModule > empty plugin list produces a module with no sta
 // Run \`npm run codegen\` (or rebuild) to regenerate.
 // See README.md "Plugin model" for the contract.
 
-import type { CytarioPlugin, Logger, PluginContext } from "@cytario/plugin-api";
-import {
-  assertApiCompatible,
-  IncompatiblePluginError,
-  hostApiVersion,
-} from "@cytario/plugin-api";
-import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
+import type { CytarioPlugin, Logger } from "@cytario/plugin-api";
+import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";
 
 
 
@@ -21,37 +16,8 @@ const plugins: ReadonlyArray<CytarioPlugin> = [
 
 // Built-in formats register inside ViewerStoreContext (client-only).
 // Not imported here — viv/geotiff would break the SSR bundle.
-export async function bootstrapPlugins(logger: Logger): Promise<void> {
-  for (const plugin of plugins) {
-    try {
-      assertApiCompatible(plugin, hostApiVersion);
-    } catch (err) {
-      const message =
-        err instanceof IncompatiblePluginError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      logger.error(\`Skipping incompatible plugin "\${plugin?.name ?? "<unknown>"}"\`, {
-        error: message,
-      });
-      continue;
-    }
-
-    const ctx: PluginContext = {
-      logger,
-      formats: formatRegistry.scopedFor(plugin.name),
-    };
-
-    try {
-      await plugin.register(ctx);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(\`Plugin "\${plugin.name}" register() threw — skipping\`, {
-        error: message,
-      });
-    }
-  }
+export function bootstrapPlugins(logger: Logger): Promise<void> {
+  return bootstrapPluginsCore(plugins, logger);
 }
 "
 `;
@@ -61,13 +27,8 @@ exports[`generatePluginsModule > single plugin: identifier is index-derived (plu
 // Run \`npm run codegen\` (or rebuild) to regenerate.
 // See README.md "Plugin model" for the contract.
 
-import type { CytarioPlugin, Logger, PluginContext } from "@cytario/plugin-api";
-import {
-  assertApiCompatible,
-  IncompatiblePluginError,
-  hostApiVersion,
-} from "@cytario/plugin-api";
-import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
+import type { CytarioPlugin, Logger } from "@cytario/plugin-api";
+import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";
 
 import plugin_0 from "@cytario/czi-loader";
 
@@ -78,37 +39,8 @@ const plugins: ReadonlyArray<CytarioPlugin> = [
 
 // Built-in formats register inside ViewerStoreContext (client-only).
 // Not imported here — viv/geotiff would break the SSR bundle.
-export async function bootstrapPlugins(logger: Logger): Promise<void> {
-  for (const plugin of plugins) {
-    try {
-      assertApiCompatible(plugin, hostApiVersion);
-    } catch (err) {
-      const message =
-        err instanceof IncompatiblePluginError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      logger.error(\`Skipping incompatible plugin "\${plugin?.name ?? "<unknown>"}"\`, {
-        error: message,
-      });
-      continue;
-    }
-
-    const ctx: PluginContext = {
-      logger,
-      formats: formatRegistry.scopedFor(plugin.name),
-    };
-
-    try {
-      await plugin.register(ctx);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(\`Plugin "\${plugin.name}" register() threw — skipping\`, {
-        error: message,
-      });
-    }
-  }
+export function bootstrapPlugins(logger: Logger): Promise<void> {
+  return bootstrapPluginsCore(plugins, logger);
 }
 "
 `;

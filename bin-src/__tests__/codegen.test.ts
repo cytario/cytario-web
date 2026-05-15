@@ -74,11 +74,15 @@ describe("generatePluginsModule", () => {
     expect(out).not.toMatch(/import weird-name/);
   });
 
-  test("plugin.register() is awaited inside the bootstrap loop", () => {
-    // Bug yhh: if register is fire-and-forget, async plugins resolve after
-    // the first request hits the registry. Source-level guarantee that the
-    // await is present.
+  test("generated module delegates the iteration to bootstrapPluginsCore", () => {
+    // Iteration logic (await register, apiVersion gate, per-plugin
+    // try/catch) lives in app/lib/bootstrapPluginsCore.ts so it stays
+    // unit-testable in isolation. The generated module's only job is to
+    // bind the static plugin list to that helper.
     const out = generatePluginsModule({ plugins: ["any-plugin"] });
-    expect(out).toMatch(/await plugin\.register\(ctx\)/);
+    expect(out).toContain(
+      'import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";',
+    );
+    expect(out).toMatch(/return bootstrapPluginsCore\(plugins, logger\);/);
   });
 });

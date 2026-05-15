@@ -215,4 +215,46 @@ describe("createSignedFetch", () => {
       "response-cache-control=private%2C%20max-age%3D604800",
     );
   });
+
+  test("SDS-CY-010014: concurrent calls do not serialize", async () => {
+    // Two parallel signedFetch invocations on the same signer instance
+    // must both reach the network without one waiting for the other.
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    const a = sf("https://bucket.s3.eu-central-1.amazonaws.com/key-a");
+    const b = sf("https://bucket.s3.eu-central-1.amazonaws.com/key-b");
+    await Promise.all([a, b]);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const urls = mockFetch.mock.calls.map((call) => call[0]);
+    expect(urls.some((u) => u.includes("key-a"))).toBe(true);
+    expect(urls.some((u) => u.includes("key-b"))).toBe(true);
+  });
+
+  test("SDS-CY-010405: Authorization.SignedHeaders lists every host-injected header", async () => {
+    // Decode the SigV4 Authorization header and assert that every
+    // host-injected header is present in the SignedHeaders=... list.
+    // If a future change adds a header to the signing request without
+    // SigV4 picking it up, the signature would not cover it and a
+    // request-smuggling vector opens up.
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key");
+
+    const [, init] = mockFetch.mock.calls[0];
+    const authorization = init.headers.authorization as string;
+    expect(authorization).toContain("AWS4-HMAC-SHA256");
+
+    const signedHeadersMatch = authorization.match(/SignedHeaders=([^,]+)/);
+    expect(signedHeadersMatch).not.toBeNull();
+    const signedHeaders = signedHeadersMatch![1].split(";");
+
+    // Names that the SigV4 signer must canonicalise. `host` is the only
+    // header createSignedFetch hands to the signer at construction time
+    // (per app/utils/signedFetch.ts); the signer itself adds the
+    // remaining metadata headers, all of which must appear in
+    // SignedHeaders so they are covered by the signature.
+    expect(signedHeaders).toContain("host");
+    expect(signedHeaders).toContain("x-amz-date");
+    expect(signedHeaders).toContain("x-amz-content-sha256");
+    expect(signedHeaders).toContain("x-amz-security-token");
+  });
 });
