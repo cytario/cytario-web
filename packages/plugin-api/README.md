@@ -1,6 +1,9 @@
 # @cytario/plugin-api
 
-Plugin API for Cytario Web. A third-party npm package exporting a default `CytarioPlugin` can be loaded at build time (via `CYTARIO_PLUGINS=...`) to contribute file-format handlers — and, in future revisions, other extension types — to the host.
+Plugin API for Cytario Web. A third-party npm package exporting a default
+`CytarioPlugin` can be loaded at build time (via `CYTARIO_PLUGINS=...`) to
+contribute file-format handlers — and, in future revisions, other extension
+types — to the host.
 
 ## Public surface
 
