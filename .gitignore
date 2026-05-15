@@ -40,3 +40,4 @@ devenv/postgres-data/
 devenv/valkey-data/
 
 .nvmrc
+/.beads/
