@@ -40,8 +40,9 @@ const plugin: CytarioPlugin = {
   name: "@vendor/my-loader",
   apiVersion: "^1.0.0",
   register(ctx) {
-    ctx.formats.register("myext", {
-      match: (url) => url.endsWith(".myext"),
+    // `extension` accepts a string, a string[] of aliases, or a RegExp
+    // tested against the URL. See `FormatExtension` in @cytario/plugin-api.
+    ctx.formats.register(["myext", "myext.gz"], {
       load: async (url, opts) => {
         const res = await opts.signedFetch(url, { signal: opts.signal });
         // …parse and return { data: Loader, metadata: Image }

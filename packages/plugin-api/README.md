@@ -27,8 +27,9 @@ export default {
   name: "@vendor/my-format",
   apiVersion: "^1.0.0",
   register(ctx) {
-    ctx.formats.register("myext", {
-      match: (url) => url.toLowerCase().endsWith(".myext"),
+    // `extension` accepts a string, a string[] of aliases, or a RegExp
+    // tested against the URL. See the `FormatExtension` type export.
+    ctx.formats.register(["myext", "myext.gz"], {
       load: (url, opts) => loadMyFormat(url, opts),
       fileTypeMeta: { label: "My Format", icon: "Microscope" },
     });
