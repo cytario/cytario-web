@@ -6,6 +6,16 @@ on:
         description: "New version"
         value: ${{ jobs.release.outputs.new_release_version }}
 
+# HUSKY=0 keeps `npm ci` from installing the pre-push hook into
+# `.git/hooks` / `core.hookspath`. Without this, semantic-release's
+# tag push fires `.husky/pre-push` which runs `npx vitest run` — and
+# the release job has neither `npx prisma generate` (so `~/.generated/
+# client` is missing) nor TZ=Europe/Berlin (so the formatHumanReadableDate
+# test fails 12:00 vs 13:00). Tests block the push, the tag never lands.
+# qa-checks.yml and container.yml already set HUSKY=0 for the same reason.
+env:
+  HUSKY: 0
+
 jobs:
   release:
     runs-on: ubuntu-latest
