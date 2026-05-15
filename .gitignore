@@ -21,6 +21,9 @@ venv
 # Prisma generated client (owned exclusively by `prisma generate`).
 app/.generated/
 
+# tsup output for the workspace packages — built on demand, never committed.
+packages/*/dist/
+
 # Playwright
 /playwright-report/
 /test-results/

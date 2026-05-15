@@ -24,7 +24,8 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./app/*"]
+      "~/*": ["./app/*"],
+      "@cytario/plugin-api": ["./packages/plugin-api/src/index.ts"]
     },
 
     // Vite takes care of building everything, not tsc.

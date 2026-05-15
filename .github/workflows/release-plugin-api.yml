@@ -1,0 +1,51 @@
+name: Release @cytario/plugin-api
+
+# Path-filtered release for the `@cytario/plugin-api` workspace package.
+# Triggered only when commits on `main` touch the package or this workflow.
+# Publishes to npmjs.com via OIDC trusted publishing — no NPM_TOKEN secret;
+# the Trusted Publisher mapping (repo + workflow path → package) is
+# configured on npmjs.com out-of-band.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/plugin-api/**"
+      - ".github/workflows/release-plugin-api.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write       # tag + commit version bump
+      id-token: write       # npm OIDC trusted publishing
+      issues: write         # comment on released issues
+      pull-requests: write  # comment on released PRs
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release
+        run: npx semantic-release
+        working-directory: packages/plugin-api
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
