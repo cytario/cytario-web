@@ -6,6 +6,9 @@ name: Release @cytario/plugin-api
 # the Trusted Publisher mapping (repo + workflow path → package) is
 # configured on npmjs.com out-of-band.
 
+env:
+  HUSKY: 0
+
 on:
   push:
     branches: [main]
@@ -22,10 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write       # tag + commit version bump
-      id-token: write       # npm OIDC trusted publishing
-      issues: write         # comment on released issues
-      pull-requests: write  # comment on released PRs
+      contents: write # tag + commit version bump
+      id-token: write # npm OIDC trusted publishing
+      issues: write # comment on released issues
+      pull-requests: write # comment on released PRs
 
     steps:
       - name: Checkout repository
@@ -39,6 +42,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: packages/plugin-api/package-lock.json
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
