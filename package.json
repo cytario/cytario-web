@@ -8,6 +8,7 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "prepare": "husky || true",
+    "prebuild": "node packages/plugin-api/scripts/write-version.mjs",
     "build": "react-router build",
     "codegen:check": "tsx scripts/codegen-check.ts",
     "dev": "react-router dev",
@@ -82,7 +83,6 @@
     "@react-router/dev": "^7.13.2",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/exec": "^7.0.3",
-    "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.3",
     "@semantic-release/npm": "^12.0.1",
     "@semantic-release/release-notes-generator": "^14.1.0",
