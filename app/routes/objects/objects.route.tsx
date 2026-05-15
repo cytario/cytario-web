@@ -28,7 +28,7 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { getFileType } from "~/utils/fileType";
+import { getFileType, isImageFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
@@ -240,10 +240,12 @@ export default function ObjectsRoute() {
       );
     }
 
-    const isViewableImage =
-      fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
-
-    if (isViewableImage) {
+    // SDS-CY-010401 (no format-specific branching): gate on the
+    // plugin-aware `isImageFile` predicate so any plugin-contributed
+    // format reaches `<Viewer>` once registered. Built-in OME-TIFF /
+    // OME-Zarr / TIFF entries flow through the same predicate via
+    // `STATIC_FILE_TYPES` in `app/utils/fileType.ts`.
+    if (isImageFile(resourceId)) {
       // `pathName` from objects.loader is ALREADY the full S3 key (connection
       // prefix joined with the URL splat server-side — see objects.loader.ts).
       // Feed it directly to `constructS3Url`, which expects a full key.
