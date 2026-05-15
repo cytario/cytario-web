@@ -17,15 +17,17 @@ export async function loadOmeTiffWithCredentials(
   s3Url: string,
   opts: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
-  const { signedFetch, signal } = opts;
+  const { signedFetch, signal, headers } = opts;
 
   // Sidecar is optional — fetch only if caller did not pre-supply offsets.
+  // Caller-supplied headers (SDS-CY-010050) must reach EVERY network
+  // request the handler issues, including the sidecar fetch.
   let offsets: number[] | undefined = opts.offsets;
   if (offsets === undefined) {
     const offsetsUrl = getOffsetsUrl(s3Url);
     if (offsetsUrl) {
       try {
-        const res = await signedFetch(offsetsUrl, { signal });
+        const res = await signedFetch(offsetsUrl, { signal, headers });
         if (res.ok) {
           const json: unknown = await res.json();
           if (Array.isArray(json) && json.every((v) => typeof v === "number")) {
@@ -39,8 +41,9 @@ export async function loadOmeTiffWithCredentials(
   }
 
   // cacheSize must match viv's internal Infinity to avoid block eviction
-  // during IFD parsing of large pyramidal TIFFs.
-  const client = new SigV4TiffClient(s3Url, signedFetch);
+  // during IFD parsing of large pyramidal TIFFs. Caller-supplied headers
+  // flow into the transport so geotiff's per-tile fetches inherit them.
+  const client = new SigV4TiffClient(s3Url, signedFetch, headers);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const source = await fromCustomClient(client as any, {
     cacheSize: Number.POSITIVE_INFINITY,

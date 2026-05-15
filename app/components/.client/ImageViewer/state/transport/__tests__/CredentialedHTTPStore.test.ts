@@ -247,6 +247,51 @@ describe("CredentialedHTTPStore", () => {
     });
   });
 
+  describe("opts.headers forwarding (SDS-CY-010050)", () => {
+    test("threads constructor-supplied extraHeaders into every signed request", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      });
+
+      const store = new CredentialedHTTPStore(
+        "https://bucket.s3.us-west-2.amazonaws.com/zarr",
+        signedFetch,
+        { "If-None-Match": "etag-abc", "Cache-Control": "no-store" },
+      );
+
+      await store.get(".zattrs");
+
+      const [, fetchOptions] = mockFetch.mock.calls[0];
+      expect(fetchOptions.headers).toMatchObject({
+        "If-None-Match": "etag-abc",
+        "Cache-Control": "no-store",
+      });
+    });
+
+    test("missing extraHeaders is a no-op (handler unchanged)", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      });
+
+      const store = new CredentialedHTTPStore(
+        "https://bucket.s3.us-west-2.amazonaws.com/zarr",
+        signedFetch,
+      );
+
+      await store.get(".zattrs");
+
+      const [, fetchOptions] = mockFetch.mock.calls[0];
+      // signed headers (host, authorization, x-amz-*) still attached.
+      expect(fetchOptions.headers).toHaveProperty("authorization");
+      // No If-None-Match / Cache-Control bleeding from prior tests.
+      expect(fetchOptions.headers["If-None-Match"]).toBeUndefined();
+    });
+  });
+
   describe("URL handling", () => {
     test("works with custom endpoint (MinIO)", async () => {
       mockFetch.mockResolvedValueOnce({

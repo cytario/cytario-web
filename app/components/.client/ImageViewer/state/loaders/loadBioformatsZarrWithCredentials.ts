@@ -13,12 +13,13 @@ export async function loadBioformatsZarrWithCredentials(
   source: string,
   opts: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
-  const { signedFetch } = opts;
+  const { signedFetch, headers } = opts;
   const baseUrl = source.endsWith("/") ? source.slice(0, -1) : source;
 
   // Series 0 — bioformats2raw puts multiscales under 0/; root has only
-  // bioformats2raw.layout.
-  const store = new CredentialedHTTPStore(`${baseUrl}/0`, signedFetch);
+  // bioformats2raw.layout. Caller-supplied headers (SDS-CY-010050) ride
+  // along on every chunk fetch the store issues.
+  const store = new CredentialedHTTPStore(`${baseUrl}/0`, signedFetch, headers);
   const result = await loadOmeZarrFromStore(store);
 
   const loader = result.data as Loader;
