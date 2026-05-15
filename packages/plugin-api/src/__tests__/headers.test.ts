@@ -63,4 +63,41 @@ describe("sanitizeHeaders", () => {
       RANGE: "bytes=0-1023",
     });
   });
+
+  describe("value guards", () => {
+    test("rejects values containing NUL", () => {
+      expect(sanitizeHeaders({ Range: "bytes=0-\x001023" })).toEqual({});
+    });
+
+    test("rejects values containing DEL (U+007F)", () => {
+      expect(sanitizeHeaders({ Accept: "application/\x7Fjson" })).toEqual({});
+    });
+
+    test("rejects values containing newline / CR / tab (control chars)", () => {
+      expect(sanitizeHeaders({ Range: "bytes=0-1023\n" })).toEqual({});
+      expect(sanitizeHeaders({ Range: "bytes=0-\r1023" })).toEqual({});
+      expect(sanitizeHeaders({ Range: "bytes=\t0-1023" })).toEqual({});
+    });
+
+    test("accepts a value at exactly 1024 UTF-8 bytes", () => {
+      const value = "a".repeat(1024);
+      expect(sanitizeHeaders({ Accept: value })).toEqual({ Accept: value });
+    });
+
+    test("rejects a value of 1025 UTF-8 bytes", () => {
+      const value = "a".repeat(1025);
+      expect(sanitizeHeaders({ Accept: value })).toEqual({});
+    });
+
+    test("counts bytes not characters (multi-byte UTF-8)", () => {
+      // "€" = 3 UTF-8 bytes. 342 * 3 = 1026 > 1024.
+      const value = "€".repeat(342);
+      expect(sanitizeHeaders({ Accept: value })).toEqual({});
+    });
+
+    test("rejects non-string values defensively", () => {
+      const headers = { Range: 1024 } as unknown as Record<string, string>;
+      expect(sanitizeHeaders(headers)).toEqual({});
+    });
+  });
 });

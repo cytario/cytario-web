@@ -2,8 +2,8 @@ import { Sha256 } from "@aws-crypto/sha256-browser";
 import type { Credentials } from "@aws-sdk/client-sts";
 import { SignatureV4 } from "@smithy/signature-v4";
 
-import { sanitizeHeaders } from "@cytario/plugin-api";
 import type { ConnectionConfig } from "~/.generated/client";
+import { sanitizeHeaders } from "~/utils/sanitizeHeaders";
 
 export type SignedFetch = (
   url: string,
