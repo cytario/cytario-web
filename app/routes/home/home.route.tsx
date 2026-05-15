@@ -16,7 +16,7 @@ import {
   type SerializedPinnedPath,
   type SerializedRecentlyViewed,
 } from "~/routes/connections/connections.loader";
-import { getFileType, IMAGE_FILE_TYPES } from "~/utils/fileType";
+import { isImageFile } from "~/utils/fileType";
 
 
 const title = "Storage Connections";
@@ -84,7 +84,7 @@ export default function HomeRoute() {
     const files: TreeNode[] = [];
     for (const n of allRecentItems) {
       if (n.type === "directory") dirs.push(n);
-      else if (IMAGE_FILE_TYPES.has(getFileType(n.name))) images.push(n);
+      else if (isImageFile(n.name)) images.push(n);
       else files.push(n);
     }
     return { recentImages: images, recentDirs: dirs, recentFiles: files };

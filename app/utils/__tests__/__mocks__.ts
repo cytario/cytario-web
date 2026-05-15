@@ -97,7 +97,7 @@ const mock = {
   }),
   pixels: (overrides?: Partial<Image["Pixels"]>): Image["Pixels"] => ({
     ID: "",
-    Type: "int8",
+    Type: "Int8",
     Channels: [mock.channel()],
     DimensionOrder: "XYZCT",
     SizeX: 1,
@@ -116,17 +116,9 @@ const mock = {
   metadata: (overrides?: Partial<Image>): Image => ({
     ID: "string",
     Name: "string",
-    AquisitionDate: "2023-10-01T00:00:00Z",
+    AcquisitionDate: "2023-10-01T00:00:00Z",
     Description: "string",
     Pixels: mock.pixels(),
-    format: () => ({
-      "Acquisition Date": "2023-10-01T00:00:00Z",
-      "Dimensions (XY)": "1 x 1",
-      "Pixels Type": "uint32",
-      "Pixels Size (XYZ)": "1 x 1 x 0 µm",
-      "Z-sections/Timepoints": "1",
-      Channels: 12,
-    }),
     ...overrides,
   }),
 

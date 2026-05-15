@@ -99,7 +99,7 @@ export const useChannelsLayer = (
       dtype,
       onHover,
       opacity: channelsOpacity,
-    } as MultiscaleImageLayerProps);
+    } as unknown as MultiscaleImageLayerProps);
   }, [
     loader,
     extensions,

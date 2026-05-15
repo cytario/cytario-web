@@ -170,7 +170,7 @@ describe("rootAttrsToImage", () => {
     expect(result.Pixels.SizeC).toBe(3);
     expect(result.Pixels.SizeT).toBe(1);
     expect(result.Pixels.DimensionOrder).toBe("XYZCT");
-    expect(result.Pixels.Type).toBe("uint16");
+    expect(result.Pixels.Type).toBe("Uint16");
   });
 
   test("maps channels with names and colors", () => {
@@ -274,39 +274,15 @@ describe("rootAttrsToImage", () => {
 
     const result = rootAttrsToImage(rootAttrs, loader);
 
-    expect(result.Pixels.Type).toBe("float32");
-    expect(result.format()["Pixels Type"]).toBe("float32");
+    expect(result.Pixels.Type).toBe("Float32");
   });
 
-  test("defaults pixel type to uint16 when loader has no dtype", () => {
+  test("defaults pixel type to Uint16 when loader has no dtype", () => {
     const rootAttrs = createRootAttrs();
     const loader = [{ shape: [1, 1, 1, 512, 512], labels: ["t", "c", "z", "y", "x"] }] as unknown as Loader;
 
     const result = rootAttrsToImage(rootAttrs, loader);
 
-    expect(result.Pixels.Type).toBe("uint16");
-  });
-
-  test("format() returns formatted metadata object", () => {
-    const rootAttrs = createRootAttrs({
-      channels: [
-        { label: "Ch1", color: "FF0000" },
-        { label: "Ch2", color: "00FF00" },
-        { label: "Ch3", color: "0000FF" },
-        { label: "Ch4", color: "FFFFFF" },
-      ],
-    });
-    const loader = createMockLoader(
-      [5, 4, 10, 1080, 1920],
-      ["t", "c", "z", "y", "x"],
-    );
-
-    const result = rootAttrsToImage(rootAttrs, loader);
-    const formatted = result.format();
-
-    expect(formatted["Dimensions (XY)"]).toBe("1920 x 1080");
-    expect(formatted["Pixels Type"]).toBe("uint16");
-    expect(formatted["Z-sections/Timepoints"]).toBe("10 x 5");
-    expect(formatted.Channels).toBe(4);
+    expect(result.Pixels.Type).toBe("Uint16");
   });
 });

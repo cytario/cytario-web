@@ -28,7 +28,7 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { getFileType } from "~/utils/fileType";
+import { getFileType, isImageFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
@@ -71,10 +71,9 @@ export const handle = {
 /**
  * Revalidate only when the URL actually changes. React Router's default
  * is to revalidate every active loader after any action, which on this
- * route fires the loader 1.5-3x per client-side navigation (see
- * TSPEC-PERF-001 Table 10.2 in cytario-docs) — auxiliary fetchers
- * (POST /api/recently-viewed, POST /api/pinned) fire on every file view
- * and would each trigger a full S3 listing re-run.
+ * route fires the loader 1.5-3x per client-side navigation — auxiliary
+ * fetchers (POST /api/recently-viewed, POST /api/pinned) fire on every
+ * file view and would each trigger a full S3 listing re-run.
  *
  * Keying on URL change only also avoids a subtle trap: `formAction` is
  * populated for fetcher submissions too, not just Form submissions on
@@ -241,10 +240,12 @@ export default function ObjectsRoute() {
       );
     }
 
-    const isViewableImage =
-      fileType === "TIFF" || fileType === "OME-TIFF" || fileType === "OME-Zarr";
-
-    if (isViewableImage) {
+    // SDS-CY-010401 (no format-specific branching): gate on the
+    // plugin-aware `isImageFile` predicate so any plugin-contributed
+    // format reaches `<Viewer>` once registered. Built-in OME-TIFF /
+    // OME-Zarr / TIFF entries flow through the same predicate via
+    // `STATIC_FILE_TYPES` in `app/utils/fileType.ts`.
+    if (isImageFile(resourceId)) {
       // `pathName` from objects.loader is ALREADY the full S3 key (connection
       // prefix joined with the URL splat server-side — see objects.loader.ts).
       // Feed it directly to `constructS3Url`, which expects a full key.

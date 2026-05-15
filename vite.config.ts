@@ -3,8 +3,10 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+import { cytarioPlugins } from "./vite-plugins/cytario-plugins";
+
 export default defineConfig({
-  plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  plugins: [cytarioPlugins(), tailwindcss(), reactRouter(), tsconfigPaths()],
 
   // Local @cytario/design development:
   // Skip pre-bundling so Vite serves the latest dist on every request.

@@ -6,6 +6,9 @@ ENV HUSKY=0
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Workspace package.json files are needed before `npm ci` so the
+# workspace symlinks resolve (see packages/* in root package.json#workspaces).
+COPY packages ./packages
 COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm npm ci
 
@@ -33,6 +36,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Workspaces must be present for `npm ci` to install the symlinks.
+COPY packages ./packages
 COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm \

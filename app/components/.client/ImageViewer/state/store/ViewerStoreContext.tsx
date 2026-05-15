@@ -4,10 +4,13 @@ import { devtools } from "zustand/middleware";
 
 import { createViewerStore } from "./createViewerStore";
 import type { ViewerStore } from "./types";
-import { loadBioformatsZarrWithCredentials } from "../loaders/loadBioformatsZarrWithCredentials";
-import { loadOmeTiffWithCredentials } from "../loaders/loadOmeTiffWithCredentials";
+import { registerBuiltinFormats } from "../formats/builtins";
+import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import type { SignedFetch } from "~/utils/signedFetch";
-import { isZarrPath } from "~/utils/zarrUtils";
+
+// Idempotent — guarantees built-ins are registered by the time this provider
+// mounts, in both production and tests (where entry.client.tsx does not run).
+registerBuiltinFormats();
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -17,12 +20,9 @@ interface ViewerRegistryStore {
 }
 
 /**
- * Module-level registry that caches viewer stores by S3 URL.
- * Returning a cached store preserves all image state (channels, view state,
- * overlays) when navigating back to a previously viewed image.
- *
- * The signedFetch function resolves credentials lazily per request, so cached
- * stores automatically use fresh credentials after STS token rotation.
+ * Caches viewer stores by URL so navigating back preserves channels,
+ * view state, overlays. Lazy credentials mean cached stores pick up
+ * fresh STS tokens automatically.
  */
 const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
@@ -34,11 +34,15 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
 
         const viewerStore = createViewerStore(url);
         const viewerState = viewerStore.getState();
+        const abortController = new AbortController();
 
-        // Strategy: select loader based on format detected from URL
-        const loadImage = isZarrPath(url)
-          ? () => loadBioformatsZarrWithCredentials(url, signedFetch)
-          : () => loadOmeTiffWithCredentials(url, signedFetch);
+        const loadImage = () => {
+          const { handler } = formatRegistry.resolve(url);
+          return handler.load(url, {
+            signedFetch,
+            signal: abortController.signal,
+          });
+        };
 
         loadImage()
           .then(({ data: loader, metadata }) => {
@@ -77,11 +81,7 @@ interface ViewerStoreProviderProps {
   children: ReactNode;
 }
 
-/**
- * Provides a viewer store to its children. The viewer is auth-agnostic —
- * it receives a pre-built URL and a signing function, keeping credential
- * management entirely in the caller's domain.
- */
+// Viewer is auth-agnostic — caller owns URL construction and signing.
 export const ViewerStoreProvider = ({
   url,
   signedFetch,

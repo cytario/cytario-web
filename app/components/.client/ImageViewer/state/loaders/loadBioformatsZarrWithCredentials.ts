@@ -2,21 +2,24 @@ import { loadOmeZarrFromStore, type RootAttrs } from "@hms-dbmi/viv";
 
 import type { Image, Loader } from "../store/ome.tif.types";
 import { CredentialedHTTPStore } from "../transport/CredentialedHTTPStore";
-import type { SignedFetch } from "~/utils/signedFetch";
+import { normalizePixelType } from "@cytario/plugin-api";
+import type { LoadOptions } from "@cytario/plugin-api";
 
 /**
- * Load an OME-Zarr image using SigV4-signed S3 requests.
- * Uses viv's loadOmeZarrFromStore with a custom credentialed store.
+ * Load OME-Zarr via SigV4-signed S3 requests. `signal` is best-effort —
+ * viv's loader does not surface AbortSignal yet.
  */
 export async function loadBioformatsZarrWithCredentials(
   source: string,
-  signedFetch: SignedFetch,
+  opts: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
+  const { signedFetch, headers } = opts;
   const baseUrl = source.endsWith("/") ? source.slice(0, -1) : source;
 
-  // Point store at image series 0 — bioformats2raw puts multiscales metadata
-  // under 0/, not at the root (which only has bioformats2raw.layout).
-  const store = new CredentialedHTTPStore(`${baseUrl}/0`, signedFetch);
+  // Series 0 — bioformats2raw puts multiscales under 0/; root has only
+  // bioformats2raw.layout. Caller-supplied headers (SDS-CY-010050) ride
+  // along on every chunk fetch the store issues.
+  const store = new CredentialedHTTPStore(`${baseUrl}/0`, signedFetch, headers);
   const result = await loadOmeZarrFromStore(store);
 
   const loader = result.data as Loader;
@@ -27,9 +30,7 @@ export async function loadBioformatsZarrWithCredentials(
   };
 }
 
-/**
- * NGFF coordinate transformation (not typed in viv's RootAttrs but present at runtime).
- */
+// Present in NGFF runtime metadata, not typed in viv's RootAttrs.
 interface CoordinateTransformation {
   type: "scale" | "translation";
   scale?: number[];
@@ -41,18 +42,13 @@ interface DatasetWithTransforms {
   coordinateTransformations?: CoordinateTransformation[];
 }
 
-/**
- * Map NGFF RootAttrs metadata to the OME-TIFF Image type
- * used by downstream consumers (getInitialChannelsState, etc.).
- * Exported for testing.
- */
+/** Map NGFF RootAttrs → OME-TIFF Image. Exported for testing. */
 export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
   const { omero, multiscales } = rootAttrs;
   const multiscale = multiscales[0];
   const axes = multiscale?.axes ?? [];
   const channels = omero?.channels ?? [];
 
-  // Get image dimensions from the first resolution level's shape
   const shape = loader[0]?.shape ?? [];
   const labels = loader[0]?.labels ?? [];
   const dimIndex = (name: string) => labels.indexOf(name);
@@ -63,14 +59,11 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
   const SizeT = shape[dimIndex("t")] ?? 1;
   const SizeC = shape[dimIndex("c")] ?? (channels.length || 1);
 
-  // Extract physical pixel sizes from NGFF coordinateTransformations.
-  // The first dataset's scale transform maps pixel indices to physical units.
   const { PhysicalSizeX, PhysicalSizeY, PhysicalSizeZ } = extractPhysicalSizes(
     multiscale,
     axes,
   );
 
-  // Resolve axis units (NGFF stores unit on the axis definition)
   const axisUnit = (name: string) => {
     const axis = axes.find(
       (a): a is { name: string; unit?: string } =>
@@ -79,15 +72,13 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
     return axis?.unit ?? "µm";
   };
 
-  // dtype comes from zarrita (e.g. "Uint16") — cast to string for the
-  // OME-TIFF Image type which uses lowercase variants ("uint16").
-  // TODO: remove cast once viv aligns SupportedDtype across loaders.
-  const pixelType = (loader[0]?.dtype as string) ?? "uint16";
+  // Zarrita yields lower-case dtype; PixelType union is canonical casing.
+  const pixelType = normalizePixelType(loader[0]?.dtype ?? "uint16");
 
   return {
     ID: "Image:0",
     Name: omero?.name,
-    AquisitionDate: "",
+    AcquisitionDate: "",
     Pixels: {
       ID: "Pixels:0",
       DimensionOrder: "XYZCT",
@@ -111,24 +102,10 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
         }),
       ),
     },
-    format: () => ({
-      "Acquisition Date": "",
-      "Dimensions (XY)": `${SizeX} x ${SizeY}`,
-      "Pixels Type": pixelType,
-      "Pixels Size (XYZ)": PhysicalSizeX
-        ? `${PhysicalSizeX} x ${PhysicalSizeY} ${axisUnit("x")}`
-        : "-",
-      "Z-sections/Timepoints": `${SizeZ} x ${SizeT}`,
-      Channels: channels.length,
-    }),
   } as Image;
 }
 
-/**
- * Extract physical pixel sizes from NGFF coordinateTransformations on the first dataset.
- * The scale transform values correspond to axes in order.
- * Exported for testing.
- */
+/** Exported for testing. */
 export function extractPhysicalSizes(
   multiscale: RootAttrs["multiscales"][0] | undefined,
   axes: RootAttrs["multiscales"][0]["axes"],
@@ -161,8 +138,7 @@ export function extractPhysicalSizes(
 }
 
 /**
- * Parse omero channel color string to RGBA tuple.
- * Omero colors are hex strings like "FF0000" (RGB) or "FF0000FF" (RGBA).
+ * Omero colors are hex strings — "FF0000" (RGB) or "FF0000FF" (RGBA).
  * Exported for testing.
  */
 export function parseOmeroColor(

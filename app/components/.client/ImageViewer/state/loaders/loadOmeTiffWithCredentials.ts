@@ -3,68 +3,59 @@ import { fromCustomClient } from "geotiff";
 
 import type { Image, Loader } from "../store/ome.tif.types";
 import { SigV4TiffClient } from "../transport/SigV4TiffClient";
-import type { SignedFetch } from "~/utils/signedFetch";
+import type { LoadOptions } from "@cytario/plugin-api";
 
-/** Derive the offset sidecar URL from the TIFF URL (replace .ome.tif(f) → .offsets.json). */
+// `.ome.tif(f)` → `.offsets.json` (returns null for non-OME-TIFF URLs).
 function getOffsetsUrl(tiffUrl: string): string | null {
   const match = tiffUrl.match(/\.ome\.tiff?$/i);
   if (!match) return null;
   return tiffUrl.replace(/\.ome\.tiff?$/i, ".offsets.json");
 }
 
-/**
- * Load an OME-TIFF using SigV4-signed S3 requests.
- * Uses fromCustomClient for the GeoTIFF transport, then delegates to viv's
- * loadOmeTiff for OME-XML parsing and TiffPixelSource construction.
- */
+/** Load an OME-TIFF via SigV4-signed S3 requests; delegates to viv. */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
-  signedFetch: SignedFetch,
+  opts: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
-  // Fetch optional offset sidecar via signed request
-  const offsetsUrl = getOffsetsUrl(s3Url);
-  let offsets: number[] | undefined;
-  if (offsetsUrl) {
-    try {
-      const res = await signedFetch(offsetsUrl);
-      if (res.ok) {
-        const json: unknown = await res.json();
-        if (Array.isArray(json) && json.every((v) => typeof v === "number")) {
-          offsets = json;
+  const { signedFetch, signal, headers } = opts;
+
+  // Sidecar is optional — fetch only if caller did not pre-supply offsets.
+  // Caller-supplied headers (SDS-CY-010050) must reach EVERY network
+  // request the handler issues, including the sidecar fetch.
+  let offsets: number[] | undefined = opts.offsets;
+  if (offsets === undefined) {
+    const offsetsUrl = getOffsetsUrl(s3Url);
+    if (offsetsUrl) {
+      try {
+        const res = await signedFetch(offsetsUrl, { signal, headers });
+        if (res.ok) {
+          const json: unknown = await res.json();
+          if (Array.isArray(json) && json.every((v) => typeof v === "number")) {
+            offsets = json;
+          }
         }
+      } catch {
+        // Sidecar is optional.
       }
-    } catch {
-      // Offset sidecar is optional — continue without it
     }
   }
 
-  // Create SigV4-signed GeoTIFF transport.
-  // cacheSize must match what viv uses internally (Infinity) to avoid
-  // block eviction during IFD parsing of large pyramidal TIFFs.
-  const client = new SigV4TiffClient(s3Url, signedFetch);
+  // cacheSize must match viv's internal Infinity to avoid block eviction
+  // during IFD parsing of large pyramidal TIFFs. Caller-supplied headers
+  // flow into the transport so geotiff's per-tile fetches inherit them.
+  const client = new SigV4TiffClient(s3Url, signedFetch, headers);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const source = await fromCustomClient(client as any, {
     cacheSize: Number.POSITIVE_INFINITY,
   });
 
-  // Delegate to viv — it handles OME-XML parsing, TiffPixelSource construction,
-  // and pyramid indexing using the pre-constructed GeoTIFF.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (loadOmeTiff as any)("", { source, offsets });
 
-  // ────────────────────────────────────────────────────────────────────
-  // OME-XML sanitizer (C-78). Some producers (slideio as of 2026-05)
-  // emit <Pixels Interleaved="true"> for planar multi-IFD layouts with
-  // SamplesPerPixel=1 per channel. Viv's loader trusts the flag and
-  // appends a phantom _c=3 dim to image shape, routing tiles to the
-  // 8-bit RGB BitmapLayer path instead of XRLayer (multi-channel,
-  // any bit depth). The OME 2016-06 schema's wording for Interleaved
-  // is RGB-specific ("RGBRGBRGB... vs RRR...GGG...BBB...") and silent
-  // on N>3 channels, so different readers (viv, Bio-Formats) interpret
-  // it differently and producers can't satisfy all of them at once —
-  // see C-78 thread for the spec rabbit hole. Detect the contradiction
-  // here and clear the flag before viv consumes it. Defensive guard,
-  // not tied to any upstream fix landing.
+  // OME-XML sanitizer (C-78). Some producers emit Interleaved=true on planar
+  // multi-IFD layouts with SamplesPerPixel=1 per channel. Viv then appends a
+  // phantom _c=3 dim and routes tiles to the 8-bit RGB BitmapLayer instead
+  // of XRLayer. Detect and clear before viv consumes it.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pixels = (result.metadata as any)?.Pixels;
   const channels = (pixels?.Channels ?? []) as Array<{
@@ -92,7 +83,6 @@ export async function loadOmeTiffWithCredentials(
     }
     pixels.Interleaved = false;
   }
-  // ────────────────────────────────────────────────────────────────────
 
   return {
     data: result.data as unknown as Loader,

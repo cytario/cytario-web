@@ -15,9 +15,10 @@ import {
   getFileTypeIcon,
   getNodeIcon,
   getTypeLabel,
-  IMAGE_FILE_TYPES,
+  isImageFile,
 } from "../fileType";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 function makeNode(overrides: Partial<TreeNode> = {}): TreeNode {
   return {
@@ -77,19 +78,87 @@ describe("getFileType", () => {
   });
 });
 
-describe("IMAGE_FILE_TYPES", () => {
-  test("contains all image types", () => {
-    expect(IMAGE_FILE_TYPES.has("TIFF")).toBe(true);
-    expect(IMAGE_FILE_TYPES.has("OME-TIFF")).toBe(true);
-    expect(IMAGE_FILE_TYPES.has("PNG")).toBe(true);
-    expect(IMAGE_FILE_TYPES.has("JPEG")).toBe(true);
+describe("isImageFile", () => {
+  test("returns true for image types", () => {
+    expect(isImageFile("photo.tiff")).toBe(true);
+    expect(isImageFile("image.ome.tiff")).toBe(true);
+    expect(isImageFile("image.ome.zarr")).toBe(true);
+    expect(isImageFile("image.zarr")).toBe(true);
+    expect(isImageFile("photo.png")).toBe(true);
+    expect(isImageFile("photo.jpg")).toBe(true);
   });
 
-  test("does not contain non-image types", () => {
-    expect(IMAGE_FILE_TYPES.has("CSV")).toBe(false);
-    expect(IMAGE_FILE_TYPES.has("Parquet")).toBe(false);
-    expect(IMAGE_FILE_TYPES.has("JSON")).toBe(false);
-    expect(IMAGE_FILE_TYPES.has("Unknown")).toBe(false);
+  test("returns false for non-image types", () => {
+    expect(isImageFile("table.csv")).toBe(false);
+    expect(isImageFile("data.parquet")).toBe(false);
+    expect(isImageFile("config.json")).toBe(false);
+    expect(isImageFile("unknown.xyz")).toBe(false);
+    expect(isImageFile("Makefile")).toBe(false);
+  });
+});
+
+describe("plugin-derived file types", () => {
+  beforeEach(() => {
+    formatRegistry.__reset();
+  });
+
+  test("auto-derives label from plugin name when fileTypeMeta is absent", () => {
+    formatRegistry.add("my-plugin", "xyz", {
+      load: async () => ({ data: [], metadata: {} as never }),
+    });
+    expect(getFileType("file.xyz")).toBe("my-plugin");
+    expect(getFileTypeIcon("file.xyz")).toBe("Image");
+    expect(isImageFile("file.xyz")).toBe(true);
+  });
+
+  test("uses fileTypeMeta.label and fileTypeMeta.icon when provided", () => {
+    formatRegistry.add("vendor-plugin", "abc", {
+      load: async () => ({ data: [], metadata: {} as never }),
+      fileTypeMeta: { label: "Vendor Format", icon: "Microscope" },
+    });
+    expect(getFileType("sample.abc")).toBe("Vendor Format");
+    expect(getFileTypeIcon("sample.abc")).toBe("Microscope");
+  });
+
+  test("plugin entries do not shadow built-in OME-TIFF/OME-Zarr (built-ins stay in STATIC_FILE_TYPES)", () => {
+    // Built-ins (cytario-web) are excluded from plugin-derived entries; the
+    // hardcoded STATIC_FILE_TYPES still owns the OME-TIFF / OME-Zarr labels
+    // — proven by the existing test cases above which never depend on the
+    // registry being bootstrapped.
+    expect(getFileType("image.ome.tif")).toBe("OME-TIFF");
+    expect(getFileType("image.zarr")).toBe("OME-Zarr");
+  });
+});
+
+describe("zarr trailing-slash and compound extensions", () => {
+  test("trailing-slash zarr URLs resolve to OME-Zarr", () => {
+    expect(getFileType("image.zarr/")).toBe("OME-Zarr");
+    expect(getFileType("image.ome.zarr/")).toBe("OME-Zarr");
+  });
+
+  test(".ome.tiff resolves to OME-TIFF, not TIFF", () => {
+    expect(getFileType("image.ome.tiff")).toBe("OME-TIFF");
+  });
+});
+
+describe("query-string and fragment handling", () => {
+  test("presigned URLs (?sig=...) resolve to the correct type", () => {
+    expect(getFileType("image.ome.tif?sig=abc&exp=123")).toBe("OME-TIFF");
+    expect(getFileType("photo.png?cache=bust")).toBe("PNG");
+    expect(getFileType("data.parquet?range=0-1024")).toBe("Parquet");
+  });
+
+  test("URL fragments (#frag) are stripped before matching", () => {
+    expect(getFileType("image.ome.tif#region-1")).toBe("OME-TIFF");
+  });
+
+  test("isImageFile honours query-stripped extension", () => {
+    expect(isImageFile("photo.jpg?expires=tomorrow")).toBe(true);
+    expect(isImageFile("data.csv?range=0-100")).toBe(false);
+  });
+
+  test("getTypeLabel fallback strips suffix before uppercase", () => {
+    expect(getTypeLabel(makeNode({ name: "weird.xyz?sig=abc" }))).toBe("XYZ");
   });
 });
 

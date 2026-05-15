@@ -1,9 +1,3 @@
-/**
- * By default, Remix will handle generating the HTTP Response for you.
- * You are free to delete this file if you'd like to, but if you ever want it revealed again, you can run `npx remix reveal` ✨
- * For more information, see https://remix.run/file-conventions/entry.server
- */
-
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { PassThrough } from "node:stream";
@@ -11,9 +5,24 @@ import { renderToPipeableStream } from "react-dom/server";
 import type { AppLoadContext, EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 
+import { bootstrapPlugins } from "./plugins.generated";
+
 const ABORT_DELAY = 5_000;
 
-export default function handleRequest(
+// Server-side bootstrap registers only platform plugins from CYTARIO_PLUGINS.
+// Built-ins live behind viv/geotiff (browser-only) and register on the
+// client. `handleRequest` awaits this so a request cannot resolve the
+// registry before the plugin's async `register()` has completed.
+const bootstrapPromise: Promise<void> = bootstrapPlugins({
+  debug: (msg, fields) => console.debug("[plugin-bootstrap]", msg, fields ?? {}),
+  info: (msg, fields) => console.info("[plugin-bootstrap]", msg, fields ?? {}),
+  warn: (msg, fields) => console.warn("[plugin-bootstrap]", msg, fields ?? {}),
+  error: (msg, fields) => console.error("[plugin-bootstrap]", msg, fields ?? {}),
+}).catch((err: unknown) => {
+  console.error("[plugin-bootstrap] unexpected bootstrap failure:", err);
+});
+
+export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
@@ -23,6 +32,8 @@ export default function handleRequest(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   loadContext: AppLoadContext
 ) {
+  await bootstrapPromise;
+
   return isbot(request.headers.get("user-agent") || "")
     ? handleBotRequest(
         request,

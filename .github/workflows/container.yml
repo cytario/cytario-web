@@ -29,6 +29,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # Full history + tags so the plugin-api version-stamping
+          # prebuild step can resolve `git describe --tags
+          # --match='plugin-api-v*'` inside the Docker build context
+          # (the build stage copies `.git` via `COPY . .`).
+          fetch-depth: 0
 
       - name: Download package.json
         uses: actions/download-artifact@v5
