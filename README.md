@@ -82,6 +82,120 @@ implemented against the same contract. A minimal stub plugin lives in
 `__tests__/fixtures/noop-plugin/` and exercises the registry, the
 apiVersion gate, and the FILE_TYPE_REGISTRY auto-derivation.
 
+## Using `@cytario/web` as a package
+
+`@cytario/web` can be installed as an npm dependency and assembled into
+a deployable container together with one or more format-handler
+plugins. This is how **Cytario Enterprise Edition** is built: the
+AGPL-licensed open core (`@cytario/web`) is bundled with proprietary
+plugins (for example, vendor-specific microscopy format loaders) to
+produce a single deployable image. Anyone with a plugin that satisfies
+the [`@cytario/plugin-api`](packages/plugin-api/) contract can follow
+the same pattern.
+
+> **License obligation.** `@cytario/web` is licensed under
+> [AGPL-3.0](LICENSE). Distributing or operating an assembly that
+> includes it — including over a network as a service — triggers the
+> AGPL's source-disclosure requirement: the complete corresponding
+> source of the assembly (including any proprietary plugins linked
+> into it) must be made available to its users under AGPL-3.0. If that
+> is incompatible with your distribution model, a commercial license is
+> available — contact us at [cytario.com](https://www.cytario.com).
+
+The consumer's job is to install the packages, set `CYTARIO_PLUGINS`,
+and invoke the bundled CLI:
+
+```sh
+# .npmrc — only required if any of the plugins ship from a registry
+# other than public npm. The example below routes a hypothetical
+# closed plugin to GitHub Packages while keeping @cytario/web and
+# @cytario/plugin-api on public npm.
+@your-org/closed-plugin:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GH_TOKEN}
+```
+
+```sh
+npm install @cytario/web @cytario/plugin-api @your-org/my-plugin
+
+# Production build with the bundled plugin set.
+CYTARIO_PLUGINS=@your-org/my-plugin npx cytario-web build
+
+# Dev server with HMR.
+CYTARIO_PLUGINS=@your-org/my-plugin npx cytario-web dev
+
+# Production server against the existing build/ output.
+npx cytario-web start
+```
+
+`CYTARIO_PLUGINS` is a comma-separated list of npm package names. Each
+package's default export must satisfy the
+[`@cytario/plugin-api`](packages/plugin-api/) contract.
+
+### CLI
+
+| Command | Behaviour |
+|---|---|
+| `cytario-web build` | Codegen (Vite plugin reads `CYTARIO_PLUGINS`) + `react-router build` against the installed package root. |
+| `cytario-web dev` | Codegen + `react-router dev`. Extra args (`--port`, `--host`, …) are forwarded. |
+| `cytario-web start` | `NODE_ENV=production node server.ts` against the bundled `build/server/index.js`. |
+
+All subcommands operate against `@cytario/web`'s own install directory;
+the consumer never needs to know the on-disk layout.
+
+### Reference Dockerfile
+
+```dockerfile
+# syntax=docker/dockerfile:1.7
+FROM node:24-slim AS build
+WORKDIR /app
+COPY .npmrc package.json package-lock.json ./
+# BuildKit secret: GH_TOKEN is exposed as an env var only for this
+# RUN. It is never written to a layer and never appears in `docker
+# history` or `docker inspect`. Do NOT add `ARG GH_TOKEN` — that
+# would bake the value into image metadata.
+RUN --mount=type=secret,id=gh_token,env=GH_TOKEN \
+    npm ci
+ENV CYTARIO_PLUGINS=@your-org/my-plugin
+RUN npx cytario-web build
+
+FROM node:24-slim
+WORKDIR /app
+COPY --from=build /app .
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["npx", "cytario-web", "start"]
+```
+
+Build the image with the BuildKit secret bound from your environment
+(or a file):
+
+```sh
+# Docker — environment source (e.g. CI runner with a GH_TOKEN secret):
+GH_TOKEN=… docker build --secret id=gh_token,env=GH_TOKEN -t my-cytario-image .
+
+# Docker — file source:
+docker build --secret id=gh_token,src=./gh_token.txt -t my-cytario-image .
+
+# Podman — only file source is supported (no env= flavor); write the
+# token to a temp file first:
+printf '%s' "$GH_TOKEN" > /tmp/gh_token && \
+    podman build --secret id=gh_token,src=/tmp/gh_token -t my-cytario-image . && \
+    rm -f /tmp/gh_token
+```
+
+The `# syntax=docker/dockerfile:1.7` parser directive at the top of
+the Dockerfile is honored by Docker's BuildKit and silently ignored by
+Podman's native parser — the rest of the file (multi-stage,
+`--mount=type=cache`, `--mount=type=secret`) works on both engines.
+
+> **Mixed-registry note.** `@cytario/web` and `@cytario/plugin-api`
+> publish to public npm. Plugins are free to publish wherever they
+> like — public npm, GitHub Packages, or a private registry. Because a
+> single scope-wide `@cytario:registry` directive cannot route both
+> public-npm and GitHub-Packages packages under the same scope,
+> consumers pin individual plugin packages with a per-package
+> `<pkg>:registry=…` override as shown above.
+
 ## License
 
 This project is licensed under [AGPL-3.0](LICENSE). The source code is publicly available to provide full transparency and ensure long-term access for our users, independent of Cytario as a company.
