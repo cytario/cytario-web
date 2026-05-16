@@ -1,3 +1,9 @@
+# syntax=docker/dockerfile:1.7
+#
+# In-tree image build. Uses the same `cytario-web` CLI (build, then
+# start) that downstream consumers run. Adds a separate `deps` stage
+# to cache the registry install and a runtime stage that trims
+# devDependencies.
 #
 # -- deps stage: install npm dependencies -------
 #
@@ -22,7 +28,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate && npm run build
+# `cytario-web build` runs `prisma generate`, the plugin codegen, then
+# `react-router build`. CYTARIO_PLUGINS is unset in this repo, so the
+# codegen emits the empty canonical `app/plugins.generated.ts`.
+RUN node bin/cytario-web.mjs build
 
 #
 # -- runtime stage: minimal production image ----
@@ -44,6 +53,9 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
 COPY --from=build /app/build ./build
 COPY server.ts ./
+# Runtime entry point — must sit next to server.ts so the CLI
+# resolves the package root correctly.
+COPY bin ./bin
 
 # Copy static files directly from source
 COPY public ./public
@@ -59,4 +71,4 @@ ENV COMMIT_SHA=$COMMIT_SHA
 
 EXPOSE 3000
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["npm", "start"]
+CMD ["node", "bin/cytario-web.mjs", "start"]
