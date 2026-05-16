@@ -1,11 +1,50 @@
 {
-  "name": "cytario-web",
+  "name": "@cytario/web",
   "version": "1.0.0",
-  "description": "Cytario Web",
-  "private": true,
+  "description": "Cytario Web — scientific imaging data browser and viewer for OME-TIFF, OME-Zarr, Parquet and GeoTIFF on S3-compatible storage.",
+  "license": "AGPL-3.0",
   "sideEffects": false,
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cytario/cytario-web.git"
+  },
+  "homepage": "https://www.cytario.com",
+  "bugs": {
+    "url": "https://github.com/cytario/cytario-web/issues"
+  },
+  "bin": {
+    "cytario-web": "./bin/cytario-web.mjs"
+  },
+  "files": [
+    "app",
+    "bin",
+    "bin-src",
+    "prisma",
+    "public",
+    "scripts",
+    "vite-plugins",
+    "prisma.config.ts",
+    "react-router.config.ts",
+    "server.ts",
+    "tsconfig.json",
+    "vite.config.ts",
+    "!**/__tests__",
+    "!**/__snapshots__",
+    "!**/__mocks__",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/*.spec.ts",
+    "!**/*.spec.tsx",
+    "!app/.generated"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "scripts": {
     "prepare": "husky || true",
     "prebuild": "node scripts/prebuild.mjs",
