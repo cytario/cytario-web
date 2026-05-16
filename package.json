@@ -8,7 +8,7 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "prepare": "husky || true",
-    "prebuild": "node packages/plugin-api/scripts/write-version.mjs",
+    "prebuild": "node scripts/prebuild.mjs",
     "build": "react-router build",
     "codegen:check": "tsx scripts/codegen-check.ts",
     "dev": "react-router dev",
