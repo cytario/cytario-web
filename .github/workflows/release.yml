@@ -14,16 +14,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write # publish GitHub release
+      contents: write # publish GitHub release + tag
       issues: write # comment on released issues
       pull-requests: write # comment on released PRs
-      packages: write # npm
+      id-token: write # npm OIDC trusted publishing
     outputs:
       new_release_published: ${{ steps.semantic.outputs.new_release_published }}
       new_release_version: ${{ steps.semantic.outputs.new_release_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
 
       - name: Semantic Release
         id: semantic
@@ -49,6 +59,7 @@ jobs:
           if [ "${{ steps.semantic.outputs.new_release_published }}" == "true" ]; then
             echo "- **Release Published**: ✓ Yes" >> $GITHUB_STEP_SUMMARY
             echo "- **Version**: ${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **npm**: https://www.npmjs.com/package/@cytario/web/v/${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Release URL**: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "- **Release Published**: ✗ No (no changes warranting release)" >> $GITHUB_STEP_SUMMARY
