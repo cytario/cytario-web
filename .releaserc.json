@@ -15,6 +15,12 @@
         "pkgRoot": "."
       }
     ],
-    "@semantic-release/github"
+    "@semantic-release/github",
+    [
+      "@semantic-release/exec",
+      {
+        "successCmd": "{ echo \"new_release_published=true\"; echo \"new_release_version=${nextRelease.version}\"; } >> \"${GITHUB_OUTPUT:-/dev/null}\""
+      }
+    ]
   ]
 }
