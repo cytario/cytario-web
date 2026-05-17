@@ -16,25 +16,25 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 
 ## Tech Stack
 
-| Layer         | Technology                                                          |
-|---------------|---------------------------------------------------------------------|
-| Framework     | React Router v7 (SSR), React 19, Vite 6                             |
-| Language      | TypeScript 5.8 (strict mode)                                        |
-| Styling       | Tailwind CSS 3.4 (class-based dark mode)                            |
-| State         | Zustand 5 (with immer, persist, devtools middleware)                |
-| Forms         | react-hook-form 7 + zod 4 validation                                |
-| Tables        | @tanstack/react-table 8, @tanstack/react-virtual 3                  |
-| Visualization | deck.gl 9.1, @hms-dbmi/viv 0.18, Apache Arrow 21                    |
-| WebAssembly   | @duckdb/duckdb-wasm (in-browser SQL), lzw-tiff-decoder (Web Worker) |
-| Auth          | OAuth 2.0 Authorization Code Flow via Keycloak                      |
-| Database      | PostgreSQL (Prisma 7 ORM), Redis/Valkey (sessions via ioredis)      |
+| Layer         | Technology                                                            |
+| ------------- | --------------------------------------------------------------------- |
+| Framework     | React Router v7 (SSR), React 19, Vite 6                               |
+| Language      | TypeScript 5.8 (strict mode)                                          |
+| Styling       | Tailwind CSS 3.4 (class-based dark mode)                              |
+| State         | Zustand 5 (with immer, persist, devtools middleware)                  |
+| Forms         | react-hook-form 7 + zod 4 validation                                  |
+| Tables        | @tanstack/react-table 8, @tanstack/react-virtual 3                    |
+| Visualization | deck.gl 9.1, @hms-dbmi/viv 0.18, Apache Arrow 21                      |
+| WebAssembly   | @duckdb/duckdb-wasm (in-browser SQL), lzw-tiff-decoder (Web Worker)   |
+| Auth          | OAuth 2.0 Authorization Code Flow via Keycloak                        |
+| Database      | PostgreSQL (Prisma 7 ORM), Redis/Valkey (sessions via ioredis)        |
 | Cloud         | AWS SDK v3 (S3, STS AssumeRoleWithWebIdentity, SigV4 request signing) |
-| UI Components | @cytario/design (react-aria), lucide-react, motion 12               |
-| Testing       | Vitest 3.2, @testing-library/react 16, happy-dom                    |
-| Linting       | ESLint 8 (flat config), @typescript-eslint, jsx-a11y, import        |
-| Formatting    | Prettier (default config)                                           |
-| Git Hooks     | Husky 9 (pre-commit: lint + typecheck, commit-msg: commitlint)      |
-| CI/CD         | GitHub Actions, semantic-release, GHCR container registry           |
+| UI Components | @cytario/design (react-aria), lucide-react, motion 12                 |
+| Testing       | Vitest 3.2, @testing-library/react 16, happy-dom                      |
+| Linting       | ESLint 8 (flat config), @typescript-eslint, jsx-a11y, import          |
+| Formatting    | Prettier (enforced on CI via `format:check`)                          |
+| Git Hooks     | Husky 9 (pre-commit: lint + typecheck, commit-msg: commitlint)        |
+| CI/CD         | GitHub Actions, semantic-release, GHCR container registry             |
 
 ---
 
@@ -80,6 +80,8 @@ npm run dev          # Start dev server
 npm run build        # Production build (react-router build)
 npm start            # Start production server (react-router-serve)
 npm run lint         # ESLint with cache
+npm run format:check # Prettier check (CI fails on drift)
+npm run format:write # Prettier rewrite in place
 npm run typecheck    # react-router typegen && tsc
 npm run test         # Vitest (watch mode)
 npm run coverage     # Vitest with v8 coverage
@@ -93,10 +95,12 @@ npx prisma studio    # Database GUI
 ## Code Conventions
 
 ### Exports
+
 - **Named exports only** in `app/` — no default exports (enforced by ESLint)
 - Exceptions: route modules (`app/routes/**`), `app/root.tsx`, `app/entry.*.tsx`
 
 ### Imports
+
 - External packages first, then internal (`~/`) — alphabetically sorted within groups
 - Separated by a blank line between groups
 - Path alias: `~/*` maps to `./app/*`
@@ -110,12 +114,14 @@ import { cytarioConfig } from "~/config";
 ```
 
 ### TypeScript
+
 - **Strict mode** — no `any` without justification
 - Use `zod` schemas for runtime validation at system boundaries
 - Prisma generates types — never manually duplicate DB types
 - Prefer `interface` for object shapes, `type` for unions/intersections
 
 ### File Colocation
+
 - **Colocate route-related resources** — modals, forms, actions, schemas, and loaders live next to their route file, not in separate top-level directories
 - Naming convention: `<resource>.route.tsx`, `<action><Resource>.action.ts`, `<action><Resource>.modal.tsx`, `<resource>.form.tsx`, `<resource>.schema.ts`, `<resource>.loader.ts`, `<resource>.server.ts`
 - Example: `routes/connections/` contains `connections.route.tsx`, `connections.loader.ts`, `connections.server.ts`, `connection.form.tsx`, `connection.schema.ts`, `createConnection.action.ts`, `createConnection.modal.tsx`, `updateConnection.action.ts`, `updateConnection.modal.tsx`, `deleteConnection.action.ts`
@@ -123,6 +129,7 @@ import { cytarioConfig } from "~/config";
 - Tests go in `__tests__/` adjacent to source files
 
 ### Modals
+
 - **Two rendering modes:**
   - **Child route modals** — rendered via React Router `route → children` (used for admin modals scoped to `/admin/users`)
   - **Search param modals** — rendered via `?modal=<name>` through `ModalOutlet` in the scrollview layout (used for modals that should be openable from any page)
@@ -134,6 +141,7 @@ import { cytarioConfig } from "~/config";
 - `closeModal(extraKeys?)` removes the `modal` param plus any extra keys in a single `setSearchParams` call. Modals that add extra params via `openModal(name, params)` pass those keys to `onClose` for cleanup (e.g. `onClose(["nodeName"])`)
 
 ### React Patterns
+
 - Server/client separation via `.server/` and `.client/` directories
 - Route modules export: `loader`, `action`, `meta`, `handle`, `middleware`, default component
 - Middleware chain: `sessionMiddleware` → `authMiddleware`
@@ -141,6 +149,7 @@ import { cytarioConfig } from "~/config";
 - Use `@cytario/design` for UI components (Dialog, Button, Input, Tree, etc.)
 
 ### State Management
+
 - **Zustand** stores — one store per domain concern
 - Use `immer` middleware for complex state updates
 - Use `persist` middleware selectively (localStorage or sessionStorage)
@@ -148,6 +157,7 @@ import { cytarioConfig } from "~/config";
 - Define selectors separately from stores
 
 ### Styling
+
 - Utility-first Tailwind CSS — no CSS modules, no styled-components
 - Use `tailwind-merge` (`twMerge`) for conditional class composition
 - Custom design tokens: `cytario-purple-500`, `cytario-turquoise-*`
@@ -160,6 +170,7 @@ import { cytarioConfig } from "~/config";
   - Exceptions: SVG visualization code (deck.gl overlays, scientific imaging palettes) where raw RGBA arrays are required by the rendering API
 
 ### Testing
+
 - **Every change must have test coverage** — unit and/or integration tests
 - Use `test()` — never `it()` (enforced by ESLint)
 - Co-locate tests in `__tests__/` directories adjacent to source files
@@ -169,6 +180,7 @@ import { cytarioConfig } from "~/config";
 - Coverage includes only `app/` excluding generated code, types, config, and workers
 
 ### Error Handling
+
 - Root `ErrorBoundary` in `root.tsx`
 - Server errors return appropriate HTTP status codes
 - Client errors surface via notification store (toast pattern)
@@ -179,6 +191,7 @@ import { cytarioConfig } from "~/config";
 ## Architecture Principles
 
 ### SOLID
+
 - **S** — Single Responsibility: one concern per module (e.g., separate stores, middleware, route loaders)
 - **O** — Open/Closed: extend via composition (zustand middleware, deck.gl layers), not modification
 - **L** — Liskov Substitution: consistent interfaces across S3 providers (AWS, MinIO)
@@ -186,6 +199,7 @@ import { cytarioConfig } from "~/config";
 - **D** — Dependency Inversion: server code depends on abstractions (Prisma, session interface), not concrete implementations
 
 ### Security
+
 - OAuth 2.0 Authorization Code Flow (not deprecated ROPC)
 - JWT validation with expiry checks and 5-minute buffer
 - Automatic token refresh via middleware
@@ -194,12 +208,14 @@ import { cytarioConfig } from "~/config";
 - Never expose secrets to the client
 
 ### Root-Cause Fixes Over Workarounds
+
 - Always fix problems at the source — if a dependency has a packaging bug, fix it in the dependency rather than adding workarounds in consumers
 - Do not pile on Vite config hacks, aliases, plugins, or shims to compensate for upstream issues. Fix upstream first, then the consumer code should be clean
 - If a workaround is temporarily unavoidable, document it as technical debt with a clear path to removal and open an issue in the upstream project
 - When debugging, identify the root cause before writing code. A correct diagnosis avoids cascading "fix the fix" patches
 
 ### Performance
+
 - SSR with React Router v7 for fast initial loads
 - WebAssembly (DuckDB) for in-browser SQL on Parquet/CSV
 - Web Workers for CPU-intensive decompression (LZW TIFF decoder)
@@ -214,20 +230,24 @@ import { cytarioConfig } from "~/config";
 ## Git & CI/CD
 
 ### Commit Messages
+
 - **Conventional Commits** enforced by commitlint: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, etc.
 - Commits are validated via Husky `commit-msg` hook
 - **Atomic commits** — each commit must be a single, self-contained logical change (one concern per commit). Never bundle unrelated changes into one commit. When implementing a feature or fix that touches multiple concerns, split into separate commits (e.g., schema change, route refactor, test additions).
 
 ### Pre-commit Checks
+
 - `npm run lint` — ESLint (must pass)
 - `npm run typecheck` — TypeScript (must pass)
 
 ### CI Pipeline (GitHub Actions)
-1. QA Checks: lint → typecheck → test with coverage
+
+1. QA Checks: format:check → lint → typecheck → test with coverage
 2. Semantic Release: auto-version from commit history
 3. Container Build: multi-stage Docker → GHCR
 
 ### Branching
+
 - `main` is the default and release branch
 - PRs target `main`, require passing CI
 - **Linear history** — always rebase feature branches onto `main` (or onto their base branch). Never merge `main` into a feature branch. Use `git rebase` to keep history clean and linear.
@@ -237,12 +257,14 @@ import { cytarioConfig } from "~/config";
 ## Local Development
 
 **Services (Podman/Docker Compose):**
+
 - Keycloak — `localhost:8080` (admin/admin)
 - MinIO — `localhost:9000` (console: 9001)
 - PostgreSQL — `localhost:5433`
 - Valkey/Redis — `localhost:6379`
 
 **Setup:**
+
 ```bash
 cp .env.template .env       # Configure environment variables
 npm install                  # Install dependencies

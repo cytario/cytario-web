@@ -12,9 +12,7 @@ describe("resolveDefaultScope", () => {
   });
 
   test("returns covering parent when scope is a child of an adminScope", () => {
-    expect(
-      resolveDefaultScope("cytario/Lab Services", ["cytario"], USER_ID),
-    ).toBe("cytario");
+    expect(resolveDefaultScope("cytario/Lab Services", ["cytario"], USER_ID)).toBe("cytario");
   });
 
   test("prefers exact match over covering parent", () => {
@@ -24,27 +22,19 @@ describe("resolveDefaultScope", () => {
   });
 
   test("returns userId when no adminScope covers the scope param", () => {
-    expect(
-      resolveDefaultScope("ultivue/research", ["cytario"], USER_ID),
-    ).toBe(USER_ID);
+    expect(resolveDefaultScope("ultivue/research", ["cytario"], USER_ID)).toBe(USER_ID);
   });
 
   test("returns userId when scope param is null", () => {
-    expect(
-      resolveDefaultScope(null, ["cytario"], USER_ID),
-    ).toBe(USER_ID);
+    expect(resolveDefaultScope(null, ["cytario"], USER_ID)).toBe(USER_ID);
   });
 
   test("returns userId when adminScopes is empty", () => {
-    expect(
-      resolveDefaultScope("cytario", [], USER_ID),
-    ).toBe(USER_ID);
+    expect(resolveDefaultScope("cytario", [], USER_ID)).toBe(USER_ID);
   });
 
   test("does not match partial segment names", () => {
     // "cytario-labs" should NOT match adminScope "cytario"
-    expect(
-      resolveDefaultScope("cytario-labs", ["cytario"], USER_ID),
-    ).toBe(USER_ID);
+    expect(resolveDefaultScope("cytario-labs", ["cytario"], USER_ID)).toBe(USER_ID);
   });
 });

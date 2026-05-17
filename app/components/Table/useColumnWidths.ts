@@ -45,9 +45,7 @@ export function useColumnWidths(columns: ColumnConfig[], tableId: string) {
       });
 
       const next =
-        typeof updaterOrValue === "function"
-          ? updaterOrValue(currentSizing)
-          : updaterOrValue;
+        typeof updaterOrValue === "function" ? updaterOrValue(currentSizing) : updaterOrValue;
 
       // Update only columns that changed (skip index column)
       Object.entries(next).forEach(([columnId, width]) => {

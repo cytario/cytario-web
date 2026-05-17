@@ -13,7 +13,7 @@ export function useDebouncedValue<T>(value: T, delay: number): T {
 
 export const useResizeObserver = (
   ref: React.RefObject<HTMLElement | null>,
-  resetOnResize: boolean
+  resetOnResize: boolean,
 ) => {
   const [viewPort, setViewPort] = useState({ width: 0, height: 0 });
   const debouncedViewPort = useDebouncedValue(viewPort, 100);

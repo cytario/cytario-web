@@ -9,18 +9,14 @@ import { useViewerStore } from "../../state/store/ViewerStoreContext";
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
   const setContrastLimits = useViewerStore(select.setContrastLimits);
-  const resetContrastLimits = useViewerStore(
-    (state) => state.resetContrastLimits,
-  );
+  const resetContrastLimits = useViewerStore((state) => state.resetContrastLimits);
 
   // Local state only used while editing (null = not editing, use store value)
   const [editingMin, setEditingMin] = useState<string | null>(null);
   const [editingMax, setEditingMax] = useState<string | null>(null);
 
-  const minValue =
-    editingMin ?? String(selectedChannel?.contrastLimits[0] ?? 0);
-  const maxValue =
-    editingMax ?? String(selectedChannel?.contrastLimits[1] ?? 0);
+  const minValue = editingMin ?? String(selectedChannel?.contrastLimits[0] ?? 0);
+  const maxValue = editingMax ?? String(selectedChannel?.contrastLimits[1] ?? 0);
 
   const commitValue = (type: "min" | "max", value: string) => {
     // Clear editing state first
@@ -54,10 +50,7 @@ export function MinMaxSettings() {
     setContrastLimits(newLimits);
   };
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    type: "min" | "max",
-  ) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, type: "min" | "max") => {
     if (e.key === "Enter") {
       e.currentTarget.blur();
     } else if (e.key === "Escape") {
@@ -73,10 +66,8 @@ export function MinMaxSettings() {
 
   const isResetDisabled =
     !selectedChannel ||
-    (selectedChannel.contrastLimits[0] ===
-      selectedChannel.contrastLimitsInitial[0] &&
-      selectedChannel.contrastLimits[1] ===
-        selectedChannel.contrastLimitsInitial[1]);
+    (selectedChannel.contrastLimits[0] === selectedChannel.contrastLimitsInitial[0] &&
+      selectedChannel.contrastLimits[1] === selectedChannel.contrastLimitsInitial[1]);
 
   return (
     <div className="m-2 flex gap-2 items-center">

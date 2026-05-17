@@ -36,9 +36,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const { connectionName } = parseResourceId(resourceId);
-  const connectionConfig = useConnectionsStore(
-    select.connectionConfig(connectionName),
-  );
+  const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
 
   // Initial data fetch
   useEffect(() => {
@@ -77,12 +75,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     } finally {
       setIsFetchingMore(false);
     }
-  }, [
-    resourceId,
-    rows.length,
-    isFetchingMore,
-    hasMore,
-  ]);
+  }, [resourceId, rows.length, isFetchingMore, hasMore]);
 
   const columnHelper = createColumnHelper<Record<string, unknown>>();
 
@@ -161,26 +154,17 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
       <table className="min-w-full border-collapse text-sm">
         <thead className="bg-gray-100 dark:bg-slate-800 sticky top-0 z-10">
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr
-              key={headerGroup.id}
-              className="grid"
-              style={{ gridTemplateColumns }}
-            >
+            <tr key={headerGroup.id} className="grid" style={{ gridTemplateColumns }}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
                   className={`border-b border-gray-200 dark:border-slate-700 px-4 py-2 font-semibold ${
-                    RIGHT_ALIGNED_COLUMNS.has(header.id)
-                      ? "text-right"
-                      : "text-left"
+                    RIGHT_ALIGNED_COLUMNS.has(header.id) ? "text-right" : "text-left"
                   }`}
                 >
                   {header.isPlaceholder
                     ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                    : flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               ))}
             </tr>
@@ -208,9 +192,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
                   <td
                     key={cell.id}
                     className={`border-b border-gray-100 dark:border-slate-700 tabular-nums px-4 flex items-center ${
-                      RIGHT_ALIGNED_COLUMNS.has(cell.column.id)
-                        ? "justify-end"
-                        : ""
+                      RIGHT_ALIGNED_COLUMNS.has(cell.column.id) ? "justify-end" : ""
                     }`}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -221,9 +203,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
           })}
         </tbody>
       </table>
-      {isFetchingMore && (
-        <div className="p-2 text-center text-gray-500">Loading more...</div>
-      )}
+      {isFetchingMore && <div className="p-2 text-center text-gray-500">Loading more...</div>}
     </div>
   );
 };

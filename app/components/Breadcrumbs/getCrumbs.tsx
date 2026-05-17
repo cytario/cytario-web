@@ -10,7 +10,7 @@ export interface CrumbsOptions {
 export const getCrumbs = (
   basePath: string,
   segments: string[],
-  options?: CrumbsOptions
+  options?: CrumbsOptions,
 ): BreadcrumbData[] => {
   const { dataConnectionName, dataConnectionPath } = options ?? {};
 

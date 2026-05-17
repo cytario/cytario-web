@@ -1,15 +1,8 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useLayoutEffect,
-  ReactNode,
-} from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, ReactNode } from "react";
 import ReactDOM from "react-dom";
 
 // Use useLayoutEffect on client, useEffect on server to avoid SSR warning
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface TooltipProps {
   content: ReactNode;
@@ -34,10 +27,7 @@ const tooltipClassName = `
   blurred backdrop-filter backdrop-blur-sm
 `;
 
-export const Tooltip: React.FC<TooltipProps> = ({
-  content,
-  children,
-}) => {
+export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   const [visible, setVisible] = useState(false);
   const [coordsInitial, setCoordsInitial] = useState<Coords>({ x: 0, y: 0 });
   const [coords, setCoords] = useState<Coords>({ x: 0, y: 0 });
@@ -140,10 +130,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
     >
       {children}
       {typeof window !== "undefined" &&
-        ReactDOM.createPortal(
-          tooltipContent,
-          document.getElementById("tooltip")!,
-        )}
+        ReactDOM.createPortal(tooltipContent, document.getElementById("tooltip")!)}
     </span>
   );
 };

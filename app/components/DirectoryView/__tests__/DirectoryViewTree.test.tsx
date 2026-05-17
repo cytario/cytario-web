@@ -32,9 +32,9 @@ const mockNodes: TreeNode[] = [
         connectionName: "aws-test-bucket",
         type: "file",
         name: "output.ome.tif",
-    
+
         pathName: "results/output.ome.tif",
-    
+
         children: [],
       },
     ],
@@ -62,9 +62,7 @@ describe("DirectoryViewTree", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    expect(
-      screen.getByRole("tree", { name: /Directory tree/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tree", { name: /Directory tree/i })).toBeInTheDocument();
   });
 
   test("renders top-level node names via arborist", () => {
@@ -121,10 +119,7 @@ describe("DirectoryTree (lightweight)", () => {
     render(<RemixStub initialEntries={["/"]} />);
 
     const csvLink = screen.getByText("analysis.csv").closest("a");
-    expect(csvLink).toHaveAttribute(
-      "href",
-      "/connections/aws-test-bucket/analysis.csv",
-    );
+    expect(csvLink).toHaveAttribute("href", "/connections/aws-test-bucket/analysis.csv");
   });
 
   test("calls action callback when provided", async () => {
@@ -135,9 +130,7 @@ describe("DirectoryTree (lightweight)", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
-        Component: () => (
-          <DirectoryTree nodes={mockNodes} action={actionFn} />
-        ),
+        Component: () => <DirectoryTree nodes={mockNodes} action={actionFn} />,
       },
     ]);
 
@@ -145,8 +138,6 @@ describe("DirectoryTree (lightweight)", () => {
 
     await user.click(screen.getByText("analysis.csv"));
 
-    expect(actionFn).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "analysis.csv" }),
-    );
+    expect(actionFn).toHaveBeenCalledWith(expect.objectContaining({ name: "analysis.csv" }));
   });
 });

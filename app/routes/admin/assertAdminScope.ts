@@ -9,9 +9,7 @@ export function assertAdminScope(
   const scope = new URL(url).searchParams.get("scope");
   if (!scope) throw new Response("Missing scope", { status: 400 });
 
-  const isAdmin = adminScopes.some(
-    (s) => scope === s || scope.startsWith(s + "/"),
-  );
+  const isAdmin = adminScopes.some((s) => scope === s || scope.startsWith(s + "/"));
   if (!isAdmin) throw new Response("Not authorized", { status: 403 });
 
   return {

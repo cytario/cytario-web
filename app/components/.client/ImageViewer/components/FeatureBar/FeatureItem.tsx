@@ -53,11 +53,7 @@ function FeatureItemInner({
             </span>
           </button>
 
-          {badge && (
-            <span className="text-xs text-[var(--color-text-tertiary)]">
-              {badge}
-            </span>
-          )}
+          {badge && <span className="text-xs text-[var(--color-text-tertiary)]">{badge}</span>}
 
           {onToggleChange && !toggleHidden && (
             <IconButton

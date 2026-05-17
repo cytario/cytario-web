@@ -3,21 +3,11 @@ import { useMemo } from "react";
 
 import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
-import {
-  DirectoryViewTableConnection,
-  connectionColumns,
-} from "./DirectoryViewTableConnection";
-import {
-  DirectoryViewTableDirectory,
-  fileColumns,
-} from "./DirectoryViewTableDirectory";
+import { DirectoryViewTableConnection, connectionColumns } from "./DirectoryViewTableConnection";
+import { DirectoryViewTableDirectory, fileColumns } from "./DirectoryViewTableDirectory";
 import { DirectoryViewTree } from "./DirectoryViewTree";
 import { FilterBar } from "./FilterBar";
-import {
-  filterHiddenNodes,
-  filterNodes,
-  getNodeAccessors,
-} from "./filterNodes";
+import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
@@ -73,14 +63,7 @@ export function DirectoryView({
   );
 
   const filteredNodes = useMemo(
-    () =>
-      filterNodes(
-        visibleNodes,
-        columnFilters,
-        columns,
-        kind,
-        connections,
-      ),
+    () => filterNodes(visibleNodes, columnFilters, columns, kind, connections),
     [visibleNodes, columnFilters, columns, kind, connections],
   );
 
@@ -109,8 +92,7 @@ export function DirectoryView({
   // view at prefix level is an anti-pattern anyway — proper tree-based
   // navigation belongs in a global sidebar per C-56
   // (https://app.plane.so/cytario/browse/C-56/).
-  const nameFilter =
-    (columnFilters.find((f) => f.id === "name")?.value as string) ?? "";
+  const nameFilter = (columnFilters.find((f) => f.id === "name")?.value as string) ?? "";
 
   return (
     <Section flush={flush}>
@@ -120,37 +102,19 @@ export function DirectoryView({
 
       {showFilters && viewMode !== "list" && (
         <Container>
-          <FilterBar
-            columns={columns}
-            tableId={kind}
-            dynamicOptions={dynamicOptions}
-          />
+          <FilterBar columns={columns} tableId={kind} dynamicOptions={dynamicOptions} />
         </Container>
       )}
 
       <Container>
         {isTree ? (
-          <DirectoryViewTree
-            nodes={visibleNodes}
-            searchTerm={nameFilter}
-            kind={kind}
-          />
+          <DirectoryViewTree nodes={visibleNodes} searchTerm={nameFilter} kind={kind} />
         ) : isGrid ? (
-          <DirectoryViewGrid
-            nodes={filteredNodes}
-            viewMode={viewMode}
-            kind={kind}
-          />
+          <DirectoryViewGrid nodes={filteredNodes} viewMode={viewMode} kind={kind} />
         ) : kind === "connections" ? (
-          <DirectoryViewTableConnection
-            nodes={filteredNodes}
-            showFilters={showFilters}
-          />
+          <DirectoryViewTableConnection nodes={filteredNodes} showFilters={showFilters} />
         ) : (
-          <DirectoryViewTableDirectory
-            nodes={filteredNodes}
-            showFilters={showFilters}
-          />
+          <DirectoryViewTableDirectory nodes={filteredNodes} showFilters={showFilters} />
         )}
       </Container>
     </Section>

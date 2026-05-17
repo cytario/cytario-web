@@ -1,11 +1,7 @@
 // Host-side integration test for @cytario/plugin-api: registry
 // round-trip, auto-derived FILE_TYPE_REGISTRY entry, apiVersion gate.
 import noopPlugin, { NOOP_SENTINEL } from "./fixtures/noop-plugin";
-import {
-  IncompatiblePluginError,
-  assertApiCompatible,
-  hostApiVersion,
-} from "@cytario/plugin-api";
+import { IncompatiblePluginError, assertApiCompatible, hostApiVersion } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { getFileType, getFileTypeIcon, isImageFile } from "~/utils/fileType";
 

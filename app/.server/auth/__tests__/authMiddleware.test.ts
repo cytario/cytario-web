@@ -80,10 +80,7 @@ describe("authMiddleware", () => {
     notification: undefined,
   } satisfies SessionData;
 
-  const createMiddlewareArgs = (
-    params: Record<string, string> = {},
-    hasSession = true,
-  ) => {
+  const createMiddlewareArgs = (params: Record<string, string> = {}, hasSession = true) => {
     const context = new Map();
     if (hasSession) {
       context.set(sessionContext, mockSession);
@@ -105,9 +102,7 @@ describe("authMiddleware", () => {
     vi.mocked(getSessionData).mockResolvedValue(mockSessionData);
     vi.mocked(verifyIdToken).mockResolvedValue(validIdTokenPayload);
     vi.mocked(sessionStorage.commitSession).mockResolvedValue("session-cookie");
-    vi.mocked(sessionStorage.destroySession).mockResolvedValue(
-      "destroy-cookie",
-    );
+    vi.mocked(sessionStorage.destroySession).mockResolvedValue("destroy-cookie");
     vi.mocked(listConnections).mockResolvedValue(mockConnectionConfigs);
     // Return the same credentials by default (no change = no session commit)
     vi.mocked(getAllSessionCredentials).mockImplementation(
@@ -125,13 +120,8 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs({}, false);
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
-      ).rejects.toThrow(
-        "Session not found in context. Ensure sessionMiddleware runs first.",
-      );
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
+      ).rejects.toThrow("Session not found in context. Ensure sessionMiddleware runs first.");
     });
   });
 
@@ -139,10 +129,7 @@ describe("authMiddleware", () => {
     test("proceeds to next() when idToken is verified", async () => {
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(verifyIdToken).toHaveBeenCalledWith("valid-id-token");
       expect(mockNext).toHaveBeenCalled();
@@ -151,10 +138,7 @@ describe("authMiddleware", () => {
     test("sets authContext with session data and bucket configs", async () => {
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(args.context.set).toHaveBeenCalledWith(
         authContext,
@@ -169,10 +153,7 @@ describe("authMiddleware", () => {
     test("does not refresh tokens when idToken is verified", async () => {
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
     });
@@ -182,10 +163,7 @@ describe("authMiddleware", () => {
     test("fetches all bucket configs and credentials", async () => {
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(listConnections).toHaveBeenCalledWith(mockSessionData.user);
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
@@ -198,10 +176,7 @@ describe("authMiddleware", () => {
       // Even without bucketName in params, credentials are fetched for all buckets
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(getAllSessionCredentials).toHaveBeenCalled();
     });
@@ -209,10 +184,7 @@ describe("authMiddleware", () => {
     test("does not commit session when credentials unchanged", async () => {
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(sessionStorage.commitSession).not.toHaveBeenCalled();
     });
@@ -223,27 +195,19 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(mockSession.set).toHaveBeenCalledWith("credentials", newCredentials);
       expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
     });
 
     test("propagates error when credential fetch fails", async () => {
-      vi.mocked(getAllSessionCredentials).mockRejectedValue(
-        new Error("STS service unavailable"),
-      );
+      vi.mocked(getAllSessionCredentials).mockRejectedValue(new Error("STS service unavailable"));
 
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow("STS service unavailable");
     });
   });
@@ -254,15 +218,9 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(
-        mockSession.id,
-        validRefreshToken,
-      );
+      expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(mockSession.id, validRefreshToken);
     });
 
     test("updates session with new tokens after refresh", async () => {
@@ -270,10 +228,7 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(mockSession.set).toHaveBeenCalledWith(
         "authTokens",
@@ -288,10 +243,7 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
     });
@@ -301,10 +253,7 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(mockNext).toHaveBeenCalled();
     });
@@ -314,10 +263,7 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await authMiddleware(
-        args as unknown as Parameters<typeof authMiddleware>[0],
-        mockNext,
-      );
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -331,17 +277,12 @@ describe("authMiddleware", () => {
 
     test("propagates error when credential fetch fails after refresh", async () => {
       vi.mocked(verifyIdToken).mockResolvedValue(null);
-      vi.mocked(getAllSessionCredentials).mockRejectedValue(
-        new Error("STS service unavailable"),
-      );
+      vi.mocked(getAllSessionCredentials).mockRejectedValue(new Error("STS service unavailable"));
 
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow("STS service unavailable");
     });
 
@@ -350,17 +291,12 @@ describe("authMiddleware", () => {
       vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
         new Error("Failed to acquire refresh lock after maximum retries"),
       );
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow();
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -381,17 +317,12 @@ describe("authMiddleware", () => {
       vi.mocked(refreshAccessTokenWithLock).mockRejectedValue(
         new Error("invalid_grant: Token is not active"),
       );
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow();
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -422,10 +353,7 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow();
 
       expect(redirect).toHaveBeenCalledWith(
@@ -451,10 +379,7 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       try {
-        await authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        );
+        await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
       } catch {
         // Expected redirect
       }
@@ -473,10 +398,7 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow();
 
       expect(redirect).toHaveBeenCalled();
@@ -493,15 +415,10 @@ describe("authMiddleware", () => {
       });
 
       const args = createMiddlewareArgs();
-      (args.request as Request) = new Request(
-        "http://localhost/protected/page?query=test",
-      );
+      (args.request as Request) = new Request("http://localhost/protected/page?query=test");
 
       try {
-        await authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        );
+        await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
       } catch {
         // Expected redirect
       }
@@ -528,10 +445,7 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
 
       await expect(
-        authMiddleware(
-          args as unknown as Parameters<typeof authMiddleware>[0],
-          mockNext,
-        ),
+        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow();
 
       expect(redirect).toHaveBeenCalled();

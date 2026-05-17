@@ -65,10 +65,7 @@ describe("getUserInfo", () => {
 
       await getUserInfo("access-token");
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        mockUserinfoEndpoint,
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith(mockUserinfoEndpoint, expect.any(Object));
     });
 
     test("sends Bearer token in Authorization header", async () => {
@@ -170,7 +167,7 @@ describe("getUserInfo", () => {
       });
 
       await expect(getUserInfo("invalid-token")).rejects.toThrow(
-        "UserInfo fetch failed: 401 - Invalid token"
+        "UserInfo fetch failed: 401 - Invalid token",
       );
     });
 
@@ -182,7 +179,7 @@ describe("getUserInfo", () => {
       });
 
       await expect(getUserInfo("access-token")).rejects.toThrow(
-        "UserInfo fetch failed: 403 - Access denied"
+        "UserInfo fetch failed: 403 - Access denied",
       );
     });
 
@@ -194,11 +191,11 @@ describe("getUserInfo", () => {
 
     test("throws when wellKnown endpoints fetch fails", async () => {
       vi.mocked(getWellKnownEndpoints).mockRejectedValue(
-        new Error("Failed to fetch well-known configuration")
+        new Error("Failed to fetch well-known configuration"),
       );
 
       await expect(getUserInfo("access-token")).rejects.toThrow(
-        "Failed to fetch well-known configuration"
+        "Failed to fetch well-known configuration",
       );
     });
   });

@@ -24,10 +24,7 @@ export async function deleteConnection(user: UserProfile, name: string) {
   await prisma.connectionConfig.delete({ where: { id: config.id } });
 }
 
-export const deleteAction = async ({
-  request,
-  context,
-}: ActionFunctionArgs) => {
+export const deleteAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();

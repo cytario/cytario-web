@@ -25,9 +25,7 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
     .replace(/^\/+/, "");
 
   if (!connectionName) {
-    throw new Error(
-      `Invalid resourceId: "${resourceId}" — empty connectionName`,
-    );
+    throw new Error(`Invalid resourceId: "${resourceId}" — empty connectionName`);
   }
 
   return { connectionName, pathName };
@@ -40,10 +38,7 @@ export function getFileName(resourceId: string): string {
 }
 
 /** Builds a routable URL path from a connection name and an object path. */
-export function buildConnectionPath(
-  connectionName: string,
-  pathName: string,
-): string {
+export function buildConnectionPath(connectionName: string, pathName: string): string {
   const path = pathName
     ? `/connections/${connectionName}/${pathName}`
     : `/connections/${connectionName}`;
@@ -70,10 +65,7 @@ export function buildConnectionPath(
  * constructS3Url({ bucketName: "b", endpoint: "http://localhost:9000" }, "x.zarr")
  * // → "http://localhost:9000/b/x.zarr"
  */
-export function constructS3Url(
-  connectionConfig: ConnectionConfig,
-  s3Key: string,
-): string {
+export function constructS3Url(connectionConfig: ConnectionConfig, s3Key: string): string {
   const bucket = connectionConfig.bucketName;
   const encodedPath = s3Key.split("/").map(encodeURIComponent).join("/");
 

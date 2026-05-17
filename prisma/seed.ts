@@ -17,8 +17,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 const TEST_CONNECTION_NAME = process.env.E2E_CONNECTION_NAME || "Exchange";
-const TEST_PREFIX_CONNECTION_NAME =
-  process.env.E2E_PREFIX_CONNECTION_NAME || "Exchange-prefixed";
+const TEST_PREFIX_CONNECTION_NAME = process.env.E2E_PREFIX_CONNECTION_NAME || "Exchange-prefixed";
 
 const SHARED_BUCKET = {
   ownerScope: "cytario",

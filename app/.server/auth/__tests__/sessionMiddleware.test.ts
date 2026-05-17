@@ -22,9 +22,7 @@ describe("sessionMiddleware", () => {
       params: {},
       context: {
         get: (key: unknown) => contextMap.get(key),
-        set: vi.fn((key: unknown, value: unknown) =>
-          contextMap.set(key, value)
-        ),
+        set: vi.fn((key: unknown, value: unknown) => contextMap.set(key, value)),
       },
     };
   };
@@ -33,10 +31,7 @@ describe("sessionMiddleware", () => {
     const args = createMiddlewareArgs();
     const request = args.request;
 
-    await sessionMiddleware(
-      args as unknown as Parameters<typeof sessionMiddleware>[0],
-      mockNext
-    );
+    await sessionMiddleware(args as unknown as Parameters<typeof sessionMiddleware>[0], mockNext);
 
     expect(getSession).toHaveBeenCalledWith(request);
   });
@@ -44,10 +39,7 @@ describe("sessionMiddleware", () => {
   test("sets session in context", async () => {
     const args = createMiddlewareArgs();
 
-    await sessionMiddleware(
-      args as unknown as Parameters<typeof sessionMiddleware>[0],
-      mockNext
-    );
+    await sessionMiddleware(args as unknown as Parameters<typeof sessionMiddleware>[0], mockNext);
 
     expect(args.context.set).toHaveBeenCalledWith(sessionContext, mockSession);
   });
@@ -55,10 +47,7 @@ describe("sessionMiddleware", () => {
   test("calls next() after setting session", async () => {
     const args = createMiddlewareArgs();
 
-    await sessionMiddleware(
-      args as unknown as Parameters<typeof sessionMiddleware>[0],
-      mockNext
-    );
+    await sessionMiddleware(args as unknown as Parameters<typeof sessionMiddleware>[0], mockNext);
 
     expect(mockNext).toHaveBeenCalled();
   });
@@ -70,7 +59,7 @@ describe("sessionMiddleware", () => {
 
     const result = await sessionMiddleware(
       args as unknown as Parameters<typeof sessionMiddleware>[0],
-      mockNext
+      mockNext,
     );
 
     expect(result).toBe(expectedResponse);
@@ -81,10 +70,7 @@ describe("sessionMiddleware", () => {
     vi.mocked(getSession).mockRejectedValue(new Error("Session error"));
 
     await expect(
-      sessionMiddleware(
-        args as unknown as Parameters<typeof sessionMiddleware>[0],
-        mockNext
-      )
+      sessionMiddleware(args as unknown as Parameters<typeof sessionMiddleware>[0], mockNext),
     ).rejects.toThrow("Session error");
 
     expect(mockNext).not.toHaveBeenCalled();

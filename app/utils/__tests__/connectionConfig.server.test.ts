@@ -1,8 +1,5 @@
 import { prisma } from "~/.server/db/prisma";
-import {
-  getConnection,
-  listConnections,
-} from "~/routes/connections/connections.server";
+import { getConnection, listConnections } from "~/routes/connections/connections.server";
 import { createConnection } from "~/routes/connections/createConnection.action";
 import { deleteConnection } from "~/routes/connections/deleteConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
@@ -126,9 +123,7 @@ describe("connectionConfig.server", () => {
         endpoint: "https://s3.amazonaws.com",
       };
 
-      vi.mocked(prisma.connectionConfig.upsert).mockResolvedValue(
-        mock.connectionConfig(),
-      );
+      vi.mocked(prisma.connectionConfig.upsert).mockResolvedValue(mock.connectionConfig());
 
       await createConnection("org1/lab", "user-123", newConfig);
 
@@ -160,18 +155,18 @@ describe("connectionConfig.server", () => {
     test("throws when config not found", async () => {
       vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
 
-      await expect(
-        deleteConnection(user, "nonexistent"),
-      ).rejects.toThrow("Connection config not found");
+      await expect(deleteConnection(user, "nonexistent")).rejects.toThrow(
+        "Connection config not found",
+      );
     });
 
     test("throws when user cannot see config", async () => {
       vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      await expect(
-        deleteConnection(user, "aws-mock-bucket"),
-      ).rejects.toThrow("Connection config not found");
+      await expect(deleteConnection(user, "aws-mock-bucket")).rejects.toThrow(
+        "Connection config not found",
+      );
     });
 
     test("throws when user cannot modify config", async () => {
@@ -179,9 +174,9 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(false);
 
-      await expect(
-        deleteConnection(user, "aws-mock-bucket"),
-      ).rejects.toThrow("Not authorized to delete this connection config");
+      await expect(deleteConnection(user, "aws-mock-bucket")).rejects.toThrow(
+        "Not authorized to delete this connection config",
+      );
     });
   });
 });

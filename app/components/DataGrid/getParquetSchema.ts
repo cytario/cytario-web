@@ -2,7 +2,6 @@ import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 
-
 export interface ParquetColumn {
   name: string;
   type: string;
@@ -12,9 +11,7 @@ export interface ParquetColumn {
  * Fetch the schema (column names and types) from a data file on S3.
  * Supports: parquet, csv, json
  */
-export async function getParquetSchema(
-  resourceId: string,
-): Promise<ParquetColumn[]> {
+export async function getParquetSchema(resourceId: string): Promise<ParquetColumn[]> {
   const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
   const connection = await createDatabase(resourceId, credentials, connectionConfig);
   const fileType = getFileType(resourceId);

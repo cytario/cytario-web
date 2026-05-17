@@ -43,39 +43,29 @@ describe("assertGroupsInScope", () => {
   test("passes when group is the scope root", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertGroupsInScope(["g1"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when group is a subgroup of the scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertGroupsInScope(["g2"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g2"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when group is the admins subgroup of the scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertGroupsInScope(["g3"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g3"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when multiple groups are all in scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertGroupsInScope(["g1", "g2", "g3"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1", "g2", "g3"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes (no API call) when groupIds array is empty", async () => {
-    await expect(
-      assertGroupsInScope([], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertGroupsInScope([], "vericura")).resolves.toBeUndefined();
 
     expect(mockGetGroupWithMembers).not.toHaveBeenCalled();
   });

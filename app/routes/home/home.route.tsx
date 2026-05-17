@@ -1,11 +1,7 @@
 import { Button, EmptyState } from "@cytario/design";
 import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
-import {
-  type MetaFunction,
-  type ShouldRevalidateFunction,
-  useLoaderData,
-} from "react-router";
+import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
@@ -18,7 +14,6 @@ import {
 } from "~/routes/connections/connections.loader";
 import { isImageFile } from "~/utils/fileType";
 
-
 const title = "Storage Connections";
 const MAX_RECENT_IMAGES = 4;
 const MAX_PINNED = 10;
@@ -27,10 +22,7 @@ const MAX_RECENT_FILES = 6;
 const MAX_CONNECTIONS = 100;
 
 export const meta: MetaFunction = () => {
-  return [
-    { title },
-    { name: "description", content: "Manage your storage connections" },
-  ];
+  return [{ title }, { name: "description", content: "Manage your storage connections" }];
 };
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
@@ -48,8 +40,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 export { loadConnections as loader } from "~/routes/connections/connections.loader";
 
 export default function HomeRoute() {
-  const { nodes, connectionConfigs, recentlyViewed, pinnedPaths } =
-    useLoaderData<LoaderData>();
+  const { nodes, connectionConfigs, recentlyViewed, pinnedPaths } = useLoaderData<LoaderData>();
 
   const { openModal } = useModal();
 
@@ -62,9 +53,7 @@ export default function HomeRoute() {
   const allRecentItems: TreeNode[] = useMemo(
     () =>
       recentlyViewed
-        .filter((item: SerializedRecentlyViewed) =>
-          configByName.has(item.connectionName),
-        )
+        .filter((item: SerializedRecentlyViewed) => configByName.has(item.connectionName))
         .map((item: SerializedRecentlyViewed) => {
           return {
             id: `${item.connectionName}/${item.pathName}`,
@@ -93,9 +82,7 @@ export default function HomeRoute() {
   const pinnedNodes: TreeNode[] = useMemo(
     () =>
       pinnedPaths
-        .filter((pin: SerializedPinnedPath) =>
-          configByName.has(pin.connectionName),
-        )
+        .filter((pin: SerializedPinnedPath) => configByName.has(pin.connectionName))
         .map((pin: SerializedPinnedPath) => {
           return {
             id: `${pin.connectionName}/${pin.pathName}`,
@@ -108,9 +95,7 @@ export default function HomeRoute() {
               pin.totalSize != null || pin.lastModified != null
                 ? ({
                     Size: pin.totalSize ?? undefined,
-                    LastModified: pin.lastModified
-                      ? new Date(pin.lastModified)
-                      : undefined,
+                    LastModified: pin.lastModified ? new Date(pin.lastModified) : undefined,
                   } as TreeNode["_Object"])
                 : undefined,
           };
@@ -128,12 +113,7 @@ export default function HomeRoute() {
         showAllHref="/recent"
       />
 
-      <DashboardSection
-        title="Pinned"
-        nodes={pinnedNodes}
-        viewMode="list"
-        maxItems={MAX_PINNED}
-      />
+      <DashboardSection title="Pinned" nodes={pinnedNodes} viewMode="list" maxItems={MAX_PINNED} />
 
       <DashboardSection
         title="Recently Browsed"
@@ -166,18 +146,13 @@ export default function HomeRoute() {
             title="Start exploring your data"
             description="Add a storage connection to view your cloud storage."
             action={
-              <Button
-                size="lg"
-                variant="neutral"
-                onPress={() => openModal("add-connection")}
-              >
+              <Button size="lg" variant="neutral" onPress={() => openModal("add-connection")}>
                 Connect Storage
               </Button>
             }
           />
         </Section>
       )}
-
     </div>
   );
 }

@@ -63,11 +63,7 @@ export function InviteUserForm({
   };
 
   return (
-    <form
-      id="invite-form"
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
-    >
+    <form id="invite-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Fieldset>
         <Field label="Email" error={errors.email}>
           <Controller
@@ -128,9 +124,7 @@ export function InviteUserForm({
           />
         ) : (
           <Field label="Group Membership">
-            <p className="text-sm text-slate-400">
-              No groups available in this scope.
-            </p>
+            <p className="text-sm text-slate-400">No groups available in this scope.</p>
           </Field>
         )}
         <div className="flex items-center gap-2">

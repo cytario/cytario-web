@@ -17,13 +17,7 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
         placeholder="Search..."
       />
 
-      {value ? (
-        <IconButton
-          icon={X}
-          onPress={onClear}
-          aria-label="Clear search"
-        />
-      ) : null}
+      {value ? <IconButton icon={X} onPress={onClear} aria-label="Clear search" /> : null}
     </div>
   );
 }

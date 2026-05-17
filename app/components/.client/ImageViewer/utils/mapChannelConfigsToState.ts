@@ -1,8 +1,6 @@
 import { ChannelsStateColumns, ChannelsState } from "../state/store/types";
 
-export const mapChannelConfigsToState = (
-  state: ChannelsState
-): ChannelsStateColumns => {
+export const mapChannelConfigsToState = (state: ChannelsState): ChannelsStateColumns => {
   return Object.entries(state).reduce<ChannelsStateColumns>(
     (acc, [id, config]) => {
       if (!config.isVisible) return acc;
@@ -25,6 +23,6 @@ export const mapChannelConfigsToState = (
       domains: [],
       selections: [],
       histograms: [],
-    }
+    },
   );
 };

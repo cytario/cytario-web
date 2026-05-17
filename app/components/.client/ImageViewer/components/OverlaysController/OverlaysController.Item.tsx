@@ -1,8 +1,4 @@
-import {
-  IconButton,
-  IconButtonLink,
-  useToast,
-} from "@cytario/design";
+import { IconButton, IconButtonLink, useToast } from "@cytario/design";
 import { ExternalLink, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { RadioGroup } from "react-aria-components";
@@ -36,13 +32,9 @@ export const OverlaysControllerItem = ({
   const { toast } = useToast();
 
   // Get file download progress from the file store
-  const fileProgress = useFileStore(
-    (state) => state.files[resourceId]?.progress,
-  );
+  const fileProgress = useFileStore((state) => state.files[resourceId]?.progress);
 
-  const cx = twMerge(
-    "flex flex-col px-3",
-  );
+  const cx = twMerge("flex flex-col px-3");
 
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,9 +49,7 @@ export const OverlaysControllerItem = ({
   );
 
   const { connectionName } = parseResourceId(resourceId);
-  const connectionConfig = useConnectionsStore(
-    connectionsSelect.connectionConfig(connectionName),
-  );
+  const connectionConfig = useConnectionsStore(connectionsSelect.connectionConfig(connectionName));
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
@@ -90,14 +80,7 @@ export const OverlaysControllerItem = ({
     };
 
     fetchMarkers();
-  }, [
-    hasMarkers,
-    resourceId,
-    connectionConfig,
-    updateOverlaysState,
-    toast,
-    fileName,
-  ]);
+  }, [hasMarkers, resourceId, connectionConfig, updateOverlaysState, toast, fileName]);
 
   return (
     <div className="flex flex-col">
@@ -125,9 +108,7 @@ export const OverlaysControllerItem = ({
           variant="ghost"
           size="sm"
           onPress={() => {
-            const confirmation = confirm(
-              `Are you sure you want to remove overlay "${fileName}"?`,
-            );
+            const confirmation = confirm(`Are you sure you want to remove overlay "${fileName}"?`);
             if (confirmation) removeOverlaysState(resourceId);
           }}
         />
@@ -140,38 +121,27 @@ export const OverlaysControllerItem = ({
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LavaLoader />
               {fileProgress && fileProgress.percentage < 100 && (
-                <div className="text-sm">
-                  Downloading: {Math.round(fileProgress.percentage)}%
-                </div>
+                <div className="text-sm">Downloading: {Math.round(fileProgress.percentage)}%</div>
               )}
             </div>
           ) : hasMarkers ? (
-            Object.entries(overlayState).map(
-              ([markerName, { color, count, isVisible }]) => {
-                return (
-                  <ChannelsControllerItem
-                    key={markerName}
-                    name={
-                      markerName.replace(
-                        "marker_positive_",
-                        "",
-                      ) as keyof ChannelsStateColumns
-                    }
-                    color={color}
-                    isVisible={isVisible}
-                    isLoading={false}
-                    pixelValue={count}
-                    maxDomain={maxDomain}
-                    toggleChannelVisibility={() =>
-                      setMarkerVisibility(resourceId, markerName, !isVisible)
-                    }
-                    onColorChange={(color) =>
-                      setMarkerColor(resourceId, markerName, color)
-                    }
-                  />
-                );
-              },
-            )
+            Object.entries(overlayState).map(([markerName, { color, count, isVisible }]) => {
+              return (
+                <ChannelsControllerItem
+                  key={markerName}
+                  name={markerName.replace("marker_positive_", "") as keyof ChannelsStateColumns}
+                  color={color}
+                  isVisible={isVisible}
+                  isLoading={false}
+                  pixelValue={count}
+                  maxDomain={maxDomain}
+                  toggleChannelVisibility={() =>
+                    setMarkerVisibility(resourceId, markerName, !isVisible)
+                  }
+                  onColorChange={(color) => setMarkerColor(resourceId, markerName, color)}
+                />
+              );
+            })
           ) : (
             <div className="p-4 text-sm text-[var(--color-text-secondary)]">
               No markers found in this overlay

@@ -27,9 +27,7 @@ describe("SearchRoute", () => {
   test("loader should propagate errors from getGlobalSearch", async () => {
     // Setup mocks with return values
     vi.mocked(getS3Client).mockResolvedValue({} as S3Client);
-    vi.mocked(getObjects).mockRejectedValue(
-      new Error("Search service unavailable")
-    );
+    vi.mocked(getObjects).mockRejectedValue(new Error("Search service unavailable"));
 
     const request = new Request("http://localhost/search?query=test");
 
@@ -61,7 +59,7 @@ describe("SearchRoute", () => {
         context: mockContext as never,
         unstable_pattern: "",
         unstable_url: new URL(request.url),
-      })
+      }),
     ).rejects.toThrow("Search service unavailable");
   });
 
@@ -85,25 +83,23 @@ describe("SearchRoute", () => {
       prefix: "Repository Slash-m Exchange/",
     });
 
-    vi.mocked(getObjects).mockImplementation(
-      async (_config, _client, _query, prefix) => {
-        if (prefix === "Repository Demo Deliverables/") {
-          return [
-            {
-              Key: "Repository Demo Deliverables/results/demo.parquet",
-            },
-          ];
-        }
-        if (prefix === "Repository Slash-m Exchange/") {
-          return [
-            {
-              Key: "Repository Slash-m Exchange/results/USL-2022-42307-42.ome.tif/results/results_total.csv.parquet",
-            },
-          ];
-        }
-        return [];
-      },
-    );
+    vi.mocked(getObjects).mockImplementation(async (_config, _client, _query, prefix) => {
+      if (prefix === "Repository Demo Deliverables/") {
+        return [
+          {
+            Key: "Repository Demo Deliverables/results/demo.parquet",
+          },
+        ];
+      }
+      if (prefix === "Repository Slash-m Exchange/") {
+        return [
+          {
+            Key: "Repository Slash-m Exchange/results/USL-2022-42307-42.ome.tif/results/results_total.csv.parquet",
+          },
+        ];
+      }
+      return [];
+    });
 
     const request = new Request("http://localhost/search?query=parquet");
     const mockContext = {
@@ -164,11 +160,7 @@ describe("SearchRoute", () => {
     // Slash-m's first file path should be cleanly relative to its own prefix.
     const slashmTree = result.nodes[1];
     expect(slashmTree.children[0].name).toBe("results");
-    expect(slashmTree.children[0].children[0].name).toBe(
-      "USL-2022-42307-42.ome.tif",
-    );
-    expect(slashmTree.children[0].children[0].pathName).toBe(
-      "results/USL-2022-42307-42.ome.tif/",
-    );
+    expect(slashmTree.children[0].children[0].name).toBe("USL-2022-42307-42.ome.tif");
+    expect(slashmTree.children[0].children[0].pathName).toBe("results/USL-2022-42307-42.ome.tif/");
   });
 });

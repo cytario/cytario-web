@@ -24,17 +24,11 @@ const s3ClientCache = new LRUCache<string, CacheEntry>({
 /**
  * Creates a unique cache key scoped to user, bucket, and credential identity.
  */
-const createCacheKey = (
-  userId: string,
-  bucketName: string,
-  credentials: Credentials,
-): string => {
+const createCacheKey = (userId: string, bucketName: string, credentials: Credentials): string => {
   // Hash credentials to detect when they change (e.g., after refresh)
   const credHash = crypto
     .createHash("sha256")
-    .update(
-      `${credentials.AccessKeyId}:${credentials.SecretAccessKey}:${credentials.SessionToken}`,
-    )
+    .update(`${credentials.AccessKeyId}:${credentials.SecretAccessKey}:${credentials.SessionToken}`)
     .digest("hex")
     .substring(0, 16);
 
@@ -89,10 +83,7 @@ export const getS3Client = async (
 };
 
 /** Remove all cached S3 clients for a given user + bucket (e.g. after config change). */
-export const invalidateS3ClientsForBucket = (
-  userId: string,
-  bucketName: string,
-): void => {
+export const invalidateS3ClientsForBucket = (userId: string, bucketName: string): void => {
   for (const key of s3ClientCache.keys()) {
     const entry = s3ClientCache.peek(key);
     if (entry && entry.userId === userId && entry.bucketName === bucketName) {
@@ -100,4 +91,3 @@ export const invalidateS3ClientsForBucket = (
     }
   }
 };
-

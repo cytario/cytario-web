@@ -103,9 +103,7 @@ describe("DirectoryView Component", () => {
       name: "Test Directory",
     });
 
-    expect(
-      screen.getByRole("tree", { name: /Directory tree/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tree", { name: /Directory tree/i })).toBeInTheDocument();
   });
 
   test("renders FilterBar when showFilters is true (non-list mode)", () => {
@@ -127,9 +125,7 @@ describe("DirectoryView Component", () => {
       name: "Test Directory",
     });
 
-    expect(
-      screen.queryByRole("textbox", { name: "Name" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
   });
 
   test("does not render FilterBar when showFilters is false", () => {
@@ -139,12 +135,8 @@ describe("DirectoryView Component", () => {
       name: "Test Directory",
     });
 
-    expect(
-      screen.queryByRole("textbox", { name: "Name" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("textbox", { name: "Filter by Name" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Filter by Name" })).not.toBeInTheDocument();
   });
 
   test("name filter narrows displayed nodes in grid mode", async () => {
@@ -183,10 +175,7 @@ describe("DirectoryView Component", () => {
   });
 
   test("hidden files are excluded by default", () => {
-    const nodesWithHidden = [
-      ...mockNodes,
-      mock.treeNode({ name: ".hidden-file", type: "file" }),
-    ];
+    const nodesWithHidden = [...mockNodes, mock.treeNode({ name: ".hidden-file", type: "file" })];
 
     renderDirectoryView({
       viewMode: "list",
@@ -201,10 +190,7 @@ describe("DirectoryView Component", () => {
   test("hidden files are visible when showHiddenFiles is enabled in the store", () => {
     useLayoutStore.setState({ showHiddenFiles: true });
 
-    const nodesWithHidden = [
-      ...mockNodes,
-      mock.treeNode({ name: ".hidden-file", type: "file" }),
-    ];
+    const nodesWithHidden = [...mockNodes, mock.treeNode({ name: ".hidden-file", type: "file" })];
 
     renderDirectoryView({
       viewMode: "list",

@@ -96,9 +96,7 @@ describe("logout loader", () => {
     await loader({ request } as LoaderFunctionArgs);
 
     const [, options] = mockFetch.mock.calls[0];
-    const expectedAuth = Buffer.from(
-      "test-client-id:test-client-secret",
-    ).toString("base64");
+    const expectedAuth = Buffer.from("test-client-id:test-client-secret").toString("base64");
     expect(options.headers.Authorization).toBe(`Basic ${expectedAuth}`);
   });
 
@@ -183,8 +181,7 @@ describe("logout loader", () => {
     expect(location).toContain("https://auth.example.com/logout");
     expect(location).toContain("id_token_hint=id-token-hint");
     expect(location).toContain(
-      "post_logout_redirect_uri=" +
-        encodeURIComponent("https://app.example.com/login"),
+      "post_logout_redirect_uri=" + encodeURIComponent("https://app.example.com/login"),
     );
     expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
   });

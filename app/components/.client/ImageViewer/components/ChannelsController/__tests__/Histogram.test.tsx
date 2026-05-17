@@ -20,13 +20,7 @@ vi.mock("../MinMaxSettings", () => ({
 }));
 
 vi.mock("../HistogramChannel", () => ({
-  HistogramChannel: ({
-    channelIndex,
-    color,
-  }: {
-    channelIndex: number;
-    color: string;
-  }) => (
+  HistogramChannel: ({ channelIndex, color }: { channelIndex: number; color: string }) => (
     <g data-testid={`histogram-channel-${channelIndex}`} data-color={color} />
   ),
 }));

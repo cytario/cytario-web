@@ -1,9 +1,5 @@
 import { bootstrapPluginsCore } from "../bootstrapPluginsCore";
-import type {
-  CytarioPlugin,
-  Logger,
-  PluginContext,
-} from "@cytario/plugin-api";
+import type { CytarioPlugin, Logger, PluginContext } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 const noopLogger = (): Logger => ({
@@ -57,9 +53,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
 
     // Good plugin still registered despite the bad plugin throwing.
     expect(goodRegistered).toHaveBeenCalledTimes(1);
-    expect(
-      formatRegistry.list().some((r) => r.pluginName === "good-plugin"),
-    ).toBe(true);
+    expect(formatRegistry.list().some((r) => r.pluginName === "good-plugin")).toBe(true);
 
     // Error logged exactly once for the bad plugin.
     expect(logger.error).toHaveBeenCalledTimes(1);

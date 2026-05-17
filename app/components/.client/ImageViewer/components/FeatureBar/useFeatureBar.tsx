@@ -35,8 +35,7 @@ export const useFeatureBarStore = create<ControlBarStore>()(
         maxWidth: 720,
         setWidth: (width: number) => set({ width }, false, "setWidth"),
         listStyle: "grid",
-        setListStyle: (listStyle: FeatureBarListStyle) =>
-          set({ listStyle }, false, "setListStyle"),
+        setListStyle: (listStyle: FeatureBarListStyle) => set({ listStyle }, false, "setListStyle"),
         showCellOutline: true,
         setShowCellOutline: (showCellOutline: boolean) =>
           set({ showCellOutline }, false, "setShowCellOutline"),
@@ -49,20 +48,19 @@ export const useFeatureBarStore = create<ControlBarStore>()(
                   acc[id] = values[index];
                   return acc;
                 },
-                { ...state.pixelValues }
+                { ...state.pixelValues },
               ),
             }),
             false,
-            "setPixelValues"
+            "setPixelValues",
           ),
         isExpanded: true,
-        setIsExpanded: (isExpanded: boolean) =>
-          set({ isExpanded }, false, "setIsExpanded"),
+        setIsExpanded: (isExpanded: boolean) => set({ isExpanded }, false, "setIsExpanded"),
       }),
-      { name }
+      { name },
     ),
-    { name }
-  )
+    { name },
+  ),
 );
 
 export function createFeatureItemStore(name: string) {
@@ -73,16 +71,16 @@ export function createFeatureItemStore(name: string) {
           isOpen: false,
           setIsOpen: (isOpen: boolean) => set({ isOpen }),
         }),
-        { name }
+        { name },
       ),
-      { name }
-    )
+      { name },
+    ),
   );
 }
 
-const FeatureItemStoreContext = createContext<UseBoundStore<
-  StoreApi<FeatureItemStore>
-> | null>(null);
+const FeatureItemStoreContext = createContext<UseBoundStore<StoreApi<FeatureItemStore>> | null>(
+  null,
+);
 
 export function FeatureItemStoreProvider({
   name,
@@ -93,20 +91,13 @@ export function FeatureItemStoreProvider({
 }) {
   const [store] = useState(() => createFeatureItemStore(name));
   return (
-    <FeatureItemStoreContext.Provider value={store}>
-      {children}
-    </FeatureItemStoreContext.Provider>
+    <FeatureItemStoreContext.Provider value={store}>{children}</FeatureItemStoreContext.Provider>
   );
 }
 
 // export function useFeatureItemStore() {
-export const useFeatureItemStore = <T,>(
-  selector: (state: FeatureItemStore) => T
-): T => {
+export const useFeatureItemStore = <T,>(selector: (state: FeatureItemStore) => T): T => {
   const store = useContext(FeatureItemStoreContext);
-  if (!store)
-    throw new Error(
-      "useFeatureItemStore must be used within a FeatureItemStoreProvider"
-    );
+  if (!store) throw new Error("useFeatureItemStore must be used within a FeatureItemStoreProvider");
   return useStore(store, selector);
 };

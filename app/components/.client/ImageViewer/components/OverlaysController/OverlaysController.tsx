@@ -66,9 +66,7 @@ export const OverlaysController = () => {
         )}
       </footer>
 
-      {isOpen && (
-        <LoadOverlayModal onClose={() => setIsOpen(false)} />
-      )}
+      {isOpen && <LoadOverlayModal onClose={() => setIsOpen(false)} />}
     </FeatureItem>
   );
 };

@@ -3,11 +3,7 @@ import { filesize } from "filesize";
 import { useMemo } from "react";
 import { Link } from "react-router";
 
-import {
-  TreeNode,
-  computeDirectorySize,
-  computeDirectoryLastModified,
-} from "./buildDirectoryTree";
+import { TreeNode, computeDirectorySize, computeDirectoryLastModified } from "./buildDirectoryTree";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
@@ -74,8 +70,7 @@ const fileCellRenderers: CellRenderers<FileRow> = {
   // for directories, file-type icon for files) to match the grid's FileCard.
   name: (row) => <Link to={`/connections/${row.id}`}>{row.name}</Link>,
   file_type: (row) => <Pill>{row.file_type}</Pill>,
-  last_modified: (row) =>
-    row.last_modified ? formatHumanReadableDate(row.last_modified) : null,
+  last_modified: (row) => (row.last_modified ? formatHumanReadableDate(row.last_modified) : null),
   size: (row) => (row.size ? filesize(row.size).toString() : null),
 };
 

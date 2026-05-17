@@ -55,10 +55,7 @@ describe("exchangeAuthCode", () => {
 
     await exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier);
 
-    expect(fetch).toHaveBeenCalledWith(
-      mockTokenEndpoint,
-      expect.any(Object)
-    );
+    expect(fetch).toHaveBeenCalledWith(mockTokenEndpoint, expect.any(Object));
   });
 
   test("sends authorization_code grant type with code_verifier", async () => {
@@ -115,9 +112,9 @@ describe("exchangeAuthCode", () => {
     });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(
-      exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier),
-    ).rejects.toThrow("Token exchange failed: 400");
+    await expect(exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier)).rejects.toThrow(
+      "Token exchange failed: 400",
+    );
 
     consoleSpy.mockRestore();
   });
@@ -127,14 +124,11 @@ describe("exchangeAuthCode", () => {
     global.fetch = vi.fn().mockRejectedValue(networkError);
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(
-      exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier),
-    ).rejects.toThrow("Network error");
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Authorization code exchange failed:",
-      networkError
+    await expect(exchangeAuthCode(mockCode, mockRedirectUri, mockCodeVerifier)).rejects.toThrow(
+      "Network error",
     );
+
+    expect(consoleSpy).toHaveBeenCalledWith("Authorization code exchange failed:", networkError);
     consoleSpy.mockRestore();
   });
 
@@ -154,7 +148,7 @@ describe("exchangeAuthCode", () => {
 
     expect(consoleSpy).toHaveBeenCalledWith(
       "Authorization code exchange failed:",
-      expect.any(Error)
+      expect.any(Error),
     );
     consoleSpy.mockRestore();
   });

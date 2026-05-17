@@ -8,10 +8,7 @@ for (let i = 0; i < mockData.length; i++) {
 const mockLoader = {
   dtype: "Uint16",
   getRaster: vi.fn(
-    () =>
-      new Promise((resolve) =>
-        resolve({ data: mockData, width: 1024, height: 1024 })
-      )
+    () => new Promise((resolve) => resolve({ data: mockData, width: 1024, height: 1024 })),
   ),
 } as unknown as Loader[number];
 
@@ -21,7 +18,7 @@ describe("getSelectionStats()", () => {
       await getSelectionStats({
         loader: [mockLoader],
         selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
-      })
+      }),
     ).toEqual({
       domain: [0, 65535],
       contrastLimits: [45874, 65528],

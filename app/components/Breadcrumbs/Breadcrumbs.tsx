@@ -1,9 +1,5 @@
-import {
-  Breadcrumbs as DesignBreadcrumbs,
-  type BreadcrumbItem,
-} from "@cytario/design";
-import { Link , UIMatch, useMatches } from "react-router";
-
+import { Breadcrumbs as DesignBreadcrumbs, type BreadcrumbItem } from "@cytario/design";
+import { Link, UIMatch, useMatches } from "react-router";
 
 import { Logo } from "../Logo";
 
@@ -21,9 +17,7 @@ type BreadcrumbMatch = UIMatch<
 
 export function Breadcrumbs() {
   const matches = useMatches() as BreadcrumbMatch[];
-  const filteredMatches = matches.filter(
-    (match) => match.handle && match.handle.breadcrumb
-  );
+  const filteredMatches = matches.filter((match) => match.handle && match.handle.breadcrumb);
 
   const crumbs = filteredMatches.flatMap((match) => {
     const result = match.handle.breadcrumb(match);
@@ -47,10 +41,7 @@ export function Breadcrumbs() {
         </Link>
       )}
       {items.length > 0 && (
-        <DesignBreadcrumbs
-          items={items}
-          className="flex items-center overflow-hidden"
-        />
+        <DesignBreadcrumbs items={items} className="flex items-center overflow-hidden" />
       )}
     </div>
   );

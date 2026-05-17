@@ -10,14 +10,8 @@ export const connectionNameSchema = z
     /^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$/,
     "Name must be alphanumeric with hyphens or spaces, no leading/trailing hyphens or spaces",
   )
-  .refine(
-    (val) => !val.includes("--"),
-    "Name must not contain consecutive hyphens",
-  )
-  .refine(
-    (val) => !val.includes("  "),
-    "Name must not contain consecutive spaces",
-  );
+  .refine((val) => !val.includes("--"), "Name must not contain consecutive hyphens")
+  .refine((val) => !val.includes("  "), "Name must not contain consecutive spaces");
 
 // AWS ARN pattern validation
 const arnPattern = /^arn:aws:iam::\d{12}:role\/[\w+=,.@-]+$/;
@@ -39,11 +33,7 @@ const s3UriSchema = z
 /** Auto-suggest a connection name from an S3 URI (e.g. "s3://my-bucket/path" → "my-bucket"). */
 export function suggestName(s3Uri: string): string {
   const { bucketName, prefix } = parseS3Uri(s3Uri);
-  const lastSegment = prefix
-    .replace(/\/$/, "")
-    .split("/")
-    .filter(Boolean)
-    .pop();
+  const lastSegment = prefix.replace(/\/$/, "").split("/").filter(Boolean).pop();
   const base = lastSegment ? `${bucketName} ${lastSegment}` : bucketName;
   return base
     .replace(/[^a-zA-Z0-9 -]/g, " ")
@@ -54,9 +44,7 @@ export function suggestName(s3Uri: string): string {
 }
 
 // Helper to parse S3 URI into bucket name and prefix
-export const parseS3Uri = (
-  uri: string,
-): { bucketName: string; prefix: string } => {
+export const parseS3Uri = (uri: string): { bucketName: string; prefix: string } => {
   const cleaned = uri.replace(/^s3:\/\//, "");
   const [bucketName, ...prefixParts] = cleaned.split("/");
   const prefix = prefixParts.join("/");

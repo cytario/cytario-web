@@ -17,7 +17,14 @@ const mockGroupWithMembers = {
   name: "vericura",
   path: "vericura",
   members: [
-    { id: "user-1", username: "alice", email: "alice@example.com", firstName: "Alice", lastName: "A", enabled: true },
+    {
+      id: "user-1",
+      username: "alice",
+      email: "alice@example.com",
+      firstName: "Alice",
+      lastName: "A",
+      enabled: true,
+    },
   ],
   subGroups: [
     {
@@ -25,7 +32,14 @@ const mockGroupWithMembers = {
       name: "lab",
       path: "vericura/lab",
       members: [
-        { id: "user-2", username: "bob", email: "bob@example.com", firstName: "Bob", lastName: "B", enabled: true },
+        {
+          id: "user-2",
+          username: "bob",
+          email: "bob@example.com",
+          firstName: "Bob",
+          lastName: "B",
+          enabled: true,
+        },
       ],
       subGroups: [],
     },
@@ -34,7 +48,14 @@ const mockGroupWithMembers = {
       name: "admins",
       path: "vericura/admins",
       members: [
-        { id: "user-3", username: "admin", email: "admin@example.com", firstName: "Admin", lastName: "A", enabled: true },
+        {
+          id: "user-3",
+          username: "admin",
+          email: "admin@example.com",
+          firstName: "Admin",
+          lastName: "A",
+          enabled: true,
+        },
       ],
       subGroups: [],
     },
@@ -49,17 +70,13 @@ describe("assertUsersInScope", () => {
   test("passes when user is in scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertUsersInScope(["user-1"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertUsersInScope(["user-1"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when user is in a subgroup of the scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(
-      assertUsersInScope(["user-2"], "vericura"),
-    ).resolves.toBeUndefined();
+    await expect(assertUsersInScope(["user-2"], "vericura")).resolves.toBeUndefined();
   });
 
   test("passes when multiple users are all in scope", async () => {

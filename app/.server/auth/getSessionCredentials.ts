@@ -1,22 +1,13 @@
-import {
-  AssumeRoleWithWebIdentityCommand,
-  Credentials,
-  STSClient,
-} from "@aws-sdk/client-sts";
+import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
-import {
-  type ConnectionsCredentials,
-  type SessionData,
-} from "./sessionStorage";
+import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 const label = createLabel("credentials", "cyan");
 
-export const isValidCredentials = (
-  credentials?: { Expiration?: Date },
-): boolean => {
+export const isValidCredentials = (credentials?: { Expiration?: Date }): boolean => {
   if (!credentials?.Expiration) return false;
 
   // Check if credentials are expired (with 5 minute buffer)
@@ -91,9 +82,7 @@ export const getAllSessionCredentials = async (
     return sessionData.credentials;
   }
 
-  console.info(
-    `${label} Fetching credentials for ${stale.length} connection(s)`,
-  );
+  console.info(`${label} Fetching credentials for ${stale.length} connection(s)`);
 
   const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
 
@@ -114,10 +103,7 @@ export const getAllSessionCredentials = async (
     if (result.status === "fulfilled") {
       newCredentials[result.value.name] = result.value.credentials;
     } else {
-      console.warn(
-        `${label} Failed to fetch credentials for a connection:`,
-        result.reason,
-      );
+      console.warn(`${label} Failed to fetch credentials for a connection:`, result.reason);
     }
   }
 

@@ -11,7 +11,6 @@ const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
   name: "file.csv",
   type: "file",
 
-
   pathName: "file.csv",
   children: [],
   ...overrides,
@@ -50,19 +49,13 @@ describe("filterHiddenNodes", () => {
   });
 
   test("returns empty array when all nodes are hidden and showHidden is false", () => {
-    const nodes = [
-      makeNode({ name: ".gitignore" }),
-      makeNode({ name: ".DS_Store" }),
-    ];
+    const nodes = [makeNode({ name: ".gitignore" }), makeNode({ name: ".DS_Store" })];
     const result = filterHiddenNodes(nodes, false);
     expect(result).toHaveLength(0);
   });
 
   test("returns all nodes when none are hidden and showHidden is false", () => {
-    const nodes = [
-      makeNode({ name: "readme.md" }),
-      makeNode({ name: "data.parquet" }),
-    ];
+    const nodes = [makeNode({ name: "readme.md" }), makeNode({ name: "data.parquet" })];
     const result = filterHiddenNodes(nodes, false);
     expect(result).toHaveLength(2);
   });
@@ -94,10 +87,7 @@ describe("filterHiddenNodes", () => {
           makeNode({
             name: "nested",
             type: "directory",
-            children: [
-              makeNode({ name: ".hidden-deep" }),
-              makeNode({ name: "data.parquet" }),
-            ],
+            children: [makeNode({ name: ".hidden-deep" }), makeNode({ name: "data.parquet" })],
           }),
         ],
       }),
@@ -116,10 +106,7 @@ describe("filterHiddenNodes", () => {
       makeNode({
         name: "dir",
         type: "directory",
-        children: [
-          makeNode({ name: ".hidden" }),
-          makeNode({ name: "visible.csv" }),
-        ],
+        children: [makeNode({ name: ".hidden" }), makeNode({ name: "visible.csv" })],
       }),
     ];
     const result = filterHiddenNodes(nodes, true);
@@ -213,13 +200,7 @@ describe("filterNodes", () => {
       import("~/utils/connectionsStore/useConnectionsStore").Connection
     >;
     const filters: ColumnFiltersState = [{ id: "provider", value: "aws" }];
-    const result = filterNodes(
-      nodes,
-      filters,
-      bucketColumns,
-      "connections",
-      mockConnections,
-    );
+    const result = filterNodes(nodes, filters, bucketColumns, "connections", mockConnections);
     expect(result).toHaveLength(1);
     expect(result[0].connectionName).toBe("conn-aws");
   });

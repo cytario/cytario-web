@@ -23,8 +23,7 @@ export interface OAuthStateResult {
  * Generates a PKCE code verifier (RFC 7636 §4.1).
  * 43-char base64url string from 32 random bytes.
  */
-export const generateCodeVerifier = (): string =>
-  randomBytes(32).toString("base64url");
+export const generateCodeVerifier = (): string => randomBytes(32).toString("base64url");
 
 /**
  * Generates a PKCE code challenge (S256) from a code verifier (RFC 7636 §4.2).
@@ -59,9 +58,7 @@ export const validateRedirectTo = (redirectTo?: string): string => {
  * and stores it in the cache store (Redis/Valkey) with a short expiry time.
  * Returns state, codeChallenge, and nonce for the authorization URL.
  */
-export const generateOAuthState = async (
-  redirectTo?: string,
-): Promise<OAuthStateResult> => {
+export const generateOAuthState = async (redirectTo?: string): Promise<OAuthStateResult> => {
   const state = randomBytes(32).toString("hex");
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -75,11 +72,7 @@ export const generateOAuthState = async (
     nonce,
   };
 
-  await redis.setex(
-    `${STATE_PREFIX}${state}`,
-    STATE_EXPIRY_SECONDS,
-    JSON.stringify(stateData),
-  );
+  await redis.setex(`${STATE_PREFIX}${state}`, STATE_EXPIRY_SECONDS, JSON.stringify(stateData));
 
   return { state, codeChallenge, nonce };
 };
@@ -89,9 +82,7 @@ export const generateOAuthState = async (
  * Returns the state data if valid, or null if invalid/expired.
  * Uses atomic GETDEL to prevent reuse (requires Redis 6.2+ / Valkey).
  */
-export const validateOAuthState = async (
-  state: string,
-): Promise<OAuthState | null> => {
+export const validateOAuthState = async (state: string): Promise<OAuthState | null> => {
   const key = `${STATE_PREFIX}${state}`;
   const stateJson = await redis.getdel(key);
 

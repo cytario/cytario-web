@@ -8,10 +8,7 @@ import { getSession } from "~/.server/auth/getSession";
 import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
-export const bulkInviteAction: ActionFunction = async ({
-  request,
-  context,
-}) => {
+export const bulkInviteAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
@@ -27,15 +24,7 @@ export const bulkInviteAction: ActionFunction = async ({
   await assertGroupPathsInScope([groupPath], scope);
 
   const results = await Promise.allSettled(
-    rows.map((row) =>
-      inviteUser(
-        row.email,
-        row.firstName,
-        row.lastName,
-        groupPath,
-        enabled,
-      ),
-    ),
+    rows.map((row) => inviteUser(row.email, row.firstName, row.lastName, groupPath, enabled)),
   );
 
   const succeeded = results.filter((r) => r.status === "fulfilled").length;

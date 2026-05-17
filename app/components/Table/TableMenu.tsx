@@ -1,10 +1,4 @@
-import {
-  IconButton,
-  Menu,
-  MenuCheckboxItem,
-  MenuItem,
-  MenuSeparator,
-} from "@cytario/design";
+import { IconButton, Menu, MenuCheckboxItem, MenuItem, MenuSeparator } from "@cytario/design";
 import type { VisibilityState } from "@tanstack/react-table";
 import { Columns3 } from "lucide-react";
 import type { Selection } from "react-aria-components";
@@ -28,16 +22,11 @@ export function TableMenu({
   const store = useTableStore(tableId);
 
   const selectedKeys = new Set(
-    toggleableColumns
-      .filter((col) => columnVisibility[col.id] !== false)
-      .map((col) => col.id),
+    toggleableColumns.filter((col) => columnVisibility[col.id] !== false).map((col) => col.id),
   );
 
   function handleSelectionChange(keys: Selection) {
-    const newKeys =
-      keys === "all"
-        ? new Set(toggleableColumns.map((c) => c.id))
-        : keys;
+    const newKeys = keys === "all" ? new Set(toggleableColumns.map((c) => c.id)) : keys;
 
     for (const col of toggleableColumns) {
       const wasSelected = columnVisibility[col.id] !== false;
@@ -67,12 +56,7 @@ export function TableMenu({
         </>
       }
     >
-      <IconButton
-        icon={Columns3}
-        variant="ghost"
-        size="sm"
-        aria-label="Column settings"
-      />
+      <IconButton icon={Columns3} variant="ghost" size="sm" aria-label="Column settings" />
     </Menu>
   );
 }

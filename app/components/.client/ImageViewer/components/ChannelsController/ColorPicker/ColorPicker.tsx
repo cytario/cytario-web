@@ -43,9 +43,7 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
 
         <PopoverContent placement="bottom start" data-theme="dark">
           <RacColorPicker
-            value={parseColor(
-              `rgb(${color[0]}, ${color[1]}, ${color[2]})`,
-            ).toFormat("hsb")}
+            value={parseColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`).toFormat("hsb")}
             onChange={(color) => {
               const rgb = color.toFormat("rgb");
               onColorChange([
@@ -78,12 +76,7 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
                   <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
                 </ColorArea>
 
-                <ColorSlider
-                  colorSpace="hsb"
-                  channel="hue"
-                  className="w-full"
-                  aria-label="Hue"
-                >
+                <ColorSlider colorSpace="hsb" channel="hue" className="w-full" aria-label="Hue">
                   <SliderTrack className="relative h-3 rounded touch-none">
                     <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md top-1/2 focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
                   </SliderTrack>

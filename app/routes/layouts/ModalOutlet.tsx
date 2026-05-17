@@ -11,24 +11,12 @@ type ModalComponent = ComponentType<{ onClose: (extraKeys?: string[]) => void }>
  * Add new entries here to register search-param-driven modals.
  */
 const MODAL_REGISTRY = {
-  "add-connection": lazy(
-    () => import("~/routes/connections/createConnection.modal"),
-  ),
-  "convert-overlay": lazy(
-    () => import("~/components/DataGrid/ConvertOverlay.modal"),
-  ),
-  "edit-connection": lazy(
-    () => import("~/routes/connections/updateConnection.modal"),
-  ),
-  "directory-info": lazy(
-    () => import("~/components/DirectoryView/modals/DirectoryInfo.modal"),
-  ),
-  "file-info": lazy(
-    () => import("~/components/DirectoryView/modals/FileInfo.modal"),
-  ),
-  cyberduck: lazy(
-    () => import("~/components/DirectoryView/modals/Cyberduck.modal"),
-  ),
+  "add-connection": lazy(() => import("~/routes/connections/createConnection.modal")),
+  "convert-overlay": lazy(() => import("~/components/DataGrid/ConvertOverlay.modal")),
+  "edit-connection": lazy(() => import("~/routes/connections/updateConnection.modal")),
+  "directory-info": lazy(() => import("~/components/DirectoryView/modals/DirectoryInfo.modal")),
+  "file-info": lazy(() => import("~/components/DirectoryView/modals/FileInfo.modal")),
+  cyberduck: lazy(() => import("~/components/DirectoryView/modals/Cyberduck.modal")),
 } satisfies Record<string, ModalComponent>;
 
 /**

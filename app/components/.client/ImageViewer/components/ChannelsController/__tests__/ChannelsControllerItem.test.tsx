@@ -41,7 +41,7 @@ describe("ChannelsControllerItem", () => {
     return render(
       <RadioGroup aria-label="Test channels" value="Red" onChange={vi.fn()}>
         <ChannelsControllerItem {...defaultProps} {...props} />
-      </RadioGroup>
+      </RadioGroup>,
     );
   };
 
@@ -132,7 +132,7 @@ describe("ChannelsControllerItem", () => {
       });
       // The indicator should be approximately 50% width (127/255)
       const indicator = container.querySelector(
-        '[style*="width"][style*="background-color"]'
+        '[style*="width"][style*="background-color"]',
       ) as HTMLElement;
       expect(indicator).toBeInTheDocument();
       expect(indicator?.style.width).toBe("49.80392156862745%");
@@ -145,9 +145,7 @@ describe("ChannelsControllerItem", () => {
         maxDomain: 255,
       });
       // The intensity indicator div should not have the colored bar
-      const intensityBars = container.querySelectorAll(
-        '.h-full[style*="backgroundColor"]'
-      );
+      const intensityBars = container.querySelectorAll('.h-full[style*="backgroundColor"]');
       expect(intensityBars.length).toBe(0);
     });
   });

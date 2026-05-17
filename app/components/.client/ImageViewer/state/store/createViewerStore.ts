@@ -22,11 +22,7 @@ import { createMigrate } from "~/utils/persistMigration";
 
 type PersistedViewerState = Pick<
   ViewerStore,
-  | "selectedChannelId"
-  | "imagePanelIndex"
-  | "imagePanels"
-  | "layersStates"
-  | "viewStateActive"
+  "selectedChannelId" | "imagePanelIndex" | "imagePanels" | "layersStates" | "viewStateActive"
 >;
 
 const VIEWER_FALLBACK_STATE: PersistedViewerState = {
@@ -88,15 +84,11 @@ export const createViewerStore = (id: string) =>
                   state.error = error;
                 },
                 false,
-                "setError"
+                "setError",
               ),
 
             setCursorPosition: (cursorPosition) =>
-              set(
-                (state) => ({ ...state, cursorPosition }),
-                false,
-                "setCursorPosition"
-              ),
+              set((state) => ({ ...state, cursorPosition }), false, "setCursorPosition"),
 
             setViewStatePreview: (viewStatePreview: ViewState) =>
               set(
@@ -104,7 +96,7 @@ export const createViewerStore = (id: string) =>
                   state.viewStatePreview = viewStatePreview;
                 },
                 false,
-                "setViewStatePreview"
+                "setViewStatePreview",
               ),
 
             setViewStateActive: (viewStateActive: ViewState) =>
@@ -115,7 +107,7 @@ export const createViewerStore = (id: string) =>
                   state.viewStateActive.maxZoom = 2;
                 },
                 false,
-                "setViewStateActive"
+                "setViewStateActive",
               ),
 
             setIsViewerLoading: (isViewerLoading: boolean) =>
@@ -124,7 +116,7 @@ export const createViewerStore = (id: string) =>
                   state.isViewerLoading = isViewerLoading;
                 },
                 false,
-                "setIsViewerLoading"
+                "setIsViewerLoading",
               ),
 
             setIsChannelsLoading: (imagePanelId: number, count: number) =>
@@ -137,7 +129,7 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "setIsChannelsLoading"
+                "setIsChannelsLoading",
               ),
 
             setIsOverlaysLoading: (imagePanelId: number, count: number) =>
@@ -150,7 +142,7 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "setIsOverlaysLoading"
+                "setIsOverlaysLoading",
               ),
 
             setMetadata: (metadata) =>
@@ -159,7 +151,7 @@ export const createViewerStore = (id: string) =>
                   state.metadata = metadata;
                 },
                 false,
-                "setMetadata"
+                "setMetadata",
               ),
 
             setLoader: (loader) =>
@@ -168,7 +160,7 @@ export const createViewerStore = (id: string) =>
                   state.loader = loader;
                 },
                 false,
-                "setLoader"
+                "setLoader",
               ),
 
             setSelectedChannelId: (selectedChannelId) =>
@@ -177,7 +169,7 @@ export const createViewerStore = (id: string) =>
                   state.selectedChannelId = selectedChannelId;
                 },
                 false,
-                "setSelectedChannelId"
+                "setSelectedChannelId",
               ),
 
             setActiveImagePanelId: (imagePanelIndex) =>
@@ -186,7 +178,7 @@ export const createViewerStore = (id: string) =>
                   state.imagePanelIndex = imagePanelIndex;
                 },
                 false,
-                "setActiveImagePanelId"
+                "setActiveImagePanelId",
               ),
 
             addImagePanel: () =>
@@ -197,13 +189,12 @@ export const createViewerStore = (id: string) =>
 
                   // If we don't have enough layersStates, duplicate the last one
                   while (state.layersStates.length < state.imagePanels.length) {
-                    const lastLayersState =
-                      state.layersStates[state.layersStates.length - 1];
+                    const lastLayersState = state.layersStates[state.layersStates.length - 1];
                     state.layersStates.push({ ...lastLayersState });
                   }
                 },
                 false,
-                "addImagePanel"
+                "addImagePanel",
               ),
 
             addChannelsState: async () => {
@@ -217,18 +208,17 @@ export const createViewerStore = (id: string) =>
                     setTimeout(() => {
                       reject(
                         new Error(
-                          "Worker initialization timeout after 10 seconds. The decoder worker may not be loaded correctly."
-                        )
+                          "Worker initialization timeout after 10 seconds. The decoder worker may not be loaded correctly.",
+                        ),
                       );
                     }, 10000);
                   });
 
                   // Race between actual initialization and timeout
-                  const { channelsState, channelIds, firstChannelKey } =
-                    await Promise.race([
-                      getInitialChannelsState(state.metadata, state.loader),
-                      timeoutPromise,
-                    ]);
+                  const { channelsState, channelIds, firstChannelKey } = await Promise.race([
+                    getInitialChannelsState(state.metadata, state.loader),
+                    timeoutPromise,
+                  ]);
 
                   return set(
                     (state) => {
@@ -249,47 +239,36 @@ export const createViewerStore = (id: string) =>
                       ];
                     },
                     false,
-                    "addChannelsStateInitial"
+                    "addChannelsStateInitial",
                   );
                 } catch (error) {
-                  console.error(
-                    "[createViewerStore] addChannelsState - FAILED:",
-                    error
-                  );
+                  console.error("[createViewerStore] addChannelsState - FAILED:", error);
                   // Set error state so the UI can show an error message instead of hanging
                   set(
                     (state) => {
-                      state.error =
-                        error instanceof Error
-                          ? error
-                          : new Error(String(error));
+                      state.error = error instanceof Error ? error : new Error(String(error));
                     },
                     false,
-                    "addChannelsStateError"
+                    "addChannelsStateError",
                   );
                   return;
                 }
               }
 
-              const activeImagePanelIndex =
-                state.imagePanels[state.imagePanelIndex];
+              const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
 
               return set(
                 (draft) => {
-                  draft.imagePanels = draft.imagePanels.map(
-                    (imagePanelIndex, index) => {
-                      if (index === draft.imagePanelIndex) {
-                        return draft.layersStates.length;
-                      }
-                      return imagePanelIndex;
+                  draft.imagePanels = draft.imagePanels.map((imagePanelIndex, index) => {
+                    if (index === draft.imagePanelIndex) {
+                      return draft.layersStates.length;
                     }
-                  );
-                  draft.layersStates.push(
-                    castDraft(state.layersStates[activeImagePanelIndex])
-                  );
+                    return imagePanelIndex;
+                  });
+                  draft.layersStates.push(castDraft(state.layersStates[activeImagePanelIndex]));
                 },
                 false,
-                "addChannelsStateDuplicate"
+                "addChannelsStateDuplicate",
               );
             },
 
@@ -297,14 +276,12 @@ export const createViewerStore = (id: string) =>
               set(
                 (state) => {
                   state.imagePanels = state.imagePanels.map((imagePanelIndex) =>
-                    Math.min(imagePanelIndex, state.layersStates.length - 2)
+                    Math.min(imagePanelIndex, state.layersStates.length - 2),
                   );
-                  state.layersStates = state.layersStates.filter(
-                    (_, index) => index !== i
-                  );
+                  state.layersStates = state.layersStates.filter((_, index) => index !== i);
                 },
                 false,
-                "removeChannelsState"
+                "removeChannelsState",
               ),
 
             setActiveChannelsStateIndex: (channelsStateIndex: number) =>
@@ -312,22 +289,19 @@ export const createViewerStore = (id: string) =>
                 (state) => {
                   // If we don't have enough layersStates, duplicate the last one
                   while (state.layersStates.length < channelsStateIndex + 1) {
-                    const lastLayersState =
-                      state.layersStates[state.layersStates.length - 1];
+                    const lastLayersState = state.layersStates[state.layersStates.length - 1];
                     state.layersStates.push({ ...lastLayersState });
                   }
 
-                  state.imagePanels = state.imagePanels.map(
-                    (imagePanel, index) => {
-                      if (index === state.imagePanelIndex) {
-                        return channelsStateIndex;
-                      }
-                      return imagePanel;
+                  state.imagePanels = state.imagePanels.map((imagePanel, index) => {
+                    if (index === state.imagePanelIndex) {
+                      return channelsStateIndex;
                     }
-                  );
+                    return imagePanel;
+                  });
                 },
                 false,
-                "setActiveChannelsStateIndex"
+                "setActiveChannelsStateIndex",
               ),
 
             removeImagePanel: (imagePanelIndex) =>
@@ -335,20 +309,18 @@ export const createViewerStore = (id: string) =>
                 (state) => {
                   state.imagePanelIndex = imagePanelIndex - 1;
                   state.imagePanels = state.imagePanels.filter(
-                    (_, index) => index !== imagePanelIndex
+                    (_, index) => index !== imagePanelIndex,
                   );
                 },
                 false,
-                "removeImagePanel"
+                "removeImagePanel",
               ),
 
             setContrastLimits: (contrastLimits) =>
               set(
                 (state) => {
-                  const activeChannelsStateIndex =
-                    state.imagePanels[state.imagePanelIndex];
-                  const layerState =
-                    state.layersStates[activeChannelsStateIndex];
+                  const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
+                  const layerState = state.layersStates[activeChannelsStateIndex];
                   if (!layerState) return;
 
                   if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
@@ -360,24 +332,21 @@ export const createViewerStore = (id: string) =>
                       }
                     }
                   } else {
-                    const key =
-                      state.selectedChannelId as keyof ChannelsStateColumns;
+                    const key = state.selectedChannelId as keyof ChannelsStateColumns;
                     if (layerState.channels[key]) {
                       layerState.channels[key].contrastLimits = contrastLimits;
                     }
                   }
                 },
                 false,
-                "setContrastLimits"
+                "setContrastLimits",
               ),
 
             resetContrastLimits: () =>
               set(
                 (state) => {
-                  const activeChannelsStateIndex =
-                    state.imagePanels[state.imagePanelIndex];
-                  const layerState =
-                    state.layersStates[activeChannelsStateIndex];
+                  const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
+                  const layerState = state.layersStates[activeChannelsStateIndex];
                   if (!layerState) return;
 
                   if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
@@ -386,22 +355,19 @@ export const createViewerStore = (id: string) =>
                     for (const key of [group.red, group.green, group.blue]) {
                       const channel = layerState.channels[key];
                       if (channel) {
-                        channel.contrastLimits =
-                          channel.contrastLimitsInitial as ByteDomain;
+                        channel.contrastLimits = channel.contrastLimitsInitial as ByteDomain;
                       }
                     }
                   } else {
-                    const key =
-                      state.selectedChannelId as keyof ChannelsStateColumns;
+                    const key = state.selectedChannelId as keyof ChannelsStateColumns;
                     const channel = layerState.channels[key];
                     if (channel) {
-                      channel.contrastLimits =
-                        channel.contrastLimitsInitial as ByteDomain;
+                      channel.contrastLimits = channel.contrastLimitsInitial as ByteDomain;
                     }
                   }
                 },
                 false,
-                "resetContrastLimits"
+                "resetContrastLimits",
               ),
 
             /**
@@ -409,18 +375,13 @@ export const createViewerStore = (id: string) =>
              * If the channel is not initialized, it loads stats and initializes it before setting visibility.
              * Handles BRIGHTFIELD_GROUP_ID by toggling all R/G/B channels together.
              */
-            setChannelVisibility: async (
-              key: keyof ChannelsState,
-              isVisible: boolean
-            ) => {
+            setChannelVisibility: async (key: keyof ChannelsState, isVisible: boolean) => {
               const state = get();
 
               if (!state.loader || state.imagePanelIndex < 0) return;
 
-              const activeChannelsStateIndex =
-                state.imagePanels[state.imagePanelIndex];
-              const layerState =
-                state.layersStates[activeChannelsStateIndex];
+              const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
+              const layerState = state.layersStates[activeChannelsStateIndex];
 
               // Brightfield group: toggle all 3 channels
               if (key === BRIGHTFIELD_GROUP_ID) {
@@ -429,21 +390,17 @@ export const createViewerStore = (id: string) =>
                 const keys = [group.red, group.green, group.blue];
 
                 // Initialize any uninitialized channels in parallel
-                const uninitialized = keys.filter(
-                  (k) => !layerState.channels[k]?.isInitialized
-                );
+                const uninitialized = keys.filter((k) => !layerState.channels[k]?.isInitialized);
 
                 if (uninitialized.length > 0) {
                   set(
                     (state) => {
                       for (const k of uninitialized) {
-                        state.layersStates[activeChannelsStateIndex].channels[
-                          k
-                        ].isLoading = true;
+                        state.layersStates[activeChannelsStateIndex].channels[k].isLoading = true;
                       }
                     },
                     false,
-                    "setBrightfieldVisibility/stats/request"
+                    "setBrightfieldVisibility/stats/request",
                   );
 
                   try {
@@ -452,14 +409,13 @@ export const createViewerStore = (id: string) =>
                         getSelectionStats({
                           loader: state.loader!,
                           selection: layerState.channels[k].selection,
-                        }).then((stats) => ({ key: k, ...stats }))
-                      )
+                        }).then((stats) => ({ key: k, ...stats })),
+                      ),
                     );
 
                     return set(
                       (state) => {
-                        const ls =
-                          state.layersStates[activeChannelsStateIndex];
+                        const ls = state.layersStates[activeChannelsStateIndex];
                         for (const { key: k, domain, histogram } of results) {
                           const channel = ls.channels[k];
                           channel.isInitialized = true;
@@ -475,34 +431,32 @@ export const createViewerStore = (id: string) =>
                         }
                       },
                       false,
-                      "setBrightfieldVisibility/stats/success"
+                      "setBrightfieldVisibility/stats/success",
                     );
                   } catch {
                     return set(
                       (state) => {
-                        const ls =
-                          state.layersStates[activeChannelsStateIndex];
+                        const ls = state.layersStates[activeChannelsStateIndex];
                         for (const k of uninitialized) {
                           ls.channels[k].isLoading = false;
                           ls.channels[k].isVisible = false;
                         }
                       },
                       false,
-                      "setBrightfieldVisibility/stats/error"
+                      "setBrightfieldVisibility/stats/error",
                     );
                   }
                 }
 
                 return set(
                   (state) => {
-                    const ls =
-                      state.layersStates[activeChannelsStateIndex];
+                    const ls = state.layersStates[activeChannelsStateIndex];
                     for (const k of keys) {
                       ls.channels[k].isVisible = isVisible;
                     }
                   },
                   false,
-                  "setBrightfieldVisibility"
+                  "setBrightfieldVisibility",
                 );
               }
 
@@ -512,27 +466,21 @@ export const createViewerStore = (id: string) =>
               if (!activeChannelsStateConfig.isInitialized) {
                 set(
                   (state) => {
-                    state.layersStates[activeChannelsStateIndex].channels[
-                      key
-                    ].isLoading = true;
+                    state.layersStates[activeChannelsStateIndex].channels[key].isLoading = true;
                   },
                   false,
-                  "setChannelVisibility/stats/request"
+                  "setChannelVisibility/stats/request",
                 );
 
                 try {
-                  const { domain, contrastLimits, histogram } =
-                    await getSelectionStats({
-                      loader: state.loader,
-                      selection: activeChannelsStateConfig.selection,
-                    });
+                  const { domain, contrastLimits, histogram } = await getSelectionStats({
+                    loader: state.loader,
+                    selection: activeChannelsStateConfig.selection,
+                  });
 
                   return set(
                     (state) => {
-                      const channel =
-                        state.layersStates[activeChannelsStateIndex].channels[
-                          key
-                        ];
+                      const channel = state.layersStates[activeChannelsStateIndex].channels[key];
                       channel.isInitialized = true;
                       channel.isLoading = false;
                       channel.domain = castDraft(domain);
@@ -542,96 +490,76 @@ export const createViewerStore = (id: string) =>
                       channel.isVisible = isVisible;
                     },
                     false,
-                    "setChannelVisibility/stats/success"
+                    "setChannelVisibility/stats/success",
                   );
                 } catch {
                   return set(
                     (state) => {
-                      const channel =
-                        state.layersStates[activeChannelsStateIndex].channels[
-                          key
-                        ];
+                      const channel = state.layersStates[activeChannelsStateIndex].channels[key];
                       channel.isLoading = false;
                       channel.isVisible = false;
                     },
                     false,
-                    "setChannelVisibility/stats/error"
+                    "setChannelVisibility/stats/error",
                   );
                 }
               }
 
               set(
                 (state) => {
-                  state.layersStates[activeChannelsStateIndex].channels[
-                    key
-                  ].isVisible = isVisible;
+                  state.layersStates[activeChannelsStateIndex].channels[key].isVisible = isVisible;
                 },
                 false,
-                "setChannelVisibility"
+                "setChannelVisibility",
               );
             },
 
-            setMarkerVisibility: (
-              fileName: string,
-              markerName: string,
-              isVisible: boolean
-            ) =>
+            setMarkerVisibility: (fileName: string, markerName: string, isVisible: boolean) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
-                  const overlays =
-                    state.layersStates[activeImagePanelIndex]?.overlays;
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+                  const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
 
                   if (overlays?.[fileName]?.[markerName]) {
                     overlays[fileName][markerName].isVisible = isVisible;
                   }
                 },
                 false,
-                "setMarkerVisibility"
+                "setMarkerVisibility",
               ),
 
             setChannelColor: (key: keyof ChannelsState, color: RGBA) =>
               set(
                 (state) => {
-                  const activeChannelsStateIndex =
-                    state.imagePanels[state.imagePanelIndex];
-                  const channel =
-                    state.layersStates[activeChannelsStateIndex]?.channels[key];
+                  const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
+                  const channel = state.layersStates[activeChannelsStateIndex]?.channels[key];
 
                   if (channel) {
                     channel.color = color.slice(0, 3) as RGB;
                   }
                 },
                 false,
-                "setChannelColor"
+                "setChannelColor",
               ),
 
-            setMarkerColor: (
-              fileName: string,
-              markerName: string,
-              color: RGBA
-            ) =>
+            setMarkerColor: (fileName: string, markerName: string, color: RGBA) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
-                  const overlays =
-                    state.layersStates[activeImagePanelIndex]?.overlays;
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+                  const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
 
                   if (overlays?.[fileName]?.[markerName]) {
                     overlays[fileName][markerName].color = color;
                   }
                 },
                 false,
-                "setMarkerColor"
+                "setMarkerColor",
               ),
 
             addOverlaysState: (overlaysState: OverlaysState) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
                   const layerState = state.layersStates[activeImagePanelIndex];
 
                   if (layerState) {
@@ -639,17 +567,13 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "addOverlaysState"
+                "addOverlaysState",
               ),
 
-            updateOverlaysState: (
-              overlayId: string,
-              overlayState: OverlayState
-            ) =>
+            updateOverlaysState: (overlayId: string, overlayState: OverlayState) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
                   const layerState = state.layersStates[activeImagePanelIndex];
 
                   if (layerState?.overlays[overlayId]) {
@@ -657,30 +581,27 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "updateOverlaysState"
+                "updateOverlaysState",
               ),
 
             removeOverlaysState: (overlaysStateId: string) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
-                  const overlays =
-                    state.layersStates[activeImagePanelIndex]?.overlays;
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+                  const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
 
                   if (overlays) {
                     delete overlays[overlaysStateId];
                   }
                 },
                 false,
-                "removeOverlaysState"
+                "removeOverlaysState",
               ),
 
             setOverlaysFillOpacity: (fillOpacity: number) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
                   const layerState = state.layersStates[activeImagePanelIndex];
 
                   if (layerState) {
@@ -688,14 +609,13 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "setOverlaysFillOpacity"
+                "setOverlaysFillOpacity",
               ),
 
             setChannelsOpacity: (channelsOpacity: number) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
                   const layerState = state.layersStates[activeImagePanelIndex];
 
                   if (layerState) {
@@ -703,14 +623,13 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "setChannelsOpacity"
+                "setChannelsOpacity",
               ),
 
             setShowCellOutline: (showCellOutline: boolean) =>
               set(
                 (state) => {
-                  const activeImagePanelIndex =
-                    state.imagePanels[state.imagePanelIndex];
+                  const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
                   const layerState = state.layersStates[activeImagePanelIndex];
 
                   if (layerState) {
@@ -718,13 +637,13 @@ export const createViewerStore = (id: string) =>
                   }
                 },
                 false,
-                "setShowCellOutline"
+                "setShowCellOutline",
               ),
           }),
           {
             name: "ViewerStore-" + id,
-          }
-        )
+          },
+        ),
       ),
       {
         name: "ViewerStore-" + id,
@@ -766,12 +685,9 @@ export const createViewerStore = (id: string) =>
         }),
         onRehydrateStorage: () => (_state, error) => {
           if (error) {
-            console.error(
-              `[ViewerStore-${id}] Rehydration failed:`,
-              error,
-            );
+            console.error(`[ViewerStore-${id}] Rehydration failed:`, error);
           }
         },
-      }
-    )
+      },
+    ),
   );

@@ -21,13 +21,7 @@ const fetchPreviewObject = async (
   const creds = credentials[config.name];
   if (!creds) return undefined;
   const s3 = await getS3Client(config, creds, userId);
-  const objects = await getObjects(
-    config,
-    s3,
-    null,
-    config.prefix || undefined,
-    100,
-  );
+  const objects = await getObjects(config, s3, null, config.prefix || undefined, 100);
   return objects.find((obj) => isImageFile(obj.Key ?? ""));
 };
 
@@ -57,17 +51,13 @@ export interface LoaderData {
   pinnedPaths: SerializedPinnedPath[];
 }
 
-export async function loadConnections({
-  context,
-}: LoaderFunctionArgs) {
+export async function loadConnections({ context }: LoaderFunctionArgs) {
   const { connectionConfigs, credentials, user } = context.get(authContext);
   const userId = user.sub;
 
   const [previews, recentlyViewedRaw, pinnedPathsRaw] = await Promise.all([
     Promise.allSettled(
-      connectionConfigs.map((config) =>
-        fetchPreviewObject(config, credentials, userId),
-      ),
+      connectionConfigs.map((config) => fetchPreviewObject(config, credentials, userId)),
     ),
     getRecentlyViewed(userId, 20),
     getPinnedPaths(userId),
@@ -88,16 +78,14 @@ export async function loadConnections({
     };
   });
 
-  const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map(
-    (item) => ({
-      id: item.id,
-      connectionName: item.connectionName,
-      pathName: item.pathName,
-      name: item.name,
-      type: item.type,
-      viewedAt: item.viewedAt.toISOString(),
-    }),
-  );
+  const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map((item) => ({
+    id: item.id,
+    connectionName: item.connectionName,
+    pathName: item.pathName,
+    name: item.name,
+    type: item.type,
+    viewedAt: item.viewedAt.toISOString(),
+  }));
 
   const pinnedPaths: SerializedPinnedPath[] = pinnedPathsRaw.map((pin) => ({
     id: pin.id,

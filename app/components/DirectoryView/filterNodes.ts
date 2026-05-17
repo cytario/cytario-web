@@ -20,15 +20,13 @@ type NodeAccessor = (node: TreeNode) => string;
 
 const fileAccessors: Record<string, NodeAccessor> = {
   name: (node) => node.name,
-  file_type: (node) =>
-    node.type === "file" ? getFileType(node.name) : "Directory",
+  file_type: (node) => (node.type === "file" ? getFileType(node.name) : "Directory"),
 };
 
 function makeConnectionAccessors(
   connections: Record<string, Connection>,
 ): Record<string, NodeAccessor> {
-  const config = (node: TreeNode) =>
-    connections[node.connectionName]?.connectionConfig;
+  const config = (node: TreeNode) => connections[node.connectionName]?.connectionConfig;
   return {
     name: (node) => node.name,
     provider: (node) => config(node)?.provider ?? "",
@@ -41,9 +39,7 @@ export function getNodeAccessors(
   kind: DirectoryKind,
   connections: Record<string, Connection> = {},
 ): Record<string, NodeAccessor> {
-  return kind === "connections"
-    ? makeConnectionAccessors(connections)
-    : fileAccessors;
+  return kind === "connections" ? makeConnectionAccessors(connections) : fileAccessors;
 }
 
 /**
@@ -51,10 +47,7 @@ export function getNodeAccessors(
  * Filtering is applied recursively so that hidden children inside visible
  * directories are also removed (required for the tree view).
  */
-export function filterHiddenNodes(
-  nodes: TreeNode[],
-  showHidden: boolean,
-): TreeNode[] {
+export function filterHiddenNodes(nodes: TreeNode[], showHidden: boolean): TreeNode[] {
   if (showHidden) return nodes;
 
   return nodes

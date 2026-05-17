@@ -31,7 +31,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Tooltip content">
         <button>Hover me</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("Tooltip", () => {
     render(
       <Tooltip content="Tooltip content">
         <button>Hover me</button>
-      </Tooltip>
+      </Tooltip>,
     );
 
     const button = screen.getByRole("button", { name: "Hover me" });

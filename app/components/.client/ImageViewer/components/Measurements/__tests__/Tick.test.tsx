@@ -71,6 +71,6 @@ describe("Tick", () => {
       } else {
         expect(span).not.toBeInTheDocument();
       }
-    }
+    },
   );
 });

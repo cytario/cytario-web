@@ -8,7 +8,7 @@ interface CalculateViewStateOptions {
 export function calculateViewStateToFit(
   metadata: Image,
   viewport: ViewPort,
-  options?: CalculateViewStateOptions
+  options?: CalculateViewStateOptions,
 ): ViewState {
   const { SizeX, SizeY, PhysicalSizeX, PhysicalSizeY } = metadata.Pixels;
 

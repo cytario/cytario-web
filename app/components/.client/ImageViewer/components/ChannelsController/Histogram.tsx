@@ -45,25 +45,23 @@ export function Histogram() {
     <div ref={ref} className="top-0 overflow-hidden px-3 pt-3">
       <div className="p-2 pb-0 bg-[var(--color-surface-subtle)] rounded overflow-visible">
         <svg width={width} height={height}>
-          {channelConfigs.map(
-            ({ histogram, color, contrastLimits, isVisible }, channelIndex) => {
-              if (!isVisible) return null;
+          {channelConfigs.map(({ histogram, color, contrastLimits, isVisible }, channelIndex) => {
+            if (!isVisible) return null;
 
-              return (
-                <HistogramChannel
-                  key={channelIndex}
-                  channelIndex={channelIndex}
-                  maxLogValue={maxLogValue}
-                  width={width}
-                  height={height}
-                  range={maxDomain}
-                  histogram={histogram}
-                  color={rgb(color)}
-                  contrastLimit={contrastLimits}
-                />
-              );
-            },
-          )}
+            return (
+              <HistogramChannel
+                key={channelIndex}
+                channelIndex={channelIndex}
+                maxLogValue={maxLogValue}
+                width={width}
+                height={height}
+                range={maxDomain}
+                histogram={histogram}
+                color={rgb(color)}
+                contrastLimit={contrastLimits}
+              />
+            );
+          })}
         </svg>
 
         <DomainSlider domain={[0, maxDomain]} />

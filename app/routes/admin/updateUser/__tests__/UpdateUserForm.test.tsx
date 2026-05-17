@@ -35,9 +35,7 @@ function renderForm(
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => (
-        <UpdateUserForm user={user} groups={groups} groupPaths={groupPaths} />
-      ),
+      Component: () => <UpdateUserForm user={user} groups={groups} groupPaths={groupPaths} />,
       action: () => null,
     },
   ]);
@@ -64,18 +62,14 @@ describe("UpdateUserForm", () => {
 
       expect(screen.getByText("Group Membership")).toBeInTheDocument();
       expect(screen.getByLabelText("Path: cytario / lab")).toBeInTheDocument();
-      expect(
-        screen.getByLabelText("Path: cytario / lab / team-a"),
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText("Path: cytario / lab / team-a")).toBeInTheDocument();
     });
 
     test("renders Admin Groups section for admin groups", () => {
       renderForm();
 
       expect(screen.getByText("Admin Groups")).toBeInTheDocument();
-      expect(
-        screen.getByLabelText("Path: cytario / lab / admins"),
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText("Path: cytario / lab / admins")).toBeInTheDocument();
     });
 
     test("hides Admin Groups section when no admin groups exist", () => {
@@ -99,12 +93,8 @@ describe("UpdateUserForm", () => {
       const form = document.getElementById("update-form") as HTMLFormElement;
       fireEvent.submit(form);
 
-      expect(
-        await screen.findByText("Confirm Changes"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText("Disable account for Jane Doe"),
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Confirm Changes")).toBeInTheDocument();
+      expect(screen.getByText("Disable account for Jane Doe")).toBeInTheDocument();
     });
 
     test("warns when granting admin access", async () => {
@@ -117,12 +107,8 @@ describe("UpdateUserForm", () => {
       const form = document.getElementById("update-form") as HTMLFormElement;
       fireEvent.submit(form);
 
-      expect(
-        await screen.findByText("Confirm Changes"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText("Grant admin access: cytario/lab/admins"),
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Confirm Changes")).toBeInTheDocument();
+      expect(screen.getByText("Grant admin access: cytario/lab/admins")).toBeInTheDocument();
     });
 
     test("warns when revoking admin access", async () => {
@@ -137,12 +123,8 @@ describe("UpdateUserForm", () => {
       const form = document.getElementById("update-form") as HTMLFormElement;
       fireEvent.submit(form);
 
-      expect(
-        await screen.findByText("Confirm Changes"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText("Revoke admin access: cytario/lab/admins"),
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Confirm Changes")).toBeInTheDocument();
+      expect(screen.getByText("Revoke admin access: cytario/lab/admins")).toBeInTheDocument();
     });
 
     test("warns when removing from regular groups", async () => {
@@ -155,12 +137,8 @@ describe("UpdateUserForm", () => {
       const form = document.getElementById("update-form") as HTMLFormElement;
       fireEvent.submit(form);
 
-      expect(
-        await screen.findByText("Confirm Changes"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText("Remove from groups: cytario/lab"),
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Confirm Changes")).toBeInTheDocument();
+      expect(screen.getByText("Remove from groups: cytario/lab")).toBeInTheDocument();
     });
 
     test("submits without confirmation when only adding regular groups", async () => {
@@ -175,9 +153,7 @@ describe("UpdateUserForm", () => {
 
       // Should NOT show confirmation
       await waitFor(() => {
-        expect(
-          screen.queryByText("Confirm Changes"),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText("Confirm Changes")).not.toBeInTheDocument();
       });
     });
   });

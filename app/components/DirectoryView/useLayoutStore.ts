@@ -44,11 +44,7 @@ export const useLayoutStore = create<LayoutStore>()(
           ),
         showFilters: false,
         toggleShowFilters: () =>
-          set(
-            (state) => ({ showFilters: !state.showFilters }),
-            false,
-            "toggleShowFilters",
-          ),
+          set((state) => ({ showFilters: !state.showFilters }), false, "toggleShowFilters"),
         headerSlot: null,
         setHeaderSlot: (headerSlot) => set({ headerSlot }),
       }),
@@ -61,34 +57,18 @@ export const useLayoutStore = create<LayoutStore>()(
         {
           0: (state) => {
             const s = state as { viewMode?: string };
-            const OLD_VALID = [
-              "list",
-              "list-wide",
-              "grid-sm",
-              "grid-md",
-              "grid-lg",
-            ];
+            const OLD_VALID = ["list", "list-wide", "grid-sm", "grid-md", "grid-lg"];
             return {
-              viewMode: OLD_VALID.includes(s?.viewMode ?? "")
-                ? (s.viewMode as string)
-                : "grid",
+              viewMode: OLD_VALID.includes(s?.viewMode ?? "") ? (s.viewMode as string) : "grid",
               showHiddenFiles: false,
               showFilters: false,
             };
           },
           1: (state) => {
             const s = state as { viewMode?: string };
-            const OLD_VALID = [
-              "list",
-              "list-wide",
-              "grid-sm",
-              "grid-md",
-              "grid-lg",
-            ];
+            const OLD_VALID = ["list", "list-wide", "grid-sm", "grid-md", "grid-lg"];
             return {
-              viewMode: OLD_VALID.includes(s?.viewMode ?? "")
-                ? (s.viewMode as string)
-                : "grid",
+              viewMode: OLD_VALID.includes(s?.viewMode ?? "") ? (s.viewMode as string) : "grid",
               showHiddenFiles: false,
               showFilters: false,
             };

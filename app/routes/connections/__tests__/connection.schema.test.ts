@@ -17,17 +17,13 @@ describe("connectionNameSchema", () => {
 
   test("accepts names with spaces", () => {
     expect(connectionNameSchema.safeParse("my bucket").success).toBe(true);
-    expect(connectionNameSchema.safeParse("vericura internal").success).toBe(
-      true,
-    );
+    expect(connectionNameSchema.safeParse("vericura internal").success).toBe(true);
     expect(connectionNameSchema.safeParse("lab 1 data").success).toBe(true);
   });
 
   test("accepts names with uppercase characters", () => {
     expect(connectionNameSchema.safeParse("MyBucket").success).toBe(true);
-    expect(connectionNameSchema.safeParse("Vericura Internal").success).toBe(
-      true,
-    );
+    expect(connectionNameSchema.safeParse("Vericura Internal").success).toBe(true);
   });
 
   test("rejects names shorter than 2 characters", () => {

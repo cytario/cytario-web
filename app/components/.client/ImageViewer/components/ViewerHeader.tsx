@@ -22,9 +22,7 @@ export const ViewerHeader = ({
 
   useEffect(() => {
     if (children) {
-      setHeaderSlot(
-        children({ metadata, viewStateActive, setViewStateActive })
-      );
+      setHeaderSlot(children({ metadata, viewStateActive, setViewStateActive }));
     }
 
     return () => {

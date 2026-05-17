@@ -27,16 +27,9 @@ export class KeycloakAdminError extends Error {
   }
 }
 
-const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace(
-  "/realms/",
-  "/admin/realms/",
-);
+const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace("/realms/", "/admin/realms/");
 
-async function adminRequest(
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<Response> {
+async function adminRequest(method: string, path: string, body?: unknown): Promise<Response> {
   const accessToken = await getAdminToken();
 
   const response = await fetch(`${adminApiBaseUrl}${path}`, {

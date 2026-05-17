@@ -54,9 +54,7 @@ export async function convertCsvToParquet(resourceId: string) {
     // Write to Parquet with WKB geometry
     const parquetDestination = `${s3Uri}.parquet`;
 
-    console.log(
-      `[CSV→Parquet] Writing to S3 as Parquet (ZSTD compression, 500k row groups)...`
-    );
+    console.log(`[CSV→Parquet] Writing to S3 as Parquet (ZSTD compression, 500k row groups)...`);
     console.log(`[CSV→Parquet] → Destination: ${parquetDestination}`);
     console.log("[CSV→Parquet] ⏳ This may take a while for large datasets...");
 

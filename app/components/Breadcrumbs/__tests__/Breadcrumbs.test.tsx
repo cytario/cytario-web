@@ -19,17 +19,11 @@ vi.mock("@cytario/design", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@cytario/design")>();
   return {
     ...actual,
-    Breadcrumbs: ({
-      items,
-    }: {
-      items: Array<{ id: string; label: string; href?: string }>;
-    }) => (
+    Breadcrumbs: ({ items }: { items: Array<{ id: string; label: string; href?: string }> }) => (
       <nav aria-label="Breadcrumb">
         <ol>
           {items.map((item) => (
-            <li key={item.id}>
-              {item.href ? <a href={item.href}>{item.label}</a> : item.label}
-            </li>
+            <li key={item.id}>{item.href ? <a href={item.href}>{item.label}</a> : item.label}</li>
           ))}
         </ol>
       </nav>
@@ -97,7 +91,7 @@ describe("Breadcrumbs", () => {
     const { getByText } = render(
       <MemoryRouter>
         <Breadcrumbs />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
     expect(getByText("Logo")).toBeInTheDocument();

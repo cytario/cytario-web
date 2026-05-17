@@ -77,9 +77,7 @@ beforeEach(() => {
 
 describe("deleteConnection authorization", () => {
   test("admin of scope can delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
     await deleteConnection(adminUser, "test-connection");
 
@@ -89,9 +87,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("owner (personal scope) can delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      personalConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(personalConfig);
 
     await deleteConnection(personalUser, "personal-connection");
 
@@ -99,9 +95,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("realm admin can delete any connection", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
     await deleteConnection(realmAdmin, "test-connection");
 
@@ -109,58 +103,46 @@ describe("deleteConnection authorization", () => {
   });
 
   test("group member without admin cannot delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
-    await expect(
-      deleteConnection(regularUser, "test-connection"),
-    ).rejects.toThrow("Not authorized to delete this connection config");
+    await expect(deleteConnection(regularUser, "test-connection")).rejects.toThrow(
+      "Not authorized to delete this connection config",
+    );
   });
 
   test("user from different scope cannot see or delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
-    await expect(
-      deleteConnection(outsideUser, "test-connection"),
-    ).rejects.toThrow("Connection config not found");
+    await expect(deleteConnection(outsideUser, "test-connection")).rejects.toThrow(
+      "Connection config not found",
+    );
   });
 
   test("throws 'not found' when connection doesn't exist", async () => {
     vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
 
-    await expect(
-      deleteConnection(adminUser, "nonexistent"),
-    ).rejects.toThrow("Connection config not found");
+    await expect(deleteConnection(adminUser, "nonexistent")).rejects.toThrow(
+      "Connection config not found",
+    );
   });
 });
 
 describe("updateConnection authorization", () => {
   test("admin of scope can update", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...cytarioConfig,
       ...validUpdates,
     });
 
-    const result = await updateConnection(
-      adminUser,
-      "test-connection",
-      validUpdates,
-    );
+    const result = await updateConnection(adminUser, "test-connection", validUpdates);
 
     expect(prisma.connectionConfig.update).toHaveBeenCalled();
     expect(result.name).toBe("updated-connection");
   });
 
   test("owner (personal scope) can update own connection", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      personalConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(personalConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...personalConfig,
       ...validUpdates,
@@ -176,9 +158,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("realm admin can update any connection", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...cytarioConfig,
       ...validUpdates,
@@ -190,29 +170,23 @@ describe("updateConnection authorization", () => {
   });
 
   test("group member without admin cannot update", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
-    await expect(
-      updateConnection(regularUser, "test-connection", validUpdates),
-    ).rejects.toThrow("Not authorized to modify this connection");
+    await expect(updateConnection(regularUser, "test-connection", validUpdates)).rejects.toThrow(
+      "Not authorized to modify this connection",
+    );
   });
 
   test("user from different scope cannot see or update", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
-    await expect(
-      updateConnection(outsideUser, "test-connection", validUpdates),
-    ).rejects.toThrow("Connection not found");
+    await expect(updateConnection(outsideUser, "test-connection", validUpdates)).rejects.toThrow(
+      "Connection not found",
+    );
   });
 
   test("scope change requires canCreate on new scope", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      personalConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(personalConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...personalConfig,
       ...validUpdates,
@@ -236,9 +210,7 @@ describe("updateConnection authorization", () => {
       name: "admin-personal",
     });
 
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      adminPersonalConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(adminPersonalConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...adminPersonalConfig,
       ...validUpdates,
@@ -256,20 +228,18 @@ describe("updateConnection authorization", () => {
   test("same-scope update does not check canCreate", async () => {
     // regularUser can see cytario-scoped but cannot modify
     // This test verifies canModify is checked, not canCreate
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(
-      cytarioConfig,
-    );
+    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
-    await expect(
-      updateConnection(regularUser, "test-connection", validUpdates),
-    ).rejects.toThrow("Not authorized to modify this connection");
+    await expect(updateConnection(regularUser, "test-connection", validUpdates)).rejects.toThrow(
+      "Not authorized to modify this connection",
+    );
   });
 
   test("throws 'not found' when connection doesn't exist", async () => {
     vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
 
-    await expect(
-      updateConnection(adminUser, "nonexistent", validUpdates),
-    ).rejects.toThrow("Connection not found");
+    await expect(updateConnection(adminUser, "nonexistent", validUpdates)).rejects.toThrow(
+      "Connection not found",
+    );
   });
 });

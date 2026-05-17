@@ -10,13 +10,7 @@ import {
 } from "lucide-react";
 import { describe, expect, test } from "vitest";
 
-import {
-  getFileType,
-  getFileTypeIcon,
-  getNodeIcon,
-  getTypeLabel,
-  isImageFile,
-} from "../fileType";
+import { getFileType, getFileTypeIcon, getNodeIcon, getTypeLabel, isImageFile } from "../fileType";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
@@ -197,9 +191,7 @@ describe("getNodeIcon", () => {
   });
 
   test("returns Microscope for .ome.tiff files", () => {
-    expect(getNodeIcon(makeNode({ name: "sample.ome.tiff" }))).toBe(
-      Microscope,
-    );
+    expect(getNodeIcon(makeNode({ name: "sample.ome.tiff" }))).toBe(Microscope);
   });
 
   test("returns Image for .png files", () => {

@@ -24,8 +24,7 @@ vi.mock("~/utils/getObjects", () => ({
 }));
 
 vi.mock("@cytario/design", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@cytario/design")>();
+  const actual = await importOriginal<typeof import("@cytario/design")>();
   return {
     ...actual,
     useToast: () => ({ toast: vi.fn(), toasts: [], removeToast: vi.fn() }),
@@ -44,17 +43,14 @@ vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
           domain: [0, 65535],
           contrastLimits: [655, 64879],
           histogram: expect.any(Uint32Array),
-        })
-      )
+        }),
+      ),
   ),
 }));
 
 vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(
-    () =>
-      new Promise((resolve) =>
-        resolve([{ data: [], metadata: mock.metadata() }])
-      )
+    () => new Promise((resolve) => resolve([{ data: [], metadata: mock.metadata() }])),
   ),
 }));
 
@@ -84,7 +80,7 @@ describe("Bucket Route", () => {
       {
         dataConnectionName: "aws-test-bucket",
         dataConnectionPath: "/connections/aws-test-bucket",
-      }
+      },
     );
   });
 
@@ -115,9 +111,7 @@ describe("Bucket Route", () => {
 
     render(<RemixStub initialEntries={["/connections/aws-test-bucket"]} />);
 
-    expect(
-      await screen.findByText(/Second Test Directory/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Second Test Directory/i)).toBeInTheDocument();
   });
 
   test("renders `Viewer` for given `pathName`", async () => {
@@ -145,15 +139,11 @@ describe("Bucket Route", () => {
     ]);
 
     const { container } = render(
-      <RemixStub
-        initialEntries={["/connections/aws-test-bucket/test-file.ome.tiff"]}
-      />
+      <RemixStub initialEntries={["/connections/aws-test-bucket/test-file.ome.tiff"]} />,
     );
 
     await waitFor(() => {
-      expect(
-        container.querySelector("canvas#deckgl-overlay")
-      ).toBeInTheDocument();
+      expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
     });
   });
 });

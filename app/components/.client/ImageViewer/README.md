@@ -186,8 +186,8 @@ GeoTIFF decoders are registered at the module level in `ImageViewer.tsx`:
 
 ```typescript
 import { addDecoder } from "geotiff";
-addDecoder(5, () => LZWDecoder);       // LZW compression
-addDecoder(33005, () => JP2KDecoder);   // JPEG2000 compression
+addDecoder(5, () => LZWDecoder); // LZW compression
+addDecoder(33005, () => JP2KDecoder); // JPEG2000 compression
 ```
 
 This runs client-side only — decoders use Web Workers and must not be imported during SSR. The `ImageViewer` component is lazy-loaded from the route via `React.lazy()` + `<ClientOnly>` + `<Suspense>`, ensuring decoders are never evaluated on the server.
@@ -215,9 +215,9 @@ ImageViewer (client)
 
 ### Naming Convention
 
-| Image key | Offsets key |
-|---|---|
-| `data/image.ome.tif` | `data/image.offsets.json` |
+| Image key             | Offsets key               |
+| --------------------- | ------------------------- |
+| `data/image.ome.tif`  | `data/image.offsets.json` |
 | `data/image.ome.tiff` | `data/image.offsets.json` |
 
 Offsets are generated with [`generate-tiff-offsets`](https://github.com/hms-dbmi/generate-tiff-offsets) and placed alongside the OME-TIFF in S3. If the file doesn't exist, the viewer loads normally via sequential IFD traversal.

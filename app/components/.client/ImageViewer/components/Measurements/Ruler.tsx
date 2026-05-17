@@ -47,14 +47,7 @@ export const Ruler = ({
         const isMajor = i % interval === 0;
         const label = isMajor ? i : undefined;
 
-        return (
-          <Tick
-            key={i}
-            number={label}
-            offset={offset + i * one_mm}
-            vertical={vertical}
-          />
-        );
+        return <Tick key={i} number={label} offset={offset + i * one_mm} vertical={vertical} />;
       })}
 
       <CursorTick vertical={vertical} />

@@ -38,10 +38,10 @@ const REPO_ROOT = resolve(HERE, "..", "..", "..");
 
 function resolveFromGitTag() {
   try {
-    const out = execSync(
-      'git describe --tags --match="plugin-api-v*" --abbrev=0',
-      { cwd: REPO_ROOT, stdio: ["ignore", "pipe", "ignore"] },
-    )
+    const out = execSync('git describe --tags --match="plugin-api-v*" --abbrev=0', {
+      cwd: REPO_ROOT,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
       .toString()
       .trim();
     if (out.startsWith("plugin-api-v")) return out.replace(/^plugin-api-v/, "");
@@ -87,7 +87,5 @@ if (current === next) {
   }
 } else {
   writeFileSync(VERSION_PATH, next, "utf8");
-  console.log(
-    `[plugin-api] wrote version ${version} (${source}) → src/version.ts`,
-  );
+  console.log(`[plugin-api] wrote version ${version} (${source}) → src/version.ts`);
 }

@@ -1,8 +1,5 @@
 import { redis } from "../../db/redis";
-import {
-  refreshAccessToken,
-  refreshAccessTokenWithLock,
-} from "../refreshAuthTokens";
+import { refreshAccessToken, refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -71,10 +68,7 @@ describe("refreshAccessToken", () => {
 
       await refreshAccessToken("test-refresh-token");
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        mockTokenEndpoint,
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith(mockTokenEndpoint, expect.any(Object));
     });
 
     test("sends refresh_token grant type", async () => {
@@ -129,9 +123,7 @@ describe("refreshAccessToken", () => {
       await refreshAccessToken("test-refresh-token");
 
       const [, options] = mockFetch.mock.calls[0];
-      expect(options.headers["Content-Type"]).toBe(
-        "application/x-www-form-urlencoded",
-      );
+      expect(options.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
     });
   });
 
@@ -142,17 +134,13 @@ describe("refreshAccessToken", () => {
         status: 401,
       });
 
-      await expect(refreshAccessToken("expired-token")).rejects.toThrow(
-        "Failed to refresh token",
-      );
+      await expect(refreshAccessToken("expired-token")).rejects.toThrow("Failed to refresh token");
     });
 
     test("throws on network failure", async () => {
       mockFetch.mockRejectedValue(new Error("Network error"));
 
-      await expect(refreshAccessToken("test-refresh-token")).rejects.toThrow(
-        "Network error",
-      );
+      await expect(refreshAccessToken("test-refresh-token")).rejects.toThrow("Network error");
     });
   });
 });
@@ -189,10 +177,7 @@ describe("refreshAccessTokenWithLock", () => {
     vi.mocked(redis.set).mockResolvedValue("OK");
     vi.mocked(redis.eval).mockResolvedValue(1);
 
-    const result = await refreshAccessTokenWithLock(
-      "session-123",
-      "refresh-token",
-    );
+    const result = await refreshAccessTokenWithLock("session-123", "refresh-token");
 
     // Lock acquired
     expect(redis.set).toHaveBeenCalledWith(
@@ -207,9 +192,7 @@ describe("refreshAccessTokenWithLock", () => {
     expect(redis.hget).toHaveBeenCalledWith("session-123", "data");
 
     // Token refreshed via Keycloak (since refresh token matches)
-    expect(result).toEqual(
-      expect.objectContaining({ accessToken: expect.any(String) }),
-    );
+    expect(result).toEqual(expect.objectContaining({ accessToken: expect.any(String) }));
     expect(mockFetch).toHaveBeenCalled();
 
     // Lock released via Lua script
@@ -233,14 +216,9 @@ describe("refreshAccessTokenWithLock", () => {
         refreshToken: "already-rotated-token",
       },
     };
-    vi.mocked(redis.hget).mockResolvedValue(
-      JSON.stringify(alreadyRefreshed),
-    );
+    vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(alreadyRefreshed));
 
-    const result = await refreshAccessTokenWithLock(
-      "session-123",
-      "old-refresh-token",
-    );
+    const result = await refreshAccessTokenWithLock("session-123", "old-refresh-token");
 
     // Should return the already-refreshed tokens without calling Keycloak
     expect(result).toEqual(alreadyRefreshed.authTokens);
@@ -265,16 +243,11 @@ describe("refreshAccessTokenWithLock", () => {
       }),
     );
 
-    const result = await refreshAccessTokenWithLock(
-      "session-123",
-      "same-refresh-token",
-    );
+    const result = await refreshAccessTokenWithLock("session-123", "same-refresh-token");
 
     // Should call Keycloak since tokens were not rotated
     expect(mockFetch).toHaveBeenCalled();
-    expect(result).toEqual(
-      expect.objectContaining({ accessToken: expect.any(String) }),
-    );
+    expect(result).toEqual(expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
   test("proceeds with refresh when session data is missing", async () => {
@@ -282,16 +255,11 @@ describe("refreshAccessTokenWithLock", () => {
     vi.mocked(redis.eval).mockResolvedValue(1);
     vi.mocked(redis.hget).mockResolvedValue(null);
 
-    const result = await refreshAccessTokenWithLock(
-      "session-123",
-      "refresh-token",
-    );
+    const result = await refreshAccessTokenWithLock("session-123", "refresh-token");
 
     // Should call Keycloak since no session data exists
     expect(mockFetch).toHaveBeenCalled();
-    expect(result).toEqual(
-      expect.objectContaining({ accessToken: expect.any(String) }),
-    );
+    expect(result).toEqual(expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
   test("releases lock even when refresh fails", async () => {
@@ -299,9 +267,9 @@ describe("refreshAccessTokenWithLock", () => {
     vi.mocked(redis.eval).mockResolvedValue(1);
     mockFetch.mockResolvedValue({ ok: false, status: 401 });
 
-    await expect(
-      refreshAccessTokenWithLock("session-123", "refresh-token"),
-    ).rejects.toThrow("Failed to refresh token");
+    await expect(refreshAccessTokenWithLock("session-123", "refresh-token")).rejects.toThrow(
+      "Failed to refresh token",
+    );
 
     // Lock should still be released in finally block
     expect(redis.eval).toHaveBeenCalled();
@@ -314,24 +282,17 @@ describe("refreshAccessTokenWithLock", () => {
       .mockResolvedValueOnce("OK");
     vi.mocked(redis.eval).mockResolvedValue(1);
 
-    const result = await refreshAccessTokenWithLock(
-      "session-123",
-      "refresh-token",
-    );
+    const result = await refreshAccessTokenWithLock("session-123", "refresh-token");
 
     expect(redis.set).toHaveBeenCalledTimes(2);
-    expect(result).toEqual(
-      expect.objectContaining({ accessToken: expect.any(String) }),
-    );
+    expect(result).toEqual(expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
   test("throws after exhausting all retries", async () => {
     // All attempts fail to acquire lock
     vi.mocked(redis.set).mockResolvedValue(null as never);
 
-    await expect(
-      refreshAccessTokenWithLock("session-123", "refresh-token"),
-    ).rejects.toThrow(
+    await expect(refreshAccessTokenWithLock("session-123", "refresh-token")).rejects.toThrow(
       "Failed to acquire refresh lock after maximum retries",
     );
 

@@ -70,9 +70,7 @@ const createDatabaseInternal = async (
   await connection.query(`SET s3_url_style='path'`);
   await connection.query(`SET s3_use_ssl=${useSSL}`);
 
-  console.info(
-    `[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: path)`,
-  );
+  console.info(`[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: path)`);
 
   return connection;
 };

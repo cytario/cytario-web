@@ -6,7 +6,7 @@ export const ClientOnly = ({ children }: { children: React.ReactNode }) => {
   const isClient = useSyncExternalStore(
     emptySubscribe,
     () => true,
-    () => false
+    () => false,
   );
 
   if (!isClient) {

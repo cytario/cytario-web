@@ -3,24 +3,16 @@ import { getOffsetKeyForOmeTiff } from "~/utils/omeTiffOffsets";
 describe("omeTiffOffsets", () => {
   describe("getOffsetKeyForOmeTiff", () => {
     test("derives offsets key from .ome.tif", () => {
-      expect(getOffsetKeyForOmeTiff("image.ome.tif")).toBe(
-        "image.offsets.json",
-      );
+      expect(getOffsetKeyForOmeTiff("image.ome.tif")).toBe("image.offsets.json");
     });
 
     test("derives offsets key from .ome.tiff", () => {
-      expect(getOffsetKeyForOmeTiff("image.ome.tiff")).toBe(
-        "image.offsets.json",
-      );
+      expect(getOffsetKeyForOmeTiff("image.ome.tiff")).toBe("image.offsets.json");
     });
 
     test("handles case insensitivity", () => {
-      expect(getOffsetKeyForOmeTiff("image.OME.TIF")).toBe(
-        "image.offsets.json",
-      );
-      expect(getOffsetKeyForOmeTiff("image.Ome.Tiff")).toBe(
-        "image.offsets.json",
-      );
+      expect(getOffsetKeyForOmeTiff("image.OME.TIF")).toBe("image.offsets.json");
+      expect(getOffsetKeyForOmeTiff("image.Ome.Tiff")).toBe("image.offsets.json");
     });
 
     test("preserves directory paths", () => {

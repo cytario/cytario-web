@@ -33,13 +33,7 @@ const CopiedOverlay = () => (
 
 // ─── Right (default): pure CSS truncation ───────────────────────────
 
-const RightEllipsis = ({
-  children,
-  copyValue,
-}: {
-  children: ReactNode;
-  copyValue?: string;
-}) => {
+const RightEllipsis = ({ children, copyValue }: { children: ReactNode; copyValue?: string }) => {
   const ref = useRef<HTMLSpanElement>(null);
   const isTruncated = useOverflowDetection(ref);
   const { handleClick, isCopied } = useCopyToClipboard(copyValue);
@@ -67,13 +61,7 @@ const RightEllipsis = ({
 
 // ─── Left: CSS direction trick ──────────────────────────────────────
 
-const LeftEllipsis = ({
-  children,
-  copyValue,
-}: {
-  children: ReactNode;
-  copyValue?: string;
-}) => {
+const LeftEllipsis = ({ children, copyValue }: { children: ReactNode; copyValue?: string }) => {
   const ref = useRef<HTMLSpanElement>(null);
   const isTruncated = useOverflowDetection(ref);
   const { handleClick, isCopied } = useCopyToClipboard(copyValue);
@@ -104,13 +92,7 @@ const LeftEllipsis = ({
 
 const middleCx = "overflow-hidden whitespace-nowrap block min-w-0 w-full";
 
-const MiddleEllipsisString = ({
-  text,
-  copyValue,
-}: {
-  text: string;
-  copyValue?: string;
-}) => {
+const MiddleEllipsisString = ({ text, copyValue }: { text: string; copyValue?: string }) => {
   const ref = useRef<HTMLSpanElement>(null);
   const displayed = useMiddleEllipsis(ref, text);
   const isTruncated = displayed !== text;
@@ -139,13 +121,8 @@ const MiddleEllipsisString = ({
 
 // ─── Public component ───────────────────────────────────────────────
 
-export const TooltipSpan = ({
-  children,
-  ellipsis = "right",
-  copyValue,
-}: TooltipSpanProps) => {
-  if (ellipsis === "left")
-    return <LeftEllipsis copyValue={copyValue}>{children}</LeftEllipsis>;
+export const TooltipSpan = ({ children, ellipsis = "right", copyValue }: TooltipSpanProps) => {
+  if (ellipsis === "left") return <LeftEllipsis copyValue={copyValue}>{children}</LeftEllipsis>;
   if (ellipsis === "middle" && typeof children === "string")
     return <MiddleEllipsisString text={children} copyValue={copyValue} />;
   return <RightEllipsis copyValue={copyValue}>{children}</RightEllipsis>;

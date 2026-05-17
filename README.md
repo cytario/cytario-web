@@ -15,16 +15,16 @@ For the hosted product, see [cytario.com](https://www.cytario.com).
 
 ## Architecture
 
-| Layer | Technology |
-|-------|------------|
-| Framework | React Router v7 (SSR), React 19, Vite 6 |
-| Language | TypeScript (strict mode) |
-| Visualization | deck.gl, Viv, DuckDB-WASM, Apache Arrow |
-| Styling | Tailwind CSS, [@cytario/design](https://github.com/cytario/cytario-design) |
-| Auth | OAuth 2.0 via Keycloak, STS for S3 credentials |
-| Database | PostgreSQL (Prisma ORM), Redis/Valkey (sessions) |
-| Cloud | AWS SDK v3 (S3, STS), presigned URLs |
-| CI/CD | GitHub Actions, semantic-release, GHCR |
+| Layer         | Technology                                                                 |
+| ------------- | -------------------------------------------------------------------------- |
+| Framework     | React Router v7 (SSR), React 19, Vite 6                                    |
+| Language      | TypeScript (strict mode)                                                   |
+| Visualization | deck.gl, Viv, DuckDB-WASM, Apache Arrow                                    |
+| Styling       | Tailwind CSS, [@cytario/design](https://github.com/cytario/cytario-design) |
+| Auth          | OAuth 2.0 via Keycloak, STS for S3 credentials                             |
+| Database      | PostgreSQL (Prisma ORM), Redis/Valkey (sessions)                           |
+| Cloud         | AWS SDK v3 (S3, STS), presigned URLs                                       |
+| CI/CD         | GitHub Actions, semantic-release, GHCR                                     |
 
 ## Plugin model
 
@@ -133,11 +133,11 @@ package's default export must satisfy the
 
 ### CLI
 
-| Command | Behaviour |
-|---|---|
+| Command             | Behaviour                                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
 | `cytario-web build` | Codegen (Vite plugin reads `CYTARIO_PLUGINS`) + `react-router build` against the installed package root. |
-| `cytario-web dev` | Codegen + `react-router dev`. Extra args (`--port`, `--host`, …) are forwarded. |
-| `cytario-web start` | `NODE_ENV=production node server.ts` against the bundled `build/server/index.js`. |
+| `cytario-web dev`   | Codegen + `react-router dev`. Extra args (`--port`, `--host`, …) are forwarded.                          |
+| `cytario-web start` | `NODE_ENV=production node server.ts` against the bundled `build/server/index.js`.                        |
 
 All subcommands operate against `@cytario/web`'s own install directory;
 the consumer never needs to know the on-disk layout.
@@ -213,12 +213,12 @@ cd devenv
 podman kube play local-deployment.yaml
 ```
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Keycloak | 8080 | Identity provider (admin/admin) |
-| MinIO | 9000, 9001 | S3-compatible object storage |
-| PostgreSQL | 5433 | Application database |
-| Valkey | 6379 | Session cache (Redis-compatible) |
+| Service    | Port       | Description                      |
+| ---------- | ---------- | -------------------------------- |
+| Keycloak   | 8080       | Identity provider (admin/admin)  |
+| MinIO      | 9000, 9001 | S3-compatible object storage     |
+| PostgreSQL | 5433       | Application database             |
+| Valkey     | 6379       | Session cache (Redis-compatible) |
 
 To stop: `podman kube down devenv/local-deployment.yaml`
 

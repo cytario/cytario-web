@@ -9,10 +9,7 @@ interface ColorSwatchProps extends ButtonProps {
 
 export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
   return (
-    <Button
-      className="group cursor-pointer flex items-center justify-center"
-      {...props}
-    >
+    <Button className="group cursor-pointer flex items-center justify-center" {...props}>
       <div
         className={`
           w-5 h-5 m-1 rounded-full border-2 

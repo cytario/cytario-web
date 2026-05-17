@@ -12,24 +12,21 @@ import { ClientOnly } from "~/components/ClientOnly";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
-import {
-  select,
-  selectHttpsUrl,
-} from "~/utils/connectionsStore/selectors";
+import { select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getNodeIcon, isImageFile } from "~/utils/fileType";
 import { buildConnectionPath, constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
-  import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then(
-    (mod) => ({ default: mod.ViewerStoreProvider }),
-  ),
+  import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then((mod) => ({
+    default: mod.ViewerStoreProvider,
+  })),
 );
 const ImagePreview = lazy(() =>
-  import("~/components/.client/ImageViewer/components/Image/ImagePreview").then(
-    (mod) => ({ default: mod.ImagePreview }),
-  ),
+  import("~/components/.client/ImageViewer/components/Image/ImagePreview").then((mod) => ({
+    default: mod.ImagePreview,
+  })),
 );
 
 const gridClasses: Partial<Record<ViewMode, string>> = {
@@ -40,15 +37,12 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
 
 /** Create a signedFetch that lazily resolves credentials from the connections store. */
 function useSignedFetch(connectionName: string) {
-  const connectionConfig = useConnectionsStore(
-    select.connectionConfig(connectionName),
-  );
+  const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
 
   const signedFetch = useMemo(() => {
     if (!connectionConfig) return null;
     return createSignedFetch(
-      () =>
-        useConnectionsStore.getState().connections[connectionName]?.credentials,
+      () => useConnectionsStore.getState().connections[connectionName]?.credentials,
       connectionConfig,
     );
   }, [connectionName, connectionConfig]);
@@ -56,13 +50,7 @@ function useSignedFetch(connectionName: string) {
   return { connectionConfig, signedFetch };
 }
 
-function BucketCardGridItem({
-  node,
-  connectionName,
-}: {
-  node: TreeNode;
-  connectionName: string;
-}) {
+function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
   const navigate = useNavigate();
   const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
 
@@ -73,10 +61,7 @@ function BucketCardGridItem({
   // `_Object.Key` (already absolute — includes any configured prefix).
   const previewKey = node._Object?.Key ?? null;
   const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
-  const s3Url =
-    hasPreview && connectionConfig
-      ? constructS3Url(connectionConfig, previewKey)
-      : "";
+  const s3Url = hasPreview && connectionConfig ? constructS3Url(connectionConfig, previewKey) : "";
 
   return (
     <StorageConnectionCard
@@ -97,11 +82,7 @@ function BucketCardGridItem({
     >
       {hasPreview && signedFetch && (
         <ClientOnly>
-          <Suspense
-            fallback={
-              <div className="animate-pulse w-full h-full bg-slate-600" />
-            }
-          >
+          <Suspense fallback={<div className="animate-pulse w-full h-full bg-slate-600" />}>
             <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
               <ImagePreview />
             </ViewerStoreProvider>
@@ -124,8 +105,7 @@ function FileCardGridItem({
   const navigate = useNavigate();
   const handleInfo = useNodeInfoModal(node);
 
-  const { connectionConfig: config, signedFetch } =
-    useSignedFetch(connectionName);
+  const { connectionConfig: config, signedFetch } = useSignedFetch(connectionName);
   // `_Object.Key` is absolute (prefix already applied) and set for both file
   // nodes (from listing) and directory nodes (first image inside, via
   // buildDirectoryTree). File nodes without `_Object` — e.g. recently-viewed
@@ -146,10 +126,7 @@ function FileCardGridItem({
   const hasPreview = !!s3Url && !!signedFetch;
 
   const nodeIcon = getNodeIcon(node);
-  const size =
-    node.type === "file" && node._Object?.Size
-      ? filesize(node._Object.Size)
-      : undefined;
+  const size = node.type === "file" && node._Object?.Size ? filesize(node._Object.Size) : undefined;
 
   return (
     <FileCard
@@ -162,11 +139,7 @@ function FileCardGridItem({
     >
       {hasPreview && signedFetch && (
         <ClientOnly>
-          <Suspense
-            fallback={
-              <div className="animate-pulse w-full h-full bg-slate-600" />
-            }
-          >
+          <Suspense fallback={<div className="animate-pulse w-full h-full bg-slate-600" />}>
             <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
               <ImagePreview />
             </ViewerStoreProvider>
@@ -196,13 +169,7 @@ export function DirectoryViewGrid({
       {nodes.map((node) => {
         const key = node.id;
         if (kind === "connections") {
-          return (
-            <BucketCardGridItem
-              key={key}
-              node={node}
-              connectionName={node.connectionName}
-            />
-          );
+          return <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />;
         }
         return (
           <FileCardGridItem

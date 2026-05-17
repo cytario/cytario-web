@@ -2,12 +2,7 @@ import { getSelectionStats } from "../../../utils/getSelectionStats";
 import { createViewerStore } from "../createViewerStore";
 import { getInitialChannelsState } from "../getInitialChannelsState";
 import { Image, Loader } from "../ome.tif.types";
-import {
-  ChannelConfig,
-  ChannelsStateColumns,
-  OverlaysState,
-  ViewState,
-} from "../types";
+import { ChannelConfig, ChannelsStateColumns, OverlaysState, ViewState } from "../types";
 import { createMigrate } from "~/utils/persistMigration";
 
 vi.mock("../../../utils/getSelectionStats");
@@ -217,9 +212,7 @@ describe("createViewerStore", () => {
     store.getState().setLoader(mockLoader);
     expect(store.getState().loader).toEqual(mockLoader);
 
-    const newLoader = [
-      { type: "czi", url: "http://example.com/data.czi" },
-    ] as unknown as Loader;
+    const newLoader = [{ type: "czi", url: "http://example.com/data.czi" }] as unknown as Loader;
 
     store.getState().setLoader(newLoader);
     expect(store.getState().loader).toEqual(newLoader);
@@ -400,14 +393,10 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    expect(
-      store.getState().layersStates[0].channels["Red"].contrastLimits
-    ).toEqual([10, 200]);
+    expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([10, 200]);
 
     store.getState().setContrastLimits([50, 150]);
-    expect(
-      store.getState().layersStates[0].channels["Red"].contrastLimits
-    ).toEqual([50, 150]);
+    expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([50, 150]);
   });
 
   test("setContrastLimits() does nothing when channel doesn't exist", () => {
@@ -436,15 +425,11 @@ describe("createViewerStore", () => {
 
     // First change the contrast limits
     store.getState().setContrastLimits([50, 150]);
-    expect(
-      store.getState().layersStates[0].channels["Red"].contrastLimits
-    ).toEqual([50, 150]);
+    expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([50, 150]);
 
     // Then reset them
     store.getState().resetContrastLimits();
-    expect(
-      store.getState().layersStates[0].channels["Red"].contrastLimits
-    ).toEqual([10, 200]);
+    expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([10, 200]);
   });
 
   test("setChannelVisibility() for initialized channel", async () => {
@@ -457,23 +442,13 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(
-      true
-    );
+    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
 
-    await store
-      .getState()
-      .setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(
-      false
-    );
+    await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
+    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(false);
 
-    await store
-      .getState()
-      .setChannelVisibility("Red" as keyof ChannelsStateColumns, true);
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(
-      true
-    );
+    await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, true);
+    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
   });
 
   test("setChannelVisibility() does nothing without loader", async () => {
@@ -486,13 +461,9 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    await store
-      .getState()
-      .setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
+    await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
     // Should remain unchanged
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(
-      true
-    );
+    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
   });
 
   test("setChannelVisibility() initializes uninitialized channel", async () => {
@@ -511,26 +482,14 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    expect(
-      store.getState().layersStates[0].channels["Green"].isInitialized
-    ).toBe(false);
+    expect(store.getState().layersStates[0].channels["Green"].isInitialized).toBe(false);
 
-    await store
-      .getState()
-      .setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
+    await store.getState().setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
 
-    expect(
-      store.getState().layersStates[0].channels["Green"].isInitialized
-    ).toBe(true);
-    expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(
-      true
-    );
-    expect(store.getState().layersStates[0].channels["Green"].domain).toEqual([
-      0, 1000,
-    ]);
-    expect(
-      store.getState().layersStates[0].channels["Green"].contrastLimits
-    ).toEqual([50, 800]);
+    expect(store.getState().layersStates[0].channels["Green"].isInitialized).toBe(true);
+    expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(true);
+    expect(store.getState().layersStates[0].channels["Green"].domain).toEqual([0, 1000]);
+    expect(store.getState().layersStates[0].channels["Green"].contrastLimits).toEqual([50, 800]);
   });
 
   test("setChannelVisibility() handles initialization error", async () => {
@@ -545,17 +504,11 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    await store
-      .getState()
-      .setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
+    await store.getState().setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
 
     // Should set loading to false and visibility to false on error
-    expect(store.getState().layersStates[0].channels["Green"].isLoading).toBe(
-      false
-    );
-    expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(
-      false
-    );
+    expect(store.getState().layersStates[0].channels["Green"].isLoading).toBe(false);
+    expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(false);
   });
 
   test("setChannelColor()", () => {
@@ -567,14 +520,10 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    expect(store.getState().layersStates[0].channels["Red"].color).toEqual([
-      255, 0, 0,
-    ]);
+    expect(store.getState().layersStates[0].channels["Red"].color).toEqual([255, 0, 0]);
 
     store.getState().setChannelColor("Red", [0, 128, 255, 255]);
-    expect(store.getState().layersStates[0].channels["Red"].color).toEqual([
-      0, 128, 255,
-    ]);
+    expect(store.getState().layersStates[0].channels["Red"].color).toEqual([0, 128, 255]);
   });
 
   test("setMarkerVisibility()", () => {
@@ -593,16 +542,12 @@ describe("createViewerStore", () => {
       layersStates: [layersState],
     });
 
-    expect(
-      store.getState().layersStates[0].overlays["file1.json"]["marker1"]
-        .isVisible
-    ).toBe(true);
+    expect(store.getState().layersStates[0].overlays["file1.json"]["marker1"].isVisible).toBe(true);
 
     store.getState().setMarkerVisibility("file1.json", "marker1", false);
-    expect(
-      store.getState().layersStates[0].overlays["file1.json"]["marker1"]
-        .isVisible
-    ).toBe(false);
+    expect(store.getState().layersStates[0].overlays["file1.json"]["marker1"].isVisible).toBe(
+      false,
+    );
   });
 
   test("setMarkerColor()", () => {
@@ -622,9 +567,9 @@ describe("createViewerStore", () => {
     });
 
     store.getState().setMarkerColor("file1.json", "marker1", [0, 255, 0, 255]);
-    expect(
-      store.getState().layersStates[0].overlays["file1.json"]["marker1"].color
-    ).toEqual([0, 255, 0, 255]);
+    expect(store.getState().layersStates[0].overlays["file1.json"]["marker1"].color).toEqual([
+      0, 255, 0, 255,
+    ]);
   });
 
   test("addOverlaysState()", () => {
@@ -678,9 +623,7 @@ describe("createViewerStore", () => {
     };
 
     store.getState().updateOverlaysState("file1.json", updatedOverlay);
-    expect(store.getState().layersStates[0].overlays["file1.json"]).toEqual(
-      updatedOverlay
-    );
+    expect(store.getState().layersStates[0].overlays["file1.json"]).toEqual(updatedOverlay);
   });
 
   test("removeOverlaysState()", () => {
@@ -703,12 +646,8 @@ describe("createViewerStore", () => {
     });
 
     store.getState().removeOverlaysState("file1.json");
-    expect(
-      store.getState().layersStates[0].overlays["file1.json"]
-    ).toBeUndefined();
-    expect(
-      store.getState().layersStates[0].overlays["file2.json"]
-    ).toBeDefined();
+    expect(store.getState().layersStates[0].overlays["file1.json"]).toBeUndefined();
+    expect(store.getState().layersStates[0].overlays["file2.json"]).toBeDefined();
   });
 
   test.each([
@@ -860,13 +799,9 @@ describe("createViewerStore", () => {
 
     test("sets error state when initialization fails", async () => {
       const store = createViewerStore("test-viewer-32");
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      vi.mocked(getInitialChannelsState).mockRejectedValue(
-        new Error("Failed to load channels")
-      );
+      vi.mocked(getInitialChannelsState).mockRejectedValue(new Error("Failed to load channels"));
 
       store.setState({
         imagePanelIndex: -1,
@@ -883,9 +818,7 @@ describe("createViewerStore", () => {
 
     test("sets error state for non-Error thrown values", async () => {
       const store = createViewerStore("test-viewer-32b");
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       vi.mocked(getInitialChannelsState).mockRejectedValue("String error");
 

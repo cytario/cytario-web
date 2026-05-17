@@ -19,9 +19,7 @@ function computeTruncated(el: HTMLElement, text: string): string {
     const startLen = Math.ceil(mid / 2);
     const endLen = Math.floor(mid / 2);
     el.textContent =
-      text.slice(0, startLen) +
-      ELLIPSIS +
-      (endLen > 0 ? text.slice(text.length - endLen) : "");
+      text.slice(0, startLen) + ELLIPSIS + (endLen > 0 ? text.slice(text.length - endLen) : "");
 
     if (el.scrollWidth <= el.clientWidth) {
       lo = mid;
@@ -49,10 +47,7 @@ function computeTruncated(el: HTMLElement, text: string): string {
  * Observes the container width and returns a middle-truncated string.
  * Returns the original text if it fits within the container.
  */
-export function useMiddleEllipsis(
-  ref: RefObject<HTMLSpanElement | null>,
-  text: string,
-): string {
+export function useMiddleEllipsis(ref: RefObject<HTMLSpanElement | null>, text: string): string {
   const [displayed, setDisplayed] = useState(text);
 
   // useLayoutEffect runs before paint, so the user never sees the full text.

@@ -1,11 +1,4 @@
-import {
-  Badge,
-  Banner,
-  Button,
-  ButtonLink,
-  EmptyState,
-  Pill,
-} from "@cytario/design";
+import { Badge, Banner, Button, ButtonLink, EmptyState, Pill } from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
 import { FolderPlus, Plug, UserPlus, Users, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -19,19 +12,12 @@ import {
 
 import { BulkActions } from "./BulkActions";
 import type { ConnectionConfig } from "~/.generated/client";
-import {
-  type UserWithGroups,
-  type GroupInfo,
-} from "~/.server/auth/keycloakAdmin";
+import { type UserWithGroups, type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
-import {
-  type CellRenderers,
-  type ColumnConfig,
-  Table,
-} from "~/components/Table/Table";
+import { type CellRenderers, type ColumnConfig, Table } from "~/components/Table/Table";
 import { useModal } from "~/hooks/useModal";
 
 export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
@@ -46,9 +32,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
-  return (
-    currentUrl.searchParams.get("scope") !== nextUrl.searchParams.get("scope")
-  );
+  return currentUrl.searchParams.get("scope") !== nextUrl.searchParams.get("scope");
 };
 
 interface UserRow {
@@ -65,10 +49,7 @@ function buildGroupColumn(
   allGroups: GroupInfo[],
   counts: Map<string, number>,
   totalCount: number,
-  {
-    pillVisibleCount,
-    ...extra
-  }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
+  { pillVisibleCount, ...extra }: Partial<ColumnConfig> & { pillVisibleCount?: number } = {},
 ): ColumnConfig {
   const options = [
     { label: "All", value: "" },
@@ -159,25 +140,11 @@ function buildColumns(
       ],
       filterRender: (option) => {
         const label =
-          option.value === "true"
-            ? "Active"
-            : option.value === "false"
-              ? "Disabled"
-              : option.label;
-        return (
-          <Pill color={option.value === "true" ? "green" : "slate"}>
-            {label}
-          </Pill>
-        );
+          option.value === "true" ? "Active" : option.value === "false" ? "Disabled" : option.label;
+        return <Pill color={option.value === "true" ? "green" : "slate"}>{label}</Pill>;
       },
     },
-    buildGroupColumn(
-      "groups",
-      "Groups",
-      groups,
-      groupCounts,
-      totalCount,
-    ),
+    buildGroupColumn("groups", "Groups", groups, groupCounts, totalCount),
   ];
 }
 
@@ -193,9 +160,7 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
     ),
     enabled: (row) => {
       const label = row.enabled === "true" ? "Active" : "Disabled";
-      return (
-        <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>
-      );
+      return <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>;
     },
     groups: (row) => (
       <div className="flex flex-wrap gap-1">
@@ -279,21 +244,14 @@ export default function AdminUsersRoute() {
         >
           Bulk Invite
         </ButtonLink>
-        <Button
-          variant="secondary"
-          iconLeft={Plug}
-          onPress={() => openModal("add-connection")}
-        >
+        <Button variant="secondary" iconLeft={Plug} onPress={() => openModal("add-connection")}>
           Connect Storage
         </Button>
       </SectionHeader>
 
       <Container>
         <section aria-labelledby="connections-heading" className="mb-6">
-          <h3
-            id="connections-heading"
-            className="text-sm font-medium text-slate-500 mb-2"
-          >
+          <h3 id="connections-heading" className="text-sm font-medium text-slate-500 mb-2">
             Connections
           </h3>
           {connections.length > 0 ? (
@@ -314,12 +272,8 @@ export default function AdminUsersRoute() {
               ))}
             </ul>
           ) : (
-            <Banner
-              variant="warning"
-              title="No connections linked to this group"
-            >
-              Members won&apos;t be able to access any data until you connect
-              storage.
+            <Banner variant="warning" title="No connections linked to this group">
+              Members won&apos;t be able to access any data until you connect storage.
             </Banner>
           )}
         </section>
@@ -342,10 +296,7 @@ export default function AdminUsersRoute() {
             title="No users yet"
             description="Invite team members to get started."
             action={
-              <ButtonLink
-                href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`}
-                size="lg"
-              >
+              <ButtonLink href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`} size="lg">
                 Invite User
               </ButtonLink>
             }

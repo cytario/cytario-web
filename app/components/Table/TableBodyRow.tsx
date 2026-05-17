@@ -21,25 +21,22 @@ export function TableBodyRow({
   enableRowSelection,
   className,
 }: TableBodyRowProps) {
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLTableRowElement>) => {
-      const tr = event.currentTarget;
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTableRowElement>) => {
+    const tr = event.currentTarget;
 
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        const next = tr.nextElementSibling as HTMLElement | null;
-        next?.focus();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        const prev = tr.previousElementSibling as HTMLElement | null;
-        prev?.focus();
-      } else if (event.key === "Enter") {
-        const link = tr.querySelector("a");
-        link?.click();
-      }
-    },
-    [],
-  );
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = tr.nextElementSibling as HTMLElement | null;
+      next?.focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      const prev = tr.previousElementSibling as HTMLElement | null;
+      prev?.focus();
+    } else if (event.key === "Enter") {
+      const link = tr.querySelector("a");
+      link?.click();
+    }
+  }, []);
 
   return (
     <tr
@@ -78,8 +75,7 @@ export function TableBodyRow({
         };
 
         const rawValue = cell.getValue();
-        const useRawString =
-          columnConfig?.ellipsis === "middle" && typeof rawValue === "string";
+        const useRawString = columnConfig?.ellipsis === "middle" && typeof rawValue === "string";
 
         const content = isIndexColumn
           ? rowIndex + 1
@@ -88,28 +84,20 @@ export function TableBodyRow({
             : flexRender(cell.column.columnDef.cell, cell.getContext());
 
         const copyValue =
-          columnConfig?.copyable && typeof rawValue === "string"
-            ? rawValue
-            : undefined;
+          columnConfig?.copyable && typeof rawValue === "string" ? rawValue : undefined;
 
         return isIndexColumn ? (
           <th key={cell.id} className="p-2" style={style}>
             <div className="flex items-center gap-1 text-sm text-slate-500 tabular-nums justify-between">
               {enableRowSelection && (
-                <Checkbox
-                  isSelected={row.getIsSelected()}
-                  onChange={() => row.toggleSelected()}
-                />
+                <Checkbox isSelected={row.getIsSelected()} onChange={() => row.toggleSelected()} />
               )}
               <span>{rowIndex + 1}</span>
             </div>
           </th>
         ) : (
           <td key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan
-              ellipsis={columnConfig?.ellipsis}
-              copyValue={copyValue}
-            >
+            <TooltipSpan ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
               {content}
             </TooltipSpan>
           </td>

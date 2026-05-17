@@ -3,11 +3,7 @@ import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
-import {
-  type BulkInviteRow,
-  bulkInviteRowSchema,
-  bulkInviteSchema,
-} from "./bulkInvite.schema";
+import { type BulkInviteRow, bulkInviteRowSchema, bulkInviteSchema } from "./bulkInvite.schema";
 import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface BulkInviteFormProps {
@@ -44,35 +40,26 @@ export function BulkInviteForm({
   const [groupPath, setGroupPath] = useState(scope);
   const [enabled, setEnabled] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
-  const [rows, setRows] = useState<RowState[]>([
-    emptyRow(),
-    emptyRow(),
-    emptyRow(),
-  ]);
+  const [rows, setRows] = useState<RowState[]>([emptyRow(), emptyRow(), emptyRow()]);
 
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const updateRow = useCallback(
-    (index: number, field: keyof BulkInviteRow, value: string) => {
-      setRows((prev) =>
-        prev.map((row, i) =>
-          i === index
-            ? {
-                ...row,
-                [field]: value,
-                errors: { ...row.errors, [field]: undefined },
-              }
-            : row,
-        ),
-      );
-    },
-    [],
-  );
+  const updateRow = useCallback((index: number, field: keyof BulkInviteRow, value: string) => {
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [field]: value,
+              errors: { ...row.errors, [field]: undefined },
+            }
+          : row,
+      ),
+    );
+  }, []);
 
   const removeRow = useCallback((index: number) => {
-    setRows((prev) =>
-      prev.length <= 1 ? prev : prev.filter((_, i) => i !== index),
-    );
+    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
   }, []);
 
   const addRow = useCallback(() => {
@@ -164,9 +151,7 @@ export function BulkInviteForm({
           />
         ) : (
           <Field label="Group Membership">
-            <p className="text-sm text-slate-400">
-              No groups available in this scope.
-            </p>
+            <p className="text-sm text-slate-400">No groups available in this scope.</p>
           </Field>
         )}
         <div className="flex items-center gap-2">
@@ -179,9 +164,7 @@ export function BulkInviteForm({
         </div>
       </div>
 
-      {formError && (
-        <p className="text-sm text-rose-600 mb-4">{formError}</p>
-      )}
+      {formError && <p className="text-sm text-rose-600 mb-4">{formError}</p>}
 
       <table ref={tableRef} className="w-full border-collapse">
         <thead>

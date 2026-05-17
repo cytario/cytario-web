@@ -1,7 +1,4 @@
-import {
-  __resetBuiltinFormats,
-  registerBuiltinFormats,
-} from "../builtins";
+import { __resetBuiltinFormats, registerBuiltinFormats } from "../builtins";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 // Loaders are imported by builtins.ts; mock them so we can assert that the
@@ -49,13 +46,12 @@ describe("FormatRegistry.resolve with built-ins", () => {
     registerBuiltinFormats();
   });
 
-  test.each([
-    "https://x/a.ome.tif",
-    "https://x/a.ome.tiff",
-    "https://x/A.OME.TIF",
-  ])("%s routes to the OME-TIFF handler", (url) => {
-    expect(formatRegistry.resolve(url).keys).toEqual(["ome.tif", "ome.tiff"]);
-  });
+  test.each(["https://x/a.ome.tif", "https://x/a.ome.tiff", "https://x/A.OME.TIF"])(
+    "%s routes to the OME-TIFF handler",
+    (url) => {
+      expect(formatRegistry.resolve(url).keys).toEqual(["ome.tif", "ome.tiff"]);
+    },
+  );
 
   test.each([
     "https://x/a.zarr",
@@ -74,9 +70,7 @@ describe("FormatRegistry.resolve with built-ins", () => {
       signedFetch,
       signal: controller.signal,
     });
-    const { loadOmeTiffWithCredentials } = await import(
-      "../../loaders/loadOmeTiffWithCredentials"
-    );
+    const { loadOmeTiffWithCredentials } = await import("../../loaders/loadOmeTiffWithCredentials");
     expect(loadOmeTiffWithCredentials).toHaveBeenCalledWith(
       "https://x/a.ome.tif",
       expect.objectContaining({ signedFetch, signal: controller.signal }),

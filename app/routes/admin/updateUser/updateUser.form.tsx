@@ -19,11 +19,7 @@ interface UpdateUserFormProps {
   groupPaths: Set<string>;
 }
 
-export const UpdateUserForm = ({
-  user,
-  groups,
-  groupPaths,
-}: UpdateUserFormProps) => {
+export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps) => {
   const submit = useSubmit();
 
   const [memberGroupIds, setMemberGroupIds] = useState<Set<string>>(() => {
@@ -61,10 +57,7 @@ export const UpdateUserForm = ({
       }
     });
     for (const group of groups) {
-      formData.append(
-        `group-${group.id}`,
-        String(memberGroupIds.has(group.id)),
-      );
+      formData.append(`group-${group.id}`, String(memberGroupIds.has(group.id)));
     }
     return formData;
   };
@@ -73,9 +66,7 @@ export const UpdateUserForm = ({
     const changes: string[] = [];
 
     if (user.enabled && !data.enabled) {
-      changes.push(
-        `Disable account for ${user.firstName} ${user.lastName}`,
-      );
+      changes.push(`Disable account for ${user.firstName} ${user.lastName}`);
     }
 
     const addedAdminGroups = groups.filter(
@@ -249,9 +240,7 @@ export const UpdateUserForm = ({
         confirmLabel="Save Changes"
         confirmVariant="primary"
       >
-        <p className="text-sm text-slate-600">
-          You are about to make the following changes:
-        </p>
+        <p className="text-sm text-slate-600">You are about to make the following changes:</p>
         <ul className="list-disc list-inside text-sm text-slate-900 space-y-1">
           {warnings.map((w) => (
             <li key={w}>{w}</li>

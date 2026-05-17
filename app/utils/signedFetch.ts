@@ -5,10 +5,7 @@ import { SignatureV4 } from "@smithy/signature-v4";
 import type { ConnectionConfig } from "~/.generated/client";
 import { sanitizeHeaders } from "~/utils/sanitizeHeaders";
 
-export type SignedFetch = (
-  url: string,
-  init?: RequestInit,
-) => Promise<Response>;
+export type SignedFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 // Image tile/chunk bytes are immutable per object version → 7-day cache.
 const IMAGE_DATA_CACHE_CONTROL = "private, max-age=604800";
@@ -20,9 +17,7 @@ const OTHER_DATA_CACHE_CONTROL = "private, max-age=3600";
 // TIFF/OME-TIFF reads, or OME-Zarr chunks whose last path segment is digits
 // only (`image.zarr/0/0/0` or `image.zarr/0.0.0`).
 function isImageDataPath(pathname: string): boolean {
-  return (
-    /\.tiff?$/i.test(pathname) || /\/\d+(?:\.\d+)*$/.test(pathname)
-  );
+  return /\.tiff?$/i.test(pathname) || /\/\d+(?:\.\d+)*$/.test(pathname);
 }
 
 /**
@@ -43,9 +38,7 @@ export function createSignedFetch(
     const credentials = getCredentials();
 
     if (!credentials.AccessKeyId || !credentials.SecretAccessKey) {
-      throw new Error(
-        "Invalid credentials: AccessKeyId and SecretAccessKey are required",
-      );
+      throw new Error("Invalid credentials: AccessKeyId and SecretAccessKey are required");
     }
 
     if (credentials.AccessKeyId !== cachedKeyId) {
@@ -76,9 +69,7 @@ export function createSignedFetch(
     // avoid CORS/signature mismatches. Caller-supplied headers run through
     // sanitizeHeaders, and the merge order below puts signed headers LAST
     // so a bypass of sanitizeHeaders still cannot override the signature.
-    const callerHeaders = sanitizeHeaders(
-      (init?.headers as Record<string, string> | undefined),
-    );
+    const callerHeaders = sanitizeHeaders(init?.headers as Record<string, string> | undefined);
 
     const request = {
       method: (init?.method as string) ?? "GET",

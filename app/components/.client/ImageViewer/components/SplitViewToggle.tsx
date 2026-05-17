@@ -17,9 +17,7 @@ export const SplitViewToggle = () => {
   const isSplitViewEnabled = imagePanels.length > 1;
 
   return (
-    <Tooltip
-      content={isSplitViewEnabled ? "Disable Split View" : "Enable Split View"}
-    >
+    <Tooltip content={isSplitViewEnabled ? "Disable Split View" : "Enable Split View"}>
       <Button
         onPress={() => {
           if (imagePanels.length === 1) {

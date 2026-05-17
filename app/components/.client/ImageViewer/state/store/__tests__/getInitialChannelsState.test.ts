@@ -5,9 +5,7 @@ import { Image, Loader } from "../ome.tif.types";
 vi.mock("../../../utils/getSelectionStats");
 
 describe("getInitialChannelsState", () => {
-  const createMockMetadata = (
-    channels: { Name?: string; Color?: number[] }[],
-  ): Image =>
+  const createMockMetadata = (channels: { Name?: string; Color?: number[] }[]): Image =>
     ({
       Pixels: {
         Channels: channels,
@@ -37,11 +35,7 @@ describe("getInitialChannelsState", () => {
   });
 
   test("returns channelIds with fallback names when channel Name is undefined", async () => {
-    const metadata = createMockMetadata([
-      { Name: "DAPI" },
-      { Name: undefined },
-      { Name: "RFP" },
-    ]);
+    const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: undefined }, { Name: "RFP" }]);
 
     const result = await getInitialChannelsState(metadata, mockLoader);
 
@@ -66,11 +60,7 @@ describe("getInitialChannelsState", () => {
   });
 
   test("channelsState keys match channelIds", async () => {
-    const metadata = createMockMetadata([
-      { Name: "DAPI" },
-      { Name: "GFP" },
-      { Name: "RFP" },
-    ]);
+    const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "GFP" }, { Name: "RFP" }]);
 
     const result = await getInitialChannelsState(metadata, mockLoader);
 
@@ -78,11 +68,7 @@ describe("getInitialChannelsState", () => {
   });
 
   test("only first channel is visible initially", async () => {
-    const metadata = createMockMetadata([
-      { Name: "DAPI" },
-      { Name: "GFP" },
-      { Name: "RFP" },
-    ]);
+    const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "GFP" }, { Name: "RFP" }]);
 
     const result = await getInitialChannelsState(metadata, mockLoader);
 
@@ -119,11 +105,7 @@ describe("getInitialChannelsState", () => {
   });
 
   test("channels fall back to OVERLAY_COLORS as RGB when metadata lacks Color", async () => {
-    const metadata = createMockMetadata([
-      { Name: "DAPI" },
-      { Name: "CD8" },
-      { Name: "PanCK" },
-    ]);
+    const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "CD8" }, { Name: "PanCK" }]);
 
     const result = await getInitialChannelsState(metadata, mockLoader);
 

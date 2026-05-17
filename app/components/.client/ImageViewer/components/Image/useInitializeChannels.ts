@@ -22,11 +22,5 @@ export const useInitializeChannels = (viewPort: ViewPort) => {
       isInitialized.current = true;
       addChannelsState();
     }
-  }, [
-    metadata,
-    viewPort,
-    channelsState,
-    addChannelsState,
-    setChannelVisibility,
-  ]);
+  }, [metadata, viewPort, channelsState, addChannelsState, setChannelVisibility]);
 };

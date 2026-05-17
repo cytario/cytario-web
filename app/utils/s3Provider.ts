@@ -32,7 +32,7 @@ export function isAwsS3Endpoint(endpoint?: string | null): boolean {
  */
 export function getS3ProviderConfig(
   endpoint?: string | null,
-  region?: string | null
+  region?: string | null,
 ): S3ProviderConfig {
   const actualRegion = region ?? DEFAULT_REGION;
   const actualEndpoint = endpoint ?? DEFAULT_ENDPOINT;
@@ -41,12 +41,8 @@ export function getS3ProviderConfig(
   return {
     isAwsS3,
     usePathStyle: !isAwsS3,
-    stsEndpoint: isAwsS3
-      ? `https://sts.${actualRegion}.amazonaws.com`
-      : actualEndpoint,
-    s3Endpoint: isAwsS3
-      ? `https://s3.${actualRegion}.amazonaws.com`
-      : actualEndpoint,
+    stsEndpoint: isAwsS3 ? `https://sts.${actualRegion}.amazonaws.com` : actualEndpoint,
+    s3Endpoint: isAwsS3 ? `https://s3.${actualRegion}.amazonaws.com` : actualEndpoint,
   };
 }
 

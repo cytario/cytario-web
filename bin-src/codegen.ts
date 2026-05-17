@@ -14,7 +14,10 @@ export class InvalidPluginNameError extends Error {
 
 /** Validate + parse the CYTARIO_PLUGINS env var. Invalid entries throw. */
 export function parseCytarioPluginsEnv(env: string | undefined): CodegenInput {
-  const raw = (env ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const raw = (env ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   for (const name of raw) {
     if (!NPM_NAME_RE.test(name)) {
       throw new InvalidPluginNameError(

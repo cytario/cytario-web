@@ -32,10 +32,7 @@ const fetchWellKnownEndpoints = async (): Promise<WellKnownEndpoints> => {
     cacheExpiresAt = Date.now() + CACHE_TTL_MS;
     return data;
   } catch (error) {
-    console.error(
-      `Error fetching well-known endpoints from ${endpointUrl}:`,
-      error,
-    );
+    console.error(`Error fetching well-known endpoints from ${endpointUrl}:`, error);
     cachedEndpoints = null;
     cacheExpiresAt = 0;
     throw error;

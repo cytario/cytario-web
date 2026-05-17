@@ -22,11 +22,7 @@ describe("FeatureBar", () => {
       },
     ]);
 
-    render(
-      <RemixStub
-        initialEntries={["/connections/test/lab/image.ome.tif"]}
-      />
-    );
+    render(<RemixStub initialEntries={["/connections/test/lab/image.ome.tif"]} />);
 
     expect(screen.getByRole("toolbar")).toBeInTheDocument();
     expect(screen.getByRole("tablist")).toBeInTheDocument();

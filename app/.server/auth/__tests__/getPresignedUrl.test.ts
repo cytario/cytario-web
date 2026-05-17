@@ -24,7 +24,7 @@ describe("getPresignedUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getSignedUrl).mockResolvedValue(
-      "https://test-bucket.s3.amazonaws.com/test-key?X-Amz-Signature=abc123"
+      "https://test-bucket.s3.amazonaws.com/test-key?X-Amz-Signature=abc123",
     );
   });
 
@@ -45,20 +45,15 @@ describe("getPresignedUrl", () => {
       expect.any(Object),
       expect.objectContaining({
         expiresIn: 3600, // 1 hour
-      })
+      }),
     );
   });
 
   test("returns presigned URL", async () => {
-    const expectedUrl =
-      "https://test-bucket.s3.amazonaws.com/my-file.pdf?X-Amz-Signature=xyz";
+    const expectedUrl = "https://test-bucket.s3.amazonaws.com/my-file.pdf?X-Amz-Signature=xyz";
     vi.mocked(getSignedUrl).mockResolvedValue(expectedUrl);
 
-    const result = await getPresignedUrl(
-      mockConnectionConfig,
-      mockS3Client,
-      "my-file.pdf"
-    );
+    const result = await getPresignedUrl(mockConnectionConfig, mockS3Client, "my-file.pdf");
 
     expect(result).toBe(expectedUrl);
   });
@@ -71,11 +66,7 @@ describe("getPresignedUrl", () => {
   });
 
   test("handles keys with special characters", async () => {
-    await getPresignedUrl(
-      mockConnectionConfig,
-      mockS3Client,
-      "folder/sub folder/file (1).txt"
-    );
+    await getPresignedUrl(mockConnectionConfig, mockS3Client, "folder/sub folder/file (1).txt");
 
     expect(GetObjectCommand).toHaveBeenCalledWith({
       Bucket: "test-bucket",
@@ -99,8 +90,8 @@ describe("getPresignedUrl", () => {
   test("propagates errors from getSignedUrl", async () => {
     vi.mocked(getSignedUrl).mockRejectedValue(new Error("Signing failed"));
 
-    await expect(
-      getPresignedUrl(mockConnectionConfig, mockS3Client, "test-key")
-    ).rejects.toThrow("Signing failed");
+    await expect(getPresignedUrl(mockConnectionConfig, mockS3Client, "test-key")).rejects.toThrow(
+      "Signing failed",
+    );
   });
 });

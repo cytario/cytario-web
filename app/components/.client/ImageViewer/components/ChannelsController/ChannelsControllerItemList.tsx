@@ -31,11 +31,7 @@ export function ChannelsControllerItemList({
 
   const brightfieldChannelIds = useMemo(() => {
     if (!brightfieldGroup) return new Set<string>();
-    return new Set([
-      brightfieldGroup.red,
-      brightfieldGroup.green,
-      brightfieldGroup.blue,
-    ]);
+    return new Set([brightfieldGroup.red, brightfieldGroup.green, brightfieldGroup.blue]);
   }, [brightfieldGroup]);
 
   const isBrightfieldVisible = useMemo(() => {
@@ -50,16 +46,13 @@ export function ChannelsControllerItemList({
   const visibleChannelIds = useMemo(
     () =>
       channelIds.filter(
-        (id) =>
-          !brightfieldChannelIds.has(id) &&
-          (isExpanded || channelsState?.[id]?.isVisible),
+        (id) => !brightfieldChannelIds.has(id) && (isExpanded || channelsState?.[id]?.isVisible),
       ),
     [channelIds, channelsState, isExpanded, brightfieldChannelIds],
   );
 
   // Show brightfield item when expanded or when it's visible
-  const showBrightfield =
-    brightfieldGroup && (isExpanded || isBrightfieldVisible);
+  const showBrightfield = brightfieldGroup && (isExpanded || isBrightfieldVisible);
 
   useEffect(() => {
     if (visibleChannelIds.length === 0 && !showBrightfield) {
@@ -77,7 +70,9 @@ export function ChannelsControllerItemList({
         // Check if enabling this channel/group would exceed the viv limit
         const isBrightfield = name === BRIGHTFIELD_GROUP_ID;
         const slotsNeeded = isBrightfield ? 3 : 1;
-        const alreadyVisible = isBrightfield ? isBrightfieldVisible : channelsState?.[name]?.isVisible;
+        const alreadyVisible = isBrightfield
+          ? isBrightfieldVisible
+          : channelsState?.[name]?.isVisible;
         if (!alreadyVisible && visibleChannelCount + slotsNeeded > MAX_VISIBLE_CHANNELS) return;
 
         setSelectedChannelId(name);
@@ -129,10 +124,7 @@ export function ChannelsControllerItemList({
           visibleChannelCount={visibleChannelCount}
           toggleVisibility={() => {
             const newVisible = !isBrightfieldVisible;
-            setChannelVisibility(
-              BRIGHTFIELD_GROUP_ID as keyof ChannelsStateColumns,
-              newVisible,
-            );
+            setChannelVisibility(BRIGHTFIELD_GROUP_ID as keyof ChannelsStateColumns, newVisible);
 
             if (!newVisible && selectedChannelId === BRIGHTFIELD_GROUP_ID) {
               setSelectedChannelId(null);

@@ -11,9 +11,7 @@ describe("ViewModeToggle", () => {
   test("renders a segmented control with View mode label", () => {
     render(<ViewModeToggle />);
 
-    expect(
-      screen.getByRole("radiogroup", { name: "View mode" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "View mode" })).toBeInTheDocument();
   });
 
   test("renders all four view mode buttons", () => {
@@ -21,9 +19,7 @@ describe("ViewModeToggle", () => {
 
     expect(screen.getByRole("radio", { name: "List view" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Grid view" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("radio", { name: "Compact grid" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Compact grid" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Tree view" })).toBeInTheDocument();
   });
 

@@ -1,9 +1,4 @@
-import type {
-  ColumnDefBase,
-  FilterFn,
-  OnChangeFn,
-  RowSelectionState,
-} from "@tanstack/react-table";
+import type { ColumnDefBase, FilterFn, OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { ReactNode } from "react";
 
 // Behavior props aligned with TanStack naming
@@ -48,7 +43,8 @@ interface ColumnVisibility {
 }
 
 export interface ColumnConfig
-  extends ColumnBehavior,
+  extends
+    ColumnBehavior,
     ColumnSorting,
     ColumnSizing,
     ColumnDisplay,
@@ -63,9 +59,7 @@ export interface ColumnConfig
  * row object and returns a ReactNode. Columns without a renderer display
  * their raw accessor value.
  */
-export type CellRenderers<TData> = Partial<
-  Record<string, (row: TData) => ReactNode>
->;
+export type CellRenderers<TData> = Partial<Record<string, (row: TData) => ReactNode>>;
 
 export interface TableProps<TData extends object> {
   columns: ColumnConfig[];

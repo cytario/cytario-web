@@ -65,10 +65,7 @@ export async function updateConnection(
   return { ...updated, previousName, previousBucketName };
 }
 
-export const updateAction = async ({
-  request,
-  context,
-}: ActionFunctionArgs) => {
+export const updateAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();
@@ -141,10 +138,7 @@ export const updateAction = async ({
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return {
         errors: {
           name: [

@@ -19,16 +19,12 @@ describe("normalizePixelType", () => {
     expect(normalizePixelType(input)).toBe(expected);
   });
 
-  test.each([
-    "Uint128",
-    "float16",
-    "int4",
-    "uint",
-    "",
-    "not-a-dtype",
-  ])("throws on unknown pixel type: %s", (input) => {
-    expect(() => normalizePixelType(input)).toThrow(/Unknown pixel type/);
-  });
+  test.each(["Uint128", "float16", "int4", "uint", "", "not-a-dtype"])(
+    "throws on unknown pixel type: %s",
+    (input) => {
+      expect(() => normalizePixelType(input)).toThrow(/Unknown pixel type/);
+    },
+  );
 
   test("error message lists allowed values", () => {
     expect(() => normalizePixelType("bogus")).toThrow(/Uint8.*Uint16.*Float32/);

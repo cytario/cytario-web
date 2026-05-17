@@ -51,8 +51,6 @@ export function useTableStore(tableId: string): StoreApi<TableStore> {
  * }
  * ```
  */
-export function getTableStore(
-  tableId: string,
-): StoreApi<TableStore> | undefined {
+export function getTableStore(tableId: string): StoreApi<TableStore> | undefined {
   return tableStores.get(tableId);
 }

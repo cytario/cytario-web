@@ -20,11 +20,7 @@ export default function CreateGroupModal() {
         <Button onPress={() => navigate(-1)} variant="secondary">
           Cancel
         </Button>
-        <Button
-          type="submit"
-          form="create-group-form"
-          isDisabled={isSubmitting}
-        >
+        <Button type="submit" form="create-group-form" isDisabled={isSubmitting}>
           {isSubmitting ? "Creating..." : "Create Group"}
         </Button>
       </footer>

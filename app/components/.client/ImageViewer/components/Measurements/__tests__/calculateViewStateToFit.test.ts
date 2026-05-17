@@ -64,11 +64,7 @@ describe("calculateViewStateToFit", () => {
       },
     },
   ])("$description", ({ metadata, viewport, options, expected }) => {
-    const result: ViewState = calculateViewStateToFit(
-      metadata,
-      viewport,
-      options
-    );
+    const result: ViewState = calculateViewStateToFit(metadata, viewport, options);
 
     expect(result.width).toBe(viewport.width);
     expect(result.height).toBe(viewport.height);
@@ -109,9 +105,6 @@ describe("calculateViewStateToFit", () => {
     const result = calculateViewStateToFit(metadata, viewport, options);
 
     expect(result.zoom).toBeCloseTo(Math.log2(expectedZoomScale), 4);
-    expect(result.target).toEqual([
-      metadata.Pixels.SizeX / 2,
-      metadata.Pixels.SizeY / 2,
-    ]);
+    expect(result.target).toEqual([metadata.Pixels.SizeX / 2, metadata.Pixels.SizeY / 2]);
   });
 });

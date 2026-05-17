@@ -2,10 +2,7 @@ import { type LoaderFunction } from "react-router";
 
 import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
-import {
-  getGroupWithMembers,
-  GroupWithMembers,
-} from "~/.server/auth/keycloakAdmin/groups";
+import { getGroupWithMembers, GroupWithMembers } from "~/.server/auth/keycloakAdmin/groups";
 
 function flattenGroupPaths(group: GroupWithMembers): string[] {
   return [group.path, ...group.subGroups.flatMap(flattenGroupPaths)];

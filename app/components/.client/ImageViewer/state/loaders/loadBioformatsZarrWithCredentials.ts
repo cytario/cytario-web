@@ -59,15 +59,11 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
   const SizeT = shape[dimIndex("t")] ?? 1;
   const SizeC = shape[dimIndex("c")] ?? (channels.length || 1);
 
-  const { PhysicalSizeX, PhysicalSizeY, PhysicalSizeZ } = extractPhysicalSizes(
-    multiscale,
-    axes,
-  );
+  const { PhysicalSizeX, PhysicalSizeY, PhysicalSizeZ } = extractPhysicalSizes(multiscale, axes);
 
   const axisUnit = (name: string) => {
     const axis = axes.find(
-      (a): a is { name: string; unit?: string } =>
-        typeof a !== "string" && a.name === name,
+      (a): a is { name: string; unit?: string } => typeof a !== "string" && a.name === name,
     );
     return axis?.unit ?? "µm";
   };
@@ -94,13 +90,11 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
       PhysicalSizeXUnit: axisUnit("x"),
       PhysicalSizeYUnit: axisUnit("y"),
       PhysicalSizeZUnit: axisUnit("z"),
-      Channels: channels.map(
-        (ch: { label: string; color: string }, i: number) => ({
-          ID: `Channel:0:${i}`,
-          Name: ch.label,
-          Color: parseOmeroColor(ch.color),
-        }),
-      ),
+      Channels: channels.map((ch: { label: string; color: string }, i: number) => ({
+        ID: `Channel:0:${i}`,
+        Name: ch.label,
+        Color: parseOmeroColor(ch.color),
+      })),
     },
   } as Image;
 }
@@ -112,18 +106,14 @@ export function extractPhysicalSizes(
 ) {
   const datasets = (multiscale?.datasets ?? []) as DatasetWithTransforms[];
   const firstDataset = datasets[0];
-  const scaleTransform = firstDataset?.coordinateTransformations?.find(
-    (t) => t.type === "scale",
-  );
+  const scaleTransform = firstDataset?.coordinateTransformations?.find((t) => t.type === "scale");
 
   if (!scaleTransform?.scale || !axes) {
     return {};
   }
 
   const resolvedAxes =
-    axes.map((a: string | { name: string }) =>
-      typeof a === "string" ? a : a.name,
-    ) ?? [];
+    axes.map((a: string | { name: string }) => (typeof a === "string" ? a : a.name)) ?? [];
 
   const scaleForAxis = (name: string): number | undefined => {
     const idx = resolvedAxes.indexOf(name);
@@ -141,9 +131,7 @@ export function extractPhysicalSizes(
  * Omero colors are hex strings — "FF0000" (RGB) or "FF0000FF" (RGBA).
  * Exported for testing.
  */
-export function parseOmeroColor(
-  color: string,
-): [number, number, number, number] | undefined {
+export function parseOmeroColor(color: string): [number, number, number, number] | undefined {
   if (!color) return undefined;
 
   const hex = color.replace(/^#/, "");

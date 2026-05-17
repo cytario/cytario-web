@@ -32,10 +32,7 @@ export async function getSelectionStats({
   const sortedPixels = [...pixels].sort((a, b) => a - b);
   // dtype is structurally `string` in @cytario/plugin-api; one of the
   // canonical PixelType values is guaranteed at runtime.
-  const histogram = getHistogram(
-    sortedPixels,
-    getDtypeBitDepth(data.dtype as SupportedDtype),
-  );
+  const histogram = getHistogram(sortedPixels, getDtypeBitDepth(data.dtype as SupportedDtype));
   const domain = getDomain(sortedPixels);
   const contrastLimits = getContrastLimits(sortedPixels);
 

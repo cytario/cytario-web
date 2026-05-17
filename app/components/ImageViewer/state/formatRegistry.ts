@@ -1,8 +1,4 @@
-import type {
-  FormatExtension,
-  FormatHandler,
-  FormatRegistry,
-} from "@cytario/plugin-api";
+import type { FormatExtension, FormatHandler, FormatRegistry } from "@cytario/plugin-api";
 import { getExtension } from "~/utils/fileType";
 
 /**
@@ -87,8 +83,7 @@ class FormatRegistryImpl {
    */
   scopedFor(pluginName: string): FormatRegistry {
     return {
-      register: (extension, handler) =>
-        this.add(pluginName, extension, handler),
+      register: (extension, handler) => this.add(pluginName, extension, handler),
     };
   }
 
@@ -97,15 +92,9 @@ class FormatRegistryImpl {
    * same plugin name) is a no-op so HMR re-runs do not throw.
    * Cross-plugin overlap on any key throws `DuplicateRegistrationError`.
    */
-  add(
-    pluginName: string,
-    extension: FormatExtension,
-    handler: FormatHandler,
-  ): void {
+  add(pluginName: string, extension: FormatExtension, handler: FormatHandler): void {
     const keys = normalizeKeys(extension);
-    const existing = this.registrations.find((r) =>
-      keysCollide(r.keys, keys),
-    );
+    const existing = this.registrations.find((r) => keysCollide(r.keys, keys));
     if (existing) {
       if (existing.pluginName === pluginName) return;
       throw new DuplicateRegistrationError(
@@ -136,9 +125,7 @@ class FormatRegistryImpl {
         }
       }
     }
-    throw new UnknownFormatError(
-      `No format handler registered for URL: ${url}`,
-    );
+    throw new UnknownFormatError(`No format handler registered for URL: ${url}`);
   }
 
   list(): readonly Registration[] {

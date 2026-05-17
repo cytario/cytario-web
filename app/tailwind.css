@@ -12,16 +12,16 @@
   /* Custom colors */
   --color-cytario-purple-500: #5c2483;
 
-  --color-cytario-turquoise-50: #F0FAFA;
-  --color-cytario-turquoise-100: #CCEDED;
-  --color-cytario-turquoise-200: #99DBDB;
-  --color-cytario-turquoise-300: #66C9C9;
-  --color-cytario-turquoise-400: #4DC3C3;
-  --color-cytario-turquoise-500: #35B7B8;
-  --color-cytario-turquoise-600: #2A9293;
-  --color-cytario-turquoise-700: #1F7172;
+  --color-cytario-turquoise-50: #f0fafa;
+  --color-cytario-turquoise-100: #cceded;
+  --color-cytario-turquoise-200: #99dbdb;
+  --color-cytario-turquoise-300: #66c9c9;
+  --color-cytario-turquoise-400: #4dc3c3;
+  --color-cytario-turquoise-500: #35b7b8;
+  --color-cytario-turquoise-600: #2a9293;
+  --color-cytario-turquoise-700: #1f7172;
   --color-cytario-turquoise-800: #165859;
-  --color-cytario-turquoise-900: #0D3F40;
+  --color-cytario-turquoise-900: #0d3f40;
   --color-cytario-turquoise-950: #072425;
 
   /* Custom font family */
@@ -46,8 +46,13 @@
 }
 
 @keyframes pulse-once {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 html,

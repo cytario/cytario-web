@@ -23,9 +23,7 @@ function renderPresets() {
     },
   ]);
 
-  return render(
-    <RemixStub initialEntries={["/connections/test-bucket/test.ome.tif"]} />
-  );
+  return render(<RemixStub initialEntries={["/connections/test-bucket/test.ome.tif"]} />);
 }
 
 describe("Presets", () => {
@@ -45,9 +43,7 @@ describe("Presets", () => {
     renderPresets();
 
     for (let i = 1; i <= 4; i++) {
-      expect(
-        screen.getByRole("tab", { name: `Channels preset ${i}` })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: `Channels preset ${i}` })).toBeInTheDocument();
     }
   });
 

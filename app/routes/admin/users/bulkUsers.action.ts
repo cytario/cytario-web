@@ -6,11 +6,7 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import {
-  addUserToGroup,
-  removeUserFromGroup,
-  setUserEnabled,
-} from "~/.server/auth/keycloakAdmin";
+import { addUserToGroup, removeUserFromGroup, setUserEnabled } from "~/.server/auth/keycloakAdmin";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
 const actionLabels = {
@@ -20,10 +16,7 @@ const actionLabels = {
   disableAccounts: "disabled",
 } as const;
 
-export const bulkUsersAction: ActionFunction = async ({
-  request,
-  context,
-}) => {
+export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 

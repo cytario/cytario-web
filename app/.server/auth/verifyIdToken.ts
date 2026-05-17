@@ -20,9 +20,7 @@ const getJwks = async () => {
  * behavior varies by client configuration. Add after confirming the actual
  * `aud` claim value in production tokens.
  */
-export const verifyIdToken = async (
-  token: string,
-): Promise<JWTPayload | null> => {
+export const verifyIdToken = async (token: string): Promise<JWTPayload | null> => {
   try {
     const jwks = await getJwks();
     const { issuer } = await getWellKnownEndpoints();

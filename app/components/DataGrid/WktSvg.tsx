@@ -87,15 +87,13 @@ function parseWkt(wkt: string): Point[][] {
 
     if (geometry.type === "Polygon") {
       // Polygon: [[[x, y], [x, y], ...]]
-      return (coords as number[][][]).map((ring) =>
-        ring.map(([x, y]) => ({ x, y }))
-      );
+      return (coords as number[][][]).map((ring) => ring.map(([x, y]) => ({ x, y })));
     }
 
     if (geometry.type === "MultiPolygon") {
       // MultiPolygon: [[[[x, y], ...]], [[[x, y], ...]]]
       return (coords as number[][][][]).flatMap((polygon) =>
-        polygon.map((ring) => ring.map(([x, y]) => ({ x, y })))
+        polygon.map((ring) => ring.map(([x, y]) => ({ x, y }))),
       );
     }
 

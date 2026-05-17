@@ -1,8 +1,6 @@
 import { useSearchParams } from "react-router";
 
-export const useSearchParam = (
-  paramName: string
-): [string, (value: string) => void] => {
+export const useSearchParam = (paramName: string): [string, (value: string) => void] => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const paramValue = searchParams.get(paramName) ?? "";
@@ -18,7 +16,7 @@ export const useSearchParam = (
         }
         return newParams;
       },
-      { replace: true }
+      { replace: true },
     );
   };
 

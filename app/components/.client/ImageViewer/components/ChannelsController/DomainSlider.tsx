@@ -11,9 +11,7 @@ export const DomainSlider = ({ domain }: { domain: ByteDomain }) => {
   const setContrastLimits = useViewerStore(select.setContrastLimits);
   const [min, max] = domain;
 
-  const color = selectedChannel
-    ? rgb(selectedChannel.color)
-    : "var(--color-text-tertiary)";
+  const color = selectedChannel ? rgb(selectedChannel.color) : "var(--color-text-tertiary)";
 
   return (
     <div className="h-0">

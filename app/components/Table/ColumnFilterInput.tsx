@@ -1,10 +1,4 @@
-import {
-  IconButton,
-  Input,
-  Pill,
-  Select,
-  type SelectItem,
-} from "@cytario/design";
+import { IconButton, Input, Pill, Select, type SelectItem } from "@cytario/design";
 import { Column } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
@@ -37,9 +31,7 @@ export function ColumnFilterInput({
     if (filterOptions) {
       return [
         ALL_OPTION,
-        ...filterOptions
-          .filter((o) => o.value !== "")
-          .map((o) => ({ id: o.value, name: o.label })),
+        ...filterOptions.filter((o) => o.value !== "").map((o) => ({ id: o.value, name: o.label })),
       ];
     }
     const facetedValues = column.getFacetedUniqueValues();
@@ -55,8 +47,7 @@ export function ColumnFilterInput({
 
   const selectedKey = filterValue || ALL_KEY;
 
-  const setFilter = (key: string) =>
-    column.setFilterValue(key === ALL_KEY ? undefined : key);
+  const setFilter = (key: string) => column.setFilterValue(key === ALL_KEY ? undefined : key);
 
   const clearFilter = () => column.setFilterValue(undefined);
 
@@ -64,11 +55,7 @@ export function ColumnFilterInput({
     if (!filterRender) return undefined;
     const render = filterRender;
     function FilterOption(item: SelectItem) {
-      return item.id === ALL_KEY ? (
-        <AllPill />
-      ) : (
-        render({ label: item.name, value: item.id })
-      );
+      return item.id === ALL_KEY ? <AllPill /> : render({ label: item.name, value: item.id });
     }
     return FilterOption;
   }, [filterRender]);
@@ -89,9 +76,7 @@ export function ColumnFilterInput({
         <Input
           value={filterValue}
           onChange={setFilter}
-          placeholder={
-            filterPlaceholder ?? `Filter ${column.columnDef.header}...`
-          }
+          placeholder={filterPlaceholder ?? `Filter ${column.columnDef.header}...`}
           aria-label={`Filter by ${column.columnDef.header}`}
           size="sm"
         />

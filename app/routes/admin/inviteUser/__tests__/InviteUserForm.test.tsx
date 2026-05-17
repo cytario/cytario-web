@@ -9,21 +9,14 @@ vi.mock("react-router", async () => {
   return { ...actual, useSubmit: () => vi.fn() };
 });
 
-function renderForm(
-  overrides: { groupOptions?: string[]; scope?: string } = {},
-) {
+function renderForm(overrides: { groupOptions?: string[]; scope?: string } = {}) {
   const scope = overrides.scope ?? "cytario/lab";
-  const groupOptions = overrides.groupOptions ?? [
-    "cytario/lab",
-    "cytario/lab/team-a",
-  ];
+  const groupOptions = overrides.groupOptions ?? ["cytario/lab", "cytario/lab/team-a"];
 
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => (
-        <InviteUserForm scope={scope} groupOptions={groupOptions} />
-      ),
+      Component: () => <InviteUserForm scope={scope} groupOptions={groupOptions} />,
     },
   ]);
 
@@ -45,25 +38,19 @@ describe("InviteUserForm", () => {
     renderForm();
 
     expect(
-      screen.getByText(
-        "Uncheck to pre-provision the account without granting immediate access.",
-      ),
+      screen.getByText("Uncheck to pre-provision the account without granting immediate access."),
     ).toBeInTheDocument();
   });
 
   test("shows empty-state text when no group options", () => {
     renderForm({ groupOptions: [] });
 
-    expect(
-      screen.getByText("No groups available in this scope."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No groups available in this scope.")).toBeInTheDocument();
   });
 
   test("renders group select when options are available", () => {
     renderForm({ groupOptions: ["cytario/lab", "cytario/lab/team-a"] });
 
-    expect(
-      screen.queryByText("No groups available in this scope."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("No groups available in this scope.")).not.toBeInTheDocument();
   });
 });

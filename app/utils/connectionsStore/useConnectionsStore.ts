@@ -31,10 +31,7 @@ export interface ConnectionsStore {
    * set of credentials per connection). Prunes entries for connections
    * deleted server-side.
    */
-  setConnections: (
-    configs: ConnectionConfig[],
-    credentials: Record<string, Credentials>,
-  ) => void;
+  setConnections: (configs: ConnectionConfig[], credentials: Record<string, Credentials>) => void;
 }
 
 const name = "ConnectionsStore";
@@ -85,8 +82,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           connections: state.connections,
         }),
         onRehydrateStorage: () => (_state, error) => {
-          if (error)
-            console.error("[ConnectionsStore] Rehydration failed:", error);
+          if (error) console.error("[ConnectionsStore] Rehydration failed:", error);
         },
       },
     ),

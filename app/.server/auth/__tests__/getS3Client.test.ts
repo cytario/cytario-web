@@ -44,7 +44,7 @@ describe("getS3Client", () => {
             secretAccessKey: "secretkey123",
             sessionToken: "sessiontoken123",
           },
-        })
+        }),
       );
     });
 
@@ -54,7 +54,7 @@ describe("getS3Client", () => {
       expect(S3Client).toHaveBeenCalledWith(
         expect.objectContaining({
           region: "us-west-2",
-        })
+        }),
       );
     });
 
@@ -69,16 +69,12 @@ describe("getS3Client", () => {
       expect(S3Client).toHaveBeenCalledWith(
         expect.objectContaining({
           region: "eu-central-1",
-        })
+        }),
       );
     });
 
     test("returns S3Client instance", async () => {
-      const client = await getS3Client(
-        mockConnectionConfig,
-        mockCredentials,
-        "user-4"
-      );
+      const client = await getS3Client(mockConnectionConfig, mockCredentials, "user-4");
 
       expect(client).toBeDefined();
       // Client should be the mock instance created by S3Client constructor
@@ -167,9 +163,9 @@ describe("getS3Client", () => {
         AccessKeyId: undefined,
       });
 
-      await expect(
-        getS3Client(mockConnectionConfig, invalidCreds, "error-user")
-      ).rejects.toThrow("No Credentials");
+      await expect(getS3Client(mockConnectionConfig, invalidCreds, "error-user")).rejects.toThrow(
+        "No Credentials",
+      );
     });
 
     test("throws when SecretAccessKey is missing", async () => {
@@ -177,15 +173,15 @@ describe("getS3Client", () => {
         SecretAccessKey: undefined,
       });
 
-      await expect(
-        getS3Client(mockConnectionConfig, invalidCreds, "error-user")
-      ).rejects.toThrow("No Credentials");
+      await expect(getS3Client(mockConnectionConfig, invalidCreds, "error-user")).rejects.toThrow(
+        "No Credentials",
+      );
     });
 
     test("throws when userId is empty", async () => {
-      await expect(
-        getS3Client(mockConnectionConfig, mockCredentials, "")
-      ).rejects.toThrow("User ID is required for S3Client cache");
+      await expect(getS3Client(mockConnectionConfig, mockCredentials, "")).rejects.toThrow(
+        "User ID is required for S3Client cache",
+      );
     });
   });
 
@@ -203,7 +199,7 @@ describe("getS3Client", () => {
         expect.objectContaining({
           endpoint: "http://localhost:9000",
           forcePathStyle: true,
-        })
+        }),
       );
     });
 
@@ -216,13 +212,11 @@ describe("getS3Client", () => {
 
       await getS3Client(awsConfig, mockCredentials, "aws-user");
 
-      const callArgs = vi.mocked(S3Client).mock.calls[
-        vi.mocked(S3Client).mock.calls.length - 1
-      ]?.[0];
+      const callArgs =
+        vi.mocked(S3Client).mock.calls[vi.mocked(S3Client).mock.calls.length - 1]?.[0];
 
       expect(callArgs).not.toHaveProperty("endpoint");
       expect(callArgs?.forcePathStyle).toBe(false);
     });
   });
-
 });

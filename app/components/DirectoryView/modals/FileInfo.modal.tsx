@@ -4,11 +4,7 @@ import { useParams, useSearchParams } from "react-router";
 
 import { RouteModal } from "~/components/RouteModal";
 
-export default function FileInfoModal({
-  onClose,
-}: {
-  onClose: (extraKeys?: string[]) => void;
-}) {
+export default function FileInfoModal({ onClose }: { onClose: (extraKeys?: string[]) => void }) {
   const [searchParams] = useSearchParams();
   const { name: connectionName } = useParams();
 

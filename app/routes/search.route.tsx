@@ -6,14 +6,10 @@ import type { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getS3Client } from "~/.server/auth/getS3Client";
 import { Section } from "~/components/Container";
-import {
-  buildDirectoryTree,
-  TreeNode,
-} from "~/components/DirectoryView/buildDirectoryTree";
+import { buildDirectoryTree, TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { getObjects } from "~/utils/getObjects";
 import { getPrefix } from "~/utils/pathUtils";
-
 
 interface ConfigFiles {
   config: ConnectionConfig;
@@ -37,11 +33,7 @@ export const loader = async ({
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get("query") ?? "";
 
-  const {
-    user,
-    credentials: connectionsCredentials,
-    connectionConfigs,
-  } = context.get(authContext);
+  const { user, credentials: connectionsCredentials, connectionConfigs } = context.get(authContext);
 
   const results: ConfigFiles[] = [];
 
@@ -54,8 +46,7 @@ export const loader = async ({
 
     const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
     const prefix = getPrefix(connectionConfig.prefix);
-    const files =
-      (await getObjects(connectionConfig, s3Client, searchQuery, prefix)) ?? [];
+    const files = (await getObjects(connectionConfig, s3Client, searchQuery, prefix)) ?? [];
 
     if (files.length > 0) {
       results.push({ config: connectionConfig, files, prefix });
@@ -68,11 +59,7 @@ export const loader = async ({
     name: config.name,
     type: "bucket" as const,
     pathName: "",
-    children: buildDirectoryTree(
-      files as _Object[],
-      config.name,
-      prefix ?? "",
-    ),
+    children: buildDirectoryTree(files as _Object[], config.name, prefix ?? ""),
   }));
 
   return { searchQuery, nodes };

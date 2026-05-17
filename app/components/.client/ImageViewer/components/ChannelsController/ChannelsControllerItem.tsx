@@ -62,8 +62,7 @@ export function ChannelsControllerItem({
   const disabled = !isVisible && visibleChannelCount >= MAX_VISIBLE_CHANNELS;
   let tooltip = `${isVisible ? "Hide" : "Show"} ${name}`;
 
-  if (disabled)
-    tooltip = `Only ${MAX_VISIBLE_CHANNELS} channels can be visible at once`;
+  if (disabled) tooltip = `Only ${MAX_VISIBLE_CHANNELS} channels can be visible at once`;
 
   return (
     <Radio key={name} value={name} className={cx}>
@@ -88,9 +87,7 @@ export function ChannelsControllerItem({
 
       {/* Pixel Value */}
       {pixelValue > 0 && (
-        <span className="text-xs tabular-nums text-(--color-text-secondary)">
-          {pixelValue}
-        </span>
+        <span className="text-xs tabular-nums text-(--color-text-secondary)">{pixelValue}</span>
       )}
 
       {/* Visibility Toggle */}

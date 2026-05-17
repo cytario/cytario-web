@@ -5,14 +5,14 @@ import { GenericDecoder, FileDirectory } from "./genericDecoder";
  * Used for decoding LZW-compressed TIFF image data
  */
 export class LZWDecoder extends GenericDecoder {
-    constructor(fileDirectory: FileDirectory) {
-        super(fileDirectory);
-    }
+  constructor(fileDirectory: FileDirectory) {
+    super(fileDirectory);
+  }
 
-    /**
-     * Returns the decoder identifier for the worker pool
-     */
-    public getDecoderId(): string {
-        return "lzw-decoder";
-    }
+  /**
+   * Returns the decoder identifier for the worker pool
+   */
+  public getDecoderId(): string {
+    return "lzw-decoder";
+  }
 }

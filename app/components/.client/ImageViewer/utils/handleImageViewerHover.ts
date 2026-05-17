@@ -3,7 +3,7 @@
 // import { PickingInfo } from "@deck.gl/core";
 
 export const handleImageViewerHover = (
-  { tile, coordinate, sourceLayer: layer }: any // PickingInfo
+  { tile, coordinate, sourceLayer: layer }: any, // PickingInfo
 ) => {
   let hoverData;
   // Tiled layer needs a custom layerZoomScale.

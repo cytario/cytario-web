@@ -30,9 +30,7 @@ function renderForm(
   const Stub = createRoutesStub([
     {
       path: "/",
-      Component: () => (
-        <ConnectionForm adminScopes={adminScopes} userId={userId} />
-      ),
+      Component: () => <ConnectionForm adminScopes={adminScopes} userId={userId} />,
     },
   ]);
 
@@ -109,9 +107,7 @@ async function goToPage3() {
   await user.click(nextButton);
 
   await waitFor(() => {
-    expect(
-      screen.getByRole("button", { name: "Connect Storage" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect Storage" })).toBeInTheDocument();
   });
 
   return user;
@@ -128,9 +124,7 @@ async function goToPage3MinIO() {
   await user.click(nextButton);
 
   await waitFor(() => {
-    expect(
-      screen.getByRole("button", { name: "Connect Storage" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect Storage" })).toBeInTheDocument();
   });
 
   return user;
@@ -168,18 +162,14 @@ describe("ConnectionForm", () => {
       });
       await user.click(providerButton);
 
-      expect(
-        screen.getByRole("option", { name: "AWS S3" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "AWS S3" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "MinIO" })).toBeInTheDocument();
     });
 
     test("renders placeholder text for S3 URI input", () => {
       renderForm();
 
-      expect(
-        screen.getByPlaceholderText("my-bucket/path/prefix"),
-      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("my-bucket/path/prefix")).toBeInTheDocument();
     });
 
     test("does not advance when required fields are empty", async () => {
@@ -207,9 +197,7 @@ describe("ConnectionForm", () => {
       renderForm({ adminScopes: ["cytario/lab"] });
       await goToPage2();
 
-      expect(screen.getAllByText("Visibility").length).toBeGreaterThanOrEqual(
-        1,
-      );
+      expect(screen.getAllByText("Visibility").length).toBeGreaterThanOrEqual(1);
     });
 
     // TODO(C-99): queries Select trigger by Field label — skipped until Field a11y is fixed
@@ -225,15 +213,9 @@ describe("ConnectionForm", () => {
       });
       await user.click(visibilityButton);
 
-      expect(
-        screen.getByRole("option", { name: "Personal" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("option", { name: "cytario/lab" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("option", { name: "cytario/team-a" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Personal" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "cytario/lab" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "cytario/team-a" })).toBeInTheDocument();
     });
   });
 
@@ -260,9 +242,7 @@ describe("ConnectionForm", () => {
       await goToPage2();
 
       expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Connect Storage" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Connect Storage" })).not.toBeInTheDocument();
     });
 
     test("shows Role ARN help text", async () => {
@@ -278,9 +258,7 @@ describe("ConnectionForm", () => {
       renderForm();
       await goToPage2();
 
-      expect(
-        screen.getByText(/AWS region where this bucket is located/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/AWS region where this bucket is located/)).toBeInTheDocument();
     });
   });
 
@@ -305,9 +283,7 @@ describe("ConnectionForm", () => {
       renderForm();
       await goToPage2MinIO();
 
-      expect(
-        screen.getByPlaceholderText("https://s3.cytario.com"),
-      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("https://s3.cytario.com")).toBeInTheDocument();
     });
   });
 
@@ -317,9 +293,7 @@ describe("ConnectionForm", () => {
       await goToPage3();
 
       expect(screen.getByText("Summary")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Connect Storage" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Connect Storage" })).toBeInTheDocument();
     });
 
     test("displays provider, name, bucket, and region in summary", async () => {
@@ -336,9 +310,7 @@ describe("ConnectionForm", () => {
       renderForm();
       await goToPage3();
 
-      expect(
-        screen.getByText("arn:aws:iam::123456789012:role/MyRole"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("arn:aws:iam::123456789012:role/MyRole")).toBeInTheDocument();
     });
 
     test("submits form data to /connections action", async () => {
@@ -360,9 +332,7 @@ describe("ConnectionForm", () => {
       expect(formData.get("name")).toBe("test-conn");
       expect(formData.get("s3Uri")).toBe("test-bucket");
       expect(formData.get("providerType")).toBe("aws");
-      expect(formData.get("roleArn")).toBe(
-        "arn:aws:iam::123456789012:role/MyRole",
-      );
+      expect(formData.get("roleArn")).toBe("arn:aws:iam::123456789012:role/MyRole");
       expect(options).toEqual({ method: "post", action: "/connections" });
     });
   });
@@ -491,9 +461,7 @@ describe("ConnectionForm", () => {
     test("shows S3 URI help text on page 1", () => {
       renderForm();
 
-      expect(
-        screen.getByText(/Bucket name and optional path prefix/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Bucket name and optional path prefix/)).toBeInTheDocument();
     });
 
     test("shows Name help text on page 1", () => {
@@ -514,9 +482,7 @@ describe("ConnectionForm", () => {
 
       renderForm();
 
-      expect(
-        screen.getByText("This name is already taken."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("This name is already taken.")).toBeInTheDocument();
 
       mockActionData = null;
     });

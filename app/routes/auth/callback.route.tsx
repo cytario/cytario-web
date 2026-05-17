@@ -48,10 +48,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Validate required parameters
   if (!code || !state) {
     console.error(`${label} Missing code or state parameter`);
-    return failWithNotification(
-      request,
-      "Authentication failed. Missing required parameters.",
-    );
+    return failWithNotification(request, "Authentication failed. Missing required parameters.");
   }
 
   try {
@@ -59,19 +56,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const stateData = await validateOAuthState(state);
     if (!stateData) {
       console.error(`${label} Invalid or expired state parameter`);
-      return failWithNotification(
-        request,
-        "Authentication session expired. Please try again.",
-      );
+      return failWithNotification(request, "Authentication session expired. Please try again.");
     }
 
     // Guard for in-flight states from before PKCE deployment
     if (!stateData.codeVerifier || !stateData.nonce) {
       console.error(`${label} State missing codeVerifier or nonce`);
-      return failWithNotification(
-        request,
-        "Authentication session invalid. Please try again.",
-      );
+      return failWithNotification(request, "Authentication session invalid. Please try again.");
     }
 
     console.info(`${label} State validated successfully`);
@@ -81,28 +72,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Exchange authorization code for tokens with PKCE verifier
     console.info(`${label} Exchanging authorization code for tokens`);
-    const tokens = await exchangeAuthCode(
-      code,
-      redirectUri,
-      stateData.codeVerifier,
-    );
+    const tokens = await exchangeAuthCode(code, redirectUri, stateData.codeVerifier);
 
     // Verify ID token signature via JWKS and validate nonce from verified payload
     const idTokenPayload = await verifyIdToken(tokens.id_token);
     if (!idTokenPayload) {
       console.error(`${label} ID token signature verification failed`);
-      return failWithNotification(
-        request,
-        "Authentication failed. Please try again.",
-      );
+      return failWithNotification(request, "Authentication failed. Please try again.");
     }
 
     if (idTokenPayload.nonce !== stateData.nonce) {
       console.error(`${label} Nonce mismatch in ID token`);
-      return failWithNotification(
-        request,
-        "Authentication failed. Please try again.",
-      );
+      return failWithNotification(request, "Authentication failed. Please try again.");
     }
 
     // Get user info using the access token
@@ -126,20 +107,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Redirect to the originally requested page or default to home
     const redirectTo = validateRedirectTo(stateData.redirectTo);
-    console.info(
-      `${label} Authentication successful, redirecting to:`,
-      redirectTo,
-    );
+    console.info(`${label} Authentication successful, redirecting to:`, redirectTo);
 
     return redirect(redirectTo, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
     console.error(`${label} Authentication failed:`, error);
-    return failWithNotification(
-      request,
-      "Authentication failed. Please try again.",
-    );
+    return failWithNotification(request, "Authentication failed. Please try again.");
   }
 };
 

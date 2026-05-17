@@ -92,10 +92,7 @@ const apiRoutes = [
 
 export default [
   ...authRoutes,
-  layout("routes/layouts/protected.layout.tsx", [
-    ...appRoutes,
-    ...adminRoutes,
-  ]),
+  layout("routes/layouts/protected.layout.tsx", [...appRoutes, ...adminRoutes]),
   ...apiRoutes,
 
   {

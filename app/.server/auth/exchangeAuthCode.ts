@@ -19,9 +19,7 @@ export const exchangeAuthCode = async (
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${clientId}:${clientSecret}`,
-        ).toString("base64")}`,
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
       },
       body: new URLSearchParams({
         grant_type: "authorization_code",
@@ -32,9 +30,7 @@ export const exchangeAuthCode = async (
     });
 
     if (!tokenResponse.ok) {
-      throw new Error(
-        `Token exchange failed: ${tokenResponse.status}`,
-      );
+      throw new Error(`Token exchange failed: ${tokenResponse.status}`);
     }
 
     const json = await tokenResponse.json();

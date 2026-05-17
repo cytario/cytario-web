@@ -1,11 +1,4 @@
-import {
-  Button,
-  IconButton,
-  Input,
-  Pill,
-  Select,
-  type SelectItem,
-} from "@cytario/design";
+import { Button, IconButton, Input, Pill, Select, type SelectItem } from "@cytario/design";
 import { FilterX, X } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 
@@ -40,19 +33,12 @@ interface FilterBarProps {
  * Introduced in C-82 to give grid and tree views the same filter capabilities
  * as the table view.
  */
-export function FilterBar({
-  columns,
-  tableId,
-  dynamicOptions,
-}: FilterBarProps) {
+export function FilterBar({ columns, tableId, dynamicOptions }: FilterBarProps) {
   const { columnFilters, setColumnFilters, resetFilters } = useColumnFilters({
     tableId,
   });
 
-  const filterable = useMemo(
-    () => columns.filter((c) => c.enableColumnFilter),
-    [columns],
-  );
+  const filterable = useMemo(() => columns.filter((c) => c.enableColumnFilter), [columns]);
 
   const hasActive = columnFilters.length > 0;
 
@@ -65,9 +51,7 @@ export function FilterBar({
           key={col.id}
           column={col}
           options={col.filterOptions ?? dynamicOptions?.[col.id]}
-          value={
-            (columnFilters.find((f) => f.id === col.id)?.value as string) ?? ""
-          }
+          value={(columnFilters.find((f) => f.id === col.id)?.value as string) ?? ""}
           onChange={(next) => {
             setColumnFilters((prev) => {
               const rest = prev.filter((f) => f.id !== col.id);
@@ -77,12 +61,7 @@ export function FilterBar({
         />
       ))}
       {hasActive && (
-        <Button
-          variant="ghost"
-          size="sm"
-          iconLeft={FilterX}
-          onPress={resetFilters}
-        >
+        <Button variant="ghost" size="sm" iconLeft={FilterX} onPress={resetFilters}>
           Clear all
         </Button>
       )}
@@ -97,23 +76,11 @@ interface FilterControlProps {
   onChange: (value: string) => void;
 }
 
-function FilterControl({
-  column,
-  options,
-  value,
-  onChange,
-}: FilterControlProps) {
+function FilterControl({ column, options, value, onChange }: FilterControlProps) {
   const clear = () => onChange("");
 
   if (column.filterType === "select") {
-    return (
-      <SelectFilter
-        column={column}
-        options={options}
-        value={value}
-        onChange={onChange}
-      />
-    );
+    return <SelectFilter column={column} options={options} value={value} onChange={onChange} />;
   }
 
   return (
@@ -154,9 +121,7 @@ function SelectFilter({
     if (!options) return [ALL_OPTION];
     return [
       ALL_OPTION,
-      ...options
-        .filter((o) => o.value !== "")
-        .map((o) => ({ id: o.value, name: o.label })),
+      ...options.filter((o) => o.value !== "").map((o) => ({ id: o.value, name: o.label })),
     ];
   }, [options]);
 
@@ -166,11 +131,7 @@ function SelectFilter({
     if (!column.filterRender) return undefined;
     const render = column.filterRender;
     function FilterOption(item: SelectItem): ReactNode {
-      return item.id === ALL_KEY ? (
-        <AllPill />
-      ) : (
-        render({ label: item.name, value: item.id })
-      );
+      return item.id === ALL_KEY ? <AllPill /> : render({ label: item.name, value: item.id });
     }
     return FilterOption;
   }, [column.filterRender]);

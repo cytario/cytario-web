@@ -2,16 +2,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { type ViewState, type ViewerStore } from "../../state/store/types";
-import {
-  Magnifier,
-  magnificationFromZoom,
-  zoomFromMagnification,
-} from "../Magnifier";
+import { Magnifier, magnificationFromZoom, zoomFromMagnification } from "../Magnifier";
 
 vi.mock("../Image/ResetViewStateButton", () => ({
-  ResetViewStateButton: () => (
-    <button type="button">Reset</button>
-  ),
+  ResetViewStateButton: () => <button type="button">Reset</button>,
 }));
 
 const makeViewState = (zoom = 0): ViewState =>
@@ -79,9 +73,7 @@ describe("Magnifier", () => {
 
   test("clicking a preset does nothing when viewStateActive is null", async () => {
     const user = userEvent.setup();
-    render(
-      <Magnifier {...defaultProps} viewStateActive={null} />,
-    );
+    render(<Magnifier {...defaultProps} viewStateActive={null} />);
 
     await user.click(screen.getByRole("radio", { name: "20x" }));
 
@@ -97,9 +89,7 @@ describe("Magnifier", () => {
   test("renders the segmented control with correct aria-label", () => {
     render(<Magnifier {...defaultProps} />);
 
-    expect(
-      screen.getByRole("radiogroup", { name: "Magnification presets" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Magnification presets" })).toBeInTheDocument();
   });
 });
 

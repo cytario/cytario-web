@@ -67,9 +67,7 @@ describe("useColumnWidths", () => {
   it("initializes with default column sizes when no persisted widths", () => {
     setupMock({});
 
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     expect(result.current.columnSizing).toEqual({
       index: 48,
@@ -85,9 +83,7 @@ describe("useColumnWidths", () => {
       date: 200,
     });
 
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     expect(result.current.columnSizing).toEqual({
       index: 48,
@@ -100,9 +96,7 @@ describe("useColumnWidths", () => {
   it("setColumnSizing updates changed columns", () => {
     setupMock({ name: 200 });
 
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     act(() => {
       result.current.setColumnSizing({
@@ -121,9 +115,7 @@ describe("useColumnWidths", () => {
   it("setColumnSizing does not update index column", () => {
     setupMock({});
 
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     act(() => {
       result.current.setColumnSizing({
@@ -135,18 +127,13 @@ describe("useColumnWidths", () => {
     });
 
     // Should not call setColumnWidth for index
-    expect(mockSetColumnWidth).not.toHaveBeenCalledWith(
-      "index",
-      expect.anything(),
-    );
+    expect(mockSetColumnWidth).not.toHaveBeenCalledWith("index", expect.anything());
   });
 
   it("setColumnSizing handles updater function", () => {
     setupMock({ name: 200 });
 
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     act(() => {
       result.current.setColumnSizing((prev) => ({
@@ -159,9 +146,7 @@ describe("useColumnWidths", () => {
   });
 
   it("resetWidths calls store reset", () => {
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     act(() => {
       result.current.resetWidths();
@@ -171,9 +156,7 @@ describe("useColumnWidths", () => {
   });
 
   it("always includes index column with fixed width of 48", () => {
-    const { result } = renderHook(() =>
-      useColumnWidths(testColumns, "test-table"),
-    );
+    const { result } = renderHook(() => useColumnWidths(testColumns, "test-table"));
 
     expect(result.current.columnSizing.index).toBe(48);
   });

@@ -11,13 +11,7 @@ vi.mock("~/components/DirectoryView/DirectoryViewTableDirectory", () => ({
 }));
 
 vi.mock("~/components/DirectoryView/DirectoryViewGrid", () => ({
-  DirectoryViewGrid: ({
-    nodes,
-    viewMode,
-  }: {
-    nodes: TreeNode[];
-    viewMode: string;
-  }) => (
+  DirectoryViewGrid: ({ nodes, viewMode }: { nodes: TreeNode[]; viewMode: string }) => (
     <div data-testid="directory-view-grid" data-view-mode={viewMode}>
       {nodes.length} items
     </div>
@@ -42,12 +36,7 @@ function renderWithRouter(ui: React.ReactElement) {
 describe("DashboardSection", () => {
   test("renders nothing when nodes array is empty", () => {
     const { container } = renderWithRouter(
-      <DashboardSection
-        title="Empty"
-        nodes={[]}
-        viewMode="list"
-        maxItems={10}
-      />,
+      <DashboardSection title="Empty" nodes={[]} viewMode="list" maxItems={10} />,
     );
     expect(container.innerHTML).toBe("");
   });
@@ -61,36 +50,18 @@ describe("DashboardSection", () => {
         maxItems={10}
       />,
     );
-    expect(
-      screen.getByRole("heading", { name: "Recently Viewed" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Recently Viewed" })).toBeInTheDocument();
   });
 
   test("slices nodes to maxItems", () => {
-    const nodes = Array.from({ length: 5 }, (_, i) =>
-      makeNode(`file-${i}.csv`),
-    );
-    renderWithRouter(
-      <DashboardSection
-        title="Files"
-        nodes={nodes}
-        viewMode="list"
-        maxItems={3}
-      />,
-    );
-    expect(screen.getByTestId("directory-view-table")).toHaveTextContent(
-      "3 items",
-    );
+    const nodes = Array.from({ length: 5 }, (_, i) => makeNode(`file-${i}.csv`));
+    renderWithRouter(<DashboardSection title="Files" nodes={nodes} viewMode="list" maxItems={3} />);
+    expect(screen.getByTestId("directory-view-table")).toHaveTextContent("3 items");
   });
 
   test("renders DirectoryViewTable for list viewMode", () => {
     renderWithRouter(
-      <DashboardSection
-        title="Files"
-        nodes={[makeNode("a.csv")]}
-        viewMode="list"
-        maxItems={10}
-      />,
+      <DashboardSection title="Files" nodes={[makeNode("a.csv")]} viewMode="list" maxItems={10} />,
     );
     expect(screen.getByTestId("directory-view-table")).toBeInTheDocument();
     expect(screen.queryByTestId("directory-view-grid")).not.toBeInTheDocument();
@@ -98,18 +69,10 @@ describe("DashboardSection", () => {
 
   test("renders DirectoryViewGrid for grid viewMode", () => {
     renderWithRouter(
-      <DashboardSection
-        title="Files"
-        nodes={[makeNode("a.csv")]}
-        viewMode="grid"
-        maxItems={10}
-      />,
+      <DashboardSection title="Files" nodes={[makeNode("a.csv")]} viewMode="grid" maxItems={10} />,
     );
     expect(screen.getByTestId("directory-view-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("directory-view-grid")).toHaveAttribute(
-      "data-view-mode",
-      "grid",
-    );
+    expect(screen.getByTestId("directory-view-grid")).toHaveAttribute("data-view-mode", "grid");
     expect(screen.queryByTestId("directory-view-table")).not.toBeInTheDocument();
   });
 
@@ -131,9 +94,7 @@ describe("DashboardSection", () => {
   });
 
   test("shows 'Show all (N)' link when nodes exceed maxItems", () => {
-    const nodes = Array.from({ length: 8 }, (_, i) =>
-      makeNode(`file-${i}.csv`),
-    );
+    const nodes = Array.from({ length: 8 }, (_, i) => makeNode(`file-${i}.csv`));
     renderWithRouter(
       <DashboardSection
         title="Files"
@@ -143,9 +104,7 @@ describe("DashboardSection", () => {
         showAllHref="/recent"
       />,
     );
-    expect(
-      screen.getByRole("link", { name: /Show all \(8\)/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Show all \(8\)/ })).toBeInTheDocument();
   });
 
   test("shows 'View all' link when nodes do not exceed maxItems", () => {
@@ -163,12 +122,7 @@ describe("DashboardSection", () => {
 
   test("does not render link when showAllHref is not provided", () => {
     renderWithRouter(
-      <DashboardSection
-        title="Files"
-        nodes={[makeNode("a.csv")]}
-        viewMode="list"
-        maxItems={10}
-      />,
+      <DashboardSection title="Files" nodes={[makeNode("a.csv")]} viewMode="list" maxItems={10} />,
     );
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });

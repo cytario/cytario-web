@@ -1,13 +1,7 @@
-import {
-  PathPill,
-  Pill,
-  type PillColor,
-  pillColorFromName,
-} from "@cytario/design";
+import { PathPill, Pill, type PillColor, pillColorFromName } from "@cytario/design";
 import { Shield } from "lucide-react";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** "cytario" root segment always renders teal; everything else uses hash color. */
 function scopeColor(segment: string, index: number): PillColor {

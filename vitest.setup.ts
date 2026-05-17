@@ -44,9 +44,7 @@ vi.mock("~/.server/auth/wellKnownEndpoints", () => ({
 }));
 
 vi.mock("~/components/Tooltip/Tooltip", () => ({
-  Tooltip: vi.fn(({ children }) =>
-    createElement("div", { "data-testid": "tooltip" }, children)
-  ),
+  Tooltip: vi.fn(({ children }) => createElement("div", { "data-testid": "tooltip" }, children)),
 }));
 
 beforeAll(() => {

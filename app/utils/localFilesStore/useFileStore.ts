@@ -63,7 +63,7 @@ export const useFileStore = create<FileStore>()(
             },
           }),
           false,
-          "saveFile"
+          "saveFile",
         );
       },
 
@@ -79,7 +79,7 @@ export const useFileStore = create<FileStore>()(
             },
           }),
           false,
-          "setFileProgress"
+          "setFileProgress",
         );
       },
 
@@ -98,7 +98,7 @@ export const useFileStore = create<FileStore>()(
             return { files: rest };
           },
           false,
-          "deleteFile"
+          "deleteFile",
         );
       },
 
@@ -113,7 +113,7 @@ export const useFileStore = create<FileStore>()(
               key,
               size: data?.length ?? 0,
             };
-          })
+          }),
         );
 
         set(
@@ -144,10 +144,10 @@ export const useFileStore = create<FileStore>()(
             return { files };
           },
           false,
-          "hydrate"
+          "hydrate",
         );
       },
     }),
-    { name }
-  )
+    { name },
+  ),
 );

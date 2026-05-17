@@ -53,10 +53,7 @@ export function AppHeader() {
       <div className="h-full flex-none flex gap-2 p-2 items-center">
         <GlobalSearch />
         {data?.accountSettingsUrl && data.user && (
-          <UserMenu
-            user={data.user}
-            accountSettingsUrl={data.accountSettingsUrl}
-          />
+          <UserMenu user={data.user} accountSettingsUrl={data.accountSettingsUrl} />
         )}
       </div>
     </header>

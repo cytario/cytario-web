@@ -1,9 +1,5 @@
 import type { CytarioPlugin, Logger, PluginContext } from "@cytario/plugin-api";
-import {
-  IncompatiblePluginError,
-  assertApiCompatible,
-  hostApiVersion,
-} from "@cytario/plugin-api";
+import { IncompatiblePluginError, assertApiCompatible, hostApiVersion } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 /**
@@ -37,10 +33,9 @@ export async function bootstrapPluginsCore(
           : err instanceof Error
             ? err.message
             : String(err);
-      logger.error(
-        `Skipping incompatible plugin "${plugin?.name ?? "<unknown>"}"`,
-        { error: message },
-      );
+      logger.error(`Skipping incompatible plugin "${plugin?.name ?? "<unknown>"}"`, {
+        error: message,
+      });
       continue;
     }
 

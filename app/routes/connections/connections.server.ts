@@ -4,9 +4,7 @@ import { prisma } from "~/.server/db/prisma";
 import { canSee, filterVisible } from "~/utils/authorization";
 
 /** List all connection configs visible to the user. */
-export async function listConnections(
-  user: UserProfile,
-): Promise<ConnectionConfig[]> {
+export async function listConnections(user: UserProfile): Promise<ConnectionConfig[]> {
   const allConfigs = await prisma.connectionConfig.findMany();
   return filterVisible(user, allConfigs);
 }

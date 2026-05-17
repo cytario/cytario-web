@@ -41,7 +41,8 @@ vi.mock("react-router", async (importOriginal) => {
     // @ts-expect-error -- importOriginal returns unknown; spread is safe here
     ...actual,
     redirect: vi.fn(
-      (url, init) => new Response(null, { status: 302, headers: { Location: url, ...init?.headers } }),
+      (url, init) =>
+        new Response(null, { status: 302, headers: { Location: url, ...init?.headers } }),
     ),
   };
 });
@@ -59,9 +60,7 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
 
   test("redirects authenticated users to home", async () => {
     const mockSession = {
-      get: vi.fn((key) =>
-        key === "user" ? { sub: "123", email: "test@example.com" } : null,
-      ),
+      get: vi.fn((key) => (key === "user" ? { sub: "123", email: "test@example.com" } : null)),
     };
 
     (getSession as Mock).mockResolvedValue(mockSession);
@@ -165,16 +164,12 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     };
 
     (getSession as Mock).mockResolvedValue(mockSession);
-    (generateOAuthState as Mock).mockRejectedValue(
-      new Error("Redis connection failed"),
-    );
+    (generateOAuthState as Mock).mockRejectedValue(new Error("Redis connection failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const request = new Request("http://localhost/login");
 
-    await expect(
-      loader({ request } as LoaderFunctionArgs),
-    ).rejects.toSatisfy((thrown: unknown) => {
+    await expect(loader({ request } as LoaderFunctionArgs)).rejects.toSatisfy((thrown: unknown) => {
       expect(thrown).toBeInstanceOf(Response);
       const response = thrown as Response;
       expect(response.status).toBe(502);

@@ -94,10 +94,7 @@ export function DirectoryViewTableConnection({
   const connections = useConnectionsStore(select.connections);
 
   const data = useMemo(
-    () =>
-      nodes
-        .map((n) => connections[n.connectionName]?.connectionConfig)
-        .filter(Boolean),
+    () => nodes.map((n) => connections[n.connectionName]?.connectionConfig).filter(Boolean),
     [nodes, connections],
   );
 

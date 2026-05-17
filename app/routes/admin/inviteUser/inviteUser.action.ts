@@ -8,10 +8,7 @@ import { getSession } from "~/.server/auth/getSession";
 import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
-export const inviteUserAction: ActionFunction = async ({
-  request,
-  context,
-}) => {
+export const inviteUserAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 

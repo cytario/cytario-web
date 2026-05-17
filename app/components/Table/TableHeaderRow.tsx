@@ -1,9 +1,5 @@
 import { Checkbox, IconButton } from "@cytario/design";
-import {
-  HeaderGroup,
-  VisibilityState,
-  flexRender,
-} from "@tanstack/react-table";
+import { HeaderGroup, VisibilityState, flexRender } from "@tanstack/react-table";
 import { FilterX } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
@@ -59,10 +55,7 @@ export function TableHeaderRow({
         };
         const alignClass = alignClasses[columnConfig?.align ?? "left"];
 
-        const cxTh = twMerge(
-          baseClass,
-          isIndexColumn ? indexClass : alignClass,
-        );
+        const cxTh = twMerge(baseClass, isIndexColumn ? indexClass : alignClass);
 
         const style = {
           width: header.getSize(),
@@ -93,11 +86,7 @@ export function TableHeaderRow({
             className={cxTh}
             style={style}
             aria-sort={
-              isSorted === "asc"
-                ? "ascending"
-                : isSorted === "desc"
-                  ? "descending"
-                  : undefined
+              isSorted === "asc" ? "ascending" : isSorted === "desc" ? "descending" : undefined
             }
           >
             {isIndexColumn ? (
@@ -110,9 +99,7 @@ export function TableHeaderRow({
                         header.getContext().table.getIsSomeRowsSelected() &&
                         !header.getContext().table.getIsAllRowsSelected()
                       }
-                      onChange={() =>
-                        header.getContext().table.toggleAllRowsSelected()
-                      }
+                      onChange={() => header.getContext().table.toggleAllRowsSelected()}
                     />
                   )}
                   <TableMenu
@@ -144,16 +131,11 @@ export function TableHeaderRow({
                       isRight && "flex-row-reverse",
                       isSorted && "text-slate-900",
                     )}
-                    onClick={
-                      header.column.getToggleSortingHandler() ?? undefined
-                    }
+                    onClick={header.column.getToggleSortingHandler() ?? undefined}
                   >
                     <div className="min-w-0">
                       <TooltipSpan>
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                       </TooltipSpan>
                     </div>
 
@@ -164,10 +146,7 @@ export function TableHeaderRow({
                   <div className={tableHeadCx}>
                     <div className="min-w-0">
                       <TooltipSpan>
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                       </TooltipSpan>
                     </div>
                   </div>

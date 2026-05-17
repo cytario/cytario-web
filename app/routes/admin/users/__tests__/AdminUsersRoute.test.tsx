@@ -64,9 +64,7 @@ const mockGroups: GroupInfo[] = [
 ];
 
 describe("AdminUsersRoute", () => {
-  const mockConnections = [
-    { name: "Exchange", provider: "aws", ownerScope: "cytario/lab" },
-  ];
+  const mockConnections = [{ name: "Exchange", provider: "aws", ownerScope: "cytario/lab" }];
 
   function renderRoute(
     users = mockUsers,
@@ -86,9 +84,7 @@ describe("AdminUsersRoute", () => {
       },
     ]);
 
-    return render(
-      <RemixStub initialEntries={["/admin/users?scope=cytario/lab"]} />,
-    );
+    return render(<RemixStub initialEntries={["/admin/users?scope=cytario/lab"]} />);
   }
 
   test("renders table with visible column headers", async () => {
@@ -135,9 +131,7 @@ describe("AdminUsersRoute", () => {
     renderRoute([], mockGroups);
 
     expect(await screen.findByText("No users yet")).toBeInTheDocument();
-    expect(
-      screen.getByText("Invite team members to get started."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Invite team members to get started.")).toBeInTheDocument();
   });
 
   test("renders group pills for user memberships", async () => {
@@ -172,25 +166,19 @@ describe("AdminUsersRoute", () => {
   test("renders warning banner when no connections", async () => {
     renderRoute(mockUsers, mockGroups, []);
 
-    expect(
-      await screen.findByText(/No connections linked to this group/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/No connections linked to this group/)).toBeInTheDocument();
   });
 
   test("no warning banner when connections exist", async () => {
     renderRoute(mockUsers, mockGroups, mockConnections);
 
     await screen.findByText("Exchange");
-    expect(
-      screen.queryByText(/No connections linked to this group/),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/No connections linked to this group/)).not.toBeInTheDocument();
   });
 
   test("renders Connect Storage button", async () => {
     renderRoute();
 
-    expect(
-      await screen.findByRole("button", { name: /Connect Storage/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Connect Storage/ })).toBeInTheDocument();
   });
 });
