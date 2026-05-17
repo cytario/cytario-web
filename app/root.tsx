@@ -29,6 +29,7 @@ import { cytarioConfig } from "./config";
 import { toastBridge, toToastVariant } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
 
+import "@cytario/design/styles.css";
 import "@cytario/design/tokens/variables.css";
 import "@cytario/design/tokens/variables-dark.css";
 import "./tailwind.css";
