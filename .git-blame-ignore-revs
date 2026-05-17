@@ -1,0 +1,9 @@
+# Commits to skip during `git blame`.
+#
+# Opt in once locally:
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub honours this file automatically in its blame UI.
+
+# style: prettier --write . across repo [C-178]
+d4ff96bbdc9104e4642c3e0cd9a6397d9ab60f08
