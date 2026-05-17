@@ -76,9 +76,11 @@ async function runReactRouterPipeline(subcommand, forwardedArgs) {
 }
 
 function runStart(forwardedArgs) {
-  const serverEntry = resolve(PACKAGE_ROOT, "server.ts");
+  // Node 24 won't type-strip under `node_modules/`, so we spawn the
+  // precompiled `server.js` (emitted by `npm run build:server`).
+  const serverEntry = resolve(PACKAGE_ROOT, "server.js");
   if (!existsSync(serverEntry)) {
-    fail(`missing server entry at ${serverEntry}`);
+    fail(`missing server entry at ${serverEntry} — run \`npm run build:server\``);
   }
   const child = spawn(process.execPath, [serverEntry, ...forwardedArgs], {
     cwd: PACKAGE_ROOT,
