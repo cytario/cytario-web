@@ -49,6 +49,7 @@
     "prepare": "husky || true",
     "prebuild": "node scripts/prebuild.mjs",
     "build": "node bin/cytario-web.mjs build",
+    "build:server": "tsup --config tsup.server.config.ts",
     "codegen:check": "tsx scripts/codegen-check.ts",
     "dev": "node bin/cytario-web.mjs dev",
     "predev": "if [ -L node_modules/@cytario/design ]; then npm unlink @cytario/design --no-save 2>/dev/null && npm install @cytario/design --quiet; fi",
