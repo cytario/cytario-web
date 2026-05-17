@@ -1,0 +1,138 @@
+name: Downstream Install Smoke
+
+# Mirror a real downstream install: pack the tarball, install into a
+# throwaway consumer, run prisma migrate + build + start, probe /healthz.
+# Gates publish against TS-in-node_modules and similar regressions.
+
+on:
+  workflow_call:
+
+env:
+  TZ: "Europe/Berlin"
+  HUSKY: 0
+
+jobs:
+  smoke:
+    name: "Pack + install + start"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cytario
+          POSTGRES_PASSWORD: cytario
+          POSTGRES_DB: cytario
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cytario"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build server bundle and plugin-api
+        # Build outside `npm pack` so tool output stays off the stdout
+        # stream we capture the tarball filename from. plugin-api is a
+        # hard runtime peer of @cytario/web, so the consumer needs both.
+        run: |
+          npm run build:server
+          npm run --workspace @cytario/plugin-api build
+
+      - name: Pack tarballs
+        id: pack
+        run: |
+          # `--ignore-scripts` keeps `prepare`/`prepublishOnly` chatter
+          # off stdout so only the tarball filename is captured.
+          WEB_TARBALL=$(npm pack --silent --ignore-scripts --pack-destination "$RUNNER_TEMP")
+          PLUGIN_API_TARBALL=$(npm pack --silent --ignore-scripts --workspace @cytario/plugin-api --pack-destination "$RUNNER_TEMP")
+          echo "web=$RUNNER_TEMP/$WEB_TARBALL" >> "$GITHUB_OUTPUT"
+          echo "plugin_api=$RUNNER_TEMP/$PLUGIN_API_TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Create consumer project
+        id: consumer
+        env:
+          WEB_TARBALL: ${{ steps.pack.outputs.web }}
+          PLUGIN_API_TARBALL: ${{ steps.pack.outputs.plugin_api }}
+        run: |
+          CONSUMER="$RUNNER_TEMP/consumer"
+          mkdir -p "$CONSUMER"
+          cd "$CONSUMER"
+          npm init -y >/dev/null
+          npm pkg set name=cytario-web-smoke-consumer
+          npm install --no-audit --no-fund "$WEB_TARBALL" "$PLUGIN_API_TARBALL"
+          echo "dir=$CONSUMER" >> "$GITHUB_OUTPUT"
+
+      - name: Apply Prisma migrations
+        env:
+          CONSUMER: ${{ steps.consumer.outputs.dir }}
+          DATABASE_URL: postgresql://cytario:cytario@localhost:5432/cytario
+        run: |
+          # Prisma 7 reads the datasource URL from `prisma.config.ts`,
+          # which auto-loads only from the package root that owns it.
+          cd "$CONSUMER/node_modules/@cytario/web"
+          npx --no-install prisma migrate deploy
+
+      - name: Build consumer app
+        env:
+          CONSUMER: ${{ steps.consumer.outputs.dir }}
+          CYTARIO_PLUGINS: ""
+        run: |
+          cd "$CONSUMER"
+          npx --no-install cytario-web build
+
+      - name: Start server and probe /healthz
+        env:
+          CONSUMER: ${{ steps.consumer.outputs.dir }}
+          DATABASE_URL: postgresql://cytario:cytario@localhost:5432/cytario
+          PORT: "3000"
+          HOST: "127.0.0.1"
+          # Stub the envs `app/config.ts` reads at module init — /healthz
+          # never touches them, but the import crashes if they're unset.
+          BASE_URL: http://localhost:8080
+          CLIENT_ID: smoke
+          CLIENT_SECRET: smoke
+          CYBERDUCK_CLIENT_ID: smoke
+          KC_ADMIN_CLIENT_ID: smoke
+          KC_ADMIN_CLIENT_SECRET: smoke
+          SCOPES: openid
+          COOKIE_SECRET: smoke-cookie-secret
+          WEB_HOST: http://127.0.0.1:3000
+        run: |
+          cd "$CONSUMER"
+          npx --no-install cytario-web start &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          # Wait up to 30s for /healthz
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:3000/healthz" >/dev/null 2>&1; then
+              echo "✓ /healthz returned 200 after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "::error::server did not serve /healthz within 30s"
+          exit 1
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## Downstream Smoke Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
