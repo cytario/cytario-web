@@ -3,7 +3,7 @@
 @plugin "tailwindcss-react-aria-components";
 
 /* Scan @cytario/design dist for class usage */
-@source "../node_modules/@cytario/design/dist";
+@source "@cytario/design/dist";
 
 /* Match cytario-design's selector convention */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
