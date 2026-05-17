@@ -32,6 +32,9 @@ COPY . .
 # `react-router build`. CYTARIO_PLUGINS is unset in this repo, so the
 # codegen emits the empty canonical `app/plugins.generated.ts`.
 RUN node bin/cytario-web.mjs build
+# Emit `server.js` for the runtime stage — Node 24 won't type-strip
+# under `node_modules/`.
+RUN npm run build:server
 
 #
 # -- runtime stage: minimal production image ----
@@ -52,9 +55,8 @@ COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
 COPY --from=build /app/build ./build
-COPY server.ts ./
-# Runtime entry point — must sit next to server.ts so the CLI
-# resolves the package root correctly.
+COPY --from=build /app/server.js /app/server.js.map ./
+# Bin must sit next to server.js so the CLI resolves PACKAGE_ROOT correctly.
 COPY bin ./bin
 
 # Copy static files directly from source

@@ -14,6 +14,10 @@ jobs:
     name: QA Checks
     uses: ./.github/workflows/qa-checks.yml
 
+  smoke-install:
+    name: Downstream Install Smoke
+    uses: ./.github/workflows/smoke-install.yml
+
   e2e:
     name: E2E Tests (cytario-docs)
     runs-on: ubuntu-latest

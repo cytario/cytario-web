@@ -24,6 +24,11 @@ app/.generated/
 # tsup output for the workspace packages — built on demand, never committed.
 packages/*/dist/
 
+# Compiled server entry (emitted by `npm run build:server`, shipped in the
+# published tarball but never committed).
+/server.js
+/server.js.map
+
 # Playwright
 /playwright-report/
 /test-results/
