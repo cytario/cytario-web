@@ -1,4 +1,4 @@
-import { Checkbox, Field, Fieldset, Input, Select } from "@cytario/design";
+import { Checkbox, Fieldset, Input, Label, Select } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -22,12 +22,7 @@ export function InviteUserForm({
 }: InviteUserFormProps) {
   const submit = useSubmit();
 
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<InviteUserFormData>({
+  const { control, handleSubmit, reset } = useForm<InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
       email: "",
@@ -65,67 +60,69 @@ export function InviteUserForm({
   return (
     <form id="invite-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Fieldset>
-        <Field label="Email" error={errors.email}>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field }) => (
-              <Input
-                type="email"
-                size="lg"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-              />
-            )}
-          />
-        </Field>
-        <Field label="First name" error={errors.firstName}>
-          <Controller
-            control={control}
-            name="firstName"
-            render={({ field }) => (
-              <Input
-                size="lg"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-              />
-            )}
-          />
-        </Field>
-        <Field label="Last name" error={errors.lastName}>
-          <Controller
-            control={control}
-            name="lastName"
-            render={({ field }) => (
-              <Input
-                size="lg"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-              />
-            )}
-          />
-        </Field>
+        <Controller
+          control={control}
+          name="email"
+          render={({ field, fieldState }) => (
+            <Input
+              label="Email"
+              type="email"
+              size="lg"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              errorMessage={fieldState.error?.message}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="firstName"
+          render={({ field, fieldState }) => (
+            <Input
+              label="First name"
+              size="lg"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              errorMessage={fieldState.error?.message}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="lastName"
+          render={({ field, fieldState }) => (
+            <Input
+              label="Last name"
+              size="lg"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              errorMessage={fieldState.error?.message}
+            />
+          )}
+        />
         {groupOptions.length > 0 ? (
           <Controller
             control={control}
             name="groupPath"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <Select
                 label="Group Membership"
                 items={groupOptions.map((p) => ({ id: p, name: p }))}
                 selectedKey={field.value}
                 onSelectionChange={(key) => field.onChange(key as string)}
                 renderItem={(item) => <ScopePill scope={item.id} />}
+                errorMessage={fieldState.error?.message}
               />
             )}
           />
         ) : (
-          <Field label="Group Membership">
+          <div className="flex flex-col gap-1">
+            <Label>Group Membership</Label>
             <p className="text-sm text-slate-400">No groups available in this scope.</p>
-          </Field>
+          </div>
         )}
         <div className="flex items-center gap-2">
           <Controller

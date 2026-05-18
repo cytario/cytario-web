@@ -11,6 +11,7 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
   return (
     <div className="flex">
       <Input
+        aria-label="Search"
         value={value}
         onChange={onChange}
         onFocus={() => onChange(value)}

@@ -1,4 +1,4 @@
-import { Button, Checkbox, Field, Icon, IconButton, Input, Select } from "@cytario/design";
+import { Button, Checkbox, Icon, IconButton, Input, Label, Select } from "@cytario/design";
 import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
@@ -150,9 +150,10 @@ export function BulkInviteForm({
             renderItem={(item) => <ScopePill scope={item.id} />}
           />
         ) : (
-          <Field label="Group Membership">
+          <div className="flex flex-col gap-1">
+            <Label>Group Membership</Label>
             <p className="text-sm text-slate-400">No groups available in this scope.</p>
-          </Field>
+          </div>
         )}
         <div className="flex items-center gap-2">
           <Checkbox isSelected={enabled} onChange={setEnabled}>
@@ -185,6 +186,7 @@ export function BulkInviteForm({
                 </td>
                 <td className="px-1 py-1">
                   <Input
+                    aria-label={`Email, row ${i + 1}`}
                     value={row.email}
                     onChange={(value) => updateRow(i, "email", value)}
                     placeholder="email@example.com"
@@ -194,6 +196,7 @@ export function BulkInviteForm({
                 </td>
                 <td className="px-1 py-1">
                   <Input
+                    aria-label={`First name, row ${i + 1}`}
                     value={row.firstName}
                     onChange={(value) => updateRow(i, "firstName", value)}
                     placeholder="First"
@@ -203,6 +206,7 @@ export function BulkInviteForm({
                 </td>
                 <td className="px-1 py-1">
                   <Input
+                    aria-label={`Last name, row ${i + 1}`}
                     value={row.lastName}
                     onChange={(value) => updateRow(i, "lastName", value)}
                     placeholder="Last"
