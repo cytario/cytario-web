@@ -10,7 +10,7 @@ export const NOOP_SENTINEL = "noop-sentinel" as const;
 
 const noopPlugin: CytarioPlugin = {
   name: "noop-plugin",
-  apiVersion: "^1.0.0",
+  apiVersion: "^2.0.0",
   register(ctx) {
     ctx.formats.register("noop", {
       load: async () => ({

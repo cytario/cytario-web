@@ -29,12 +29,26 @@ packages/*/dist/
 /server.js
 /server.js.map
 
+# DuckDB-WASM extensions are downloaded by `scripts/download-duckdb-extensions.mjs`
+# into `public/duckdb-extensions/` at install / build time so the runtime can
+# `INSTALL httpfs` / `INSTALL spatial` from the cytario origin instead of
+# `extensions.duckdb.org`. Regenerated on demand; not committed.
+# Note: no trailing slash on the rule below — git cannot un-ignore files
+# inside a fully-ignored directory, so we ignore the contents instead and
+# white-list the SHA-256 manifest below.
+/public/duckdb-extensions/*
+# Exception: the SHA-256 manifest is the trust anchor for the download
+# script. Tracked so version bumps are reviewed in a diff.
+!/public/duckdb-extensions/checksums.json
+
 # Playwright
 /playwright-report/
+/playwright-report*/
 /test-results/
 
 # LLM Support
 .claude/
+CLAUDE_CREDS.md
 
 # Terraform
 .terraform

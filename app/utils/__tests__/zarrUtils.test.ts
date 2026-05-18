@@ -15,7 +15,7 @@ describe("isZarrPath", () => {
     });
 
     test("detects MinIO URL with .zarr", () => {
-      expect(isZarrPath("http://localhost:9000/bucket/USL-2023-52461-2.zarr")).toBe(true);
+      expect(isZarrPath("http://localhost:9000/bucket/sample-001.zarr")).toBe(true);
     });
 
     test("detects AWS S3 virtual-hosted URL with .zarr", () => {
@@ -31,7 +31,7 @@ describe("isZarrPath", () => {
     });
 
     test("detects nested zarr path", () => {
-      expect(isZarrPath("experiments/2024/USL-2023-52461-2.zarr/0/0")).toBe(true);
+      expect(isZarrPath("experiments/2024/sample-001.zarr/0/0")).toBe(true);
     });
 
     test("detects zarr at root level", () => {
@@ -53,7 +53,7 @@ describe("isZarrPath", () => {
     });
 
     test("returns false for directory without .zarr extension", () => {
-      expect(isZarrPath("https://bucket.s3.amazonaws.com/images/USL-2023-52461-2/")).toBe(false);
+      expect(isZarrPath("https://bucket.s3.amazonaws.com/images/sample-001/")).toBe(false);
     });
 
     test("returns false for paths with 'zarr' as substring (no dot)", () => {
@@ -61,7 +61,7 @@ describe("isZarrPath", () => {
     });
 
     test("returns false for regular directory path", () => {
-      expect(isZarrPath("images/USL-2023-52461-2/")).toBe(false);
+      expect(isZarrPath("images/sample-001/")).toBe(false);
     });
 
     test("returns false for TIFF path", () => {

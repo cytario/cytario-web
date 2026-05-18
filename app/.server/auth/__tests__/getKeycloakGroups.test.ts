@@ -17,35 +17,35 @@ vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
 const mockGroupTree = [
   {
     id: "g1",
-    name: "vericura",
-    path: "/vericura",
+    name: "acme",
+    path: "/acme",
     subGroups: [
       {
         id: "g2",
         name: "admins",
-        path: "/vericura/admins",
+        path: "/acme/admins",
         subGroups: [],
       },
       {
         id: "g3",
         name: "lab",
-        path: "/vericura/lab",
+        path: "/acme/lab",
         subGroups: [
           {
             id: "g4",
             name: "admins",
-            path: "/vericura/lab/admins",
+            path: "/acme/lab/admins",
             subGroups: [],
           },
           {
             id: "g5",
             name: "team-x",
-            path: "/vericura/lab/team-x",
+            path: "/acme/lab/team-x",
             subGroups: [
               {
                 id: "g6",
                 name: "admins",
-                path: "/vericura/lab/team-x/admins",
+                path: "/acme/lab/team-x/admins",
                 subGroups: [],
               },
             ],
@@ -53,7 +53,7 @@ const mockGroupTree = [
           {
             id: "g7",
             name: "team-y",
-            path: "/vericura/lab/team-y",
+            path: "/acme/lab/team-y",
             subGroups: [],
           },
         ],
@@ -66,20 +66,15 @@ describe("flattenGroups", () => {
   test("flattens group tree to normalized paths", () => {
     const result = flattenGroups(mockGroupTree);
 
-    expect(result).toEqual([
-      "vericura",
-      "vericura/lab",
-      "vericura/lab/team-x",
-      "vericura/lab/team-y",
-    ]);
+    expect(result).toEqual(["acme", "acme/lab", "acme/lab/team-x", "acme/lab/team-y"]);
   });
 
   test("excludes groups named 'admins'", () => {
     const result = flattenGroups(mockGroupTree);
 
-    expect(result).not.toContain("vericura/admins");
-    expect(result).not.toContain("vericura/lab/admins");
-    expect(result).not.toContain("vericura/lab/team-x/admins");
+    expect(result).not.toContain("acme/admins");
+    expect(result).not.toContain("acme/lab/admins");
+    expect(result).not.toContain("acme/lab/team-x/admins");
   });
 
   test("returns empty array for empty input", () => {
@@ -102,19 +97,14 @@ describe("getManageableScopes", () => {
     );
 
     const user = mock.user({
-      groups: ["vericura/admins"],
-      adminScopes: ["vericura"],
+      groups: ["acme/admins"],
+      adminScopes: ["acme"],
       isRealmAdmin: false,
     });
 
     const result = await getManageableScopes(user);
 
-    expect(result).toEqual([
-      "vericura",
-      "vericura/lab",
-      "vericura/lab/team-x",
-      "vericura/lab/team-y",
-    ]);
+    expect(result).toEqual(["acme", "acme/lab", "acme/lab/team-x", "acme/lab/team-y"]);
 
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("http://localhost:8080/admin/realms/master/groups?"),
@@ -145,24 +135,24 @@ describe("getManageableScopes", () => {
     );
 
     const user = mock.user({
-      groups: ["vericura/admins"],
-      adminScopes: ["vericura"],
+      groups: ["acme/admins"],
+      adminScopes: ["acme"],
     });
 
     const result = await getManageableScopes(user);
 
-    expect(result).toEqual(["vericura"]);
+    expect(result).toEqual(["acme"]);
   });
 
   test("falls back to adminScopes on network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
 
     const user = mock.user({
-      adminScopes: ["vericura"],
+      adminScopes: ["acme"],
     });
 
     const result = await getManageableScopes(user);
 
-    expect(result).toEqual(["vericura"]);
+    expect(result).toEqual(["acme"]);
   });
 });

@@ -1,2 +1,3 @@
 npm run lint -- --no-color
 npm run typecheck
+npm run format:check
