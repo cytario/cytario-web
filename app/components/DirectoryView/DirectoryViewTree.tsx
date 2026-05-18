@@ -5,18 +5,14 @@ import { Link, useNavigate } from "react-router";
 import { type TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
+import { useLazyTreeNodes } from "./useLazyTreeNodes";
 import { TooltipSpan } from "../Tooltip/TooltipSpan";
 import { getFileTypeIcon } from "~/utils/fileType";
 import { buildConnectionPath } from "~/utils/resourceId";
 
-/* ------------------------------------------------------------------ */
-/*  DirectoryViewTree                                                  */
-/* ------------------------------------------------------------------ */
-
 interface DirectoryViewTreeProps {
   /** The full (unfiltered) tree of nodes. Filtering is done via searchTerm. */
   nodes: TreeNode[];
-  /** Pass-through search term for the Tree component's built-in filtering. */
   searchTerm?: string;
   kind: DirectoryKind;
 }
@@ -34,20 +30,20 @@ export function NodeLinkIcon({ node }: { node: TreeNode }) {
 }
 
 /**
- * Thin wrapper around `@cytario/design`'s `<Tree>` (react-arborist under the
- * hood) that navigates on row activation. Used by the tree view mode in
- * `DirectoryView` and `recent.route.tsx`.
+ * Thin wrapper around `@cytario/design`'s `<Tree>` that navigates on row
+ * activation.
  *
- * @deprecated Planned for removal as part of tree consolidation — see
- * [C-150](https://app.plane.so/cytario/browse/C-150/). Once the design-system
- * `<Tree>` supports auto-height + controllable open state (or is rewritten),
- * this wrapper and {@link DirectoryTree} should collapse into a single
- * component used across the app.
+ * @deprecated Planned for removal as part of tree consolidation — C-150.
  */
-export function DirectoryViewTree({ nodes, searchTerm, kind }: DirectoryViewTreeProps) {
+export function DirectoryViewTree({
+  nodes: initialNodes,
+  searchTerm,
+  kind,
+}: DirectoryViewTreeProps) {
   const navigate = useNavigate();
+  const { nodes, loadChildren } = useLazyTreeNodes(initialNodes);
 
-  if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
+  if (initialNodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
   return (
     <div className="overflow-hidden rounded-[var(--border-radius-md)] border border-[var(--color-border-default)]">
@@ -55,20 +51,19 @@ export function DirectoryViewTree({ nodes, searchTerm, kind }: DirectoryViewTree
         aria-label="Directory tree"
         data={nodes}
         selectionMode="none"
-        openByDefault
+        openByDefault={false}
         size="comfortable"
         height={600}
         searchTerm={searchTerm}
         searchMatch={(node, term) => node.name.toLowerCase().includes(term.toLowerCase())}
+        onToggle={(node) => {
+          void loadChildren(node).catch(() => {});
+        }}
         onActivate={(node) => navigate(buildConnectionPath(node.connectionName, node.pathName))}
       />
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Lightweight recursive tree (used by GlobalSearch / Suggestions)    */
-/* ------------------------------------------------------------------ */
 
 interface DirectoryTreeProps {
   nodes: TreeNode[];
@@ -119,13 +114,10 @@ function DirectoryTreeRecursive({ nodes, action, className }: DirectoryTreeProps
 }
 
 /**
- * Simple recursive tree for search suggestions and lightweight contexts
- * where the design-system `<Tree>` (with its fixed height + virtualization)
- * doesn't fit. Used by `search.route.tsx` and `GlobalSearch/Suggestions.tsx`.
+ * Recursive tree for lightweight contexts where the design-system `<Tree>`
+ * (fixed height + virtualization) doesn't fit.
  *
- * @deprecated Planned for removal as part of tree consolidation — see
- * [C-150](https://app.plane.so/cytario/browse/C-150/). One unified tree
- * component should replace both this and {@link DirectoryViewTree}.
+ * @deprecated Planned for removal as part of tree consolidation — C-150.
  */
 export function DirectoryTree(props: DirectoryTreeProps) {
   return <DirectoryTreeRecursive {...props} />;

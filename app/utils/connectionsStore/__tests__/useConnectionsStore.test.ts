@@ -103,16 +103,16 @@ describe("useConnectionsStore", () => {
           bucketName: "my-bucket",
           region: "eu-central-1",
           endpoint: "",
-          prefix: "vericura",
+          prefix: "tenant-a",
         }),
       );
 
-      const url = selectHttpsUrl("prefixed-conn/USL-2022-42307-42.ome.tif")(
+      const url = selectHttpsUrl("prefixed-conn/sample-001.ome.tif")(
         useConnectionsStore.getState(),
       );
 
       expect(url).toBe(
-        "https://s3.eu-central-1.amazonaws.com/my-bucket/vericura/USL-2022-42307-42.ome.tif",
+        "https://s3.eu-central-1.amazonaws.com/my-bucket/tenant-a/sample-001.ome.tif",
       );
     });
 
@@ -151,27 +151,19 @@ describe("useConnectionsStore", () => {
     });
   });
 
-  describe("partialize", () => {
-    test("persists connections; excludes methods", () => {
+  describe("persistence", () => {
+    test("store is in-memory only — no persist middleware attached", () => {
+      // The store must not expose a `.persist` API. STS credentials are
+      // sensitive enough that they must never be written to
+      // sessionStorage / localStorage.
+      expect((useConnectionsStore as unknown as { persist?: unknown }).persist).toBeUndefined();
+    });
+
+    test("no `connections-storage` key written to sessionStorage", () => {
       seed();
 
-      const persistConfig = (
-        useConnectionsStore as unknown as {
-          persist: {
-            getOptions: () => {
-              partialize: (state: unknown) => unknown;
-            };
-          };
-        }
-      ).persist.getOptions();
-
-      const partialized = persistConfig.partialize(useConnectionsStore.getState()) as Record<
-        string,
-        unknown
-      >;
-
-      expect(partialized).toHaveProperty("connections");
-      expect(partialized).not.toHaveProperty("setConnections");
+      // Persist middleware would have written this on first state change.
+      expect(sessionStorage.getItem("connections-storage")).toBeNull();
     });
   });
 });

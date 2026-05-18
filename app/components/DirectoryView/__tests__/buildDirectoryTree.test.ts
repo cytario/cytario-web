@@ -1,6 +1,6 @@
 import type { _Object } from "@aws-sdk/client-s3";
 
-import { buildDirectoryTree, TreeNode } from "../buildDirectoryTree";
+import { buildDirectoryTree, buildLevelTree, TreeNode } from "../buildDirectoryTree";
 
 const testCases: [_Object[], TreeNode[]][] = [
   [
@@ -129,8 +129,8 @@ describe("buildDirectoryTree", () => {
     expect(tree[0].type).toBe("directory");
     expect(tree[0].name).toBe("czi");
     expect(tree[0].children).toHaveLength(1);
-    expect(tree[0].children[0].name).toBe("ULT-2022-16901-457_V1.czi");
-    expect(tree[0].children[0].type).toBe("file");
+    expect(tree[0].children![0].name).toBe("ULT-2022-16901-457_V1.czi");
+    expect(tree[0].children![0].type).toBe("file");
   });
 
   test("should handle nested folder markers without creating phantom nodes", () => {
@@ -141,9 +141,9 @@ describe("buildDirectoryTree", () => {
     expect(tree).toHaveLength(1);
     expect(tree[0].name).toBe("a");
     expect(tree[0].children).toHaveLength(1);
-    expect(tree[0].children[0].name).toBe("b");
-    expect(tree[0].children[0].children).toHaveLength(1);
-    expect(tree[0].children[0].children[0].name).toBe("file.txt");
+    expect(tree[0].children![0].name).toBe("b");
+    expect(tree[0].children![0].children).toHaveLength(1);
+    expect(tree[0].children![0].children![0].name).toBe("file.txt");
   });
 
   test("should produce paths relative to connection root without urlPath", () => {
@@ -152,6 +152,132 @@ describe("buildDirectoryTree", () => {
     const tree = buildDirectoryTree(objects, "my-connection");
 
     expect(tree[0].pathName).toBe("subdir/");
-    expect(tree[0].children[0].pathName).toBe("subdir/file.tif");
+    expect(tree[0].children![0].pathName).toBe("subdir/file.tif");
+  });
+});
+
+describe("buildLevelTree", () => {
+  test("emits directories from CommonPrefixes and files from Contents", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "file1.tif" }, { Key: "file2.tif" }],
+      commonPrefixes: ["subdir/", "czi/"],
+      connectionName: "test-connection",
+    });
+
+    expect(nodes).toEqual([
+      {
+        id: "test-connection/subdir/",
+        connectionName: "test-connection",
+        type: "directory",
+        name: "subdir",
+        pathName: "subdir/",
+        children: [],
+        hasChildren: true,
+        isLeaf: false,
+        loadState: "idle",
+      },
+      {
+        id: "test-connection/czi/",
+        connectionName: "test-connection",
+        type: "directory",
+        name: "czi",
+        pathName: "czi/",
+        children: [],
+        hasChildren: true,
+        isLeaf: false,
+        loadState: "idle",
+      },
+      {
+        id: "test-connection/file1.tif",
+        connectionName: "test-connection",
+        type: "file",
+        name: "file1.tif",
+        pathName: "file1.tif",
+        isLeaf: true,
+        _Object: { Key: "file1.tif" },
+      },
+      {
+        id: "test-connection/file2.tif",
+        connectionName: "test-connection",
+        type: "file",
+        name: "file2.tif",
+        pathName: "file2.tif",
+        isLeaf: true,
+        _Object: { Key: "file2.tif" },
+      },
+    ]);
+  });
+
+  test("file leaves omit children so react-arborist hides the chevron", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "file.tif" }],
+      commonPrefixes: [],
+      connectionName: "test-connection",
+    });
+
+    expect(nodes[0].children).toBeUndefined();
+    expect(nodes[0].isLeaf).toBe(true);
+  });
+
+  test("collapses .zarr/ CommonPrefix into a file-typed leaf with no expand hint", () => {
+    const nodes = buildLevelTree({
+      contents: [],
+      commonPrefixes: ["data.zarr/"],
+      connectionName: "test-connection",
+    });
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
+      type: "file",
+      name: "data.zarr",
+      isLeaf: true,
+      hasChildren: false,
+      loadState: undefined,
+    });
+    expect(nodes[0].children).toBeUndefined();
+  });
+
+  test("strips the listing prefix from CommonPrefix and Contents keys", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "outer/inner/leaf.tif" }],
+      commonPrefixes: ["outer/inner/sub/"],
+      connectionName: "test-connection",
+      prefix: "outer/inner/",
+      urlPath: "outer/inner",
+    });
+
+    expect(nodes).toEqual([
+      {
+        id: "test-connection/outer/inner/sub/",
+        connectionName: "test-connection",
+        type: "directory",
+        name: "sub",
+        pathName: "outer/inner/sub/",
+        children: [],
+        hasChildren: true,
+        isLeaf: false,
+        loadState: "idle",
+      },
+      {
+        id: "test-connection/outer/inner/leaf.tif",
+        connectionName: "test-connection",
+        type: "file",
+        name: "leaf.tif",
+        pathName: "outer/inner/leaf.tif",
+        isLeaf: true,
+        _Object: { Key: "outer/inner/leaf.tif" },
+      },
+    ]);
+  });
+
+  test("skips folder marker keys ending with '/'", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "marker/" }, { Key: "actual.tif" }],
+      commonPrefixes: [],
+      connectionName: "test-connection",
+    });
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe("actual.tif");
   });
 });

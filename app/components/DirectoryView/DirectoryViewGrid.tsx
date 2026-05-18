@@ -35,7 +35,6 @@ const gridClasses: Partial<Record<ViewMode, string>> = {
   grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
 };
 
-/** Create a signedFetch that lazily resolves credentials from the connections store. */
 function useSignedFetch(connectionName: string) {
   const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
 
@@ -57,8 +56,6 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
   const to = buildConnectionPath(connectionName, node.pathName);
   const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
-  // Bucket nodes carry the first-image key from the connections loader on
-  // `_Object.Key` (already absolute — includes any configured prefix).
   const previewKey = node._Object?.Key ?? null;
   const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
   const s3Url = hasPreview && connectionConfig ? constructS3Url(connectionConfig, previewKey) : "";
@@ -66,9 +63,8 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
   return (
     <StorageConnectionCard
       name={node.name}
-      // TODO(C-151): hardcoded — not reflecting real connection state.
-      // Needs real semantics (credential hydration, reachability, index status).
-      status="connected"
+      status={node.connectionStatus ?? "loading"}
+      errorMessage={node.connectionErrorMessage}
       meta={
         connectionConfig && (
           <>
@@ -106,11 +102,6 @@ function FileCardGridItem({
   const handleInfo = useNodeInfoModal(node);
 
   const { connectionConfig: config, signedFetch } = useSignedFetch(connectionName);
-  // `_Object.Key` is absolute (prefix already applied) and set for both file
-  // nodes (from listing) and directory nodes (first image inside, via
-  // buildDirectoryTree). File nodes without `_Object` — e.g. recently-viewed
-  // entries reconstructed from DB — fall back to the resolver URL for the
-  // node's own resourceId.
   const explicitKey = node._Object?.Key ?? null;
   const resolvedHttpsUrl = useConnectionsStore(selectHttpsUrl(node.id));
 

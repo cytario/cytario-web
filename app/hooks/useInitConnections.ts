@@ -6,9 +6,9 @@ import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 /**
- * Replaces the client store with the authoritative set of connections from
- * the auth context. Runs on every route that calls it — missing connections
- * (deleted server-side) are pruned, new ones added. Safe to call repeatedly.
+ * Replace the client connections store with the auth-context set. Uses an
+ * effect rather than render-time mutation: subscribed descendants would
+ * otherwise trip React's "cannot update during render" warning.
  */
 export function useInitConnections(
   connectionConfigs: ConnectionConfig[],

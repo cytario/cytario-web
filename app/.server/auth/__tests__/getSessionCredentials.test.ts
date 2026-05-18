@@ -5,6 +5,7 @@ import {
   isValidCredentials,
   sanitizeRoleSessionName,
 } from "../getSessionCredentials";
+import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -243,7 +244,57 @@ describe("getAllSessionCredentials", () => {
       RoleSessionName: "Test-User",
       WebIdentityToken: "id-token-for-sts",
       DurationSeconds: 3600,
+      Policy: buildSessionPolicy({ bucketName: "test-bucket", prefix: "" }),
     });
+  });
+
+  test("AWS connection: AssumeRoleWithWebIdentityCommand receives inline session Policy", async () => {
+    await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({
+        provider: "aws",
+        bucketName: "scoped-bucket",
+        prefix: "tenant-a",
+      }),
+    ]);
+
+    const expectedPolicy = buildSessionPolicy({
+      bucketName: "scoped-bucket",
+      prefix: "tenant-a",
+    });
+
+    expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ Policy: expectedPolicy }),
+    );
+  });
+
+  test("AWS connection with empty prefix: Policy permits whole-bucket scope", async () => {
+    await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({
+        provider: "aws",
+        bucketName: "whole-bucket",
+        prefix: "",
+      }),
+    ]);
+
+    const expectedPolicy = buildSessionPolicy({ bucketName: "whole-bucket", prefix: "" });
+
+    expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ Policy: expectedPolicy }),
+    );
+  });
+
+  test("non-AWS (MinIO) connection: Policy field is absent", async () => {
+    await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({
+        provider: "minio",
+        bucketName: "minio-bucket",
+        prefix: "some-prefix",
+      }),
+    ]);
+
+    const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
+    expect(call).toBeDefined();
+    expect(call).not.toHaveProperty("Policy");
   });
 
   test("returns empty credentials when no bucket configs provided", async () => {

@@ -2,12 +2,17 @@ import { Table } from "apache-arrow";
 
 import { resolveResourceId } from "../../connectionsStore/selectors";
 import { createDatabase } from "../createDatabase";
+import { ensureSpatialLoaded } from "../ensureSpatialLoaded";
 import { getGeomQuery } from "../getGeomQuery";
 import { getTileDataWasm } from "../getTileDataWasm";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("../createDatabase", () => ({
   createDatabase: vi.fn(),
+}));
+
+vi.mock("../ensureSpatialLoaded", () => ({
+  ensureSpatialLoaded: vi.fn(),
 }));
 
 vi.mock("../getGeomQuery", () => ({
@@ -27,6 +32,7 @@ describe("getTileDataWasm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(createDatabase).mockResolvedValue(mockConnection as never);
+    vi.mocked(ensureSpatialLoaded).mockResolvedValue(undefined);
     vi.mocked(getGeomQuery).mockReturnValue("SELECT * FROM test");
     vi.mocked(resolveResourceId).mockReturnValue({
       connectionName: "my-conn",
@@ -50,6 +56,15 @@ describe("getTileDataWasm", () => {
       defaultTileIndex,
       [],
     );
+  });
+
+  test("loads spatial extension before issuing geometry query", async () => {
+    const mockTable = { numRows: 1 };
+    mockQuery.mockResolvedValue(mockTable);
+
+    await getTileDataWasm("my-conn/data/file.parquet", defaultTileIndex);
+
+    expect(ensureSpatialLoaded).toHaveBeenCalledWith(mockConnection);
   });
 
   test("returns null for empty result set", async () => {

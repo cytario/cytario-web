@@ -32,12 +32,16 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
-  // Revalidate when navigating back to home from another page
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   return false;
 };
 
+export { enrichConnectionsWithPreviews as clientLoader } from "~/routes/connections/connections.clientLoader";
 export { loadConnections as loader } from "~/routes/connections/connections.loader";
+
+// Response carries STS credentials — keep it out of every cache between origin
+// and browser.
+export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export default function HomeRoute() {
   const { nodes, connectionConfigs, recentlyViewed, pinnedPaths } = useLoaderData<LoaderData>();

@@ -1,166 +1,284 @@
-import { S3Client } from "@aws-sdk/client-s3";
-import { createContext } from "react-router";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { type SessionData } from "~/.server/auth/sessionStorage";
-import { loader, handle } from "~/routes/search.route";
+import { clientLoader, handle } from "~/routes/search.route";
 import mock from "~/utils/__tests__/__mocks__";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { CorsLikelyError } from "~/utils/signedFetch";
 
-vi.mock("~/.server/auth/authMiddleware", () => ({
-  authContext: createContext<Partial<SessionData>>(),
-  authMiddleware: vi.fn(async (_ctx, next) => next()),
+const listObjectsClient = vi.fn();
+vi.mock("~/utils/listObjectsClient", () => ({
+  listObjectsClient: (...args: unknown[]) => listObjectsClient(...args),
 }));
 
-vi.mock("~/.server/auth/getS3Client", () => ({
-  getS3Client: vi.fn(),
-}));
-
-vi.mock("~/utils/getObjects", () => ({
-  getObjects: vi.fn(),
-}));
-
-const { authContext } = await import("~/.server/auth/authMiddleware");
-const { getS3Client } = await import("~/.server/auth/getS3Client");
-const { getObjects } = await import("~/utils/getObjects");
+/**
+ * Seeds `useConnectionsStore` via the same `setConnections` action that
+ * `useInitConnections` calls at route mount, so the test exercises the
+ * production mapping rather than a parallel copy of it. Auto-fills
+ * credentials for configs that didn't appear in `credentialsByName`.
+ */
+const seedConnectionsStore = (
+  configs: ReturnType<typeof mock.connectionConfig>[],
+  credentialsByName: Record<string, ReturnType<typeof mock.credentials>> = {},
+) => {
+  const credentials = Object.fromEntries(
+    configs.map((c) => [c.name, credentialsByName[c.name] ?? mock.credentials()]),
+  );
+  useConnectionsStore.getState().setConnections(configs, credentials);
+};
 
 describe("SearchRoute", () => {
-  test("loader should propagate errors from getGlobalSearch", async () => {
-    // Setup mocks with return values
-    vi.mocked(getS3Client).mockResolvedValue({} as S3Client);
-    vi.mocked(getObjects).mockRejectedValue(new Error("Search service unavailable"));
-
-    const request = new Request("http://localhost/search?query=test");
-
-    // Mock the context.get(authContext) call
-    const mockContext = {
-      get: vi.fn((ctx) => {
-        if (ctx === authContext) {
-          return {
-            user: mock.user(),
-            authTokens: {
-              idToken: mock.idToken(),
-              accessToken: "mock-access-token",
-              refreshToken: "mock-refresh-token",
-            },
-            credentials: {
-              "aws-mock-bucket": mock.credentials(),
-            },
-            connectionConfigs: [mock.connectionConfig()],
-          };
-        }
-        return undefined;
-      }),
-    };
-
-    await expect(
-      loader({
-        request,
-        params: {},
-        context: mockContext as never,
-        unstable_pattern: "",
-        unstable_url: new URL(request.url),
-      }),
-    ).rejects.toThrow("Search service unavailable");
+  beforeEach(() => {
+    listObjectsClient.mockReset();
+    useConnectionsStore.setState({ connections: {} });
   });
 
-  test("handle should return correct breadcrumb", () => {
-    const breadcrumb = handle.breadcrumb();
+  test("clientLoader propagates errors-per-connection and continues with the rest", async () => {
+    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
+    const broken = mock.connectionConfig({ name: "broken", prefix: "" });
 
-    expect(breadcrumb).toEqual({ label: "Search", to: "/search" });
+    listObjectsClient.mockImplementation(async (config) => {
+      if (config.name === "broken") throw new Error("AccessDenied");
+      return { contents: [{ Key: "match.tif" }], commonPrefixes: [], isCapped: false };
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    seedConnectionsStore([ok, broken]);
+
+    const request = new Request("http://localhost/search?query=match");
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(result.searchQuery).toBe("match");
+    expect(result.nodes.map((n) => n.name)).toEqual(["ok"]);
   });
 
-  test("loader scopes each connection's listing to its own prefix and produces sibling top-level nodes when connections share a bucket", async () => {
-    vi.mocked(getS3Client).mockResolvedValue({} as S3Client);
+  test("clientLoader emits an error notification when a connection fails", async () => {
+    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
+    const broken = mock.connectionConfig({ name: "broken", prefix: "" });
 
-    const demoConfig = mock.connectionConfig({
-      name: "Repository Demo Deliverables",
-      bucketName: "shared-bucket",
-      prefix: "Repository Demo Deliverables/",
+    listObjectsClient.mockImplementation(async (config) => {
+      if (config.name === "broken") throw new Error("AccessDenied");
+      return { contents: [{ Key: "match.tif" }], commonPrefixes: [], isCapped: false };
     });
-    const slashmConfig = mock.connectionConfig({
-      name: "Repository Slash-m Exchange",
-      bucketName: "shared-bucket",
-      prefix: "Repository Slash-m Exchange/",
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    seedConnectionsStore([ok, broken]);
+
+    const request = new Request("http://localhost/search?query=match");
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(result.notification).toBeDefined();
+    expect(result.notification?.status).toBe("error");
+    expect(result.notification?.message).toMatch(/broken/);
+    expect(result.notification?.message).not.toMatch(/\bok\b/);
+  });
+
+  test("clientLoader combines error + warning when both failures and caps occur", async () => {
+    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
+    const huge = mock.connectionConfig({ name: "huge", prefix: "" });
+    const broken = mock.connectionConfig({ name: "broken", prefix: "" });
+
+    listObjectsClient.mockImplementation(async (config) => {
+      if (config.name === "broken") throw new Error("AccessDenied");
+      if (config.name === "huge") {
+        return { contents: [{ Key: "x.tif" }], commonPrefixes: [], isCapped: true };
+      }
+      return { contents: [{ Key: "y.tif" }], commonPrefixes: [], isCapped: false };
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    seedConnectionsStore([ok, huge, broken]);
+
+    const request = new Request("http://localhost/search?query=tif");
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(result.notification?.status).toBe("error");
+    expect(result.notification?.message).toMatch(/broken/);
+    expect(result.notification?.message).toMatch(/huge/);
+  });
+
+  test("clientLoader bounds concurrent listings to a small limit", async () => {
+    const configs = Array.from({ length: 20 }, (_, i) =>
+      mock.connectionConfig({ name: `conn-${i}`, prefix: "" }),
+    );
+
+    const inFlight = { current: 0, peak: 0 };
+    listObjectsClient.mockImplementation(async () => {
+      inFlight.current++;
+      inFlight.peak = Math.max(inFlight.peak, inFlight.current);
+      await new Promise((r) => setTimeout(r, 1));
+      inFlight.current--;
+      return { contents: [], commonPrefixes: [], isCapped: false };
     });
 
-    vi.mocked(getObjects).mockImplementation(async (_config, _client, _query, prefix) => {
-      if (prefix === "Repository Demo Deliverables/") {
-        return [
-          {
-            Key: "Repository Demo Deliverables/results/demo.parquet",
-          },
-        ];
+    seedConnectionsStore(configs);
+
+    const request = new Request("http://localhost/search?query=x");
+    await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    // SEARCH_CONCURRENCY = 6
+    expect(inFlight.peak).toBeLessThanOrEqual(6);
+    expect(inFlight.peak).toBeGreaterThan(0);
+    expect(listObjectsClient).toHaveBeenCalledTimes(configs.length);
+  });
+
+  test("clientLoader forwards request.signal into each listObjectsClient call", async () => {
+    const config = mock.connectionConfig({ name: "a", prefix: "" });
+    listObjectsClient.mockResolvedValue({ contents: [], commonPrefixes: [], isCapped: false });
+
+    seedConnectionsStore([config]);
+
+    const request = new Request("http://localhost/search?query=q");
+    await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(listObjectsClient).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ signal: request.signal }),
+    );
+  });
+
+  test("surfaces a CORS-specific notification when a connection throws CorsLikelyError", async () => {
+    const blocked = mock.connectionConfig({ name: "blocked", prefix: "" });
+    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
+
+    listObjectsClient.mockImplementation(async (config) => {
+      if (config.name === "blocked") {
+        throw new CorsLikelyError("blocked.s3.amazonaws.com", "https://app.cytario.com");
       }
-      if (prefix === "Repository Slash-m Exchange/") {
-        return [
-          {
-            Key: "Repository Slash-m Exchange/results/USL-2022-42307-42.ome.tif/results/results_total.csv.parquet",
-          },
-        ];
-      }
-      return [];
+      return { contents: [{ Key: "match.tif" }], commonPrefixes: [], isCapped: false };
     });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    seedConnectionsStore([blocked, ok]);
+
+    const request = new Request("http://localhost/search?query=match");
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(result.notification?.status).toBe("error");
+    expect(result.notification?.message).toMatch(/CORS/);
+    expect(result.notification?.message).toMatch(/blocked/);
+  });
+
+  test("handle returns the breadcrumb", () => {
+    expect(handle.breadcrumb()).toEqual({ label: "Search", to: "/search" });
+  });
+
+  test("clientLoader fans out one listing per connection scoped to its own prefix", async () => {
+    const alphaConfig = mock.connectionConfig({
+      name: "Alpha Lab",
+      bucketName: "shared-bucket",
+      prefix: "Alpha Lab/",
+    });
+    const betaConfig = mock.connectionConfig({
+      name: "Beta Lab",
+      bucketName: "shared-bucket",
+      prefix: "Beta Lab/",
+    });
+
+    listObjectsClient.mockImplementation(async (config, _creds, options) => {
+      const prefix = options?.prefix;
+      if (prefix === "Alpha Lab/") {
+        return {
+          contents: [{ Key: "Alpha Lab/results/demo.parquet" }],
+          commonPrefixes: [],
+          isCapped: false,
+        };
+      }
+      if (prefix === "Beta Lab/") {
+        return {
+          contents: [
+            {
+              Key: "Beta Lab/results/sample-001.ome.tif/results/total.csv.parquet",
+            },
+          ],
+          commonPrefixes: [],
+          isCapped: false,
+        };
+      }
+      return { contents: [], commonPrefixes: [], isCapped: false };
+    });
+
+    seedConnectionsStore([alphaConfig, betaConfig]);
 
     const request = new Request("http://localhost/search?query=parquet");
-    const mockContext = {
-      get: vi.fn((ctx) => {
-        if (ctx === authContext) {
-          return {
-            user: mock.user(),
-            authTokens: {
-              idToken: mock.idToken(),
-              accessToken: "mock-access-token",
-              refreshToken: "mock-refresh-token",
-            },
-            credentials: {
-              [demoConfig.name]: mock.credentials(),
-              [slashmConfig.name]: mock.credentials(),
-            },
-            connectionConfigs: [demoConfig, slashmConfig],
-          };
-        }
-        return undefined;
-      }),
-    };
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
 
-    const result = await loader({
-      request,
-      params: {},
-      context: mockContext as never,
-      unstable_pattern: "",
-      unstable_url: new URL(request.url),
+    expect(listObjectsClient).toHaveBeenCalledWith(
+      alphaConfig,
+      expect.anything(),
+      expect.objectContaining({
+        query: "parquet",
+        prefix: "Alpha Lab/",
+        recursive: true,
+      }),
+    );
+    expect(listObjectsClient).toHaveBeenCalledWith(
+      betaConfig,
+      expect.anything(),
+      expect.objectContaining({
+        query: "parquet",
+        prefix: "Beta Lab/",
+        recursive: true,
+      }),
+    );
+
+    expect(result.nodes).toHaveLength(2);
+    expect(result.nodes.map((n) => n.name)).toEqual(["Alpha Lab", "Beta Lab"]);
+
+    const alphaChildNames = (result.nodes[0].children ?? []).map((c) => c.name);
+    expect(alphaChildNames).not.toContain("Beta Lab");
+    expect(alphaChildNames).toContain("results");
+
+    const betaTree = result.nodes[1];
+    expect(betaTree.children![0].name).toBe("results");
+    expect(betaTree.children![0].children![0].name).toBe("sample-001.ome.tif");
+    expect(betaTree.children![0].children![0].pathName).toBe("results/sample-001.ome.tif/");
+  });
+
+  test("clientLoader surfaces a warning notification when any connection is capped", async () => {
+    const huge = mock.connectionConfig({
+      name: "Huge Bucket",
+      bucketName: "huge",
+      prefix: "Huge Bucket/",
+    });
+    const small = mock.connectionConfig({
+      name: "Small Bucket",
+      bucketName: "small",
+      prefix: "Small Bucket/",
     });
 
-    // Each connection should have been listed scoped to its own prefix.
-    expect(getObjects).toHaveBeenCalledWith(
-      demoConfig,
-      expect.anything(),
-      "parquet",
-      "Repository Demo Deliverables/",
-    );
-    expect(getObjects).toHaveBeenCalledWith(
-      slashmConfig,
-      expect.anything(),
-      "parquet",
-      "Repository Slash-m Exchange/",
-    );
+    listObjectsClient.mockImplementation(async (config) => {
+      if (config.name === "Huge Bucket") {
+        return { contents: [{ Key: "Huge Bucket/x.tif" }], commonPrefixes: [], isCapped: true };
+      }
+      return { contents: [{ Key: "Small Bucket/y.tif" }], commonPrefixes: [], isCapped: false };
+    });
 
-    // Top-level nodes are siblings — one per connection, neither nested in the other.
-    expect(result.nodes).toHaveLength(2);
-    expect(result.nodes.map((n) => n.name)).toEqual([
-      "Repository Demo Deliverables",
-      "Repository Slash-m Exchange",
-    ]);
+    seedConnectionsStore([huge, small]);
 
-    // Demo's tree must NOT contain the other connection's prefix as a directory.
-    const demoChildNames = result.nodes[0].children.map((c) => c.name);
-    expect(demoChildNames).not.toContain("Repository Slash-m Exchange");
-    expect(demoChildNames).toContain("results");
+    const request = new Request("http://localhost/search?query=tif");
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
 
-    // Slash-m's first file path should be cleanly relative to its own prefix.
-    const slashmTree = result.nodes[1];
-    expect(slashmTree.children[0].name).toBe("results");
-    expect(slashmTree.children[0].children[0].name).toBe("USL-2022-42307-42.ome.tif");
-    expect(slashmTree.children[0].children[0].pathName).toBe("results/USL-2022-42307-42.ome.tif/");
+    expect(result.notification).toBeDefined();
+    expect(result.notification?.status).toBe("warning");
+    expect(result.notification?.message).toMatch(/Huge Bucket/);
+    expect(result.notification?.message).not.toMatch(/Small Bucket/);
+  });
+
+  test("clientLoader omits the notification when nothing was capped", async () => {
+    const config = mock.connectionConfig();
+
+    listObjectsClient.mockResolvedValue({
+      contents: [{ Key: "x/y.tif" }],
+      commonPrefixes: [],
+      isCapped: false,
+    });
+
+    seedConnectionsStore([config]);
+
+    const request = new Request("http://localhost/search?query=tif");
+    const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(result.notification).toBeUndefined();
   });
 });

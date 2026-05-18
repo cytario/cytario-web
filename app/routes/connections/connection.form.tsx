@@ -1,4 +1,5 @@
 import {
+  Banner,
   Field,
   Fieldset,
   FormWizard,
@@ -78,15 +79,15 @@ export const ConnectionForm = ({
   const submit = useSubmit();
   const actionData = useActionData<{
     errors?: Record<string, string[]>;
+    formError?: string;
     status?: string;
   }>();
   const navigation = useNavigation();
 
   const serverErrors = actionData?.status === "error" ? actionData.errors : undefined;
+  const formError = actionData?.status === "error" ? actionData.formError : undefined;
   const isSubmitting = navigation.state === "submitting";
 
-  // Compute the initial step from server errors so we navigate to the
-  // correct page without needing setState inside an effect.
   const initialStep = serverErrors
     ? Object.keys(serverErrors).reduce<number>((acc, field) => {
         const step = FIELD_TO_STEP[field];
@@ -115,7 +116,6 @@ export const ConnectionForm = ({
     mode: "onTouched",
   });
 
-  // Surface server-side errors (e.g. unique name constraint) in the form
   useEffect(() => {
     if (!serverErrors) return;
     for (const [field, messages] of Object.entries(serverErrors)) {
@@ -197,6 +197,12 @@ export const ConnectionForm = ({
     >
       <div className="flex flex-col gap-(--spacing-6)">
         <FormWizardProgress labels={STEP_LABELS} />
+
+        {formError && (
+          <Banner variant="danger" title="Could not save the connection">
+            {formError}
+          </Banner>
+        )}
 
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
         <form

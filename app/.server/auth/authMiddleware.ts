@@ -16,10 +16,6 @@ export interface AuthContextData extends SessionData {
 
 export const authContext = createContext<AuthContextData>();
 
-/**
- * Lightweight expiry check for refresh tokens (opaque to clients).
- * Only checks the `exp` claim — no signature verification needed.
- */
 const isRefreshTokenValid = (token?: string): boolean => {
   if (!token) return false;
 
@@ -38,11 +34,6 @@ const isComplete = (data: Partial<SessionData>): boolean => {
 
 const label = createLabel("authorize", "green");
 
-/**
- * Fetches all connection configs and credentials for the user.
- * Only fetches credentials for connections with missing or expired credentials.
- * Returns updated session data and connection configs.
- */
 const fetchAllCredentials = async (
   sessionData: SessionData,
 ): Promise<{ sessionData: SessionData; connectionConfigs: ConnectionConfig[] }> => {
@@ -59,12 +50,6 @@ const fetchAllCredentials = async (
   };
 };
 
-/**
- * Middleware that validates and refreshes authentication tokens.
- * Fetches connection configs and credentials for all visible connections.
- * Sets validated session data in authContext for downstream use.
- * Export this from protected routes that require authentication.
- */
 export const authMiddleware: MiddlewareFunction = async ({ request, context }, next) => {
   console.info(`${label} ${request.method} ${request.url}`);
 
@@ -80,7 +65,6 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     let updatedSessionData = sessionData as SessionData;
     const { authTokens } = updatedSessionData;
 
-    // Verify idToken signature via JWKS
     const idTokenPayload = await verifyIdToken(authTokens.idToken);
 
     if (idTokenPayload) {
@@ -88,7 +72,6 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
         await fetchAllCredentials(updatedSessionData);
       updatedSessionData = withCredentials;
 
-      // Only commit session if credentials changed
       if (updatedSessionData.credentials !== sessionData.credentials) {
         session.set("credentials", updatedSessionData.credentials);
         await sessionStorage.commitSession(session);
@@ -98,7 +81,6 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
       return next();
     }
 
-    // If idToken is invalid but refreshToken is valid, refresh tokens
     if (isRefreshTokenValid(authTokens.refreshToken)) {
       console.info(`${label} Fetch new tokens and credentials`);
 
@@ -127,21 +109,17 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     }
   }
 
-  // Neither token is valid, logout
-  await logout(request.url, session);
+  return logout(request.url, session);
 };
 
-/**
- * Logs out the user by destroying the session and redirecting to the login page.
- * @param url Current request URL for redirect after login
- * @param session Cytario session to destroy
- * @throws Redirect to login page
- */
-const logout = async (url: string, session: CytarioSession) => {
+// Return the redirect rather than throwing it: under RR's middleware single-fetch
+// path a thrown redirect Response is caught and re-encoded as a 500, which
+// surfaces as `SingleFetchNoResultError` in the root ErrorBoundary.
+const logout = async (url: string, session: CytarioSession): Promise<Response> => {
   console.info(`${label} Delete session and redirect to login`);
   const requestUrl = new URL(url);
   const relativeUrl = requestUrl.pathname + requestUrl.search;
-  throw redirect(`/login?redirect=${encodeURIComponent(relativeUrl)}`, {
+  return redirect(`/login?redirect=${encodeURIComponent(relativeUrl)}`, {
     headers: {
       "Set-Cookie": await sessionStorage.destroySession(session),
     },

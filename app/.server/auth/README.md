@@ -8,5 +8,4 @@ OAuth 2.0 Authorization Code Flow against Keycloak. Session cookies are httpOnly
 | `authMiddleware.ts`        | Refresh tokens if needed; populate `authContext` for downstream loaders. |
 | `getSessionCredentials.ts` | Mint STS credentials per connection.                                     |
 | `verifyIdToken.ts`         | JWKS-based idToken signature/expiry verification.                        |
-| `getS3Client.ts`           | Build an SDK-v3 S3 client with the connection's signed credentials.      |
 | `keycloakAdmin/`           | Service-account-backed admin API for user/group management.              |

@@ -94,6 +94,30 @@ npx prisma studio    # Database GUI
 
 ## Code Conventions
 
+### Formatting
+
+Prettier is the source of truth for whitespace / line-wrapping in this repo. Edits made by hand (or by an LLM) drift from it constantly because Edit tools do not run Prettier inline, and `husky/pre-commit` only runs `lint` + `typecheck` — Prettier drift is caught downstream by CI's `format:check`, which then forces a `format:write` cleanup.
+
+Project Prettier config (`.prettierrc`):
+
+| Option          | Value   |
+| --------------- | ------- |
+| `printWidth`    | 100     |
+| `tabWidth`      | 2       |
+| `semi`          | `true`  |
+| `singleQuote`   | `false` |
+| `trailingComma` | `"all"` |
+
+**Hard rule for Claude:** before reporting any task as done, after any `Edit`, `Write`, or `NotebookEdit` to a file Prettier handles (`.ts`, `.tsx`, `.mjs`, `.js`, `.json`, `.css`, `.md`, `.yml`, `.html`), run:
+
+```bash
+npx prettier --write <space-separated file list>
+```
+
+Pass only the files you touched (do NOT run `npm run format:write` across the whole tree — it rewrites unrelated files and makes diffs noisy). If multiple files were edited in one task, format them together in a single Prettier invocation.
+
+Specifically: long lines (>100 chars), missing trailing commas on multi-line literals, and JSX prop wrapping are the most common drift patterns. Do not try to match Prettier output by hand — let `prettier --write` do it.
+
 ### Exports
 
 - **Named exports only** in `app/` — no default exports (enforced by ESLint)
@@ -234,6 +258,30 @@ import { cytarioConfig } from "~/config";
 - **Conventional Commits** enforced by commitlint: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, etc.
 - Commits are validated via Husky `commit-msg` hook
 - **Atomic commits** — each commit must be a single, self-contained logical change (one concern per commit). Never bundle unrelated changes into one commit. When implementing a feature or fix that touches multiple concerns, split into separate commits (e.g., schema change, route refactor, test additions).
+
+### Plane Ticket References
+
+Plane is connected to GitHub. Mentioning a Plane work item ID (e.g. `C-193`, `WEB-344`) in a PR title, PR description, commit message, or branch name links the item. The **syntax determines whether merging the PR transitions the item's state** via Plane's PR state mapping:
+
+- **`[C-193]` (square brackets)** — PR _closes_ this work item. Links to the PR, posts a Plane App comment, and triggers automatic state updates on PR state changes (open → in progress, merged → done, etc.).
+- **`C-193` (bare ID, no brackets)** — _reference only_. Links to the PR and posts a Plane App comment, but **does not** trigger state automation. Use for follow-up tickets, related work, or context references that should not be closed by this PR.
+
+Convention:
+
+- Bracket the ticket(s) this PR/commit actually closes.
+- Leave follow-up and reference tickets unbracketed so they stay open after merge.
+- This is independent of GitHub's `closes:` / `fixes:` / `resolves:` keywords, which only affect native GitHub Issues, not Plane work items.
+
+Example PR description:
+
+```
+[C-193] Paginate ListObjectsV2 with delimiter
+
+Fixes the missing-prefix bug surfaced in C-193.
+Follow-up cleanup tracked in C-201.
+```
+
+→ `C-193` transitions to Done on merge. `C-201` stays in its current state.
 
 ### Pre-commit Checks
 

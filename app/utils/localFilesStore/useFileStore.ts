@@ -8,7 +8,6 @@ import {
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-// Create a custom IndexedDB store for file cache
 const idbStore = createIdBStore("file-cache", "files");
 
 export interface DownloadProgress {
@@ -47,7 +46,6 @@ export const useFileStore = create<FileStore>()(
       saveFile: async (id: string, data: Uint8Array) => {
         await idbSet(id, data, idbStore);
 
-        // Mark as complete
         set(
           (state) => ({
             files: {
@@ -105,7 +103,6 @@ export const useFileStore = create<FileStore>()(
       hydrate: async () => {
         const allKeys = await idbKeys<string>(idbStore);
 
-        // Get sizes for all files
         const filesWithSizes = await Promise.all(
           allKeys.map(async (key) => {
             const data = await idbGet<Uint8Array>(key, idbStore);
@@ -120,7 +117,6 @@ export const useFileStore = create<FileStore>()(
           (state) => {
             const files = { ...state.files };
 
-            // Add any keys from IndexedDB that aren't in the store
             for (const { key, size } of filesWithSizes) {
               if (!files[key]) {
                 files[key] = {
@@ -134,7 +130,6 @@ export const useFileStore = create<FileStore>()(
               }
             }
 
-            // Remove any keys from store that aren't in IndexedDB
             for (const key of Object.keys(files)) {
               if (!allKeys.includes(key)) {
                 delete files[key];
@@ -148,6 +143,6 @@ export const useFileStore = create<FileStore>()(
         );
       },
     }),
-    { name },
+    { name, enabled: process.env.NODE_ENV !== "production" },
   ),
 );

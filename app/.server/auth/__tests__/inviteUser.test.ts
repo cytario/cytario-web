@@ -21,7 +21,7 @@ const BASE = "http://localhost:8080/admin/realms/master";
 const mockGroup = {
   id: "group-123",
   name: "lab",
-  path: "/vericura/lab",
+  path: "/acme/lab",
   subGroups: [],
 };
 
@@ -49,9 +49,7 @@ describe("inviteUser", () => {
       // findGroupByPath → fetchGroups
       {
         json: () =>
-          Promise.resolve([
-            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
-          ]),
+          Promise.resolve([{ ...mockGroup, path: "/acme", name: "acme", subGroups: [mockGroup] }]),
       },
       // POST /users → 201
       { status: 201, headers: new Headers({ location: `${BASE}/users/new-user-id` }) },
@@ -61,7 +59,7 @@ describe("inviteUser", () => {
       { status: 204 },
     ]);
 
-    await inviteUser("test@example.com", "Test", "User", "vericura/lab", true);
+    await inviteUser("test@example.com", "Test", "User", "acme/lab", true);
 
     // POST /users with correct body
     expect(fetchMock).toHaveBeenCalledWith(
@@ -99,9 +97,7 @@ describe("inviteUser", () => {
       // findGroupByPath → fetchGroups
       {
         json: () =>
-          Promise.resolve([
-            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
-          ]),
+          Promise.resolve([{ ...mockGroup, path: "/acme", name: "acme", subGroups: [mockGroup] }]),
       },
       // POST /users → 409
       { ok: false, status: 409, statusText: "Conflict" },
@@ -111,7 +107,7 @@ describe("inviteUser", () => {
       { status: 204 },
     ]);
 
-    await inviteUser("test@example.com", "Test", "User", "vericura/lab", true);
+    await inviteUser("test@example.com", "Test", "User", "acme/lab", true);
 
     // Should add existing user to group
     expect(fetchMock).toHaveBeenCalledWith(
@@ -142,9 +138,7 @@ describe("inviteUser", () => {
       // findGroupByPath
       {
         json: () =>
-          Promise.resolve([
-            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
-          ]),
+          Promise.resolve([{ ...mockGroup, path: "/acme", name: "acme", subGroups: [mockGroup] }]),
       },
       // POST /users → 409
       { ok: false, status: 409, statusText: "Conflict" },
@@ -152,9 +146,9 @@ describe("inviteUser", () => {
       { json: () => Promise.resolve([]) },
     ]);
 
-    await expect(
-      inviteUser("test@example.com", "Test", "User", "vericura/lab", true),
-    ).rejects.toThrow("User conflict but not found: test@example.com");
+    await expect(inviteUser("test@example.com", "Test", "User", "acme/lab", true)).rejects.toThrow(
+      "User conflict but not found: test@example.com",
+    );
   });
 
   test("throws on non-409 API error", async () => {
@@ -162,17 +156,15 @@ describe("inviteUser", () => {
       // findGroupByPath
       {
         json: () =>
-          Promise.resolve([
-            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
-          ]),
+          Promise.resolve([{ ...mockGroup, path: "/acme", name: "acme", subGroups: [mockGroup] }]),
       },
       // POST /users → 500
       { ok: false, status: 500, statusText: "Internal Server Error" },
     ]);
 
-    await expect(
-      inviteUser("test@example.com", "Test", "User", "vericura/lab", true),
-    ).rejects.toThrow("500 Internal Server Error");
+    await expect(inviteUser("test@example.com", "Test", "User", "acme/lab", true)).rejects.toThrow(
+      "500 Internal Server Error",
+    );
   });
 
   test("throws when Location header is missing", async () => {
@@ -180,16 +172,14 @@ describe("inviteUser", () => {
       // findGroupByPath
       {
         json: () =>
-          Promise.resolve([
-            { ...mockGroup, path: "/vericura", name: "vericura", subGroups: [mockGroup] },
-          ]),
+          Promise.resolve([{ ...mockGroup, path: "/acme", name: "acme", subGroups: [mockGroup] }]),
       },
       // POST /users → 201 but no Location header
       { status: 201, headers: new Headers() },
     ]);
 
-    await expect(
-      inviteUser("test@example.com", "Test", "User", "vericura/lab", true),
-    ).rejects.toThrow("Missing Location header");
+    await expect(inviteUser("test@example.com", "Test", "User", "acme/lab", true)).rejects.toThrow(
+      "Missing Location header",
+    );
   });
 });

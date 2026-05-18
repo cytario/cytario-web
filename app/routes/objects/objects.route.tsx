@@ -1,14 +1,16 @@
 import { Button, EmptyState } from "@cytario/design";
 import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef } from "react";
 import {
   type MetaFunction,
   type ShouldRevalidateFunction,
   useFetcher,
   useLoaderData,
   useNavigate,
+  useNavigation,
 } from "react-router";
 
+import { clientLoader } from "./objects.clientLoader";
 import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
@@ -30,19 +32,22 @@ import { getName } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
-// Lazy load Viewer to prevent SSR issues with client-only code
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then((module) => ({
     default: module.Viewer,
   })),
 );
 
-export { loader };
+export { clientLoader, loader };
 export type { BucketRouteLoaderResponse };
 
 export const middleware = [requestDurationMiddleware];
 
-export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
+// Response carries STS credentials — keep it out of every cache between origin
+// and browser.
+export const headers = () => ({ "Cache-Control": "no-store, private" });
+
+export const meta: MetaFunction<typeof clientLoader> = ({ loaderData }) => [
   { title: loaderData?.name ?? "Cytario" },
 ];
 
@@ -65,20 +70,9 @@ export const handle = {
   },
 };
 
-/**
- * Revalidate only when the URL actually changes. React Router's default
- * is to revalidate every active loader after any action, which on this
- * route fires the loader 1.5-3x per client-side navigation — auxiliary
- * fetchers (POST /api/recently-viewed, POST /api/pinned) fire on every
- * file view and would each trigger a full S3 listing re-run.
- *
- * Keying on URL change only also avoids a subtle trap: `formAction` is
- * populated for fetcher submissions too, not just Form submissions on
- * this route, so the obvious `if (formAction) return defaultShouldRevalidate`
- * check would re-trigger revalidation for every aux-fetcher completion.
- * This route has no mutating forms of its own, so skipping the
- * `formAction` branch is safe.
- */
+// Revalidate only on URL change. Without this, aux fetcher submissions
+// (recently-viewed, pinned) would each retrigger the S3 listing — `formAction`
+// fires for fetcher submissions too, so the usual `if (formAction)` check is unsafe.
 export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl }) => {
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   if (currentUrl.search !== nextUrl.search) return true;
@@ -96,13 +90,13 @@ export default function ObjectsRoute() {
     isPinned: loaderIsPinned,
     isSingleFile,
     notification,
-  } = useLoaderData<typeof loader>();
+    pendingClientLoad,
+  } = useLoaderData<typeof clientLoader>();
 
   const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const { openModal } = useModal();
 
-  // Handle notifications from loader
   useEffect(() => {
     if (notification) {
       toastBridge.emit({
@@ -115,12 +109,16 @@ export default function ObjectsRoute() {
   const resourceId = `${connectionName}/${urlPath}`;
   const fileType = getFileType(resourceId);
 
-  // Track recently viewed files and directories (DB-backed via server action).
-  // Only track when urlPath is non-empty — the connection root itself isn't a viewable item.
-  // Server-side loader split for read path is covered by C-81.
+  // Defer the submit until navigation goes idle — submitting during hydration
+  // races RR's bulk-fetch single-fetch and trips RR issue #13873.
   const recentFetcher = useFetcher();
+  const navigation = useNavigation();
+  const lastRecentSubmit = useRef<string | null>(null);
   useEffect(() => {
     if (!urlPath) return;
+    if (navigation.state !== "idle") return;
+    if (lastRecentSubmit.current === resourceId) return;
+    lastRecentSubmit.current = resourceId;
     recentFetcher.submit(
       {
         connectionName,
@@ -130,15 +128,12 @@ export default function ObjectsRoute() {
       },
       { method: "post", action: "/api/recently-viewed" },
     );
-    // Intentionally depends only on resourceId — it is derived from connectionName + pathName,
-    // so a resourceId change guarantees the captured values are fresh. Other deps (recentFetcher,
-    // connectionName, urlPath, name, isSingleFile) are stable within the same resourceId.
+    // Other deps are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId]);
+  }, [resourceId, navigation.state]);
 
-  // Pinning (DB-backed via server action)
   const pinFetcher = useFetcher();
-  // Optimistic isPinned: flip while the pin request is in-flight
+  // Optimistic toggle while the request is in flight.
   let isPinned = loaderIsPinned;
   if (pinFetcher.state !== "idle") {
     isPinned = pinFetcher.formMethod?.toLowerCase() === "post";
@@ -169,7 +164,6 @@ export default function ObjectsRoute() {
     }
   }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);
 
-  // Show directory view when there are multiple objects
   if (nodes.length > 0) {
     return (
       <DirectoryView
@@ -200,7 +194,6 @@ export default function ObjectsRoute() {
     );
   }
 
-  // Open file viewer when a single file is selected
   if (isSingleFile) {
     const isCsv = fileType === "CSV";
     const isTabularFile = ["CSV", "Parquet", "JSON"].includes(fileType);
@@ -223,15 +216,10 @@ export default function ObjectsRoute() {
       );
     }
 
-    // SDS-CY-010401 (no format-specific branching): gate on the
-    // plugin-aware `isImageFile` predicate so any plugin-contributed
-    // format reaches `<Viewer>` once registered. Built-in OME-TIFF /
-    // OME-Zarr / TIFF entries flow through the same predicate via
-    // `STATIC_FILE_TYPES` in `app/utils/fileType.ts`.
+    // Gate on `isImageFile` so plugin-contributed formats reach `<Viewer>`
+    // without per-format branching here.
     if (isImageFile(resourceId)) {
-      // `pathName` from objects.loader is ALREADY the full S3 key (connection
-      // prefix joined with the URL splat server-side — see objects.loader.ts).
-      // Feed it directly to `constructS3Url`, which expects a full key.
+      // `pathName` already includes the connection prefix.
       const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         () => useConnectionsStore.getState().connections[connectionName]?.credentials,
@@ -264,7 +252,20 @@ export default function ObjectsRoute() {
     );
   }
 
-  // Render placeholder when no objects found
+  // Distinguish "still loading" from "loaded but empty" to avoid flashing the
+  // empty state during the SSR → hydration handoff.
+  if (pendingClientLoad) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex h-full items-center justify-center p-8 text-slate-500"
+      >
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <EmptyState
       title="No objects found in this bucket."

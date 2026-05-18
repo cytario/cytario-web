@@ -19,10 +19,7 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
 
   const connectionName = resourceId.slice(0, slashIndex);
 
-  const pathName = resourceId
-    .slice(slashIndex + 1)
-    // Strip leading slash
-    .replace(/^\/+/, "");
+  const pathName = resourceId.slice(slashIndex + 1).replace(/^\/+/, "");
 
   if (!connectionName) {
     throw new Error(`Invalid resourceId: "${resourceId}" — empty connectionName`);
@@ -46,38 +43,26 @@ export function buildConnectionPath(connectionName: string, pathName: string): s
 }
 
 /**
- * Builds the HTTPS URL for a full S3 object key. Always path-style — works
- * for every bucket shape (including dotted names, which break the vhost
- * wildcard cert) and keeps a single URL form across AWS and S3-compatible
- * endpoints. Path segments are URI-encoded — callers pass raw keys.
- *
- * The `s3Key` is the **full object key including any connection prefix**.
- * If you have a prefix-relative `pathName` and a resourceId, use
- * `selectHttpsUrl` / `resolveResourceId` — they rejoin the prefix for you.
- *
- * @example
- * // AWS:
- * constructS3Url({ bucketName: "my-bucket", region: "eu-central-1" }, "data/image.ome.tif")
- * // → "https://s3.eu-central-1.amazonaws.com/my-bucket/data/image.ome.tif"
- *
- * @example
- * // MinIO / R2 custom endpoint:
- * constructS3Url({ bucketName: "b", endpoint: "http://localhost:9000" }, "x.zarr")
- * // → "http://localhost:9000/b/x.zarr"
+ * Build the HTTPS URL for an S3 bucket or object. Always path-style (dotted
+ * bucket names break the vhost wildcard cert). `s3Key` is the full object
+ * key including any connection prefix; pass `""` for the bucket-level URL.
+ * Callers pass raw keys — path segments are URI-encoded internally.
  */
-export function constructS3Url(connectionConfig: ConnectionConfig, s3Key: string): string {
+export function constructS3Url(
+  connectionConfig: Pick<ConnectionConfig, "bucketName" | "region" | "endpoint">,
+  s3Key: string = "",
+): string {
   const bucket = connectionConfig.bucketName;
-  const encodedPath = s3Key.split("/").map(encodeURIComponent).join("/");
-
   const region = connectionConfig.region || "eu-central-1";
   const endpoint = connectionConfig.endpoint?.replace(/\/$/, "");
 
   const isAwsEndpoint = !endpoint || /\.amazonaws\.com$/i.test(endpoint);
+  const origin = isAwsEndpoint ? `https://s3.${region}.amazonaws.com` : endpoint;
 
-  // TODO: Check if this can be fixed on db-level
-  if (isAwsEndpoint) {
-    return `https://s3.${region}.amazonaws.com/${bucket}/${encodedPath}`;
+  if (!s3Key) {
+    return `${origin}/${bucket}`;
   }
 
-  return `${endpoint}/${bucket}/${encodedPath}`;
+  const encodedPath = s3Key.split("/").map(encodeURIComponent).join("/");
+  return `${origin}/${bucket}/${encodedPath}`;
 }

@@ -5,10 +5,12 @@ import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { describeCorsFailure, describeCorsWarning, probeBucketCors } from "~/.server/corsPreflight";
 import { prisma } from "~/.server/db/prisma";
+import { cytarioConfig } from "~/config";
 import { canCreate } from "~/utils/authorization";
+import { constructS3Url } from "~/utils/resourceId";
 
-/** Create a connection config (upserts on the composite unique key). */
 export async function createConnection(
   ownerScope: string,
   createdBy: string,
@@ -84,6 +86,24 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
         ? `https://s3.${data.bucketRegion}.amazonaws.com`
         : data.bucketEndpoint;
 
+    // Surface CORS misconfigurations at submit time rather than at first
+    // browser-side fetch (where they read as a generic "Failed to fetch").
+    const cytarioOrigin = cytarioConfig.endpoints.webapp;
+    const bucketUrl = constructS3Url({
+      bucketName,
+      region: data.providerType === "aws" ? data.bucketRegion : null,
+      endpoint,
+    });
+    const corsResult = await probeBucketCors(bucketUrl, cytarioOrigin);
+    if (!corsResult.ok) {
+      // CORS / allowlist failures span multiple fields (and AWS has no
+      // endpoint field) — surface as a form-level banner.
+      return {
+        formError: describeCorsFailure(corsResult, cytarioOrigin),
+        status: "error" as const,
+      };
+    }
+
     const newConfig = {
       name: data.name,
       bucketName,
@@ -96,10 +116,19 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
     await createConnection(data.ownerScope, user.sub, newConfig);
 
-    session.set("notification", {
-      status: "success",
-      message: "Storage connection added successfully.",
-    });
+    if (corsResult.warnings.length > 0) {
+      session.set("notification", {
+        status: "warning",
+        message: `Connection added. ${corsResult.warnings
+          .map((w) => describeCorsWarning(w, cytarioOrigin))
+          .join(" ")}`,
+      });
+    } else {
+      session.set("notification", {
+        status: "success",
+        message: "Storage connection added successfully.",
+      });
+    }
 
     return redirect(`/connections/${encodeURIComponent(data.name)}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
@@ -116,13 +145,10 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
     console.error("Error creating connection:", error);
 
-    session.set("notification", {
-      status: "error",
-      message: "Error adding connection.",
-    });
-
-    return redirect(`/`, {
-      headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
-    });
+    // Keep the wizard mounted so the user's draft survives the error.
+    return {
+      formError: "Could not add the connection. Try again or check the server logs.",
+      status: "error" as const,
+    };
   }
 };

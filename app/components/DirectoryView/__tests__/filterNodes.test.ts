@@ -95,10 +95,10 @@ describe("filterHiddenNodes", () => {
     const result = filterHiddenNodes(nodes, false);
     expect(result).toHaveLength(1);
     expect(result[0].children).toHaveLength(2);
-    expect(result[0].children[0].name).toBe("output.csv");
-    expect(result[0].children[1].name).toBe("nested");
-    expect(result[0].children[1].children).toHaveLength(1);
-    expect(result[0].children[1].children[0].name).toBe("data.parquet");
+    expect(result[0].children![0].name).toBe("output.csv");
+    expect(result[0].children![1].name).toBe("nested");
+    expect(result[0].children![1].children).toHaveLength(1);
+    expect(result[0].children![1].children![0].name).toBe("data.parquet");
   });
 
   test("preserves children when showHidden is true", () => {

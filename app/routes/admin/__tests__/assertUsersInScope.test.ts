@@ -14,8 +14,8 @@ vi.mock("~/.server/auth/keycloakAdmin", async (importOriginal) => {
 
 const mockGroupWithMembers = {
   id: "g1",
-  name: "vericura",
-  path: "vericura",
+  name: "acme",
+  path: "acme",
   members: [
     {
       id: "user-1",
@@ -30,7 +30,7 @@ const mockGroupWithMembers = {
     {
       id: "g2",
       name: "lab",
-      path: "vericura/lab",
+      path: "acme/lab",
       members: [
         {
           id: "user-2",
@@ -46,7 +46,7 @@ const mockGroupWithMembers = {
     {
       id: "g3",
       name: "admins",
-      path: "vericura/admins",
+      path: "acme/admins",
       members: [
         {
           id: "user-3",
@@ -70,20 +70,20 @@ describe("assertUsersInScope", () => {
   test("passes when user is in scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(assertUsersInScope(["user-1"], "vericura")).resolves.toBeUndefined();
+    await expect(assertUsersInScope(["user-1"], "acme")).resolves.toBeUndefined();
   });
 
   test("passes when user is in a subgroup of the scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(assertUsersInScope(["user-2"], "vericura")).resolves.toBeUndefined();
+    await expect(assertUsersInScope(["user-2"], "acme")).resolves.toBeUndefined();
   });
 
   test("passes when multiple users are all in scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
     await expect(
-      assertUsersInScope(["user-1", "user-2", "user-3"], "vericura"),
+      assertUsersInScope(["user-1", "user-2", "user-3"], "acme"),
     ).resolves.toBeUndefined();
   });
 
@@ -91,7 +91,7 @@ describe("assertUsersInScope", () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
     try {
-      await assertUsersInScope(["user-999"], "vericura");
+      await assertUsersInScope(["user-999"], "acme");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);
@@ -103,7 +103,7 @@ describe("assertUsersInScope", () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
     try {
-      await assertUsersInScope(["user-1", "user-999"], "vericura");
+      await assertUsersInScope(["user-1", "user-999"], "acme");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);

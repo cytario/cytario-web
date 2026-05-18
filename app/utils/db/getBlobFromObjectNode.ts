@@ -1,17 +1,14 @@
+import { resolveResourceId } from "../connectionsStore/selectors";
 import { useFileStore, type DownloadProgress } from "../localFilesStore/useFileStore";
-import { parseResourceId } from "../resourceId";
+import { createSignedFetch } from "../signedFetch";
 
 export type ProgressCallback = (progress: DownloadProgress) => void;
 
-/**
- * Download a file from URL with progress tracking
- */
-async function downloadFileWithProgress(
-  url: string,
+/** Stream a response body into a `Uint8Array`, emitting progress when possible. */
+async function readStreamWithProgress(
+  response: Response,
   onProgress?: ProgressCallback,
 ): Promise<Uint8Array> {
-  const response = await fetch(url);
-
   if (!response.ok) {
     throw new Error(`Failed to fetch file: ${response.statusText}`);
   }
@@ -44,7 +41,6 @@ async function downloadFileWithProgress(
     }
   }
 
-  // Combine all chunks into a single Uint8Array
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const combined = new Uint8Array(totalLength);
   let offset = 0;
@@ -55,39 +51,22 @@ async function downloadFileWithProgress(
   return combined;
 }
 
-/**
- * Get presigned URL for a given resourceId.
- */
-async function getPresignedUrl(resourceId: string): Promise<string> {
-  const { connectionName, pathName } = parseResourceId(resourceId);
-  const response = await fetch(`/presign/${connectionName}/${pathName}`);
-  const data = await response.json();
-  return data.url;
-}
-
-/**
- * Get file data for a resourceId, with caching and progress tracking
- * @param resourceId - S3 resource identifier (provider/bucketName/pathName)
- */
+/** Cached SigV4 GetObject for a resourceId, with progress tracking. */
 export const getUint8ArrayForResourceId = async (resourceId: string): Promise<Uint8Array> => {
   const { getFile, saveFile, setFileProgress } = useFileStore.getState();
 
-  // Check cache first
   const cachedData = await getFile(resourceId);
+  if (cachedData) return cachedData;
 
-  if (cachedData) {
-    return cachedData;
-  } else {
-    const url = await getPresignedUrl(resourceId);
+  const { connectionConfig, credentials, httpsUrl } = resolveResourceId(resourceId);
+  const signedFetch = createSignedFetch(() => credentials, connectionConfig);
 
-    // Download file with progress, updating store
-    const data = await downloadFileWithProgress(url, (progress) => {
-      setFileProgress(resourceId, progress);
-    });
+  const response = await signedFetch(httpsUrl);
+  const data = await readStreamWithProgress(response, (progress) => {
+    setFileProgress(resourceId, progress);
+  });
 
-    // Save to cache
-    await saveFile(resourceId, data);
+  await saveFile(resourceId, data);
 
-    return data;
-  }
+  return data;
 };

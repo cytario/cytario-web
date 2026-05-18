@@ -22,7 +22,7 @@ describe("resolveDefaultScope", () => {
   });
 
   test("returns userId when no adminScope covers the scope param", () => {
-    expect(resolveDefaultScope("ultivue/research", ["cytario"], USER_ID)).toBe(USER_ID);
+    expect(resolveDefaultScope("delta/research", ["cytario"], USER_ID)).toBe(USER_ID);
   });
 
   test("returns userId when scope param is null", () => {

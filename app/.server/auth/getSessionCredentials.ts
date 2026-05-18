@@ -1,5 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
+import { buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
@@ -34,7 +35,7 @@ const fetchTemporaryCredentials = async (
   idToken: string,
   roleSessionName: string,
 ): Promise<Credentials> => {
-  const { region, endpoint, roleArn } = connectionConfig;
+  const { region, endpoint, roleArn, provider, bucketName, prefix } = connectionConfig;
 
   const actualRegion = region ?? "eu-central-1";
   const providerConfig = getS3ProviderConfig(endpoint, actualRegion);
@@ -45,11 +46,20 @@ const fetchTemporaryCredentials = async (
       region: actualRegion,
     });
 
+    // Inline session policy is an AWS-specific STS feature: STS intersects it
+    // with the role's attached policy, so the minted credential cannot exceed
+    // the configured prefix scope even if the role itself is broader.
+    // Non-AWS providers (e.g. MinIO) may ignore or reject the `Policy` field,
+    // so we omit it there — the role's intrinsic scope is the only bound.
+    const sessionPolicy =
+      provider === "aws" ? buildSessionPolicy({ bucketName, prefix }) : undefined;
+
     const command = new AssumeRoleWithWebIdentityCommand({
       RoleArn: roleArn ?? undefined,
       RoleSessionName: roleSessionName,
       WebIdentityToken: idToken,
       DurationSeconds: 60 * 60 * 1, // 1 hour
+      ...(sessionPolicy ? { Policy: sessionPolicy } : {}),
     });
 
     const { Credentials } = await stsClient.send(command);

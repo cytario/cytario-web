@@ -4,7 +4,7 @@
  * Creates test fixtures in a fresh database. Runs automatically after
  * `prisma db push` or explicitly via `npx prisma db seed`.
  *
- * Both connections point to the same bucket (slashm-ultivue-exchange).
+ * Both connections point to the same bucket (shared-bucket-example).
  * The prefixed connection tests prefix-based directory listing without
  * requiring a separate bucket or cross-bucket auth setup.
  */
@@ -22,7 +22,7 @@ const TEST_PREFIX_CONNECTION_NAME = process.env.E2E_PREFIX_CONNECTION_NAME || "E
 const SHARED_BUCKET = {
   ownerScope: "cytario",
   createdBy: "e2e-seed",
-  bucketName: "slashm-ultivue-exchange",
+  bucketName: "shared-bucket-example",
   provider: "aws" as const,
   endpoint: "https://s3.eu-central-1.amazonaws.com",
   roleArn: "arn:aws:iam::727043715722:role/keycloack-aws-test-iam-role",
@@ -46,7 +46,7 @@ async function seed() {
     create: {
       ...SHARED_BUCKET,
       name: TEST_PREFIX_CONNECTION_NAME,
-      prefix: "Ascent Pharma Group",
+      prefix: "Alpha Lab",
     },
   });
 

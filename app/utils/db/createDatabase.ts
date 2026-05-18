@@ -1,22 +1,13 @@
 import { Credentials } from "@aws-sdk/client-sts";
-import {
-  getJsDelivrBundles,
-  selectBundle,
-  createWorker,
-  AsyncDuckDB,
-  ConsoleLogger,
-} from "@duckdb/duckdb-wasm";
+import { selectBundle, createWorker, AsyncDuckDB, ConsoleLogger } from "@duckdb/duckdb-wasm";
 
 import { createSingleton } from "./createSingleton";
+import { getLocalDuckDbBundles } from "./duckdbBundles";
+import { escapeSqlString } from "./escapeSqlString";
 import { shouldUseSSL, getEndpointHostname } from "../s3Provider";
 import { ConnectionConfig } from "~/.generated/client";
 
-/**
- * Initialize DuckDB WASM with S3 support (singleton per resourceId)
- * @param resourceId - S3 resource identifier (bucketName/pathName)
- * @param credentials - AWS credentials
- * @param connectionConfig - Optional bucket configuration for S3-compatible services
- */
+/** Initialize a DuckDB WASM connection with S3 support (singleton per resourceId). */
 const createDatabaseInternal = async (
   resourceId: string,
   credentials: Credentials,
@@ -24,9 +15,7 @@ const createDatabaseInternal = async (
 ) => {
   console.info("[getTileDataWasm] Initializing DuckDB WASM with S3 support...");
 
-  // Load DuckDB WASM bundle
-  const JSDELIVR_BUNDLES = getJsDelivrBundles();
-  const bundle = await selectBundle(JSDELIVR_BUNDLES);
+  const bundle = await selectBundle(getLocalDuckDbBundles());
 
   if (!bundle.mainWorker) {
     throw new Error("DuckDB WASM worker is not available");
@@ -36,37 +25,41 @@ const createDatabaseInternal = async (
   const db = new AsyncDuckDB(new ConsoleLogger(4), worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
 
+  // Must be set before `open` (no SQL toggle). The mirror serves the same
+  // upstream binary verified at build time, but signatures are tied to
+  // `extensions.duckdb.org` so signature validation must be skipped.
+  await db.open({ allowUnsignedExtensions: true });
+
   const connection = await db.connect();
 
-  // Use experimental HTTPFS for S3 access
-  // see https://github.com/duckdb/duckdb-wasm/discussions/2107
+  // Pin the extension loader at the cytario origin — going to
+  // `extensions.duckdb.org` would leak the user's IP and is blocked by CSP.
+  if (typeof window !== "undefined") {
+    const repo = `${window.location.origin}/duckdb-extensions`;
+    await connection.query(`SET custom_extension_repository='${repo}'`);
+  }
+
+  // Use experimental HTTPFS for S3 — see duckdb-wasm discussion #2107.
   await connection.query("SET builtin_httpfs = false;");
   await connection.query("LOAD httpfs;");
 
-  // Install and load spatial extension for geometry operations
-  await connection.query("INSTALL spatial;");
-  await connection.query("LOAD spatial;");
-
-  // Enable caching for parquet metadata and HTTP connections
   await connection.query("SET enable_object_cache = true;");
   await connection.query("SET http_keep_alive = true;");
 
-  // Configure S3 credentials
+  // Single-quote-escape every interpolated value — non-AWS providers may carry `'`.
   const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
-  await connection.query(`SET s3_access_key_id='${AccessKeyId}'`);
-  await connection.query(`SET s3_secret_access_key='${SecretAccessKey}'`);
-  await connection.query(`SET s3_session_token='${SessionToken}'`);
+  await connection.query(`SET s3_access_key_id='${escapeSqlString(AccessKeyId ?? "")}'`);
+  await connection.query(`SET s3_secret_access_key='${escapeSqlString(SecretAccessKey ?? "")}'`);
+  await connection.query(`SET s3_session_token='${escapeSqlString(SessionToken ?? "")}'`);
 
-  // Configure S3 endpoint. Always path-style: works for every bucket shape
-  // (dotted names break the vhost wildcard cert `*.s3.<region>.amazonaws.com`)
-  // and keeps a single URL form across AWS and S3-compatible endpoints.
+  // Always path-style: dotted bucket names break the vhost wildcard cert.
   const endpoint = connectionConfig?.endpoint;
   const region = connectionConfig?.region ?? "eu-central-1";
   const useSSL = shouldUseSSL(endpoint);
   const hostname = getEndpointHostname(endpoint);
 
-  await connection.query(`SET s3_region='${region}'`);
-  await connection.query(`SET s3_endpoint='${hostname}'`);
+  await connection.query(`SET s3_region='${escapeSqlString(region)}'`);
+  await connection.query(`SET s3_endpoint='${escapeSqlString(hostname)}'`);
   await connection.query(`SET s3_url_style='path'`);
   await connection.query(`SET s3_use_ssl=${useSSL}`);
 
@@ -75,5 +68,4 @@ const createDatabaseInternal = async (
   return connection;
 };
 
-// Wrap with singleton pattern to prevent multiple initializations
 export const createDatabase = createSingleton(createDatabaseInternal);

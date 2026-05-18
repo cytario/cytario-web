@@ -1,4 +1,9 @@
+import { escapeSqlString } from "./escapeSqlString";
+
 export function buildCreateTableQuery(id: string, geometryColumn: string = "polygon"): string {
+  // S3 keys may contain `'`. `geometryColumn` is an unquoted identifier — callers
+  // must keep it to known-safe values.
+  const escapedId = escapeSqlString(id);
   return /*sql*/ `
     CREATE TABLE IF NOT EXISTS geometries AS
     SELECT
@@ -9,7 +14,7 @@ export function buildCreateTableQuery(id: string, geometryColumn: string = "poly
       ST_YMin(geom) as y
       -- ST_X(ST_Centroid(geom)) AS x,
       -- ST_Y(ST_Centroid(geom)) AS y
-    FROM read_csv_auto('${id}', HEADER=TRUE, comment='#');
+    FROM read_csv_auto('${escapedId}', HEADER=TRUE, comment='#');
   `;
 }
 

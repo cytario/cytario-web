@@ -41,10 +41,17 @@ vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router")>();
   return {
     ...actual,
+    // Real `redirect()` returns a Response. authMiddleware now RETURNS
+    // that Response so RR's middleware pipeline can hand it to the
+    // single-fetch redirect encoder (`handleSingleFetchRequest` ↔
+    // `generateSingleFetchRedirectResponse`); throwing it would land in
+    // `singleFetchLoaders.generateMiddlewareResponse`'s catch and turn
+    // into an opaque HTTP 500 that surfaces client-side as
+    // `SingleFetchNoResultError`. Mock mirrors real semantics.
     redirect: vi.fn((url, init) => {
-      const error = new Response(null, { status: 302, ...init });
-      (error as Response & { url: string }).url = url;
-      throw error;
+      const response = new Response(null, { status: 302, ...init });
+      (response as Response & { url: string }).url = url;
+      return response;
     }),
   };
 });
@@ -295,10 +302,13 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
-      ).rejects.toThrow();
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
 
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
       expect(mockNext).not.toHaveBeenCalled();
       expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
       expect(redirect).toHaveBeenCalledWith(
@@ -321,10 +331,13 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
-      ).rejects.toThrow();
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
 
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
       expect(mockNext).not.toHaveBeenCalled();
       expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
       expect(redirect).toHaveBeenCalledWith(
@@ -352,10 +365,13 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
-      ).rejects.toThrow();
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
 
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
       expect(redirect).toHaveBeenCalledWith(
         expect.stringContaining("/login?redirect="),
         expect.objectContaining({
@@ -378,11 +394,7 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      try {
-        await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
-      } catch {
-        // Expected redirect
-      }
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(sessionStorage.destroySession).toHaveBeenCalledWith(mockSession);
     });
@@ -397,10 +409,13 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
-      ).rejects.toThrow();
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
 
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
       expect(redirect).toHaveBeenCalled();
     });
 
@@ -417,11 +432,7 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs();
       (args.request as Request) = new Request("http://localhost/protected/page?query=test");
 
-      try {
-        await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
-      } catch {
-        // Expected redirect
-      }
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(redirect).toHaveBeenCalledWith(
         `/login?redirect=${encodeURIComponent("/protected/page?query=test")}`,
@@ -444,11 +455,35 @@ describe("authMiddleware", () => {
 
       const args = createMiddlewareArgs();
 
-      await expect(
-        authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
-      ).rejects.toThrow();
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
 
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
       expect(redirect).toHaveBeenCalled();
+    });
+
+    test("returns the redirect Response (does not throw) so RR's single-fetch path can re-encode it cleanly via generateSingleFetchRedirectResponse — throwing lands in singleFetchLoaders' middleware catch and becomes SingleFetchNoResultError on the client", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        authTokens: {
+          ...mockSessionData.authTokens,
+          refreshToken: expiredRefreshToken,
+        },
+      });
+
+      const args = createMiddlewareArgs();
+
+      const promise = authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      await expect(promise).resolves.toBeInstanceOf(Response);
+      await expect(promise).resolves.not.toBeUndefined();
     });
   });
 });
