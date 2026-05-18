@@ -48,7 +48,7 @@
   },
   "scripts": {
     "prepare": "husky || true",
-    "prepublishOnly": "npm run build:server",
+    "prepack": "npm run build:server && node scripts/prebuild.mjs",
     "prebuild": "node scripts/prebuild.mjs",
     "build": "node bin/cytario-web.mjs build",
     "build:server": "tsup --config tsup.server.config.ts",
