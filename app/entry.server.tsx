@@ -5,14 +5,13 @@ import { renderToPipeableStream } from "react-dom/server";
 import type { AppLoadContext, EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 
+import { buildContentSecurityPolicy } from "./.server/csp";
 import { bootstrapPlugins } from "./plugins.generated";
 
 const ABORT_DELAY = 5_000;
 
-// Server-side bootstrap registers only platform plugins from CYTARIO_PLUGINS.
-// Built-ins live behind viv/geotiff (browser-only) and register on the
-// client. `handleRequest` awaits this so a request cannot resolve the
-// registry before the plugin's async `register()` has completed.
+// `handleRequest` awaits this so a request cannot resolve the plugin registry
+// before async `register()` calls have completed.
 const bootstrapPromise: Promise<void> = bootstrapPlugins({
   debug: (msg, fields) => console.debug("[plugin-bootstrap]", msg, fields ?? {}),
   info: (msg, fields) => console.info("[plugin-bootstrap]", msg, fields ?? {}),
@@ -56,6 +55,9 @@ function handleBotRequest(
           const stream = createReadableStreamFromReadable(body);
 
           responseHeaders.set("Content-Type", "text/html");
+          // Only attached to the HTML document; `.data` and action JSON responses
+          // inherit the document-level policy from the hydrated page.
+          responseHeaders.set("Content-Security-Policy", buildContentSecurityPolicy());
 
           resolve(
             new Response(stream, {
@@ -102,6 +104,9 @@ function handleBrowserRequest(
           const stream = createReadableStreamFromReadable(body);
 
           responseHeaders.set("Content-Type", "text/html");
+          // Only attached to the HTML document; `.data` and action JSON responses
+          // inherit the document-level policy from the hydrated page.
+          responseHeaders.set("Content-Security-Policy", buildContentSecurityPolicy());
 
           resolve(
             new Response(stream, {

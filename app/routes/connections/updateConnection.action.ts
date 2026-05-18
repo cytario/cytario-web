@@ -3,14 +3,20 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 import { connectionSchema, parseS3Uri } from "./connection.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { invalidateS3ClientsForBucket } from "~/.server/auth/getS3Client";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import {
+  type CorsPreflightWarningReason,
+  describeCorsFailure,
+  describeCorsWarning,
+  probeBucketCors,
+} from "~/.server/corsPreflight";
 import { prisma } from "~/.server/db/prisma";
+import { cytarioConfig } from "~/config";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
+import { constructS3Url } from "~/utils/resourceId";
 
-/** Update a connection config. Cascades name changes to related records. */
 export async function updateConnection(
   user: UserProfile,
   originalName: string,
@@ -46,8 +52,7 @@ export async function updateConnection(
   const previousName = config.name;
   const previousBucketName = config.bucketName;
 
-  // FKs on recentlyViewed/pinnedPath have ON UPDATE CASCADE,
-  // so Postgres automatically cascades name changes to children.
+  // FKs on recentlyViewed / pinnedPath use ON UPDATE CASCADE.
   const updated = await prisma.connectionConfig.update({
     where: { id: config.id },
     data: {
@@ -79,7 +84,6 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     };
   }
 
-  // Validate the form data with the same schema as create
   const rawData = {
     name: String(formData.get("name") ?? ""),
     ownerScope: String(formData.get("ownerScope") ?? ""),
@@ -107,6 +111,31 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       ? `https://s3.${validated.bucketRegion}.amazonaws.com`
       : validated.bucketEndpoint;
 
+  // Only re-probe CORS when the bucket URL actually changes — a transient
+  // bucket-side glitch must not block a pure name / scope / prefix edit.
+  const existingConfig = await prisma.connectionConfig.findUnique({
+    where: { name: originalName },
+  });
+  const endpointChanged = !existingConfig || existingConfig.endpoint !== endpoint;
+  const bucketNameChanged = !existingConfig || existingConfig.bucketName !== bucketName;
+  const cytarioOrigin = cytarioConfig.endpoints.webapp;
+  let corsWarnings: CorsPreflightWarningReason[] = [];
+  if (endpointChanged || bucketNameChanged) {
+    const bucketUrl = constructS3Url({
+      bucketName,
+      region: validated.providerType === "aws" ? validated.bucketRegion : null,
+      endpoint,
+    });
+    const corsResult = await probeBucketCors(bucketUrl, cytarioOrigin);
+    if (!corsResult.ok) {
+      return {
+        formError: describeCorsFailure(corsResult, cytarioOrigin),
+        status: "error" as const,
+      };
+    }
+    corsWarnings = corsResult.warnings;
+  }
+
   try {
     const updatedConfig = await updateConnection(user, originalName, {
       name: validated.name,
@@ -119,20 +148,27 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       region: validated.providerType === "aws" ? validated.bucketRegion : null,
     });
 
-    // Invalidate cached credentials (keyed by connection name) and the S3
-    // client cache (keyed by bucket) for the previous identity.
+    // Drop cached credentials so authMiddleware re-mints under the new identity.
     const credentials = session.get("credentials") ?? {};
     delete credentials[updatedConfig.previousName];
     if (updatedConfig.name !== updatedConfig.previousName) {
       delete credentials[updatedConfig.name];
     }
     session.set("credentials", credentials);
-    invalidateS3ClientsForBucket(user.sub, updatedConfig.previousBucketName);
 
-    session.set("notification", {
-      status: "success",
-      message: "Connection updated successfully.",
-    });
+    if (corsWarnings.length > 0) {
+      session.set("notification", {
+        status: "warning",
+        message: `Connection updated. ${corsWarnings
+          .map((w) => describeCorsWarning(w, cytarioOrigin))
+          .join(" ")}`,
+      });
+    } else {
+      session.set("notification", {
+        status: "success",
+        message: "Connection updated successfully.",
+      });
+    }
 
     return redirect(`/connections/${encodeURIComponent(updatedConfig.name)}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
@@ -150,8 +186,9 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     }
 
     if (error instanceof Error) {
+      // Surface as a form-level banner — the user may have left step 1.
       return {
-        errors: { ownerScope: [error.message] },
+        formError: error.message,
         status: "error" as const,
       };
     }

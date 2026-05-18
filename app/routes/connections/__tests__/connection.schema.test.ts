@@ -17,7 +17,7 @@ describe("connectionNameSchema", () => {
 
   test("accepts names with spaces", () => {
     expect(connectionNameSchema.safeParse("my bucket").success).toBe(true);
-    expect(connectionNameSchema.safeParse("vericura internal").success).toBe(true);
+    expect(connectionNameSchema.safeParse("acme internal").success).toBe(true);
     expect(connectionNameSchema.safeParse("lab 1 data").success).toBe(true);
   });
 
@@ -287,6 +287,34 @@ describe("connectionSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  test("rejects S3 URI whose prefix contains `*` (IAM wildcard)", () => {
+    const result = connectionSchema.safeParse({
+      ownerScope: "user-123",
+      providerType: "aws",
+      s3Uri: "shared-bucket/tenant-a*",
+      name: "shared-tenant-a",
+      bucketRegion: "eu-central-1",
+      roleArn: "arn:aws:iam::123456789012:role/MyRole",
+      bucketEndpoint: "",
+    });
+    expect(result.success).toBe(false);
+    const errors = result.success ? {} : result.error.flatten().fieldErrors;
+    expect(errors.s3Uri?.[0]).toMatch(/wildcard/i);
+  });
+
+  test("rejects S3 URI whose prefix contains `?` (IAM wildcard)", () => {
+    const result = connectionSchema.safeParse({
+      ownerScope: "user-123",
+      providerType: "aws",
+      s3Uri: "shared-bucket/tenant-?",
+      name: "shared-tenant",
+      bucketRegion: "eu-central-1",
+      roleArn: "arn:aws:iam::123456789012:role/MyRole",
+      bucketEndpoint: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
   test("rejects S3 URI with bucket name longer than 63 characters", () => {
     const longBucket = "a".repeat(64);
     const result = connectionSchema.safeParse({
@@ -325,5 +353,121 @@ describe("connectionSchema", () => {
       bucketEndpoint: "",
     });
     expect(result.success).toBe(false);
+  });
+
+  describe("MinIO endpoint scheme — non-development", () => {
+    // NODE_ENV is unset under vitest (see .env.test), so the schema runs
+    // its non-development code path — http:// is rejected outside the
+    // small loopback allowlist.
+
+    test("rejects http:// endpoint pointing at a public host", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "http://minio.example.com",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    test("accepts https:// endpoint when host is in the S3 allowlist", () => {
+      // `*.cytario.com` is built into `DEFAULT_S3_HOSTS`, so this host
+      // is allowed without setting `CYTARIO_ALLOWED_S3_HOSTS`.
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "https://minio.cytario.com",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    test("rejects https:// endpoint whose host is not in the S3 allowlist", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "https://minio.example.com",
+      });
+      expect(result.success).toBe(false);
+      const message = result.success
+        ? ""
+        : (result.error.flatten().fieldErrors.bucketEndpoint?.[0] ?? "");
+      expect(message).toMatch(/CYTARIO_ALLOWED_S3_HOSTS/);
+    });
+
+    test("rejects https:// endpoint pointing at AWS instance metadata (SSRF guard)", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "https://169.254.169.254/latest/meta-data/",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    test("rejects https:// endpoint pointing at RFC1918 host (SSRF guard)", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "https://10.0.0.1",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    test("allows http://localhost as a dev convenience", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "http://localhost:9000",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    test("allows http://127.0.0.1 as a dev convenience", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "http://127.0.0.1:9000",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    test("rejects http://*.internal hosts outside the loopback allowlist", () => {
+      const result = connectionSchema.safeParse({
+        ownerScope: "user-123",
+        providerType: "minio",
+        s3Uri: "my-bucket",
+        name: "my-bucket",
+        bucketRegion: "",
+        roleArn: "",
+        bucketEndpoint: "http://minio.cytario.internal",
+      });
+      expect(result.success).toBe(false);
+    });
   });
 });
