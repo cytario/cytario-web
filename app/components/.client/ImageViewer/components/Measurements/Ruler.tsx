@@ -1,3 +1,5 @@
+import { twMerge } from "tailwind-merge";
+
 import { CursorTick } from "./CursorTick";
 import { Tick } from "./Tick";
 
@@ -22,16 +24,21 @@ export const Ruler = ({
     arr.push(i);
   }
 
-  return (
-    <div
-      className={`
+  const cx = twMerge(
+    `
         absolute top-0 left-0 
-        w-4 h-4
+        flex w-4 h-4
         origin-top-left
         text-xs
-        font-semibold
-        ${vertical ? "rotate-90 translate-x-4" : ""}
-      `}
+        font-semibold         
+      `,
+    vertical ? "rotate-90 translate-x-4" : "",
+    vertical ? "items-end" : "items-start",
+  );
+
+  return (
+    <div
+      className={cx}
       style={{
         width: size,
       }}
@@ -47,7 +54,7 @@ export const Ruler = ({
         const isMajor = i % interval === 0;
         const label = isMajor ? i : undefined;
 
-        return <Tick key={i} number={label} offset={offset + i * one_mm} vertical={vertical} />;
+        return <Tick key={i} number={label} offset={offset + i * one_mm} />;
       })}
 
       <CursorTick vertical={vertical} />

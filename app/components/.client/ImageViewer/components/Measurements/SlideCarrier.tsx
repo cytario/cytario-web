@@ -15,7 +15,7 @@ export function SlideCarrier() {
   return (
     <div
       style={{ width: viewPortWidth, height: viewPortHeight }}
-      className="absolute top-0 left-0overflow-hidden"
+      className="absolute top-0 left-0 overflow-hidden"
     >
       <Size value={widthTotalMm} />
       <Size vertical value={heightTotalMm} />
@@ -49,7 +49,7 @@ const Size = ({ value, vertical = false }: { value: number; vertical?: boolean }
         h-4 
         origin-top-left 
         text-xs font-semibold
-      text-[var(--color-text-secondary)]
+        text-(--color-text-secondary)
         `}
       style={{
         width: vertical ? imageHeightScreen : imageWidthScreen,

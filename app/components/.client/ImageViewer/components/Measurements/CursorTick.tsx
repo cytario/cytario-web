@@ -29,5 +29,5 @@ export const CursorTick = ({ vertical }: { vertical?: boolean }) => {
   const metricY = absoluteToMetric(absoluteY);
   const cursorOffset = vertical ? metricY : metricX;
 
-  return <Tick number={cursorOffset} offset={vertical ? y : x} vertical={vertical} />;
+  return <Tick number={cursorOffset} offset={vertical ? y : x} />;
 };
