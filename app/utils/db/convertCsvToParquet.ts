@@ -1,11 +1,7 @@
-import {
-  getJsDelivrBundles,
-  selectBundle,
-  createWorker,
-  AsyncDuckDB,
-  ConsoleLogger,
-} from "@duckdb/duckdb-wasm";
+import { selectBundle, createWorker, AsyncDuckDB, ConsoleLogger } from "@duckdb/duckdb-wasm";
 
+import { getLocalDuckDbBundles } from "./duckdbBundles";
+import { escapeSqlString } from "./escapeSqlString";
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
 import { buildCreateTableQuery } from "./sqlQueries";
 import { resolveResourceId } from "../connectionsStore/selectors";
@@ -17,8 +13,7 @@ export async function convertCsvToParquet(resourceId: string) {
   let conn: Awaited<ReturnType<AsyncDuckDB["connect"]>> | null = null;
 
   try {
-    const JSDELIVR_BUNDLES = getJsDelivrBundles();
-    const bundle = await selectBundle(JSDELIVR_BUNDLES);
+    const bundle = await selectBundle(getLocalDuckDbBundles());
 
     if (!bundle.mainWorker) {
       throw new Error("DuckDB WASM worker is not available");
@@ -27,8 +22,16 @@ export async function convertCsvToParquet(resourceId: string) {
     const worker = await createWorker(bundle.mainWorker);
     db = new AsyncDuckDB(new ConsoleLogger(4), worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    // See `createDatabase.ts` for the unsigned-extensions rationale.
+    await db.open({ allowUnsignedExtensions: true });
 
     conn = await db.connect();
+
+    // Pin the extension loader at the cytario origin (see `createDatabase.ts`).
+    if (typeof window !== "undefined") {
+      const repo = `${window.location.origin}/duckdb-extensions`;
+      await conn.query(`SET custom_extension_repository='${repo}'`);
+    }
 
     await conn.query(`INSTALL httpfs;`);
     await conn.query(`LOAD httpfs;`);
@@ -38,21 +41,26 @@ export async function convertCsvToParquet(resourceId: string) {
     const csvBytes = await getUint8ArrayForResourceId(resourceId);
     await db.registerFileBuffer(resourceId, csvBytes);
 
-    // Create table `geometries`
     const createTableSQL = buildCreateTableQuery(resourceId, "polygon");
     await conn.query(createTableSQL);
 
     const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
 
-    await conn.query(`SET s3_access_key_id='${credentials.AccessKeyId}'`);
-    await conn.query(`SET s3_secret_access_key='${credentials.SecretAccessKey}'`);
+    // Single-quote-escape every interpolated value — credentials, region,
+    // and S3 keys can carry `'` on non-AWS providers.
+    await conn.query(`SET s3_access_key_id='${escapeSqlString(credentials.AccessKeyId ?? "")}'`);
+    await conn.query(
+      `SET s3_secret_access_key='${escapeSqlString(credentials.SecretAccessKey ?? "")}'`,
+    );
     if (credentials.SessionToken) {
-      await conn.query(`SET s3_session_token='${credentials.SessionToken}'`);
+      await conn.query(`SET s3_session_token='${escapeSqlString(credentials.SessionToken)}'`);
     }
-    await conn.query(`SET s3_region='${connectionConfig.region ?? "eu-central-1"}'`);
+    await conn.query(
+      `SET s3_region='${escapeSqlString(connectionConfig.region ?? "eu-central-1")}'`,
+    );
 
-    // Write to Parquet with WKB geometry
     const parquetDestination = `${s3Uri}.parquet`;
+    const escapedParquetDestination = escapeSqlString(parquetDestination);
 
     console.log(`[CSV→Parquet] Writing to S3 as Parquet (ZSTD compression, 500k row groups)...`);
     console.log(`[CSV→Parquet] → Destination: ${parquetDestination}`);
@@ -70,7 +78,7 @@ export async function convertCsvToParquet(resourceId: string) {
           COLUMNS('marker_positive_.*')
         FROM geometries
       )
-      TO '${parquetDestination}'
+      TO '${escapedParquetDestination}'
       (FORMAT PARQUET, COMPRESSION ZSTD);
     `);
 

@@ -1,21 +1,19 @@
-import {
-  getJsDelivrBundles,
-  selectBundle,
-  createWorker,
-  AsyncDuckDB,
-  ConsoleLogger,
-} from "@duckdb/duckdb-wasm";
+import { selectBundle, createWorker, AsyncDuckDB, ConsoleLogger } from "@duckdb/duckdb-wasm";
 
 import { shouldUseSSL, getEndpointHostname } from "../../s3Provider";
 import { createDatabase } from "../createDatabase";
+import { getLocalDuckDbBundles } from "../duckdbBundles";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("@duckdb/duckdb-wasm", () => ({
-  getJsDelivrBundles: vi.fn(),
   selectBundle: vi.fn(),
   createWorker: vi.fn(),
   AsyncDuckDB: vi.fn(),
   ConsoleLogger: vi.fn(),
+}));
+
+vi.mock("../duckdbBundles", () => ({
+  getLocalDuckDbBundles: vi.fn(),
 }));
 
 vi.mock("../../s3Provider", () => ({
@@ -27,6 +25,7 @@ describe("createDatabase", () => {
   const mockQuery = vi.fn();
   const mockConnect = vi.fn();
   const mockInstantiate = vi.fn();
+  const mockOpen = vi.fn();
   const mockConnection = { query: mockQuery };
   const credentials = mock.credentials();
 
@@ -35,7 +34,7 @@ describe("createDatabase", () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
 
     // Setup DuckDB mocks
-    vi.mocked(getJsDelivrBundles).mockReturnValue({} as never);
+    vi.mocked(getLocalDuckDbBundles).mockReturnValue({} as never);
     vi.mocked(selectBundle).mockResolvedValue({
       mainWorker: "worker.js",
       mainModule: "module.wasm",
@@ -46,6 +45,7 @@ describe("createDatabase", () => {
       () =>
         ({
           instantiate: mockInstantiate,
+          open: mockOpen,
           connect: mockConnect,
         }) as never,
     );
@@ -61,7 +61,7 @@ describe("createDatabase", () => {
     const connection = await createDatabase("test-resource", credentials, undefined);
 
     expect(connection).toBe(mockConnection);
-    expect(getJsDelivrBundles).toHaveBeenCalled();
+    expect(getLocalDuckDbBundles).toHaveBeenCalled();
     expect(selectBundle).toHaveBeenCalled();
     expect(createWorker).toHaveBeenCalledWith("worker.js");
     expect(AsyncDuckDB).toHaveBeenCalledWith(expect.any(ConsoleLogger), {});
@@ -69,13 +69,18 @@ describe("createDatabase", () => {
     expect(mockConnect).toHaveBeenCalled();
   });
 
-  test("loads httpfs and spatial extensions", async () => {
+  test("loads httpfs extension", async () => {
     await createDatabase("test-httpfs", credentials, undefined);
 
     expect(mockQuery).toHaveBeenCalledWith("SET builtin_httpfs = false;");
     expect(mockQuery).toHaveBeenCalledWith("LOAD httpfs;");
-    expect(mockQuery).toHaveBeenCalledWith("INSTALL spatial;");
-    expect(mockQuery).toHaveBeenCalledWith("LOAD spatial;");
+  });
+
+  test("does not eagerly install or load spatial extension", async () => {
+    await createDatabase("test-no-spatial", credentials, undefined);
+
+    expect(mockQuery).not.toHaveBeenCalledWith("INSTALL spatial;");
+    expect(mockQuery).not.toHaveBeenCalledWith("LOAD spatial;");
   });
 
   test("enables caching settings", async () => {
@@ -144,5 +149,19 @@ describe("createDatabase", () => {
     expect(connection1).toBe(connection2);
     // Should only initialize once for same resource
     expect(mockConnect).toHaveBeenCalledTimes(1);
+  });
+
+  test("escapes single quotes in credential values", async () => {
+    const dangerousCreds = mock.credentials({
+      AccessKeyId: "AKIA';DROP TABLE foo;--",
+      SecretAccessKey: "secret'with'quotes",
+      SessionToken: "tok'en",
+    });
+
+    await createDatabase("test-sql-inject", dangerousCreds, undefined);
+
+    expect(mockQuery).toHaveBeenCalledWith("SET s3_access_key_id='AKIA'';DROP TABLE foo;--'");
+    expect(mockQuery).toHaveBeenCalledWith("SET s3_secret_access_key='secret''with''quotes'");
+    expect(mockQuery).toHaveBeenCalledWith("SET s3_session_token='tok''en'");
   });
 });
