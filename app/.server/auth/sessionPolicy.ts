@@ -12,12 +12,13 @@
 export interface SessionPolicyArgs {
   bucketName: string;
   prefix: string | null | undefined;
+  region: string;
 }
 
 const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, "");
 
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
-export const buildSessionPolicy = ({ bucketName, prefix }: SessionPolicyArgs): string => {
+export const buildSessionPolicy = ({ bucketName, prefix, region }: SessionPolicyArgs): string => {
   const normalised = typeof prefix === "string" ? stripSlashes(prefix) : "";
   // Defense-in-depth: refuse wildcards here so the schema is not the only gate
   // protecting cross-tenant `StringLike` conditions.
@@ -52,6 +53,23 @@ export const buildSessionPolicy = ({ bucketName, prefix }: SessionPolicyArgs): s
         Resource: bucketArn,
       };
 
+  // STS intersects this policy with the role's attached policy. Without an
+  // explicit `kms:Decrypt` here, the role's KMS grant is stripped and
+  // `GetObject` against SSE-KMS-encrypted buckets fails. `kms:ViaService`
+  // restricts use of the minted credential to the S3 data path; the role's
+  // attached policy remains the authoritative key allowlist.
+  const decryptStatement = {
+    Sid: "DecryptViaS3",
+    Effect: "Allow",
+    Action: "kms:Decrypt",
+    Resource: "*",
+    Condition: {
+      StringEquals: {
+        "kms:ViaService": `s3.${region}.amazonaws.com`,
+      },
+    },
+  };
+
   const policy = {
     Version: "2012-10-17",
     Statement: [
@@ -62,6 +80,7 @@ export const buildSessionPolicy = ({ bucketName, prefix }: SessionPolicyArgs): s
         Action: "s3:GetObject",
         Resource: objectArn,
       },
+      decryptStatement,
     ],
   };
 

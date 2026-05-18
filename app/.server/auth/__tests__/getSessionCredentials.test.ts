@@ -244,7 +244,11 @@ describe("getAllSessionCredentials", () => {
       RoleSessionName: "Test-User",
       WebIdentityToken: "id-token-for-sts",
       DurationSeconds: 3600,
-      Policy: buildSessionPolicy({ bucketName: "test-bucket", prefix: "" }),
+      Policy: buildSessionPolicy({
+        bucketName: "test-bucket",
+        prefix: "",
+        region: "us-west-2",
+      }),
     });
   });
 
@@ -260,6 +264,7 @@ describe("getAllSessionCredentials", () => {
     const expectedPolicy = buildSessionPolicy({
       bucketName: "scoped-bucket",
       prefix: "tenant-a",
+      region: "us-east-1",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
@@ -276,7 +281,11 @@ describe("getAllSessionCredentials", () => {
       }),
     ]);
 
-    const expectedPolicy = buildSessionPolicy({ bucketName: "whole-bucket", prefix: "" });
+    const expectedPolicy = buildSessionPolicy({
+      bucketName: "whole-bucket",
+      prefix: "",
+      region: "us-east-1",
+    });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
       expect.objectContaining({ Policy: expectedPolicy }),

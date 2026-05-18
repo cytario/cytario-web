@@ -52,7 +52,9 @@ const fetchTemporaryCredentials = async (
     // Non-AWS providers (e.g. MinIO) may ignore or reject the `Policy` field,
     // so we omit it there — the role's intrinsic scope is the only bound.
     const sessionPolicy =
-      provider === "aws" ? buildSessionPolicy({ bucketName, prefix }) : undefined;
+      provider === "aws"
+        ? buildSessionPolicy({ bucketName, prefix, region: actualRegion })
+        : undefined;
 
     const command = new AssumeRoleWithWebIdentityCommand({
       RoleArn: roleArn ?? undefined,
