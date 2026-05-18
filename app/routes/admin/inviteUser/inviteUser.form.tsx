@@ -1,4 +1,4 @@
-import { Checkbox, Fieldset, Input, Label, Select } from "@cytario/design";
+import { Checkbox, Fieldset, Input, Select } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -120,7 +120,7 @@ export function InviteUserForm({
           />
         ) : (
           <div className="flex flex-col gap-1">
-            <Label>Group Membership</Label>
+            <p className="text-sm font-medium text-(--color-text-primary)">Group Membership</p>
             <p className="text-sm text-slate-400">No groups available in this scope.</p>
           </div>
         )}
