@@ -162,7 +162,32 @@ describe("constructS3Url", () => {
 
       const result = constructS3Url(config, "");
 
-      expect(result).toBe("https://s3.us-east-1.amazonaws.com/bucket/");
+      // Empty key returns the bucket-level URL (no trailing slash) — same
+      // shape ListObjectsV2 needs as its origin path.
+      expect(result).toBe("https://s3.us-east-1.amazonaws.com/bucket");
+    });
+
+    test("returns bucket-level URL when s3Key is omitted", () => {
+      // ListObjectsV2 signs and fetches the bucket-level URL — verifying
+      // the unified helper covers that call site (was a duplicate
+      // `getBucketUrl` in listObjectsClient.ts).
+      const config = mock.connectionConfig({
+        bucketName: "b",
+        region: "eu-central-1",
+        endpoint: "",
+      });
+
+      expect(constructS3Url(config)).toBe("https://s3.eu-central-1.amazonaws.com/b");
+    });
+
+    test("returns bucket-level URL on custom endpoint when s3Key is omitted", () => {
+      const config = mock.connectionConfig({
+        bucketName: "minio-bucket",
+        endpoint: "http://localhost:9000",
+        region: "eu-central-1",
+      });
+
+      expect(constructS3Url(config)).toBe("http://localhost:9000/minio-bucket");
     });
 
     test("handles deeply nested path", () => {
@@ -194,16 +219,14 @@ describe("constructS3Url", () => {
 
     test("uses path-style for dotted AWS bucket with explicit amazonaws endpoint", () => {
       const config = mock.connectionConfig({
-        bucketName: "ultivue.cytario",
+        bucketName: "my.bucket.name",
         region: "us-east-1",
         endpoint: "https://s3.us-east-1.amazonaws.com",
       });
 
-      const result = constructS3Url(config, "USL-2023-52702-11.ome.tif");
+      const result = constructS3Url(config, "sample-001.ome.tif");
 
-      expect(result).toBe(
-        "https://s3.us-east-1.amazonaws.com/ultivue.cytario/USL-2023-52702-11.ome.tif",
-      );
+      expect(result).toBe("https://s3.us-east-1.amazonaws.com/my.bucket.name/sample-001.ome.tif");
     });
   });
 });

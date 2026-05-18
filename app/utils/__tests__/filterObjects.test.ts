@@ -1,11 +1,7 @@
 import { _Object } from "@aws-sdk/client-s3";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { filterObjects } from "../filterObjects";
-
-vi.mock("~/config", () => ({
-  cytarioConfig: { setup: { allowedFiles: /\.((tif|tiff))$/ } },
-}));
 
 const testCases: [string, _Object[], { prefix?: string; query?: string }, _Object[]][] = [
   [
@@ -15,16 +11,10 @@ const testCases: [string, _Object[], { prefix?: string; query?: string }, _Objec
     [{ Key: "folder1/file1.tif" }],
   ],
   [
-    "apply allowed file pattern filter",
-    [{ Key: "folder1/file1.tif" }, { Key: "folder2/file2.pdf" }],
-    {},
-    [{ Key: "folder1/file1.tif" }],
-  ],
-  [
-    "sort objects with directories first",
+    "sort objects alphabetically by key",
     [{ Key: "file2.tif" }, { Key: "file1.tif" }, { Key: "folder1/file3.tif" }],
     {},
-    [{ Key: "folder1/file3.tif" }, { Key: "file1.tif" }, { Key: "file2.tif" }],
+    [{ Key: "file1.tif" }, { Key: "file2.tif" }, { Key: "folder1/file3.tif" }],
   ],
   [
     "return empty array if no objects match the query",
@@ -38,12 +28,11 @@ const testCases: [string, _Object[], { prefix?: string; query?: string }, _Objec
     {},
     [{ Key: "folder1/file1.tif" }, { Key: "folder2/file2.tif" }],
   ],
-  ["handle objects with empty key properties", [{ Key: "" }], {}, []],
+  ["drop objects with empty key", [{ Key: "" }], {}, []],
 ];
 
 describe("filterObjects", () => {
   test.each(testCases)("%s", (_, objects, filters, expected) => {
-    process.env.ALLOWED_FILES = ".*\\.tif"; // Mock ALLOWED_FILES pattern for the pattern filter test case
     const result = filterObjects(objects, filters);
     expect(result).toEqual(expected);
   });

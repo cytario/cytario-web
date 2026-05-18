@@ -7,7 +7,6 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
 
-/** Delete a connection config by name. Checks visibility and modify authorization. */
 export async function deleteConnection(user: UserProfile, name: string) {
   const config = await prisma.connectionConfig.findUnique({
     where: { name },
@@ -48,6 +47,11 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
     }
     throw error;
   }
+
+  // Drop cached STS credentials keyed by the removed name.
+  const credentials = session.get("credentials") ?? {};
+  delete credentials[connectionName];
+  session.set("credentials", credentials);
 
   session.set("notification", {
     status: "success",

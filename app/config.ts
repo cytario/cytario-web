@@ -1,9 +1,6 @@
 import { CookieOptions } from "react-router";
 
 interface CytarioConfig {
-  setup: {
-    allowedFiles: string;
-  };
   endpoints: {
     webapp: string;
   };
@@ -32,7 +29,6 @@ interface CytarioConfig {
 }
 
 const {
-  ALLOWED_FILES,
   BASE_URL,
   CLIENT_ID,
   CLIENT_SECRET,
@@ -50,9 +46,6 @@ const {
 } = process.env;
 
 export const cytarioConfig: Readonly<CytarioConfig> = {
-  setup: {
-    allowedFiles: ALLOWED_FILES ?? ".*",
-  },
   endpoints: {
     webapp: WEB_HOST!,
   },

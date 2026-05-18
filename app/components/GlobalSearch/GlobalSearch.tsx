@@ -18,12 +18,17 @@ export const GlobalSearch = () => {
   const [query, setQuery] = useState(searchQuery);
   const [showResults, setShowResults] = useState(false);
 
-  // Derive nodes from fetcher data
   const nodes: TreeNode[] = fetcher.data?.nodes ?? [];
+
+  // Treat the debounce window as "loading" too — otherwise the dropdown
+  // flashes "No results" between keystrokes.
+  const lastResultsQuery = fetcher.data?.searchQuery ?? "";
+  const trimmedQuery = query.trim();
+  const isLoading =
+    trimmedQuery.length > 0 && (fetcher.state !== "idle" || trimmedQuery !== lastResultsQuery);
 
   const handleSubmit = async (value: string) => {
     setSearchQuery(value);
-    // Trigger fetcher only if there's input
     if (value.trim()) {
       fetcher.submit({ query: value }, { method: "get", action: "/search" });
       setShowResults(true);
@@ -63,7 +68,7 @@ export const GlobalSearch = () => {
         }}
       />
 
-      <Suggestions nodes={nodes} showResults={showResults} />
+      <Suggestions nodes={nodes} showResults={showResults} isLoading={isLoading} />
     </div>
   );
 };

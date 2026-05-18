@@ -1,6 +1,12 @@
 import type { Credentials } from "@aws-sdk/client-sts";
+import { SignatureV4 } from "@smithy/signature-v4";
 
-import { createSignedFetch } from "~/utils/signedFetch";
+import {
+  __resetCredentialsRefresher,
+  ExpiredCredentialsError,
+  setCredentialsRefresher,
+} from "~/utils/credentialsRefresh";
+import { CorsLikelyError, createSignedFetch } from "~/utils/signedFetch";
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -95,14 +101,41 @@ describe("createSignedFetch", () => {
     expect(JSON.stringify(init.headers)).not.toContain("evil.example.com");
   });
 
-  test("decodes percent-encoded paths before signing", async () => {
-    const sf = createSignedFetch(() => mockCredentials, mockConfig);
-    await sf("https://bucket.s3.eu-central-1.amazonaws.com/Ascent%20Pharma%20Group/image.ome.tif");
+  test("preserves percent-encoded paths end-to-end (canonical SignedHeaders match wire URL)", async () => {
+    // Regression for the OME-TIFF e2e failure on key names with spaces.
+    // With `uriEscapePath: false` the signer trusts the supplied path as
+    // already-encoded — decoding `parsed.pathname` back to literal spaces
+    // before signing made the canonical path (literal space) diverge from
+    // the wire path (`%20`), and every key with a reserved character
+    // returned 403 SignatureDoesNotMatch.
+    //
+    // Spying on `SignatureV4.prototype.sign` ensures the signer INPUT
+    // carries the encoded path, not merely the wire URL. A future bug
+    // that fed the signer a decoded path while keeping the wire encoded
+    // would still emit a valid-shaped Authorization header (just one S3
+    // rejects with 403); only the spy catches that drift.
+    const signSpy = vi.spyOn(SignatureV4.prototype, "sign");
+    try {
+      const sf = createSignedFetch(() => mockCredentials, mockConfig);
+      await sf("https://bucket.s3.eu-central-1.amazonaws.com/Alpha%20Lab/image.ome.tif");
 
-    // The request should succeed (no signature mismatch from double-encoding)
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url] = mockFetch.mock.calls[0];
-    expect(url).toContain("Ascent%20Pharma%20Group");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0];
+      // Wire URL retains the percent-encoded form …
+      expect(url).toContain("/Alpha%20Lab/");
+      expect(url).not.toContain("/Alpha Lab/");
+      // … the signer itself saw the encoded path …
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      const signedRequest = signSpy.mock.calls[0][0] as { path: string };
+      expect(signedRequest.path).toBe("/Alpha%20Lab/image.ome.tif");
+      // … and the request actually carries a SigV4 Authorization header,
+      // which proves the signer accepted the path without re-encoding it
+      // (a mismatch would surface as 403 only at the AWS edge, but the
+      // header is at least byte-identical to what the server expects).
+      expect(init.headers.authorization).toMatch(/^AWS4-HMAC-SHA256 /);
+    } finally {
+      signSpy.mockRestore();
+    }
   });
 
   test("defaults to eu-central-1 when region is missing", async () => {
@@ -183,6 +216,30 @@ describe("createSignedFetch", () => {
     expect(init.signal).toBe(controller.signal);
   });
 
+  test("sets redirect: 'error' so 30x responses do not leak signed headers (H13)", async () => {
+    // Default fetch behaviour is `redirect: "follow"`, which would re-send
+    // the Authorization header and `x-amz-security-token` (carrying live
+    // STS credentials) to whatever host a 30x response points at. Block
+    // it at the request init level.
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key");
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.redirect).toBe("error");
+  });
+
+  test("caller-supplied init cannot override redirect: 'error'", async () => {
+    // The caller cannot weaken redirect handling by passing
+    // `redirect: "follow"` themselves; the signed-fetch wrapper must win.
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key", {
+      redirect: "follow",
+    });
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.redirect).toBe("error");
+  });
+
   test("appends 7-day response-cache-control for image tile URLs", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.ome.tif");
@@ -216,6 +273,146 @@ describe("createSignedFetch", () => {
     const urls = mockFetch.mock.calls.map((call) => call[0]);
     expect(urls.some((u) => u.includes("key-a"))).toBe(true);
     expect(urls.some((u) => u.includes("key-b"))).toBe(true);
+  });
+
+  test("throws CorsLikelyError on Chrome-style 'Failed to fetch' TypeError", async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
+      CorsLikelyError,
+    );
+  });
+
+  test("throws CorsLikelyError on WebKit-style 'Load failed' TypeError", async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError("Load failed"));
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
+      CorsLikelyError,
+    );
+  });
+
+  test("throws CorsLikelyError on Firefox-style NetworkError TypeError", async () => {
+    mockFetch.mockRejectedValueOnce(
+      new TypeError("NetworkError when attempting to fetch resource."),
+    );
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
+      CorsLikelyError,
+    );
+  });
+
+  test("passes through non-CORS errors unchanged", async () => {
+    const original = new Error("some other failure");
+    mockFetch.mockRejectedValueOnce(original);
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBe(original);
+  });
+
+  test("CorsLikelyError carries the bucket host", async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    const err = await sf("https://bucket.s3.eu-central-1.amazonaws.com/key").catch((e) => e);
+    expect(err).toBeInstanceOf(CorsLikelyError);
+    expect((err as CorsLikelyError).host).toBe("bucket.s3.eu-central-1.amazonaws.com");
+  });
+
+  test("preserves caller-supplied query string in signed URL", async () => {
+    // Without query-merge, `new URL(url).search` is silently discarded —
+    // any future caller passing `?versionId=...` would see it disappear
+    // and the request would succeed against the HEAD version. The merge
+    // pushes the params through the canonical request AND the wire URL
+    // so the signature covers them and S3 honours them.
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/key?versionId=foo&other=bar");
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toContain("versionId=foo");
+    expect(url).toContain("other=bar");
+    // response-cache-control is still appended.
+    expect(url).toContain("response-cache-control=");
+  });
+
+  test("retries once after STS refresh when S3 returns ExpiredToken", async () => {
+    __resetCredentialsRefresher();
+    const refreshed = { ...mockCredentials, AccessKeyId: "REFRESHED" };
+    const refresher = vi.fn().mockResolvedValue(refreshed);
+    setCredentialsRefresher(refresher);
+
+    // First call: HTTP 400 with ExpiredToken body. Second call: 200 OK.
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        `<?xml version="1.0" encoding="UTF-8"?>
+<Error><Code>ExpiredToken</Code><Message>The provided token has expired.</Message></Error>`,
+        { status: 400 },
+      ),
+    );
+    mockFetch.mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+    const sf = createSignedFetch(() => mockCredentials, mockConfig, "conn-a");
+    const result = await sf("https://bucket.s3.eu-central-1.amazonaws.com/key");
+
+    expect(refresher).toHaveBeenCalledTimes(1);
+    expect(refresher).toHaveBeenCalledWith("conn-a");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(await result.text()).toBe("ok");
+    __resetCredentialsRefresher();
+  });
+
+  test("throws ExpiredCredentialsError when retry also fails", async () => {
+    __resetCredentialsRefresher();
+    const refresher = vi.fn().mockResolvedValue(mockCredentials);
+    setCredentialsRefresher(refresher);
+
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(
+      new Response(
+        `<?xml version="1.0" encoding="UTF-8"?>
+<Error><Code>ExpiredToken</Code></Error>`,
+        { status: 400 },
+      ),
+    );
+
+    const sf = createSignedFetch(() => mockCredentials, mockConfig, "conn-a");
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
+      ExpiredCredentialsError,
+    );
+    expect(refresher).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    __resetCredentialsRefresher();
+  });
+
+  test("throws ExpiredCredentialsError on ExpiredToken without installed refresher", async () => {
+    __resetCredentialsRefresher();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce(
+      new Response(`<Error><Code>ExpiredToken</Code></Error>`, { status: 400 }),
+    );
+
+    const sf = createSignedFetch(() => mockCredentials, mockConfig, "conn-a");
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
+      ExpiredCredentialsError,
+    );
+  });
+
+  test("ExpiredTokenException (HTTP 403 / MinIO STS) also triggers retry", async () => {
+    __resetCredentialsRefresher();
+    const refresher = vi.fn().mockResolvedValue(mockCredentials);
+    setCredentialsRefresher(refresher);
+
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce(
+      new Response(`<Error><Code>ExpiredTokenException</Code></Error>`, { status: 403 }),
+    );
+    mockFetch.mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+    const sf = createSignedFetch(() => mockCredentials, mockConfig, "conn-a");
+    const result = await sf("https://bucket.s3.eu-central-1.amazonaws.com/key");
+
+    expect(refresher).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe(200);
+    __resetCredentialsRefresher();
   });
 
   test("SDS-CY-010405: Authorization.SignedHeaders lists every host-injected header", async () => {

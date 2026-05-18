@@ -13,6 +13,7 @@ import {
   useNavigation,
   useRouteError,
   useRouteLoaderData,
+  type ClientLoaderFunctionArgs,
   type LinksFunction,
   type MiddlewareFunction,
   type LoaderFunctionArgs,
@@ -62,7 +63,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   formAction,
   defaultShouldRevalidate,
 }) => {
-  // Only revalidate after form submissions (to pick up session notifications)
+  // Only revalidate after form submissions so flash notifications surface.
   if (formAction) return defaultShouldRevalidate;
   return false;
 };
@@ -83,13 +84,18 @@ export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoade
     await sessionStorage.commitSession(session);
   }
 
-  // Build Keycloak account settings URL server-side
   const accountSettingsUrl = user
     ? `${cytarioConfig.auth.baseUrl}/account?referrer=${cytarioConfig.auth.clientId}&referrer_uri=${cytarioConfig.endpoints.webapp}`
     : undefined;
 
   return { user, notification, accountSettingsUrl };
 };
+
+// Identity clientLoader. Forces this route off RR's bulk-fetch single-fetch
+// path, which is short-circuited during initial hydrate when a descendant
+// route opts into `clientLoader.hydrate = true` (RR issue #13873).
+export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
+  serverLoader<typeof loader>();
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
@@ -105,12 +111,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [data?.notification]);
 
-  // Hydrate file store from IndexedDB on mount
   useEffect(() => {
     useFileStore.getState().hydrate();
   }, []);
 
-  // Move focus to main content on route change (skip initial render)
+  // Move focus to main content on route change (skip initial render).
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
@@ -185,8 +190,8 @@ export function ErrorBoundary() {
     title = `${error.status} ${error.statusText}`;
     message = error.data ?? "An error occurred while processing your request.";
   } else if (error instanceof Error) {
-    // Log full error server-side but only show generic message to client
-    // to avoid leaking internal details (session IDs, endpoints, stack traces)
+    // Log full error but show only the generic message to avoid leaking
+    // session IDs, endpoints, or stack traces to the client.
     console.error("Unhandled error:", error);
   }
 

@@ -6,16 +6,6 @@ import type { ColumnConfig } from "~/components/Table/types";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 
-// Applies a `ColumnFiltersState` to a `TreeNode[]` so every downstream view
-// (Grid, Table, Tree) receives pre-filtered data. The `ColumnFiltersState`
-// shape is produced by both the Table's column-filter UI and the FilterBar,
-// both writing to the same per-tableId Zustand store.
-//
-//   allNodes -> filteredNodes -> DirectoryView -> (Grid | Table | Tree)
-//
-// Filters only the current level (top-level `nodes`). Tree's hierarchical
-// expansion shows descendants unfiltered; name-matching inside the tree
-// relies on the design-system Tree's `searchTerm` + `searchMatch`.
 type NodeAccessor = (node: TreeNode) => string;
 
 const fileAccessors: Record<string, NodeAccessor> = {
@@ -42,27 +32,22 @@ export function getNodeAccessors(
   return kind === "connections" ? makeConnectionAccessors(connections) : fileAccessors;
 }
 
-/**
- * Filters hidden files (names starting with ".") unless showHidden is true.
- * Filtering is applied recursively so that hidden children inside visible
- * directories are also removed (required for the tree view).
- */
+/** Filter hidden files (names starting with ".") recursively. */
 export function filterHiddenNodes(nodes: TreeNode[], showHidden: boolean): TreeNode[] {
   if (showHidden) return nodes;
 
   return nodes
     .filter((node) => !node.name.startsWith("."))
     .map((node) =>
-      node.children.length > 0
+      node.children && node.children.length > 0
         ? { ...node, children: filterHiddenNodes(node.children, false) }
         : node,
     );
 }
 
 /**
- * Filters TreeNode[] using the same column filter semantics as the Table.
- * Text filters use case-insensitive substring matching; select filters use
- * exact match. Columns without a matching accessor are skipped.
+ * Filter `TreeNode[]` using the same column-filter semantics as the Table.
+ * Text filters use case-insensitive substring; select filters use exact match.
  */
 export function filterNodes(
   nodes: TreeNode[],

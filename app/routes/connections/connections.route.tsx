@@ -31,7 +31,12 @@ export const action = async (args: ActionFunctionArgs) => {
   }
 };
 
+export { enrichConnectionsWithPreviews as clientLoader } from "./connections.clientLoader";
 export { loadConnections as loader } from "./connections.loader";
+
+// Response carries STS credentials — keep it out of every cache between origin
+// and browser.
+export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 const title = "Storage Connections";
 

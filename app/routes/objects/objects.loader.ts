@@ -1,39 +1,49 @@
-import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 import { type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getS3Client } from "~/.server/auth/getS3Client";
-import { buildDirectoryTree, TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
-import { getObjects } from "~/utils/getObjects";
-import { getName, getPrefix } from "~/utils/pathUtils";
+import {
+  ConnectionPrefixError,
+  getName,
+  prefixSchema,
+  resolveConnectionPrefix,
+} from "~/utils/pathUtils";
 import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { isZarrPath } from "~/utils/zarrUtils";
 
-export interface BucketRouteLoaderResponse {
+/**
+ * Server-side metadata for an object-browser route. The directory listing
+ * itself runs in the browser — see `objects.clientLoader.ts`.
+ */
+export interface BucketRouteServerLoaderResponse {
   connectionName: string;
-  nodes: TreeNode[];
   bucketName: string;
-  /** URL path segment after /connections/:name/ (relative to connection root) */
+  /** URL path segment after /connections/:name/ (relative to connection root). */
   urlPath: string;
-  /** Full S3 key (connection prefix + urlPath) */
+  /** Full S3 key (connection prefix + urlPath). */
   pathName: string;
   name: string;
-  /** True when navigating to a single viewable file (not a directory listing) */
-  isSingleFile?: boolean;
-  notification?: NotificationInput;
   credentials: Credentials;
   connectionConfig: ConnectionConfig;
   isPinned: boolean;
+  /** Set when the URL points at a Zarr directory; the chunk listing is skipped. */
+  serverDeterminedSingleFile: boolean;
+  /** `true` during SSR; `clientLoader` flips it once the listing resolves. */
+  pendingClientLoad: boolean;
 }
 
-export const loader = async ({
-  params,
-  context,
-}: LoaderFunctionArgs): Promise<BucketRouteLoaderResponse> => {
+export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderResponse {
+  nodes: TreeNode[];
+  /** True when the route should render the viewer rather than a directory listing. */
+  isSingleFile?: boolean;
+  notification?: NotificationInput;
+}
+
+export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   const { user, credentials: connectionsCredentials } = context.get(authContext);
   const { name: connectionName } = params;
 
@@ -49,87 +59,43 @@ export const loader = async ({
   const credentials = connectionsCredentials[connectionName];
   if (!credentials) throw new Error(`No credentials for connection: ${connectionName}`);
 
-  const urlPath = params["*"] ?? "";
-  const connPrefix = connectionConfig.prefix?.replace(/\/$/, "") ?? "";
-  const pathName = connPrefix ? (urlPath ? `${connPrefix}/${urlPath}` : connPrefix) : urlPath;
-  const prefix = getPrefix(pathName);
+  const rawUrlPath = params["*"] ?? "";
+
+  const parsed = prefixSchema.safeParse(rawUrlPath);
+  if (!parsed.success) {
+    throw new Response(parsed.error.issues[0]?.message ?? "Invalid path", { status: 400 });
+  }
+
+  let urlPath: string;
+  let pathName: string;
+  try {
+    ({ urlPath, pathName } = resolveConnectionPrefix(connectionConfig.prefix, parsed.data));
+  } catch (error) {
+    if (error instanceof ConnectionPrefixError) {
+      throw new Response(error.message, { status: 400 });
+    }
+    throw error;
+  }
   const name = getName(pathName, bucketName);
 
   const isPinned = await checkIsPinnedPath(user.sub, connectionName, urlPath);
+  const serverDeterminedSingleFile = isZarrPath(pathName);
 
-  try {
-    const s3Client = await getS3Client(connectionConfig, credentials, user.sub);
+  // SSR-safe defaults; `clientLoader` overwrites the listing fields after hydration.
+  const payload: BucketRouteLoaderResponse = {
+    connectionName,
+    bucketName,
+    urlPath,
+    pathName,
+    name,
+    credentials,
+    connectionConfig,
+    isPinned,
+    serverDeterminedSingleFile,
+    pendingClientLoad: true,
+    nodes: [],
+    isSingleFile: serverDeterminedSingleFile,
+  };
 
-    // Check for zarr before listing objects — zarr directories can contain
-    // thousands of chunk files, so we skip the expensive ListObjects call.
-    if (isZarrPath(pathName)) {
-      return {
-        credentials,
-        connectionConfig,
-        isPinned,
-        name,
-        nodes: [],
-        bucketName,
-        connectionName,
-        pathName,
-        urlPath,
-        isSingleFile: true,
-      };
-    }
-
-    const objects: Readonly<_Object>[] = await getObjects(
-      connectionConfig,
-      s3Client,
-      undefined,
-      prefix,
-    );
-
-    if (objects.length > 0) {
-      const nodes = buildDirectoryTree(objects, connectionName, prefix, urlPath);
-
-      return {
-        connectionName,
-        credentials,
-        connectionConfig,
-        name,
-        nodes,
-        bucketName,
-        urlPath,
-        pathName,
-        isPinned,
-      };
-    }
-
-    // Single file — viewer or unsupported format
-    return {
-      connectionName,
-      credentials,
-      connectionConfig,
-      name,
-      nodes: [],
-      bucketName,
-      urlPath,
-      pathName,
-      isSingleFile: true,
-      isPinned,
-    };
-  } catch (error) {
-    console.error("Error in objects loader:", error);
-    return {
-      connectionName,
-      credentials,
-      connectionConfig,
-      name,
-      nodes: [],
-      bucketName,
-      urlPath,
-      pathName,
-      isPinned,
-      notification: {
-        message:
-          "We couldn't load the objects for this bucket. Please check your connection or try again later.",
-        status: "error",
-      },
-    };
-  }
+  return payload;
 };

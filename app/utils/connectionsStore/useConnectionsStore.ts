@@ -1,15 +1,11 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { create } from "zustand";
-import { createJSONStorage, devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import type { ConnectionConfig } from "~/.generated/client";
-import { createMigrate } from "~/utils/persistMigration";
 
-/**
- * A connection joins the static config (DB metadata) with the credentials
- * (STS-minted) needed to make signed requests.
- */
+/** Static config + STS credentials needed to sign requests for one connection. */
 export interface Connection {
   connectionConfig: ConnectionConfig;
   credentials: Credentials;
@@ -18,74 +14,41 @@ export interface Connection {
 /**
  * Connections store. Single map keyed by `config.name`.
  *
- * Note: credentials are stored per-connection, not per-bucket. STS dedup
- * happens server-side at mint time (`getAllSessionCredentials`); on the
- * client we keep a flat per-connection mapping so connections that share
- * a bucket but differ in role can hold distinct credentials.
+ * Deliberately not persisted: STS credentials never leave in-memory state —
+ * any script in the realm can read `sessionStorage` / `localStorage`.
  */
 export interface ConnectionsStore {
   connections: Record<string, Connection>;
-  /**
-   * Replace the whole store contents in a single write. Both inputs are
-   * keyed by connection name (server's `getAllSessionCredentials` mints one
-   * set of credentials per connection). Prunes entries for connections
-   * deleted server-side.
-   */
+  /** Replace the whole store in one write; prunes entries removed server-side. */
   setConnections: (configs: ConnectionConfig[], credentials: Record<string, Credentials>) => void;
 }
 
 const name = "ConnectionsStore";
 
-const FALLBACK_STATE: Pick<ConnectionsStore, "connections"> = {
-  connections: {},
-};
-
 export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
-    persist(
-      immer((set) => ({
-        connections: {},
+    immer((set) => ({
+      connections: {},
 
-        setConnections: (configs, credentials) => {
-          set(
-            (state) => {
-              const next: Record<string, Connection> = {};
-              for (const connectionConfig of configs) {
-                const creds = credentials[connectionConfig.name];
-                if (!creds) continue;
-                next[connectionConfig.name] = {
-                  connectionConfig,
-                  credentials: creds,
-                };
-              }
-              state.connections = next;
-            },
-            false,
-            "setConnections",
-          );
-        },
-      })),
-      {
-        name: "connections-storage",
-        storage: createJSONStorage(() => sessionStorage),
-        version: 5,
-        migrate: createMigrate<typeof FALLBACK_STATE>(
-          {
-            1: () => FALLBACK_STATE,
-            2: () => FALLBACK_STATE,
-            3: () => FALLBACK_STATE,
-            4: () => FALLBACK_STATE,
+      setConnections: (configs, credentials) => {
+        set(
+          (state) => {
+            const next: Record<string, Connection> = {};
+            for (const connectionConfig of configs) {
+              const creds = credentials[connectionConfig.name];
+              if (!creds) continue;
+              next[connectionConfig.name] = {
+                connectionConfig,
+                credentials: creds,
+              };
+            }
+            state.connections = next;
           },
-          FALLBACK_STATE,
-        ),
-        partialize: (state) => ({
-          connections: state.connections,
-        }),
-        onRehydrateStorage: () => (_state, error) => {
-          if (error) console.error("[ConnectionsStore] Rehydration failed:", error);
-        },
+          false,
+          "setConnections",
+        );
       },
-    ),
-    { name },
+    })),
+    { name, enabled: process.env.NODE_ENV !== "production" },
   ),
 );

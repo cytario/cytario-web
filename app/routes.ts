@@ -84,10 +84,6 @@ const apiRoutes = [
     path: "/api/pinned",
     file: "routes/api/pinned.ts",
   },
-  {
-    path: "/presign/:name/*",
-    file: "routes/presign.route.tsx",
-  },
 ];
 
 export default [

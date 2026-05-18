@@ -3,38 +3,116 @@ import type { Credentials } from "@aws-sdk/client-sts";
 import { SignatureV4 } from "@smithy/signature-v4";
 
 import type { ConnectionConfig } from "~/.generated/client";
+import { ExpiredCredentialsError, requestCredentialsRefresh } from "~/utils/credentialsRefresh";
 import { sanitizeHeaders } from "~/utils/sanitizeHeaders";
 
 export type SignedFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
-// Image tile/chunk bytes are immutable per object version → 7-day cache.
+/**
+ * Lowercase header names the SigV4 signer emits. The CORS probe lists these
+ * in `Access-Control-Request-Headers` so the OPTIONS preflight carries the
+ * same set as the eventual GET. Keep in sync with `signer.sign` below.
+ */
+export const SIGNED_REQUEST_HEADERS = [
+  "authorization",
+  "x-amz-content-sha256",
+  "x-amz-date",
+  "x-amz-security-token",
+] as const;
+
+/**
+ * Thrown when a browser fetch fails before a Response — almost always a
+ * CORS misconfiguration on the bucket. Caller error paths instanceof-check
+ * this to surface a dedicated toast.
+ */
+export class CorsLikelyError extends Error {
+  public readonly host: string;
+  public readonly origin: string;
+
+  constructor(host: string, origin: string, cause?: unknown) {
+    super(
+      `Browser was blocked from reading "${host}" — likely a CORS misconfiguration on the bucket.`,
+    );
+    this.name = "CorsLikelyError";
+    this.host = host;
+    this.origin = origin;
+    if (cause !== undefined) {
+      (this as { cause?: unknown }).cause = cause;
+    }
+  }
+}
+
+function isLikelyCorsFailure(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false;
+  const message = error.message ?? "";
+  return (
+    message.includes("Failed to fetch") ||
+    message.includes("Load failed") ||
+    message.includes("NetworkError when attempting to fetch resource") ||
+    message.includes("NetworkError")
+  );
+}
+
+async function fetchWithCorsDetection(
+  url: string,
+  init: RequestInit,
+  host: string,
+  origin: string,
+): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    if (isLikelyCorsFailure(error)) {
+      throw new CorsLikelyError(host, origin, error);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Detect expired-token bodies on a cloned response (the caller still owns the
+ * unread body). AWS: 400 + `ExpiredToken`; MinIO: 403 + `ExpiredTokenException`.
+ */
+async function isExpiredTokenResponse(response: Response): Promise<boolean> {
+  if (response.status !== 400 && response.status !== 403) return false;
+  try {
+    const body = await response.clone().text();
+    return (
+      body.includes("<Code>ExpiredToken</Code>") ||
+      body.includes("<Code>ExpiredTokenException</Code>")
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Tile/chunk bytes are immutable per object version → 7-day cache.
 const IMAGE_DATA_CACHE_CONTROL = "private, max-age=604800";
 
-// Sidecars, overlays, JSON companions → 1-hour ceiling so analyst
+// Sidecars / overlays / JSON companions → 1-hour ceiling so analyst
 // regenerations surface without an explicit purge.
 const OTHER_DATA_CACHE_CONTROL = "private, max-age=3600";
 
-// TIFF/OME-TIFF reads, or OME-Zarr chunks whose last path segment is digits
-// only (`image.zarr/0/0/0` or `image.zarr/0.0.0`).
+// Matches TIFF/OME-TIFF reads and OME-Zarr chunk filenames (digits-only).
 function isImageDataPath(pathname: string): boolean {
   return /\.tiff?$/i.test(pathname) || /\/\d+(?:\.\d+)*$/.test(pathname);
 }
 
 /**
- * SigV4-signing fetch. Credentials are resolved lazily per call so the signer
- * is recreated when AccessKeyId rotates. Every GET injects a
- * `response-cache-control` query override so the storage backend echoes a
- * Cache-Control directive — the browser HTTP cache then serves repeat reads
- * without a network round-trip.
+ * SigV4-signing fetch. Credentials resolve lazily so the signer is rebuilt
+ * when `AccessKeyId` rotates. Every GET injects `response-cache-control` so
+ * the browser HTTP cache can serve repeat reads without a network round-trip.
  */
 export function createSignedFetch(
   getCredentials: () => Credentials,
   connectionConfig: Pick<ConnectionConfig, "region">,
+  connectionName?: string,
 ): SignedFetch {
   let cachedKeyId: string | undefined;
   let signer: SignatureV4;
 
-  return async (url: string, init?: RequestInit): Promise<Response> => {
+  // Closured so the ExpiredToken retry path can rebuild with refreshed creds.
+  const buildSignedRequest = async (url: string, init?: RequestInit) => {
     const credentials = getCredentials();
 
     if (!credentials.AccessKeyId || !credentials.SecretAccessKey) {
@@ -51,33 +129,34 @@ export function createSignedFetch(
         region: connectionConfig.region || "eu-central-1",
         service: "s3",
         sha256: Sha256,
+        // S3 paths are pre-encoded; the signer must not double-encode.
+        uriEscapePath: false,
       });
       cachedKeyId = credentials.AccessKeyId;
     }
 
     const parsed = new URL(url);
 
-    // Decode so the signer can re-encode canonically — without this,
-    // percent-encoded chars get double-encoded and the signature breaks.
-    const decodedPath = decodeURIComponent(parsed.pathname);
-
     const cacheControl = isImageDataPath(parsed.pathname)
       ? IMAGE_DATA_CACHE_CONTROL
       : OTHER_DATA_CACHE_CONTROL;
 
-    // Only the host header is signed — Range etc. pass through unsigned to
-    // avoid CORS/signature mismatches. Caller-supplied headers run through
-    // sanitizeHeaders, and the merge order below puts signed headers LAST
-    // so a bypass of sanitizeHeaders still cannot override the signature.
+    // Signed headers merge LAST so a bypass of `sanitizeHeaders` cannot
+    // override the signature.
     const callerHeaders = sanitizeHeaders(init?.headers as Record<string, string> | undefined);
+
+    // Pre-populate the signer's query map so caller-supplied params
+    // (e.g. `?versionId=...`) survive — otherwise the wire URL drops them.
+    const query: Record<string, string> = Object.fromEntries(parsed.searchParams);
+    query["response-cache-control"] = cacheControl;
 
     const request = {
       method: (init?.method as string) ?? "GET",
       protocol: parsed.protocol,
       hostname: parsed.hostname,
       port: parsed.port ? parseInt(parsed.port) : undefined,
-      path: decodedPath,
-      query: { "response-cache-control": cacheControl },
+      path: parsed.pathname,
+      query,
       headers: {
         host: parsed.host,
       },
@@ -85,9 +164,24 @@ export function createSignedFetch(
 
     const signed = await signer.sign(request);
 
-    const wireUrl = `${parsed.origin}${parsed.pathname}?response-cache-control=${encodeURIComponent(cacheControl)}`;
+    // RFC-3986 strict encoding — `URLSearchParams.toString()` form-encodes
+    // and would break the signature on reserved characters.
+    const wireQuery = Object.entries(query)
+      .map(
+        ([key, value]) =>
+          `${encodeURIComponent(key).replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}=${encodeURIComponent(
+            value,
+          ).replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`,
+      )
+      .join("&");
+    const wireUrl = `${parsed.origin}${parsed.pathname}?${wireQuery}`;
 
-    return fetch(wireUrl, {
+    const browserOrigin =
+      typeof window !== "undefined" && typeof window.location?.origin === "string"
+        ? window.location.origin
+        : "";
+
+    const fetchInit: RequestInit = {
       ...init,
       method: request.method,
       headers: {
@@ -95,6 +189,47 @@ export function createSignedFetch(
         ...(signed.headers as Record<string, string>),
       },
       signal: init?.signal,
-    });
+      // Block redirect-following — `fetch` would otherwise re-send the
+      // Authorization header (and the STS token) to whatever host the 30x
+      // points at.
+      redirect: "error",
+    };
+
+    return { wireUrl, fetchInit, host: parsed.host, browserOrigin };
+  };
+
+  return async (url: string, init?: RequestInit): Promise<Response> => {
+    const first = await buildSignedRequest(url, init);
+    const response = await fetchWithCorsDetection(
+      first.wireUrl,
+      first.fetchInit,
+      first.host,
+      first.browserOrigin,
+    );
+
+    if (await isExpiredTokenResponse(response)) {
+      if (!connectionName) {
+        throw new ExpiredCredentialsError(
+          "STS credentials expired and no connection name was provided to signedFetch.",
+        );
+      }
+      await requestCredentialsRefresh(connectionName);
+      const retried = await buildSignedRequest(url, init);
+      const retryResponse = await fetchWithCorsDetection(
+        retried.wireUrl,
+        retried.fetchInit,
+        retried.host,
+        retried.browserOrigin,
+      );
+      if (await isExpiredTokenResponse(retryResponse)) {
+        throw new ExpiredCredentialsError(
+          "STS credentials expired and refresh did not yield a working session.",
+          connectionName,
+        );
+      }
+      return retryResponse;
+    }
+
+    return response;
   };
 }

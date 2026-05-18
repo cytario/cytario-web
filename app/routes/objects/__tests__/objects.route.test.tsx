@@ -10,17 +10,14 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   authContext: {},
   authMiddleware: vi.fn(),
 }));
-vi.mock("~/.server/auth/getS3Client", () => ({
-  getS3Client: vi.fn(),
-}));
 vi.mock("~/.server/requestDurationMiddleware", () => ({
   requestDurationMiddleware: vi.fn(),
 }));
 vi.mock("~/routes/connections/connections.server", () => ({
   getConnection: vi.fn(),
 }));
-vi.mock("~/utils/getObjects", () => ({
-  getObjects: vi.fn(),
+vi.mock("~/utils/listObjectsClient", () => ({
+  listObjectsClient: vi.fn(),
 }));
 
 vi.mock("@cytario/design", async (importOriginal) => {

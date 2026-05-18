@@ -201,8 +201,8 @@ The viewer supports **offset sidecar files** (`.offsets.json`) for faster OME-TI
 ```
 Route Loader (server)
 ├── Detects OME-TIFF via getOffsetKeyForOmeTiff()
-├── Generates presigned URL for image
-├── Generates presigned URL for .offsets.json (in parallel)
+├── Provides signedFetch for direct SigV4-signed GetObject of image
+├── Provides signedFetch for direct SigV4-signed GetObject of .offsets.json (in parallel)
 └── Returns { url, offsetsUrl } to client
 
 ImageViewer (client)

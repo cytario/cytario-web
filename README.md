@@ -23,7 +23,7 @@ For the hosted product, see [cytario.com](https://www.cytario.com).
 | Styling       | Tailwind CSS, [@cytario/design](https://github.com/cytario/cytario-design) |
 | Auth          | OAuth 2.0 via Keycloak, STS for S3 credentials                             |
 | Database      | PostgreSQL (Prisma ORM), Redis/Valkey (sessions)                           |
-| Cloud         | AWS SDK v3 (S3, STS), presigned URLs                                       |
+| Cloud         | AWS SDK v3 (S3, STS)                                                       |
 | CI/CD         | GitHub Actions, semantic-release, GHCR                                     |
 
 ## Plugin model
