@@ -7,7 +7,6 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useHref,
   useLocation,
   useNavigate,
   useNavigation,
@@ -156,7 +155,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <RouterProvider navigate={navigate} useHref={useHref}>
+        {/* No `useHref`: RR's collapses `//` in absolute URLs (C-201).
+            Only needed for basename / hash routing — neither is in use. */}
+        <RouterProvider navigate={navigate}>
           {data?.user && <AppHeader />}
 
           <main id="main-content" className="relative flex-1 min-h-0 outline-none">
