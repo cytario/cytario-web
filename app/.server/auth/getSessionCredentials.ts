@@ -1,12 +1,15 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
 import { buildSessionPolicy } from "./sessionPolicy";
-import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
+import { type SessionData } from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 const label = createLabel("credentials", "cyan");
+
+/** Per-connection credentials map, keyed by `connectionConfig.name`. */
+export type ConnectionsCredentials = Record<string, Credentials>;
 
 export const isValidCredentials = (credentials?: { Expiration?: Date }): boolean => {
   if (!credentials?.Expiration) return false;
@@ -77,30 +80,27 @@ const fetchTemporaryCredentials = async (
 };
 
 /**
- * Fetches credentials for all connection configs in parallel.
+ * Mints fresh STS credentials for every connection config in parallel.
  * Keys credentials by `config.name` so connections that share a bucket but
- * differ in `roleArn` each get their own STS mint. Only fetches for
- * connections with missing or expired credentials.
+ * differ in `roleArn` each get their own STS mint.
+ *
+ * Stateless by design: never reads or writes a credential cache. Callers
+ * forward the returned map to the browser, which holds it in memory for the
+ * STS lifetime. See `app/utils/signedFetch.ts` for the client-side use.
  */
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
   connectionConfigs: ConnectionConfig[],
 ): Promise<ConnectionsCredentials> => {
-  const stale = connectionConfigs.filter(
-    (config) => !isValidCredentials(sessionData.credentials[config.name]),
-  );
-
-  if (stale.length === 0) {
-    return sessionData.credentials;
+  if (connectionConfigs.length === 0) {
+    return {};
   }
-
-  console.info(`${label} Fetching credentials for ${stale.length} connection(s)`);
 
   const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
 
   // Fetch all in parallel — one failure doesn't block others
   const results = await Promise.allSettled(
-    stale.map(async (config) => ({
+    connectionConfigs.map(async (config) => ({
       name: config.name,
       credentials: await fetchTemporaryCredentials(
         config,
@@ -110,14 +110,14 @@ export const getAllSessionCredentials = async (
     })),
   );
 
-  const newCredentials = { ...sessionData.credentials };
+  const credentials: ConnectionsCredentials = {};
   for (const result of results) {
     if (result.status === "fulfilled") {
-      newCredentials[result.value.name] = result.value.credentials;
+      credentials[result.value.name] = result.value.credentials;
     } else {
       console.warn(`${label} Failed to fetch credentials for a connection:`, result.reason);
     }
   }
 
-  return newCredentials;
+  return credentials;
 };

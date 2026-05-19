@@ -48,11 +48,6 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
     throw error;
   }
 
-  // Drop cached STS credentials keyed by the removed name.
-  const credentials = session.get("credentials") ?? {};
-  delete credentials[connectionName];
-  session.set("credentials", credentials);
-
   session.set("notification", {
     status: "success",
     message: "Storage connection deleted.",

@@ -91,7 +91,6 @@ describe("getAllSessionCredentials", () => {
       idToken: "id-token-for-sts",
       refreshToken: "refresh-token",
     },
-    credentials: {},
   };
 
   beforeEach(() => {
@@ -109,24 +108,7 @@ describe("getAllSessionCredentials", () => {
     });
   });
 
-  test("returns existing credentials when all are valid", async () => {
-    const validCredentials = {
-      "conn-a": mock.credentials(),
-    };
-    const sessionData = {
-      ...mockSessionData,
-      credentials: validCredentials,
-    };
-
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "conn-a" }),
-    ]);
-
-    expect(result).toBe(validCredentials);
-    expect(mockSend).not.toHaveBeenCalled();
-  });
-
-  test("fetches credentials for connections with missing credentials", async () => {
+  test("mints credentials for a single connection", async () => {
     const result = await getAllSessionCredentials(mockSessionData, [
       mock.connectionConfig({ name: "new-conn" }),
     ]);
@@ -135,22 +117,11 @@ describe("getAllSessionCredentials", () => {
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
-  test("fetches credentials for connections with expired credentials", async () => {
-    const sessionData = {
-      ...mockSessionData,
-      credentials: {
-        "expired-conn": mock.credentials({
-          Expiration: new Date(Date.now() - 60 * 1000),
-        }),
-      },
-    };
+  test("mints fresh credentials on every call (no caching)", async () => {
+    await getAllSessionCredentials(mockSessionData, [mock.connectionConfig({ name: "conn-a" })]);
+    await getAllSessionCredentials(mockSessionData, [mock.connectionConfig({ name: "conn-a" })]);
 
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "expired-conn" }),
-    ]);
-
-    expect(result).toEqual({ "expired-conn": mockCredentials });
-    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(mockSend).toHaveBeenCalledTimes(2);
   });
 
   test("mints separately for connections sharing a bucket but differing in role", async () => {
@@ -188,24 +159,6 @@ describe("getAllSessionCredentials", () => {
       "conn-a": mockCredentials,
       "conn-b": mockCredentials,
     });
-  });
-
-  test("preserves existing valid credentials when fetching new ones", async () => {
-    const existingCredentials = mock.credentials();
-    const sessionData = {
-      ...mockSessionData,
-      credentials: { "existing-conn": existingCredentials },
-    };
-
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "existing-conn" }),
-      mock.connectionConfig({ name: "new-conn" }),
-    ]);
-
-    expect(result["existing-conn"]).toBe(existingCredentials);
-    expect(result["new-conn"]).toEqual(mockCredentials);
-    // Only fetched for new-conn, not existing-conn
-    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   test("handles partial failures gracefully", async () => {
@@ -309,7 +262,7 @@ describe("getAllSessionCredentials", () => {
   test("returns empty credentials when no bucket configs provided", async () => {
     const result = await getAllSessionCredentials(mockSessionData, []);
 
-    expect(result).toBe(mockSessionData.credentials);
+    expect(result).toEqual({});
     expect(mockSend).not.toHaveBeenCalled();
   });
 });

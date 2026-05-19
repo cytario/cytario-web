@@ -18,7 +18,6 @@ export const getSession = async (request: Request): Promise<CytarioSession> => {
 export const getSessionData = async (session: CytarioSession) => {
   const user = session.get("user");
   const authTokens = session.get("authTokens");
-  const credentials = session.get("credentials") || {};
   const notification = session.get("notification");
-  return { user, authTokens, credentials, notification };
+  return { user, authTokens, notification };
 };

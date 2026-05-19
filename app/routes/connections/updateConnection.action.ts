@@ -148,14 +148,6 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       region: validated.providerType === "aws" ? validated.bucketRegion : null,
     });
 
-    // Drop cached credentials so authMiddleware re-mints under the new identity.
-    const credentials = session.get("credentials") ?? {};
-    delete credentials[updatedConfig.previousName];
-    if (updatedConfig.name !== updatedConfig.previousName) {
-      delete credentials[updatedConfig.name];
-    }
-    session.set("credentials", credentials);
-
     if (corsWarnings.length > 0) {
       session.set("notification", {
         status: "warning",

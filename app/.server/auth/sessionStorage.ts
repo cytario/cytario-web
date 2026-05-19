@@ -1,4 +1,3 @@
-import { Credentials } from "@aws-sdk/client-sts";
 import { randomUUID } from "crypto";
 import { LRUCache } from "lru-cache";
 import { createSessionStorage, Session } from "react-router";
@@ -15,13 +14,9 @@ export interface AuthTokens {
   idToken: string;
 }
 
-/** Per-connection credentials map, keyed by `connectionConfig.name`. */
-export type ConnectionsCredentials = Record<string, Credentials>;
-
 export interface SessionData {
   user: UserProfile;
   authTokens: AuthTokens;
-  credentials: ConnectionsCredentials;
   notification?: NotificationInput;
 }
 
@@ -64,7 +59,7 @@ export const sessionStorage = createSessionStorage<SessionData, SessionFlashData
     await setSessionExpiry(id, expires);
 
     // Cache the newly created session if it has all required fields
-    if (data.user && data.authTokens && data.credentials) {
+    if (data.user && data.authTokens) {
       sessionCache.set(id, data as SessionData);
     }
 
@@ -98,7 +93,7 @@ export const sessionStorage = createSessionStorage<SessionData, SessionFlashData
     }
 
     // Update cache to keep it in sync
-    if (data.user && data.authTokens && data.credentials) {
+    if (data.user && data.authTokens) {
       sessionCache.set(id, data as SessionData);
     } else {
       // If data is partial, invalidate cache

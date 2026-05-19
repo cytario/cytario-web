@@ -3,7 +3,7 @@ import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { probeBucketCors } from "~/.server/corsPreflight";
 import { prisma } from "~/.server/db/prisma";
 import { createAction } from "~/routes/connections/createConnection.action";
-import { deleteAction, deleteConnection } from "~/routes/connections/deleteConnection.action";
+import { deleteConnection } from "~/routes/connections/deleteConnection.action";
 import { updateAction, updateConnection } from "~/routes/connections/updateConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -329,48 +329,6 @@ function buildActionArgs(
     },
   };
 }
-
-describe("deleteAction — session credential prune", () => {
-  test("removes credentials[name] from session on successful delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
-    vi.mocked(prisma.connectionConfig.delete).mockResolvedValue(cytarioConfig);
-
-    const existingCreds = {
-      "test-connection": mock.credentials(),
-      "other-connection": mock.credentials({ AccessKeyId: "other" }),
-    };
-    const session = mock.session({ credentials: existingCreds });
-
-    const args = buildActionArgs(adminUser, session, {
-      connectionName: "test-connection",
-    });
-
-    await deleteAction(args as unknown as Parameters<typeof deleteAction>[0]);
-
-    // session.set was called with credentials, but without the deleted key
-    const credentialsCall = vi
-      .mocked(session.set)
-      .mock.calls.find(([key]) => key === "credentials");
-    expect(credentialsCall).toBeDefined();
-    const writtenCreds = credentialsCall![1] as Record<string, unknown>;
-    expect(writtenCreds).not.toHaveProperty("test-connection");
-    expect(writtenCreds).toHaveProperty("other-connection");
-  });
-
-  test("does not throw when session has no credentials", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
-    vi.mocked(prisma.connectionConfig.delete).mockResolvedValue(cytarioConfig);
-
-    const session = mock.session({});
-    const args = buildActionArgs(adminUser, session, {
-      connectionName: "test-connection",
-    });
-
-    await expect(
-      deleteAction(args as unknown as Parameters<typeof deleteAction>[0]),
-    ).resolves.toBeDefined();
-  });
-});
 
 describe("createAction — CORS preflight probe", () => {
   const validAwsForm = {

@@ -60,7 +60,6 @@ describe("logout loader", () => {
         idToken: "id-token",
         refreshToken: "refresh-token-to-revoke",
       },
-      credentials: {},
       notification: undefined,
     });
 
@@ -88,7 +87,6 @@ describe("logout loader", () => {
         idToken: "id",
         refreshToken: "refresh",
       },
-      credentials: {},
       notification: undefined,
     });
 
@@ -108,7 +106,6 @@ describe("logout loader", () => {
         idToken: "id",
         refreshToken: "refresh",
       },
-      credentials: {},
       notification: undefined,
     });
     mockFetch.mockRejectedValue(new Error("Network error"));
@@ -131,7 +128,6 @@ describe("logout loader", () => {
         idToken: "id",
         refreshToken: "refresh",
       },
-      credentials: {},
       notification: undefined,
     });
     mockFetch.mockResolvedValue({ ok: false, status: 503 });
@@ -151,7 +147,6 @@ describe("logout loader", () => {
     vi.mocked(getSessionData).mockResolvedValue({
       user: undefined,
       authTokens: undefined,
-      credentials: {},
       notification: undefined,
     });
 
@@ -169,7 +164,6 @@ describe("logout loader", () => {
         idToken: "id-token-hint",
         refreshToken: "refresh",
       },
-      credentials: {},
       notification: undefined,
     });
 

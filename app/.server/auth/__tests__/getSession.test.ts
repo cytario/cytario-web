@@ -76,29 +76,6 @@ describe("getSessionData", () => {
     expect(result.authTokens).toBe(authTokens);
   });
 
-  test("extracts credentials from session", async () => {
-    const credentials = {
-      "bucket-1": mock.credentials(),
-    };
-    const session = mock.session({
-      credentials,
-    });
-
-    const result = await getSessionData(session);
-
-    expect(result.credentials).toBe(credentials);
-  });
-
-  test("returns empty object when credentials not set", async () => {
-    const session = mock.session({
-      credentials: undefined,
-    });
-
-    const result = await getSessionData(session);
-
-    expect(result.credentials).toEqual({});
-  });
-
   test("extracts notification from session", async () => {
     const notification = {
       message: "Test notification",
@@ -128,7 +105,6 @@ describe("getSessionData", () => {
       idToken: "id",
       refreshToken: "refresh",
     };
-    const credentials = { bucket: mock.credentials() };
     const notification = {
       message: "Info",
       status: "info" as const,
@@ -137,7 +113,6 @@ describe("getSessionData", () => {
     const session = mock.session({
       user: mockUser,
       authTokens,
-      credentials,
       notification,
     });
 
@@ -146,7 +121,6 @@ describe("getSessionData", () => {
     expect(result).toEqual({
       user: mockUser,
       authTokens,
-      credentials,
       notification,
     });
   });

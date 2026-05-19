@@ -83,7 +83,6 @@ describe("authMiddleware", () => {
       idToken: "valid-id-token",
       refreshToken: validRefreshToken,
     },
-    credentials: {},
     notification: undefined,
   } satisfies SessionData;
 
@@ -111,10 +110,8 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.commitSession).mockResolvedValue("session-cookie");
     vi.mocked(sessionStorage.destroySession).mockResolvedValue("destroy-cookie");
     vi.mocked(listConnections).mockResolvedValue(mockConnectionConfigs);
-    // Return the same credentials by default (no change = no session commit)
-    vi.mocked(getAllSessionCredentials).mockImplementation(
-      async (sessionData) => sessionData.credentials,
-    );
+    // Default: mint returns an empty credentials map.
+    vi.mocked(getAllSessionCredentials).mockResolvedValue({});
     vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
       accessToken: "new-access-token",
       idToken: "new-id-token",
@@ -188,7 +185,7 @@ describe("authMiddleware", () => {
       expect(getAllSessionCredentials).toHaveBeenCalled();
     });
 
-    test("does not commit session when credentials unchanged", async () => {
+    test("does not commit session on the valid-token path", async () => {
       const args = createMiddlewareArgs();
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
@@ -196,7 +193,7 @@ describe("authMiddleware", () => {
       expect(sessionStorage.commitSession).not.toHaveBeenCalled();
     });
 
-    test("commits session when credentials changed", async () => {
+    test("never writes credentials to the session", async () => {
       const newCredentials = { "new-bucket": mock.credentials() };
       vi.mocked(getAllSessionCredentials).mockResolvedValue(newCredentials);
 
@@ -204,8 +201,21 @@ describe("authMiddleware", () => {
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(mockSession.set).toHaveBeenCalledWith("credentials", newCredentials);
-      expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
+      expect(mockSession.set).not.toHaveBeenCalledWith("credentials", expect.anything());
+    });
+
+    test("exposes freshly minted credentials on the auth context", async () => {
+      const newCredentials = { "conn-a": mock.credentials() };
+      vi.mocked(getAllSessionCredentials).mockResolvedValue(newCredentials);
+
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ credentials: newCredentials }),
+      );
     });
 
     test("propagates error when credential fetch fails", async () => {
@@ -403,7 +413,6 @@ describe("authMiddleware", () => {
       vi.mocked(getSessionData).mockResolvedValue({
         user: undefined,
         authTokens: undefined,
-        credentials: {},
         notification: undefined,
       });
 

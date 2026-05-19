@@ -31,7 +31,6 @@ describe("sessionStorage", () => {
       idToken: "id-token",
       refreshToken: "refresh-token",
     },
-    credentials: {},
   };
 
   const mockExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -62,7 +61,6 @@ describe("sessionStorage", () => {
 
       session.set("user", mockUser);
       session.set("authTokens", mockSessionData.authTokens);
-      session.set("credentials", {});
 
       const header = await sessionStorage.commitSession(session, {
         expires: mockExpires,
@@ -80,7 +78,6 @@ describe("sessionStorage", () => {
 
       session.set("user", mockUser);
       session.set("authTokens", mockSessionData.authTokens);
-      session.set("credentials", {});
 
       await sessionStorage.commitSession(session, {
         expires: mockExpires,
@@ -98,7 +95,6 @@ describe("sessionStorage", () => {
 
       session.set("user", mockUser);
       session.set("authTokens", mockSessionData.authTokens);
-      session.set("credentials", {});
 
       await sessionStorage.commitSession(session, {
         expires: mockExpires,
@@ -116,7 +112,6 @@ describe("sessionStorage", () => {
 
       session.set("user", mock.user({ sub: "custom-user-id" }));
       session.set("authTokens", mockSessionData.authTokens);
-      session.set("credentials", {});
 
       await sessionStorage.commitSession(session, {
         expires: mockExpires,

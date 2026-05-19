@@ -37,7 +37,6 @@ describe("redirectIfAuthenticated", () => {
         idToken: "id-token",
         refreshToken: "refresh",
       },
-      credentials: {},
       notification: undefined,
     });
 
@@ -54,7 +53,6 @@ describe("redirectIfAuthenticated", () => {
     vi.mocked(getSessionData).mockResolvedValue({
       user: undefined,
       authTokens: undefined,
-      credentials: {},
       notification: undefined,
     });
 
@@ -72,7 +70,6 @@ describe("redirectIfAuthenticated", () => {
     vi.mocked(getSessionData).mockResolvedValue({
       user: undefined,
       authTokens: undefined,
-      credentials: {},
       notification: undefined,
     });
 
@@ -87,7 +84,6 @@ describe("redirectIfAuthenticated", () => {
     vi.mocked(getSessionData).mockResolvedValue({
       user: undefined,
       authTokens: undefined,
-      credentials: {},
       notification: undefined,
     });
 

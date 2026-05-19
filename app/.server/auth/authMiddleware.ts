@@ -1,7 +1,7 @@
 import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
-import { getAllSessionCredentials } from "./getSessionCredentials";
+import { type ConnectionsCredentials, getAllSessionCredentials } from "./getSessionCredentials";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import { type CytarioSession, type SessionData, sessionStorage } from "./sessionStorage";
@@ -12,6 +12,7 @@ import { listConnections } from "~/routes/connections/connections.server";
 
 export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfig[];
+  credentials: ConnectionsCredentials;
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -36,18 +37,12 @@ const label = createLabel("authorize", "green");
 
 const fetchAllCredentials = async (
   sessionData: SessionData,
-): Promise<{ sessionData: SessionData; connectionConfigs: ConnectionConfig[] }> => {
+): Promise<{ credentials: ConnectionsCredentials; connectionConfigs: ConnectionConfig[] }> => {
   const connectionConfigs = await listConnections(sessionData.user);
 
-  const newCredentials = await getAllSessionCredentials(sessionData, connectionConfigs);
+  const credentials = await getAllSessionCredentials(sessionData, connectionConfigs);
 
-  return {
-    sessionData: {
-      ...sessionData,
-      credentials: newCredentials,
-    },
-    connectionConfigs,
-  };
+  return { credentials, connectionConfigs };
 };
 
 export const authMiddleware: MiddlewareFunction = async ({ request, context }, next) => {
@@ -68,16 +63,8 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     const idTokenPayload = await verifyIdToken(authTokens.idToken);
 
     if (idTokenPayload) {
-      const { sessionData: withCredentials, connectionConfigs } =
-        await fetchAllCredentials(updatedSessionData);
-      updatedSessionData = withCredentials;
-
-      if (updatedSessionData.credentials !== sessionData.credentials) {
-        session.set("credentials", updatedSessionData.credentials);
-        await sessionStorage.commitSession(session);
-      }
-
-      context.set(authContext, { ...updatedSessionData, connectionConfigs });
+      const { credentials, connectionConfigs } = await fetchAllCredentials(updatedSessionData);
+      context.set(authContext, { ...updatedSessionData, credentials, connectionConfigs });
       return next();
     }
 
@@ -93,17 +80,12 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
 
       if (newAuthTokens) {
         session.set("authTokens", newAuthTokens);
+        updatedSessionData = { ...updatedSessionData, authTokens: newAuthTokens };
 
-        const { sessionData: withCredentials, connectionConfigs } = await fetchAllCredentials({
-          ...updatedSessionData,
-          authTokens: newAuthTokens,
-        });
-        updatedSessionData = withCredentials;
-
-        session.set("credentials", updatedSessionData.credentials);
+        const { credentials, connectionConfigs } = await fetchAllCredentials(updatedSessionData);
         await sessionStorage.commitSession(session);
 
-        context.set(authContext, { ...updatedSessionData, connectionConfigs });
+        context.set(authContext, { ...updatedSessionData, credentials, connectionConfigs });
         return next();
       }
     }
