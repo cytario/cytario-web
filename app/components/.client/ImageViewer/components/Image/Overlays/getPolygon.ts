@@ -1,30 +1,42 @@
-import { AccessorContext } from "@deck.gl/core";
+import { type AccessorContext, type Position } from "@deck.gl/core";
 import { parseSync } from "@loaders.gl/core";
 import { WKBLoader } from "@loaders.gl/wkt";
 import { type Table } from "apache-arrow";
+import { type Geometry } from "geojson";
+
+// Dedup per-row warnings — accessor fires per row per frame.
+const warned = new Set<string>();
+const warnOnce = (key: string, level: "warn" | "error", ...args: unknown[]) => {
+  if (warned.has(key)) return;
+  warned.add(key);
+  console[level](...args);
+};
 
 export const getPolygon = (arrowTable: Table) => {
-  // Polygon mode - parse WKB geometry and use SolidPolygonLayer
   const geomCol = arrowTable.getChild("geom")!;
 
-  return (_d: unknown, { index }: AccessorContext<unknown>) => {
-    // Parse WKB binary geometry
+  return (_d: unknown, { index }: AccessorContext<unknown>): Position[][] => {
     const wkbBuffer = geomCol.get(index);
-    const geometry = parseSync(wkbBuffer, WKBLoader);
-
-    // Type guard: check if it's a BinaryPolygonGeometry
-    if (!("positions" in geometry)) {
-      console.error("Unexpected geometry type:", geometry);
+    if (!wkbBuffer) {
+      warnOnce("empty-geom", "warn", "[getPolygon] empty geom column value");
       return [[]];
     }
 
-    // Convert flat Float64Array to nested coordinate array
-    // SolidPolygonLayer expects: [[[x1, y1], [x2, y2], ...]]
-    const positions = geometry.positions.value;
-    const coords: [number, number][] = [];
-    for (let i = 0; i < positions.length; i += 2) {
-      coords.push([positions[i], positions[i + 1]]);
+    const geometry = parseSync(wkbBuffer, WKBLoader) as Geometry;
+
+    if (geometry.type === "Polygon") {
+      return geometry.coordinates as Position[][];
     }
-    return [coords]; // Wrap in array for simple polygon
+    if (geometry.type === "MultiPolygon") {
+      // SolidPolygonLayer one polygon per row — render first, preprocess upstream for full fidelity.
+      warnOnce(
+        "multipolygon",
+        "warn",
+        "[getPolygon] MultiPolygon downgraded to first polygon; preprocess to one row per polygon for full rendering",
+      );
+      return (geometry.coordinates[0] ?? [[]]) as Position[][];
+    }
+    warnOnce("unknown-type", "error", "[getPolygon] unexpected geometry type:", geometry);
+    return [[]];
   };
 };
