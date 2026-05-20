@@ -1,6 +1,6 @@
 import Redis from "ioredis";
 
-import { cytarioConfig } from "~/config";
+import { buildRedisOptions } from "./redisOptions";
 
 /**
  * Redis/Valkey client instance
@@ -14,55 +14,39 @@ import { cytarioConfig } from "~/config";
  * - REDIS_PORT: Server port (default: 6379)
  * - REDIS_USERNAME: Optional username for authenticated connections (Redis 6+ / Valkey)
  * - REDIS_PASSWORD: Optional password for authenticated connections
+ * - REDIS_TLS: Set to "true" to wrap the connection in TLS (required in production)
+ * - REDIS_CA_CERT: Optional PEM-encoded CA certificate (string) for self-signed deployments
+ * - REDIS_TLS_SERVER_NAME: Optional SNI / certificate hostname override
+ * - REDIS_INSECURE_ALLOW_PLAINTEXT: Set to "true" to opt out of the production TLS requirement
  *
  * @example
- * // Use with Redis without authentication
- * REDIS_HOST=redis.example.com
- * REDIS_PORT=6379
- *
- * @example
- * // Use with Valkey with authentication
+ * // Use with managed Valkey over TLS — Valkey reuses 6379 for TLS when tls.enabled is set
  * REDIS_HOST=valkey.example.com
  * REDIS_PORT=6379
  * REDIS_USERNAME=myuser
  * REDIS_PASSWORD=mypassword
+ * REDIS_TLS=true
  *
  * @example
- * // Use with Redis/Valkey with password-only authentication (legacy)
- * REDIS_HOST=redis.example.com
+ * // Local development without TLS (only allowed when NODE_ENV=development)
+ * REDIS_HOST=localhost
  * REDIS_PORT=6379
- * REDIS_PASSWORD=mypassword
  */
 
-const {
-  redis: { host, port, username, password },
-} = cytarioConfig;
+const options = buildRedisOptions(process.env);
 
-export const redis = new Redis({
-  host,
-  port,
-  // Only include username if provided (Redis 6+ ACL support)
-  ...(username && { username }),
-  // Only include password if provided (backwards compatible)
-  ...(password && { password }),
-  maxRetriesPerRequest: 3,
-  retryStrategy(times) {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  lazyConnect: false,
-});
+export const redis = new Redis(options);
 
-// Log connection errors
 redis.on("error", (err) => {
   console.error("Redis/Valkey connection error:", err);
 });
 
 redis.on("connect", () => {
-  const authInfo = username
-    ? ` (authenticated as ${username})`
-    : password
+  const authInfo = options.username
+    ? ` (authenticated as ${options.username})`
+    : options.password
       ? " (authenticated)"
       : "";
-  console.log(`Connected to Redis/Valkey at ${host}:${port}${authInfo}`);
+  const tlsInfo = options.tls ? " over TLS" : "";
+  console.log(`Connected to Redis/Valkey at ${options.host}:${options.port}${authInfo}${tlsInfo}`);
 });

@@ -112,6 +112,7 @@ jobs:
           SCOPES: openid
           COOKIE_SECRET: smoke-cookie-secret
           WEB_HOST: http://127.0.0.1:3000
+          REDIS_INSECURE_ALLOW_PLAINTEXT: true
         run: |
           cd "$CONSUMER"
           npx --no-install cytario-web start &
