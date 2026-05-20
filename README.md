@@ -230,6 +230,21 @@ cp .env.template .env    # Pre-configured for the Podman cluster
 npm run dev
 ```
 
+### Session Cache (Redis/Valkey)
+
+Sessions hold OAuth access/refresh/ID tokens and short-lived STS credentials. **TLS is required in production.** The app refuses to boot when `NODE_ENV !== "development"` unless one of the following is true:
+
+| Env var                          | Value    | Meaning                                                                                              |
+| -------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `REDIS_TLS`                      | `"true"` | Wrap the ioredis connection in TLS (recommended).                                                    |
+| `REDIS_CA_CERT`                  | PEM      | Optional CA bundle for self-signed deployments. Multi-line PEM string.                               |
+| `REDIS_TLS_SERVER_NAME`          | hostname | Optional SNI / certificate hostname override.                                                        |
+| `REDIS_INSECURE_ALLOW_PLAINTEXT` | `"true"` | Explicit opt-out for trusted private networks. Logs a warning. Not for use on shared infrastructure. |
+
+The local Podman cluster runs Valkey without TLS, which is allowed because `NODE_ENV=development`. Managed Valkey deployments (helm chart, AWS ElastiCache, etc.) should set `REDIS_TLS=true`. Valkey reuses the standard `6379` port for TLS when `tls.enabled` is set — it does not move the listener to `6380` and refuses plaintext on the same port — so leave `REDIS_PORT` at `6379` unless your provider explicitly publishes a separate TLS endpoint.
+
+In the production cluster (see `cytario-infrastructure`, C-212) the Valkey leaf cert is signed by a cluster-internal CA managed by cert-manager. The CA's public cert is distributed to every namespace as a `cytario-internal-ca` ConfigMap by trust-manager, and the `cytario-web` helm chart's `redis.caCertConfigMap.{name,key}` wires it into the pod as `REDIS_CA_CERT` via `valueFrom.configMapKeyRef`. The app sees the PEM through the normal env var path — no code-side knowledge of the trust source is required.
+
 ### Database
 
 PostgreSQL with [Prisma ORM](https://www.prisma.io/). Connection configured via `DATABASE_URL` in `.env`.
