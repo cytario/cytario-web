@@ -39,7 +39,15 @@ export const handle = {
 export const clientLoader = async ({
   request,
 }: ClientLoaderFunctionArgs): Promise<SearchRouteLoaderResponse> => {
-  const searchQuery = new URL(request.url).searchParams.get("query") ?? "";
+  const url = new URL(request.url);
+  const searchQuery = url.searchParams.get("query") ?? "";
+  const suffix = url.searchParams.get("suffix");
+  const keyFilter = suffix
+    ? (() => {
+        const needle = `.${suffix.toLowerCase()}`;
+        return (key: string) => key.toLowerCase().endsWith(needle);
+      })()
+    : undefined;
   const connections = useConnectionsStore.getState().connections;
   const signal = request.signal;
 
@@ -50,7 +58,8 @@ export const clientLoader = async ({
       const prefix = getPrefix(config.prefix);
       try {
         const { contents, isCapped } = await listObjectsClient(config, credentials, {
-          query: searchQuery,
+          query: keyFilter ? null : searchQuery,
+          keyFilter,
           prefix,
           recursive: true,
           signal,

@@ -87,7 +87,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="parquet" />);
 
-    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?query=parquet");
+    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?suffix=parquet");
   });
 
   test("fetches files on mount with correct search query for csv", () => {
@@ -95,7 +95,7 @@ describe("AddOverlay", () => {
 
     render(<AddOverlay query="csv" />);
 
-    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?query=csv");
+    expect(mockUseFetcherLoad).toHaveBeenCalledWith("/search?suffix=csv");
   });
 
   test("shows loading state while fetcher is loading", () => {

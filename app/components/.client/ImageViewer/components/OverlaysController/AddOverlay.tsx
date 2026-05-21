@@ -17,7 +17,7 @@ interface AddOverlayProps {
 export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const { toast } = useToast();
 
-  const searchString = `/search?query=${query}`;
+  const searchString = `/search?suffix=${encodeURIComponent(query)}`;
 
   // Fetch available files on mount
   const objectsFetcher = useFetcher<SearchRouteLoaderResponse>();

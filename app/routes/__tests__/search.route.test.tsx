@@ -265,6 +265,64 @@ describe("SearchRoute", () => {
     expect(result.notification?.message).not.toMatch(/Small Bucket/);
   });
 
+  test("?suffix= pushes a keyFilter into listObjectsClient and skips the substring query", async () => {
+    const config = mock.connectionConfig({ name: "c", prefix: "" });
+    listObjectsClient.mockResolvedValue({ contents: [], commonPrefixes: [], isCapped: false });
+
+    seedConnectionsStore([config]);
+
+    const request = new Request("http://localhost/search?suffix=parquet");
+    await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(listObjectsClient).toHaveBeenCalledWith(
+      config,
+      expect.anything(),
+      expect.objectContaining({
+        query: null,
+        recursive: true,
+        keyFilter: expect.any(Function),
+      }),
+    );
+
+    const passedFilter = listObjectsClient.mock.calls[0][2].keyFilter as (k: string) => boolean;
+    expect(passedFilter("a/b/c.parquet")).toBe(true);
+    expect(passedFilter("a/b/c.PARQUET")).toBe(true);
+    expect(passedFilter("a/b/c.tif")).toBe(false);
+    expect(passedFilter("parquet")).toBe(false);
+  });
+
+  test("?suffix= is case-insensitive on the suffix itself", async () => {
+    const config = mock.connectionConfig({ name: "c", prefix: "" });
+    listObjectsClient.mockResolvedValue({ contents: [], commonPrefixes: [], isCapped: false });
+
+    seedConnectionsStore([config]);
+
+    const request = new Request("http://localhost/search?suffix=Parquet");
+    await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    const passedFilter = listObjectsClient.mock.calls[0][2].keyFilter as (k: string) => boolean;
+    expect(passedFilter("foo/bar.parquet")).toBe(true);
+  });
+
+  test("?query= alone (no suffix) still uses the substring filter and no keyFilter", async () => {
+    const config = mock.connectionConfig({ name: "c", prefix: "" });
+    listObjectsClient.mockResolvedValue({ contents: [], commonPrefixes: [], isCapped: false });
+
+    seedConnectionsStore([config]);
+
+    const request = new Request("http://localhost/search?query=match");
+    await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
+
+    expect(listObjectsClient).toHaveBeenCalledWith(
+      config,
+      expect.anything(),
+      expect.objectContaining({
+        query: "match",
+        keyFilter: undefined,
+      }),
+    );
+  });
+
   test("clientLoader omits the notification when nothing was capped", async () => {
     const config = mock.connectionConfig();
 
