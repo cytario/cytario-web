@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { type ConnectionConfig } from "~/.generated/client";
-import { NodeLink } from "~/components/NodeLink";
+import { NodeLink } from "~/components/NodeLink/NodeLink";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";

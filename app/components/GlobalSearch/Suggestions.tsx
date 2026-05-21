@@ -3,7 +3,7 @@ import { Loader2, SearchX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { TreeNode } from "../DirectoryView/buildDirectoryTree";
-import { NodeLinkList } from "../NodeLink";
+import { NodeLinkList } from "../NodeLink/NodeLinkList";
 
 interface SuggestionsProps {
   nodes: TreeNode[];

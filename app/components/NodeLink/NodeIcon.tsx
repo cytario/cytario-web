@@ -19,7 +19,7 @@ export function NodeIcon({ node, size = 16, className }: NodeIconProps) {
   return createElement(getNodeIcon(node), {
     size,
     strokeWidth: 1.5,
-    className: twMerge("shrink-0 text-(--color-text-secondary)", className),
+    className: twMerge("shrink-0", className),
     "aria-hidden": true,
   });
 }

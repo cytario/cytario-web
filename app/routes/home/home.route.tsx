@@ -130,7 +130,7 @@ export default function HomeRoute() {
       <DashboardSection
         title="Recent Files"
         nodes={recentFiles}
-        viewMode="grid-compact"
+        viewMode="grid"
         maxItems={MAX_RECENT_FILES}
         showAllHref="/recent"
       />

@@ -45,7 +45,7 @@ export function DirectoryView({
   flush,
 }: DirectoryViewProps) {
   const columns = kind === "connections" ? connectionColumns : fileColumns;
-  const isGrid = viewMode === "grid" || viewMode === "grid-compact";
+  const isGrid = viewMode === "grid";
   const isTree = viewMode === "tree";
 
   const connections = useConnectionsStore(select.connections);
@@ -110,7 +110,7 @@ export function DirectoryView({
         {isTree ? (
           <DirectoryViewTree nodes={visibleNodes} searchTerm={nameFilter} kind={kind} />
         ) : isGrid ? (
-          <DirectoryViewGrid nodes={filteredNodes} viewMode={viewMode} kind={kind} />
+          <DirectoryViewGrid nodes={filteredNodes} kind={kind} />
         ) : kind === "connections" ? (
           <DirectoryViewTableConnection nodes={filteredNodes} showFilters={showFilters} />
         ) : (

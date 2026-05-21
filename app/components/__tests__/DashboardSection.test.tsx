@@ -11,10 +11,8 @@ vi.mock("~/components/DirectoryView/DirectoryViewTableDirectory", () => ({
 }));
 
 vi.mock("~/components/DirectoryView/DirectoryViewGrid", () => ({
-  DirectoryViewGrid: ({ nodes, viewMode }: { nodes: TreeNode[]; viewMode: string }) => (
-    <div data-testid="directory-view-grid" data-view-mode={viewMode}>
-      {nodes.length} items
-    </div>
+  DirectoryViewGrid: ({ nodes }: { nodes: TreeNode[] }) => (
+    <div data-testid="directory-view-grid">{nodes.length} items</div>
   ),
 }));
 
@@ -72,24 +70,6 @@ describe("DashboardSection", () => {
       <DashboardSection title="Files" nodes={[makeNode("a.csv")]} viewMode="grid" maxItems={10} />,
     );
     expect(screen.getByTestId("directory-view-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("directory-view-grid")).toHaveAttribute("data-view-mode", "grid");
-    expect(screen.queryByTestId("directory-view-table")).not.toBeInTheDocument();
-  });
-
-  test("renders DirectoryViewGrid for grid-compact viewMode", () => {
-    renderWithRouter(
-      <DashboardSection
-        title="Files"
-        nodes={[makeNode("a.csv")]}
-        viewMode="grid-compact"
-        maxItems={10}
-      />,
-    );
-    expect(screen.getByTestId("directory-view-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("directory-view-grid")).toHaveAttribute(
-      "data-view-mode",
-      "grid-compact",
-    );
     expect(screen.queryByTestId("directory-view-table")).not.toBeInTheDocument();
   });
 
