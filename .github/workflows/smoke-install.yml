@@ -101,6 +101,11 @@ jobs:
           DATABASE_URL: postgresql://cytario:cytario@localhost:5432/cytario
           PORT: "3000"
           HOST: "127.0.0.1"
+          # Run as NODE_ENV=test so the Redis TLS + AUTH boot guards stay
+          # in their local-env branch — the smoke probe never touches the
+          # session store and we don't want to wire a real Valkey just to
+          # boot the binary.
+          NODE_ENV: test
           # Stub the envs `app/config.ts` reads at module init — /healthz
           # never touches them, but the import crashes if they're unset.
           BASE_URL: http://localhost:8080
@@ -112,7 +117,6 @@ jobs:
           SCOPES: openid
           COOKIE_SECRET: smoke-cookie-secret
           WEB_HOST: http://127.0.0.1:3000
-          REDIS_INSECURE_ALLOW_PLAINTEXT: true
         run: |
           cd "$CONSUMER"
           npx --no-install cytario-web start &
