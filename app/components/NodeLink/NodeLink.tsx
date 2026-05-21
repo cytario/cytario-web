@@ -50,7 +50,7 @@ export function NodeLink({ node, onClick, contextMenu = true, className }: NodeL
   `;
 
   return (
-    <div className={twMerge("flex items-center gap-2 min-w-0", className, "bg-rose-400")}>
+    <div className={twMerge("flex items-center gap-1 min-w-0", className, "bg-purple-500")}>
       <Link
         to={to}
         onKeyDown={handleKeyDown}
@@ -83,6 +83,7 @@ export function NodeLink({ node, onClick, contextMenu = true, className }: NodeL
             onPress={openInfo}
             variant="ghost"
             size="sm"
+            className="w-6 h-2"
           />
         ))}
     </div>

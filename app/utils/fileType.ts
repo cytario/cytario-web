@@ -1,9 +1,6 @@
 import {
-  Archive,
   Braces,
-  File,
   FileSpreadsheet,
-  Folder,
   Image,
   Microscope,
   Table,
@@ -225,34 +222,4 @@ export function getFileTypeIcon(path: string): LucideIconName {
     if (entry.pattern.test(cleaned)) return entry.icon;
   }
   return "File";
-}
-
-/**
- * Returns the appropriate Lucide icon component based on node type
- * (bucket/directory) and file extension.
- */
-export function getNodeIcon(node: { type: string; name: string }): LucideIcon {
-  if (node.type === "bucket") return Archive;
-  if (node.type === "directory") return Folder;
-
-  const cleaned = stripUrlSuffix(node.name);
-  for (const entry of allFileTypes()) {
-    if (entry.pattern.test(cleaned)) return entry.iconComponent;
-  }
-  return File;
-}
-
-/** Falls back to uppercase extension or "File". */
-export function getTypeLabel(node: { type: string; name: string }): string {
-  if (node.type === "bucket") return "Bucket";
-  if (node.type === "directory") return "Folder";
-
-  const cleaned = stripUrlSuffix(node.name);
-  for (const entry of allFileTypes()) {
-    if (entry.pattern.test(cleaned)) return entry.label;
-  }
-
-  const lastDot = cleaned.lastIndexOf(".");
-  if (lastDot === -1) return "File";
-  return cleaned.slice(lastDot + 1).toUpperCase();
 }
