@@ -22,7 +22,7 @@ interface CytarioConfig {
     host: string;
     /** Optional username for authenticated connections (Redis 6+ ACL / Valkey) */
     username?: string;
-    /** Optional password for authenticated connections */
+    /** Password for authenticated connections. Optional in development only */
     password?: string;
   };
   cookie: CookieOptions;

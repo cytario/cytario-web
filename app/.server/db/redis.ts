@@ -42,11 +42,10 @@ redis.on("error", (err) => {
 });
 
 redis.on("connect", () => {
-  const authInfo = options.username
-    ? ` (authenticated as ${options.username})`
-    : options.password
-      ? " (authenticated)"
-      : "";
-  const tlsInfo = options.tls ? " over TLS" : "";
-  console.log(`Connected to Redis/Valkey at ${options.host}:${options.port}${authInfo}${tlsInfo}`);
+  const auth = options.password ? "on" : "off";
+  const tls = options.tls ? "on" : "off";
+  const who = options.username ? ` as ${options.username}` : "";
+  console.log(
+    `Connected to Redis/Valkey at ${options.host}:${options.port}${who} (AUTH ${auth}, TLS ${tls})`,
+  );
 });
