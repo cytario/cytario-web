@@ -1,6 +1,5 @@
 import {
   Banner,
-  Field,
   Fieldset,
   FormWizard,
   FormWizardNav,
@@ -97,14 +96,7 @@ export const ConnectionForm = ({
 
   const [currentStep, setCurrentStep] = useState(initialStep);
 
-  const {
-    control,
-    handleSubmit,
-    setError,
-    setValue,
-    trigger,
-    formState: { errors },
-  } = useForm<ConnectBucketFormData>({
+  const { control, handleSubmit, setError, setValue, trigger } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectionSchema),
     defaultValues: initialData
       ? {
@@ -212,165 +204,147 @@ export const ConnectionForm = ({
         >
           {currentStep === 0 && (
             <Fieldset>
-              <Field label="Provider" error={errors.providerType}>
-                <Controller
-                  name="providerType"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      items={providerItems}
-                      renderItem={(item) => <ProviderPill provider={item.id} />}
-                      selectedKey={field.value}
-                      onSelectionChange={(key) => field.onChange(key)}
-                    />
-                  )}
-                />
-              </Field>
+              <Controller
+                name="providerType"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Select
+                    label="Provider"
+                    items={providerItems}
+                    renderItem={(item) => <ProviderPill provider={item.id} />}
+                    selectedKey={field.value}
+                    onSelectionChange={(key) => field.onChange(key)}
+                    errorMessage={fieldState.error?.message}
+                  />
+                )}
+              />
 
-              <Field
-                label="S3 URI"
-                description="Bucket name and optional path prefix."
-                error={errors.s3Uri}
-              >
-                <Controller
-                  name="s3Uri"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      value={field.value}
-                      onChange={(val) => {
-                        const trimmed = val.replace(/^s3:\/\//, "");
-                        field.onChange(trimmed);
-                      }}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      placeholder="my-bucket/path/prefix"
-                      prefix="s3://"
-                      size="lg"
-                    />
-                  )}
-                />
-              </Field>
+              <Controller
+                name="s3Uri"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Input
+                    label="S3 URI"
+                    description="Bucket name and optional path prefix."
+                    value={field.value}
+                    onChange={(val) => {
+                      const trimmed = val.replace(/^s3:\/\//, "");
+                      field.onChange(trimmed);
+                    }}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    placeholder="my-bucket/path/prefix"
+                    prefix="s3://"
+                    size="lg"
+                    errorMessage={fieldState.error?.message}
+                  />
+                )}
+              />
 
-              <Field
-                label="Name"
-                description="A friendly name, auto-suggested from the S3 URI."
-                error={errors.name}
-              >
-                <Controller
-                  name="name"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      value={field.value}
-                      onChange={(val) => {
-                        if (!isAutoUpdatingName.current) {
-                          userEditedName.current = true;
-                        }
-                        field.onChange(val);
-                      }}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      placeholder="my-connection"
-                      size="lg"
-                    />
-                  )}
-                />
-              </Field>
+              <Controller
+                name="name"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Input
+                    label="Name"
+                    description="A friendly name, auto-suggested from the S3 URI."
+                    value={field.value}
+                    onChange={(val) => {
+                      if (!isAutoUpdatingName.current) {
+                        userEditedName.current = true;
+                      }
+                      field.onChange(val);
+                    }}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    placeholder="my-connection"
+                    size="lg"
+                    errorMessage={fieldState.error?.message}
+                  />
+                )}
+              />
             </Fieldset>
           )}
 
           {currentStep === 1 && (
             <Fieldset>
               {adminScopes.length > 0 && (
-                <Field
-                  label="Visibility"
-                  description="Who can access this connection."
-                  error={errors.ownerScope}
-                >
-                  <Controller
-                    name="ownerScope"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        items={[
-                          { id: userId, name: "Personal" },
-                          ...adminScopes.map((str) => ({
-                            id: str,
-                            name: str,
-                          })),
-                        ]}
-                        selectedKey={field.value}
-                        onSelectionChange={(key) => field.onChange(key)}
-                        renderItem={(item) => <ScopePill scope={item.id} />}
-                      />
-                    )}
-                  />
-                </Field>
+                <Controller
+                  name="ownerScope"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Select
+                      label="Visibility"
+                      description="Who can access this connection."
+                      items={[
+                        { id: userId, name: "Personal" },
+                        ...adminScopes.map((str) => ({
+                          id: str,
+                          name: str,
+                        })),
+                      ]}
+                      selectedKey={field.value}
+                      onSelectionChange={(key) => field.onChange(key)}
+                      renderItem={(item) => <ScopePill scope={item.id} />}
+                      errorMessage={fieldState.error?.message}
+                    />
+                  )}
+                />
               )}
 
               {isAWS ? (
                 <>
-                  <Field
-                    label="Role ARN"
-                    description="IAM role Cytario assumes to access your S3 data."
-                    error={errors.roleArn}
-                  >
-                    <Controller
-                      name="roleArn"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          value={field.value}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          placeholder="arn:aws:iam::123456789012:role/MyRole"
-                          size="lg"
-                        />
-                      )}
-                    />
-                  </Field>
-
-                  <Field
-                    label="Region"
-                    description="AWS region where this bucket is located."
-                    error={errors.bucketRegion}
-                  >
-                    <Controller
-                      name="bucketRegion"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          items={regionItems}
-                          selectedKey={field.value}
-                          onSelectionChange={(key) => field.onChange(key)}
-                        />
-                      )}
-                    />
-                  </Field>
-                </>
-              ) : (
-                <Field
-                  label="Endpoint"
-                  description="Endpoint URL of your S3-compatible storage."
-                  error={errors.bucketEndpoint}
-                >
                   <Controller
-                    name="bucketEndpoint"
+                    name="roleArn"
                     control={control}
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <Input
+                        label="Role ARN"
+                        description="IAM role Cytario assumes to access your S3 data."
                         value={field.value}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
                         name={field.name}
-                        placeholder="https://s3.cytario.com"
+                        placeholder="arn:aws:iam::123456789012:role/MyRole"
                         size="lg"
+                        errorMessage={fieldState.error?.message}
                       />
                     )}
                   />
-                </Field>
+
+                  <Controller
+                    name="bucketRegion"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <Select
+                        label="Region"
+                        description="AWS region where this bucket is located."
+                        items={regionItems}
+                        selectedKey={field.value}
+                        onSelectionChange={(key) => field.onChange(key)}
+                        errorMessage={fieldState.error?.message}
+                      />
+                    )}
+                  />
+                </>
+              ) : (
+                <Controller
+                  name="bucketEndpoint"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Input
+                      label="Endpoint"
+                      description="Endpoint URL of your S3-compatible storage."
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      placeholder="https://s3.cytario.com"
+                      size="lg"
+                      errorMessage={fieldState.error?.message}
+                    />
+                  )}
+                />
               )}
             </Fieldset>
           )}

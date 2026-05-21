@@ -1,4 +1,4 @@
-import { Button, Checkbox, Field, Icon, IconButton, Input, Select } from "@cytario/design";
+import { Button, Checkbox, Icon, IconButton, Input, Select } from "@cytario/design";
 import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
@@ -150,9 +150,10 @@ export function BulkInviteForm({
             renderItem={(item) => <ScopePill scope={item.id} />}
           />
         ) : (
-          <Field label="Group Membership">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-(--color-text-primary)">Group Membership</p>
             <p className="text-sm text-slate-400">No groups available in this scope.</p>
-          </Field>
+          </div>
         )}
         <div className="flex items-center gap-2">
           <Checkbox isSelected={enabled} onChange={setEnabled}>
@@ -164,16 +165,30 @@ export function BulkInviteForm({
         </div>
       </div>
 
-      {formError && <p className="text-sm text-rose-600 mb-4">{formError}</p>}
+      {formError && (
+        <p role="alert" className="text-sm text-rose-600 mb-4">
+          {formError}
+        </p>
+      )}
 
       <table ref={tableRef} className="w-full border-collapse">
         <thead>
           <tr className="text-left text-sm text-slate-500">
-            <th className="w-10 pr-2 py-2 font-medium">#</th>
-            <th className="px-1 py-2 font-medium">Email</th>
-            <th className="px-1 py-2 font-medium">First Name</th>
-            <th className="px-1 py-2 font-medium">Last Name</th>
-            <th className="w-8" />
+            <th scope="col" className="w-10 pr-2 py-2 font-medium">
+              #
+            </th>
+            <th scope="col" className="px-1 py-2 font-medium">
+              Email
+            </th>
+            <th scope="col" className="px-1 py-2 font-medium">
+              First Name
+            </th>
+            <th scope="col" className="px-1 py-2 font-medium">
+              Last Name
+            </th>
+            <th scope="col" className="w-8">
+              <span className="sr-only">Remove</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -185,6 +200,7 @@ export function BulkInviteForm({
                 </td>
                 <td className="px-1 py-1">
                   <Input
+                    aria-label={`Email, row ${i + 1}`}
                     value={row.email}
                     onChange={(value) => updateRow(i, "email", value)}
                     placeholder="email@example.com"
@@ -194,6 +210,7 @@ export function BulkInviteForm({
                 </td>
                 <td className="px-1 py-1">
                   <Input
+                    aria-label={`First name, row ${i + 1}`}
                     value={row.firstName}
                     onChange={(value) => updateRow(i, "firstName", value)}
                     placeholder="First"
@@ -203,6 +220,7 @@ export function BulkInviteForm({
                 </td>
                 <td className="px-1 py-1">
                   <Input
+                    aria-label={`Last name, row ${i + 1}`}
                     value={row.lastName}
                     onChange={(value) => updateRow(i, "lastName", value)}
                     placeholder="Last"

@@ -1,4 +1,4 @@
-import { Field, Fieldset, Input } from "@cytario/design";
+import { Fieldset, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useSubmit } from "react-router";
@@ -13,11 +13,7 @@ interface CreateGroupFormProps {
 export function CreateGroupForm({ scope }: CreateGroupFormProps) {
   const submit = useSubmit();
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<CreateGroupFormData>({
+  const { control, handleSubmit } = useForm<CreateGroupFormData>({
     resolver: zodResolver(createGroupSchema),
     defaultValues: { name: "" },
     mode: "onBlur",
@@ -34,20 +30,20 @@ export function CreateGroupForm({ scope }: CreateGroupFormProps) {
   return (
     <form id="create-group-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Fieldset>
-        <Field label="Group name" error={errors.name}>
-          <Controller
-            control={control}
-            name="name"
-            render={({ field }) => (
-              <Input
-                size="lg"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-              />
-            )}
-          />
-        </Field>
+        <Controller
+          control={control}
+          name="name"
+          render={({ field, fieldState }) => (
+            <Input
+              label="Group name"
+              size="lg"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              errorMessage={fieldState.error?.message}
+            />
+          )}
+        />
       </Fieldset>
 
       {nameValue.trim() && (

@@ -1,4 +1,4 @@
-import { Checkbox, Field, Fieldset, H3, Input } from "@cytario/design";
+import { Checkbox, Fieldset, H3, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -30,11 +30,7 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
     return ids;
   });
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<UpdateUserFormData>({
+  const { control, handleSubmit } = useForm<UpdateUserFormData>({
     resolver: zodResolver(updateUserSchema),
     defaultValues: {
       email: user.email,
@@ -136,49 +132,49 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
     <>
       <form id="update-form" onSubmit={handleSubmit(onSubmit)} className="">
         <Fieldset>
-          <Field label="Email" error={errors.email}>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field }) => (
-                <Input
-                  type="email"
-                  size="lg"
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                />
-              )}
-            />
-          </Field>
-          <Field label="First name" error={errors.firstName}>
-            <Controller
-              control={control}
-              name="firstName"
-              render={({ field }) => (
-                <Input
-                  size="lg"
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                />
-              )}
-            />
-          </Field>
-          <Field label="Last name" error={errors.lastName}>
-            <Controller
-              control={control}
-              name="lastName"
-              render={({ field }) => (
-                <Input
-                  size="lg"
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                />
-              )}
-            />
-          </Field>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field, fieldState }) => (
+              <Input
+                label="Email"
+                type="email"
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                errorMessage={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="firstName"
+            render={({ field, fieldState }) => (
+              <Input
+                label="First name"
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                errorMessage={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="lastName"
+            render={({ field, fieldState }) => (
+              <Input
+                label="Last name"
+                size="lg"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                errorMessage={fieldState.error?.message}
+              />
+            )}
+          />
           <div className="flex items-center gap-2">
             <Controller
               control={control}
