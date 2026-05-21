@@ -144,6 +144,13 @@ import { cytarioConfig } from "~/config";
 - Prisma generates types — never manually duplicate DB types
 - Prefer `interface` for object shapes, `type` for unions/intersections
 
+### Comments
+
+- Default to **no comments**. Well-named identifiers should carry the meaning. Only add a comment when the _why_ is non-obvious (a hidden constraint, a subtle invariant, a workaround for a specific bug, behavior that would surprise a reader).
+- **Keep comments concise.** One short line in most cases. Never write multi-paragraph commentary or restate what the code already says.
+- **Do not reference ticket numbers** (e.g. `C-205`, `WEB-344`, `OWASP A05:2021`) in code comments or JSDoc. Ticket IDs rot — the issue gets renamed, closed, or migrated, and the comment becomes a dangling reference. The PR description, commit message, and `git blame` already carry that context; let them.
+- Do not reference the current task, fix, or callers (`used by X`, `added for the Y flow`, `handles the case from issue #123`) — that context belongs in the PR description and rots as the codebase evolves.
+
 ### File Colocation
 
 - **Colocate route-related resources** — modals, forms, actions, schemas, and loaders live next to their route file, not in separate top-level directories

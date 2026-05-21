@@ -54,15 +54,15 @@ describe("buildRedisOptions", () => {
     });
 
     test("throws in production when TLS is off and no opt-out flag is set", () => {
-      expect(() => buildRedisOptions(baseEnv({ NODE_ENV: "production" }))).toThrow(
-        /Refusing to start.*REDIS_TLS/,
-      );
+      expect(() =>
+        buildRedisOptions(baseEnv({ NODE_ENV: "production", REDIS_PASSWORD: "secret" })),
+      ).toThrow(/Refusing to start.*REDIS_TLS/);
     });
 
     test("throws in any non-development NODE_ENV (e.g. staging) when TLS is off", () => {
-      expect(() => buildRedisOptions(baseEnv({ NODE_ENV: "staging" }))).toThrow(
-        /Refusing to start/,
-      );
+      expect(() =>
+        buildRedisOptions(baseEnv({ NODE_ENV: "staging", REDIS_PASSWORD: "secret" })),
+      ).toThrow(/Refusing to start/);
     });
 
     test("does not throw in production when REDIS_INSECURE_ALLOW_PLAINTEXT=true", () => {
@@ -70,7 +70,11 @@ describe("buildRedisOptions", () => {
       try {
         expect(() =>
           buildRedisOptions(
-            baseEnv({ NODE_ENV: "production", REDIS_INSECURE_ALLOW_PLAINTEXT: "true" }),
+            baseEnv({
+              NODE_ENV: "production",
+              REDIS_PASSWORD: "secret",
+              REDIS_INSECURE_ALLOW_PLAINTEXT: "true",
+            }),
           ),
         ).not.toThrow();
         expect(warn).toHaveBeenCalledWith(expect.stringMatching(/REDIS_INSECURE_ALLOW_PLAINTEXT/));
@@ -82,14 +86,21 @@ describe("buildRedisOptions", () => {
 
   describe("TLS on", () => {
     test("sets an empty tls object when REDIS_TLS=true with no CA/SNI", () => {
-      const options = buildRedisOptions(baseEnv({ NODE_ENV: "production", REDIS_TLS: "true" }));
+      const options = buildRedisOptions(
+        baseEnv({ NODE_ENV: "production", REDIS_PASSWORD: "secret", REDIS_TLS: "true" }),
+      );
       expect(options.tls).toEqual({});
     });
 
     test("passes the CA certificate through to the tls option", () => {
       const ca = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----";
       const options = buildRedisOptions(
-        baseEnv({ NODE_ENV: "production", REDIS_TLS: "true", REDIS_CA_CERT: ca }),
+        baseEnv({
+          NODE_ENV: "production",
+          REDIS_PASSWORD: "secret",
+          REDIS_TLS: "true",
+          REDIS_CA_CERT: ca,
+        }),
       );
       expect(options.tls).toEqual({ ca });
     });
@@ -98,6 +109,7 @@ describe("buildRedisOptions", () => {
       const options = buildRedisOptions(
         baseEnv({
           NODE_ENV: "production",
+          REDIS_PASSWORD: "secret",
           REDIS_TLS: "true",
           REDIS_TLS_SERVER_NAME: "valkey.internal",
         }),
@@ -107,8 +119,71 @@ describe("buildRedisOptions", () => {
 
     test("does not throw in production when TLS is on", () => {
       expect(() =>
-        buildRedisOptions(baseEnv({ NODE_ENV: "production", REDIS_TLS: "true" })),
+        buildRedisOptions(
+          baseEnv({ NODE_ENV: "production", REDIS_PASSWORD: "secret", REDIS_TLS: "true" }),
+        ),
       ).not.toThrow();
+    });
+  });
+
+  describe("AUTH guard", () => {
+    test("throws in production when REDIS_PASSWORD is unset", () => {
+      expect(() =>
+        buildRedisOptions(baseEnv({ NODE_ENV: "production", REDIS_TLS: "true" })),
+      ).toThrow(/Refusing to start.*REDIS_PASSWORD/);
+    });
+
+    test("throws in production when REDIS_PASSWORD is the empty string", () => {
+      expect(() =>
+        buildRedisOptions(
+          baseEnv({ NODE_ENV: "production", REDIS_TLS: "true", REDIS_PASSWORD: "" }),
+        ),
+      ).toThrow(/Refusing to start.*REDIS_PASSWORD/);
+    });
+
+    test("throws in any non-development NODE_ENV (e.g. staging) when REDIS_PASSWORD is unset", () => {
+      expect(() => buildRedisOptions(baseEnv({ NODE_ENV: "staging", REDIS_TLS: "true" }))).toThrow(
+        /Refusing to start.*REDIS_PASSWORD/,
+      );
+    });
+
+    test("does not throw in production when REDIS_PASSWORD is set and TLS is on", () => {
+      expect(() =>
+        buildRedisOptions(
+          baseEnv({ NODE_ENV: "production", REDIS_TLS: "true", REDIS_PASSWORD: "secret" }),
+        ),
+      ).not.toThrow();
+    });
+
+    test("allows missing password in development", () => {
+      expect(() => buildRedisOptions(baseEnv({ NODE_ENV: "development" }))).not.toThrow();
+    });
+
+    test("allows missing password under NODE_ENV=test", () => {
+      expect(() => buildRedisOptions(baseEnv({ NODE_ENV: "test" }))).not.toThrow();
+    });
+
+    test("auth guard fires before TLS guard so the operator sees the AUTH error first", () => {
+      expect(() => buildRedisOptions(baseEnv({ NODE_ENV: "production" }))).toThrow(
+        /REDIS_PASSWORD/,
+      );
+    });
+  });
+
+  describe("REDIS_KEY_PREFIX", () => {
+    test("omits keyPrefix when REDIS_KEY_PREFIX is unset", () => {
+      const options = buildRedisOptions(baseEnv());
+      expect(options.keyPrefix).toBeUndefined();
+    });
+
+    test("omits keyPrefix when REDIS_KEY_PREFIX is the empty string", () => {
+      const options = buildRedisOptions(baseEnv({ REDIS_KEY_PREFIX: "" }));
+      expect(options.keyPrefix).toBeUndefined();
+    });
+
+    test("passes REDIS_KEY_PREFIX through to the keyPrefix option", () => {
+      const options = buildRedisOptions(baseEnv({ REDIS_KEY_PREFIX: "cytario-web:" }));
+      expect(options.keyPrefix).toBe("cytario-web:");
     });
   });
 });

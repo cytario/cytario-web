@@ -14,6 +14,7 @@ import { buildRedisOptions } from "./redisOptions";
  * - REDIS_PORT: Server port (default: 6379)
  * - REDIS_USERNAME: Optional username for authenticated connections (Redis 6+ / Valkey)
  * - REDIS_PASSWORD: Optional password for authenticated connections
+ * - REDIS_KEY_PREFIX: Optional prefix prepended to every key (e.g. "cytario-web:")
  * - REDIS_TLS: Set to "true" to wrap the connection in TLS (required in production)
  * - REDIS_CA_CERT: Optional PEM-encoded CA certificate (string) for self-signed deployments
  * - REDIS_TLS_SERVER_NAME: Optional SNI / certificate hostname override
@@ -35,6 +36,14 @@ import { buildRedisOptions } from "./redisOptions";
 
 const options = buildRedisOptions(process.env);
 
+const auth = options.password ? "on" : "off";
+const tls = options.tls ? "on" : "off";
+const who = options.username ? ` as ${options.username}` : "";
+const prefix = options.keyPrefix ? `, prefix "${options.keyPrefix}"` : "";
+console.log(
+  `Redis/Valkey config: ${options.host}:${options.port}${who} (AUTH ${auth}, TLS ${tls}${prefix})`,
+);
+
 export const redis = new Redis(options);
 
 redis.on("error", (err) => {
@@ -42,11 +51,5 @@ redis.on("error", (err) => {
 });
 
 redis.on("connect", () => {
-  const authInfo = options.username
-    ? ` (authenticated as ${options.username})`
-    : options.password
-      ? " (authenticated)"
-      : "";
-  const tlsInfo = options.tls ? " over TLS" : "";
-  console.log(`Connected to Redis/Valkey at ${options.host}:${options.port}${authInfo}${tlsInfo}`);
+  console.log(`Connected to Redis/Valkey at ${options.host}:${options.port}`);
 });

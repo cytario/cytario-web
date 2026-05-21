@@ -85,7 +85,7 @@ function runStart(forwardedArgs) {
   const child = spawn(process.execPath, [serverEntry, ...forwardedArgs], {
     cwd: PACKAGE_ROOT,
     stdio: "inherit",
-    env: { ...process.env, NODE_ENV: "production" },
+    env: { ...process.env, NODE_ENV: process.env.NODE_ENV ?? "production" },
   });
   child.on("exit", (code, signal) => {
     if (signal) process.kill(process.pid, signal);
