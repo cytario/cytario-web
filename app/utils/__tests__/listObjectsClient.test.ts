@@ -230,6 +230,84 @@ describe("listObjectsClient", () => {
     expect(result.contents.map((o) => o.Key)).toEqual(["needle.tif"]);
   });
 
+  test("keyFilter drops non-matching keys per page before the maxTotal cap", async () => {
+    // Page 1: only non-matches → contents stays empty, loop continues past
+    // maxTotal because the cap is on filtered length, not raw scan.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        xml(
+          `<IsTruncated>true</IsTruncated><NextContinuationToken>p2</NextContinuationToken>${contentsXml(["a.tif", "b.tif", "c.tif"])}`,
+        ),
+        { status: 200 },
+      ),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(xml(`<IsTruncated>false</IsTruncated>${contentsXml(["deep/d.parquet"])}`), {
+        status: 200,
+      }),
+    );
+
+    const result = await listObjectsClient(mock.connectionConfig(), mock.credentials(), {
+      recursive: true,
+      keyFilter: (key) => key.endsWith(".parquet"),
+      maxTotal: 3,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.contents.map((o) => o.Key)).toEqual(["deep/d.parquet"]);
+    expect(result.isCapped).toBe(false);
+  });
+
+  test("maxScanned caps work on giant buckets even when keyFilter finds no matches", async () => {
+    // Page 1 alone exceeds maxScanned → break with isCapped=true reflecting
+    // S3's IsTruncated, never reaching page 2 where a match would have lived.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        xml(
+          `<IsTruncated>true</IsTruncated><NextContinuationToken>p2</NextContinuationToken>${contentsXml(["a.tif", "b.tif", "c.tif"])}`,
+        ),
+        { status: 200 },
+      ),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(xml(`<IsTruncated>false</IsTruncated>${contentsXml(["late.parquet"])}`), {
+        status: 200,
+      }),
+    );
+
+    const result = await listObjectsClient(mock.connectionConfig(), mock.credentials(), {
+      recursive: true,
+      keyFilter: (key) => key.endsWith(".parquet"),
+      maxScanned: 2,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.contents).toEqual([]);
+    expect(result.isCapped).toBe(true);
+  });
+
+  test("keyFilter cap counts matches, not raw entries", async () => {
+    // 3 raw entries, 2 matches. maxTotal=2 must stop once 2 parquets accrue.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        xml(
+          `<IsTruncated>true</IsTruncated><NextContinuationToken>p2</NextContinuationToken>${contentsXml(["a.parquet", "b.tif", "c.parquet"])}`,
+        ),
+        { status: 200 },
+      ),
+    );
+
+    const result = await listObjectsClient(mock.connectionConfig(), mock.credentials(), {
+      recursive: true,
+      keyFilter: (key) => key.endsWith(".parquet"),
+      maxTotal: 2,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.contents.map((o) => o.Key)).toEqual(["a.parquet", "c.parquet"]);
+    expect(result.isCapped).toBe(true);
+  });
+
   test("encodes wire query with RFC-3986 strict (matches SigV4 canonical form)", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(xml(`<IsTruncated>false</IsTruncated>`), { status: 200 }),

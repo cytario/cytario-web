@@ -5,7 +5,7 @@ import { SignatureV4 } from "@smithy/signature-v4";
 
 import { ExpiredCredentialsError, requestCredentialsRefresh } from "./credentialsRefresh";
 import { filterObjects } from "./filterObjects";
-import { DEFAULT_MAX_TOTAL } from "./listingLimits";
+import { DEFAULT_MAX_SCANNED, DEFAULT_MAX_TOTAL } from "./listingLimits";
 import { constructS3Url } from "./resourceId";
 import { CorsLikelyError } from "./signedFetch";
 import type { ConnectionConfig } from "~/.generated/client";
@@ -41,8 +41,16 @@ export interface ListObjectsClientOptions {
   recursive?: boolean;
   /** S3 page size. Default: 1000 (S3 max). */
   maxKeys?: number;
-  /** Hard cap on total entries (contents + commonPrefixes) collected across pages. Default: 10000. */
+  /** Hard cap on matched entries (contents + commonPrefixes) kept across pages. Default: 10000. */
   maxTotal?: number;
+  /** Hard cap on raw entries scanned across pages before `keyFilter`. Default: 100000. */
+  maxScanned?: number;
+  /**
+   * Applied per page before the `maxTotal` cap, so the cap bounds matches
+   * rather than raw scans. S3 has no server-side suffix filter, so
+   * suffix-restricted listings (e.g. `*.parquet`) must filter here.
+   */
+  keyFilter?: (key: string) => boolean;
   /**
    * Short-circuits pagination as soon as any object in a fetched page
    * satisfies the predicate. Useful for "first match wins" scans.
@@ -222,6 +230,8 @@ export async function listObjectsClient(
     recursive = false,
     maxKeys = DEFAULT_PAGE_SIZE,
     maxTotal = DEFAULT_MAX_TOTAL,
+    maxScanned = DEFAULT_MAX_SCANNED,
+    keyFilter,
     findFirst,
     signal,
   } = options;
@@ -237,6 +247,7 @@ export async function listObjectsClient(
   let continuationToken: string | undefined;
   let isCapped = false;
   let pageCount = 0;
+  let scannedCount = 0;
 
   do {
     const queryParams: Record<string, string> = {
@@ -296,13 +307,22 @@ export async function listObjectsClient(
     }
 
     pageCount++;
+    scannedCount += parsed.contents.length;
 
-    for (const obj of parsed.contents) contents.push(obj);
+    for (const obj of parsed.contents) {
+      if (keyFilter && (!obj.Key || !keyFilter(obj.Key))) continue;
+      contents.push(obj);
+    }
     for (const cp of parsed.commonPrefixes) commonPrefixes.push(cp);
 
     if (findFirst && contents.some(findFirst)) break;
 
     if (contents.length + commonPrefixes.length >= maxTotal) {
+      isCapped = parsed.isTruncated;
+      break;
+    }
+
+    if (scannedCount >= maxScanned) {
       isCapped = parsed.isTruncated;
       break;
     }
