@@ -1,12 +1,11 @@
 import { Tree } from "@cytario/design";
 import { icons } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { useLazyTreeNodes } from "./useLazyTreeNodes";
-import { TooltipSpan } from "../Tooltip/TooltipSpan";
 import { getFileTypeIcon } from "~/utils/fileType";
 import { buildConnectionPath } from "~/utils/resourceId";
 
@@ -63,62 +62,4 @@ export function DirectoryViewTree({
       />
     </div>
   );
-}
-
-interface DirectoryTreeProps {
-  nodes: TreeNode[];
-  action?: (node: TreeNode) => void;
-  className?: string;
-}
-
-function DirectoryTreeRecursive({ nodes, action, className }: DirectoryTreeProps) {
-  return (
-    <ul className="pl-6">
-      {nodes.map((node) => {
-        const to = buildConnectionPath(node.connectionName, node.pathName);
-
-        return (
-          <li key={node.name}>
-            <div className="flex items-center gap-1 min-h-8">
-              <Link
-                to={to}
-                className={[
-                  "flex flex-row grow items-center h-full min-w-0 gap-1",
-                  "text-cytario-turquoise-700 hover:text-cytario-turquoise-900 hover:underline",
-                  className,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={
-                  action
-                    ? (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        action(node);
-                      }
-                    : undefined
-                }
-              >
-                <NodeLinkIcon node={node} />
-                <TooltipSpan>{node.name}</TooltipSpan>
-              </Link>
-            </div>
-            {node.children && node.children.length > 0 && (
-              <DirectoryTreeRecursive nodes={node.children} action={action} className={className} />
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/**
- * Recursive tree for lightweight contexts where the design-system `<Tree>`
- * (fixed height + virtualization) doesn't fit.
- *
- * @deprecated Planned for removal as part of tree consolidation — C-150.
- */
-export function DirectoryTree(props: DirectoryTreeProps) {
-  return <DirectoryTreeRecursive {...props} />;
 }

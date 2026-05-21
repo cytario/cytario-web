@@ -6,7 +6,7 @@ import { type ClientLoaderFunctionArgs, useLoaderData } from "react-router";
 import type { ConnectionConfig } from "~/.generated/client";
 import { Section } from "~/components/Container";
 import { buildDirectoryTree, TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { DirectoryTree } from "~/components/DirectoryView/DirectoryViewTree";
+import { NodeLinkList } from "~/components/NodeLink";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -177,8 +177,8 @@ export default function SearchRoute() {
     <Section>
       <H1>{`Search: ${searchQuery}`}</H1>
 
-      <div className="bg-slate-100">
-        <DirectoryTree nodes={nodes} />
+      <div className="bg-slate-100 p-2">
+        <NodeLinkList nodes={nodes} />
       </div>
     </Section>
   );

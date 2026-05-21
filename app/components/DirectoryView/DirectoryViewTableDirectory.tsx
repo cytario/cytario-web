@@ -1,9 +1,9 @@
 import { Pill } from "@cytario/design";
 import { filesize } from "filesize";
 import { useMemo } from "react";
-import { Link } from "react-router";
 
 import { TreeNode, computeDirectorySize, computeDirectoryLastModified } from "./buildDirectoryTree";
+import { NodeLink } from "~/components/NodeLink";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
@@ -65,14 +65,23 @@ export const fileColumns: ColumnConfig[] = [
   },
 ];
 
-const fileCellRenderers: CellRenderers<FileRow> = {
-  // TODO(C-151): the name cell should render `[type icon] name` (folder icon
-  // for directories, file-type icon for files) to match the grid's FileCard.
-  name: (row) => <Link to={`/connections/${row.id}`}>{row.name}</Link>,
-  file_type: (row) => <Pill>{row.file_type}</Pill>,
-  last_modified: (row) => (row.last_modified ? formatHumanReadableDate(row.last_modified) : null),
-  size: (row) => (row.size ? filesize(row.size).toString() : null),
-};
+/**
+ * Builds cell renderers with closure access to the original TreeNode list, so
+ * the `name` renderer can hand NodeLink the full node (needed for icon
+ * selection + Info-modal hookup).
+ */
+function buildFileCellRenderers(nodes: TreeNode[]): CellRenderers<FileRow> {
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  return {
+    name: (row) => {
+      const node = nodesById.get(row.id);
+      return node ? <NodeLink node={node} contextMenu={false} /> : row.name;
+    },
+    file_type: (row) => <Pill>{row.file_type}</Pill>,
+    last_modified: (row) => (row.last_modified ? formatHumanReadableDate(row.last_modified) : null),
+    size: (row) => (row.size ? filesize(row.size).toString() : null),
+  };
+}
 
 interface DirectoryViewTableDirectoryProps {
   nodes: TreeNode[];
@@ -102,11 +111,13 @@ export function DirectoryViewTableDirectory({
     [nodes],
   );
 
+  const cellRenderers = useMemo(() => buildFileCellRenderers(nodes), [nodes]);
+
   return (
     <Table
       columns={fileColumns}
       data={data}
-      cellRenderers={fileCellRenderers}
+      cellRenderers={cellRenderers}
       tableId="entries"
       ariaLabel="Files and folders"
       showFilters={showFilters}
