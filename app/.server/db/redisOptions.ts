@@ -8,6 +8,9 @@ import type { RedisOptions } from "ioredis";
  * - `REDIS_PORT` (default: `6379`)
  * - `REDIS_USERNAME` — optional ACL username
  * - `REDIS_PASSWORD` — password; required outside development
+ * - `REDIS_KEY_PREFIX` — optional prefix prepended to every key issued by
+ *   this client (e.g. `"cytario-web:"`). Lets operators scope the app to a
+ *   single ACL keyspace pattern without code changes.
  * - `REDIS_TLS` — `"true"` to wrap the connection in TLS
  * - `REDIS_CA_CERT` — PEM-encoded CA certificate (string) used to verify
  *   the server when the cert chain is not in the system trust store
@@ -33,6 +36,7 @@ export function buildRedisOptions(env: Record<string, string | undefined>): Redi
   const caCert = env.REDIS_CA_CERT;
   const tlsServerName = env.REDIS_TLS_SERVER_NAME;
   const allowPlaintext = env.REDIS_INSECURE_ALLOW_PLAINTEXT === "true";
+  const keyPrefix = env.REDIS_KEY_PREFIX;
   const nodeEnv = env.NODE_ENV;
 
   const isLocalEnv = nodeEnv === "development" || nodeEnv === "test";
@@ -63,6 +67,7 @@ export function buildRedisOptions(env: Record<string, string | undefined>): Redi
     port,
     ...(username && { username }),
     ...(password && { password }),
+    ...(keyPrefix && { keyPrefix }),
     maxRetriesPerRequest: 3,
     retryStrategy(times) {
       const delay = Math.min(times * 50, 2000);

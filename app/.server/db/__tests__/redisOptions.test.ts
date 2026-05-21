@@ -169,4 +169,21 @@ describe("buildRedisOptions", () => {
       );
     });
   });
+
+  describe("REDIS_KEY_PREFIX", () => {
+    test("omits keyPrefix when REDIS_KEY_PREFIX is unset", () => {
+      const options = buildRedisOptions(baseEnv());
+      expect(options.keyPrefix).toBeUndefined();
+    });
+
+    test("omits keyPrefix when REDIS_KEY_PREFIX is the empty string", () => {
+      const options = buildRedisOptions(baseEnv({ REDIS_KEY_PREFIX: "" }));
+      expect(options.keyPrefix).toBeUndefined();
+    });
+
+    test("passes REDIS_KEY_PREFIX through to the keyPrefix option", () => {
+      const options = buildRedisOptions(baseEnv({ REDIS_KEY_PREFIX: "cytario-web:" }));
+      expect(options.keyPrefix).toBe("cytario-web:");
+    });
+  });
 });
