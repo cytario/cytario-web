@@ -9,25 +9,28 @@ import { type TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
-import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { select } from "~/utils/connectionsStore/selectors";
-import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { formatTruncationMessage } from "~/utils/listingLimits";
-import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 
 interface DirectoryViewTreeProps {
   nodes: TreeNode[];
-  searchTerm?: string;
   kind: DirectoryKind;
+  onExpand: (parent: TreeNode) => Promise<TreeNode[]>;
+  /** Item ids to expand on initial render (e.g. ancestors of search matches). */
+  defaultExpandedItems?: string[];
 }
 
 const ROOT_ID = "__directory_tree_root__";
 
-export function DirectoryViewTree({ nodes: initialNodes, kind }: DirectoryViewTreeProps) {
+export function DirectoryViewTree({
+  nodes: initialNodes,
+  kind,
+  onExpand,
+  defaultExpandedItems,
+}: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
 
   const tree = useTree<TreeNode>({
     rootItemId: ROOT_ID,
+    initialState: defaultExpandedItems ? { expandedItems: defaultExpandedItems } : undefined,
     getItemName: (item) => item.getItemData()?.name ?? "",
     isItemFolder: (item) => {
       const data = item.getItemData();
@@ -47,23 +50,14 @@ export function DirectoryViewTree({ nodes: initialNodes, kind }: DirectoryViewTr
           return initialNodes.map((n) => ({ id: n.id, data: n }));
         }
         const parent = nodesById.current.get(id);
-        if (!parent || parent.isLeaf || parent.type === "file") return [];
-        const conn = select.connection(parent.connectionName)(useConnectionsStore.getState());
-        if (!conn) return [];
-        const { nodes, isCapped } = await loadConnectionLevel({
-          connectionConfig: conn.connectionConfig,
-          credentials: conn.credentials,
-          connectionName: parent.connectionName,
-          urlPath: parent.pathName,
-        });
-        if (isCapped) {
-          toastBridge.emit({
-            variant: toToastVariant("warning"),
-            message: formatTruncationMessage(parent.name),
-          });
-        }
-        for (const n of nodes) nodesById.current.set(n.id, n);
-        return nodes.map((n) => ({ id: n.id, data: n }));
+        if (!parent) return [];
+        // `loadState === "idle"` marks a lazy stub awaiting fetch. Everything
+        // else (loaded, undefined, search-result trees) uses the embedded
+        // `parent.children` directly.
+        const fetched =
+          parent.loadState === "idle" ? await onExpand(parent) : (parent.children ?? []);
+        for (const n of fetched) nodesById.current.set(n.id, n);
+        return fetched.map((n) => ({ id: n.id, data: n }));
       },
     },
     features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],

@@ -1,5 +1,5 @@
 import { IconButton } from "@cytario/design";
-import { Info } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { ConnectionMenu } from "~/components/DirectoryView/ConnectionMenu";
@@ -14,7 +14,7 @@ export const NodeContextMenu = ({ node }: { node: TreeNode }) => {
 
   return (
     <IconButton
-      icon={Info}
+      icon={EllipsisVertical}
       aria-label={`Show info for ${node.name}`}
       onPress={openInfo}
       variant="ghost"

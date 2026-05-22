@@ -54,6 +54,7 @@ export async function loadConnections({ context }: LoaderFunctionArgs) {
     type: "bucket" as const,
     pathName: "",
     children: [],
+    loadState: "idle" as const,
   }));
 
   const recentlyViewed: SerializedRecentlyViewed[] = recentlyViewedRaw.map((item) => ({

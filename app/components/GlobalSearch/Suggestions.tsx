@@ -1,9 +1,10 @@
 import { EmptyState, H2 } from "@cytario/design";
 import { Loader2, SearchX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useMemo } from "react";
 
-import { TreeNode } from "../DirectoryView/buildDirectoryTree";
-import { NodeLinkList } from "../DirectoryView/NodeLink/NodeLinkList";
+import { collectInteriorIds, TreeNode } from "../DirectoryView/buildDirectoryTree";
+import { DirectoryViewTree } from "../DirectoryView/DirectoryViewTree";
 
 interface SuggestionsProps {
   nodes: TreeNode[];
@@ -14,6 +15,7 @@ interface SuggestionsProps {
 // Render order: prefer stale nodes over the empty state while a new query is in
 // flight — otherwise the dropdown flashes "No results" on every keystroke.
 export const Suggestions = ({ nodes, showResults, isLoading }: SuggestionsProps) => {
+  const defaultExpandedItems = useMemo(() => collectInteriorIds(nodes), [nodes]);
   return (
     <AnimatePresence>
       {showResults && (
@@ -48,7 +50,12 @@ export const Suggestions = ({ nodes, showResults, isLoading }: SuggestionsProps)
                 )}
               </header>
               <div className="overflow-y-auto flex-1 p-2">
-                <NodeLinkList nodes={nodes} />
+                <DirectoryViewTree
+                  nodes={nodes}
+                  kind="entries"
+                  onExpand={async () => []}
+                  defaultExpandedItems={defaultExpandedItems}
+                />
               </div>
             </>
           ) : isLoading ? (

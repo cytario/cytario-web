@@ -75,7 +75,7 @@ function buildFileCellRenderers(nodes: TreeNode[]): CellRenderers<FileRow> {
   return {
     name: (row) => {
       const node = nodesById.get(row.id);
-      return node ? <NodeLink node={node} contextMenu={false} /> : row.name;
+      return node ? <NodeLink node={node} /> : row.name;
     },
     file_type: (row) => <Pill>{row.file_type}</Pill>,
     last_modified: (row) => (row.last_modified ? formatHumanReadableDate(row.last_modified) : null),

@@ -33,7 +33,7 @@ export function NodeLink({
 }: NodeLinkProps) {
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
-  const rowCx = "flex items-center grow border border-transparent rounded-md";
+  const rowCx = "flex items-center grow min-w-0 border border-transparent rounded-md";
   const linkCx = `
     hover:bg-slate-100
     focus-visible:outline focus-visible:outline-(--color-border-focus)

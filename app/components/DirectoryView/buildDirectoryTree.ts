@@ -10,24 +10,20 @@ export type TreeNodeType = "bucket" | "directory" | "file";
  * `TreeNode` so it can be passed straight to the design-system `<Tree>`.
  */
 export interface TreeNode {
-  /** Globally unique identifier: `connectionName/pathName`. */
   id: string;
-  /** Name of the connection config this node belongs to. */
   connectionName: string;
-  /** Display name. For `type: "bucket"` this equals `connectionName`. */
-  name: string;
-  type: TreeNodeType;
-  /** Full path relative to connection root (trailing `/` for dirs, `""` for bucket root). */
   pathName: string;
-  /** `undefined` signals a leaf (react-arborist hides the chevron); `[]` is expandable-empty. */
+  name: string;
+
+  type: TreeNodeType;
   children?: TreeNode[];
-  /** S3 metadata. On directories: first image inside, used for previews. */
+
   _Object?: _Object;
-  /** Hints from `buildLevelTree` for one-level listings. */
+
   hasChildren?: boolean;
   isLeaf?: boolean;
   loadState?: "idle" | "loading" | "loaded" | "error";
-  /** Populated for bucket nodes by the per-connection preview probe. */
+
   connectionStatus?: "connected" | "error";
   connectionErrorMessage?: string;
 }
@@ -98,6 +94,25 @@ function buildDirectoryTreeRecursive(
       pathName,
     );
   }
+}
+
+/**
+ * Returns ids of every non-leaf node in the tree — useful as
+ * `defaultExpandedItems` on `DirectoryViewTree` to pre-expand a static
+ * search-result tree.
+ */
+export function collectInteriorIds(nodes: TreeNode[]): string[] {
+  const ids: string[] = [];
+  function walk(ns: TreeNode[]) {
+    for (const n of ns) {
+      if (n.type !== "file" && n.children && n.children.length > 0) {
+        ids.push(n.id);
+        walk(n.children);
+      }
+    }
+  }
+  walk(nodes);
+  return ids;
 }
 
 export function findNodeById(nodes: TreeNode[], id: string): TreeNode | undefined {
