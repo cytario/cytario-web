@@ -8,8 +8,12 @@ import { twMerge } from "tailwind-merge";
 import { type TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
-import { useLazyTreeNodes } from "./useLazyTreeNodes";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
+import { toastBridge, toToastVariant } from "~/toast-bridge";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { formatTruncationMessage } from "~/utils/listingLimits";
+import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 
 interface DirectoryViewTreeProps {
   nodes: TreeNode[];
@@ -20,8 +24,7 @@ interface DirectoryViewTreeProps {
 const ROOT_ID = "__directory_tree_root__";
 
 export function DirectoryViewTree({ nodes: initialNodes, kind }: DirectoryViewTreeProps) {
-  const { nodes, loadChildren } = useLazyTreeNodes(initialNodes);
-  const cacheRef = useRef<Map<string, TreeNode>>(new Map());
+  const nodesById = useRef<Map<string, TreeNode>>(new Map());
 
   const tree = useTree<TreeNode>({
     rootItemId: ROOT_ID,
@@ -34,27 +37,33 @@ export function DirectoryViewTree({ nodes: initialNodes, kind }: DirectoryViewTr
     },
     dataLoader: {
       getItem: (id) => {
-        const cached = cacheRef.current.get(id);
+        const cached = nodesById.current.get(id);
         if (!cached) throw new Error(`DirectoryViewTree: unknown item id "${id}"`);
         return cached;
       },
-      getChildren: async (id) => {
+      getChildrenWithData: async (id) => {
         if (id === ROOT_ID) {
-          for (const n of nodes) cacheRef.current.set(n.id, n);
-          return nodes.map((n) => n.id);
+          for (const n of initialNodes) nodesById.current.set(n.id, n);
+          return initialNodes.map((n) => ({ id: n.id, data: n }));
         }
-        const node = cacheRef.current.get(id);
-        if (!node) return [];
-        if (node.isLeaf || node.type === "file") return [];
-        if (node.loadState === "loaded") {
-          const children = node.children ?? [];
-          for (const c of children) cacheRef.current.set(c.id, c);
-          return children.map((c) => c.id);
+        const parent = nodesById.current.get(id);
+        if (!parent || parent.isLeaf || parent.type === "file") return [];
+        const conn = select.connection(parent.connectionName)(useConnectionsStore.getState());
+        if (!conn) return [];
+        const { nodes, isCapped } = await loadConnectionLevel({
+          connectionConfig: conn.connectionConfig,
+          credentials: conn.credentials,
+          connectionName: parent.connectionName,
+          urlPath: parent.pathName,
+        });
+        if (isCapped) {
+          toastBridge.emit({
+            variant: toToastVariant("warning"),
+            message: formatTruncationMessage(parent.name),
+          });
         }
-        const fetched = await loadChildren(node);
-        for (const c of fetched) cacheRef.current.set(c.id, c);
-        cacheRef.current.set(id, { ...node, children: fetched, loadState: "loaded" });
-        return fetched.map((c) => c.id);
+        for (const n of nodes) nodesById.current.set(n.id, n);
+        return nodes.map((n) => ({ id: n.id, data: n }));
       },
     },
     features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
