@@ -4,37 +4,20 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTree } from "../DirectoryViewTree";
 
-// Mock react-arborist to avoid JSDOM rendering issues with virtual lists
-vi.mock("react-arborist", () => ({
-  Tree: ({ data }: { data: Array<{ id: string; name: string }> }) => (
-    <div data-testid="arborist-tree">
-      {data.map((node) => (
-        <div key={node.id} data-testid="tree-node">
-          {node.name}
-        </div>
-      ))}
-    </div>
-  ),
-}));
-
 const mockNodes: TreeNode[] = [
   {
     id: "results/",
     connectionName: "aws-test-bucket",
     type: "directory",
     name: "results",
-
     pathName: "results/",
-
     children: [
       {
         id: "results/output.ome.tif",
         connectionName: "aws-test-bucket",
         type: "file",
         name: "output.ome.tif",
-
         pathName: "results/output.ome.tif",
-
         children: [],
       },
     ],
@@ -44,9 +27,7 @@ const mockNodes: TreeNode[] = [
     connectionName: "aws-test-bucket",
     type: "file",
     name: "analysis.csv",
-
     pathName: "analysis.csv",
-
     children: [],
   },
 ];
@@ -56,9 +37,7 @@ describe("DirectoryViewTree", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
-        Component: () => (
-          <DirectoryViewTree nodes={mockNodes} kind="entries" onExpand={async () => []} />
-        ),
+        Component: () => <DirectoryViewTree nodes={mockNodes} kind="entries" />,
       },
     ]);
 
@@ -67,19 +46,17 @@ describe("DirectoryViewTree", () => {
     expect(screen.getByRole("tree", { name: /Directory tree/i })).toBeInTheDocument();
   });
 
-  test("renders top-level node names via arborist", () => {
+  test("renders top-level node names", async () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
-        Component: () => (
-          <DirectoryViewTree nodes={mockNodes} kind="entries" onExpand={async () => []} />
-        ),
+        Component: () => <DirectoryViewTree nodes={mockNodes} kind="entries" />,
       },
     ]);
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    expect(screen.getByText("results")).toBeInTheDocument();
-    expect(screen.getByText("analysis.csv")).toBeInTheDocument();
+    expect(await screen.findByText("results")).toBeInTheDocument();
+    expect(await screen.findByText("analysis.csv")).toBeInTheDocument();
   });
 });

@@ -20,8 +20,8 @@ export interface NodeLinkProps {
  * Single visual representation of a `TreeNode` shared across list, grid and
  * tree views. Renders an appropriate leading visual (connection status dot for
  * buckets, file-type icon otherwise), the node name, and an optional trailing
- * context menu trigger. Pass `link={false}` when an outer element already owns
- * navigation (e.g. a tree row).
+ * context menu trigger. Pass `isClickable={() => false}` to render the row as
+ * a non-navigating block (e.g. when an outer element already owns navigation).
  */
 export function NodeLink({
   node,

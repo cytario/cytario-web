@@ -53,7 +53,6 @@ export const Suggestions = ({ nodes, showResults, isLoading }: SuggestionsProps)
                 <DirectoryViewTree
                   nodes={nodes}
                   kind="entries"
-                  onExpand={async () => []}
                   defaultExpandedItems={defaultExpandedItems}
                 />
               </div>

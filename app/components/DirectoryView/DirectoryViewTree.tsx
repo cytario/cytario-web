@@ -1,5 +1,5 @@
 import { IconButton } from "@cytario/design";
-import { asyncDataLoaderFeature, hotkeysCoreFeature, selectionFeature } from "@headless-tree/core";
+import { asyncDataLoaderFeature, hotkeysCoreFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
 import { ChevronRight } from "lucide-react";
 import { useRef } from "react";
@@ -14,16 +14,18 @@ interface DirectoryViewTreeProps {
   nodes: TreeNode[];
   kind: DirectoryKind;
   nodeLinkProps?: Omit<React.ComponentProps<typeof NodeLink>, "node">;
-  onExpand: (parent: TreeNode) => Promise<TreeNode[]>;
+  /** Called when a lazy stub (`loadState === "idle"`) is expanded. Omit for static trees. */
+  onExpand?: (parent: TreeNode) => Promise<TreeNode[]>;
   defaultExpandedItems?: string[];
 }
 
 const ROOT_ID = "__directory_tree_root__";
+const noopOnExpand = async (): Promise<TreeNode[]> => [];
 
 export function DirectoryViewTree({
   nodes: initialNodes,
   kind,
-  onExpand,
+  onExpand = noopOnExpand,
   defaultExpandedItems,
   nodeLinkProps,
 }: DirectoryViewTreeProps) {
@@ -61,7 +63,7 @@ export function DirectoryViewTree({
         return fetched.map((n) => ({ id: n.id, data: n }));
       },
     },
-    features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
+    features: [asyncDataLoaderFeature, hotkeysCoreFeature],
   });
 
   if (initialNodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;

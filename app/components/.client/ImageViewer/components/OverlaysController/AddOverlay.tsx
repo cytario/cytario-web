@@ -7,6 +7,7 @@ import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree"
 import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
+import { toToastVariant } from "~/toast-bridge";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
@@ -90,6 +91,18 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   );
 
   const isLoading = objectsFetcher.state === "loading";
+
+  // Surface capped / failed / CORS-blocked connections from the search loader.
+  // Without this, users with broken buckets see "no results" silently.
+  const notification = objectsFetcher.data?.notification;
+  useEffect(() => {
+    if (notification) {
+      toast({
+        variant: toToastVariant(notification.status ?? "info"),
+        message: notification.message,
+      });
+    }
+  }, [notification, toast]);
 
   const isSearching = searchTerm.trim().length > 0;
   const defaultExpandedItems = useMemo(() => collectInteriorIds(nodes), [nodes]);

@@ -137,7 +137,6 @@ export default function SearchRoute() {
         <DirectoryViewTree
           nodes={nodes}
           kind="entries"
-          onExpand={async () => []}
           defaultExpandedItems={defaultExpandedItems}
         />
       </div>

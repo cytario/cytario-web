@@ -22,7 +22,8 @@ export interface TreeNode {
 
   hasChildren?: boolean;
   isLeaf?: boolean;
-  loadState?: "idle" | "loading" | "loaded" | "error";
+  /** `"idle"` marks a lazy stub awaiting fetch via `DirectoryViewTree`'s `onExpand`. */
+  loadState?: "idle";
 
   connectionStatus?: "connected" | "error";
   connectionErrorMessage?: string;
