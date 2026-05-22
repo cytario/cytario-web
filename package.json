@@ -23,6 +23,7 @@
     "app",
     "bin",
     "bin-src",
+    "build",
     "prisma",
     "public",
     "scripts",
@@ -48,7 +49,7 @@
   },
   "scripts": {
     "prepare": "husky || true",
-    "prepack": "npm run build:server && node scripts/prebuild.mjs",
+    "prepack": "npm run build && npm run build:server",
     "prebuild": "node scripts/prebuild.mjs",
     "build": "node bin/cytario-web.mjs build",
     "build:server": "tsup --config tsup.server.config.ts",
