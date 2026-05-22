@@ -12,8 +12,7 @@ export interface NodeLinkProps {
   node: TreeNode;
   onClick?: (node: TreeNode) => void;
   contextMenu?: boolean;
-  /** When false, render as a non-navigating row (no `<Link>`, no keydown). */
-  link?: boolean;
+  isClickable?: (node: TreeNode) => boolean;
   className?: string;
 }
 
@@ -28,16 +27,22 @@ export function NodeLink({
   node,
   onClick,
   contextMenu = true,
-  link = true,
+  isClickable = () => true,
   className,
 }: NodeLinkProps) {
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
-  const rowCx = "flex items-center grow min-w-0 border border-transparent rounded-md";
-  const linkCx = `
+  const rowCx = `
+    flex items-center grow min-w-0
+    border border-transparent
+    rounded-md
+  `;
+
+  const clickAbleCx = `
     hover:bg-slate-100
     focus-visible:outline focus-visible:outline-(--color-border-focus)
   `;
+
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (!onClick) return;
     event.preventDefault();
@@ -47,8 +52,8 @@ export function NodeLink({
 
   return (
     <div className={twMerge(rowCx, className)}>
-      {link ? (
-        <Link to={to} className={twMerge(rowCx, linkCx)} onClick={handleClick}>
+      {isClickable(node) ? (
+        <Link to={to} className={twMerge(rowCx, clickAbleCx)} onClick={handleClick}>
           <NodeIndicator node={node} />
           <TooltipSpan>{node.name}</TooltipSpan>
         </Link>

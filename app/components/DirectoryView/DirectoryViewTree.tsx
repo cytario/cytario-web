@@ -13,8 +13,8 @@ import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 interface DirectoryViewTreeProps {
   nodes: TreeNode[];
   kind: DirectoryKind;
+  nodeLinkProps?: Omit<React.ComponentProps<typeof NodeLink>, "node">;
   onExpand: (parent: TreeNode) => Promise<TreeNode[]>;
-  /** Item ids to expand on initial render (e.g. ancestors of search matches). */
   defaultExpandedItems?: string[];
 }
 
@@ -25,6 +25,7 @@ export function DirectoryViewTree({
   kind,
   onExpand,
   defaultExpandedItems,
+  nodeLinkProps,
 }: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
 
@@ -95,7 +96,7 @@ export function DirectoryViewTree({
             ) : (
               <span className="inline-block w-6 shrink-0" aria-hidden />
             )}
-            <NodeLink node={node} />
+            <NodeLink node={node} {...nodeLinkProps} />
           </div>
         );
       })}

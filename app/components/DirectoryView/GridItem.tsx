@@ -42,7 +42,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
       </div>
 
       <div className="flex flex-col gap-2 border-t border-(--color-border-default) bg-(--color-surface-default) px-3 py-2 rounded-b-lg">
-        <NodeLink node={node} link={false} />
+        <NodeLink node={node} isClickable={() => false} />
         {children && <div className="flex items-center gap-2">{children}</div>}
       </div>
     </Link>

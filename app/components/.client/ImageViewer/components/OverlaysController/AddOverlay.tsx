@@ -2,14 +2,29 @@ import { Button, Input, useToast } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { findNodeById, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { onExpand } from "~/components/DirectoryView/onExpand";
+import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
+
+/**
+ * Prune file nodes that don't end in `.${ext}`. Lazy stubs (`loadState`
+ * `"idle"`) are kept since their contents are unknown until expanded;
+ * loaded directories are kept only when at least one descendant matches.
+ */
+function filterByExtension(nodes: TreeNode[], ext: string): TreeNode[] {
+  const suffix = `.${ext.toLowerCase()}`;
+  return nodes.flatMap((n) => {
+    if (n.type === "file") return n.name.toLowerCase().endsWith(suffix) ? [n] : [];
+    if (n.loadState === "idle") return [n];
+    const children = n.children ? filterByExtension(n.children, ext) : [];
+    return children.length > 0 ? [{ ...n, children }] : [];
+  });
+}
 
 interface AddOverlayProps {
   callback?: () => void;
@@ -53,45 +68,54 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
     [connections],
   );
 
-  const nodes =
+  const rawNodes =
     searchTerm.trim().length > 0 && objectsFetcher.data
       ? objectsFetcher.data.nodes
       : initialBuckets;
+
+  // CSV path stays unfiltered (we'll split components later). For "parquet"
+  // the dialog only surfaces `.parquet` files.
+  const shouldFilter = query === "parquet";
+  const nodes = useMemo(
+    () => (shouldFilter ? filterByExtension(rawNodes, query) : rawNodes),
+    [rawNodes, query, shouldFilter],
+  );
+
+  const onExpand = useCallback(
+    async (parent: TreeNode) => {
+      const children = await defaultOnExpand(parent);
+      return shouldFilter ? filterByExtension(children, query) : children;
+    },
+    [query, shouldFilter],
+  );
+
   const isLoading = objectsFetcher.state === "loading";
 
-  // TODO(C-56): wire controlled selection + hover once DirectoryViewTree
-  // exposes selection/hover props. Until then, Load is gated on a null id.
-  const selectedId: string | null = null;
-  const hoveredPath: string | null = null;
+  const isSearching = searchTerm.trim().length > 0;
+  const defaultExpandedItems = useMemo(() => collectInteriorIds(nodes), [nodes]);
 
-  const handleLoad = useCallback(async () => {
-    if (!selectedId) return;
-    const originalNode = findNodeById(nodes, selectedId);
-    if (!originalNode) return;
-
-    try {
-      if (query === "csv") {
-        convertCsvToParquet(originalNode.id);
+  const handleSelect = useCallback(
+    (node: TreeNode) => {
+      if (node.type !== "file") return;
+      try {
+        if (query === "csv") {
+          convertCsvToParquet(node.id);
+          toast({ variant: "success", message: `Started conversion: ${node.name}` });
+        } else {
+          onOverlayAdd?.({ [node.id]: {} });
+          toast({ variant: "success", message: `Overlay added: ${node.name}` });
+        }
+        callback?.();
+      } catch (error) {
+        console.error("Error processing overlay:", error);
         toast({
-          variant: "success",
-          message: `Started conversion: ${originalNode.name}`,
-        });
-      } else {
-        onOverlayAdd?.({ [originalNode.id]: {} });
-        toast({
-          variant: "success",
-          message: `Overlay added: ${originalNode.name}`,
+          variant: "error",
+          message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
         });
       }
-      callback?.();
-    } catch (error) {
-      console.error("Error processing overlay:", error);
-      toast({
-        variant: "error",
-        message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
-      });
-    }
-  }, [selectedId, nodes, query, onOverlayAdd, toast, callback]);
+    },
+    [query, onOverlayAdd, toast, callback],
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -108,19 +132,26 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         </div>
       )}
 
-      <DirectoryViewTree nodes={nodes} kind="entries" onExpand={onExpand} />
-      <p className="truncate text-xs text-(--color-text-tertiary)">{hoveredPath ?? "…"}</p>
+      <DirectoryViewTree
+        key={isSearching ? `search:${objectsFetcher.data?.searchQuery ?? "loading"}` : "lazy"}
+        nodes={nodes}
+        kind="entries"
+        onExpand={onExpand}
+        defaultExpandedItems={isSearching ? defaultExpandedItems : undefined}
+        nodeLinkProps={{
+          onClick: handleSelect,
+          contextMenu: false,
+          isClickable: (node) => node.type === "file",
+        }}
+      />
 
-      <div className="flex justify-end gap-3">
-        {callback && (
+      {callback && (
+        <div className="flex justify-end">
           <Button variant="ghost" onPress={callback}>
             Cancel
           </Button>
-        )}
-        <Button variant="primary" isDisabled={!selectedId} onPress={handleLoad}>
-          {query === "csv" ? "Convert" : "Load"}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
