@@ -1,10 +1,14 @@
-import { Button, Input, Tree, useToast } from "@cytario/design";
+import { Button, Input, useToast } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { type TreeNode, findNodeById } from "~/components/DirectoryView/buildDirectoryTree";
+import { findNodeById, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
+import { onExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 
 interface AddOverlayProps {
@@ -14,51 +18,54 @@ interface AddOverlayProps {
   onOverlayAdd?: (overlay: Record<string, Record<string, never>>) => void;
 }
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const { toast } = useToast();
-
-  const searchString = `/search?query=${query}`;
-
-  // Fetch available files on mount
   const objectsFetcher = useFetcher<SearchRouteLoaderResponse>();
+  const connections = useConnectionsStore(select.connections);
 
-  useEffect(() => {
-    if (!objectsFetcher.data && objectsFetcher.state === "idle") {
-      objectsFetcher.load(searchString);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on state transitions
-  }, [objectsFetcher.state, objectsFetcher.data, searchString]);
-
-  const nodes = useMemo(() => objectsFetcher.data?.nodes ?? [], [objectsFetcher.data?.nodes]);
-  const isLoading = objectsFetcher.state === "loading";
-
-  // Selection state: single file selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const selectedId = selectedIds.size > 0 ? [...selectedIds][0] : null;
-
-  // Hover state: show the full path of the hovered file
-  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
-
-  const handleHover = useCallback((node: TreeNode) => {
-    setHoveredPath(node.id);
-  }, []);
-
-  const handleHoverEnd = useCallback(() => {
-    setHoveredPath(null);
-  }, []);
-
-  // Search/filter state
   const [searchTerm, setSearchTerm] = useState("");
 
-  const searchMatch = useCallback(
-    (node: { name: string }, term: string) => node.name.toLowerCase().includes(term.toLowerCase()),
-    [],
+  // Fetch only when user types. Empty input → tree shows the collapsed
+  // bucket roots from the connections store.
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed.length === 0) return;
+    const handle = setTimeout(() => {
+      objectsFetcher.load(`/search?query=${encodeURIComponent(trimmed)}`);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on input changes
+  }, [searchTerm]);
+
+  const initialBuckets = useMemo<TreeNode[]>(
+    () =>
+      Object.values(connections).map(({ connectionConfig }) => ({
+        id: `${connectionConfig.name}/`,
+        connectionName: connectionConfig.name,
+        name: connectionConfig.name,
+        type: "bucket" as const,
+        pathName: "",
+        children: [],
+        loadState: "idle" as const,
+      })),
+    [connections],
   );
 
-  // Handle loading the selected overlay
+  const nodes =
+    searchTerm.trim().length > 0 && objectsFetcher.data
+      ? objectsFetcher.data.nodes
+      : initialBuckets;
+  const isLoading = objectsFetcher.state === "loading";
+
+  // TODO(C-56): wire controlled selection + hover once DirectoryViewTree
+  // exposes selection/hover props. Until then, Load is gated on a null id.
+  const selectedId: string | null = null;
+  const hoveredPath: string | null = null;
+
   const handleLoad = useCallback(async () => {
     if (!selectedId) return;
-
     const originalNode = findNodeById(nodes, selectedId);
     if (!originalNode) return;
 
@@ -76,7 +83,6 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
           message: `Overlay added: ${originalNode.name}`,
         });
       }
-
       callback?.();
     } catch (error) {
       console.error("Error processing overlay:", error);
@@ -89,7 +95,6 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Search input */}
       <Input
         aria-label={`Search ${query} files`}
         placeholder={`Search .${query} files...`}
@@ -97,38 +102,15 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         onChange={setSearchTerm}
       />
 
-      {/* File tree */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-8">
+      {isLoading && (
+        <div className="flex items-center justify-center py-2">
           <LavaLoader />
         </div>
-      ) : nodes.length === 0 ? (
-        <p className="py-8 text-center text-sm text-(--color-text-secondary)">
-          No .{query} files found in connected buckets.
-        </p>
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-lg border border-(--color-border-default)">
-            <Tree
-              aria-label={`Select ${query} file`}
-              data={nodes}
-              selectionMode="single"
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              onHover={handleHover}
-              onHoverEnd={handleHoverEnd}
-              openByDefault={true}
-              size="compact"
-              height={320}
-              searchTerm={searchTerm}
-              searchMatch={searchMatch}
-            />
-          </div>
-          <p className="truncate text-xs text-(--color-text-tertiary)">{hoveredPath ?? "…"}</p>
-        </>
       )}
 
-      {/* Actions */}
+      <DirectoryViewTree nodes={nodes} kind="entries" onExpand={onExpand} />
+      <p className="truncate text-xs text-(--color-text-tertiary)">{hoveredPath ?? "…"}</p>
+
       <div className="flex justify-end gap-3">
         {callback && (
           <Button variant="ghost" onPress={callback}>
