@@ -42,6 +42,9 @@ vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
 vi.mock("~/utils/connectionsStore/selectors", () => ({
   select: {
     connections: (state: { connections: unknown }) => state.connections,
+    connectionConfig:
+      (name: string) => (state: { connections: Record<string, { connectionConfig: unknown }> }) =>
+        state.connections[name]?.connectionConfig,
   },
 }));
 
