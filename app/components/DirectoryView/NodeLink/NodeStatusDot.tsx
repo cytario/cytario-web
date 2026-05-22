@@ -14,13 +14,11 @@ export function NodeStatusDot({ status, errorMessage }: NodeStatusDotProps) {
   const fullLabel = status === "error" && errorMessage ? errorMessage : label;
 
   return (
-    <div className="flex items-center justify-center w-6 h-6 bg-lime-400">
-      <span
-        role="img"
-        aria-label={fullLabel}
-        title={fullLabel}
-        className={`inline-block shrink-0 w-2.5 h-2.5 rounded-full ${className}`}
-      />
-    </div>
+    <span
+      role="img"
+      aria-label={fullLabel}
+      title={fullLabel}
+      className={`inline-block shrink-0 w-2.5 h-2.5 rounded-full ${className}`}
+    />
   );
 }

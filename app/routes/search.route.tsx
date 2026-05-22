@@ -6,7 +6,7 @@ import { type ClientLoaderFunctionArgs, useLoaderData } from "react-router";
 import type { ConnectionConfig } from "~/.generated/client";
 import { Section } from "~/components/Container";
 import { buildDirectoryTree, TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { NodeLinkList } from "~/components/NodeLink/NodeLinkList";
+import { NodeLinkList } from "~/components/DirectoryView/NodeLink/NodeLinkList";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";

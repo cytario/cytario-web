@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { getFileType, getFileTypeIcon, isImageFile } from "../fileType";
+import { getFileType, isImageFile } from "../fileType";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 describe("getFileType", () => {
@@ -78,7 +78,6 @@ describe("plugin-derived file types", () => {
       load: async () => ({ data: [], metadata: {} as never }),
     });
     expect(getFileType("file.xyz")).toBe("my-plugin");
-    expect(getFileTypeIcon("file.xyz")).toBe("Image");
     expect(isImageFile("file.xyz")).toBe(true);
   });
 
@@ -88,7 +87,6 @@ describe("plugin-derived file types", () => {
       fileTypeMeta: { label: "Vendor Format", icon: "Microscope" },
     });
     expect(getFileType("sample.abc")).toBe("Vendor Format");
-    expect(getFileTypeIcon("sample.abc")).toBe("Microscope");
   });
 
   test("plugin entries do not shadow built-in OME-TIFF/OME-Zarr (built-ins stay in STATIC_FILE_TYPES)", () => {
@@ -126,26 +124,5 @@ describe("query-string and fragment handling", () => {
   test("isImageFile honours query-stripped extension", () => {
     expect(isImageFile("photo.jpg?expires=tomorrow")).toBe(true);
     expect(isImageFile("data.csv?range=0-100")).toBe(false);
-  });
-});
-
-describe("getFileTypeIcon", () => {
-  test("returns Microscope for OME-TIFF", () => {
-    expect(getFileTypeIcon("image.ome.tiff")).toBe("Microscope");
-  });
-
-  test("returns Image for TIFF and image formats", () => {
-    expect(getFileTypeIcon("photo.tiff")).toBe("Image");
-    expect(getFileTypeIcon("photo.png")).toBe("Image");
-    expect(getFileTypeIcon("photo.jpg")).toBe("Image");
-  });
-
-  test("returns Table for Parquet", () => {
-    expect(getFileTypeIcon("data.parquet")).toBe("Table");
-  });
-
-  test("returns File for unknown types", () => {
-    expect(getFileTypeIcon("unknown.xyz")).toBe("File");
-    expect(getFileTypeIcon("")).toBe("File");
   });
 });

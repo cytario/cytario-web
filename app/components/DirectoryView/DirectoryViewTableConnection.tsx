@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { type ConnectionConfig } from "~/.generated/client";
-import { NodeLink } from "~/components/NodeLink/NodeLink";
+import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
@@ -84,7 +84,7 @@ function buildConnectionCellRenderers(nodes: TreeNode[]): CellRenderers<Connecti
   return {
     name: (row) => {
       const node = nodesByName.get(row.name);
-      return node ? <NodeLink node={node} contextMenu={false} /> : row.name;
+      return node ? <NodeLink node={node} contextMenu={false} onClick={alert} /> : row.name;
     },
     ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
     provider: (row) => <ProviderPill provider={row.provider} />,

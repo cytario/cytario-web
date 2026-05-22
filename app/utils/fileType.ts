@@ -164,7 +164,7 @@ function pluginFileTypes(): FileTypeEntry[] {
 
 // Plugin entries first so a plugin can shadow a static type for the same
 // extension (rare but supported).
-function allFileTypes(): FileTypeEntry[] {
+export function allFileTypes(): FileTypeEntry[] {
   return [...pluginFileTypes(), ...STATIC_FILE_TYPES];
 }
 
@@ -188,7 +188,7 @@ export function getExtension(name: string): string | undefined {
 
 // Signed URLs carry `?` query params; without stripping, `foo.ext?sig=abc`
 // fails the `\.ext/?$` pattern and resolves to "Unknown".
-function stripUrlSuffix(path: string): string {
+export function stripUrlSuffix(path: string): string {
   const queryIdx = path.indexOf("?");
   const hashIdx = path.indexOf("#");
   let end = path.length;
@@ -215,11 +215,4 @@ export function isImageFile(nameOrKey: string): boolean {
   return false;
 }
 
-/** Returns a Lucide icon name appropriate for the file's extension. */
-export function getFileTypeIcon(path: string): LucideIconName {
-  const cleaned = stripUrlSuffix(path);
-  for (const entry of allFileTypes()) {
-    if (entry.pattern.test(cleaned)) return entry.icon;
-  }
-  return "File";
-}
+export type { FileTypeEntry };

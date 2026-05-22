@@ -1,9 +1,11 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { NodeIcon } from "~/components/NodeLink/NodeIcon";
-import { NodeLink } from "~/components/NodeLink/NodeLink";
+import { NodeIcon } from "~/components/DirectoryView/NodeLink/NodeIcon";
+import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
+import { buildConnectionPath } from "~/utils/resourceId";
 
 interface GridItemProps {
   node: TreeNode;
@@ -11,13 +13,6 @@ interface GridItemProps {
   children?: ReactNode;
   className?: string;
 }
-
-const cx = `
-  group flex flex-col overflow-hidden rounded-lg
-  border border-(--color-border-default)
-  shadow-sm transition-all
-  hover:border-(--color-border-focus) hover:shadow-md
-`;
 
 /**
  * Generic grid item composed of a preview slot on top, a `NodeLink` row in the
@@ -27,8 +22,17 @@ const cx = `
  * round-tripping through the design-system package.
  */
 export function GridItem({ node, preview, children, className }: GridItemProps) {
+  const to = buildConnectionPath(node.connectionName, node.pathName);
+
+  const cx = `
+    group flex flex-col overflow-hidden rounded-lg
+    border border-(--color-border-default)
+    shadow-sm transition-all
+    hover:border-(--color-border-focus) hover:shadow-md
+  `;
+
   return (
-    <div className={twMerge(cx, className)}>
+    <Link to={to} className={twMerge(cx, className)}>
       <div className="shrink-0 overflow-hidden bg-neutral-900 aspect-4/3 rounded-t-lg">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
@@ -37,14 +41,10 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
         )}
       </div>
 
-      <div className="flex flex-col gap-1 border-t border-(--color-border-default) bg-(--color-surface-default) px-3 py-2 rounded-b-lg">
-        <NodeLink node={node} />
-        {children && (
-          <div className="flex items-center gap-2 pl-6 text-xs text-(--color-text-secondary)">
-            {children}
-          </div>
-        )}
+      <div className="flex flex-col gap-2 border-t border-(--color-border-default) bg-(--color-surface-default) px-3 py-2 rounded-b-lg">
+        <NodeLink node={node} link={false} />
+        {children && <div className="flex items-center gap-2">{children}</div>}
       </div>
-    </div>
+    </Link>
   );
 }

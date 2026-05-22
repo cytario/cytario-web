@@ -3,7 +3,7 @@ import { filesize } from "filesize";
 import { useMemo } from "react";
 
 import { TreeNode, computeDirectorySize, computeDirectoryLastModified } from "./buildDirectoryTree";
-import { NodeLink } from "~/components/NodeLink/NodeLink";
+import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
