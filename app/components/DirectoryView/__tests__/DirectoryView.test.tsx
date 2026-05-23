@@ -74,9 +74,9 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("Folder1")).toBeInTheDocument();
   });
 
-  test("renders the DirectoryViewGrid in grid-compact mode", () => {
+  test("renders the DirectoryViewGrid in grid mode", () => {
     renderDirectoryView({
-      viewMode: "grid-compact",
+      viewMode: "grid",
       nodes: mockNodes,
       name: "Test Directory",
     });
@@ -145,7 +145,7 @@ describe("DirectoryView Component", () => {
     const user = userEvent.setup();
 
     renderDirectoryView({
-      viewMode: "grid-compact",
+      viewMode: "grid",
       nodes: mockNodes,
       name: "Test Directory",
     });

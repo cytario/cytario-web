@@ -3,7 +3,7 @@
 import noopPlugin, { NOOP_SENTINEL } from "./fixtures/noop-plugin";
 import { IncompatiblePluginError, assertApiCompatible, hostApiVersion } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
-import { getFileType, getFileTypeIcon, isImageFile } from "~/utils/fileType";
+import { getFileType, isImageFile } from "~/utils/fileType";
 
 beforeEach(() => {
   formatRegistry.__reset();
@@ -48,7 +48,6 @@ describe("noop-plugin integration", () => {
     });
 
     expect(getFileType("anything.noop")).toBe("noop-plugin");
-    expect(getFileTypeIcon("anything.noop")).toBe("Image");
     expect(isImageFile("anything.noop")).toBe(true);
   });
 

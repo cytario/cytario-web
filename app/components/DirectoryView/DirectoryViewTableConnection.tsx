@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { Link } from "react-router";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { type ConnectionConfig } from "~/.generated/client";
+import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
@@ -73,14 +73,23 @@ export const connectionColumns: ColumnConfig[] = [
   },
 ];
 
-const connectionCellRenderers: CellRenderers<ConnectionConfig> = {
-  // TODO(C-151): the name cell should render `[activity indicator] name` to
-  // match the grid's StorageConnectionCard visual. Blocked on extracting a
-  // StatusDot atom from @cytario/design and wiring real connection status.
-  name: (row) => <Link to={`/connections/${row.name}`}>{row.name}</Link>,
-  ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
-  provider: (row) => <ProviderPill provider={row.provider} />,
-};
+/**
+ * Builds the cell renderer map for the connections table. Captured here as a
+ * factory so the `name` renderer can close over the `nodes` array and look up
+ * the TreeNode by `connectionName` (NodeLink needs the full node for status
+ * + context menu wiring).
+ */
+function buildConnectionCellRenderers(nodes: TreeNode[]): CellRenderers<ConnectionConfig> {
+  const nodesByName = new Map(nodes.map((n) => [n.connectionName, n]));
+  return {
+    name: (row) => {
+      const node = nodesByName.get(row.name);
+      return node ? <NodeLink node={node} /> : row.name;
+    },
+    ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
+    provider: (row) => <ProviderPill provider={row.provider} />,
+  };
+}
 
 interface DirectoryViewTableConnectionProps {
   nodes: TreeNode[];
@@ -98,12 +107,14 @@ export function DirectoryViewTableConnection({
     [nodes, connections],
   );
 
+  const cellRenderers = useMemo(() => buildConnectionCellRenderers(nodes), [nodes]);
+
   return (
     <Table
       columns={connectionColumns}
       data={data}
       getRowId={(row) => row.name}
-      cellRenderers={connectionCellRenderers}
+      cellRenderers={cellRenderers}
       tableId="connections"
       ariaLabel="Storage connections"
       showFilters={showFilters}

@@ -8,6 +8,7 @@ import { DirectoryViewTableDirectory, fileColumns } from "./DirectoryViewTableDi
 import { DirectoryViewTree } from "./DirectoryViewTree";
 import { FilterBar } from "./FilterBar";
 import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
+import { onExpand } from "./onExpand";
 import { type ViewMode, useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
@@ -45,7 +46,7 @@ export function DirectoryView({
   flush,
 }: DirectoryViewProps) {
   const columns = kind === "connections" ? connectionColumns : fileColumns;
-  const isGrid = viewMode === "grid" || viewMode === "grid-compact";
+  const isGrid = viewMode === "grid";
   const isTree = viewMode === "tree";
 
   const connections = useConnectionsStore(select.connections);
@@ -87,13 +88,6 @@ export function DirectoryView({
     return result;
   }, [visibleNodes, columns, kind, connections]);
 
-  // Tree mode only filters by name (via the design-system Tree's `searchTerm`).
-  // Non-name filters (type, scope, provider) are inert in tree mode. The tree
-  // view at prefix level is an anti-pattern anyway — proper tree-based
-  // navigation belongs in a global sidebar per C-56
-  // (https://app.plane.so/cytario/browse/C-56/).
-  const nameFilter = (columnFilters.find((f) => f.id === "name")?.value as string) ?? "";
-
   return (
     <Section flush={flush}>
       <SectionHeader name={name} secondaryActions={secondaryActions}>
@@ -108,9 +102,9 @@ export function DirectoryView({
 
       <Container>
         {isTree ? (
-          <DirectoryViewTree nodes={visibleNodes} searchTerm={nameFilter} kind={kind} />
+          <DirectoryViewTree nodes={visibleNodes} kind={kind} onExpand={onExpand} />
         ) : isGrid ? (
-          <DirectoryViewGrid nodes={filteredNodes} viewMode={viewMode} kind={kind} />
+          <DirectoryViewGrid nodes={filteredNodes} kind={kind} />
         ) : kind === "connections" ? (
           <DirectoryViewTableConnection nodes={filteredNodes} showFilters={showFilters} />
         ) : (

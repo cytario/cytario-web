@@ -53,7 +53,7 @@ export function DashboardSection({
         {viewMode === "list" ? (
           <DirectoryViewTableDirectory nodes={visible} />
         ) : (
-          <DirectoryViewGrid nodes={visible} viewMode={viewMode} kind={kind} />
+          <DirectoryViewGrid nodes={visible} kind={kind} />
         )}
       </Container>
     </Section>

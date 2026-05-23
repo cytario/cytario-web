@@ -83,6 +83,8 @@
     "@deck.gl/widgets": "~9.1.15",
     "@duckdb/duckdb-wasm": "^1.31.1-dev31.0",
     "@duckdb/node-api": "^1.5.0-r.1",
+    "@headless-tree/core": "^1.7.0",
+    "@headless-tree/react": "^1.7.0",
     "@hms-dbmi/viv": "^0.20.1",
     "@hookform/resolvers": "^5.2.2",
     "@loaders.gl/core": "4.4.2",

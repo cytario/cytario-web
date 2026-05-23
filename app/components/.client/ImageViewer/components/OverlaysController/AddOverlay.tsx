@@ -1,11 +1,31 @@
-import { Button, Input, Tree, useToast } from "@cytario/design";
+import { Button, Input, useToast } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { type TreeNode, findNodeById } from "~/components/DirectoryView/buildDirectoryTree";
+import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
+import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
+import { toToastVariant } from "~/toast-bridge";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
+
+/**
+ * Prune file nodes that don't end in `.${ext}`. Lazy stubs (`loadState`
+ * `"idle"`) are kept since their contents are unknown until expanded;
+ * loaded directories are kept only when at least one descendant matches.
+ */
+function filterByExtension(nodes: TreeNode[], ext: string): TreeNode[] {
+  const suffix = `.${ext.toLowerCase()}`;
+  return nodes.flatMap((n) => {
+    if (n.type === "file") return n.name.toLowerCase().endsWith(suffix) ? [n] : [];
+    if (n.loadState === "idle") return [n];
+    const children = n.children ? filterByExtension(n.children, ext) : [];
+    return children.length > 0 ? [{ ...n, children }] : [];
+  });
+}
 
 interface AddOverlayProps {
   callback?: () => void;
@@ -14,82 +34,104 @@ interface AddOverlayProps {
   onOverlayAdd?: (overlay: Record<string, Record<string, never>>) => void;
 }
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
   const { toast } = useToast();
-
-  const searchString = `/search?query=${query}`;
-
-  // Fetch available files on mount
   const objectsFetcher = useFetcher<SearchRouteLoaderResponse>();
+  const connections = useConnectionsStore(select.connections);
 
-  useEffect(() => {
-    if (!objectsFetcher.data && objectsFetcher.state === "idle") {
-      objectsFetcher.load(searchString);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on state transitions
-  }, [objectsFetcher.state, objectsFetcher.data, searchString]);
-
-  const nodes = useMemo(() => objectsFetcher.data?.nodes ?? [], [objectsFetcher.data?.nodes]);
-  const isLoading = objectsFetcher.state === "loading";
-
-  // Selection state: single file selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const selectedId = selectedIds.size > 0 ? [...selectedIds][0] : null;
-
-  // Hover state: show the full path of the hovered file
-  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
-
-  const handleHover = useCallback((node: TreeNode) => {
-    setHoveredPath(node.id);
-  }, []);
-
-  const handleHoverEnd = useCallback(() => {
-    setHoveredPath(null);
-  }, []);
-
-  // Search/filter state
   const [searchTerm, setSearchTerm] = useState("");
 
-  const searchMatch = useCallback(
-    (node: { name: string }, term: string) => node.name.toLowerCase().includes(term.toLowerCase()),
-    [],
+  // Fetch only when user types. Empty input → tree shows the collapsed
+  // bucket roots from the connections store.
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (trimmed.length === 0) return;
+    const handle = setTimeout(() => {
+      objectsFetcher.load(`/search?query=${encodeURIComponent(trimmed)}`);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on input changes
+  }, [searchTerm]);
+
+  const initialBuckets = useMemo<TreeNode[]>(
+    () =>
+      Object.values(connections).map(({ connectionConfig }) => ({
+        id: `${connectionConfig.name}/`,
+        connectionName: connectionConfig.name,
+        name: connectionConfig.name,
+        type: "bucket" as const,
+        pathName: "",
+        children: [],
+        loadState: "idle" as const,
+      })),
+    [connections],
   );
 
-  // Handle loading the selected overlay
-  const handleLoad = useCallback(async () => {
-    if (!selectedId) return;
+  const rawNodes =
+    searchTerm.trim().length > 0 && objectsFetcher.data
+      ? objectsFetcher.data.nodes
+      : initialBuckets;
 
-    const originalNode = findNodeById(nodes, selectedId);
-    if (!originalNode) return;
+  // CSV path stays unfiltered (we'll split components later). For "parquet"
+  // the dialog only surfaces `.parquet` files.
+  const shouldFilter = query === "parquet";
+  const nodes = useMemo(
+    () => (shouldFilter ? filterByExtension(rawNodes, query) : rawNodes),
+    [rawNodes, query, shouldFilter],
+  );
 
-    try {
-      if (query === "csv") {
-        convertCsvToParquet(originalNode.id);
-        toast({
-          variant: "success",
-          message: `Started conversion: ${originalNode.name}`,
-        });
-      } else {
-        onOverlayAdd?.({ [originalNode.id]: {} });
-        toast({
-          variant: "success",
-          message: `Overlay added: ${originalNode.name}`,
-        });
-      }
+  const onExpand = useCallback(
+    async (parent: TreeNode) => {
+      const children = await defaultOnExpand(parent);
+      return shouldFilter ? filterByExtension(children, query) : children;
+    },
+    [query, shouldFilter],
+  );
 
-      callback?.();
-    } catch (error) {
-      console.error("Error processing overlay:", error);
+  const isLoading = objectsFetcher.state === "loading";
+
+  // Surface capped / failed / CORS-blocked connections from the search loader.
+  // Without this, users with broken buckets see "no results" silently.
+  const notification = objectsFetcher.data?.notification;
+  useEffect(() => {
+    if (notification) {
       toast({
-        variant: "error",
-        message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: toToastVariant(notification.status ?? "info"),
+        message: notification.message,
       });
     }
-  }, [selectedId, nodes, query, onOverlayAdd, toast, callback]);
+  }, [notification, toast]);
+
+  const isSearching = searchTerm.trim().length > 0;
+  const defaultExpandedItems = useMemo(() => collectInteriorIds(nodes), [nodes]);
+
+  const handleSelect = useCallback(
+    (node: TreeNode) => {
+      if (node.type !== "file") return;
+      try {
+        if (query === "csv") {
+          convertCsvToParquet(node.id);
+          toast({ variant: "success", message: `Started conversion: ${node.name}` });
+        } else {
+          onOverlayAdd?.({ [node.id]: {} });
+          toast({ variant: "success", message: `Overlay added: ${node.name}` });
+        }
+        callback?.();
+      } catch (error) {
+        console.error("Error processing overlay:", error);
+        toast({
+          variant: "error",
+          message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
+        });
+      }
+    },
+    [query, onOverlayAdd, toast, callback],
+  );
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Search input */}
       <Input
         aria-label={`Search ${query} files`}
         placeholder={`Search .${query} files...`}
@@ -97,48 +139,32 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         onChange={setSearchTerm}
       />
 
-      {/* File tree */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-8">
+      {isLoading && (
+        <div className="flex items-center justify-center py-2">
           <LavaLoader />
         </div>
-      ) : nodes.length === 0 ? (
-        <p className="py-8 text-center text-sm text-(--color-text-secondary)">
-          No .{query} files found in connected buckets.
-        </p>
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-lg border border-(--color-border-default)">
-            <Tree
-              aria-label={`Select ${query} file`}
-              data={nodes}
-              selectionMode="single"
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              onHover={handleHover}
-              onHoverEnd={handleHoverEnd}
-              openByDefault={true}
-              size="compact"
-              height={320}
-              searchTerm={searchTerm}
-              searchMatch={searchMatch}
-            />
-          </div>
-          <p className="truncate text-xs text-(--color-text-tertiary)">{hoveredPath ?? "…"}</p>
-        </>
       )}
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        {callback && (
+      <DirectoryViewTree
+        key={isSearching ? `search:${objectsFetcher.data?.searchQuery ?? "loading"}` : "lazy"}
+        nodes={nodes}
+        kind="entries"
+        onExpand={onExpand}
+        defaultExpandedItems={isSearching ? defaultExpandedItems : undefined}
+        nodeLinkProps={{
+          onClick: handleSelect,
+          contextMenu: false,
+          isClickable: (node) => node.type === "file",
+        }}
+      />
+
+      {callback && (
+        <div className="flex justify-end">
           <Button variant="ghost" onPress={callback}>
             Cancel
           </Button>
-        )}
-        <Button variant="primary" isDisabled={!selectedId} onPress={handleLoad}>
-          {query === "csv" ? "Convert" : "Load"}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

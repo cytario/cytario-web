@@ -3,7 +3,7 @@ import { devtools, persist } from "zustand/middleware";
 
 import { createMigrate } from "~/utils/persistMigration";
 
-export type ViewMode = "list" | "grid-compact" | "grid" | "tree";
+export type ViewMode = "list" | "grid" | "tree";
 
 interface LayoutStore {
   viewMode: ViewMode;
@@ -52,7 +52,7 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
-      version: 4,
+      version: 5,
       migrate: createMigrate<PersistedLayoutState>(
         {
           0: (state) => {
@@ -75,28 +75,44 @@ export const useLayoutStore = create<LayoutStore>()(
           },
           2: (state) => {
             const s = state as { viewMode?: string; showHiddenFiles?: boolean };
-            const modeMap: Record<string, ViewMode> = {
+            const modeMap: Record<string, string> = {
               list: "list",
               "list-wide": "list",
-              "grid-sm": "grid-compact",
+              "grid-sm": "grid",
               "grid-md": "grid",
               "grid-lg": "grid",
             };
             return {
-              viewMode: modeMap[s?.viewMode ?? ""] ?? "grid",
+              viewMode: (modeMap[s?.viewMode ?? ""] ?? "grid") as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
               showFilters: false,
             };
           },
           3: (state) => {
             const s = state as {
-              viewMode?: ViewMode;
+              viewMode?: string;
               showHiddenFiles?: boolean;
             };
             return {
-              viewMode: s?.viewMode ?? "grid",
+              viewMode: (s?.viewMode === "grid-compact"
+                ? "grid"
+                : (s?.viewMode ?? "grid")) as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
               showFilters: false,
+            };
+          },
+          4: (state) => {
+            const s = state as {
+              viewMode?: string;
+              showHiddenFiles?: boolean;
+              showFilters?: boolean;
+            };
+            return {
+              viewMode: (s?.viewMode === "grid-compact"
+                ? "grid"
+                : (s?.viewMode ?? "grid")) as ViewMode,
+              showHiddenFiles: s?.showHiddenFiles ?? false,
+              showFilters: s?.showFilters ?? false,
             };
           },
         },

@@ -1,21 +1,17 @@
-import { FileCard, StorageConnectionCard } from "@cytario/design";
 import { filesize } from "filesize";
-import { lazy, Suspense, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { lazy, Suspense, useMemo } from "react";
 
 import { type TreeNode } from "./buildDirectoryTree";
-import { ConnectionMenu } from "./ConnectionMenu";
 import { type DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
-import { type ViewMode } from "./useLayoutStore";
 import { ClientOnly } from "~/components/ClientOnly";
+import { GridItem } from "~/components/DirectoryView/GridItem";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { useNodeInfoModal } from "~/hooks/useNodeInfoModal";
 import { select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { getNodeIcon, isImageFile } from "~/utils/fileType";
-import { buildConnectionPath, constructS3Url } from "~/utils/resourceId";
+import { isImageFile } from "~/utils/fileType";
+import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
@@ -29,11 +25,7 @@ const ImagePreview = lazy(() =>
   })),
 );
 
-const gridClasses: Partial<Record<ViewMode, string>> = {
-  // prettier-ignore
-  "grid-compact": "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3",
-  grid: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
-};
+const gridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6";
 
 function useSignedFetch(connectionName: string) {
   const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
@@ -49,64 +41,54 @@ function useSignedFetch(connectionName: string) {
   return { connectionConfig, signedFetch };
 }
 
-function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
-  const navigate = useNavigate();
-  const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
+function ImagePreviewSlot({
+  s3Url,
+  signedFetch,
+}: {
+  s3Url: string;
+  signedFetch: ReturnType<typeof createSignedFetch>;
+}) {
+  return (
+    <ClientOnly>
+      <Suspense fallback={<div className="animate-pulse w-full h-full bg-slate-600" />}>
+        <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
+          <ImagePreview />
+        </ViewerStoreProvider>
+      </Suspense>
+    </ClientOnly>
+  );
+}
 
-  const to = buildConnectionPath(connectionName, node.pathName);
-  const handlePress = useCallback(() => navigate(to), [navigate, to]);
+function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
+  const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
 
   const previewKey = node._Object?.Key ?? null;
   const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
   const s3Url = hasPreview && connectionConfig ? constructS3Url(connectionConfig, previewKey) : "";
 
   return (
-    <StorageConnectionCard
-      name={node.name}
-      status={node.connectionStatus ?? "loading"}
-      errorMessage={node.connectionErrorMessage}
-      meta={
-        connectionConfig && (
-          <>
-            <ScopePill scope={connectionConfig.ownerScope} />
-            <ProviderPill provider={connectionConfig.provider} />
-          </>
-        )
+    <GridItem
+      node={node}
+      preview={
+        hasPreview && signedFetch ? (
+          <ImagePreviewSlot s3Url={s3Url} signedFetch={signedFetch} />
+        ) : undefined
       }
-      onPress={handlePress}
-      actions={<ConnectionMenu connectionName={node.name} />}
     >
-      {hasPreview && signedFetch && (
-        <ClientOnly>
-          <Suspense fallback={<div className="animate-pulse w-full h-full bg-slate-600" />}>
-            <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
-              <ImagePreview />
-            </ViewerStoreProvider>
-          </Suspense>
-        </ClientOnly>
+      {connectionConfig && (
+        <>
+          <ScopePill scope={connectionConfig.ownerScope} />
+          <ProviderPill provider={connectionConfig.provider} />
+        </>
       )}
-    </StorageConnectionCard>
+    </GridItem>
   );
 }
 
-function FileCardGridItem({
-  node,
-  compact,
-  connectionName,
-}: {
-  node: TreeNode;
-  compact: boolean;
-  connectionName: string;
-}) {
-  const navigate = useNavigate();
-  const handleInfo = useNodeInfoModal(node);
-
+function FileCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
   const { connectionConfig: config, signedFetch } = useSignedFetch(connectionName);
   const explicitKey = node._Object?.Key ?? null;
   const resolvedHttpsUrl = useConnectionsStore(selectHttpsUrl(node.id));
-
-  const to = buildConnectionPath(connectionName, node.pathName);
-  const handlePress = useCallback(() => navigate(to), [navigate, to]);
 
   const s3Url =
     explicitKey && isImageFile(explicitKey) && config
@@ -116,44 +98,24 @@ function FileCardGridItem({
         : "";
   const hasPreview = !!s3Url && !!signedFetch;
 
-  const nodeIcon = getNodeIcon(node);
   const size = node.type === "file" && node._Object?.Size ? filesize(node._Object.Size) : undefined;
 
   return (
-    <FileCard
-      name={node.name}
-      icon={nodeIcon}
-      size={typeof size === "string" ? size : undefined}
-      compact={compact}
-      onPress={handlePress}
-      onInfo={handleInfo}
+    <GridItem
+      node={node}
+      preview={
+        hasPreview && signedFetch ? (
+          <ImagePreviewSlot s3Url={s3Url} signedFetch={signedFetch} />
+        ) : undefined
+      }
     >
-      {hasPreview && signedFetch && (
-        <ClientOnly>
-          <Suspense fallback={<div className="animate-pulse w-full h-full bg-slate-600" />}>
-            <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
-              <ImagePreview />
-            </ViewerStoreProvider>
-          </Suspense>
-        </ClientOnly>
-      )}
-    </FileCard>
+      {typeof size === "string" && <span>{size}</span>}
+    </GridItem>
   );
 }
 
-export function DirectoryViewGrid({
-  nodes,
-  viewMode = "grid",
-  kind,
-}: {
-  nodes: TreeNode[];
-  viewMode?: ViewMode;
-  kind: DirectoryKind;
-}) {
+export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: DirectoryKind }) {
   if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
-
-  const compact = viewMode === "grid-compact";
-  const gridClass = gridClasses[viewMode] ?? gridClasses["grid"];
 
   return (
     <div className={gridClass}>
@@ -162,14 +124,7 @@ export function DirectoryViewGrid({
         if (kind === "connections") {
           return <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />;
         }
-        return (
-          <FileCardGridItem
-            key={key}
-            node={node}
-            compact={compact}
-            connectionName={node.connectionName}
-          />
-        );
+        return <FileCardGridItem key={key} node={node} connectionName={node.connectionName} />;
       })}
     </div>
   );
