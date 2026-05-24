@@ -114,7 +114,6 @@ jobs:
           CYBERDUCK_CLIENT_ID: smoke
           KC_ADMIN_CLIENT_ID: smoke
           KC_ADMIN_CLIENT_SECRET: smoke
-          SCOPES: openid
           COOKIE_SECRET: smoke-cookie-secret
           WEB_HOST: http://127.0.0.1:3000
         run: |

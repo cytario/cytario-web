@@ -35,7 +35,6 @@ const {
   CYBERDUCK_CLIENT_ID,
   KC_ADMIN_CLIENT_ID,
   KC_ADMIN_CLIENT_SECRET,
-  SCOPES,
   REDIS_PORT,
   REDIS_HOST,
   REDIS_USERNAME,
@@ -56,7 +55,7 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     cyberduckClientId: CYBERDUCK_CLIENT_ID!,
     adminClientId: KC_ADMIN_CLIENT_ID!,
     adminClientSecret: KC_ADMIN_CLIENT_SECRET!,
-    scopes: SCOPES!.split(","),
+    scopes: ["openid", "profile", "organization"],
   },
   redis: {
     port: Number(REDIS_PORT) || 6379,
