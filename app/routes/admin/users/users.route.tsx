@@ -176,8 +176,9 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
 }
 
 export default function AdminUsersRoute() {
-  const { scope, users, groups, connections } = useLoaderData<{
+  const { scope, headingLabel, users, groups, connections } = useLoaderData<{
     scope: string;
+    headingLabel: string;
     users: UserWithGroups[];
     groups: GroupInfo[];
     connections: ConnectionConfig[];
@@ -219,7 +220,7 @@ export default function AdminUsersRoute() {
 
   return (
     <Section>
-      <SectionHeader name={scope}>
+      <SectionHeader name={headingLabel}>
         <span className="text-sm text-slate-500">
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>

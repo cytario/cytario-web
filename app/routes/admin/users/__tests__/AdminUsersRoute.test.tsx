@@ -77,6 +77,7 @@ describe("AdminUsersRoute", () => {
         Component: AdminUsersRoute,
         loader: () => ({
           scope: "cytario/lab",
+          headingLabel: "cytario/lab",
           users,
           groups,
           connections,

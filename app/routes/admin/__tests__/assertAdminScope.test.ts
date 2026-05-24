@@ -51,4 +51,26 @@ describe("assertAdminScope", () => {
     ]);
     expect(result.adminUrl).toBe("/admin/users?scope=cytario%2Fteam%20alpha");
   });
+
+  test("org-root admin can target the `*` sentinel", () => {
+    const result = assertAdminScope("http://localhost/admin/users?scope=*", ["*"]);
+    expect(result).toEqual({
+      scope: "*",
+      adminUrl: "/admin/users?scope=*",
+    });
+  });
+
+  test("non-root admin cannot target the `*` sentinel", () => {
+    try {
+      assertAdminScope("http://localhost/admin/users?scope=*", ["cytario"]);
+    } catch (e) {
+      expect(e).toBeInstanceOf(Response);
+      expect((e as Response).status).toBe(403);
+    }
+  });
+
+  test("org-root admin can also target a named child scope", () => {
+    const result = assertAdminScope("http://localhost/admin/users?scope=cytario/lab", ["*"]);
+    expect(result.scope).toBe("cytario/lab");
+  });
 });

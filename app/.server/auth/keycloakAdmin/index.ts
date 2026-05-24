@@ -20,3 +20,9 @@ export {
   removeUserFromGroup,
   setUserEnabled,
 } from "./users";
+
+export {
+  findOrganizationByAlias,
+  getOrganizationMembers,
+  type KeycloakOrganization,
+} from "./organizations";
