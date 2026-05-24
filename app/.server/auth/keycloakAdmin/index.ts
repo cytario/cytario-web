@@ -22,7 +22,12 @@ export {
 } from "./users";
 
 export {
+  addUserToOrganizationGroup,
+  createOrganizationSubgroup,
+  createOrganizationTopLevelGroup,
+  deleteOrganizationGroup,
   findOrganizationByAlias,
+  findOrganizationGroupByPath,
   getOrganizationMembers,
   type KeycloakOrganization,
 } from "./organizations";

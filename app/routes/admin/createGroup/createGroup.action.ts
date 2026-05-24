@@ -4,7 +4,7 @@ import { createGroupSchema } from "./createGroup.schema";
 import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { addUserToGroup, createGroup } from "~/.server/auth/keycloakAdmin";
+import { addUserToOrganizationGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
@@ -22,9 +22,13 @@ export const createGroupAction: ActionFunction = async ({ request, context }) =>
   const session = await getSession(request);
 
   try {
-    const { path, adminsGroupId } = await createGroup(scope, result.data.name);
+    const { path, adminsGroupId, orgId } = await createGroup(
+      scope,
+      result.data.name,
+      user.organization,
+    );
 
-    await addUserToGroup(user.sub, adminsGroupId);
+    await addUserToOrganizationGroup(orgId, adminsGroupId, user.sub);
 
     const newScopeUrl = `/admin/users?scope=${encodeURIComponent(path)}`;
 

@@ -1,11 +1,13 @@
 import type { UserProfile } from "../getUserInfo";
+import { adminFetch, KeycloakAdminError, type KeycloakGroup, type KeycloakUser } from "./client";
 import {
-  adminFetch,
-  adminMutate,
-  KeycloakAdminError,
-  type KeycloakGroup,
-  type KeycloakUser,
-} from "./client";
+  createOrganizationSubgroup,
+  createOrganizationTopLevelGroup,
+  deleteOrganizationGroup,
+  findOrganizationByAlias,
+  findOrganizationGroupByPath,
+} from "./organizations";
+import { ORG_ROOT_ADMIN_SCOPE } from "~/utils/authorization";
 
 export interface GroupWithMembers {
   id: string;
@@ -162,9 +164,28 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
   return Array.from(userMap.values());
 }
 
+function extractIdFromLocation(response: Response, what: string): string {
+  const location = response.headers.get("location");
+  if (!location) {
+    throw new Error(`Missing Location header from ${what} response`);
+  }
+  const id = location.split("/").pop();
+  if (!id) {
+    throw new Error(`Could not extract ID from ${what} Location header`);
+  }
+  return id;
+}
+
 /**
- * Creates a subgroup under the given parent scope, and auto-creates an
- * "admins" subgroup inside the new group for admin delegation.
+ * Creates a new group inside the active organization, plus an auto-created
+ * `admins` subgroup inside it for admin delegation.
+ *
+ * Both branches go through Keycloak 26.6's Organization Groups API
+ * (`/admin/realms/{realm}/organizations/{orgId}/groups`), which is the
+ * authoritative way to create org-owned groups — it isolates the hierarchy
+ * per-org and prevents the realm-wide path collisions that the previous
+ * `/admin/realms/{realm}/groups` approach allowed when two orgs happened to
+ * pick the same group name.
  *
  * If the admins subgroup creation fails, the parent group is rolled back
  * (deleted) to avoid leaving the hierarchy in an inconsistent state.
@@ -172,37 +193,31 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
 export async function createGroup(
   parentScope: string,
   name: string,
-): Promise<{ id: string; path: string; adminsGroupId: string }> {
-  const parent = await findGroupByPath(parentScope);
-  if (!parent) {
-    throw new KeycloakAdminError(404, `Parent group not found: ${parentScope}`);
+  organization: string | undefined,
+): Promise<{ id: string; path: string; adminsGroupId: string; orgId: string }> {
+  if (!organization) {
+    throw new KeycloakAdminError(400, "Active organization is required to create a group");
+  }
+  const org = await findOrganizationByAlias(organization);
+  if (!org) {
+    throw new KeycloakAdminError(404, `Organization not found: ${organization}`);
   }
 
-  const response = await adminMutate("POST", `/groups/${parent.id}/children`, { name });
+  const isOrgRoot = parentScope === ORG_ROOT_ADMIN_SCOPE;
 
-  const location = response.headers.get("location");
-  if (!location) {
-    throw new Error("Missing Location header from group creation response");
-  }
-  const newGroupId = location.split("/").pop();
-  if (!newGroupId) {
-    throw new Error("Could not extract group ID from Location header");
-  }
+  const createResponse = isOrgRoot
+    ? await createOrganizationTopLevelGroup(org.id, name)
+    : await createOrgChildAtPath(org.id, parentScope, name);
+  const newGroupId = extractIdFromLocation(createResponse, "group creation");
 
   let adminsGroupId: string;
   try {
-    const adminsResponse = await adminMutate("POST", `/groups/${newGroupId}/children`, {
-      name: "admins",
-    });
-    const adminsLocation = adminsResponse.headers.get("location");
-    adminsGroupId = adminsLocation?.split("/").pop() ?? "";
-    if (!adminsGroupId) {
-      throw new Error("Missing Location header from admins subgroup creation");
-    }
+    const adminsResponse = await createOrganizationSubgroup(org.id, newGroupId, "admins");
+    adminsGroupId = extractIdFromLocation(adminsResponse, "admins subgroup creation");
   } catch (e) {
     console.error("Failed to create admins subgroup, rolling back:", e);
     try {
-      await adminMutate("DELETE", `/groups/${newGroupId}`);
+      await deleteOrganizationGroup(org.id, newGroupId);
     } catch (rollbackErr) {
       console.error("Rollback also failed, orphaned group:", rollbackErr);
     }
@@ -211,9 +226,22 @@ export async function createGroup(
 
   return {
     id: newGroupId,
-    path: `${parentScope}/${name}`,
+    path: isOrgRoot ? name : `${parentScope}/${name}`,
     adminsGroupId,
+    orgId: org.id,
   };
+}
+
+async function createOrgChildAtPath(
+  orgId: string,
+  parentScope: string,
+  name: string,
+): Promise<Response> {
+  const parent = await findOrganizationGroupByPath(orgId, parentScope);
+  if (!parent) {
+    throw new KeycloakAdminError(404, `Parent group not found in organization: ${parentScope}`);
+  }
+  return createOrganizationSubgroup(orgId, parent.id, name);
 }
 
 /**

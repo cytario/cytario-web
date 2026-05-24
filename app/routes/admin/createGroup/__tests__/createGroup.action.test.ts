@@ -6,7 +6,7 @@ import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 
 vi.mock("~/.server/auth/keycloakAdmin", () => ({
   createGroup: vi.fn(),
-  addUserToGroup: vi.fn(),
+  addUserToOrganizationGroup: vi.fn(),
 }));
 
 vi.mock("~/.server/auth/getSession", () => ({
@@ -19,7 +19,7 @@ vi.mock("~/.server/auth/sessionStorage", () => ({
   },
 }));
 
-const { createGroup, addUserToGroup } = await import("~/.server/auth/keycloakAdmin");
+const { createGroup, addUserToOrganizationGroup } = await import("~/.server/auth/keycloakAdmin");
 const { getSession } = await import("~/.server/auth/getSession");
 
 let mockSession: { set: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
@@ -33,10 +33,10 @@ function makeRequest(name: string, scope = "cytario/lab") {
   );
 }
 
-function makeContext(adminScopes: string[] = ["cytario"]) {
+function makeContext(adminScopes: string[] = ["cytario"], organization = "cytario") {
   const ctx = new Map();
   ctx.set(authContext, {
-    user: { sub: "user-123", adminScopes },
+    user: { sub: "user-123", adminScopes, organization },
   });
   return ctx;
 }
@@ -61,12 +61,13 @@ describe("createGroupAction", () => {
       id: "new-id",
       path: "cytario/lab/Ultivue",
       adminsGroupId: "admins-id",
+      orgId: "org-uuid",
     });
 
     const response = await callAction(makeRequest("Ultivue"), makeContext());
 
-    expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue");
-    expect(addUserToGroup).toHaveBeenCalledWith("user-123", "admins-id");
+    expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue", "cytario");
+    expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get("location")).toBe(
@@ -118,6 +119,21 @@ describe("createGroupAction", () => {
     await expect(callAction(makeRequest("foo"), makeContext(["other/scope"]))).rejects.toThrow(
       Response,
     );
+  });
+
+  test("forwards organization to createGroup when parent is the `*` sentinel", async () => {
+    vi.mocked(createGroup).mockResolvedValue({
+      id: "top-id",
+      path: "Lab",
+      adminsGroupId: "admins-id",
+      orgId: "org-uuid",
+    });
+
+    const response = await callAction(makeRequest("Lab", "*"), makeContext(["*"], "cytario"));
+
+    expect(createGroup).toHaveBeenCalledWith("*", "Lab", "cytario");
+    expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
+    expect((response as Response).headers.get("location")).toBe("/admin/users?scope=Lab");
   });
 
   test("throws 400 when scope query param is missing", async () => {
