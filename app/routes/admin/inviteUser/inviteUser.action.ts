@@ -2,71 +2,69 @@ import { type ActionFunction, redirect } from "react-router";
 
 import { inviteUserSchema } from "./inviteUser.schema";
 import { assertAdminScope } from "../assertAdminScope";
-import { assertGroupPathsInScope } from "../assertGroupPathsInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
+import { findOrganizationByAlias, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
+import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
 export const inviteUserAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
+  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
+
+  if (!user.organization) {
+    throw new Response("No active organization", { status: 400 });
+  }
 
   const formData = await request.formData();
   const inviteAnother = formData.get("inviteAnother") === "true";
   const rawData = Object.fromEntries(formData);
-  const result = inviteUserSchema.safeParse({
-    ...rawData,
-    enabled: rawData.enabled === "true",
-  });
+  const result = inviteUserSchema.safeParse(rawData);
 
   if (!result.success) {
     return { errors: result.error.flatten().fieldErrors };
   }
 
-  await assertGroupPathsInScope([result.data.groupPath], scope);
-
   const session = await getSession(request);
 
   try {
-    await inviteUser(
+    const org = await findOrganizationByAlias(user.organization);
+    if (!org) {
+      throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+    }
+
+    await inviteOrganizationUser(
+      org.id,
       result.data.email,
-      result.data.firstName,
-      result.data.lastName,
-      result.data.groupPath,
-      result.data.enabled,
+      result.data.firstName || undefined,
+      result.data.lastName || undefined,
     );
 
+    const message = `Invited ${result.data.email} to ${user.organization}.`;
     if (inviteAnother) {
-      return {
-        success: true,
-        message: `Invited ${result.data.email} to ${result.data.groupPath}.`,
-      };
+      return { success: true, message };
     }
-
-    session.set("notification", {
-      status: "success",
-      message: `Invited ${result.data.email} to ${result.data.groupPath}.`,
-    });
+    session.set("notification", { status: "success", message });
   } catch (e) {
-    console.error("Invite failed:", e);
-
-    const status = e instanceof Response ? e.status : undefined;
-    const message =
-      status === 409
-        ? `A user with email ${result.data.email} already exists.`
-        : status === 404
-          ? `Group ${result.data.groupPath} was not found.`
-          : "Failed to invite user. Please try again.";
-
-    if (inviteAnother) {
-      return { success: false, message };
+    const status = e instanceof KeycloakAdminError ? e.status : undefined;
+    if (status === 409) {
+      // Keycloak returns 409 for both "pending invitation already exists" and
+      // "user is already a member". Both are benign no-ops from the admin's
+      // POV — the email already went out or the user is already in — so we
+      // surface them as a warning rather than an error.
+      const message = `${result.data.email} already has a pending invitation or is a member.`;
+      if (inviteAnother) {
+        return { success: true, message };
+      }
+      session.set("notification", { status: "warning", message });
+    } else {
+      console.error("Invite failed:", e);
+      const message = "Failed to invite user. Please try again.";
+      if (inviteAnother) {
+        return { success: false, message };
+      }
+      session.set("notification", { status: "error", message });
     }
-
-    session.set("notification", {
-      status: "error",
-      message,
-    });
   }
 
   return redirect(adminUrl, {

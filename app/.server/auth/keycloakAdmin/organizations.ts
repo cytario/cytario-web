@@ -1,4 +1,10 @@
-import { adminFetch, adminMutate, type KeycloakGroup, type KeycloakUser } from "./client";
+import {
+  adminFetch,
+  adminFormMutate,
+  adminMutate,
+  type KeycloakGroup,
+  type KeycloakUser,
+} from "./client";
 
 export interface KeycloakOrganization {
   id: string;
@@ -86,4 +92,29 @@ export async function addUserToOrganizationGroup(
   userId: string,
 ): Promise<Response> {
   return adminMutate("PUT", `/organizations/${orgId}/groups/${groupId}/members/${userId}`);
+}
+
+/**
+ * Send an organization invitation to the given email
+ * (`POST /organizations/{orgId}/members/invite-user`, KC 26+). Keycloak
+ * provisions the user if needed and emails the join link; firstName /
+ * lastName are only used when the user does not already exist.
+ *
+ * Endpoint consumes `application/x-www-form-urlencoded`.
+ *
+ * KC returns 409 both for "pending invitation already exists" and
+ * "user already a member" — both are benign from the caller's POV; the
+ * action layer should classify them as warnings rather than errors.
+ */
+export async function inviteOrganizationUser(
+  orgId: string,
+  email: string,
+  firstName?: string,
+  lastName?: string,
+): Promise<Response> {
+  const body = new URLSearchParams();
+  body.set("email", email);
+  if (firstName) body.set("firstName", firstName);
+  if (lastName) body.set("lastName", lastName);
+  return adminFormMutate("POST", `/organizations/${orgId}/members/invite-user`, body);
 }

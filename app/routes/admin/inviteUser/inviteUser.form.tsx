@@ -1,25 +1,18 @@
-import { Checkbox, Fieldset, Input, Select } from "@cytario/design";
+import { Fieldset, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
-import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface InviteUserFormProps {
   scope: string;
-  groupOptions: string[];
   inviteAnother?: boolean;
   actionData?: { success?: boolean; message?: string };
 }
 
-export function InviteUserForm({
-  scope,
-  groupOptions,
-  inviteAnother,
-  actionData,
-}: InviteUserFormProps) {
+export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserFormProps) {
   const submit = useSubmit();
 
   const { control, handleSubmit, reset } = useForm<InviteUserFormData>({
@@ -28,8 +21,6 @@ export function InviteUserForm({
       email: "",
       firstName: "",
       lastName: "",
-      groupPath: scope,
-      enabled: true,
     },
     mode: "onBlur",
   });
@@ -40,17 +31,16 @@ export function InviteUserForm({
         email: "",
         firstName: "",
         lastName: "",
-        groupPath: scope,
-        enabled: true,
       });
     }
-  }, [actionData, reset, scope]);
+  }, [actionData, reset]);
 
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       formData.append(key, String(value));
     });
+    formData.append("scope", scope);
     if (inviteAnother) {
       formData.append("inviteAnother", "true");
     }
@@ -80,9 +70,9 @@ export function InviteUserForm({
           name="firstName"
           render={({ field, fieldState }) => (
             <Input
-              label="First name"
+              label="First name (optional)"
               size="lg"
-              value={field.value}
+              value={field.value ?? ""}
               onChange={field.onChange}
               onBlur={field.onBlur}
               errorMessage={fieldState.error?.message}
@@ -94,50 +84,19 @@ export function InviteUserForm({
           name="lastName"
           render={({ field, fieldState }) => (
             <Input
-              label="Last name"
+              label="Last name (optional)"
               size="lg"
-              value={field.value}
+              value={field.value ?? ""}
               onChange={field.onChange}
               onBlur={field.onBlur}
               errorMessage={fieldState.error?.message}
             />
           )}
         />
-        {groupOptions.length > 0 ? (
-          <Controller
-            control={control}
-            name="groupPath"
-            render={({ field, fieldState }) => (
-              <Select
-                label="Group Membership"
-                items={groupOptions.map((p) => ({ id: p, name: p }))}
-                selectedKey={field.value}
-                onSelectionChange={(key) => field.onChange(key as string)}
-                renderItem={(item) => <ScopePill scope={item.id} />}
-                errorMessage={fieldState.error?.message}
-              />
-            )}
-          />
-        ) : (
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-(--color-text-primary)">Group Membership</p>
-            <p className="text-sm text-slate-400">No groups available in this scope.</p>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Controller
-            control={control}
-            name="enabled"
-            render={({ field }) => (
-              <Checkbox isSelected={field.value} onChange={field.onChange}>
-                Enabled
-              </Checkbox>
-            )}
-          />
-          <p className="text-sm text-slate-500">
-            Uncheck to pre-provision the account without granting immediate access.
-          </p>
-        </div>
+        <p className="text-sm text-slate-500">
+          Keycloak emails the invite to the address above. Group membership can be assigned after
+          the user accepts.
+        </p>
       </Fieldset>
     </form>
   );

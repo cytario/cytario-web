@@ -12,14 +12,7 @@ export {
   type GroupInfo,
 } from "./groups";
 
-export {
-  getUser,
-  inviteUser,
-  updateUser,
-  addUserToGroup,
-  removeUserFromGroup,
-  setUserEnabled,
-} from "./users";
+export { getUser, updateUser, addUserToGroup, removeUserFromGroup, setUserEnabled } from "./users";
 
 export {
   addUserToOrganizationGroup,
@@ -29,5 +22,6 @@ export {
   findOrganizationByAlias,
   findOrganizationGroupByPath,
   getOrganizationMembers,
+  inviteOrganizationUser,
   type KeycloakOrganization,
 } from "./organizations";

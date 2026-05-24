@@ -12,19 +12,19 @@ describe("bulkInviteRowSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  test("parses row without firstName / lastName (org invite makes them optional)", () => {
+    const result = bulkInviteRowSchema.safeParse({
+      email: "user@example.com",
+      firstName: "",
+      lastName: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
   test("fails with invalid email", () => {
     const result = bulkInviteRowSchema.safeParse({
       email: "not-an-email",
       firstName: "John",
-      lastName: "Doe",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("fails with empty firstName", () => {
-    const result = bulkInviteRowSchema.safeParse({
-      email: "user@example.com",
-      firstName: "",
       lastName: "Doe",
     });
     expect(result.success).toBe(false);
@@ -48,20 +48,12 @@ describe("bulkInviteSchema", () => {
   };
 
   test("parses valid payload", () => {
-    const result = bulkInviteSchema.safeParse({
-      groupPath: "cytario/lab",
-      enabled: true,
-      rows: [validRow],
-    });
+    const result = bulkInviteSchema.safeParse({ rows: [validRow] });
     expect(result.success).toBe(true);
   });
 
   test("fails with empty rows", () => {
-    const result = bulkInviteSchema.safeParse({
-      groupPath: "cytario/lab",
-      enabled: true,
-      rows: [],
-    });
+    const result = bulkInviteSchema.safeParse({ rows: [] });
     expect(result.success).toBe(false);
   });
 
@@ -71,11 +63,7 @@ describe("bulkInviteSchema", () => {
       firstName: "John",
       lastName: "Doe",
     }));
-    const result = bulkInviteSchema.safeParse({
-      groupPath: "cytario/lab",
-      enabled: true,
-      rows,
-    });
+    const result = bulkInviteSchema.safeParse({ rows });
     expect(result.success).toBe(false);
   });
 
@@ -85,29 +73,7 @@ describe("bulkInviteSchema", () => {
       firstName: "John",
       lastName: "Doe",
     }));
-    const result = bulkInviteSchema.safeParse({
-      groupPath: "cytario/lab",
-      enabled: true,
-      rows,
-    });
+    const result = bulkInviteSchema.safeParse({ rows });
     expect(result.success).toBe(true);
-  });
-
-  test("fails with empty groupPath", () => {
-    const result = bulkInviteSchema.safeParse({
-      groupPath: "",
-      enabled: true,
-      rows: [validRow],
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("fails with non-boolean enabled", () => {
-    const result = bulkInviteSchema.safeParse({
-      groupPath: "cytario/lab",
-      enabled: "yes",
-      rows: [validRow],
-    });
-    expect(result.success).toBe(false);
   });
 });

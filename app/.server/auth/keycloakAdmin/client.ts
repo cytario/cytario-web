@@ -29,16 +29,22 @@ export class KeycloakAdminError extends Error {
 
 const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace("/realms/", "/admin/realms/");
 
-async function adminRequest(method: string, path: string, body?: unknown): Promise<Response> {
+async function adminRequest(
+  method: string,
+  path: string,
+  init: { body?: BodyInit; contentType?: string } = {},
+): Promise<Response> {
   const accessToken = await getAdminToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+  };
+  if (init.contentType) headers["Content-Type"] = init.contentType;
 
   const response = await fetch(`${adminApiBaseUrl}${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers,
+    body: init.body,
   });
 
   if (!response.ok) {
@@ -61,5 +67,23 @@ export async function adminMutate(
   path: string,
   body?: unknown,
 ): Promise<Response> {
-  return adminRequest(method, path, body);
+  if (body === undefined) {
+    return adminRequest(method, path);
+  }
+  return adminRequest(method, path, {
+    body: JSON.stringify(body),
+    contentType: "application/json",
+  });
+}
+
+/** Form-encoded request — required by Keycloak endpoints that consume URL-encoded bodies. */
+export async function adminFormMutate(
+  method: "POST" | "PUT",
+  path: string,
+  body: URLSearchParams,
+): Promise<Response> {
+  return adminRequest(method, path, {
+    body: body.toString(),
+    contentType: "application/x-www-form-urlencoded",
+  });
 }
