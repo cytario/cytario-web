@@ -3,20 +3,36 @@ import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { prisma } from "~/.server/db/prisma";
 import { canSee, filterVisible } from "~/utils/authorization";
 
-/** List all connection configs visible to the user. */
+/**
+ * Server-side tenant boundary: every ConnectionConfig query is pre-filtered by
+ * the active Keycloak organization. The auth middleware guarantees the claim
+ * is present before any query runs; throwing here is defence-in-depth.
+ */
+function requireOrganization(user: UserProfile): string {
+  if (!user.organization) {
+    throw new Error("Active organization missing from session");
+  }
+  return user.organization;
+}
+
+/** List all connection configs visible to the user within the active org. */
 export async function listConnections(user: UserProfile): Promise<ConnectionConfig[]> {
-  const allConfigs = await prisma.connectionConfig.findMany();
+  const organization = requireOrganization(user);
+  const allConfigs = await prisma.connectionConfig.findMany({
+    where: { organization },
+  });
   return filterVisible(user, allConfigs);
 }
 
-/** Get a connection config by its unique name. */
+/** Get a connection config by its unique name, scoped to the active org. */
 export async function getConnection(
   user: UserProfile,
   name: string,
 ): Promise<ConnectionConfig | null> {
+  requireOrganization(user);
   const config = await prisma.connectionConfig.findUnique({
     where: { name },
   });
-  if (!config) return null;
-  return canSee(user, config.ownerScope) ? config : null;
+  if (!config || !canSee(user, config)) return null;
+  return config;
 }

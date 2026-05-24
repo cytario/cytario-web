@@ -1,6 +1,5 @@
 import { getUserInfo } from "../getUserInfo";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
-import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("../wellKnownEndpoints", () => ({
   getWellKnownEndpoints: vi.fn(),
@@ -52,15 +51,27 @@ describe("getUserInfo", () => {
           email: "user@example.com",
           groups: ["org1/lab"],
           adminScopes: ["org1/lab"],
-          isRealmAdmin: false,
         }),
       );
+    });
+
+    const rawProfile = (overrides?: Record<string, unknown>) => ({
+      sub: "uuid-default",
+      email: "user@example.com",
+      email_verified: true,
+      name: "Default",
+      preferred_username: "default",
+      given_name: "Default",
+      family_name: "User",
+      policy: [],
+      groups: [],
+      ...overrides,
     });
 
     test("uses correct userinfo endpoint from wellKnown", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve(mock.user()),
+        json: () => Promise.resolve(rawProfile()),
       });
 
       await getUserInfo("access-token");
@@ -71,7 +82,7 @@ describe("getUserInfo", () => {
     test("sends Bearer token in Authorization header", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve(mock.user()),
+        json: () => Promise.resolve(rawProfile()),
       });
 
       await getUserInfo("my-access-token-xyz");
@@ -81,7 +92,7 @@ describe("getUserInfo", () => {
     });
 
     test("returns all user profile fields", async () => {
-      const fullProfile = mock.user({
+      const fullProfile = rawProfile({
         sub: "uuid-456",
         email_verified: true,
         name: "Full Name",
@@ -109,6 +120,142 @@ describe("getUserInfo", () => {
       expect(result.email).toBe("full@example.com");
       expect(result.policy).toEqual(["default-policy"]);
       expect(result.groups).toEqual(["admin", "users"]);
+    });
+  });
+
+  describe("Organization Claim", () => {
+    test("extracts active org alias and nested groups", async () => {
+      const rawProfile = {
+        sub: "user-uuid-123",
+        email: "user@vericura.com",
+        email_verified: true,
+        name: "Alice",
+        preferred_username: "alice",
+        given_name: "Alice",
+        family_name: "Doe",
+        policy: [],
+        groups: [],
+        organization: {
+          vericura: { groups: ["/lab", "/customers/ascent-pharma"] },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organization).toBe("vericura");
+      expect(result.groups).toEqual(["lab", "customers/ascent-pharma"]);
+      expect(result.adminScopes).toEqual([]);
+    });
+
+    test("root /admins becomes the `*` (org-root) admin scope", async () => {
+      const rawProfile = {
+        sub: "user-uuid-456",
+        email: "admin@cytar.io",
+        email_verified: true,
+        name: "Admin",
+        preferred_username: "admin",
+        given_name: "Admin",
+        family_name: "User",
+        policy: [],
+        groups: [],
+        organization: {
+          cytario: { groups: ["/admins"] },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organization).toBe("cytario");
+      expect(result.adminScopes).toEqual(["*"]);
+      expect(result.groups).toEqual([]);
+    });
+
+    test("nested admin groups become their parent scopes", async () => {
+      const rawProfile = {
+        sub: "user-uuid-789",
+        email: "owner@vericura.com",
+        email_verified: true,
+        name: "Owner",
+        preferred_username: "owner",
+        given_name: "Owner",
+        family_name: "User",
+        policy: [],
+        groups: [],
+        organization: {
+          vericura: { groups: ["/admins", "/customers/ascent-pharma/admins"] },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organization).toBe("vericura");
+      expect(result.adminScopes).toEqual(["*", "customers/ascent-pharma"]);
+      expect(result.groups).toEqual([]);
+    });
+
+    test("returns undefined organization when claim is absent", async () => {
+      const rawProfile = {
+        sub: "user-uuid-000",
+        email: "new@example.com",
+        email_verified: true,
+        name: "New",
+        preferred_username: "new",
+        given_name: "New",
+        family_name: "User",
+        policy: [],
+        groups: [],
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organization).toBeUndefined();
+      expect(result.groups).toEqual([]);
+    });
+
+    test("nested organization groups take precedence over top-level legacy groups", async () => {
+      const rawProfile = {
+        sub: "user-uuid-mix",
+        email: "mix@example.com",
+        email_verified: true,
+        name: "Mix",
+        preferred_username: "mix",
+        given_name: "Mix",
+        family_name: "User",
+        policy: [],
+        groups: ["/legacy/group"],
+        organization: {
+          vericura: { groups: ["/lab"] },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.groups).toEqual(["lab"]);
     });
   });
 
@@ -154,7 +301,6 @@ describe("getUserInfo", () => {
       expect(result.policy).toEqual([]);
       expect(result.groups).toEqual([]);
       expect(result.adminScopes).toEqual([]);
-      expect(result.isRealmAdmin).toBe(false);
     });
   });
 

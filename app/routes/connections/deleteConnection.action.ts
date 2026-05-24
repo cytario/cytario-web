@@ -8,15 +8,19 @@ import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
 
 export async function deleteConnection(user: UserProfile, name: string) {
+  if (!user.organization) {
+    throw new Error("Active organization missing from session");
+  }
+
   const config = await prisma.connectionConfig.findUnique({
     where: { name },
   });
 
-  if (!config || !canSee(user, config.ownerScope)) {
+  if (!config || !canSee(user, config)) {
     throw new Error("Connection config not found");
   }
 
-  if (!canModify(user, config.ownerScope)) {
+  if (!canModify(user, config)) {
     throw new Error("Not authorized to delete this connection config");
   }
 

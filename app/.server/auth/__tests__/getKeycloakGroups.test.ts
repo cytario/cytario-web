@@ -99,7 +99,6 @@ describe("getManageableScopes", () => {
     const user = mock.user({
       groups: ["acme/admins"],
       adminScopes: ["acme"],
-      isRealmAdmin: false,
     });
 
     const result = await getManageableScopes(user);

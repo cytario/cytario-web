@@ -1,9 +1,16 @@
 import { z } from "zod";
 
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
+import { ORG_ROOT_ADMIN_SCOPE } from "~/utils/authorization";
 
-// TODO: pass via env
-const REALM_ADMIN_GROUP = "cytario/admins";
+const organizationClaimSchema = z
+  .record(
+    z.string(),
+    z.object({
+      groups: z.array(z.string()).default([]),
+    }),
+  )
+  .optional();
 
 const userProfileSchema = z.object({
   sub: z.string(),
@@ -15,14 +22,16 @@ const userProfileSchema = z.object({
   email: z.string(),
   policy: z.array(z.string()).default([]),
   groups: z.array(z.string()).default([]),
+  organization: organizationClaimSchema,
 });
 
 type UserProfileRaw = z.infer<typeof userProfileSchema>;
 
-export interface UserProfile extends UserProfileRaw {
+export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
+  /** Active Keycloak organization alias for this session. Undefined for zero-org users. */
+  organization?: string;
   groups: string[];
   adminScopes: string[];
-  isRealmAdmin: boolean;
 }
 
 /** Removes leading slash from group name. */
@@ -30,20 +39,35 @@ function normalizeGroup(group: string): string {
   return group.replace(/^\//, "");
 }
 
-/** Enriches raw user profile with admin scopes and realm admin status. */
+/** Enriches raw user profile with admin scopes. */
 function enrichUserProfile(raw: UserProfileRaw): UserProfile {
-  const allGroups = ((raw.groups as string[]) ?? []).map(normalizeGroup);
+  // Keycloak Organizations claim is `{ "<alias>": { groups: [...] } }` with
+  // exactly one key. Group membership now arrives nested under that key.
+  const orgEntry = raw.organization ? Object.entries(raw.organization)[0] : undefined;
+  const organization = orgEntry?.[0];
+  const rawGroups = orgEntry ? (orgEntry[1].groups ?? []) : raw.groups;
+
+  // Root `/admins` becomes the `*` admin scope. `authorization.ts` treats `*`
+  // as "admin of every owner scope in this org" — still bounded by the tenant
+  // check, so it grants no cross-org power.
+  const allGroups = rawGroups.map(normalizeGroup);
   const adminScopes = allGroups
-    .filter((g) => g.endsWith("/admins"))
-    .map((g) => g.replace(/\/admins$/, ""));
-  const isRealmAdmin = allGroups.includes(REALM_ADMIN_GROUP);
-  const groups = allGroups.filter((g) => !g.endsWith("/admins"));
+    .filter((g) => g === "admins" || g.endsWith("/admins"))
+    .map((g) => (g === "admins" ? ORG_ROOT_ADMIN_SCOPE : g.replace(/\/admins$/, "")));
+  const groups = allGroups.filter((g) => g !== "admins" && !g.endsWith("/admins"));
 
   return {
-    ...(raw as unknown as UserProfile),
+    sub: raw.sub,
+    email: raw.email,
+    email_verified: raw.email_verified,
+    name: raw.name,
+    preferred_username: raw.preferred_username,
+    given_name: raw.given_name,
+    family_name: raw.family_name,
+    policy: raw.policy,
+    organization,
     groups,
     adminScopes,
-    isRealmAdmin,
   };
 }
 

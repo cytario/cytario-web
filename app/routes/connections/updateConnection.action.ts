@@ -31,20 +31,24 @@ export async function updateConnection(
     region: string | null;
   },
 ) {
+  if (!user.organization) {
+    throw new Error("Active organization missing from session");
+  }
+
   const config = await prisma.connectionConfig.findUnique({
     where: { name: originalName },
   });
 
-  if (!config || !canSee(user, config.ownerScope)) {
+  if (!config || !canSee(user, config)) {
     throw new Error("Connection not found");
   }
 
-  if (!canModify(user, config.ownerScope)) {
+  if (!canModify(user, config)) {
     throw new Error("Not authorized to modify this connection");
   }
 
   if (updates.ownerScope !== config.ownerScope) {
-    if (!canCreate(user, updates.ownerScope)) {
+    if (!canCreate(user, { organization: user.organization, ownerScope: updates.ownerScope })) {
       throw new Error("Not authorized to assign to this scope");
     }
   }

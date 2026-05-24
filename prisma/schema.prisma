@@ -9,22 +9,23 @@ generator client {
 }
 
 model ConnectionConfig {
-  id         Int     @id @default(autoincrement())
-  name       String  @unique
-  ownerScope String
-  createdBy  String
-  bucketName String
-  provider   String  // "aws" for AWS S3, "minio" for MinIO
-  endpoint   String  // Required - AWS endpoint or custom (MinIO)
-  roleArn    String? // Optional - only needed for AWS
-  region     String? // Optional - only needed for AWS
-  prefix     String  @default("")
+  id           Int     @id @default(autoincrement())
+  name         String  @unique
+  organization String  // Keycloak organization alias (tenant)
+  ownerScope   String  // intra-org owner: group path or user sub
+  createdBy    String
+  bucketName   String
+  provider     String  // "aws" for AWS S3, "minio" for MinIO
+  endpoint     String  // Required - AWS endpoint or custom (MinIO)
+  roleArn      String? // Optional - only needed for AWS
+  region       String? // Optional - only needed for AWS
+  prefix       String  @default("")
 
   recentlyViewed RecentlyViewed[] @relation("RecentlyViewedConnection")
   pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
 
-  @@unique([ownerScope, provider, bucketName, prefix])
-  @@index([ownerScope])
+  @@unique([organization, provider, bucketName, prefix])
+  @@index([organization, ownerScope])
 }
 
 model RecentlyViewed {

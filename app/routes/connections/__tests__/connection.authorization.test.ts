@@ -83,35 +83,30 @@ const adminUser = mock.user({
   sub: "admin-user-id",
   groups: ["cytario"],
   adminScopes: ["cytario"],
-  isRealmAdmin: false,
 });
 
 const regularUser = mock.user({
   sub: "regular-user-id",
   groups: ["cytario"],
   adminScopes: [],
-  isRealmAdmin: false,
 });
 
 const personalUser = mock.user({
   sub: "mock-user-id",
   groups: ["cytario"],
   adminScopes: [],
-  isRealmAdmin: false,
 });
 
-const realmAdmin = mock.user({
-  sub: "realm-admin-id",
-  groups: ["cytario/admins"],
-  adminScopes: ["cytario"],
-  isRealmAdmin: true,
+const orgRootAdmin = mock.user({
+  sub: "org-root-admin-id",
+  groups: [],
+  adminScopes: ["*"],
 });
 
 const outsideUser = mock.user({
   sub: "outside-user-id",
   groups: ["other-org"],
   adminScopes: ["other-org"],
-  isRealmAdmin: false,
 });
 
 const validUpdates = {
@@ -149,10 +144,10 @@ describe("deleteConnection authorization", () => {
     expect(prisma.connectionConfig.delete).toHaveBeenCalled();
   });
 
-  test("realm admin can delete any connection", async () => {
+  test("org-root admin can delete any connection within the org", async () => {
     vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
 
-    await deleteConnection(realmAdmin, "test-connection");
+    await deleteConnection(orgRootAdmin, "test-connection");
 
     expect(prisma.connectionConfig.delete).toHaveBeenCalled();
   });
@@ -212,14 +207,14 @@ describe("updateConnection authorization", () => {
     expect(prisma.connectionConfig.update).toHaveBeenCalled();
   });
 
-  test("realm admin can update any connection", async () => {
+  test("org-root admin can update any connection within the org", async () => {
     vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...cytarioConfig,
       ...validUpdates,
     });
 
-    await updateConnection(realmAdmin, "test-connection", validUpdates);
+    await updateConnection(orgRootAdmin, "test-connection", validUpdates);
 
     expect(prisma.connectionConfig.update).toHaveBeenCalled();
   });

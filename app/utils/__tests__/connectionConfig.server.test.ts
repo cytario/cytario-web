@@ -38,9 +38,20 @@ describe("connectionConfig.server", () => {
 
       const result = await listConnections(user);
 
-      expect(prisma.connectionConfig.findMany).toHaveBeenCalled();
+      expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
+        where: { organization: "org1" },
+      });
       expect(filterVisible).toHaveBeenCalledWith(user, configs);
       expect(result).toEqual([config]);
+    });
+
+    test("throws when the session has no active organization", async () => {
+      const zeroOrgUser = mock.user({ organization: undefined });
+
+      await expect(listConnections(zeroOrgUser)).rejects.toThrow(
+        "Active organization missing from session",
+      );
+      expect(prisma.connectionConfig.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -54,7 +65,7 @@ describe("connectionConfig.server", () => {
       expect(prisma.connectionConfig.findUnique).toHaveBeenCalledWith({
         where: { name: "aws-mock-bucket" },
       });
-      expect(canSee).toHaveBeenCalledWith(user, config.ownerScope);
+      expect(canSee).toHaveBeenCalledWith(user, config);
       expect(result).toEqual(config);
     });
 
@@ -66,7 +77,7 @@ describe("connectionConfig.server", () => {
       expect(result).toBeNull();
     });
 
-    test("returns null when user cannot see config", async () => {
+    test("returns null when user cannot see config (canSee enforces tenant boundary)", async () => {
       vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
@@ -92,20 +103,21 @@ describe("connectionConfig.server", () => {
         mock.connectionConfig({ ...newConfig }),
       );
 
-      await createConnection("org1/lab", "user-123", newConfig);
+      await createConnection("org1", "lab", "user-123", newConfig);
 
       expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith({
         where: {
-          ownerScope_provider_bucketName_prefix: {
-            ownerScope: "org1/lab",
+          organization_provider_bucketName_prefix: {
+            organization: "org1",
             provider: "aws",
             bucketName: "my-bucket",
             prefix: "data/",
           },
         },
-        update: { ...newConfig, prefix: "data/" },
+        update: { ...newConfig, ownerScope: "lab", prefix: "data/" },
         create: {
-          ownerScope: "org1/lab",
+          organization: "org1",
+          ownerScope: "lab",
           createdBy: "user-123",
           ...newConfig,
           prefix: "data/",
@@ -125,12 +137,12 @@ describe("connectionConfig.server", () => {
 
       vi.mocked(prisma.connectionConfig.upsert).mockResolvedValue(mock.connectionConfig());
 
-      await createConnection("org1/lab", "user-123", newConfig);
+      await createConnection("org1", "lab", "user-123", newConfig);
 
       expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            ownerScope_provider_bucketName_prefix: expect.objectContaining({
+            organization_provider_bucketName_prefix: expect.objectContaining({
               prefix: "",
             }),
           }),
