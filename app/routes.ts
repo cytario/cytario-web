@@ -14,6 +14,10 @@ const authRoutes = [
     path: "/auth/callback",
     file: "routes/auth/callback.route.tsx",
   },
+  {
+    path: "/onboarding",
+    file: "routes/onboarding.route.tsx",
+  },
 ];
 
 /** Main application routes — authenticated, wrapped in protected layout. */
