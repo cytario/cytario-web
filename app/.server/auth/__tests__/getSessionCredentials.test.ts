@@ -245,6 +245,7 @@ describe("getAllSessionCredentials", () => {
       WebIdentityToken: "id-token-for-sts",
       DurationSeconds: 3600,
       Policy: buildSessionPolicy({
+        organization: "org1",
         bucketName: "test-bucket",
         prefix: "",
         region: "us-west-2",
@@ -262,6 +263,7 @@ describe("getAllSessionCredentials", () => {
     ]);
 
     const expectedPolicy = buildSessionPolicy({
+      organization: "org1",
       bucketName: "scoped-bucket",
       prefix: "tenant-a",
       region: "us-east-1",
@@ -282,6 +284,7 @@ describe("getAllSessionCredentials", () => {
     ]);
 
     const expectedPolicy = buildSessionPolicy({
+      organization: "org1",
       bucketName: "whole-bucket",
       prefix: "",
       region: "us-east-1",

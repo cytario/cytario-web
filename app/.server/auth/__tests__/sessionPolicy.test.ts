@@ -11,6 +11,7 @@ interface PolicyStatement {
     };
     StringEquals?: {
       "kms:ViaService"?: string;
+      "aws:PrincipalTag/ORG"?: string;
     };
   };
 }
@@ -29,12 +30,18 @@ const findStatement = (policy: ParsedPolicy, action: string): PolicyStatement =>
 };
 
 const REGION = "eu-central-1";
+const ORG = "vericura";
+const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
+  organization: ORG,
+  bucketName: "my-bucket",
+  prefix: "",
+  region: REGION,
+  ...overrides,
+});
 
 describe("buildSessionPolicy", () => {
   test("empty prefix → whole-bucket scope (no s3:prefix Condition, GetObject on bucket/*)", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "" })));
 
     expect(policy.Version).toBe("2012-10-17");
 
@@ -44,39 +51,36 @@ describe("buildSessionPolicy", () => {
     // Whole-bucket policies must omit `s3:prefix` Condition entirely —
     // AWS evaluates an absent `prefix` query parameter as the empty
     // string, which `StringLike "*"` does not match.
-    expect(list.Condition).toBeUndefined();
+    expect(list.Condition?.StringLike).toBeUndefined();
+    expect(list.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
 
     const get = findStatement(policy, "s3:GetObject");
     expect(get.Effect).toBe("Allow");
     expect(get.Resource).toBe("arn:aws:s3:::my-bucket/*");
+    expect(get.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
   });
 
   test("null prefix → whole-bucket scope (no s3:prefix Condition)", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: null, region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: null })));
 
-    expect(findStatement(policy, "s3:ListBucket").Condition).toBeUndefined();
+    expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike).toBeUndefined();
     expect(findStatement(policy, "s3:GetObject").Resource).toBe("arn:aws:s3:::my-bucket/*");
   });
 
   test("undefined prefix → whole-bucket scope (no s3:prefix Condition)", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: undefined, region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: undefined })));
 
-    expect(findStatement(policy, "s3:ListBucket").Condition).toBeUndefined();
+    expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike).toBeUndefined();
     expect(findStatement(policy, "s3:GetObject").Resource).toBe("arn:aws:s3:::my-bucket/*");
   });
 
   test("non-empty prefix → restricted listing and GetObject scope", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "foo", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
 
     const list = findStatement(policy, "s3:ListBucket");
     expect(list.Resource).toBe("arn:aws:s3:::my-bucket");
     expect(list.Condition?.StringLike?.["s3:prefix"]).toEqual(["foo/", "foo/*"]);
+    expect(list.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
 
     const get = findStatement(policy, "s3:GetObject");
     expect(get.Resource).toBe("arn:aws:s3:::my-bucket/foo/*");
@@ -87,9 +91,7 @@ describe("buildSessionPolicy", () => {
     // slash so a `ListBucket prefix=foo` (no slash) would not match —
     // which prevents the leak of cross-tenant keys whose names happen
     // to start with the connection prefix.
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "foo", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
 
     const allowed = findStatement(policy, "s3:ListBucket").Condition?.StringLike?.["s3:prefix"];
     expect(allowed).not.toContain("foo");
@@ -98,9 +100,7 @@ describe("buildSessionPolicy", () => {
   });
 
   test("multi-segment prefix preserved verbatim", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "tenant-a/data", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "tenant-a/data" })));
 
     expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike?.["s3:prefix"]).toEqual([
       "tenant-a/data/",
@@ -112,9 +112,7 @@ describe("buildSessionPolicy", () => {
   });
 
   test("leading slash stripped from prefix", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "/foo", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "/foo" })));
 
     expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike?.["s3:prefix"]).toEqual([
       "foo/",
@@ -124,9 +122,7 @@ describe("buildSessionPolicy", () => {
   });
 
   test("trailing slash stripped from prefix", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "foo/", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo/" })));
 
     expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike?.["s3:prefix"]).toEqual([
       "foo/",
@@ -136,9 +132,7 @@ describe("buildSessionPolicy", () => {
   });
 
   test("leading and trailing slashes both stripped from prefix", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "/foo/", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "/foo/" })));
 
     expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike?.["s3:prefix"]).toEqual([
       "foo/",
@@ -148,16 +142,14 @@ describe("buildSessionPolicy", () => {
   });
 
   test("only-slashes prefix collapses to whole-bucket scope (no s3:prefix Condition)", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "///", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "///" })));
 
-    expect(findStatement(policy, "s3:ListBucket").Condition).toBeUndefined();
+    expect(findStatement(policy, "s3:ListBucket").Condition?.StringLike).toBeUndefined();
     expect(findStatement(policy, "s3:GetObject").Resource).toBe("arn:aws:s3:::my-bucket/*");
   });
 
   test("stringified output is valid, parseable JSON", () => {
-    const json = buildSessionPolicy({ bucketName: "my-bucket", prefix: "foo", region: REGION });
+    const json = buildSessionPolicy(args({ prefix: "foo" }));
     expect(() => JSON.parse(json)).not.toThrow();
     const parsed = JSON.parse(json) as ParsedPolicy;
     expect(parsed).toHaveProperty("Version", "2012-10-17");
@@ -166,31 +158,30 @@ describe("buildSessionPolicy", () => {
 
   test("stringified output is well under 2048 chars for a max-realistic prefix (64 chars)", () => {
     const prefix = "a".repeat(64);
-    const json = buildSessionPolicy({
-      bucketName: "my-bucket-with-some-length",
-      prefix,
-      region: REGION,
-    });
+    const json = buildSessionPolicy(
+      args({
+        bucketName: "my-bucket-with-some-length",
+        prefix,
+      }),
+    );
     // AWS strips whitespace before counting; JSON.stringify without indentation has none.
     expect(json.length).toBeLessThanOrEqual(2048);
   });
 
   test("rejects prefix containing IAM `*` wildcard", () => {
-    expect(() =>
-      buildSessionPolicy({ bucketName: "shared", prefix: "tenant-a*", region: REGION }),
-    ).toThrow(/wildcard/i);
+    expect(() => buildSessionPolicy(args({ bucketName: "shared", prefix: "tenant-a*" }))).toThrow(
+      /wildcard/i,
+    );
   });
 
   test("rejects prefix containing IAM `?` wildcard", () => {
-    expect(() =>
-      buildSessionPolicy({ bucketName: "shared", prefix: "tenant-?", region: REGION }),
-    ).toThrow(/wildcard/i);
+    expect(() => buildSessionPolicy(args({ bucketName: "shared", prefix: "tenant-?" }))).toThrow(
+      /wildcard/i,
+    );
   });
 
   test("includes kms:Decrypt statement constrained to S3 via service for the connection region", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "foo", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
 
     const kms = findStatement(policy, "kms:Decrypt");
     expect(kms.Effect).toBe("Allow");
@@ -198,12 +189,11 @@ describe("buildSessionPolicy", () => {
     // ARN — the role's attached policy is the authoritative key allowlist.
     expect(kms.Resource).toBe("*");
     expect(kms.Condition?.StringEquals?.["kms:ViaService"]).toBe("s3.eu-central-1.amazonaws.com");
+    expect(kms.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
   });
 
   test("kms:ViaService tracks the requested region", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "foo", region: "us-east-1" }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", region: "us-east-1" })));
 
     expect(findStatement(policy, "kms:Decrypt").Condition?.StringEquals?.["kms:ViaService"]).toBe(
       "s3.us-east-1.amazonaws.com",
@@ -211,10 +201,16 @@ describe("buildSessionPolicy", () => {
   });
 
   test("kms:Decrypt statement is present even for whole-bucket (empty prefix) policies", () => {
-    const policy = parse(
-      buildSessionPolicy({ bucketName: "my-bucket", prefix: "", region: REGION }),
-    );
+    const policy = parse(buildSessionPolicy(args({ prefix: "" })));
 
     expect(() => findStatement(policy, "kms:Decrypt")).not.toThrow();
+  });
+
+  test("every statement carries the aws:PrincipalTag/ORG condition", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", organization: "acme" })));
+
+    for (const stmt of policy.Statement) {
+      expect(stmt.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
+    }
   });
 });
