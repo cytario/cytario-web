@@ -60,4 +60,20 @@ describe("ScopePill", () => {
     expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
     expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
   });
+
+  test("substitutes the `*` org-root sentinel with the organization identifier", () => {
+    render(<ScopePill scope="*" organization="cytario" />);
+    expect(screen.getByText("cytario")).toBeInTheDocument();
+    expect(screen.queryByText("*")).toBeNull();
+  });
+
+  test("substitutes `*` inside a path while keeping other segments", () => {
+    render(<ScopePill scope="*/admins" organization="cytario" />);
+    expect(screen.getByLabelText("Path: cytario / admins")).toBeInTheDocument();
+  });
+
+  test("renders the raw `*` when no organization is supplied", () => {
+    render(<ScopePill scope="*" />);
+    expect(screen.getByText("*")).toBeInTheDocument();
+  });
 });

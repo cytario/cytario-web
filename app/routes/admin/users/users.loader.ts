@@ -12,6 +12,7 @@ import {
 } from "~/.server/auth/keycloakAdmin";
 import { listConnections } from "~/routes/connections/connections.server";
 import { ORG_ROOT_ADMIN_SCOPE } from "~/utils/authorization";
+import { resolveScopeLabel } from "~/utils/scopeLabel";
 
 export const usersLoader: LoaderFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
@@ -47,7 +48,7 @@ export const usersLoader: LoaderFunction = async ({ request, context }) => {
 
     return {
       scope,
-      headingLabel: org.name || org.alias,
+      headingLabel: resolveScopeLabel(scope, org.name || org.alias),
       users,
       groups: [],
       connections,
@@ -62,12 +63,14 @@ export const usersLoader: LoaderFunction = async ({ request, context }) => {
   // Narrow to exact scope — connections are not inherited from parent scopes
   const connections = allConnections.filter((c) => c.ownerScope === scope);
 
+  const headingLabel = resolveScopeLabel(scope, user.organization);
+
   if (!group) {
-    return { scope, headingLabel: scope, users: [], groups: [], connections };
+    return { scope, headingLabel, users: [], groups: [], connections };
   }
 
   const users = collectAllUsers(group);
   const groups = flattenGroupsWithIds(group);
 
-  return { scope, headingLabel: scope, users, groups, connections };
+  return { scope, headingLabel, users, groups, connections };
 };

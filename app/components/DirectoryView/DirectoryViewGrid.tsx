@@ -77,7 +77,10 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
     >
       {connectionConfig && (
         <>
-          <ScopePill scope={connectionConfig.ownerScope} />
+          <ScopePill
+            scope={connectionConfig.ownerScope}
+            organization={connectionConfig.organization}
+          />
           <ProviderPill provider={connectionConfig.provider} />
         </>
       )}

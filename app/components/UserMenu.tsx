@@ -41,7 +41,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
                     id={`admin-${scope}`}
                     href={`/admin/users?scope=${encodeURIComponent(scope)}`}
                   >
-                    <ScopePill scope={`${scope}/admins`} />
+                    <ScopePill scope={`${scope}/admins`} organization={user.organization} />
                   </MenuItem>
                 ))}
               </MenuSection>
@@ -58,7 +58,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
                     id={`group-${group}`}
                     className="hover:bg-transparent focus:bg-transparent cursor-default"
                   >
-                    <ScopePill scope={group} />
+                    <ScopePill scope={group} organization={user.organization} />
                   </MenuItem>
                 ))}
               </MenuSection>
