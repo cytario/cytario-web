@@ -1,5 +1,5 @@
 import { Button, EmptyState } from "@cytario/design";
-import { Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
+import { AlertTriangle, Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef } from "react";
 import {
   type MetaFunction,
@@ -91,6 +91,7 @@ export default function ObjectsRoute() {
     isSingleFile,
     notification,
     pendingClientLoad,
+    connectionError,
   } = useLoaderData<typeof clientLoader>();
 
   const viewMode = useLayoutStore((state) => state.viewMode);
@@ -163,6 +164,24 @@ export default function ObjectsRoute() {
       );
     }
   }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);
+
+  if (connectionError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Connection unavailable"
+        description={connectionError}
+        action={
+          <Button
+            onPress={() => openModal("edit-connection", { nodeName: connectionName })}
+            variant="secondary"
+          >
+            Edit connection
+          </Button>
+        }
+      />
+    );
+  }
 
   if (nodes.length > 0) {
     return (

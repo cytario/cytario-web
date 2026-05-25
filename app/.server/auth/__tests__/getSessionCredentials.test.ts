@@ -122,7 +122,8 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({ name: "conn-a" }),
     ]);
 
-    expect(result).toBe(validCredentials);
+    expect(result.credentials).toBe(validCredentials);
+    expect(result.errors).toEqual({});
     expect(mockSend).not.toHaveBeenCalled();
   });
 
@@ -131,7 +132,7 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({ name: "new-conn" }),
     ]);
 
-    expect(result).toEqual({ "new-conn": mockCredentials });
+    expect(result.credentials).toEqual({ "new-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
@@ -149,7 +150,7 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({ name: "expired-conn" }),
     ]);
 
-    expect(result).toEqual({ "expired-conn": mockCredentials });
+    expect(result.credentials).toEqual({ "expired-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
@@ -171,8 +172,8 @@ describe("getAllSessionCredentials", () => {
 
     // No bucket dedup — each connection gets its own STS mint.
     expect(mockSend).toHaveBeenCalledTimes(2);
-    expect(result["internal"]).toEqual(mockCredentials);
-    expect(result["external"]).toEqual(mockCredentials);
+    expect(result.credentials["internal"]).toEqual(mockCredentials);
+    expect(result.credentials["external"]).toEqual(mockCredentials);
   });
 
   test("fetches multiple connections in parallel", async () => {
@@ -184,10 +185,11 @@ describe("getAllSessionCredentials", () => {
     const result = await getAllSessionCredentials(mockSessionData, configs);
 
     expect(mockSend).toHaveBeenCalledTimes(2);
-    expect(result).toEqual({
+    expect(result.credentials).toEqual({
       "conn-a": mockCredentials,
       "conn-b": mockCredentials,
     });
+    expect(result.errors).toEqual({});
   });
 
   test("preserves existing valid credentials when fetching new ones", async () => {
@@ -202,8 +204,8 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({ name: "new-conn" }),
     ]);
 
-    expect(result["existing-conn"]).toBe(existingCredentials);
-    expect(result["new-conn"]).toEqual(mockCredentials);
+    expect(result.credentials["existing-conn"]).toBe(existingCredentials);
+    expect(result.credentials["new-conn"]).toEqual(mockCredentials);
     // Only fetched for new-conn, not existing-conn
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
@@ -220,9 +222,27 @@ describe("getAllSessionCredentials", () => {
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
 
-    // conn-a succeeds, conn-b fails silently
-    expect(result["conn-a"]).toEqual(mockCredentials);
-    expect(result["conn-b"]).toBeUndefined();
+    // conn-a succeeds, conn-b fails — reason recorded in errors map
+    expect(result.credentials["conn-a"]).toEqual(mockCredentials);
+    expect(result.credentials["conn-b"]).toBeUndefined();
+    expect(result.errors["conn-b"]).toBe("STS service unavailable");
+  });
+
+  test("classifies STS AccessDenied as a role-trust-policy hint", async () => {
+    const denied = Object.assign(
+      new Error("Not authorized to perform sts:AssumeRoleWithWebIdentity"),
+      {
+        name: "AccessDenied",
+      },
+    );
+    mockSend.mockRejectedValueOnce(denied);
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ name: "blocked" }),
+    ]);
+
+    expect(result.credentials["blocked"]).toBeUndefined();
+    expect(result.errors["blocked"]).toMatch(/AWS STS denied AssumeRoleWithWebIdentity/);
   });
 
   test("calls STS with correct configuration", async () => {
@@ -312,7 +332,8 @@ describe("getAllSessionCredentials", () => {
   test("returns empty credentials when no bucket configs provided", async () => {
     const result = await getAllSessionCredentials(mockSessionData, []);
 
-    expect(result).toBe(mockSessionData.credentials);
+    expect(result.credentials).toBe(mockSessionData.credentials);
+    expect(result.errors).toEqual({});
     expect(mockSend).not.toHaveBeenCalled();
   });
 });

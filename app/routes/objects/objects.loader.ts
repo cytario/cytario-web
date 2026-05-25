@@ -27,13 +27,19 @@ export interface BucketRouteServerLoaderResponse {
   /** Full S3 key (connection prefix + urlPath). */
   pathName: string;
   name: string;
-  credentials: Credentials;
+  credentials: Credentials | null;
   connectionConfig: ConnectionConfig;
   isPinned: boolean;
   /** Set when the URL points at a Zarr directory; the chunk listing is skipped. */
   serverDeterminedSingleFile: boolean;
   /** `true` during SSR; `clientLoader` flips it once the listing resolves. */
   pendingClientLoad: boolean;
+  /**
+   * Populated when the STS mint for this connection failed (e.g. the role's
+   * trust policy denied AssumeRoleWithWebIdentity). The route renders an
+   * error banner instead of the directory listing / viewer.
+   */
+  connectionError: string | null;
 }
 
 export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderResponse {
@@ -44,7 +50,7 @@ export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderRespon
 }
 
 export const loader = async ({ params, context }: LoaderFunctionArgs) => {
-  const { user, credentials: connectionsCredentials } = context.get(authContext);
+  const { user, credentials: connectionsCredentials, credentialErrors } = context.get(authContext);
   const { name: connectionName } = params;
 
   if (!connectionName) throw new Error("Connection name is required");
@@ -56,8 +62,11 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
 
   const { bucketName } = connectionConfig;
 
-  const credentials = connectionsCredentials[connectionName];
-  if (!credentials) throw new Error(`No credentials for connection: ${connectionName}`);
+  const credentials = connectionsCredentials[connectionName] ?? null;
+  const connectionError = credentials
+    ? null
+    : (credentialErrors[connectionName] ??
+      "No credentials available for this connection. Verify the connection's role configuration.");
 
   const rawUrlPath = params["*"] ?? "";
 
@@ -92,9 +101,10 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     connectionConfig,
     isPinned,
     serverDeterminedSingleFile,
-    pendingClientLoad: true,
+    pendingClientLoad: connectionError ? false : true,
     nodes: [],
     isSingleFile: serverDeterminedSingleFile,
+    connectionError,
   };
 
   return payload;
