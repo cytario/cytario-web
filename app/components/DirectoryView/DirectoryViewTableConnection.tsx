@@ -86,7 +86,7 @@ function buildConnectionCellRenderers(nodes: TreeNode[]): CellRenderers<Connecti
       const node = nodesByName.get(row.name);
       return node ? <NodeLink node={node} /> : row.name;
     },
-    ownerScope: (row) => <ScopePill scope={row.ownerScope} organization={row.organization} />,
+    ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
     provider: (row) => <ProviderPill provider={row.provider} />,
   };
 }
