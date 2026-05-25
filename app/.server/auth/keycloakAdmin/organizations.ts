@@ -81,20 +81,17 @@ export async function getOrganizationGroupMembers(
   return adminFetch<KeycloakUser[]>(`/organizations/${orgId}/groups/${groupId}/members?max=500`);
 }
 
-/** List groups in an organization, optionally with the full hierarchy populated. */
-export async function listOrganizationGroups(
+/** List top-level groups in an organization (flat, no descendants). */
+export async function listOrganizationGroups(orgId: string): Promise<KeycloakGroup[]> {
+  return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups?max=500`);
+}
+
+/** List the direct children of an organization group. */
+export async function listOrganizationGroupChildren(
   orgId: string,
-  options: { populateHierarchy?: boolean } = {},
+  groupId: string,
 ): Promise<KeycloakGroup[]> {
-  const params = new URLSearchParams({ max: "500" });
-  if (options.populateHierarchy) {
-    params.set("populateHierarchy", "true");
-    // `briefRepresentation` defaults to true and drops attributes + subGroups
-    // from the response even when `populateHierarchy=true`. Force the full
-    // representation so the hierarchy actually round-trips.
-    params.set("briefRepresentation", "false");
-  }
-  return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups?${params}`);
+  return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups/${groupId}/children?max=500`);
 }
 
 /**
