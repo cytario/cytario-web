@@ -25,6 +25,9 @@ export const buildSessionPolicy = ({
   prefix,
   region,
 }: SessionPolicyArgs): string => {
+  if (!organization) {
+    throw new Error("Organization is required to build a session policy");
+  }
   const normalised = typeof prefix === "string" ? stripSlashes(prefix) : "";
   // Defense-in-depth: refuse wildcards here so the schema is not the only gate
   // protecting cross-tenant `StringLike` conditions.

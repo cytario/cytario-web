@@ -213,4 +213,10 @@ describe("buildSessionPolicy", () => {
       expect(stmt.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
     }
   });
+
+  test("throws when organization is empty (defence-in-depth against unscoped policy)", () => {
+    expect(() => buildSessionPolicy(args({ organization: "" }))).toThrow(
+      /Organization is required/,
+    );
+  });
 });
