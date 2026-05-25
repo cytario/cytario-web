@@ -1,10 +1,20 @@
 import {
   collectGroupIds,
   findOrganizationByAlias,
-  findOrganizationGroupByPath,
   listOrganizationGroups,
 } from "~/.server/auth/keycloakAdmin";
+import { type KeycloakGroup } from "~/.server/auth/keycloakAdmin/client";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+
+function findInTree(groups: KeycloakGroup[], scope: string): KeycloakGroup | undefined {
+  const target = `/${scope}`;
+  for (const g of groups) {
+    if (g.path === target) return g;
+    const found = findInTree(g.subGroups, scope);
+    if (found) return found;
+  }
+  return undefined;
+}
 
 /**
  * Validates that every groupId belongs to the active organization's group
@@ -25,12 +35,16 @@ export async function assertGroupsInScope(
   const org = await findOrganizationByAlias(orgAlias);
   if (!org) throw new Response("Organization not found", { status: 404 });
 
+  // `populateHierarchy=true` is required: the bare group representation from
+  // `findOrganizationGroupByPath` does not include subGroups, so a flat
+  // lookup would leave descendants out of the allow-list.
+  const topLevel = await listOrganizationGroups(org.id, { populateHierarchy: true });
+
   const allowed = new Set<string>();
   if (scope === ORG_ROOT_SCOPE) {
-    const topLevel = await listOrganizationGroups(org.id, { populateHierarchy: true });
     for (const g of topLevel) for (const id of collectGroupIds(g)) allowed.add(id);
   } else {
-    const root = await findOrganizationGroupByPath(org.id, scope);
+    const root = findInTree(topLevel, scope);
     if (!root) throw new Response("Scope not found", { status: 404 });
     for (const id of collectGroupIds(root)) allowed.add(id);
   }
