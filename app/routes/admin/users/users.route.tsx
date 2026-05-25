@@ -19,6 +19,7 @@ import { ScopePill } from "~/components/Pills/ScopePill";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import { type CellRenderers, type ColumnConfig, Table } from "~/components/Table/Table";
 import { useModal } from "~/hooks/useModal";
+import { compareGroupPaths } from "~/utils/groupPath";
 
 export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
 
@@ -196,7 +197,7 @@ export default function AdminUsersRoute() {
         userId: user.id,
         email: user.email ?? "",
         enabled: String(user.enabled),
-        groups: [...groupPaths].join(", "),
+        groups: [...groupPaths].sort(compareGroupPaths).join(", "),
       })),
     [users],
   );

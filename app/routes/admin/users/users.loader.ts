@@ -10,6 +10,7 @@ import {
 } from "~/.server/auth/keycloakAdmin";
 import { listConnections } from "~/routes/connections/connections.server";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { compareGroupPaths } from "~/utils/groupPath";
 import { resolveScopeLabel } from "~/utils/scopeLabel";
 
 export const usersLoader: LoaderFunction = async ({ request, context }) => {
@@ -40,10 +41,11 @@ export const usersLoader: LoaderFunction = async ({ request, context }) => {
   const users = collectAllUsers(group);
   // The synthesised org-root node is not a real group; hide it from the
   // group-membership column / filter UI.
-  const groups =
+  const groups = (
     scope === ORG_ROOT_SCOPE
       ? group.subGroups.flatMap((sg) => flattenGroupsWithIds(sg))
-      : flattenGroupsWithIds(group);
+      : flattenGroupsWithIds(group)
+  ).sort((a, b) => compareGroupPaths(a.path, b.path));
 
   return { scope, headingLabel, users, groups, connections };
 };
