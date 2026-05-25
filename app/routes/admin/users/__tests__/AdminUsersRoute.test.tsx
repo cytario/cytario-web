@@ -59,9 +59,9 @@ const mockUsers: UserWithGroups[] = [
 ];
 
 const mockGroups: GroupInfo[] = [
-  { id: "g1", path: "cytario/lab", name: "lab", isAdmin: false },
-  { id: "g2", path: "cytario/lab/team-a", name: "team-a", isAdmin: false },
-  { id: "g3", path: "cytario/lab/admins", name: "admins", isAdmin: true },
+  { id: "g1", path: "cytario/lab", name: "lab" },
+  { id: "g2", path: "cytario/lab/team-a", name: "team-a" },
+  { id: "g3", path: "cytario/lab/admins", name: "admins" },
 ];
 
 describe("AdminUsersRoute", () => {

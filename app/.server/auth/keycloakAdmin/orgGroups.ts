@@ -50,7 +50,6 @@ export interface GroupInfo {
   id: string;
   path: string;
   name: string;
-  isAdmin: boolean;
 }
 
 /** Recursively collect every group id in a Keycloak group tree. */
@@ -58,10 +57,7 @@ export function collectGroupIds(group: KeycloakGroup): string[] {
   return [group.id, ...group.subGroups.flatMap(collectGroupIds)];
 }
 
-/**
- * Recursively collect all groups with their IDs from a GroupWithMembers tree.
- * Flags `admins` groups so the UI can render the shield indicator.
- */
+/** Recursively collect all groups with their IDs from a GroupWithMembers tree. */
 export function flattenGroupsWithIds(
   group: GroupWithMembers,
   accumulator: GroupInfo[] = [],
@@ -70,7 +66,6 @@ export function flattenGroupsWithIds(
     id: group.id,
     path: group.path,
     name: group.name,
-    isAdmin: group.name === "admins",
   });
 
   for (const subGroup of group.subGroups) {

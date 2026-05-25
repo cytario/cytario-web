@@ -16,9 +16,9 @@ const mockUser: KeycloakUser = {
 };
 
 const mockGroups: GroupInfo[] = [
-  { id: "g1", path: "cytario/lab", name: "lab", isAdmin: false },
-  { id: "g2", path: "cytario/lab/team-a", name: "team-a", isAdmin: false },
-  { id: "g3", path: "cytario/lab/admins", name: "admins", isAdmin: true },
+  { id: "g1", path: "cytario/lab", name: "lab" },
+  { id: "g2", path: "cytario/lab/team-a", name: "team-a" },
+  { id: "g3", path: "cytario/lab/admins", name: "admins" },
 ];
 
 function renderForm(
@@ -57,27 +57,21 @@ describe("UpdateUserForm", () => {
   });
 
   describe("group sections", () => {
-    test("renders Group Membership section for non-admin groups", () => {
+    test("renders Group Membership section with all groups", () => {
       renderForm();
 
       expect(screen.getByText("Group Membership")).toBeInTheDocument();
       expect(screen.getByLabelText("Path: cytario / lab")).toBeInTheDocument();
       expect(screen.getByLabelText("Path: cytario / lab / team-a")).toBeInTheDocument();
-    });
-
-    test("renders Admin Groups section for admin groups", () => {
-      renderForm();
-
-      expect(screen.getByText("Admin Groups")).toBeInTheDocument();
       expect(screen.getByLabelText("Path: cytario / lab / admins")).toBeInTheDocument();
     });
 
-    test("hides Admin Groups section when no admin groups exist", () => {
+    test("filters out the ORG_ROOT_SCOPE sentinel group", () => {
       renderForm({
-        groups: mockGroups.filter((g) => !g.isAdmin),
+        groups: [{ id: "g-root", path: "*", name: "*" }, ...mockGroups],
       });
 
-      expect(screen.queryByText("Admin Groups")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Path: *")).not.toBeInTheDocument();
     });
   });
 
