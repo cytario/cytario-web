@@ -11,14 +11,6 @@ export async function updateUser(
   await adminMutate("PUT", `/users/${userId}`, data);
 }
 
-export async function addUserToGroup(userId: string, groupId: string): Promise<void> {
-  await adminMutate("PUT", `/users/${userId}/groups/${groupId}`);
-}
-
-export async function removeUserFromGroup(userId: string, groupId: string): Promise<void> {
-  await adminMutate("DELETE", `/users/${userId}/groups/${groupId}`);
-}
-
 export async function setUserEnabled(userId: string, enabled: boolean): Promise<void> {
   await adminMutate("PUT", `/users/${userId}`, { enabled });
 }

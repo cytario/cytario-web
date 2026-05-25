@@ -28,38 +28,17 @@ export async function getOrganizationMembers(orgId: string): Promise<KeycloakUse
   return adminFetch<KeycloakUser[]>(`/organizations/${orgId}/members?max=500`);
 }
 
-/**
- * Create a top-level group inside the organization
- * (`POST /organizations/{orgId}/groups`, KC 26.6+).
- */
-export async function createOrganizationTopLevelGroup(
-  orgId: string,
-  name: string,
-): Promise<Response> {
-  return adminMutate("POST", `/organizations/${orgId}/groups`, { name });
-}
-
-/**
- * Create a child group under an existing organization group
- * (`POST /organizations/{orgId}/groups/{groupId}/children`, KC 26.6+).
- */
 export async function createOrganizationSubgroup(
   orgId: string,
-  parentGroupId: string,
+  parentGroupId: string | undefined,
   name: string,
 ): Promise<Response> {
-  return adminMutate("POST", `/organizations/${orgId}/groups/${parentGroupId}/children`, {
-    name,
-  });
+  const path = parentGroupId
+    ? `/organizations/${orgId}/groups/${parentGroupId}/children`
+    : `/organizations/${orgId}/groups`;
+  return adminMutate("POST", path, { name });
 }
 
-/**
- * Locate an organization group by its org-relative path
- * (`GET /organizations/{orgId}/groups/group-by-path/{path}`, KC 26.6+).
- *
- * Returns undefined when the path does not resolve within the org so callers
- * can map it to a 404 themselves.
- */
 export async function findOrganizationGroupByPath(
   orgId: string,
   path: string,
@@ -74,24 +53,42 @@ export async function findOrganizationGroupByPath(
   }
 }
 
-/** Delete an organization group (rollback after a partial create). */
 export async function deleteOrganizationGroup(orgId: string, groupId: string): Promise<Response> {
   return adminMutate("DELETE", `/organizations/${orgId}/groups/${groupId}`);
 }
 
-/**
- * Add a user to an organization group
- * (`PUT /organizations/{orgId}/groups/{groupId}/members/{userId}`, KC 26.6+).
- * Required for org groups — the realm-level
- * `PUT /users/{userId}/groups/{groupId}` endpoint returns 400 for groups
- * owned by an organization.
- */
 export async function addUserToOrganizationGroup(
   orgId: string,
   groupId: string,
   userId: string,
 ): Promise<Response> {
   return adminMutate("PUT", `/organizations/${orgId}/groups/${groupId}/members/${userId}`);
+}
+
+export async function removeUserFromOrganizationGroup(
+  orgId: string,
+  groupId: string,
+  userId: string,
+): Promise<Response> {
+  return adminMutate("DELETE", `/organizations/${orgId}/groups/${groupId}/members/${userId}`);
+}
+
+/** List members of a single organization group. */
+export async function getOrganizationGroupMembers(
+  orgId: string,
+  groupId: string,
+): Promise<KeycloakUser[]> {
+  return adminFetch<KeycloakUser[]>(`/organizations/${orgId}/groups/${groupId}/members?max=500`);
+}
+
+/** List groups in an organization, optionally with the full hierarchy populated. */
+export async function listOrganizationGroups(
+  orgId: string,
+  options: { populateHierarchy?: boolean } = {},
+): Promise<KeycloakGroup[]> {
+  const params = new URLSearchParams({ max: "500" });
+  if (options.populateHierarchy) params.set("populateHierarchy", "true");
+  return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups?${params}`);
 }
 
 /**

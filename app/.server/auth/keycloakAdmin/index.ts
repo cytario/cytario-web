@@ -1,27 +1,28 @@
 export { type KeycloakGroup, type KeycloakUser } from "./client";
 
 export {
-  createGroup,
-  findGroupByPath,
-  getManageableScopes,
-  getGroupWithMembers,
-  flattenGroupsWithIds,
   collectAllUsers,
+  collectGroupIds,
+  createGroup,
+  flattenGroupsWithIds,
+  getGroupWithMembers,
+  type GroupInfo,
   type GroupWithMembers,
   type UserWithGroups,
-  type GroupInfo,
-} from "./groups";
+} from "./orgGroups";
 
-export { getUser, updateUser, addUserToGroup, removeUserFromGroup, setUserEnabled } from "./users";
+export { getUser, updateUser, setUserEnabled } from "./users";
 
 export {
   addUserToOrganizationGroup,
   createOrganizationSubgroup,
-  createOrganizationTopLevelGroup,
   deleteOrganizationGroup,
   findOrganizationByAlias,
   findOrganizationGroupByPath,
+  getOrganizationGroupMembers,
   getOrganizationMembers,
   inviteOrganizationUser,
+  listOrganizationGroups,
+  removeUserFromOrganizationGroup,
   type KeycloakOrganization,
 } from "./organizations";

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
-import { ORG_ROOT_ADMIN_SCOPE } from "~/utils/authorization";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 const organizationClaimSchema = z
   .record(
@@ -53,7 +53,7 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   const allGroups = rawGroups.map(normalizeGroup);
   const adminScopes = allGroups
     .filter((g) => g === "admins" || g.endsWith("/admins"))
-    .map((g) => (g === "admins" ? ORG_ROOT_ADMIN_SCOPE : g.replace(/\/admins$/, "")));
+    .map((g) => (g === "admins" ? ORG_ROOT_SCOPE : g.replace(/\/admins$/, "")));
   const groups = allGroups.filter((g) => g !== "admins" && !g.endsWith("/admins"));
 
   return {

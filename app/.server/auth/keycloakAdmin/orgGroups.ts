@@ -1,13 +1,14 @@
-import type { UserProfile } from "../getUserInfo";
-import { adminFetch, KeycloakAdminError, type KeycloakGroup, type KeycloakUser } from "./client";
+import { KeycloakAdminError, type KeycloakGroup, type KeycloakUser } from "./client";
 import {
   createOrganizationSubgroup,
-  createOrganizationTopLevelGroup,
   deleteOrganizationGroup,
   findOrganizationByAlias,
   findOrganizationGroupByPath,
+  getOrganizationGroupMembers,
+  getOrganizationMembers,
+  listOrganizationGroups,
 } from "./organizations";
-import { ORG_ROOT_ADMIN_SCOPE } from "~/utils/authorization";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 export interface GroupWithMembers {
   id: string;
@@ -30,87 +31,14 @@ export interface GroupInfo {
   isAdmin: boolean;
 }
 
-async function fetchGroups(search?: string): Promise<KeycloakGroup[]> {
-  const params = new URLSearchParams({ exact: "true" });
-  if (search) params.set("q", search);
-  return adminFetch(`/groups?${params}`);
-}
-
-/**
- * Recursively flatten a group tree to a list of normalized paths,
- * filtering out groups whose name is "admins".
- */
-export function flattenGroups(groups: KeycloakGroup[]): string[] {
-  const result: string[] = [];
-
-  for (const group of groups) {
-    const normalized = group.path.replace(/^\//, "");
-
-    if (group.name !== "admins") {
-      result.push(normalized);
-    }
-
-    if (group.subGroups.length > 0) {
-      result.push(...flattenGroups(group.subGroups));
-    }
-  }
-
-  return result;
-}
-
-/**
- * Fetches all group scopes manageable by the user from the Keycloak Admin API.
- * For each admin scope, finds the exact group by path and flattens its descendants.
- * Uses findGroupByPath instead of search to avoid returning unrelated groups.
- */
-export async function getManageableScopes(user: UserProfile): Promise<string[]> {
-  if (user.adminScopes.length === 0) return [];
-
-  const allScopes = new Set<string>();
-
-  for (const adminScope of user.adminScopes) {
-    allScopes.add(adminScope);
-    try {
-      const group = await findGroupByPath(adminScope);
-      if (group) {
-        for (const path of flattenGroups(group.subGroups)) {
-          allScopes.add(path);
-        }
-      }
-    } catch (error) {
-      console.warn(`Failed to fetch group tree for admin scope "${adminScope}":`, error);
-    }
-  }
-
-  return [...allScopes].sort();
-}
-
-/**
- * Finds a Keycloak group by its normalized path (e.g. "cytario/lab").
- */
-export async function findGroupByPath(scope: string): Promise<KeycloakGroup | undefined> {
-  const topLevel = scope.split("/")[0];
-  const groups = await fetchGroups(topLevel);
-  const targetPath = `/${scope}`;
-
-  const search = (groups: KeycloakGroup[]): KeycloakGroup | undefined => {
-    for (const g of groups) {
-      if (g.path === targetPath) return g;
-      const found = search(g.subGroups);
-      if (found) return found;
-    }
-  };
-
-  return search(groups);
-}
-
-function collectGroupIds(group: KeycloakGroup): string[] {
+/** Recursively collect every group id in a Keycloak group tree. */
+export function collectGroupIds(group: KeycloakGroup): string[] {
   return [group.id, ...group.subGroups.flatMap(collectGroupIds)];
 }
 
 /**
  * Recursively collect all groups with their IDs from a GroupWithMembers tree.
- * Filters out "admins" groups.
+ * Flags `admins` groups so the UI can render the shield indicator.
  */
 export function flattenGroupsWithIds(
   group: GroupWithMembers,
@@ -131,14 +59,13 @@ export function flattenGroupsWithIds(
 }
 
 /**
- * Collect all unique users and track their group memberships from a GroupWithMembers tree.
- * Returns an array of users with their associated group paths.
+ * Collect all unique users and track their group memberships from a
+ * GroupWithMembers tree.
  */
 export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
   const userMap = new Map<string, UserWithGroups>();
 
   function traverse(g: GroupWithMembers) {
-    // Add members of current group
     for (const member of g.members) {
       if (!userMap.has(member.id)) {
         userMap.set(member.id, {
@@ -154,7 +81,6 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
       }
     }
 
-    // Traverse subgroups
     for (const subGroup of g.subGroups) {
       traverse(subGroup);
     }
@@ -203,11 +129,10 @@ export async function createGroup(
     throw new KeycloakAdminError(404, `Organization not found: ${organization}`);
   }
 
-  const isOrgRoot = parentScope === ORG_ROOT_ADMIN_SCOPE;
+  const isOrgRoot = parentScope === ORG_ROOT_SCOPE;
+  const parentGroupId = isOrgRoot ? undefined : await resolveOrgGroupId(org.id, parentScope);
 
-  const createResponse = isOrgRoot
-    ? await createOrganizationTopLevelGroup(org.id, name)
-    : await createOrgChildAtPath(org.id, parentScope, name);
+  const createResponse = await createOrganizationSubgroup(org.id, parentGroupId, name);
   const newGroupId = extractIdFromLocation(createResponse, "group creation");
 
   let adminsGroupId: string;
@@ -232,42 +157,55 @@ export async function createGroup(
   };
 }
 
-async function createOrgChildAtPath(
-  orgId: string,
-  parentScope: string,
-  name: string,
-): Promise<Response> {
+async function resolveOrgGroupId(orgId: string, parentScope: string): Promise<string> {
   const parent = await findOrganizationGroupByPath(orgId, parentScope);
   if (!parent) {
     throw new KeycloakAdminError(404, `Parent group not found in organization: ${parentScope}`);
   }
-  return createOrganizationSubgroup(orgId, parent.id, name);
+  return parent.id;
+}
+
+async function attachMembers(orgId: string, group: KeycloakGroup): Promise<GroupWithMembers> {
+  const [members, subGroups] = await Promise.all([
+    getOrganizationGroupMembers(orgId, group.id),
+    Promise.all(group.subGroups.map((sg) => attachMembers(orgId, sg))),
+  ]);
+  return {
+    id: group.id,
+    name: group.name,
+    path: group.path.replace(/^\//, ""),
+    members,
+    subGroups,
+  };
 }
 
 /**
- * Fetches members for a group and all its sub-groups, returning the tree structure.
+ * Fetch a group within the active organization, with members + subgroup tree.
+ *
+ * Routes through Keycloak 26.6's Organization Groups endpoints so the lookup
+ * is isolated to the active organization. The `ORG_ROOT_SCOPE` sentinel
+ * synthesises a virtual root whose members are the full org membership and
+ * whose subgroups are the org's top-level groups (recursive).
  */
-export async function getGroupWithMembers(scope: string): Promise<GroupWithMembers | undefined> {
-  const group = await findGroupByPath(scope);
+export async function getGroupWithMembers(
+  orgId: string,
+  scope: string,
+): Promise<GroupWithMembers | undefined> {
+  if (scope === ORG_ROOT_SCOPE) {
+    const [topLevel, members] = await Promise.all([
+      listOrganizationGroups(orgId, { populateHierarchy: true }),
+      getOrganizationMembers(orgId),
+    ]);
+    return {
+      id: orgId,
+      name: ORG_ROOT_SCOPE,
+      path: ORG_ROOT_SCOPE,
+      members,
+      subGroups: await Promise.all(topLevel.map((g) => attachMembers(orgId, g))),
+    };
+  }
+
+  const group = await findOrganizationGroupByPath(orgId, scope);
   if (!group) return undefined;
-
-  const allIds = collectGroupIds(group);
-  const membersByGroupId = new Map<string, KeycloakUser[]>();
-
-  await Promise.all(
-    allIds.map(async (id) => {
-      const members = await adminFetch<KeycloakUser[]>(`/groups/${id}/members?max=500`);
-      membersByGroupId.set(id, members);
-    }),
-  );
-
-  const buildTree = (g: KeycloakGroup): GroupWithMembers => ({
-    id: g.id,
-    name: g.name,
-    path: g.path.replace(/^\//, ""),
-    members: membersByGroupId.get(g.id) ?? [],
-    subGroups: g.subGroups.map(buildTree),
-  });
-
-  return buildTree(group);
+  return attachMembers(orgId, group);
 }

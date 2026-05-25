@@ -5,7 +5,13 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { addUserToGroup, removeUserFromGroup, updateUser } from "~/.server/auth/keycloakAdmin";
+import {
+  addUserToOrganizationGroup,
+  findOrganizationByAlias,
+  removeUserFromOrganizationGroup,
+  updateUser,
+} from "~/.server/auth/keycloakAdmin";
+import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
@@ -13,7 +19,7 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   const { user } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
-  await assertUsersInScope([params.userId!], scope);
+  await assertUsersInScope([params.userId!], scope, user.organization);
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
@@ -40,7 +46,16 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   await assertGroupsInScope(
     groupEntries.map((e) => e.groupId),
     scope,
+    user.organization,
   );
+
+  if (!user.organization) {
+    throw new Response("No active organization", { status: 400 });
+  }
+  const org = await findOrganizationByAlias(user.organization);
+  if (!org) {
+    throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+  }
 
   try {
     await updateUser(params.userId!, result.data);
@@ -48,8 +63,8 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
     await Promise.all(
       groupEntries.map(({ groupId, shouldBeMember }) =>
         shouldBeMember
-          ? addUserToGroup(params.userId!, groupId)
-          : removeUserFromGroup(params.userId!, groupId),
+          ? addUserToOrganizationGroup(org.id, groupId, params.userId!)
+          : removeUserFromOrganizationGroup(org.id, groupId, params.userId!),
       ),
     );
 

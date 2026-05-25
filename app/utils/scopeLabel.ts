@@ -1,4 +1,4 @@
-import { ORG_ROOT_ADMIN_SCOPE } from "./authorization";
+import { ORG_ROOT_SCOPE } from "./authorization";
 
 /**
  * Resolves the user-facing label for an owner scope. Each `*` segment is
@@ -10,6 +10,6 @@ export function resolveScopeLabel(scope: string, organization?: string | null): 
   if (!organization) return scope;
   return scope
     .split("/")
-    .map((segment) => (segment === ORG_ROOT_ADMIN_SCOPE ? organization : segment))
+    .map((segment) => (segment === ORG_ROOT_SCOPE ? organization : segment))
     .join("/");
 }

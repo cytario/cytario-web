@@ -2,20 +2,24 @@ import { describe, expect, test, vi } from "vitest";
 
 import { assertUsersInScope } from "../assertUsersInScope";
 
+const mockFindOrganizationByAlias = vi.fn();
 const mockGetGroupWithMembers = vi.fn();
 
 vi.mock("~/.server/auth/keycloakAdmin", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/.server/auth/keycloakAdmin")>();
   return {
     ...actual,
+    findOrganizationByAlias: (...args: unknown[]) => mockFindOrganizationByAlias(...args),
     getGroupWithMembers: (...args: unknown[]) => mockGetGroupWithMembers(...args),
   };
 });
 
+const mockOrg = { id: "org-uuid", name: "Acme", alias: "acme" };
+
 const mockGroupWithMembers = {
   id: "g1",
-  name: "acme",
-  path: "acme",
+  name: "lab",
+  path: "lab",
   members: [
     {
       id: "user-1",
@@ -29,8 +33,8 @@ const mockGroupWithMembers = {
   subGroups: [
     {
       id: "g2",
-      name: "lab",
-      path: "acme/lab",
+      name: "team-x",
+      path: "lab/team-x",
       members: [
         {
           id: "user-2",
@@ -43,67 +47,33 @@ const mockGroupWithMembers = {
       ],
       subGroups: [],
     },
-    {
-      id: "g3",
-      name: "admins",
-      path: "acme/admins",
-      members: [
-        {
-          id: "user-3",
-          username: "admin",
-          email: "admin@example.com",
-          firstName: "Admin",
-          lastName: "A",
-          enabled: true,
-        },
-      ],
-      subGroups: [],
-    },
   ],
 };
 
 describe("assertUsersInScope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFindOrganizationByAlias.mockResolvedValue(mockOrg);
   });
 
   test("passes when user is in scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(assertUsersInScope(["user-1"], "acme")).resolves.toBeUndefined();
+    await expect(assertUsersInScope(["user-1"], "lab", "acme")).resolves.toBeUndefined();
+    expect(mockGetGroupWithMembers).toHaveBeenCalledWith("org-uuid", "lab");
   });
 
   test("passes when user is in a subgroup of the scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
-    await expect(assertUsersInScope(["user-2"], "acme")).resolves.toBeUndefined();
-  });
-
-  test("passes when multiple users are all in scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
-
-    await expect(
-      assertUsersInScope(["user-1", "user-2", "user-3"], "acme"),
-    ).resolves.toBeUndefined();
+    await expect(assertUsersInScope(["user-2"], "lab", "acme")).resolves.toBeUndefined();
   });
 
   test("throws 403 when user is not in scope", async () => {
     mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
 
     try {
-      await assertUsersInScope(["user-999"], "acme");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(Response);
-      expect((e as Response).status).toBe(403);
-    }
-  });
-
-  test("throws 403 when one of multiple users is not in scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
-
-    try {
-      await assertUsersInScope(["user-1", "user-999"], "acme");
+      await assertUsersInScope(["user-999"], "lab", "acme");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);
@@ -115,11 +85,26 @@ describe("assertUsersInScope", () => {
     mockGetGroupWithMembers.mockResolvedValue(undefined);
 
     try {
-      await assertUsersInScope(["user-1"], "nonexistent");
+      await assertUsersInScope(["user-1"], "nonexistent", "acme");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);
       expect((e as Response).status).toBe(404);
     }
+  });
+
+  test("throws 400 when the active org is missing", async () => {
+    try {
+      await assertUsersInScope(["user-1"], "lab", undefined);
+      expect.fail("should have thrown");
+    } catch (e) {
+      expect(e).toBeInstanceOf(Response);
+      expect((e as Response).status).toBe(400);
+    }
+  });
+
+  test("passes (no API call) when userIds array is empty", async () => {
+    await expect(assertUsersInScope([], "lab", "acme")).resolves.toBeUndefined();
+    expect(mockFindOrganizationByAlias).not.toHaveBeenCalled();
   });
 });

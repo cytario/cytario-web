@@ -11,16 +11,17 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
 }));
 vi.mock("~/.server/auth/keycloakAdmin", () => ({
   adminFetch: vi.fn(),
-  flattenGroups: vi.fn(),
-  findGroupByPath: vi.fn(),
-  getManageableScopes: vi.fn(),
   getGroupWithMembers: vi.fn(),
   flattenGroupsWithIds: vi.fn(),
   collectAllUsers: vi.fn(),
-  inviteUser: vi.fn(),
+  findOrganizationByAlias: vi.fn(),
+  getOrganizationGroupMembers: vi.fn(),
+  getOrganizationMembers: vi.fn(),
+  listOrganizationGroups: vi.fn(),
+  inviteOrganizationUser: vi.fn(),
+  addUserToOrganizationGroup: vi.fn(),
+  removeUserFromOrganizationGroup: vi.fn(),
   updateUser: vi.fn(),
-  addUserToGroup: vi.fn(),
-  removeUserFromGroup: vi.fn(),
   setUserEnabled: vi.fn(),
 }));
 vi.mock("~/.server/auth/getSession", () => ({

@@ -12,7 +12,7 @@ import type { UserProfile } from "~/.server/auth/getUserInfo";
  * Reserved — must not be used as a real Keycloak group name (enforced by
  * `createGroupSchema`).
  */
-export const ORG_ROOT_ADMIN_SCOPE = "*";
+export const ORG_ROOT_SCOPE = "*";
 
 /** Minimal resource shape needed for tenant + intra-org authorization. */
 export interface AuthorizationResource {
@@ -25,13 +25,8 @@ function inActiveOrg(user: UserProfile, resource: AuthorizationResource): boolea
   return user.organization !== undefined && user.organization === resource.organization;
 }
 
-/**
- * True iff `adminScope` covers `ownerScope`. The `ORG_ROOT_ADMIN_SCOPE`
- * sentinel matches every owner scope within the active org; the tenant check
- * in the public helpers prevents this from leaking across orgs.
- */
 function adminCovers(adminScope: string, ownerScope: string): boolean {
-  if (adminScope === ORG_ROOT_ADMIN_SCOPE) return true;
+  if (adminScope === ORG_ROOT_SCOPE) return true;
   return ownerScope === adminScope || ownerScope.startsWith(adminScope + "/");
 }
 
@@ -41,9 +36,7 @@ function adminCovers(adminScope: string, ownerScope: string): boolean {
  * Tenant boundary: the resource must be in the user's active organization.
  *
  * Within the org:
- * - Org-root scope (`*`): visible to every org member (matches the
- *   pre-Organizations behaviour where a tenant-group-scoped resource was
- *   visible to all tenant members).
+ * - Org-root scope (`*`): visible to every org member
  * - Personal scope: ownerScope matches user's own sub
  * - Group membership: user belongs to the ownerScope group or a child group
  * - Admin ancestry: user admins a scope that is an ancestor of (or equal to) the ownerScope
@@ -51,7 +44,7 @@ function adminCovers(adminScope: string, ownerScope: string): boolean {
 export function canSee(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
   const { ownerScope } = resource;
-  if (ownerScope === ORG_ROOT_ADMIN_SCOPE) return true;
+  if (ownerScope === ORG_ROOT_SCOPE) return true;
   if (ownerScope === user.sub) return true;
   if (user.groups.includes(ownerScope)) return true;
   if (user.groups.some((g) => g.startsWith(ownerScope + "/"))) return true;
