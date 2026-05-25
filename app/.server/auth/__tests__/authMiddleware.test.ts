@@ -112,9 +112,10 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.destroySession).mockResolvedValue("destroy-cookie");
     vi.mocked(listConnections).mockResolvedValue(mockConnectionConfigs);
     // Return the same credentials by default (no change = no session commit)
-    vi.mocked(getAllSessionCredentials).mockImplementation(
-      async (sessionData) => sessionData.credentials,
-    );
+    vi.mocked(getAllSessionCredentials).mockImplementation(async (sessionData) => ({
+      credentials: sessionData.credentials,
+      errors: {},
+    }));
     vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
       accessToken: "new-access-token",
       idToken: "new-id-token",
@@ -198,7 +199,10 @@ describe("authMiddleware", () => {
 
     test("commits session when credentials changed", async () => {
       const newCredentials = { "new-bucket": mock.credentials() };
-      vi.mocked(getAllSessionCredentials).mockResolvedValue(newCredentials);
+      vi.mocked(getAllSessionCredentials).mockResolvedValue({
+        credentials: newCredentials,
+        errors: {},
+      });
 
       const args = createMiddlewareArgs();
 

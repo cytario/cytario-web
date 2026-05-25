@@ -12,6 +12,8 @@ import { listConnections } from "~/routes/connections/connections.server";
 
 export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfig[];
+  /** Per-connection reason for connections whose STS mint failed this request. */
+  credentialErrors: Record<string, string>;
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -36,17 +38,22 @@ const label = createLabel("authorize", "green");
 
 const fetchAllCredentials = async (
   sessionData: SessionData,
-): Promise<{ sessionData: SessionData; connectionConfigs: ConnectionConfig[] }> => {
+): Promise<{
+  sessionData: SessionData;
+  connectionConfigs: ConnectionConfig[];
+  credentialErrors: Record<string, string>;
+}> => {
   const connectionConfigs = await listConnections(sessionData.user);
 
-  const newCredentials = await getAllSessionCredentials(sessionData, connectionConfigs);
+  const { credentials, errors } = await getAllSessionCredentials(sessionData, connectionConfigs);
 
   return {
     sessionData: {
       ...sessionData,
-      credentials: newCredentials,
+      credentials,
     },
     connectionConfigs,
+    credentialErrors: errors,
   };
 };
 
@@ -77,8 +84,11 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     const idTokenPayload = await verifyIdToken(authTokens.idToken);
 
     if (idTokenPayload) {
-      const { sessionData: withCredentials, connectionConfigs } =
-        await fetchAllCredentials(updatedSessionData);
+      const {
+        sessionData: withCredentials,
+        connectionConfigs,
+        credentialErrors,
+      } = await fetchAllCredentials(updatedSessionData);
       updatedSessionData = withCredentials;
 
       if (updatedSessionData.credentials !== sessionData.credentials) {
@@ -86,7 +96,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
         await sessionStorage.commitSession(session);
       }
 
-      context.set(authContext, { ...updatedSessionData, connectionConfigs });
+      context.set(authContext, { ...updatedSessionData, connectionConfigs, credentialErrors });
       return next();
     }
 
@@ -103,7 +113,11 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
       if (newAuthTokens) {
         session.set("authTokens", newAuthTokens);
 
-        const { sessionData: withCredentials, connectionConfigs } = await fetchAllCredentials({
+        const {
+          sessionData: withCredentials,
+          connectionConfigs,
+          credentialErrors,
+        } = await fetchAllCredentials({
           ...updatedSessionData,
           authTokens: newAuthTokens,
         });
@@ -112,7 +126,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
         session.set("credentials", updatedSessionData.credentials);
         await sessionStorage.commitSession(session);
 
-        context.set(authContext, { ...updatedSessionData, connectionConfigs });
+        context.set(authContext, { ...updatedSessionData, connectionConfigs, credentialErrors });
         return next();
       }
     }
