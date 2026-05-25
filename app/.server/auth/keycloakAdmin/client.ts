@@ -87,3 +87,27 @@ export async function adminFormMutate(
     contentType: "application/x-www-form-urlencoded",
   });
 }
+
+/**
+ * Iterate every page of a Keycloak list endpoint that uses `first` + `max`
+ * cursors. The KC defaults are often small (10), so callers should not rely
+ * on a single fetch returning the full collection.
+ *
+ * `buildPath` receives a query string with `first` and `max` already set and
+ * must return the absolute admin path to fetch.
+ */
+export async function adminFetchAll<T>(
+  buildPath: (cursor: { first: number; max: number }) => string,
+  options: { pageSize?: number } = {},
+): Promise<T[]> {
+  const pageSize = options.pageSize ?? 100;
+  const out: T[] = [];
+  let first = 0;
+  while (true) {
+    const page = await adminFetch<T[]>(buildPath({ first, max: pageSize }));
+    out.push(...page);
+    if (page.length < pageSize) break;
+    first += pageSize;
+  }
+  return out;
+}

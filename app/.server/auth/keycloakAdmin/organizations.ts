@@ -1,5 +1,6 @@
 import {
   adminFetch,
+  adminFetchAll,
   adminFormMutate,
   adminMutate,
   type KeycloakGroup,
@@ -14,7 +15,6 @@ export interface KeycloakOrganization {
   domains?: { name: string; verified?: boolean }[];
 }
 
-/** Locate a Keycloak organization by its alias. */
 export async function findOrganizationByAlias(
   alias: string,
 ): Promise<KeycloakOrganization | undefined> {
@@ -23,9 +23,14 @@ export async function findOrganizationByAlias(
   return orgs.find((o) => o.alias === alias);
 }
 
-/** List all members of a Keycloak organization. */
+/**
+ * List every member of an organization. KC's endpoint defaults `max=10`, so
+ * paging is mandatory to avoid silent truncation.
+ */
 export async function getOrganizationMembers(orgId: string): Promise<KeycloakUser[]> {
-  return adminFetch<KeycloakUser[]>(`/organizations/${orgId}/members?max=500`);
+  return adminFetchAll<KeycloakUser>(
+    ({ first, max }) => `/organizations/${orgId}/members?first=${first}&max=${max}`,
+  );
 }
 
 export async function createOrganizationSubgroup(
@@ -73,34 +78,46 @@ export async function removeUserFromOrganizationGroup(
   return adminMutate("DELETE", `/organizations/${orgId}/groups/${groupId}/members/${userId}`);
 }
 
-/** List members of a single organization group. */
+/**
+ * List every member of a single organization group. KC does not document a
+ * default `max` for this endpoint, but other organization listings cap at 10
+ * — paginate to be safe.
+ */
 export async function getOrganizationGroupMembers(
   orgId: string,
   groupId: string,
 ): Promise<KeycloakUser[]> {
-  return adminFetch<KeycloakUser[]>(`/organizations/${orgId}/groups/${groupId}/members?max=500`);
+  return adminFetchAll<KeycloakUser>(
+    ({ first, max }) =>
+      `/organizations/${orgId}/groups/${groupId}/members?first=${first}&max=${max}`,
+  );
 }
 
-/** List top-level groups in an organization (flat, no descendants). */
+/** List every top-level group in an organization (paginated). */
 export async function listOrganizationGroups(orgId: string): Promise<KeycloakGroup[]> {
-  return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups?max=500`);
+  return adminFetchAll<KeycloakGroup>(
+    ({ first, max }) => `/organizations/${orgId}/groups?first=${first}&max=${max}`,
+  );
 }
 
-/** List the direct children of an organization group. */
+/**
+ * List every direct child of an organization group (paginated; KC defaults
+ * `max=10` on this endpoint).
+ */
 export async function listOrganizationGroupChildren(
   orgId: string,
   groupId: string,
 ): Promise<KeycloakGroup[]> {
-  return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups/${groupId}/children?max=500`);
+  return adminFetchAll<KeycloakGroup>(
+    ({ first, max }) =>
+      `/organizations/${orgId}/groups/${groupId}/children?first=${first}&max=${max}`,
+  );
 }
 
 /**
  * Send an organization invitation to the given email
- * (`POST /organizations/{orgId}/members/invite-user`, KC 26+). Keycloak
- * provisions the user if needed and emails the join link; firstName /
- * lastName are only used when the user does not already exist.
  *
- * Endpoint consumes `application/x-www-form-urlencoded`.
+ * Keycloak provisions the user if needed and emails the join link; firstName / lastName are only used when the user does not already exist.
  *
  * KC returns 409 both for "pending invitation already exists" and
  * "user already a member" — both are benign from the caller's POV; the
