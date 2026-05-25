@@ -87,7 +87,13 @@ export async function listOrganizationGroups(
   options: { populateHierarchy?: boolean } = {},
 ): Promise<KeycloakGroup[]> {
   const params = new URLSearchParams({ max: "500" });
-  if (options.populateHierarchy) params.set("populateHierarchy", "true");
+  if (options.populateHierarchy) {
+    params.set("populateHierarchy", "true");
+    // `briefRepresentation` defaults to true and drops attributes + subGroups
+    // from the response even when `populateHierarchy=true`. Force the full
+    // representation so the hierarchy actually round-trips.
+    params.set("briefRepresentation", "false");
+  }
   return adminFetch<KeycloakGroup[]>(`/organizations/${orgId}/groups?${params}`);
 }
 
