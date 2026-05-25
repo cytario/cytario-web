@@ -52,8 +52,14 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
         formData.append(key, String(value));
       }
     });
+    // Send only the membership diff: KC's org-group member endpoints are
+    // not idempotent (DELETE on a non-member returns 404), and avoiding
+    // no-op calls also cuts traffic on every save.
     for (const group of groups) {
-      formData.append(`group-${group.id}`, String(memberGroupIds.has(group.id)));
+      const was = groupPaths.has(group.path);
+      const now = memberGroupIds.has(group.id);
+      if (now && !was) formData.append(`add-group-${group.id}`, "true");
+      if (!now && was) formData.append(`remove-group-${group.id}`, "true");
     }
     return formData;
   };
