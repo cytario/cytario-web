@@ -1,9 +1,16 @@
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 
 /**
- * Sentinel admin scope assigned to members of the active org's root `/admins`
- * group. Treated by the helpers below as "admin of every owner scope in the
- * active org". Reserved — must not be used as a real Keycloak group name.
+ * Sentinel scope representing the active organization as a whole.
+ *
+ * - As an `adminScope`: the bearer is org-root admin and can see/modify every
+ *   owner scope within the active org.
+ * - As an `ownerScope`: the resource is owned at the org root and visible to
+ *   every member of the active org. Mutation still requires an admin scope
+ *   that covers `*` — i.e. another org-root admin.
+ *
+ * Reserved — must not be used as a real Keycloak group name (enforced by
+ * `createGroupSchema`).
  */
 export const ORG_ROOT_ADMIN_SCOPE = "*";
 
@@ -34,6 +41,9 @@ function adminCovers(adminScope: string, ownerScope: string): boolean {
  * Tenant boundary: the resource must be in the user's active organization.
  *
  * Within the org:
+ * - Org-root scope (`*`): visible to every org member (matches the
+ *   pre-Organizations behaviour where a tenant-group-scoped resource was
+ *   visible to all tenant members).
  * - Personal scope: ownerScope matches user's own sub
  * - Group membership: user belongs to the ownerScope group or a child group
  * - Admin ancestry: user admins a scope that is an ancestor of (or equal to) the ownerScope
@@ -41,6 +51,7 @@ function adminCovers(adminScope: string, ownerScope: string): boolean {
 export function canSee(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
   const { ownerScope } = resource;
+  if (ownerScope === ORG_ROOT_ADMIN_SCOPE) return true;
   if (ownerScope === user.sub) return true;
   if (user.groups.includes(ownerScope)) return true;
   if (user.groups.some((g) => g.startsWith(ownerScope + "/"))) return true;

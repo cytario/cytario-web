@@ -73,6 +73,28 @@ describe("canSee", () => {
     expect(canSee(user, { organization: "ascent-pharma", ownerScope: "lab" })).toBe(false);
   });
 
+  test("org-root-owned resources are visible to every active-org member", () => {
+    const user = mock.user({
+      sub: "user-1",
+      organization: "org1",
+      groups: ["lab"],
+      adminScopes: [],
+    });
+
+    expect(canSee(user, inOrg("*"))).toBe(true);
+  });
+
+  test("org-root-owned resources are NOT visible to users from another org", () => {
+    const user = mock.user({
+      sub: "user-1",
+      organization: "vericura",
+      groups: ["lab"],
+      adminScopes: [],
+    });
+
+    expect(canSee(user, { organization: "ascent-pharma", ownerScope: "*" })).toBe(false);
+  });
+
   test("user without an active organization sees nothing", () => {
     const user = mock.user({
       sub: "user-1",
@@ -119,6 +141,17 @@ describe("canModify", () => {
     });
 
     expect(canModify(user, { organization: "ascent-pharma", ownerScope: "lab" })).toBe(false);
+  });
+
+  test("non-admin org member cannot modify org-root-owned resources", () => {
+    const user = mock.user({
+      sub: "user-1",
+      organization: "org1",
+      groups: ["lab"],
+      adminScopes: [],
+    });
+
+    expect(canModify(user, inOrg("*"))).toBe(false);
   });
 });
 
