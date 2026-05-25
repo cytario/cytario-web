@@ -29,9 +29,9 @@ export async function getConnection(
   user: UserProfile,
   name: string,
 ): Promise<ConnectionConfig | null> {
-  requireOrganization(user);
-  const config = await prisma.connectionConfig.findUnique({
-    where: { name },
+  const organization = requireOrganization(user);
+  const config = await prisma.connectionConfig.findFirst({
+    where: { name, organization },
   });
   if (!config || !canSee(user, config)) return null;
   return config;

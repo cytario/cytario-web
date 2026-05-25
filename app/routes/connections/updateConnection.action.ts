@@ -35,8 +35,8 @@ export async function updateConnection(
     throw new Error("Active organization missing from session");
   }
 
-  const config = await prisma.connectionConfig.findUnique({
-    where: { name: originalName },
+  const config = await prisma.connectionConfig.findFirst({
+    where: { name: originalName, organization: user.organization },
   });
 
   if (!config || !canSee(user, config)) {
@@ -88,6 +88,13 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     };
   }
 
+  if (!user.organization) {
+    return {
+      formError: "Active organization missing from session",
+      status: "error" as const,
+    };
+  }
+
   const rawData = {
     name: String(formData.get("name") ?? ""),
     ownerScope: String(formData.get("ownerScope") ?? ""),
@@ -117,8 +124,8 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
   // Only re-probe CORS when the bucket URL actually changes — a transient
   // bucket-side glitch must not block a pure name / scope / prefix edit.
-  const existingConfig = await prisma.connectionConfig.findUnique({
-    where: { name: originalName },
+  const existingConfig = await prisma.connectionConfig.findFirst({
+    where: { name: originalName, organization: user.organization },
   });
   const endpointChanged = !existingConfig || existingConfig.endpoint !== endpoint;
   const bucketNameChanged = !existingConfig || existingConfig.bucketName !== bucketName;

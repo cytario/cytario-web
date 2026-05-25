@@ -12,8 +12,8 @@ export async function deleteConnection(user: UserProfile, name: string) {
     throw new Error("Active organization missing from session");
   }
 
-  const config = await prisma.connectionConfig.findUnique({
-    where: { name },
+  const config = await prisma.connectionConfig.findFirst({
+    where: { name, organization: user.organization },
   });
 
   if (!config || !canSee(user, config)) {

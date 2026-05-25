@@ -10,7 +10,7 @@ import mock from "~/utils/__tests__/__mocks__";
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
       upsert: vi.fn(),
@@ -127,7 +127,7 @@ beforeEach(() => {
 
 describe("deleteConnection authorization", () => {
   test("admin of scope can delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await deleteConnection(adminUser, "test-connection");
 
@@ -137,7 +137,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("owner (personal scope) can delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(personalConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(personalConfig);
 
     await deleteConnection(personalUser, "personal-connection");
 
@@ -145,7 +145,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("org-root admin can delete any connection within the org", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await deleteConnection(orgRootAdmin, "test-connection");
 
@@ -153,7 +153,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("group member without admin cannot delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await expect(deleteConnection(regularUser, "test-connection")).rejects.toThrow(
       "Not authorized to delete this connection config",
@@ -161,7 +161,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("user from different scope cannot see or delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await expect(deleteConnection(outsideUser, "test-connection")).rejects.toThrow(
       "Connection config not found",
@@ -169,7 +169,7 @@ describe("deleteConnection authorization", () => {
   });
 
   test("throws 'not found' when connection doesn't exist", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
     await expect(deleteConnection(adminUser, "nonexistent")).rejects.toThrow(
       "Connection config not found",
@@ -179,7 +179,7 @@ describe("deleteConnection authorization", () => {
 
 describe("updateConnection authorization", () => {
   test("admin of scope can update", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...cytarioConfig,
       ...validUpdates,
@@ -192,7 +192,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("owner (personal scope) can update own connection", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(personalConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(personalConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...personalConfig,
       ...validUpdates,
@@ -208,7 +208,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("org-root admin can update any connection within the org", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...cytarioConfig,
       ...validUpdates,
@@ -220,7 +220,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("group member without admin cannot update", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await expect(updateConnection(regularUser, "test-connection", validUpdates)).rejects.toThrow(
       "Not authorized to modify this connection",
@@ -228,7 +228,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("user from different scope cannot see or update", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await expect(updateConnection(outsideUser, "test-connection", validUpdates)).rejects.toThrow(
       "Connection not found",
@@ -236,7 +236,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("scope change requires canCreate on new scope", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(personalConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(personalConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...personalConfig,
       ...validUpdates,
@@ -260,7 +260,7 @@ describe("updateConnection authorization", () => {
       name: "admin-personal",
     });
 
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(adminPersonalConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(adminPersonalConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...adminPersonalConfig,
       ...validUpdates,
@@ -278,7 +278,7 @@ describe("updateConnection authorization", () => {
   test("same-scope update does not check canCreate", async () => {
     // regularUser can see cytario-scoped but cannot modify
     // This test verifies canModify is checked, not canCreate
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
 
     await expect(updateConnection(regularUser, "test-connection", validUpdates)).rejects.toThrow(
       "Not authorized to modify this connection",
@@ -286,7 +286,7 @@ describe("updateConnection authorization", () => {
   });
 
   test("throws 'not found' when connection doesn't exist", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
     await expect(updateConnection(adminUser, "nonexistent", validUpdates)).rejects.toThrow(
       "Connection not found",
@@ -327,7 +327,7 @@ function buildActionArgs(
 
 describe("deleteAction — session credential prune", () => {
   test("removes credentials[name] from session on successful delete", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.delete).mockResolvedValue(cytarioConfig);
 
     const existingCreds = {
@@ -353,7 +353,7 @@ describe("deleteAction — session credential prune", () => {
   });
 
   test("does not throw when session has no credentials", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.delete).mockResolvedValue(cytarioConfig);
 
     const session = mock.session({});
@@ -472,7 +472,7 @@ describe("updateAction — CORS preflight probe", () => {
     // existingConfig has bucketName "mock-bucket" + endpoint
     // https://s3.amazonaws.com — the update switches endpoint, so the
     // probe must run.
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(probeBucketCors).mockResolvedValue({
       ok: false,
       reason: "missing_origin_header",
@@ -502,7 +502,7 @@ describe("updateAction — CORS preflight probe", () => {
   });
 
   test("re-probes when the endpoint changes and persists with warning on wildcard_origin", async () => {
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(cytarioConfig);
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(probeBucketCors).mockResolvedValue({
       ok: true,
       warnings: ["wildcard_origin"],
@@ -540,7 +540,7 @@ describe("updateAction — CORS preflight probe", () => {
     // existingConfig: bucketName "mock-bucket", endpoint "https://s3.amazonaws.com",
     // region "us-east-1". Submit the same endpoint + bucket; only the
     // name changes.
-    vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue({
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue({
       ...cytarioConfig,
       endpoint: "https://s3.us-east-1.amazonaws.com",
       bucketName: "mock-bucket",
