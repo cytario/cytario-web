@@ -23,14 +23,8 @@ export async function findOrganizationByAlias(
   return orgs.find((o) => o.alias === alias);
 }
 
-/**
- * List every member of an organization. KC's endpoint defaults `max=10`, so
- * paging is mandatory to avoid silent truncation.
- */
 export async function getOrganizationMembers(orgId: string): Promise<KeycloakUser[]> {
-  return adminFetchAll<KeycloakUser>(
-    ({ first, max }) => `/organizations/${orgId}/members?first=${first}&max=${max}`,
-  );
+  return adminFetchAll<KeycloakUser>((params) => `/organizations/${orgId}/members?${params}`);
 }
 
 export async function createOrganizationSubgroup(
@@ -88,16 +82,13 @@ export async function getOrganizationGroupMembers(
   groupId: string,
 ): Promise<KeycloakUser[]> {
   return adminFetchAll<KeycloakUser>(
-    ({ first, max }) =>
-      `/organizations/${orgId}/groups/${groupId}/members?first=${first}&max=${max}`,
+    (params) => `/organizations/${orgId}/groups/${groupId}/members?${params}`,
   );
 }
 
 /** List every top-level group in an organization (paginated). */
 export async function listOrganizationGroups(orgId: string): Promise<KeycloakGroup[]> {
-  return adminFetchAll<KeycloakGroup>(
-    ({ first, max }) => `/organizations/${orgId}/groups?first=${first}&max=${max}`,
-  );
+  return adminFetchAll<KeycloakGroup>((params) => `/organizations/${orgId}/groups?${params}`);
 }
 
 /**
@@ -109,8 +100,7 @@ export async function listOrganizationGroupChildren(
   groupId: string,
 ): Promise<KeycloakGroup[]> {
   return adminFetchAll<KeycloakGroup>(
-    ({ first, max }) =>
-      `/organizations/${orgId}/groups/${groupId}/children?first=${first}&max=${max}`,
+    (params) => `/organizations/${orgId}/groups/${groupId}/children?${params}`,
   );
 }
 
