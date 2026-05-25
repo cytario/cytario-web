@@ -92,7 +92,7 @@ export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
         });
       }
       const entry = userMap.get(member.id)!;
-      entry.groupPaths.add(g.path);
+      if (g.path !== ORG_ROOT_SCOPE) entry.groupPaths.add(g.path);
       if (g.name === "admins") {
         entry.adminScopes.add(g.path.replace(/\/admins$/, ""));
       }
