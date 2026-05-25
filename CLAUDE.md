@@ -234,9 +234,18 @@ import { cytarioConfig } from "~/config";
 - OAuth 2.0 Authorization Code Flow (not deprecated ROPC)
 - JWT validation with expiry checks and 5-minute buffer
 - Automatic token refresh via middleware
-- STS `AssumeRoleWithWebIdentity` for temporary S3 credentials
+- STS `AssumeRoleWithWebIdentity` for temporary S3 credentials, with the inline session policy pinned to `aws:PrincipalTag/ORG` (defence-in-depth against cross-tenant credential mints)
 - httpOnly, secure, sameSite cookies for sessions
 - Never expose secrets to the client
+
+### Tenant Isolation
+
+Keycloak Organizations (KC 26.6) are the tenant boundary. The active organization alias is sourced from the `organization` claim on the session and threaded through every server query.
+
+- Sessions without an active organization are short-circuited to `/onboarding`; no tenant-scoped query runs before then.
+- Every Prisma query that touches tenant-owned data filters by `organization` in the `where` clause **before** any `canSee` / `canModify` / `canCreate` check — the WHERE filter is the primary boundary; the resource-shape `canSee` API is the secondary check.
+- The Keycloak admin client routes every group / member operation through `/admin/realms/{realm}/organizations/{orgId}/...`. Do not reintroduce realm-wide group endpoints — they break tenant isolation for org-owned groups.
+- The `*` sentinel (`ORG_ROOT_SCOPE` in `~/utils/authorization`) means "covers everything in the active organization". `adminCovers(*, anything)` is true; `canSee` treats resources with `ownerScope === *` as visible to every member of the active org.
 
 ### Root-Cause Fixes Over Workarounds
 
@@ -337,4 +346,8 @@ npm run dev                  # Start dev server at localhost:3000
 - **Channel** — A single imaging modality/fluorophore in a multiplexed image
 - **Overlay** — Cell segmentation or marker data rendered atop images (Parquet → Arrow → deck.gl)
 - **SigV4 Signed Fetch** — Request-level AWS Signature V4 signing for direct S3 access (replaces presigned URLs)
+- **Organization** — Keycloak 26.6 Organization, the tenant boundary. The alias travels on the session as `user.organization` and on AWS credentials as the `ORG` session tag
+- **Scope** — A group path inside an organization (e.g. `lab/team-a`), or the `*` sentinel meaning "the entire organization"
+- **Owner scope** — The scope a resource was created under; drives `canSee` / `canModify`
+- **Admin scope** — A scope an admin user covers; derived from `/admins` subgroup membership in the org tree
 - **DuckDB** — In-browser WASM SQL engine for querying Parquet/CSV files without a server
