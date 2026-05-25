@@ -72,11 +72,6 @@ export async function removeUserFromOrganizationGroup(
   return adminMutate("DELETE", `/organizations/${orgId}/groups/${groupId}/members/${userId}`);
 }
 
-/**
- * List every member of a single organization group. KC does not document a
- * default `max` for this endpoint, but other organization listings cap at 10
- * — paginate to be safe.
- */
 export async function getOrganizationGroupMembers(
   orgId: string,
   groupId: string,
@@ -86,22 +81,19 @@ export async function getOrganizationGroupMembers(
   );
 }
 
-/** List every top-level group in an organization (paginated). */
-export async function listOrganizationGroups(orgId: string): Promise<KeycloakGroup[]> {
-  return adminFetchAll<KeycloakGroup>((params) => `/organizations/${orgId}/groups?${params}`);
-}
-
 /**
- * List every direct child of an organization group (paginated; KC defaults
- * `max=10` on this endpoint).
+ * List groups in an organization. Without `groupId` returns every top-level
+ * org group; with `groupId` returns that group's direct children. Paginated
+ * (KC defaults `max=10` on the children endpoint).
  */
-export async function listOrganizationGroupChildren(
+export async function listOrganizationGroups(
   orgId: string,
-  groupId: string,
+  groupId?: string,
 ): Promise<KeycloakGroup[]> {
-  return adminFetchAll<KeycloakGroup>(
-    (params) => `/organizations/${orgId}/groups/${groupId}/children?${params}`,
-  );
+  const path = groupId
+    ? `/organizations/${orgId}/groups/${groupId}/children`
+    : `/organizations/${orgId}/groups`;
+  return adminFetchAll<KeycloakGroup>((params) => `${path}?${params}`);
 }
 
 /**

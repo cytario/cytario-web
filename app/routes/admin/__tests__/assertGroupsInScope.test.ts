@@ -4,7 +4,6 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 
 const mockFindOrganizationByAlias = vi.fn();
 const mockFindOrganizationGroupByPath = vi.fn();
-const mockListOrganizationGroups = vi.fn();
 const mockFetchOrgGroupTree = vi.fn();
 
 vi.mock("~/.server/auth/keycloakAdmin", async (importOriginal) => {
@@ -13,7 +12,6 @@ vi.mock("~/.server/auth/keycloakAdmin", async (importOriginal) => {
     ...actual,
     findOrganizationByAlias: (...args: unknown[]) => mockFindOrganizationByAlias(...args),
     findOrganizationGroupByPath: (...args: unknown[]) => mockFindOrganizationGroupByPath(...args),
-    listOrganizationGroups: (...args: unknown[]) => mockListOrganizationGroups(...args),
     fetchOrgGroupTree: (...args: unknown[]) => mockFetchOrgGroupTree(...args),
   };
 });
@@ -106,13 +104,14 @@ describe("assertGroupsInScope", () => {
     }
   });
 
-  test("org-root scope walks every top-level org group via /children recursion", async () => {
-    mockListOrganizationGroups.mockResolvedValue([labTree, rndTree]);
-    mockFetchOrgGroupTree.mockImplementation(async (_orgId, g) => g);
+  test("org-root scope walks the whole org forest via fetchOrgGroupTree", async () => {
+    // No `group` arg → fetchOrgGroupTree returns the full org-root forest.
+    mockFetchOrgGroupTree.mockImplementation(async (_orgId, g) =>
+      g === undefined ? [labTree, rndTree] : g,
+    );
 
     await expect(assertGroupsInScope(["g1", "g2", "g4"], "*", "acme")).resolves.toBeUndefined();
-    expect(mockListOrganizationGroups).toHaveBeenCalledWith("org-uuid");
-    expect(mockFetchOrgGroupTree).toHaveBeenCalledTimes(2);
+    expect(mockFetchOrgGroupTree).toHaveBeenCalledWith("org-uuid");
     expect(mockFindOrganizationGroupByPath).not.toHaveBeenCalled();
   });
 });

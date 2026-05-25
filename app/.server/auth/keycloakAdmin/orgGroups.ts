@@ -6,27 +6,33 @@ import {
   findOrganizationGroupByPath,
   getOrganizationGroupMembers,
   getOrganizationMembers,
-  listOrganizationGroupChildren,
   listOrganizationGroups,
 } from "./organizations";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 /**
  * Recursively fetch a group's descendants via the Organization Group
- * `/children` endpoint. KC's flat list / populateHierarchy options return
- * top-level groups only; this walk is the only way to enumerate the full
- * subtree without falling back to the realm-wide groups endpoint.
+ * `/children` endpoint. Without `group`, returns every top-level org group
+ * with its full subtree populated (an org-wide forest).
  */
+/* eslint-disable no-redeclare */
+export function fetchOrgGroupTree(orgId: string): Promise<KeycloakGroup[]>;
+export function fetchOrgGroupTree(orgId: string, group: KeycloakGroup): Promise<KeycloakGroup>;
 export async function fetchOrgGroupTree(
   orgId: string,
-  group: KeycloakGroup,
-): Promise<KeycloakGroup> {
-  const children = await listOrganizationGroupChildren(orgId, group.id);
+  group?: KeycloakGroup,
+): Promise<KeycloakGroup | KeycloakGroup[]> {
+  if (!group) {
+    const topLevel = await listOrganizationGroups(orgId);
+    return Promise.all(topLevel.map((g) => fetchOrgGroupTree(orgId, g)));
+  }
+  const children = await listOrganizationGroups(orgId, group.id);
   return {
     ...group,
     subGroups: await Promise.all(children.map((c) => fetchOrgGroupTree(orgId, c))),
   };
 }
+/* eslint-enable no-redeclare */
 
 export interface GroupWithMembers {
   id: string;
@@ -210,11 +216,10 @@ export async function getGroupWithMembers(
   scope: string,
 ): Promise<GroupWithMembers | undefined> {
   if (scope === ORG_ROOT_SCOPE) {
-    const [topLevel, members] = await Promise.all([
-      listOrganizationGroups(orgId),
+    const [populated, members] = await Promise.all([
+      fetchOrgGroupTree(orgId),
       getOrganizationMembers(orgId),
     ]);
-    const populated = await Promise.all(topLevel.map((g) => fetchOrgGroupTree(orgId, g)));
     return {
       id: orgId,
       name: ORG_ROOT_SCOPE,
@@ -226,6 +231,5 @@ export async function getGroupWithMembers(
 
   const root = await findOrganizationGroupByPath(orgId, scope);
   if (!root) return undefined;
-  const populated = await fetchOrgGroupTree(orgId, root);
-  return attachMembers(orgId, populated);
+  return attachMembers(orgId, await fetchOrgGroupTree(orgId, root));
 }

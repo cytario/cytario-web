@@ -3,7 +3,6 @@ import {
   fetchOrgGroupTree,
   findOrganizationByAlias,
   findOrganizationGroupByPath,
-  listOrganizationGroups,
 } from "~/.server/auth/keycloakAdmin";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
@@ -26,19 +25,14 @@ export async function assertGroupsInScope(
   const org = await findOrganizationByAlias(orgAlias);
   if (!org) throw new Response("Organization not found", { status: 404 });
 
-  // KC's org-groups list returns top-level only and `populateHierarchy=true`
-  // builds ancestor chains, not descendant trees — recurse via `/children`
-  // explicitly so the allow-list covers every nested subgroup.
   const allowed = new Set<string>();
   if (scope === ORG_ROOT_SCOPE) {
-    const topLevel = await listOrganizationGroups(org.id);
-    const populated = await Promise.all(topLevel.map((g) => fetchOrgGroupTree(org.id, g)));
-    for (const g of populated) for (const id of collectGroupIds(g)) allowed.add(id);
+    for (const g of await fetchOrgGroupTree(org.id))
+      for (const id of collectGroupIds(g)) allowed.add(id);
   } else {
     const root = await findOrganizationGroupByPath(org.id, scope);
     if (!root) throw new Response("Scope not found", { status: 404 });
-    const populated = await fetchOrgGroupTree(org.id, root);
-    for (const id of collectGroupIds(populated)) allowed.add(id);
+    for (const id of collectGroupIds(await fetchOrgGroupTree(org.id, root))) allowed.add(id);
   }
 
   for (const groupId of groupIds) {

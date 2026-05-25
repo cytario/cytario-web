@@ -23,7 +23,6 @@ export {
   getOrganizationGroupMembers,
   getOrganizationMembers,
   inviteOrganizationUser,
-  listOrganizationGroupChildren,
   listOrganizationGroups,
   removeUserFromOrganizationGroup,
   type KeycloakOrganization,
