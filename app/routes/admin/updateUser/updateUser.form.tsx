@@ -12,6 +12,9 @@ import {
   type UpdateUserFormData,
   updateUserSchema,
 } from "~/routes/admin/updateUser/updateUser.schema";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+
+const isAdminGroup = (g: GroupInfo): boolean => g.name === "admins";
 
 interface UpdateUserFormProps {
   user: KeycloakUser;
@@ -52,8 +55,14 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
         formData.append(key, String(value));
       }
     });
+    // Send only the membership diff: KC's org-group member endpoints are
+    // not idempotent (DELETE on a non-member returns 404), and avoiding
+    // no-op calls also cuts traffic on every save.
     for (const group of groups) {
-      formData.append(`group-${group.id}`, String(memberGroupIds.has(group.id)));
+      const was = groupPaths.has(group.path);
+      const now = memberGroupIds.has(group.id);
+      if (now && !was) formData.append(`add-group-${group.id}`, "true");
+      if (!now && was) formData.append(`remove-group-${group.id}`, "true");
     }
     return formData;
   };
@@ -66,7 +75,7 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
     }
 
     const addedAdminGroups = groups.filter(
-      (g) => g.isAdmin && !groupPaths.has(g.path) && memberGroupIds.has(g.id),
+      (g) => isAdminGroup(g) && !groupPaths.has(g.path) && memberGroupIds.has(g.id),
     );
     if (addedAdminGroups.length > 0) {
       const names = addedAdminGroups.map((g) => g.path).join(", ");
@@ -74,7 +83,7 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
     }
 
     const removedAdminGroups = groups.filter(
-      (g) => g.isAdmin && groupPaths.has(g.path) && !memberGroupIds.has(g.id),
+      (g) => isAdminGroup(g) && groupPaths.has(g.path) && !memberGroupIds.has(g.id),
     );
     if (removedAdminGroups.length > 0) {
       const names = removedAdminGroups.map((g) => g.path).join(", ");
@@ -82,7 +91,7 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
     }
 
     const removedGroups = groups.filter(
-      (g) => !g.isAdmin && groupPaths.has(g.path) && !memberGroupIds.has(g.id),
+      (g) => !isAdminGroup(g) && groupPaths.has(g.path) && !memberGroupIds.has(g.id),
     );
     if (removedGroups.length > 0) {
       const names = removedGroups.map((g) => g.path).join(", ");
@@ -191,41 +200,27 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
           </div>
         </Fieldset>
 
-        {groups.filter((g) => !g.isAdmin).length > 0 && (
-          <Fieldset className="my-8">
-            <H3>Group Membership</H3>
-            {groups
-              .filter((g) => !g.isAdmin)
-              .map((group) => (
-                <div key={group.id} className="flex items-center gap-2">
-                  <Checkbox
-                    isSelected={memberGroupIds.has(group.id)}
+        {(() => {
+          const renderable = groups.filter((g) => g.path !== ORG_ROOT_SCOPE);
+          if (renderable.length === 0) return null;
+          return (
+            <Fieldset className="my-8">
+              <H3>Group Membership</H3>
+              {renderable.map((group) => (
+                <label key={group.id} className="flex items-center gap-2 cursor-pointer py-1">
+                  <input
+                    type="checkbox"
+                    aria-label={group.path}
+                    checked={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
-                  >
-                    <ScopePill scope={group.path} />
-                  </Checkbox>
-                </div>
+                    className="w-4 h-4 cursor-pointer accent-(--color-action-primary)"
+                  />
+                  <ScopePill scope={group.path} />
+                </label>
               ))}
-          </Fieldset>
-        )}
-
-        {groups.filter((g) => g.isAdmin).length > 0 && (
-          <Fieldset className="my-8">
-            <H3>Admin Groups</H3>
-            {groups
-              .filter((g) => g.isAdmin)
-              .map((group) => (
-                <div key={group.id} className="flex items-center gap-2">
-                  <Checkbox
-                    isSelected={memberGroupIds.has(group.id)}
-                    onChange={() => toggleGroup(group.id)}
-                  >
-                    <ScopePill scope={group.path} />
-                  </Checkbox>
-                </div>
-              ))}
-          </Fieldset>
-        )}
+            </Fieldset>
+          );
+        })()}
       </form>
 
       <ConfirmDialog

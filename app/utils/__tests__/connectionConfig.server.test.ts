@@ -9,7 +9,7 @@ vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
       findMany: vi.fn(),
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
       upsert: vi.fn(),
       delete: vi.fn(),
     },
@@ -38,36 +38,47 @@ describe("connectionConfig.server", () => {
 
       const result = await listConnections(user);
 
-      expect(prisma.connectionConfig.findMany).toHaveBeenCalled();
+      expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
+        where: { organization: "org1" },
+      });
       expect(filterVisible).toHaveBeenCalledWith(user, configs);
       expect(result).toEqual([config]);
+    });
+
+    test("throws when the session has no active organization", async () => {
+      const zeroOrgUser = mock.user({ organization: undefined });
+
+      await expect(listConnections(zeroOrgUser)).rejects.toThrow(
+        "Active organization missing from session",
+      );
+      expect(prisma.connectionConfig.findMany).not.toHaveBeenCalled();
     });
   });
 
   describe("getConnection", () => {
     test("returns config when user canSee", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
 
       const result = await getConnection(user, "aws-mock-bucket");
 
-      expect(prisma.connectionConfig.findUnique).toHaveBeenCalledWith({
-        where: { name: "aws-mock-bucket" },
+      expect(prisma.connectionConfig.findFirst).toHaveBeenCalledWith({
+        where: { name: "aws-mock-bucket", organization: "org1" },
       });
-      expect(canSee).toHaveBeenCalledWith(user, config.ownerScope);
+      expect(canSee).toHaveBeenCalledWith(user, config);
       expect(result).toEqual(config);
     });
 
     test("returns null when config does not exist", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
       const result = await getConnection(user, "nonexistent");
 
       expect(result).toBeNull();
     });
 
-    test("returns null when user cannot see config", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
+    test("returns null when user cannot see config (canSee enforces tenant boundary)", async () => {
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
       const result = await getConnection(user, "aws-mock-bucket");
@@ -92,20 +103,21 @@ describe("connectionConfig.server", () => {
         mock.connectionConfig({ ...newConfig }),
       );
 
-      await createConnection("org1/lab", "user-123", newConfig);
+      await createConnection("org1", "lab", "user-123", newConfig);
 
       expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith({
         where: {
-          ownerScope_provider_bucketName_prefix: {
-            ownerScope: "org1/lab",
+          organization_provider_bucketName_prefix: {
+            organization: "org1",
             provider: "aws",
             bucketName: "my-bucket",
             prefix: "data/",
           },
         },
-        update: { ...newConfig, prefix: "data/" },
+        update: { ...newConfig, ownerScope: "lab", prefix: "data/" },
         create: {
-          ownerScope: "org1/lab",
+          organization: "org1",
+          ownerScope: "lab",
           createdBy: "user-123",
           ...newConfig,
           prefix: "data/",
@@ -125,12 +137,12 @@ describe("connectionConfig.server", () => {
 
       vi.mocked(prisma.connectionConfig.upsert).mockResolvedValue(mock.connectionConfig());
 
-      await createConnection("org1/lab", "user-123", newConfig);
+      await createConnection("org1", "lab", "user-123", newConfig);
 
       expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            ownerScope_provider_bucketName_prefix: expect.objectContaining({
+            organization_provider_bucketName_prefix: expect.objectContaining({
               prefix: "",
             }),
           }),
@@ -141,7 +153,7 @@ describe("connectionConfig.server", () => {
 
   describe("deleteConnection", () => {
     test("deletes config when user canSee and canModify", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(true);
 
@@ -153,7 +165,7 @@ describe("connectionConfig.server", () => {
     });
 
     test("throws when config not found", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
       await expect(deleteConnection(user, "nonexistent")).rejects.toThrow(
         "Connection config not found",
@@ -161,7 +173,7 @@ describe("connectionConfig.server", () => {
     });
 
     test("throws when user cannot see config", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
       await expect(deleteConnection(user, "aws-mock-bucket")).rejects.toThrow(
@@ -170,7 +182,7 @@ describe("connectionConfig.server", () => {
     });
 
     test("throws when user cannot modify config", async () => {
-      vi.mocked(prisma.connectionConfig.findUnique).mockResolvedValue(config);
+      vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(false);
 

@@ -352,6 +352,29 @@ describe("authMiddleware", () => {
     });
   });
 
+  describe("Onboarding Redirect", () => {
+    test("redirects zero-org sessions to /onboarding before fetching credentials", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organization: undefined }),
+      });
+
+      const args = createMiddlewareArgs();
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
+      expect(redirect).toHaveBeenCalledWith("/onboarding");
+      expect(listConnections).not.toHaveBeenCalled();
+      expect(getAllSessionCredentials).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
   describe("Logout Flow", () => {
     test("redirects to login when both tokens are invalid", async () => {
       vi.mocked(verifyIdToken).mockResolvedValue(null);

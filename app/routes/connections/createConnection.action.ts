@@ -12,6 +12,7 @@ import { canCreate } from "~/utils/authorization";
 import { constructS3Url } from "~/utils/resourceId";
 
 export async function createConnection(
+  organization: string,
   ownerScope: string,
   createdBy: string,
   config: {
@@ -27,15 +28,16 @@ export async function createConnection(
   const prefix = config.prefix ?? "";
   return prisma.connectionConfig.upsert({
     where: {
-      ownerScope_provider_bucketName_prefix: {
-        ownerScope,
+      organization_provider_bucketName_prefix: {
+        organization,
         provider: config.provider,
         bucketName: config.bucketName,
         prefix,
       },
     },
-    update: { ...config, prefix },
+    update: { ...config, ownerScope, prefix },
     create: {
+      organization,
       ownerScope,
       createdBy,
       ...config,
@@ -46,6 +48,9 @@ export async function createConnection(
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
+  if (!user.organization) {
+    throw new Error("Active organization missing from session");
+  }
 
   const formData = await request.formData();
 
@@ -70,7 +75,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
   const data = result.data;
 
-  if (!canCreate(user, data.ownerScope)) {
+  if (!canCreate(user, { organization: user.organization, ownerScope: data.ownerScope })) {
     return {
       errors: { ownerScope: ["Not authorized to create in this scope"] },
       status: "error" as const,
@@ -114,7 +119,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       prefix,
     };
 
-    await createConnection(data.ownerScope, user.sub, newConfig);
+    await createConnection(user.organization, data.ownerScope, user.sub, newConfig);
 
     if (corsResult.warnings.length > 0) {
       session.set("notification", {

@@ -63,7 +63,16 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
 
   if (isComplete(sessionData)) {
     let updatedSessionData = sessionData as SessionData;
-    const { authTokens } = updatedSessionData;
+    const { authTokens, user } = updatedSessionData;
+
+    // A token without an `organization` claim means the user is not a member
+    // of any Keycloak org yet. Short-circuit before any ConnectionConfig
+    // query runs so a zero-org session cannot fall through to an unscoped
+    // tenant read.
+    if (!user.organization) {
+      console.info(`${label} No active organization on session, redirecting to onboarding`);
+      return redirect("/onboarding");
+    }
 
     const idTokenPayload = await verifyIdToken(authTokens.idToken);
 

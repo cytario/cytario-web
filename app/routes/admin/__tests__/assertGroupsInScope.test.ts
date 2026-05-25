@@ -2,79 +2,79 @@ import { describe, expect, test, vi } from "vitest";
 
 import { assertGroupsInScope } from "../assertGroupsInScope";
 
-const mockGetGroupWithMembers = vi.fn();
+const mockFindOrganizationByAlias = vi.fn();
+const mockFindOrganizationGroupByPath = vi.fn();
+const mockFetchOrgGroupTree = vi.fn();
 
 vi.mock("~/.server/auth/keycloakAdmin", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/.server/auth/keycloakAdmin")>();
   return {
     ...actual,
-    getGroupWithMembers: (...args: unknown[]) => mockGetGroupWithMembers(...args),
+    findOrganizationByAlias: (...args: unknown[]) => mockFindOrganizationByAlias(...args),
+    findOrganizationGroupByPath: (...args: unknown[]) => mockFindOrganizationGroupByPath(...args),
+    fetchOrgGroupTree: (...args: unknown[]) => mockFetchOrgGroupTree(...args),
   };
 });
 
-const mockGroupWithMembers = {
+const mockOrg = { id: "org-uuid", name: "Acme", alias: "acme" };
+
+const labTree = {
   id: "g1",
-  name: "acme",
-  path: "acme",
-  members: [],
+  name: "lab",
+  path: "/lab",
   subGroups: [
-    {
-      id: "g2",
-      name: "lab",
-      path: "acme/lab",
-      members: [],
-      subGroups: [],
-    },
-    {
-      id: "g3",
-      name: "admins",
-      path: "acme/admins",
-      members: [],
-      subGroups: [],
-    },
+    { id: "g2", name: "team-x", path: "/lab/team-x", subGroups: [] },
+    { id: "g3", name: "admins", path: "/lab/admins", subGroups: [] },
   ],
+};
+
+const rndTree = {
+  id: "g4",
+  name: "rnd",
+  path: "/rnd",
+  subGroups: [],
 };
 
 describe("assertGroupsInScope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFindOrganizationByAlias.mockResolvedValue(mockOrg);
   });
 
   test("passes when group is the scope root", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
+    mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
-    await expect(assertGroupsInScope(["g1"], "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1"], "lab", "acme")).resolves.toBeUndefined();
+    expect(mockFindOrganizationGroupByPath).toHaveBeenCalledWith("org-uuid", "lab");
+    expect(mockFetchOrgGroupTree).toHaveBeenCalledWith("org-uuid", labTree);
   });
 
   test("passes when group is a subgroup of the scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
+    mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
-    await expect(assertGroupsInScope(["g2"], "acme")).resolves.toBeUndefined();
-  });
-
-  test("passes when group is the admins subgroup of the scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
-
-    await expect(assertGroupsInScope(["g3"], "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g2"], "lab", "acme")).resolves.toBeUndefined();
   });
 
   test("passes when multiple groups are all in scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
+    mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
-    await expect(assertGroupsInScope(["g1", "g2", "g3"], "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1", "g2", "g3"], "lab", "acme")).resolves.toBeUndefined();
   });
 
   test("passes (no API call) when groupIds array is empty", async () => {
-    await expect(assertGroupsInScope([], "acme")).resolves.toBeUndefined();
-
-    expect(mockGetGroupWithMembers).not.toHaveBeenCalled();
+    await expect(assertGroupsInScope([], "lab", "acme")).resolves.toBeUndefined();
+    expect(mockFindOrganizationByAlias).not.toHaveBeenCalled();
   });
 
   test("throws 403 when group is not in scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
+    mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
     try {
-      await assertGroupsInScope(["g-out-of-scope"], "acme");
+      await assertGroupsInScope(["g-out-of-scope"], "lab", "acme");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);
@@ -82,27 +82,34 @@ describe("assertGroupsInScope", () => {
     }
   });
 
-  test("throws 403 when one of multiple groups is not in scope", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(mockGroupWithMembers);
+  test("throws 404 when scope does not exist in the org tree", async () => {
+    mockFindOrganizationGroupByPath.mockResolvedValue(undefined);
 
     try {
-      await assertGroupsInScope(["g1", "g-out-of-scope"], "acme");
-      expect.fail("should have thrown");
-    } catch (e) {
-      expect(e).toBeInstanceOf(Response);
-      expect((e as Response).status).toBe(403);
-    }
-  });
-
-  test("throws 404 when scope does not exist", async () => {
-    mockGetGroupWithMembers.mockResolvedValue(undefined);
-
-    try {
-      await assertGroupsInScope(["g1"], "nonexistent");
+      await assertGroupsInScope(["g1"], "nonexistent", "acme");
       expect.fail("should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(Response);
       expect((e as Response).status).toBe(404);
     }
+  });
+
+  test("throws 400 when the active org is missing", async () => {
+    try {
+      await assertGroupsInScope(["g1"], "lab", undefined);
+      expect.fail("should have thrown");
+    } catch (e) {
+      expect(e).toBeInstanceOf(Response);
+      expect((e as Response).status).toBe(400);
+    }
+  });
+
+  test("org-root scope walks the whole org forest via fetchOrgGroupTree", async () => {
+    // No `anchor` arg → fetchOrgGroupTree returns the full org-root forest.
+    mockFetchOrgGroupTree.mockResolvedValue([labTree, rndTree]);
+
+    await expect(assertGroupsInScope(["g1", "g2", "g4"], "*", "acme")).resolves.toBeUndefined();
+    expect(mockFetchOrgGroupTree).toHaveBeenCalledWith("org-uuid");
+    expect(mockFindOrganizationGroupByPath).not.toHaveBeenCalled();
   });
 });

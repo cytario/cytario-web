@@ -19,6 +19,7 @@ import { ScopePill } from "~/components/Pills/ScopePill";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import { type CellRenderers, type ColumnConfig, Table } from "~/components/Table/Table";
 import { useModal } from "~/hooks/useModal";
+import { compareGroupPaths } from "~/utils/groupPath";
 
 export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
 
@@ -176,8 +177,9 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
 }
 
 export default function AdminUsersRoute() {
-  const { scope, users, groups, connections } = useLoaderData<{
+  const { scope, headingLabel, users, groups, connections } = useLoaderData<{
     scope: string;
+    headingLabel: string;
     users: UserWithGroups[];
     groups: GroupInfo[];
     connections: ConnectionConfig[];
@@ -195,7 +197,7 @@ export default function AdminUsersRoute() {
         userId: user.id,
         email: user.email ?? "",
         enabled: String(user.enabled),
-        groups: [...groupPaths].join(", "),
+        groups: [...groupPaths].sort(compareGroupPaths).join(", "),
       })),
     [users],
   );
@@ -219,7 +221,7 @@ export default function AdminUsersRoute() {
 
   return (
     <Section>
-      <SectionHeader name={scope}>
+      <SectionHeader name={headingLabel}>
         <span className="text-sm text-slate-500">
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>

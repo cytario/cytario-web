@@ -84,7 +84,7 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   const allGroupOptions = useMemo(
-    () => groups.filter((g) => !g.isAdmin).map((g) => ({ id: g.id, name: g.path })),
+    () => groups.filter((g) => g.name !== "admins").map((g) => ({ id: g.id, name: g.path })),
     [groups],
   );
 

@@ -1,14 +1,11 @@
-import { Button, Checkbox, Icon, IconButton, Input, Select } from "@cytario/design";
+import { Button, Icon, IconButton, Input } from "@cytario/design";
 import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
 import { type BulkInviteRow, bulkInviteRowSchema, bulkInviteSchema } from "./bulkInvite.schema";
-import { ScopePill } from "~/components/Pills/ScopePill";
 
 interface BulkInviteFormProps {
-  scope: string;
-  groupOptions: string[];
   onNonEmptyCountChange?: (count: number) => void;
 }
 
@@ -30,15 +27,9 @@ function isRowEmpty(row: RowState): boolean {
   return !row.email && !row.firstName && !row.lastName;
 }
 
-export function BulkInviteForm({
-  scope,
-  groupOptions,
-  onNonEmptyCountChange,
-}: BulkInviteFormProps) {
+export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
   const submit = useSubmit();
 
-  const [groupPath, setGroupPath] = useState(scope);
-  const [enabled, setEnabled] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [rows, setRows] = useState<RowState[]>([emptyRow(), emptyRow(), emptyRow()]);
 
@@ -64,7 +55,6 @@ export function BulkInviteForm({
 
   const addRow = useCallback(() => {
     setRows((prev) => [...prev, emptyRow()]);
-    // Focus the email input of the new row after render
     requestAnimationFrame(() => {
       const inputs = tableRef.current?.querySelectorAll<HTMLInputElement>(
         "tbody tr:last-child input",
@@ -80,7 +70,6 @@ export function BulkInviteForm({
   }, [nonEmptyCount, onNonEmptyCountChange]);
 
   const handleSubmit = () => {
-    // Validate non-empty rows
     let hasErrors = false;
     const validated = rows.map((row) => {
       if (isRowEmpty(row)) return row;
@@ -108,8 +97,6 @@ export function BulkInviteForm({
 
     const nonEmptyRows = rows.filter((r) => !isRowEmpty(r));
     const payload = {
-      groupPath,
-      enabled,
       rows: nonEmptyRows.map(({ email, firstName, lastName }) => ({
         email,
         firstName,
@@ -130,8 +117,6 @@ export function BulkInviteForm({
     });
   };
 
-  const selectItems = groupOptions.map((p) => ({ id: p, name: p }));
-
   return (
     <form
       id="bulk-invite-form"
@@ -140,30 +125,10 @@ export function BulkInviteForm({
         handleSubmit();
       }}
     >
-      <div className="space-y-4 mb-6">
-        {selectItems.length > 0 ? (
-          <Select
-            label="Group Membership"
-            items={selectItems}
-            selectedKey={groupPath}
-            onSelectionChange={(key) => setGroupPath(key as string)}
-            renderItem={(item) => <ScopePill scope={item.id} />}
-          />
-        ) : (
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-(--color-text-primary)">Group Membership</p>
-            <p className="text-sm text-slate-400">No groups available in this scope.</p>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Checkbox isSelected={enabled} onChange={setEnabled}>
-            Enabled
-          </Checkbox>
-          <p className="text-sm text-slate-500">
-            Uncheck to pre-provision accounts without granting immediate access.
-          </p>
-        </div>
-      </div>
+      <p className="text-sm text-slate-500 mb-4">
+        Keycloak emails the invite to each address below. Group membership can be assigned after
+        each user accepts.
+      </p>
 
       {formError && (
         <p role="alert" className="text-sm text-rose-600 mb-4">
@@ -211,9 +176,9 @@ export function BulkInviteForm({
                 <td className="px-1 py-1">
                   <Input
                     aria-label={`First name, row ${i + 1}`}
-                    value={row.firstName}
+                    value={row.firstName ?? ""}
                     onChange={(value) => updateRow(i, "firstName", value)}
-                    placeholder="First"
+                    placeholder="First (optional)"
                     size="sm"
                     errorMessage={row.errors?.firstName}
                   />
@@ -221,9 +186,9 @@ export function BulkInviteForm({
                 <td className="px-1 py-1">
                   <Input
                     aria-label={`Last name, row ${i + 1}`}
-                    value={row.lastName}
+                    value={row.lastName ?? ""}
                     onChange={(value) => updateRow(i, "lastName", value)}
-                    placeholder="Last"
+                    placeholder="Last (optional)"
                     size="sm"
                     errorMessage={row.errors?.lastName}
                   />

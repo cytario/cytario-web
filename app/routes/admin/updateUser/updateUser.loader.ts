@@ -12,7 +12,7 @@ export const updateUserLoader: LoaderFunction = async ({ request, context, param
   const { user } = context.get(authContext);
   const { scope } = assertAdminScope(request.url, user.adminScopes);
 
-  await assertUsersInScope([params.userId!], scope);
+  await assertUsersInScope([params.userId!], scope, user.organization);
 
   const keycloakUser = await getUser(params.userId!);
 

@@ -37,27 +37,14 @@ describe("ScopePill", () => {
     expect(screen.queryByText("cytario")).toBeNull();
   });
 
-  test("renders Shield icon for admin scope", () => {
-    const { container } = render(<ScopePill scope="cytario/Lab Services/admins" />);
-    expect(container.querySelector(".lucide-shield")).toBeInTheDocument();
-    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
-  });
-
   test("shows last segment and full path in aria-label for admin scope", () => {
     render(<ScopePill scope="cytario/Lab Services/admins" />);
     expect(screen.getByLabelText("Path: cytario / Lab Services / admins")).toBeInTheDocument();
     expect(screen.getByText("admins")).toBeInTheDocument();
   });
 
-  test("renders no icon for non-admin scope", () => {
-    const { container } = render(<ScopePill scope="cytario/Lab Services" />);
-    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
-    expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
-  });
-
-  test("renders no icon for Personal scope", () => {
-    const { container } = render(<ScopePill scope="" />);
-    expect(container.querySelector(".lucide-shield")).not.toBeInTheDocument();
-    expect(container.querySelector(".lucide-users")).not.toBeInTheDocument();
+  test("renders the org-root sentinel as a raw `*`", () => {
+    render(<ScopePill scope="*" />);
+    expect(screen.getByText("*")).toBeInTheDocument();
   });
 });

@@ -2,15 +2,19 @@ import { type ActionFunction, redirect } from "react-router";
 
 import { bulkInviteSchema } from "./bulkInvite.schema";
 import { assertAdminScope } from "../assertAdminScope";
-import { assertGroupPathsInScope } from "../assertGroupPathsInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { inviteUser } from "~/.server/auth/keycloakAdmin/users";
+import { findOrganizationByAlias, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
+import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
 export const bulkInviteAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
+  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
+
+  if (!user.organization) {
+    throw new Response("No active organization", { status: 400 });
+  }
 
   const json = await request.json();
   const result = bulkInviteSchema.safeParse(json);
@@ -19,16 +23,34 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
     return { errors: result.error.flatten() };
   }
 
-  const { groupPath, enabled, rows } = result.data;
+  const { rows } = result.data;
 
-  await assertGroupPathsInScope([groupPath], scope);
+  const org = await findOrganizationByAlias(user.organization);
+  if (!org) {
+    throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+  }
 
   const results = await Promise.allSettled(
-    rows.map((row) => inviteUser(row.email, row.firstName, row.lastName, groupPath, enabled)),
+    rows.map((row) =>
+      inviteOrganizationUser(
+        org.id,
+        row.email,
+        row.firstName || undefined,
+        row.lastName || undefined,
+      ),
+    ),
   );
 
-  const succeeded = results.filter((r) => r.status === "fulfilled").length;
-  const failed = results.filter((r) => r.status === "rejected").length;
+  // Treat 409 ("already a member or pending invitation") as a benign no-op,
+  // not a failure — same rationale as the single-invite action.
+  const succeeded = results.filter(
+    (r) =>
+      r.status === "fulfilled" ||
+      (r.status === "rejected" &&
+        r.reason instanceof KeycloakAdminError &&
+        r.reason.status === 409),
+  ).length;
+  const failed = rows.length - succeeded;
 
   const session = await getSession(request);
 

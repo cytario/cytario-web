@@ -1,23 +1,45 @@
-import { flattenGroupsWithIds, getGroupWithMembers } from "~/.server/auth/keycloakAdmin";
+import {
+  collectGroupIds,
+  fetchOrgGroupTree,
+  findOrganizationByAlias,
+  findOrganizationGroupByPath,
+} from "~/.server/auth/keycloakAdmin";
+import { type KeycloakGroup } from "~/.server/auth/keycloakAdmin/client";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 /**
- * Validates that every groupId belongs to the group tree of the given scope.
- * Prevents cross-scope privilege escalation via forged form fields referencing
- * out-of-scope group UUIDs (e.g., adding an in-scope user to another org's
- * /admins group).
+ * Validates that every groupId belongs to the active organization's group
+ * tree under `scope`. Prevents cross-scope (and cross-org) privilege
+ * escalation via forged form fields referencing out-of-scope group UUIDs.
  *
- * Throws 404 if the scope does not exist, 403 if any groupId is out of scope.
+ * Throws 400 if the user has no active org, 404 if the scope does not exist,
+ * 403 if any groupId is out of scope.
  */
-export async function assertGroupsInScope(groupIds: string[], scope: string): Promise<void> {
+export async function assertGroupsInScope(
+  groupIds: string[],
+  scope: string,
+  orgAlias: string | undefined,
+): Promise<void> {
   if (groupIds.length === 0) return;
+  if (!orgAlias) throw new Response("No active organization", { status: 400 });
 
-  const group = await getGroupWithMembers(scope);
-  if (!group) throw new Response("Scope not found", { status: 404 });
+  const org = await findOrganizationByAlias(orgAlias);
+  if (!org) throw new Response("Organization not found", { status: 404 });
 
-  const scopeGroupIds = new Set(flattenGroupsWithIds(group).map((g) => g.id));
+  let trees: KeycloakGroup[];
+  if (scope === ORG_ROOT_SCOPE) {
+    trees = await fetchOrgGroupTree(org.id);
+  } else {
+    const root = await findOrganizationGroupByPath(org.id, scope);
+    if (!root) throw new Response("Scope not found", { status: 404 });
+    trees = await fetchOrgGroupTree(org.id, root);
+  }
+
+  const allowed = new Set<string>();
+  for (const g of trees) for (const id of collectGroupIds(g)) allowed.add(id);
 
   for (const groupId of groupIds) {
-    if (!scopeGroupIds.has(groupId)) {
+    if (!allowed.has(groupId)) {
       throw new Response("Not authorized", { status: 403 });
     }
   }

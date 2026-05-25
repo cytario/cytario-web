@@ -6,7 +6,13 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { addUserToGroup, removeUserFromGroup, setUserEnabled } from "~/.server/auth/keycloakAdmin";
+import {
+  addUserToOrganizationGroup,
+  findOrganizationByAlias,
+  removeUserFromOrganizationGroup,
+  setUserEnabled,
+} from "~/.server/auth/keycloakAdmin";
+import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
 const actionLabels = {
@@ -29,9 +35,17 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   }
 
   const { intent, userIds, groupId } = result.data;
-  await assertUsersInScope(userIds, scope);
+  await assertUsersInScope(userIds, scope, user.organization);
   if (groupId) {
-    await assertGroupsInScope([groupId], scope);
+    await assertGroupsInScope([groupId], scope, user.organization);
+  }
+
+  if (!user.organization) {
+    throw new Response("No active organization", { status: 400 });
+  }
+  const org = await findOrganizationByAlias(user.organization);
+  if (!org) {
+    throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
   }
 
   const session = await getSession(request);
@@ -39,9 +53,9 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   const operations = userIds.map((userId) => {
     switch (intent) {
       case "addToGroup":
-        return addUserToGroup(userId, groupId!);
+        return addUserToOrganizationGroup(org.id, groupId!, userId);
       case "removeFromGroup":
-        return removeUserFromGroup(userId, groupId!);
+        return removeUserFromOrganizationGroup(org.id, groupId!, userId);
       case "enableAccounts":
         return setUserEnabled(userId, true);
       case "disableAccounts":

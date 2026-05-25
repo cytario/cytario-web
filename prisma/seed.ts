@@ -20,7 +20,8 @@ const TEST_CONNECTION_NAME = process.env.E2E_CONNECTION_NAME || "Exchange";
 const TEST_PREFIX_CONNECTION_NAME = process.env.E2E_PREFIX_CONNECTION_NAME || "Exchange-prefixed";
 
 const SHARED_BUCKET = {
-  ownerScope: "cytario",
+  organization: "cytario",
+  ownerScope: "admins",
   createdBy: "e2e-seed",
   bucketName: "shared-bucket-example",
   provider: "aws" as const,

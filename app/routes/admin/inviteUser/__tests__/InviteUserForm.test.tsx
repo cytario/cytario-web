@@ -9,14 +9,11 @@ vi.mock("react-router", async () => {
   return { ...actual, useSubmit: () => vi.fn() };
 });
 
-function renderForm(overrides: { groupOptions?: string[]; scope?: string } = {}) {
-  const scope = overrides.scope ?? "cytario/lab";
-  const groupOptions = overrides.groupOptions ?? ["cytario/lab", "cytario/lab/team-a"];
-
+function renderForm(scope = "cytario/lab") {
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => <InviteUserForm scope={scope} groupOptions={groupOptions} />,
+      Component: () => <InviteUserForm scope={scope} />,
     },
   ]);
 
@@ -24,33 +21,26 @@ function renderForm(overrides: { groupOptions?: string[]; scope?: string } = {})
 }
 
 describe("InviteUserForm", () => {
-  test("renders all form fields", () => {
+  test("renders email + optional first/last name fields", () => {
     renderForm();
 
     expect(screen.getByText("Email")).toBeInTheDocument();
-    expect(screen.getByText("First name")).toBeInTheDocument();
-    expect(screen.getByText("Last name")).toBeInTheDocument();
-    expect(screen.getAllByText("Group Membership").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Enabled")).toBeInTheDocument();
+    expect(screen.getByText("First name (optional)")).toBeInTheDocument();
+    expect(screen.getByText("Last name (optional)")).toBeInTheDocument();
   });
 
-  test("shows help text on Enabled field", () => {
+  test("explains that group membership is assigned after the user accepts", () => {
     renderForm();
 
     expect(
-      screen.getByText("Uncheck to pre-provision the account without granting immediate access."),
+      screen.getByText(/Group membership can be assigned after the user accepts/i),
     ).toBeInTheDocument();
   });
 
-  test("shows empty-state text when no group options", () => {
-    renderForm({ groupOptions: [] });
+  test("does not render any group selector (org invite has no group target)", () => {
+    renderForm();
 
-    expect(screen.getByText("No groups available in this scope.")).toBeInTheDocument();
-  });
-
-  test("renders group select when options are available", () => {
-    renderForm({ groupOptions: ["cytario/lab", "cytario/lab/team-a"] });
-
+    expect(screen.queryByText("Group Membership")).not.toBeInTheDocument();
     expect(screen.queryByText("No groups available in this scope.")).not.toBeInTheDocument();
   });
 });

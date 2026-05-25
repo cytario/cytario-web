@@ -14,13 +14,6 @@ vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
 
 const BASE = "http://localhost:8080/admin/realms/master";
 
-const mockParentGroup = {
-  id: "parent-123",
-  name: "lab",
-  path: "/cytario/lab",
-  subGroups: [],
-};
-
 function mockFetchSequence(responses: Array<Partial<Response>>) {
   const fn = vi.fn();
   for (const res of responses) {
@@ -35,61 +28,48 @@ function mockFetchSequence(responses: Array<Partial<Response>>) {
   return fn;
 }
 
+const orgLookupResponse = {
+  json: () => Promise.resolve([{ id: "org-uuid", name: "Cytario", alias: "cytario" }]),
+};
+
 describe("createGroup", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  test("creates group and admins subgroup under parent", async () => {
+  test("org-root parent creates a top-level group via the Organizations API", async () => {
     const fetchMock = mockFetchSequence([
-      // findGroupByPath → fetchGroups
-      {
-        json: () =>
-          Promise.resolve([
-            {
-              id: "root",
-              name: "cytario",
-              path: "/cytario",
-              subGroups: [mockParentGroup],
-            },
-          ]),
-      },
-      // POST /groups/{parentId}/children → new group
+      orgLookupResponse,
+      // POST /organizations/{orgId}/groups
       {
         status: 201,
-        headers: new Headers({
-          location: `${BASE}/groups/new-group-id`,
-        }),
+        headers: new Headers({ location: `${BASE}/groups/new-top-id` }),
       },
-      // POST /groups/{newGroupId}/children → admins subgroup
+      // POST /organizations/{orgId}/groups/{newGroupId}/children
       {
         status: 201,
-        headers: new Headers({
-          location: `${BASE}/groups/admins-group-id`,
-        }),
+        headers: new Headers({ location: `${BASE}/groups/admins-top-id` }),
       },
     ]);
 
-    const result = await createGroup("cytario/lab", "Ultivue");
+    const result = await createGroup("*", "Lab", "cytario");
 
     expect(result).toEqual({
-      id: "new-group-id",
-      path: "cytario/lab/Ultivue",
-      adminsGroupId: "admins-group-id",
+      id: "new-top-id",
+      path: "Lab",
+      adminsGroupId: "admins-top-id",
+      orgId: "org-uuid",
     });
 
-    // Created group under parent
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/groups/parent-123/children`,
+      `${BASE}/organizations/org-uuid/groups`,
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ name: "Ultivue" }),
+        body: JSON.stringify({ name: "Lab" }),
       }),
     );
-
-    // Created admins subgroup
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/groups/new-group-id/children`,
+      `${BASE}/organizations/org-uuid/groups/new-top-id/children`,
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ name: "admins" }),
@@ -97,92 +77,116 @@ describe("createGroup", () => {
     );
   });
 
-  test("throws 404 when parent scope does not exist", async () => {
-    mockFetchSequence([
-      // findGroupByPath → empty result
-      { json: () => Promise.resolve([]) },
+  test("nested parent looks up the parent within the org and posts to its children", async () => {
+    const fetchMock = mockFetchSequence([
+      orgLookupResponse,
+      // GET /organizations/{orgId}/groups/group-by-path/{path}
+      {
+        json: () => Promise.resolve({ id: "parent-id", name: "lab", path: "/lab", subGroups: [] }),
+      },
+      // POST /organizations/{orgId}/groups/{parentId}/children → new group
+      {
+        status: 201,
+        headers: new Headers({ location: `${BASE}/groups/new-id` }),
+      },
+      // POST /organizations/{orgId}/groups/{newGroupId}/children → admins
+      {
+        status: 201,
+        headers: new Headers({ location: `${BASE}/groups/admins-id` }),
+      },
     ]);
 
-    await expect(createGroup("nonexistent", "foo")).rejects.toThrow(
-      "Parent group not found: nonexistent",
+    const result = await createGroup("lab", "Ultivue", "cytario");
+
+    expect(result).toEqual({
+      id: "new-id",
+      path: "lab/Ultivue",
+      adminsGroupId: "admins-id",
+      orgId: "org-uuid",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE}/organizations/org-uuid/groups/group-by-path/lab`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE}/organizations/org-uuid/groups/parent-id/children`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "Ultivue" }),
+      }),
+    );
+  });
+
+  test("throws 404 when the nested parent path does not resolve within the org", async () => {
+    mockFetchSequence([
+      orgLookupResponse,
+      // GET org group-by-path → 404 surfaces as KeycloakAdminError → undefined
+      { ok: false, status: 404, statusText: "Not Found" },
+    ]);
+
+    await expect(createGroup("nonexistent", "foo", "cytario")).rejects.toThrow(
+      "Parent group not found in organization: nonexistent",
     );
   });
 
   test("propagates 409 from Keycloak for duplicate name", async () => {
     mockFetchSequence([
-      // findGroupByPath
-      {
-        json: () =>
-          Promise.resolve([
-            {
-              id: "root",
-              name: "cytario",
-              path: "/cytario",
-              subGroups: [mockParentGroup],
-            },
-          ]),
-      },
-      // POST /groups/{parentId}/children → 409
+      orgLookupResponse,
+      // POST org top-level → 409
       { ok: false, status: 409, statusText: "Conflict" },
     ]);
 
-    await expect(createGroup("cytario/lab", "existing")).rejects.toThrow("409 Conflict");
+    await expect(createGroup("*", "existing", "cytario")).rejects.toThrow("409 Conflict");
   });
 
-  test("rolls back parent group when admins subgroup creation fails", async () => {
+  test("rolls back the parent group when admins subgroup creation fails", async () => {
     const fetchMock = mockFetchSequence([
-      // findGroupByPath
-      {
-        json: () =>
-          Promise.resolve([
-            {
-              id: "root",
-              name: "cytario",
-              path: "/cytario",
-              subGroups: [mockParentGroup],
-            },
-          ]),
-      },
-      // POST /groups/{parentId}/children → success
+      orgLookupResponse,
+      // POST org top-level → success
       {
         status: 201,
-        headers: new Headers({
-          location: `${BASE}/groups/new-group-id`,
-        }),
+        headers: new Headers({ location: `${BASE}/groups/new-id` }),
       },
-      // POST /groups/{newGroupId}/children (admins) → 500
+      // POST admins → 500
       { ok: false, status: 500, statusText: "Internal Server Error" },
-      // DELETE /groups/{newGroupId} → rollback
+      // DELETE rollback → success
       { ok: true, status: 204 },
     ]);
 
-    await expect(createGroup("cytario/lab", "broken")).rejects.toThrow("500 Internal Server Error");
+    await expect(createGroup("*", "broken", "cytario")).rejects.toThrow(
+      "500 Internal Server Error",
+    );
 
-    // Verify rollback DELETE was called
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/groups/new-group-id`,
+      `${BASE}/organizations/org-uuid/groups/new-id`,
       expect.objectContaining({ method: "DELETE" }),
     );
   });
 
   test("throws when Location header is missing", async () => {
     mockFetchSequence([
-      // findGroupByPath
-      {
-        json: () =>
-          Promise.resolve([
-            {
-              id: "root",
-              name: "cytario",
-              path: "/cytario",
-              subGroups: [mockParentGroup],
-            },
-          ]),
-      },
-      // POST /groups/{parentId}/children → 201 but no Location
+      orgLookupResponse,
+      // POST org top-level → 201 but no Location
       { status: 201, headers: new Headers() },
     ]);
 
-    await expect(createGroup("cytario/lab", "noheader")).rejects.toThrow("Missing Location header");
+    await expect(createGroup("*", "noheader", "cytario")).rejects.toThrow(
+      "Missing Location header",
+    );
+  });
+
+  test("throws 400 when organization is missing", async () => {
+    await expect(createGroup("*", "Lab", undefined)).rejects.toThrow(
+      /Active organization is required/,
+    );
+  });
+
+  test("throws 404 when the org alias has no Keycloak record", async () => {
+    mockFetchSequence([{ json: () => Promise.resolve([]) }]);
+
+    await expect(createGroup("*", "Lab", "unknown")).rejects.toThrow(
+      "Organization not found: unknown",
+    );
   });
 });

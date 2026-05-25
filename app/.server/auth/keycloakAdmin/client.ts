@@ -29,16 +29,22 @@ export class KeycloakAdminError extends Error {
 
 const adminApiBaseUrl = cytarioConfig.auth.baseUrl.replace("/realms/", "/admin/realms/");
 
-async function adminRequest(method: string, path: string, body?: unknown): Promise<Response> {
+async function adminRequest(
+  method: string,
+  path: string,
+  init: { body?: BodyInit; contentType?: string } = {},
+): Promise<Response> {
   const accessToken = await getAdminToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+  };
+  if (init.contentType) headers["Content-Type"] = init.contentType;
 
   const response = await fetch(`${adminApiBaseUrl}${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers,
+    body: init.body,
   });
 
   if (!response.ok) {
@@ -61,5 +67,52 @@ export async function adminMutate(
   path: string,
   body?: unknown,
 ): Promise<Response> {
-  return adminRequest(method, path, body);
+  if (body === undefined) {
+    return adminRequest(method, path);
+  }
+  return adminRequest(method, path, {
+    body: JSON.stringify(body),
+    contentType: "application/json",
+  });
+}
+
+/** Form-encoded request — required by Keycloak endpoints that consume URL-encoded bodies. */
+export async function adminFormMutate(
+  method: "POST" | "PUT",
+  path: string,
+  body: URLSearchParams,
+): Promise<Response> {
+  return adminRequest(method, path, {
+    body: body.toString(),
+    contentType: "application/x-www-form-urlencoded",
+  });
+}
+
+/**
+ * Iterate every page of a Keycloak list endpoint that uses `first` + `max`
+ * cursors. KC defaults are often small (10), so callers should not rely on a
+ * single fetch returning the full collection.
+ *
+ * `buildPath` receives a `URLSearchParams` already populated with `first` and
+ * `max` — callers may attach extra params (e.g. `search`) before serialising
+ * — and must return the absolute admin path to fetch.
+ */
+export async function adminFetchAll<T>(
+  buildPath: (params: URLSearchParams) => string,
+  options: { pageSize?: number } = {},
+): Promise<T[]> {
+  const pageSize = options.pageSize ?? 100;
+  const out: T[] = [];
+  let first = 0;
+  while (true) {
+    const params = new URLSearchParams({
+      first: String(first),
+      max: String(pageSize),
+    });
+    const page = await adminFetch<T[]>(buildPath(params));
+    out.push(...page);
+    if (page.length < pageSize) break;
+    first += pageSize;
+  }
+  return out;
 }

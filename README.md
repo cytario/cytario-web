@@ -230,6 +230,18 @@ cp .env.template .env    # Pre-configured for the Podman cluster
 npm run dev
 ```
 
+### Keycloak Organizations
+
+The app uses [Keycloak 26.6 Organizations](https://www.keycloak.org/docs/latest/server_admin/index.html#_managing_organizations) as the tenant boundary. Every session must carry an active organization — sessions without one are redirected to `/onboarding` and cannot reach any tenant-scoped route.
+
+The local Podman cluster boots Keycloak with `KC_FEATURES=organizations` enabled and ships a `cytario` realm with the Organizations feature toggled on and a sample organization assigned to every seed user. To run against a custom Keycloak deployment:
+
+1. Enable the Organizations realm feature (`KC_FEATURES=organizations` on the Keycloak server **and** the per-realm toggle in the admin UI).
+2. Grant the `cytario-web-admin` service account `view-realm` + `manage-realm` on the `realm-management` client. No dedicated `view-organizations` role exists in KC 26.6 — the broader realm roles are required.
+3. Assign every login-eligible user to at least one organization. Users without an organization land on `/onboarding`.
+
+Group membership inside an organization (subgroups under `/admin/users`) drives in-tenant authorization. A `/admins` subgroup at a given scope confers admin rights over that scope; the `*` sentinel scope covers the entire organization.
+
 ### Session Cache (Redis/Valkey)
 
 Sessions hold OAuth access/refresh/ID tokens and short-lived STS credentials. **TLS is required in production.** The app refuses to boot when `NODE_ENV !== "development"` unless one of the following is true:

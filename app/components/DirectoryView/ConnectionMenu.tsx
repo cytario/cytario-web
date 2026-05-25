@@ -24,8 +24,7 @@ export function ConnectionMenu({ connectionName }: ConnectionMenuProps) {
 
   const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
   const user = rootData?.user;
-  const userCanModify =
-    user && connectionConfig ? canModify(user, connectionConfig.ownerScope) : false;
+  const userCanModify = user && connectionConfig ? canModify(user, connectionConfig) : false;
 
   return (
     <>
