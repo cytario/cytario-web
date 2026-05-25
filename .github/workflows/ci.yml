@@ -67,6 +67,8 @@ jobs:
 
           gh run watch "$RUN_ID" --repo cytario/cytario-docs --exit-status
 
+          echo "::notice::E2E run: https://github.com/cytario/cytario-docs/actions/runs/$RUN_ID"
+
   build:
     name: Build
     uses: ./.github/workflows/container.yml
