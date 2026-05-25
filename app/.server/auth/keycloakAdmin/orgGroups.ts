@@ -10,29 +10,27 @@ import {
 } from "./organizations";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
-/**
- * Recursively fetch a group's descendants via the Organization Group
- * `/children` endpoint. Without `group`, returns every top-level org group
- * with its full subtree populated (an org-wide forest).
- */
-/* eslint-disable no-redeclare */
-export function fetchOrgGroupTree(orgId: string): Promise<KeycloakGroup[]>;
-export function fetchOrgGroupTree(orgId: string, group: KeycloakGroup): Promise<KeycloakGroup>;
-export async function fetchOrgGroupTree(
-  orgId: string,
-  group?: KeycloakGroup,
-): Promise<KeycloakGroup | KeycloakGroup[]> {
-  if (!group) {
-    const topLevel = await listOrganizationGroups(orgId);
-    return Promise.all(topLevel.map((g) => fetchOrgGroupTree(orgId, g)));
-  }
-  const children = await listOrganizationGroups(orgId, group.id);
+async function attachOrgSubtree(orgId: string, root: KeycloakGroup): Promise<KeycloakGroup> {
+  const children = await listOrganizationGroups(orgId, root.id);
   return {
-    ...group,
-    subGroups: await Promise.all(children.map((c) => fetchOrgGroupTree(orgId, c))),
+    ...root,
+    subGroups: await Promise.all(children.map((c) => attachOrgSubtree(orgId, c))),
   };
 }
-/* eslint-enable no-redeclare */
+
+/**
+ * Fetch the descendants of one or every top-level org group via the
+ * Organization Group `/children` endpoint. With `anchor` returns a forest of
+ * one (the anchor's populated subtree); without it returns the full org-root
+ * forest.
+ */
+export async function fetchOrgGroupTree(
+  orgId: string,
+  anchor?: KeycloakGroup,
+): Promise<KeycloakGroup[]> {
+  const roots = anchor ? [anchor] : await listOrganizationGroups(orgId);
+  return Promise.all(roots.map((r) => attachOrgSubtree(orgId, r)));
+}
 
 export interface GroupWithMembers {
   id: string;
@@ -231,5 +229,6 @@ export async function getGroupWithMembers(
 
   const root = await findOrganizationGroupByPath(orgId, scope);
   if (!root) return undefined;
-  return attachMembers(orgId, await fetchOrgGroupTree(orgId, root));
+  const [populated] = await fetchOrgGroupTree(orgId, root);
+  return attachMembers(orgId, populated);
 }

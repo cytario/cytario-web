@@ -4,6 +4,7 @@ import {
   findOrganizationByAlias,
   findOrganizationGroupByPath,
 } from "~/.server/auth/keycloakAdmin";
+import { type KeycloakGroup } from "~/.server/auth/keycloakAdmin/client";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 /**
@@ -25,15 +26,17 @@ export async function assertGroupsInScope(
   const org = await findOrganizationByAlias(orgAlias);
   if (!org) throw new Response("Organization not found", { status: 404 });
 
-  const allowed = new Set<string>();
+  let trees: KeycloakGroup[];
   if (scope === ORG_ROOT_SCOPE) {
-    for (const g of await fetchOrgGroupTree(org.id))
-      for (const id of collectGroupIds(g)) allowed.add(id);
+    trees = await fetchOrgGroupTree(org.id);
   } else {
     const root = await findOrganizationGroupByPath(org.id, scope);
     if (!root) throw new Response("Scope not found", { status: 404 });
-    for (const id of collectGroupIds(await fetchOrgGroupTree(org.id, root))) allowed.add(id);
+    trees = await fetchOrgGroupTree(org.id, root);
   }
+
+  const allowed = new Set<string>();
+  for (const g of trees) for (const id of collectGroupIds(g)) allowed.add(id);
 
   for (const groupId of groupIds) {
     if (!allowed.has(groupId)) {

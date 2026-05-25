@@ -43,7 +43,7 @@ describe("assertGroupsInScope", () => {
 
   test("passes when group is the scope root", async () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
-    mockFetchOrgGroupTree.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
     await expect(assertGroupsInScope(["g1"], "lab", "acme")).resolves.toBeUndefined();
     expect(mockFindOrganizationGroupByPath).toHaveBeenCalledWith("org-uuid", "lab");
@@ -52,14 +52,14 @@ describe("assertGroupsInScope", () => {
 
   test("passes when group is a subgroup of the scope", async () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
-    mockFetchOrgGroupTree.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
     await expect(assertGroupsInScope(["g2"], "lab", "acme")).resolves.toBeUndefined();
   });
 
   test("passes when multiple groups are all in scope", async () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
-    mockFetchOrgGroupTree.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
     await expect(assertGroupsInScope(["g1", "g2", "g3"], "lab", "acme")).resolves.toBeUndefined();
   });
@@ -71,7 +71,7 @@ describe("assertGroupsInScope", () => {
 
   test("throws 403 when group is not in scope", async () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
-    mockFetchOrgGroupTree.mockResolvedValue(labTree);
+    mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
     try {
       await assertGroupsInScope(["g-out-of-scope"], "lab", "acme");
@@ -105,10 +105,8 @@ describe("assertGroupsInScope", () => {
   });
 
   test("org-root scope walks the whole org forest via fetchOrgGroupTree", async () => {
-    // No `group` arg → fetchOrgGroupTree returns the full org-root forest.
-    mockFetchOrgGroupTree.mockImplementation(async (_orgId, g) =>
-      g === undefined ? [labTree, rndTree] : g,
-    );
+    // No `anchor` arg → fetchOrgGroupTree returns the full org-root forest.
+    mockFetchOrgGroupTree.mockResolvedValue([labTree, rndTree]);
 
     await expect(assertGroupsInScope(["g1", "g2", "g4"], "*", "acme")).resolves.toBeUndefined();
     expect(mockFetchOrgGroupTree).toHaveBeenCalledWith("org-uuid");
