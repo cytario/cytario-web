@@ -41,7 +41,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
                     id={`admin-${scope}`}
                     href={`/admin/users?scope=${encodeURIComponent(scope)}`}
                   >
-                    <ScopePill scope={`${scope}/admins`} organization={user.organization} />
+                    <ScopePill scope={scope} organization={user.organization} />
                   </MenuItem>
                 ))}
               </MenuSection>
