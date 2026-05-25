@@ -203,14 +203,16 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
             {groups
               .filter((g) => !g.isAdmin)
               .map((group) => (
-                <div key={group.id} className="flex items-center gap-2">
-                  <Checkbox
-                    isSelected={memberGroupIds.has(group.id)}
+                <label key={group.id} className="flex items-center gap-2 cursor-pointer py-1">
+                  <input
+                    type="checkbox"
+                    aria-label={group.path}
+                    checked={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
-                  >
-                    <ScopePill scope={group.path} />
-                  </Checkbox>
-                </div>
+                    className="w-4 h-4 cursor-pointer accent-(--color-action-primary)"
+                  />
+                  <ScopePill scope={group.path} />
+                </label>
               ))}
           </Fieldset>
         )}
@@ -221,14 +223,16 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
             {groups
               .filter((g) => g.isAdmin)
               .map((group) => (
-                <div key={group.id} className="flex items-center gap-2">
-                  <Checkbox
-                    isSelected={memberGroupIds.has(group.id)}
+                <label key={group.id} className="flex items-center gap-2 cursor-pointer py-1">
+                  <input
+                    type="checkbox"
+                    aria-label={group.path}
+                    checked={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
-                  >
-                    <ScopePill scope={group.path} />
-                  </Checkbox>
-                </div>
+                    className="w-4 h-4 cursor-pointer accent-(--color-action-primary)"
+                  />
+                  <ScopePill scope={group.path} />
+                </label>
               ))}
           </Fieldset>
         )}
