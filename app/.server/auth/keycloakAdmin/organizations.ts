@@ -18,8 +18,11 @@ export interface KeycloakOrganization {
 export async function findOrganizationByAlias(
   alias: string,
 ): Promise<KeycloakOrganization | undefined> {
-  const params = new URLSearchParams({ search: alias, exact: "true" });
-  const orgs = await adminFetch<KeycloakOrganization[]>(`/organizations?${params}`);
+  // KC 26.6's `/organizations?search=…` filters on `name` (and `domains`),
+  // never on `alias` — when the alias differs from the name, that endpoint
+  // returns an empty set even with `exact=true`. Page through every org and
+  // filter client-side instead.
+  const orgs = await adminFetchAll<KeycloakOrganization>((params) => `/organizations?${params}`);
   return orgs.find((o) => o.alias === alias);
 }
 
