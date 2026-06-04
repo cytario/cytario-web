@@ -57,7 +57,13 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
 
   const connectionConfig = await getConnection(user, connectionName);
   if (!connectionConfig) {
-    throw new Error("Connection configuration not found");
+    // Unknown name, or a connection the user can't see. A bare Error surfaces
+    // as an unhandled 500; throw a 404 so the root ErrorBoundary renders a
+    // proper "Not Found" page instead.
+    throw new Response("Connection not found, or you don't have access to it.", {
+      status: 404,
+      statusText: "Not Found",
+    });
   }
 
   const { bucketName } = connectionConfig;
