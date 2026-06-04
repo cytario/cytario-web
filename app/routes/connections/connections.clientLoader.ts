@@ -5,6 +5,7 @@ import { type ClientLoaderFunctionArgs } from "react-router";
 import type { LoaderData, loadConnections } from "./connections.loader";
 import type { ConnectionConfig } from "~/.generated/client";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
 import { isImageFile } from "~/utils/fileType";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
 import { listObjectsClient } from "~/utils/listObjectsClient";
@@ -75,17 +76,20 @@ export async function enrichConnectionsWithPreviews({
     },
   );
 
+  const connectionStatuses: Record<string, ConnectionStatusUpdate> = {};
   const nodes: TreeNode[] = server.nodes.map((node, i) => {
     const probe = probes[i];
+    connectionStatuses[node.connectionName] = {
+      status: probe.status,
+      statusMessage: probe.errorMessage,
+    };
     return {
       ...node,
       ...(probe.previewObj ? { _Object: probe.previewObj } : {}),
-      connectionStatus: probe.status,
-      ...(probe.errorMessage ? { connectionErrorMessage: probe.errorMessage } : {}),
     };
   });
 
-  return { ...server, nodes };
+  return { ...server, nodes, connectionStatuses };
 }
 
 enrichConnectionsWithPreviews.hydrate = true;

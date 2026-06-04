@@ -18,10 +18,10 @@ export const middleware = [authMiddleware];
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const { connectionConfigs, credentials, user } = context.get(authContext);
+  const { connectionConfigs, credentials, credentialErrors, user } = context.get(authContext);
   // Projection only — never the raw UserProfile, tokens, or credentials cross
   // to the client slot props.
-  return { connectionConfigs, credentials, identity: toIdentity(user) };
+  return { connectionConfigs, credentials, credentialErrors, identity: toIdentity(user) };
 };
 
 // Identity clientLoader — see `app/root.tsx`; works around RR's bulk-fetch
@@ -30,8 +30,9 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
   serverLoader<typeof loader>();
 
 export default function ProtectedLayout() {
-  const { connectionConfigs, credentials, identity } = useLoaderData<typeof loader>();
-  useInitConnections(connectionConfigs, credentials);
+  const { connectionConfigs, credentials, credentialErrors, identity } =
+    useLoaderData<typeof loader>();
+  useInitConnections(connectionConfigs, credentials, credentialErrors);
 
   return (
     <div className="flex h-full flex-col">

@@ -13,10 +13,11 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 export function useInitConnections(
   connectionConfigs: ConnectionConfig[],
   credentials: Record<string, Credentials>,
+  credentialErrors: Record<string, string> = {},
 ) {
   const setConnections = useConnectionsStore(select.setConnections);
 
   useEffect(() => {
-    setConnections(connectionConfigs, credentials);
-  }, [connectionConfigs, credentials, setConnections]);
+    setConnections(connectionConfigs, credentials, credentialErrors);
+  }, [connectionConfigs, credentials, credentialErrors, setConnections]);
 }

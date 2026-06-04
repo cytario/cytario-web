@@ -37,6 +37,17 @@ export async function searchConnection({
     pathName: "",
   };
 
+  // A broken connection (no minted STS credentials) can't be searched; surface
+  // it as an errored result so the status dot stays red rather than spinning.
+  if (!credentials) {
+    return {
+      node: { ...bucketBase, children: [] },
+      isCapped: false,
+      error: true,
+      corsBlocked: false,
+    };
+  }
+
   try {
     const { contents, isCapped } = await listObjectsClient(config, credentials, {
       query,

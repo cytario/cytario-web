@@ -45,6 +45,12 @@ vi.mock("~/utils/connectionsStore/selectors", () => ({
     connectionConfig:
       (name: string) => (state: { connections: Record<string, { connectionConfig: unknown }> }) =>
         state.connections[name]?.connectionConfig,
+    connectionStatus:
+      (name: string) => (state: { connections: Record<string, { status?: string }> }) =>
+        state.connections[name]?.status ?? "loading",
+    connectionStatusMessage:
+      (name: string) => (state: { connections: Record<string, { statusMessage?: string }> }) =>
+        state.connections[name]?.statusMessage,
   },
 }));
 

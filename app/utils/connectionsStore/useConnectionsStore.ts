@@ -5,10 +5,23 @@ import { immer } from "zustand/middleware/immer";
 
 import type { ConnectionConfig } from "~/.generated/client";
 
-/** Static config + STS credentials needed to sign requests for one connection. */
+/** Live health of a connection — the single source for the status dot. */
+export type ConnectionStatus = "connected" | "error" | "loading";
+
+/** A live health patch for an already-loaded connection. */
+export interface ConnectionStatusUpdate {
+  status: ConnectionStatus;
+  statusMessage?: string;
+}
+
+/** Static config + STS credentials + live health for one connection. */
 export interface Connection {
   connectionConfig: ConnectionConfig;
-  credentials: Credentials;
+  /** `null` when STS credentials could not be minted (broken connection). */
+  credentials: Credentials | null;
+  status: ConnectionStatus;
+  /** Human-readable cause, set when `status === "error"`. */
+  statusMessage?: string;
 }
 
 /**
@@ -19,33 +32,79 @@ export interface Connection {
  */
 export interface ConnectionsStore {
   connections: Record<string, Connection>;
-  /** Replace the whole store in one write; prunes entries removed server-side. */
-  setConnections: (configs: ConnectionConfig[], credentials: Record<string, Credentials>) => void;
+  /**
+   * Replace the whole store in one write; prunes entries removed server-side.
+   * Connections without credentials are kept (status `"error"`) so a broken
+   * connection stays visible and manageable rather than silently vanishing.
+   * A prior live probe result is preserved across re-hydration to avoid a
+   * green→yellow flicker on revalidation.
+   */
+  setConnections: (
+    configs: ConnectionConfig[],
+    credentials: Record<string, Credentials>,
+    errors?: Record<string, string>,
+  ) => void;
+  /** Patch live health for already-loaded connections (e.g. after a probe). */
+  setConnectionStatuses: (updates: Record<string, ConnectionStatusUpdate>) => void;
 }
 
 const name = "ConnectionsStore";
+
+const NO_CREDENTIALS_MESSAGE = "No credentials available for this connection.";
 
 export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
     immer((set) => ({
       connections: {},
 
-      setConnections: (configs, credentials) => {
+      setConnections: (configs, credentials, errors = {}) => {
         set(
           (state) => {
             const next: Record<string, Connection> = {};
             for (const connectionConfig of configs) {
-              const creds = credentials[connectionConfig.name];
-              if (!creds) continue;
-              next[connectionConfig.name] = {
-                connectionConfig,
-                credentials: creds,
-              };
+              const cname = connectionConfig.name;
+              const creds = credentials[cname] ?? null;
+              const prev = state.connections[cname];
+
+              let status: ConnectionStatus;
+              let statusMessage: string | undefined;
+              if (!creds) {
+                status = "error";
+                statusMessage = errors[cname] ?? NO_CREDENTIALS_MESSAGE;
+              } else if (prev?.credentials) {
+                // Keep the last probe verdict; the next probe refreshes it.
+                status = prev.status;
+                statusMessage = prev.statusMessage;
+              } else {
+                // Server minted STS credentials, so the connection is usable.
+                // Seed "connected" rather than "loading": the dot renders on
+                // surfaces with no client probe (sidebar, search, objects), and
+                // only the `/connections` probe would ever clear "loading". The
+                // probe still downgrades to "error" on a CORS/reachability fail.
+                status = "connected";
+              }
+
+              next[cname] = { connectionConfig, credentials: creds, status, statusMessage };
             }
             state.connections = next;
           },
           false,
           "setConnections",
+        );
+      },
+
+      setConnectionStatuses: (updates) => {
+        set(
+          (state) => {
+            for (const [cname, update] of Object.entries(updates)) {
+              const connection = state.connections[cname];
+              if (!connection) continue;
+              connection.status = update.status;
+              connection.statusMessage = update.statusMessage;
+            }
+          },
+          false,
+          "setConnectionStatuses",
         );
       },
     })),
