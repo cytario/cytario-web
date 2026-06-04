@@ -42,11 +42,19 @@ const title = "Storage Connections";
 
 export const meta: MetaFunction = () => [{ title: `${title} — Cytario` }];
 
+// The client loader runs an expensive per-bucket probe, so we don't want to
+// re-run it on incidental same-path navigations (opening the add-connection
+// modal, changing the search query). But we MUST revalidate after a mutation
+// and when the user (re-)enters the list — otherwise a connection created on
+// another route never appears until a hard reload.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
   formAction,
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
   return false;
 };
 
