@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { Mock } from "vitest";
 
 import { select } from "../../../state/store/selectors";
@@ -20,8 +20,23 @@ vi.mock("../MinMaxSettings", () => ({
 }));
 
 vi.mock("../HistogramChannel", () => ({
-  HistogramChannel: ({ channelIndex, color }: { channelIndex: number; color: string }) => (
-    <g data-testid={`histogram-channel-${channelIndex}`} data-color={color} />
+  HistogramChannel: ({
+    channelIndex,
+    color,
+    logScaleX,
+    logScaleY,
+  }: {
+    channelIndex: number;
+    color: string;
+    logScaleX: boolean;
+    logScaleY: boolean;
+  }) => (
+    <g
+      data-testid={`histogram-channel-${channelIndex}`}
+      data-color={color}
+      data-log-scale-x={String(logScaleX)}
+      data-log-scale-y={String(logScaleY)}
+    />
   ),
 }));
 
@@ -114,6 +129,41 @@ describe("Histogram", () => {
     render(<Histogram />);
 
     expect(screen.getByTestId("min-max-settings")).toBeInTheDocument();
+  });
+
+  test("renders X axis scale toggle, but no Y toggle", () => {
+    render(<Histogram />);
+
+    expect(screen.getByLabelText("Intensity axis scale: linear")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Count axis scale/)).not.toBeInTheDocument();
+  });
+
+  test("keeps Y axis logarithmic and X linear by default", () => {
+    render(<Histogram />);
+
+    const channel = screen.getByTestId("histogram-channel-0");
+    expect(channel).toHaveAttribute("data-log-scale-y", "true");
+    expect(channel).toHaveAttribute("data-log-scale-x", "false");
+  });
+
+  test("renders start/middle/end X axis value ticks", () => {
+    render(<Histogram />);
+
+    // maxDomain 255, linear → 0, round(127.5)=128, 255
+    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("128")).toBeInTheDocument();
+    expect(screen.getByText("255")).toBeInTheDocument();
+  });
+
+  test("toggles X axis scale on click and updates ticks", () => {
+    render(<Histogram />);
+
+    fireEvent.click(screen.getByLabelText("Intensity axis scale: linear"));
+
+    const channel = screen.getByTestId("histogram-channel-0");
+    expect(channel).toHaveAttribute("data-log-scale-x", "true");
+    // Symlog middle tick is far below the linear midpoint (128).
+    expect(screen.queryByText("128")).not.toBeInTheDocument();
   });
 
   test("sorts selected channel to render last (on top)", () => {
