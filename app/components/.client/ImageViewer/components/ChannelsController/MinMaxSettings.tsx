@@ -50,6 +50,11 @@ export function MinMaxSettings() {
     setContrastLimits(newLimits);
   };
 
+  const isResetDisabled =
+    !selectedChannel ||
+    (selectedChannel.contrastLimits[0] === selectedChannel.contrastLimitsInitial[0] &&
+      selectedChannel.contrastLimits[1] === selectedChannel.contrastLimitsInitial[1]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, type: "min" | "max") => {
     if (e.key === "Enter") {
       e.currentTarget.blur();
@@ -63,11 +68,6 @@ export function MinMaxSettings() {
       e.currentTarget.blur();
     }
   };
-
-  const isResetDisabled =
-    !selectedChannel ||
-    (selectedChannel.contrastLimits[0] === selectedChannel.contrastLimitsInitial[0] &&
-      selectedChannel.contrastLimits[1] === selectedChannel.contrastLimitsInitial[1]);
 
   return (
     <div className="m-2 flex gap-2 items-center">

@@ -1,16 +1,11 @@
+import { countToRatio, intensityToRatio } from "./axisScale";
 import { ByteDomain } from "../../state/store/types";
-
-const normalizeY = (value: number, maxLogValue: number, height: number) => {
-  const logValue = Math.log(value + 1);
-  const normalizedY = (logValue / maxLogValue) * height;
-  return height - normalizedY;
-};
-
-const normalizeX = (index: number, length: number, width: number) => (index / (length - 1)) * width;
 
 interface HistogramChannelProps {
   channelIndex: number;
-  maxLogValue: number;
+  maxValue: number;
+  logScaleX: boolean;
+  logScaleY: boolean;
   width: number;
   height: number;
   histogram: number[];
@@ -20,7 +15,9 @@ interface HistogramChannelProps {
 }
 export const HistogramChannel = ({
   channelIndex,
-  maxLogValue,
+  maxValue,
+  logScaleX,
+  logScaleY,
   width,
   height,
 
@@ -32,17 +29,18 @@ export const HistogramChannel = ({
 }: HistogramChannelProps) => {
   const _points: string = histogram
     .map((value, index, arr) => {
-      const normalizedX = normalizeX(index, arr.length, width);
-      const normalizedY = normalizeY(value, maxLogValue, height);
+      const intensity = (index / (arr.length - 1)) * range;
+      const normalizedX = intensityToRatio(intensity, range, logScaleX) * width;
+      const normalizedY = height - countToRatio(value, maxValue, logScaleY) * height;
       return [normalizedX, normalizedY].join(",");
     })
     .join(" ");
 
   const points = `0,${height} ${_points}`;
   const [min, max] = contrastLimit;
-  const scaledMin = (min / range) * width;
-  const scaledMax = (max / range) * width;
-  const rectWidth = scaledMax - scaledMin;
+  const scaledMin = intensityToRatio(min, range, logScaleX) * width;
+  const scaledMax = intensityToRatio(max, range, logScaleX) * width;
+  const rectWidth = Math.max(0, scaledMax - scaledMin);
   const id = `clip-${channelIndex}`;
 
   return (

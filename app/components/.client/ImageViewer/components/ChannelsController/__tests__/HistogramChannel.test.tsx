@@ -5,7 +5,9 @@ import { HistogramChannel } from "../HistogramChannel";
 describe("HistogramChannel", () => {
   const defaultProps = {
     channelIndex: 0,
-    maxLogValue: Math.log(100 + 1),
+    maxValue: 100,
+    logScaleX: false,
+    logScaleY: true,
     width: 200,
     height: 160,
     histogram: [10, 50, 100, 50, 10],
@@ -145,10 +147,82 @@ describe("HistogramChannel", () => {
     expect(width).toBe(200); // Full width
   });
 
+  test("scales peak bin to full height regardless of log/linear", () => {
+    // Bin equal to maxValue must reach y=0 (full height) in both modes.
+    const peak = [100];
+    const log = render(
+      <svg>
+        <HistogramChannel {...defaultProps} histogram={peak} logScaleY={true} />
+      </svg>,
+    );
+    const linear = render(
+      <svg>
+        <HistogramChannel {...defaultProps} histogram={peak} logScaleY={false} />
+      </svg>,
+    );
+
+    const peakY = (container: HTMLElement) => {
+      const points = container.querySelector("polygon")!.getAttribute("points")!;
+      // points = "0,160 <x>,<y>" — the second coord is the single bin.
+      return parseFloat(points.split(" ")[1].split(",")[1]);
+    };
+
+    expect(peakY(log.container)).toBeCloseTo(0, 5);
+    expect(peakY(linear.container)).toBeCloseTo(0, 5);
+  });
+
+  test("midrange bin sits higher (smaller y) in log than linear", () => {
+    const mid = [10];
+    const log = render(
+      <svg>
+        <HistogramChannel {...defaultProps} histogram={mid} logScaleY={true} />
+      </svg>,
+    );
+    const linear = render(
+      <svg>
+        <HistogramChannel {...defaultProps} histogram={mid} logScaleY={false} />
+      </svg>,
+    );
+
+    const binY = (container: HTMLElement) => {
+      const points = container.querySelector("polygon")!.getAttribute("points")!;
+      return parseFloat(points.split(" ")[1].split(",")[1]);
+    };
+
+    // log lifts the low-count bin: smaller y = taller bar.
+    expect(binY(log.container)).toBeLessThan(binY(linear.container));
+  });
+
+  test("log X axis repositions the contrast clip rect", () => {
+    const { container } = render(
+      <svg>
+        <HistogramChannel {...defaultProps} logScaleX={true} />
+      </svg>,
+    );
+
+    // c = 255 / 100 = 2.55; symlog scaledMin ≈ 131.1 (vs 39.2 linear)
+    const rect = container.querySelector("clipPath rect");
+    const x = parseFloat(rect!.getAttribute("x") || "0");
+    expect(x).toBeCloseTo(131.1, 0);
+  });
+
   test("handles zero-width contrast limits", () => {
     const { container } = render(
       <svg>
         <HistogramChannel {...defaultProps} contrastLimit={[100, 100]} range={255} />
+      </svg>,
+    );
+
+    const rect = container.querySelector("clipPath rect");
+    const width = parseFloat(rect!.getAttribute("width") || "0");
+
+    expect(width).toBe(0);
+  });
+
+  test("clamps width to zero when min exceeds max", () => {
+    const { container } = render(
+      <svg>
+        <HistogramChannel {...defaultProps} contrastLimit={[200, 50]} range={255} />
       </svg>,
     );
 

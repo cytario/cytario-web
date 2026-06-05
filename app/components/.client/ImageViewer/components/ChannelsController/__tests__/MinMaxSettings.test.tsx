@@ -152,11 +152,31 @@ describe("MinMaxSettings", () => {
     expect(mockSetContrastLimits).not.toHaveBeenCalled();
   });
 
+  test("inputs are disabled when no channel is selected", () => {
+    (useViewerStore as Mock).mockImplementation((selector) => {
+      if (selector === select.selectedChannel) {
+        return null;
+      }
+      if (selector === select.setContrastLimits) {
+        return mockSetContrastLimits;
+      }
+      if (typeof selector === "function") {
+        return selector({ resetContrastLimits: mockResetContrastLimits });
+      }
+      return undefined;
+    });
+
+    render(<MinMaxSettings />);
+
+    const inputs = screen.getAllByRole("spinbutton");
+    expect(inputs[0]).toBeDisabled();
+    expect(inputs[1]).toBeDisabled();
+  });
+
   test("reset button calls resetContrastLimits", () => {
     render(<MinMaxSettings />);
 
-    const resetButton = screen.getByRole("button");
-    fireEvent.click(resetButton);
+    fireEvent.click(screen.getByLabelText("Reset contrast"));
 
     expect(mockResetContrastLimits).toHaveBeenCalled();
   });
@@ -181,49 +201,7 @@ describe("MinMaxSettings", () => {
 
     render(<MinMaxSettings />);
 
-    const resetButton = screen.getByRole("button");
-    expect(resetButton).toBeDisabled();
-  });
-
-  test("inputs are disabled when no channel is selected", () => {
-    (useViewerStore as Mock).mockImplementation((selector) => {
-      if (selector === select.selectedChannel) {
-        return null;
-      }
-      if (selector === select.setContrastLimits) {
-        return mockSetContrastLimits;
-      }
-      if (typeof selector === "function") {
-        return selector({ resetContrastLimits: mockResetContrastLimits });
-      }
-      return undefined;
-    });
-
-    render(<MinMaxSettings />);
-
-    const inputs = screen.getAllByRole("spinbutton");
-    expect(inputs[0]).toBeDisabled();
-    expect(inputs[1]).toBeDisabled();
-  });
-
-  test("reset button is disabled when no channel is selected", () => {
-    (useViewerStore as Mock).mockImplementation((selector) => {
-      if (selector === select.selectedChannel) {
-        return null;
-      }
-      if (selector === select.setContrastLimits) {
-        return mockSetContrastLimits;
-      }
-      if (typeof selector === "function") {
-        return selector({ resetContrastLimits: mockResetContrastLimits });
-      }
-      return undefined;
-    });
-
-    render(<MinMaxSettings />);
-
-    const resetButton = screen.getByRole("button");
-    expect(resetButton).toBeDisabled();
+    expect(screen.getByLabelText("Reset contrast")).toBeDisabled();
   });
 
   test("shows default values when no channel selected", () => {

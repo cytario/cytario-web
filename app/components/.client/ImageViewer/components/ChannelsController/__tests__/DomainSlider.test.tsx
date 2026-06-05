@@ -130,4 +130,30 @@ describe("DomainSlider", () => {
     // Expect update function to have been called
     expect(mockUpdateChannelsState).toHaveBeenCalledWith([12, 255]);
   });
+
+  test("operates in normalized ratio space when logScaleX is set", () => {
+    (useViewerStore as Mock).mockImplementation((selector) => {
+      switch (selector) {
+        case select.channelsState:
+          return { Red, Green } as unknown as ChannelsState;
+        case select.selectedChannelId:
+          return "Red";
+        case select.selectedChannel:
+          return Red;
+        case select.setSelectedChannelId:
+          return mockSetSelectedChannelId;
+        case select.setContrastLimits:
+          return mockUpdateChannelsState;
+      }
+    });
+
+    render(<DomainSlider domain={[0, 255]} logScaleX={true} />);
+
+    const sliders = screen.getAllByRole("slider");
+
+    // Ratio space: max → 1; symlog (c = 2.55) maps 12 → 0.377, 200 → 0.948.
+    expect(parseFloat(sliders[0].getAttribute("aria-valuemax")!)).toBeCloseTo(1, 5);
+    expect(parseFloat(sliders[0].getAttribute("aria-valuenow")!)).toBeCloseTo(0.377, 2);
+    expect(parseFloat(sliders[1].getAttribute("aria-valuenow")!)).toBeCloseTo(0.948, 2);
+  });
 });
