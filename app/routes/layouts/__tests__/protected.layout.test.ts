@@ -1,0 +1,73 @@
+import { createContext } from "react-router";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+
+import { type SessionData } from "~/.server/auth/sessionStorage";
+import mock from "~/utils/__tests__/__mocks__";
+
+vi.mock("~/.server/auth/authMiddleware", () => ({
+  authContext: createContext<Partial<SessionData>>(),
+  authMiddleware: vi.fn(async (_ctx, next) => next()),
+}));
+
+const { authContext } = await import("~/.server/auth/authMiddleware");
+const { loader } = await import("~/routes/layouts/protected.layout");
+
+const buildContext = (user = mock.user()) => ({
+  get: vi.fn((ctx) => {
+    if (ctx === authContext) {
+      return {
+        user,
+        connectionConfigs: [],
+        credentials: { "test-conn": mock.credentials() },
+      };
+    }
+    return undefined;
+  }),
+});
+
+const runLoader = (user = mock.user()) => {
+  const request = new Request("http://localhost/");
+  return loader({
+    request,
+    params: {},
+    context: buildContext(user) as never,
+    unstable_pattern: "",
+    unstable_url: new URL(request.url),
+  });
+};
+
+describe("protected layout loader", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("returns the Identity projection", async () => {
+    const data = await runLoader(
+      mock.user({
+        organization: "testcorp",
+        organizationAttributes: { subscription_status: "active" },
+        groups: ["testcorp/lab"],
+        adminScopes: ["*"],
+      }),
+    );
+
+    expect(data.identity).toEqual({
+      organization: "testcorp",
+      organizationAttributes: { subscription_status: "active" },
+      groups: ["testcorp/lab"],
+      adminScopes: ["*"],
+    });
+  });
+
+  test("does not leak PII or tokens to the client payload", async () => {
+    const data = await runLoader();
+
+    expect(data.identity).not.toHaveProperty("name");
+    expect(data.identity).not.toHaveProperty("email");
+    expect(data.identity).not.toHaveProperty("preferred_username");
+    expect(data.identity).not.toHaveProperty("policy");
+    expect(data.identity).not.toHaveProperty("sub");
+    expect(data).not.toHaveProperty("user");
+    expect(data).not.toHaveProperty("authTokens");
+  });
+});
