@@ -14,6 +14,7 @@ export interface Identity {
    * string map. A generic Keycloak Organizations primitive — the host does not
    * interpret keys. The consuming plugin reads its own keys out of this map and
    * narrows them to its own types; the host assigns no meaning to them.
+   * `Readonly` at the type level; the host also freezes the map at runtime.
    */
   organizationAttributes: Readonly<Record<string, string>>;
   /** Tenant group paths the user belongs to (admin subgroups excluded). */

@@ -3,7 +3,9 @@ import type { Identity } from "./auth";
 export type GateOutcome =
   | { kind: "continue" }
   // For navigations — e.g. no-org onboarding or a plugin-defined hard-stop.
-  // Absolute or app-relative; host trusts plugin code.
+  // Absolute or app-relative. The host does NOT validate this URL — gate
+  // authors must not interpolate user-controlled input here without their own
+  // validation (open-redirect risk).
   | { kind: "redirect"; url: string }
   // For blocking a single request without navigating — e.g. making a workspace
   // read-only by denying unsafe methods. Host returns a Response with
