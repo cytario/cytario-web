@@ -19,12 +19,19 @@ describe("MinMaxSettings", () => {
     domain: [0, 255] as [number, number],
   };
 
+  // 16-bit loader → full value range is 0..65535, independent of the
+  // auto-fitted [0, 255] data domain.
+  const mockLoader = [{ dtype: "Uint16" }];
+
   beforeEach(() => {
     vi.clearAllMocks();
 
     (useViewerStore as Mock).mockImplementation((selector) => {
       if (selector === select.selectedChannel) {
         return mockSelectedChannel;
+      }
+      if (selector === select.loader) {
+        return mockLoader;
       }
       if (selector === select.setContrastLimits) {
         return mockSetContrastLimits;
@@ -109,15 +116,26 @@ describe("MinMaxSettings", () => {
     expect(mockSetContrastLimits).toHaveBeenCalledWith([0, 200]);
   });
 
-  test("clamps max value to domain bounds", () => {
+  test("accepts max values above the auto-fitted domain, up to the dtype range", () => {
     render(<MinMaxSettings />);
 
     const maxInput = screen.getAllByRole("spinbutton")[1];
-    fireEvent.change(maxInput, { target: { value: "500" } });
+    fireEvent.change(maxInput, { target: { value: "50000" } });
     fireEvent.blur(maxInput);
 
-    // Should clamp to domain max (255)
-    expect(mockSetContrastLimits).toHaveBeenCalledWith([50, 255]);
+    // 50000 is within the 16-bit range, so it must not snap back to domain max
+    expect(mockSetContrastLimits).toHaveBeenCalledWith([50, 50000]);
+  });
+
+  test("clamps max value to the dtype ceiling", () => {
+    render(<MinMaxSettings />);
+
+    const maxInput = screen.getAllByRole("spinbutton")[1];
+    fireEvent.change(maxInput, { target: { value: "99999" } });
+    fireEvent.blur(maxInput);
+
+    // 16-bit max is 65535
+    expect(mockSetContrastLimits).toHaveBeenCalledWith([50, 65535]);
   });
 
   test("ensures min does not exceed max", () => {

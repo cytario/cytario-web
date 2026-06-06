@@ -1,13 +1,16 @@
 import { IconButton } from "@cytario/design";
+import type { SupportedDtype } from "@vivjs/types";
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { select } from "../../state/store/selectors";
 import { ByteDomain } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { getDtypeMax } from "../../utils/getDtypeMax";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
+  const loader = useViewerStore(select.loader);
   const setContrastLimits = useViewerStore(select.setContrastLimits);
   const resetContrastLimits = useViewerStore((state) => state.resetContrastLimits);
 
@@ -31,8 +34,12 @@ export function MinMaxSettings() {
     const numValue = parseInt(value, 10);
     if (isNaN(numValue)) return;
 
-    const [domainMin, domainMax] = selectedChannel.domain;
-    const clampedValue = Math.max(domainMin, Math.min(domainMax, numValue));
+    // Clamp to the full dtype value range (e.g. 0..65535 for 16-bit), not the
+    // auto-fitted data domain — otherwise large entered maxima snap back.
+    const dtypeMax = loader
+      ? getDtypeMax(loader[0].dtype as SupportedDtype)
+      : selectedChannel.domain[1];
+    const clampedValue = Math.max(0, Math.min(dtypeMax, numValue));
 
     const currentLimits = selectedChannel.contrastLimits;
     let newLimits: ByteDomain;
