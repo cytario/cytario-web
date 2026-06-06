@@ -7,6 +7,7 @@ import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
+import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -35,6 +36,10 @@ vi.mock("~/routes/connections/connections.server", () => ({
 
 vi.mock("../verifyIdToken", () => ({
   verifyIdToken: vi.fn(),
+}));
+
+vi.mock("~/.server/pluginGates", () => ({
+  runGates: vi.fn(),
 }));
 
 vi.mock("react-router", async (importOriginal) => {
@@ -87,14 +92,18 @@ describe("authMiddleware", () => {
     notification: undefined,
   } satisfies SessionData;
 
-  const createMiddlewareArgs = (params: Record<string, string> = {}, hasSession = true) => {
+  const createMiddlewareArgs = (
+    params: Record<string, string> = {},
+    hasSession = true,
+    request: Request = new Request("http://localhost/test"),
+  ) => {
     const context = new Map();
     if (hasSession) {
       context.set(sessionContext, mockSession);
     }
 
     return {
-      request: new Request("http://localhost/test"),
+      request,
       params,
       context: {
         get: (key: unknown) => context.get(key),
@@ -121,6 +130,8 @@ describe("authMiddleware", () => {
       idToken: "new-id-token",
       refreshToken: validRefreshToken,
     });
+    // No plugin loaded by default → gates short-circuit to continue.
+    vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
   });
 
   describe("Session Context", () => {
@@ -375,6 +386,155 @@ describe("authMiddleware", () => {
       expect(redirect).toHaveBeenCalledWith("/onboarding");
       expect(listConnections).not.toHaveBeenCalled();
       expect(getAllSessionCredentials).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Plugin Gates", () => {
+    test("gate redirect wins and short-circuits before credential fetch", async () => {
+      vi.mocked(runGates).mockResolvedValue({
+        kind: "redirect",
+        url: "https://admin.cytario.com/onboard?return_to=app",
+      });
+
+      const args = createMiddlewareArgs();
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(302);
+      expect(redirect).toHaveBeenCalledWith("https://admin.cytario.com/onboard?return_to=app");
+      expect(listConnections).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test("passes url, method, and the PII-free identity projection to the gate", async () => {
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/protected", { method: "POST" }),
+      );
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(runGates).toHaveBeenCalledWith({
+        url: "http://localhost/protected",
+        method: "POST",
+        identity: expect.objectContaining({ organization: "org1" }),
+      });
+      const [{ identity }] = vi.mocked(runGates).mock.calls[0];
+      expect(identity).not.toHaveProperty("email");
+      expect(identity).not.toHaveProperty("name");
+    });
+
+    test("deny on POST returns a 403 JSON Response with the gate message", async () => {
+      vi.mocked(runGates).mockResolvedValue({
+        kind: "deny",
+        status: 403,
+        message: "read-only during offboarding",
+      });
+
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/upload", { method: "POST" }),
+      );
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(result).toBeInstanceOf(Response);
+      const response = result as Response;
+      expect(response.status).toBe(403);
+      expect(response.headers.get("Content-Type")).toBe("application/json");
+      expect(await response.json()).toEqual({ error: "read-only during offboarding" });
+      expect(listConnections).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test("deny defaults to status 403 when none provided", async () => {
+      vi.mocked(runGates).mockResolvedValue({ kind: "deny", message: "blocked" });
+
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/upload", { method: "DELETE" }),
+      );
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect((result as Response).status).toBe(403);
+    });
+
+    test("message-less deny serializes a fallback error body (never empty)", async () => {
+      vi.mocked(runGates).mockResolvedValue({ kind: "deny", status: 403 });
+
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/upload", { method: "POST" }),
+      );
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      const response = result as Response;
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "Request denied" });
+    });
+
+    test("the same gate passing on GET proceeds to credential fetch", async () => {
+      // Mirrors a method-aware read-only gate: deny writes, continue on reads.
+      vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
+
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/slide", { method: "GET" }),
+      );
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(listConnections).toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    test("continue with org present proceeds to credential fetch", async () => {
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(listConnections).toHaveBeenCalledWith(mockSessionData.user);
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    test("continue with no org falls back to the built-in /onboarding redirect", async () => {
+      vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organization: undefined }),
+      });
+
+      const args = createMiddlewareArgs();
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(result).toBeInstanceOf(Response);
+      expect(redirect).toHaveBeenCalledWith("/onboarding");
+      expect(listConnections).not.toHaveBeenCalled();
       expect(mockNext).not.toHaveBeenCalled();
     });
   });
