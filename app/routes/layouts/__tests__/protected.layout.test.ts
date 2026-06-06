@@ -57,6 +57,14 @@ describe("protected layout loader", () => {
       groups: ["testcorp/lab"],
       adminScopes: ["*"],
     });
+    // Pin the exact key-set so a regressed projection (e.g. a spread of the
+    // full UserProfile) is caught even if the values happen to match.
+    expect(Object.keys(data.identity).sort()).toEqual([
+      "adminScopes",
+      "groups",
+      "organization",
+      "organizationAttributes",
+    ]);
   });
 
   test("does not leak PII or tokens to the client payload", async () => {
