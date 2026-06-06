@@ -45,7 +45,7 @@ describe("protected layout loader", () => {
     const data = await runLoader(
       mock.user({
         organization: "testcorp",
-        organizationAttributes: { subscription_status: "active" },
+        organizationAttributes: { subscription_status: ["active"] },
         groups: ["testcorp/lab"],
         adminScopes: ["*"],
       }),
@@ -53,7 +53,7 @@ describe("protected layout loader", () => {
 
     expect(data.identity).toEqual({
       organization: "testcorp",
-      organizationAttributes: { subscription_status: "active" },
+      organizationAttributes: { subscription_status: ["active"] },
       groups: ["testcorp/lab"],
       adminScopes: ["*"],
     });

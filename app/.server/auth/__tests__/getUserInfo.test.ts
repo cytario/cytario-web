@@ -232,7 +232,7 @@ describe("getUserInfo", () => {
       expect(result.groups).toEqual([]);
     });
 
-    test("captures org attributes (excluding id/groups), collapsing multivalued to first value", async () => {
+    test("captures org attributes (excluding id/groups), preserving the multivalued array shape", async () => {
       const rawProfile = {
         sub: "user-uuid-attrs",
         email: "attrs@example.com",
@@ -261,9 +261,10 @@ describe("getUserInfo", () => {
       const result = await getUserInfo("access-token");
 
       expect(result.organization).toBe("testcorp");
+      // Multivalued attrs keep all their values — the host does not collapse.
       expect(result.organizationAttributes).toEqual({
-        subscription_status: "active",
-        subscription_period_end: "2026-12-31",
+        subscription_status: ["active"],
+        subscription_period_end: ["2026-12-31", "ignored"],
       });
       // Host-owned keys never leak into the opaque attribute map.
       expect(result.organizationAttributes).not.toHaveProperty("id");
@@ -301,7 +302,7 @@ describe("getUserInfo", () => {
 
       const result = await getUserInfo("access-token");
 
-      expect(result.organizationAttributes).toEqual({ subscription_status: "active" });
+      expect(result.organizationAttributes).toEqual({ subscription_status: ["active"] });
       expect(result.organizationAttributes).not.toHaveProperty("billing_email");
       expect(result.organizationAttributes).not.toHaveProperty("oversized");
     });
@@ -363,9 +364,11 @@ describe("getUserInfo", () => {
       const result = await getUserInfo("access-token");
 
       expect(result.organization).toBe("testcorp");
+      // Scalar is wrapped to a one-element array; a multivalued attr keeps all
+      // its (string) values; empty and non-string-only attrs are dropped.
       expect(result.organizationAttributes).toEqual({
-        subscription_status: "active",
-        plan: "pro",
+        subscription_status: ["active"],
+        plan: ["pro", "ignored"],
       });
       expect(result.organizationAttributes).not.toHaveProperty("id");
       expect(result.organizationAttributes).not.toHaveProperty("empty_attr");
@@ -478,7 +481,7 @@ describe("getUserInfo", () => {
       email: "alice@example.com",
       policy: ["default-policy"],
       organization: "testcorp",
-      organizationAttributes: { subscription_status: "active" },
+      organizationAttributes: { subscription_status: ["active"] },
       groups: ["lab"],
       adminScopes: ["*"],
     };
@@ -486,7 +489,7 @@ describe("getUserInfo", () => {
     test("projects the tenant-relevant subset", () => {
       expect(toIdentity(fullProfile)).toEqual({
         organization: "testcorp",
-        organizationAttributes: { subscription_status: "active" },
+        organizationAttributes: { subscription_status: ["active"] },
         groups: ["lab"],
         adminScopes: ["*"],
       });

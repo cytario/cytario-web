@@ -7,7 +7,7 @@ import { slotRegistry } from "~/components/slotRegistry";
 
 const identity: Identity = {
   organization: "testcorp",
-  organizationAttributes: { subscription_status: "active" },
+  organizationAttributes: { subscription_status: ["active"] },
   groups: ["lab/team-a"],
   adminScopes: ["*"],
 };

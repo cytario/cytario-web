@@ -46,11 +46,14 @@ export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
   /** Active Keycloak organization alias for this session. Undefined for zero-org users. */
   organization?: string;
   /**
-   * Opaque org attributes mirrored into the token. Each multivalued attr is
-   * collapsed to its first value; empty/non-string, oversized, and email-shaped
-   * values are dropped (host-side hygiene). Frozen at runtime.
+   * Opaque, multivalued org attributes mirrored into the token (Keycloak
+   * attributes are arrays). The host preserves the array shape and assigns no
+   * meaning to keys — a consumer that knows an attribute is single-valued picks
+   * `[0]` itself. Non-string, oversized, and email-shaped values are dropped
+   * (host-side hygiene); a key whose values are all dropped is omitted. Frozen
+   * at runtime.
    */
-  organizationAttributes: Readonly<Record<string, string>>;
+  organizationAttributes: Readonly<Record<string, readonly string[]>>;
   groups: string[];
   adminScopes: string[];
 }
@@ -71,29 +74,34 @@ function normalizeGroup(group: string): string {
 
 type OrganizationEntry = NonNullable<UserProfileRaw["organization"]>[string];
 
+/** Drop non-string, oversized (>256B), and email-shaped values (host hygiene). */
+function isAllowedAttrValue(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    attrEncoder.encode(value).length <= MAX_ATTR_VALUE_BYTES &&
+    !EMAIL_SHAPED.test(value)
+  );
+}
+
 /**
- * Collapses Keycloak attribute values to a single string, dropping host-owned
- * keys (`id`, `groups`). A scalar collapses to itself; an array to its first
- * element. Empty/non-string, oversized (>256B), and email-shaped values are
- * dropped. Returns a frozen map so a misbehaving gate cannot mutate the shared
+ * Normalizes a Keycloak org-attribute entry into a multivalued map, dropping
+ * host-owned keys (`id`, `groups`). A scalar is wrapped to a one-element array;
+ * an array is filtered to allowed string values. The host preserves the array
+ * shape and does not collapse — a consumer that knows an attribute is
+ * single-valued picks `[0]`. A key whose values are all dropped is omitted. The
+ * map and its arrays are frozen so a misbehaving gate cannot mutate the shared
  * attributes downstream.
  */
-function collapseOrganizationAttributes(
+function normalizeOrganizationAttributes(
   entry: OrganizationEntry,
-): Readonly<Record<string, string>> {
-  const attributes: Record<string, string> = {};
+): Readonly<Record<string, readonly string[]>> {
+  const attributes: Record<string, readonly string[]> = {};
   for (const [key, value] of Object.entries(entry)) {
     if (key === "id" || key === "groups") continue;
-    const collapsed =
-      typeof value === "string"
-        ? value
-        : Array.isArray(value) && typeof value[0] === "string"
-          ? value[0]
-          : undefined;
-    if (collapsed === undefined) continue;
-    if (attrEncoder.encode(collapsed).length > MAX_ATTR_VALUE_BYTES) continue;
-    if (EMAIL_SHAPED.test(collapsed)) continue;
-    attributes[key] = collapsed;
+    const raw = Array.isArray(value) ? value : [value];
+    const allowed = raw.filter(isAllowedAttrValue);
+    if (allowed.length === 0) continue;
+    attributes[key] = Object.freeze(allowed);
   }
   return Object.freeze(attributes);
 }
@@ -107,7 +115,7 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   const organization = orgEntry?.[0];
   const rawGroups = orgEntry ? (orgEntry[1].groups ?? []) : raw.groups;
   const organizationAttributes = orgEntry
-    ? collapseOrganizationAttributes(orgEntry[1])
+    ? normalizeOrganizationAttributes(orgEntry[1])
     : Object.freeze({});
 
   // Root `/admins` becomes the `*` admin scope. `authorization.ts` treats `*`

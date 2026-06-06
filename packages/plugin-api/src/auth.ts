@@ -11,12 +11,14 @@ export interface Identity {
   organization?: string;
   /**
    * Keycloak Organization attributes mirrored into the token, as an opaque
-   * string map. A generic Keycloak Organizations primitive — the host does not
-   * interpret keys. The consuming plugin reads its own keys out of this map and
-   * narrows them to its own types; the host assigns no meaning to them.
-   * `Readonly` at the type level; the host also freezes the map at runtime.
+   * multivalued map (Keycloak attributes are arrays). A generic Keycloak
+   * Organizations primitive — the host does not interpret keys and does not
+   * collapse values. The consuming plugin reads its own keys out of this map
+   * and narrows them to its own types; a single-valued attribute is read as
+   * `[0]`. `Readonly` at the type level; the host also freezes the map and its
+   * arrays at runtime.
    */
-  organizationAttributes: Readonly<Record<string, string>>;
+  organizationAttributes: Readonly<Record<string, readonly string[]>>;
   /** Tenant group paths the user belongs to (admin subgroups excluded). */
   groups: readonly string[];
   /** Scopes the user administers, incl. the `*` (`ORG_ROOT_SCOPE`) sentinel. */

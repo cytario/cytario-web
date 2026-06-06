@@ -15,12 +15,12 @@ describe("auth / gates / slots surface", () => {
   test("Identity carries org alias, opaque attrs, groups and admin scopes", () => {
     const identity: Identity = {
       organization: "testcorp",
-      organizationAttributes: { subscription_status: "active" },
+      organizationAttributes: { subscription_status: ["active"] },
       groups: ["lab/team-a"],
       adminScopes: ["*"],
     };
     expect(identity.organization).toBe("testcorp");
-    expect(identity.organizationAttributes["subscription_status"]).toBe("active");
+    expect(identity.organizationAttributes["subscription_status"]).toEqual(["active"]);
     expect(identity.groups).toEqual(["lab/team-a"]);
     expect(identity.adminScopes).toEqual(["*"]);
   });
