@@ -164,29 +164,33 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
       },
     });
 
-    test("injected gates reach ctx and env is server", async () => {
+    test("injects the gate registry scoped to the plugin name; env is server", async () => {
       const sink: { ctx?: PluginContext } = {};
-      const gates: GateRegistry = { register: vi.fn() };
+      const scoped: GateRegistry = { register: vi.fn() };
+      const gates = { scopedFor: vi.fn(() => scoped) };
 
       await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
         gates,
         env: "server",
       });
 
-      expect(sink.ctx?.gates).toBe(gates);
+      expect(gates.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.gates).toBe(scoped);
       expect(sink.ctx?.env).toBe("server");
     });
 
-    test("injected slots reach ctx and env is client", async () => {
+    test("injects the slot registry scoped to the plugin name; env is client", async () => {
       const sink: { ctx?: PluginContext } = {};
-      const slots: SlotRegistry = { register: vi.fn() };
+      const scoped: SlotRegistry = { register: vi.fn() };
+      const slots = { scopedFor: vi.fn(() => scoped) };
 
       await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
         slots,
         env: "client",
       });
 
-      expect(sink.ctx?.slots).toBe(slots);
+      expect(slots.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.slots).toBe(scoped);
       expect(sink.ctx?.env).toBe("client");
     });
 

@@ -22,8 +22,8 @@ describe("PluginSlots", () => {
     const Second = ({ identity: id }: SlotProps) => (
       <div data-testid="second">{id.groups.join(",")}</div>
     );
-    slotRegistry.register("app-banner", First);
-    slotRegistry.register("app-banner", Second);
+    slotRegistry.scopedFor("test-plugin").register("app-banner", First);
+    slotRegistry.scopedFor("test-plugin").register("app-banner", Second);
 
     render(<PluginSlots name="app-banner" identity={identity} />);
 
@@ -35,9 +35,9 @@ describe("PluginSlots", () => {
     const A = () => <span data-testid="a" />;
     const B = () => <span data-testid="b" />;
     const C = () => <span data-testid="c" />;
-    slotRegistry.register("app-overlay", A);
-    slotRegistry.register("app-overlay", B);
-    slotRegistry.register("app-overlay", C);
+    slotRegistry.scopedFor("test-plugin").register("app-overlay", A);
+    slotRegistry.scopedFor("test-plugin").register("app-overlay", B);
+    slotRegistry.scopedFor("test-plugin").register("app-overlay", C);
 
     render(<PluginSlots name="app-overlay" identity={identity} />);
 
@@ -46,7 +46,7 @@ describe("PluginSlots", () => {
 
   test("renders nothing on the server (SSR-safe)", () => {
     const Banner = () => <div>banner</div>;
-    slotRegistry.register("app-banner", Banner);
+    slotRegistry.scopedFor("test-plugin").register("app-banner", Banner);
 
     const html = renderToString(<PluginSlots name="app-banner" identity={identity} />);
 

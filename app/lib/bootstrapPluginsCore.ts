@@ -17,18 +17,23 @@ import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
  * `ctx.env` so a plugin can branch its register() without import-time env
  * sniffing; it defaults to `"client"` for backward compatibility.
  */
+/** A registry the bootstrap binds to a plugin name before handing it to `ctx`. */
+interface Scoped<R> {
+  scopedFor(pluginName: string): R;
+}
+
 export interface BootstrapRegistries {
-  gates?: GateRegistry;
-  slots?: SlotRegistry;
+  gates?: Scoped<GateRegistry>;
+  slots?: Scoped<SlotRegistry>;
   env?: PluginContext["env"];
 }
 
-const noopGateRegistry: GateRegistry = {
-  register: () => {},
+const noopGateRegistry: Scoped<GateRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
 };
 
-const noopSlotRegistry: SlotRegistry = {
-  register: () => {},
+const noopSlotRegistry: Scoped<SlotRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
 };
 
 /**
@@ -77,8 +82,8 @@ export async function bootstrapPluginsCore(
     const ctx: PluginContext = {
       logger,
       formats: formatRegistry.scopedFor(plugin.name),
-      gates,
-      slots,
+      gates: gates.scopedFor(plugin.name),
+      slots: slots.scopedFor(plugin.name),
       env,
     };
 
