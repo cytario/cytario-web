@@ -270,6 +270,63 @@ describe("getUserInfo", () => {
       expect(result.organizationAttributes).not.toHaveProperty("groups");
     });
 
+    test("drops email-shaped and oversized attribute values (host-side hygiene)", async () => {
+      const rawProfile = {
+        sub: "user-uuid-hygiene",
+        email: "hygiene@example.com",
+        email_verified: true,
+        name: "Hygiene",
+        preferred_username: "hygiene",
+        given_name: "Hygiene",
+        family_name: "User",
+        policy: [],
+        groups: [],
+        organization: {
+          testcorp: {
+            id: "id",
+            groups: [],
+            subscription_status: ["active"],
+            // Defence-in-depth: a future mapper change leaking PII must not
+            // reach the client bundle.
+            billing_email: ["someone@example.com"],
+            oversized: ["x".repeat(257)],
+          },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organizationAttributes).toEqual({ subscription_status: "active" });
+      expect(result.organizationAttributes).not.toHaveProperty("billing_email");
+      expect(result.organizationAttributes).not.toHaveProperty("oversized");
+    });
+
+    test("freezes the attribute map so a consumer cannot mutate it", async () => {
+      const rawProfile = {
+        sub: "user-uuid-frozen",
+        email: "frozen@example.com",
+        email_verified: true,
+        name: "Frozen",
+        preferred_username: "frozen",
+        given_name: "Frozen",
+        family_name: "User",
+        policy: [],
+        groups: [],
+        organization: { testcorp: { id: "id", groups: [], subscription_status: ["active"] } },
+      };
+
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(rawProfile) });
+
+      const result = await getUserInfo("access-token");
+
+      expect(Object.isFrozen(result.organizationAttributes)).toBe(true);
+    });
+
     test("tolerates scalar, array, and id-shape variants without throwing", async () => {
       const rawProfile = {
         sub: "user-uuid-shapes",

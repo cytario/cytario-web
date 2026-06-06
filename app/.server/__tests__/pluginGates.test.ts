@@ -117,4 +117,24 @@ describe("pluginGates", () => {
     );
     consoleSpy.mockRestore();
   });
+
+  test("a rejecting async gate is contained and treated as continue", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const after = vi.fn(() => ({ kind: "redirect", url: "/after" }) as const);
+
+    gateRegistry.register(async () => {
+      throw new Error("async boom");
+    });
+    gateRegistry.register(after);
+
+    const outcome = await runGates(request());
+
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(outcome).toEqual({ kind: "redirect", url: "/after" });
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("gate threw"),
+      expect.objectContaining({ error: expect.stringContaining("async boom") }),
+    );
+    consoleSpy.mockRestore();
+  });
 });

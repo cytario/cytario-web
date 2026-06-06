@@ -537,6 +537,18 @@ describe("authMiddleware", () => {
       expect(listConnections).not.toHaveBeenCalled();
       expect(mockNext).not.toHaveBeenCalled();
     });
+
+    test("runs gates BEFORE verifyIdToken (H-1 ordering guard)", async () => {
+      // Reordering would let a gate decide on a refreshed token instead of the
+      // current one, and could run a tenant-scoped read before the gate.
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      const gateOrder = vi.mocked(runGates).mock.invocationCallOrder[0];
+      const verifyOrder = vi.mocked(verifyIdToken).mock.invocationCallOrder[0];
+      expect(gateOrder).toBeLessThan(verifyOrder);
+    });
   });
 
   describe("Logout Flow", () => {

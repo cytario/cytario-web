@@ -36,7 +36,9 @@ class GateRegistryImpl implements GateRegistry {
    * format-plugin containment contract).
    */
   async runGates(req: GateRequest): Promise<GateOutcome> {
-    for (const gate of this.gates) {
+    // Snapshot so a gate registering re-entrantly mid-run cannot change the
+    // iterated set.
+    for (const gate of [...this.gates]) {
       let outcome: GateOutcome;
       try {
         outcome = await gate(req);

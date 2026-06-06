@@ -91,9 +91,10 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     }
 
     if (outcome.kind === "deny") {
-      console.info(`${label} Gate denied request with status ${outcome.status ?? 403}`);
+      const status = outcome.status ?? 403;
+      console.info(`${label} Gate denied request with status ${status}`);
       return new Response(JSON.stringify({ error: outcome.message ?? "Request denied" }), {
-        status: outcome.status ?? 403,
+        status,
         headers: { "Content-Type": "application/json" },
       });
     }
