@@ -4,15 +4,15 @@ import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 import type { Identity } from "@cytario/plugin-api";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
-// `id`/`groups` are host-owned; other keys are opaque org attributes. Accept any
-// value shape (`unknown`) so a Keycloak mapper quirk can't throw out of the
-// whole parse and break login; normalizeOrganizationAttributes cleans it up.
+// Only `groups` is consumed; other keys (incl. Keycloak's `id`) are opaque org
+// attributes. Accept any value shape (`unknown`) so a Keycloak mapper quirk
+// can't throw out of the whole parse and break login;
+// normalizeOrganizationAttributes drops `id`/`groups` and cleans the rest.
 const organizationClaimSchema = z
   .record(
     z.string(),
     z
       .object({
-        id: z.unknown().optional(),
         groups: z.array(z.string()).default([]),
       })
       .catchall(z.unknown()),
