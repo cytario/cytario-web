@@ -76,6 +76,6 @@ describe("generatePluginsModule", () => {
     // bind the static plugin list to that helper.
     const out = generatePluginsModule({ plugins: ["any-plugin"] });
     expect(out).toContain('import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";');
-    expect(out).toMatch(/return bootstrapPluginsCore\(plugins, logger\);/);
+    expect(out).toMatch(/return bootstrapPluginsCore\(plugins, logger, registries\);/);
   });
 });

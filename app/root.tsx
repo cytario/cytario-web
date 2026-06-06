@@ -189,7 +189,20 @@ export function ErrorBoundary() {
 
   if (isRouteErrorResponse(error)) {
     title = `${error.status} ${error.statusText}`;
-    message = error.data ?? "An error occurred while processing your request.";
+    // `error.data` may be a string or a JSON object (e.g. a gate deny's
+    // `{ error }`). Extract a string — rendering an object would throw.
+    const data: unknown = error.data;
+    if (typeof data === "string") {
+      message = data;
+    } else if (
+      data &&
+      typeof data === "object" &&
+      typeof (data as { error?: unknown }).error === "string"
+    ) {
+      message = (data as { error: string }).error;
+    } else {
+      message = "An error occurred while processing your request.";
+    }
   } else if (error instanceof Error) {
     // Log full error but show only the generic message to avoid leaking
     // session IDs, endpoints, or stack traces to the client.

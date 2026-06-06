@@ -6,18 +6,22 @@ import type { AppLoadContext, EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 
 import { buildContentSecurityPolicy } from "./.server/csp";
+import { gateRegistry } from "./.server/pluginGates";
 import { bootstrapPlugins } from "./plugins.generated";
 
 const ABORT_DELAY = 5_000;
 
 // `handleRequest` awaits this so a request cannot resolve the plugin registry
 // before async `register()` calls have completed.
-const bootstrapPromise: Promise<void> = bootstrapPlugins({
-  debug: (msg, fields) => console.debug("[plugin-bootstrap]", msg, fields ?? {}),
-  info: (msg, fields) => console.info("[plugin-bootstrap]", msg, fields ?? {}),
-  warn: (msg, fields) => console.warn("[plugin-bootstrap]", msg, fields ?? {}),
-  error: (msg, fields) => console.error("[plugin-bootstrap]", msg, fields ?? {}),
-}).catch((err: unknown) => {
+const bootstrapPromise: Promise<void> = bootstrapPlugins(
+  {
+    debug: (msg, fields) => console.debug("[plugin-bootstrap]", msg, fields ?? {}),
+    info: (msg, fields) => console.info("[plugin-bootstrap]", msg, fields ?? {}),
+    warn: (msg, fields) => console.warn("[plugin-bootstrap]", msg, fields ?? {}),
+    error: (msg, fields) => console.error("[plugin-bootstrap]", msg, fields ?? {}),
+  },
+  { gates: gateRegistry, env: "server" },
+).catch((err: unknown) => {
   console.error("[plugin-bootstrap] unexpected bootstrap failure:", err);
 });
 

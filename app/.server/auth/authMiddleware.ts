@@ -2,12 +2,14 @@ import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
+import { toIdentity } from "./getUserInfo";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import { type CytarioSession, type SessionData, sessionStorage } from "./sessionStorage";
 import { verifyIdToken } from "./verifyIdToken";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
+import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
 
 export interface AuthContextData extends SessionData {
@@ -72,10 +74,31 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     let updatedSessionData = sessionData as SessionData;
     const { authTokens, user } = updatedSessionData;
 
-    // A token without an `organization` claim means the user is not a member
-    // of any Keycloak org yet. Short-circuit before any ConnectionConfig
-    // query runs so a zero-org session cannot fall through to an unscoped
-    // tenant read.
+    // Consult plugin session gates before any ConnectionConfig query runs, so
+    // a zero-org or gated session cannot fall through to an unscoped tenant
+    // read. Gates receive only the PII-free identity projection. With no
+    // plugin loaded `runGates` returns `continue` and the built-in no-org
+    // fallback below preserves on-prem behaviour.
+    const outcome = await runGates({
+      url: request.url,
+      method: request.method,
+      identity: toIdentity(user),
+    });
+
+    if (outcome.kind === "redirect") {
+      console.info(`${label} Gate redirect to ${outcome.url}`);
+      return redirect(outcome.url);
+    }
+
+    if (outcome.kind === "deny") {
+      const status = outcome.status ?? 403;
+      console.info(`${label} Gate denied request with status ${status}`);
+      return new Response(JSON.stringify({ error: outcome.message ?? "Request denied" }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     if (!user.organization) {
       console.info(`${label} No active organization on session, redirecting to onboarding`);
       return redirect("/onboarding");

@@ -44,6 +44,7 @@ export function generatePluginsModule(input: CodegenInput): string {
 // See README.md "Plugin model" for the contract.
 
 import type { CytarioPlugin, Logger } from "@cytario/plugin-api";
+import type { BootstrapRegistries } from "~/lib/bootstrapPluginsCore";
 import { bootstrapPluginsCore } from "~/lib/bootstrapPluginsCore";
 ${imports ? "\n" + imports : ""}
 
@@ -54,8 +55,11 @@ ${list}
 
 // Built-in formats register inside ViewerStoreContext (client-only).
 // Not imported here — viv/geotiff would break the SSR bundle.
-export function bootstrapPlugins(logger: Logger): Promise<void> {
-  return bootstrapPluginsCore(plugins, logger);
+export function bootstrapPlugins(
+  logger: Logger,
+  registries?: BootstrapRegistries,
+): Promise<void> {
+  return bootstrapPluginsCore(plugins, logger, registries);
 }
 `;
 }

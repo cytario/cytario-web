@@ -5,6 +5,18 @@ describe("assertApiCompatible", () => {
     expect(() => assertApiCompatible({ name: "ok", apiVersion: "^1.0.0" }, "1.0.0")).not.toThrow();
   });
 
+  test("accepts a plugin targeting the 2.2 gate/slot surface on a 2.2 host", () => {
+    expect(() =>
+      assertApiCompatible({ name: "saas-plugin", apiVersion: "^2.2.0" }, "2.2.0"),
+    ).not.toThrow();
+  });
+
+  test("rejects a 2.2-targeting plugin on a 2.1 host (floor not yet met)", () => {
+    expect(() =>
+      assertApiCompatible({ name: "saas-plugin", apiVersion: "^2.2.0" }, "2.1.0"),
+    ).toThrow(IncompatiblePluginError);
+  });
+
   test("throws IncompatiblePluginError for major mismatch", () => {
     expect(() => assertApiCompatible({ name: "old", apiVersion: "^2.0.0" }, "1.0.0")).toThrow(
       IncompatiblePluginError,
