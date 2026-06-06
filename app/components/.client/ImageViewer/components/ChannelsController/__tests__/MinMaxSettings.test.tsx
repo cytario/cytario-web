@@ -19,9 +19,8 @@ describe("MinMaxSettings", () => {
     domain: [0, 255] as [number, number],
   };
 
-  // 16-bit loader → full value range is 0..65535, independent of the
-  // auto-fitted [0, 255] data domain.
-  const mockLoader = [{ dtype: "Uint16" }];
+  // 16-bit value range is 0..65535, independent of the auto-fitted data domain.
+  const mockValueRange = [0, 65535] as [number, number];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,8 +29,8 @@ describe("MinMaxSettings", () => {
       if (selector === select.selectedChannel) {
         return mockSelectedChannel;
       }
-      if (selector === select.loader) {
-        return mockLoader;
+      if (selector === select.valueRange) {
+        return mockValueRange;
       }
       if (selector === select.setContrastLimits) {
         return mockSetContrastLimits;

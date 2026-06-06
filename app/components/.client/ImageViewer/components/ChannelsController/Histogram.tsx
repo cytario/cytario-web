@@ -1,5 +1,4 @@
 import { ToggleButton } from "@cytario/design";
-import type { SupportedDtype } from "@vivjs/types";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ratioToIntensity } from "./axisScale";
@@ -9,7 +8,6 @@ import { HistogramChannel } from "./HistogramChannel";
 import { MinMaxSettings } from "./MinMaxSettings";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { getDtypeMax } from "../../utils/getDtypeMax";
 
 export function Histogram() {
   const ref = useRef<HTMLDivElement>(null);
@@ -21,7 +19,6 @@ export function Histogram() {
 
   const channelsState = useViewerStore(select.channelsState);
   const selectedChannel = useViewerStore(select.selectedChannel);
-  const loader = useViewerStore(select.loader);
 
   const channelConfigs = useMemo(() => {
     const configs = Object.values(channelsState ?? []);
@@ -34,22 +31,7 @@ export function Histogram() {
   const allValues = channelConfigs.map((c) => c.histogram).flat();
 
   const maxValue = Math.max(...allValues);
-
-  // Default to the auto-fitted data domain so a low-signal histogram stays
-  // readable, but expand the range to include any visible channel's committed
-  // contrast max (the Max input clamps to the dtype ceiling, not the domain —
-  // see MinMaxSettings / C-232), capped at the dtype value range so the slider
-  // handle and axis ticks stay aligned with the input.
-  const autoFitMaxDomain = Math.max(...channelConfigs.map(({ domain }) => domain[1]));
-  const maxContrastLimit = Math.max(
-    ...channelConfigs
-      .filter(({ isVisible }) => isVisible)
-      .map(({ contrastLimits }) => contrastLimits[1]),
-    autoFitMaxDomain,
-  );
-  const dtypeMax = loader ? getDtypeMax(loader[0].dtype as SupportedDtype) : maxContrastLimit;
-  const maxDomain = Math.min(dtypeMax, maxContrastLimit);
-
+  const maxDomain = Math.max(...channelConfigs.map(({ domain }) => domain[1]));
   const xTicks = [0, 0.5, 1].map((r) => Math.round(ratioToIntensity(r, maxDomain, logScaleX)));
 
   // Handle FeatureBar Resize

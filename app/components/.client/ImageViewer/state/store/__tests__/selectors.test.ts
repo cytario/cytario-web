@@ -7,6 +7,7 @@ describe("selectors", () => {
     error: null,
     selectedChannelId: null,
     loader: [],
+    valueRange: [0, 0],
     isViewerLoading: false,
     metadata: null,
     viewStatePreview: null,
