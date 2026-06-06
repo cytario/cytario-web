@@ -1,5 +1,11 @@
 import { bootstrapPluginsCore } from "../bootstrapPluginsCore";
-import type { CytarioPlugin, Logger, PluginContext } from "@cytario/plugin-api";
+import type {
+  CytarioPlugin,
+  GateRegistry,
+  Logger,
+  PluginContext,
+  SlotRegistry,
+} from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 const noopLogger = (): Logger => ({
@@ -147,5 +153,53 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
         error: expect.stringContaining("collides"),
       }),
     );
+  });
+
+  describe("registry injection", () => {
+    const captureContext = (sink: { ctx?: PluginContext }): CytarioPlugin => ({
+      name: "capture-plugin",
+      apiVersion: "^2.0.0",
+      register(ctx) {
+        sink.ctx = ctx;
+      },
+    });
+
+    test("injected gates reach ctx and env is server", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const gates: GateRegistry = { register: vi.fn() };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        gates,
+        env: "server",
+      });
+
+      expect(sink.ctx?.gates).toBe(gates);
+      expect(sink.ctx?.env).toBe("server");
+    });
+
+    test("injected slots reach ctx and env is client", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const slots: SlotRegistry = { register: vi.fn() };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        slots,
+        env: "client",
+      });
+
+      expect(sink.ctx?.slots).toBe(slots);
+      expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("no-op sinks are supplied when registries are not injected", async () => {
+      const sink: { ctx?: PluginContext } = {};
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger());
+
+      // No-op sinks: registering against them is inert and does not throw.
+      expect(() => sink.ctx?.gates.register(() => ({ kind: "continue" }))).not.toThrow();
+      expect(() => sink.ctx?.slots.register("app-overlay", () => null)).not.toThrow();
+      // env defaults to client for backward compatibility.
+      expect(sink.ctx?.env).toBe("client");
+    });
   });
 });

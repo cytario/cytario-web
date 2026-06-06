@@ -15,6 +15,9 @@ describe("noop-plugin integration", () => {
     assertApiCompatible(noopPlugin, hostApiVersion);
     const ctx = {
       formats: formatRegistry.scopedFor(noopPlugin.name),
+      gates: { register: () => {} },
+      slots: { register: () => {} },
+      env: "server" as const,
       logger: {
         debug: () => {},
         info: () => {},
@@ -39,6 +42,9 @@ describe("noop-plugin integration", () => {
     assertApiCompatible(noopPlugin, hostApiVersion);
     await noopPlugin.register({
       formats: formatRegistry.scopedFor(noopPlugin.name),
+      gates: { register: () => {} },
+      slots: { register: () => {} },
+      env: "server",
       logger: {
         debug: () => {},
         info: () => {},
