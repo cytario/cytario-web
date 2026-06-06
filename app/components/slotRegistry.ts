@@ -1,11 +1,8 @@
 import type { SlotName, SlotRegistry } from "@cytario/plugin-api";
 
 /**
- * Client slot registry. Shares the module-singleton + `__reset` shape of
- * `formatRegistry` / `gateRegistry`, but is multi-owner: `register` appends
- * rather than replacing (no scoping, no collision detection), so multiple
- * plugins may mount into the same slot; `get` returns the components in
- * registration order.
+ * Client slot registry: multi-owner module singleton. `register` appends (no
+ * collision detection); `get` returns components in registration order.
  */
 class SlotRegistryImpl implements SlotRegistry {
   private readonly slots: Record<SlotName, unknown[]> = {
@@ -14,8 +11,7 @@ class SlotRegistryImpl implements SlotRegistry {
   };
 
   register(slot: SlotName, component: unknown): void {
-    // Fail at registration, not at render: a non-callable component would
-    // otherwise throw deep inside React when the slot mounts.
+    // Fail here, not at render — a non-callable would throw deep inside React.
     if (typeof component !== "function") {
       throw new TypeError(
         `Slot "${slot}" expects a component function, received ${typeof component}`,

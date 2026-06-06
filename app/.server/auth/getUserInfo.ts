@@ -4,17 +4,9 @@ import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 import type { Identity } from "@cytario/plugin-api";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
-// Keycloak nests everything under the org alias key. `id` and `groups` are the
-// host-owned fields; every other key is an opaque, multivalued attribute the
-// host does not interpret (the SaaS plugin narrows them to its own billing
-// types). Pass the attribute bag through unmodelled — bake no billing key
-// names into the schema.
-// Attribute values arrive multivalued (string arrays), but a mapper config can
-// also emit a single-valued attr as a bare scalar, and `id` can surface either
-// shape. Accept any value shape for `id` and the attr bag so a quirk never
-// throws out of the whole parse and breaks login (a logout loop) —
-// `collapseOrganizationAttributes` normalizes and drops non-string values
-// downstream.
+// `id`/`groups` are host-owned; other keys are opaque org attributes. Accept any
+// value shape (`unknown`) so a Keycloak mapper quirk can't throw out of the
+// whole parse and break login; normalizeOrganizationAttributes cleans it up.
 const organizationClaimSchema = z
   .record(
     z.string(),
@@ -45,24 +37,14 @@ type UserProfileRaw = z.infer<typeof userProfileSchema>;
 export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
   /** Active Keycloak organization alias for this session. Undefined for zero-org users. */
   organization?: string;
-  /**
-   * Opaque, multivalued org attributes mirrored into the token (Keycloak
-   * attributes are arrays). The host preserves the array shape and assigns no
-   * meaning to keys — a consumer that knows an attribute is single-valued picks
-   * `[0]` itself. Non-string, oversized, and email-shaped values are dropped
-   * (host-side hygiene); a key whose values are all dropped is omitted. Frozen
-   * at runtime.
-   */
+  /** Opaque, multivalued org attributes; frozen. Host assigns no meaning to keys. */
   organizationAttributes: Readonly<Record<string, readonly string[]>>;
   groups: string[];
   adminScopes: string[];
 }
 
-// Defence-in-depth on the opaque attribute mirror: the host stays
-// billing-agnostic, but a future Keycloak mapper change must not silently ship
-// PII or payment identifiers to the browser. Drop email-shaped and oversized
-// values. Vocabulary-free — no attribute key is interpreted. The primary
-// control lives portal-side (which attrs are mirrored at all).
+// Hygiene so a mapper change can't leak PII to the client: drop email-shaped and
+// oversized values. Attributes reach the browser via the Identity projection.
 const EMAIL_SHAPED = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ATTR_VALUE_BYTES = 256;
 const attrEncoder = new TextEncoder();
@@ -84,13 +66,9 @@ function isAllowedAttrValue(value: unknown): value is string {
 }
 
 /**
- * Normalizes a Keycloak org-attribute entry into a multivalued map, dropping
- * host-owned keys (`id`, `groups`). A scalar is wrapped to a one-element array;
- * an array is filtered to allowed string values. The host preserves the array
- * shape and does not collapse — a consumer that knows an attribute is
- * single-valued picks `[0]`. A key whose values are all dropped is omitted. The
- * map and its arrays are frozen so a misbehaving gate cannot mutate the shared
- * attributes downstream.
+ * Build the opaque attribute map: drop host-owned `id`/`groups`, wrap scalars to
+ * arrays, keep allowed string values, omit now-empty keys. Frozen so a gate
+ * can't mutate the shared attributes.
  */
 function normalizeOrganizationAttributes(
   entry: OrganizationEntry,
@@ -143,13 +121,9 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   };
 }
 
-/**
- * Projects a `UserProfile` to the contract's `Identity`, dropping PII (`name`,
- * `email`, `preferred_username`, `policy`). Gates and slots receive this
- * projection only, so PII never crosses to the client loader payload.
- */
+/** Projects `UserProfile` to the contract's `Identity`, dropping PII so it never reaches the client. */
 export function toIdentity(user: UserProfile): Identity {
-  // Frozen so a gate cannot mutate the projection shared across the gate chain.
+  // Frozen — gates share this object; none may mutate it.
   return Object.freeze({
     organization: user.organization,
     organizationAttributes: user.organizationAttributes,

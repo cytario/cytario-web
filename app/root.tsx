@@ -189,9 +189,8 @@ export function ErrorBoundary() {
 
   if (isRouteErrorResponse(error)) {
     title = `${error.status} ${error.statusText}`;
-    // `error.data` is the parsed response body: a string for a thrown
-    // text/redirect, or an object for a JSON deny (`{ error }`). Render the
-    // string message in both cases — never an object (React would throw).
+    // `error.data` may be a string or a JSON object (e.g. a gate deny's
+    // `{ error }`). Extract a string — rendering an object would throw.
     const data: unknown = error.data;
     if (typeof data === "string") {
       message = data;
