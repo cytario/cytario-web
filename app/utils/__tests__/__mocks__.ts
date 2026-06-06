@@ -58,6 +58,7 @@ const mock = {
     email: "string",
     policy: ["default-policy"],
     organization: "org1",
+    organizationAttributes: {},
     groups: ["org1/lab"],
     adminScopes: ["org1/lab"],
     ...overrides,
