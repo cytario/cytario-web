@@ -8,6 +8,7 @@ import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
+  const valueRange = useViewerStore(select.valueRange);
   const setContrastLimits = useViewerStore(select.setContrastLimits);
   const resetContrastLimits = useViewerStore((state) => state.resetContrastLimits);
 
@@ -31,8 +32,11 @@ export function MinMaxSettings() {
     const numValue = parseInt(value, 10);
     if (isNaN(numValue)) return;
 
-    const [domainMin, domainMax] = selectedChannel.domain;
-    const clampedValue = Math.max(domainMin, Math.min(domainMax, numValue));
+    // Clamp to the full dtype value range (e.g. 0..65535 for 16-bit), not the
+    // auto-fitted data domain — otherwise large entered maxima snap back. Fall
+    // back to the data domain until the loader has populated the value range.
+    const [floor, ceiling] = valueRange[1] > 0 ? valueRange : selectedChannel.domain;
+    const clampedValue = Math.max(floor, Math.min(ceiling, numValue));
 
     const currentLimits = selectedChannel.contrastLimits;
     let newLimits: ByteDomain;

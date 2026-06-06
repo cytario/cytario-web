@@ -54,6 +54,7 @@ describe("createViewerStore", () => {
       error: null,
       selectedChannelId: null,
       loader: [],
+      valueRange: [0, 0],
       isViewerLoading: true,
       metadata: null,
       viewStatePreview: null,
@@ -203,14 +204,17 @@ describe("createViewerStore", () => {
   test("setLoader()", () => {
     const store = createViewerStore("test-viewer-8");
     const mockLoader = [
-      { type: "zarr", url: "http://example.com/data.zarr" },
+      { type: "zarr", url: "http://example.com/data.zarr", dtype: "Uint16" },
       { type: "tiff", url: "http://example.com/data.tiff" },
     ] as unknown as Loader;
 
     expect(store.getState().loader).toEqual([]);
+    expect(store.getState().valueRange).toEqual([0, 0]);
 
     store.getState().setLoader(mockLoader);
     expect(store.getState().loader).toEqual(mockLoader);
+    // valueRange derived from the loader's pixel dtype (16-bit → 65535)
+    expect(store.getState().valueRange).toEqual([0, 65535]);
 
     const newLoader = [{ type: "czi", url: "http://example.com/data.czi" }] as unknown as Loader;
 

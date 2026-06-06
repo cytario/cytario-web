@@ -1,3 +1,4 @@
+import type { SupportedDtype } from "@vivjs/types";
 import { castDraft } from "immer";
 import { createStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -17,6 +18,7 @@ import {
   ViewState,
   RGB,
 } from "./types";
+import { getDtypeMax } from "../../utils/getDtypeMax";
 import { getSelectionStats } from "../../utils/getSelectionStats";
 import { createMigrate } from "~/utils/persistMigration";
 
@@ -64,6 +66,7 @@ export const createViewerStore = (id: string) =>
             selectedChannelId: null,
 
             loader: [],
+            valueRange: [0, 0],
 
             isViewerLoading: true,
 
@@ -158,6 +161,11 @@ export const createViewerStore = (id: string) =>
               set(
                 (state) => {
                   state.loader = loader;
+                  // dtype is structurally `string` in @cytario/plugin-api; one of
+                  // the canonical PixelType values is guaranteed at runtime.
+                  if (loader?.[0]) {
+                    state.valueRange = [0, getDtypeMax(loader[0].dtype as SupportedDtype)];
+                  }
                 },
                 false,
                 "setLoader",

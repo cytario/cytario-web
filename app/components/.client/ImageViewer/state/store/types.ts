@@ -84,6 +84,9 @@ export interface ViewerStoreState {
 
   metadata: Image | null;
   loader: Loader | null;
+  // Full value range of the loader's pixel dtype (e.g. [0, 65535] for 16-bit).
+  // Derived from the loader, not persisted — the clamp ceiling for contrast input.
+  valueRange: ByteDomain;
   error: Error | null;
 
   viewStatePreview: ViewState | null;

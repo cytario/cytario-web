@@ -29,6 +29,7 @@ export const select = {
   /* Loader */
   loader: (state: ViewerStore) => state.loader,
   setLoader: (state: ViewerStore) => state.setLoader,
+  valueRange: (state: ViewerStore) => state.valueRange,
 
   /* Metadata */
   metadata: (state: ViewerStore) => state.metadata,
