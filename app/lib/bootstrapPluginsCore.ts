@@ -55,6 +55,8 @@ export async function bootstrapPluginsCore(
 ): Promise<void> {
   const gates = registries?.gates ?? noopGateRegistry;
   const slots = registries?.slots ?? noopSlotRegistry;
+  // Both entries set `env` explicitly; the default only covers tests that call
+  // this helper without registries.
   const env: PluginContext["env"] = registries?.env ?? "client";
   for (const plugin of plugins) {
     try {
