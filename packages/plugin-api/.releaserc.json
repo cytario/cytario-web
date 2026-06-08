@@ -2,8 +2,7 @@
   "branches": ["main"],
   "tagFormat": "plugin-api-v${version}",
   "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
+    "./scripts/scoped-commits.mjs",
     [
       "@semantic-release/npm",
       {
