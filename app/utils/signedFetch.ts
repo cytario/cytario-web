@@ -53,6 +53,11 @@ function isLikelyCorsFailure(error: unknown): boolean {
   );
 }
 
+function isRetriableGet(init: RequestInit): boolean {
+  const method = (init.method ?? "GET").toUpperCase();
+  return (method === "GET" || method === "HEAD") && init.cache !== "no-store";
+}
+
 async function fetchWithCorsDetection(
   url: string,
   init: RequestInit,
@@ -62,6 +67,23 @@ async function fetchWithCorsDetection(
   try {
     return await fetch(url, init);
   } catch (error) {
+    // A fetch TypeError is ambiguous: a genuine CORS/network failure and
+    // Chrome's ERR_CACHE_OPERATION_NOT_SUPPORTED (it cannot store the 206
+    // range responses our tile reads produce) both surface as "Failed to
+    // fetch". Retry the idempotent GET once bypassing the browser disk
+    // cache — the `response-cache-control` param stays on the URL, so
+    // CDN/SW caching is untouched. A cache-op failure now succeeds; a real
+    // CORS failure throws again and is reported as such.
+    if (isLikelyCorsFailure(error) && isRetriableGet(init)) {
+      try {
+        return await fetch(url, { ...init, cache: "no-store" });
+      } catch (retryError) {
+        if (isLikelyCorsFailure(retryError)) {
+          throw new CorsLikelyError(host, origin, retryError);
+        }
+        throw retryError;
+      }
+    }
     if (isLikelyCorsFailure(error)) {
       throw new CorsLikelyError(host, origin, error);
     }
