@@ -276,7 +276,8 @@ describe("createSignedFetch", () => {
   });
 
   test("throws CorsLikelyError on Chrome-style 'Failed to fetch' TypeError", async () => {
-    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    // Genuine CORS failures reject the retry too — both attempts fail.
+    mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
       CorsLikelyError,
@@ -284,7 +285,7 @@ describe("createSignedFetch", () => {
   });
 
   test("throws CorsLikelyError on WebKit-style 'Load failed' TypeError", async () => {
-    mockFetch.mockRejectedValueOnce(new TypeError("Load failed"));
+    mockFetch.mockRejectedValue(new TypeError("Load failed"));
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
       CorsLikelyError,
@@ -292,24 +293,67 @@ describe("createSignedFetch", () => {
   });
 
   test("throws CorsLikelyError on Firefox-style NetworkError TypeError", async () => {
-    mockFetch.mockRejectedValueOnce(
-      new TypeError("NetworkError when attempting to fetch resource."),
-    );
+    mockFetch.mockRejectedValue(new TypeError("NetworkError when attempting to fetch resource."));
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
       CorsLikelyError,
     );
   });
 
-  test("passes through non-CORS errors unchanged", async () => {
+  test("passes through non-CORS errors unchanged without retrying", async () => {
     const original = new Error("some other failure");
     mockFetch.mockRejectedValueOnce(original);
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBe(original);
+    // A non-TypeError is not a cache-op candidate — no retry.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("recovers from ERR_CACHE_OPERATION_NOT_SUPPORTED by retrying with cache: no-store", async () => {
+    // Chrome surfaces the cache-op failure as a generic "Failed to fetch"
+    // TypeError — indistinguishable from CORS until the retry succeeds.
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    mockFetch.mockResolvedValueOnce(new Response("tile-bytes"));
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+
+    const res = await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.ome.tif", {
+      headers: { Range: "bytes=0-1024" },
+    });
+    expect(await res.text()).toBe("tile-bytes");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    // Retry bypasses the browser disk cache but keeps the signed URL
+    // (response-cache-control intact for CDN/SW).
+    const [retryUrl, retryInit] = mockFetch.mock.calls[1];
+    expect(retryInit.cache).toBe("no-store");
+    expect(retryUrl).toContain("response-cache-control=private%2C%20max-age%3D604800");
+    expect(retryInit.headers).toHaveProperty("Range", "bytes=0-1024");
+
+    // First attempt used the normal (cacheable) fetch.
+    const [, firstInit] = mockFetch.mock.calls[0];
+    expect(firstInit.cache).toBeUndefined();
+  });
+
+  test("retries the cache-bypass GET at most once", async () => {
+    mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await expect(sf("https://bucket.s3.eu-central-1.amazonaws.com/key")).rejects.toBeInstanceOf(
+      CorsLikelyError,
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("does not cache-retry non-idempotent methods", async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await expect(
+      sf("https://bucket.s3.eu-central-1.amazonaws.com/key", { method: "POST" }),
+    ).rejects.toBeInstanceOf(CorsLikelyError);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   test("CorsLikelyError carries the bucket host", async () => {
-    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     const err = await sf("https://bucket.s3.eu-central-1.amazonaws.com/key").catch((e) => e);
     expect(err).toBeInstanceOf(CorsLikelyError);
