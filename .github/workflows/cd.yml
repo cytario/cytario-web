@@ -26,6 +26,9 @@ jobs:
     if: ${{ needs.release.outputs.version != '' }}
     with:
       version: ${{ needs.release.outputs.version }}
+    secrets:
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+      HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
 
   dispatch-ee:
     name: Dispatch cytario-ee rebuild
