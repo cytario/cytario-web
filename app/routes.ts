@@ -40,11 +40,11 @@ const appRoutes = [
   },
   {
     path: "/connections",
-    file: "routes/connections/connections.route.tsx",
-  },
-  {
-    path: "/connections/:name/*",
-    file: "routes/objects/objects.route.tsx",
+    file: "routes/connections/connections.layout.tsx",
+    children: [
+      { index: true, file: "routes/connections/connections.route.tsx" },
+      { path: ":name/*", file: "routes/objects/objects.route.tsx" },
+    ],
   },
 ];
 

@@ -4,7 +4,6 @@ import { useRouteLoaderData } from "react-router";
 import { type UserProfile } from "~/.server/auth/getUserInfo";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
-import { GlobalSearch } from "~/components/GlobalSearch";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { PanelToggle } from "~/components/Sidebar/PanelToggle";
 import { UserMenu } from "~/components/UserMenu";
@@ -53,7 +52,6 @@ export function AppHeader() {
       </div>
 
       <div className="h-full flex-none flex gap-2 p-2 items-center">
-        <GlobalSearch />
         {data?.accountSettingsUrl && data.user && (
           <UserMenu user={data.user} accountSettingsUrl={data.accountSettingsUrl} />
         )}

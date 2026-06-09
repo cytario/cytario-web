@@ -50,10 +50,6 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
-export const handle = {
-  breadcrumb: () => ({ label: "Connections", to: "/connections" }),
-};
-
 export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
   const { nodes } = useLoaderData<LoaderData>();
