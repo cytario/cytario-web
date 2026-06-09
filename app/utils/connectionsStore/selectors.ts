@@ -24,6 +24,11 @@ export const select = {
     state.connections[connectionName]?.connectionConfig,
   credentials: (connectionName: string) => (state: ConnectionsStore) =>
     state.connections[connectionName]?.credentials,
+  /** Live status; defaults to `"loading"` for a not-yet-hydrated connection. */
+  connectionStatus: (connectionName: string) => (state: ConnectionsStore) =>
+    state.connections[connectionName]?.status ?? "loading",
+  connectionStatusMessage: (connectionName: string) => (state: ConnectionsStore) =>
+    state.connections[connectionName]?.statusMessage,
   setConnections: (state: ConnectionsStore) => state.setConnections,
 };
 
@@ -82,6 +87,8 @@ function resolveResource(resourceId: string, state: ConnectionsStore): ResolvedR
   if (!connection) return null;
 
   const { connectionConfig, credentials } = connection;
+  // A broken connection (no minted STS credentials) cannot be fetched.
+  if (!credentials) return null;
   const bucketPrefix = connectionConfig.prefix?.replace(/\/$/, "");
   const bucketPathName = bucketPrefix
     ? `${bucketPrefix}/${connectionPathName}`

@@ -34,13 +34,13 @@ describe("useInitConnections", () => {
     renderHook(() => useInitConnections(configs, credentials));
 
     expect(mockSetConnections).toHaveBeenCalledTimes(1);
-    expect(mockSetConnections).toHaveBeenCalledWith(configs, credentials);
+    expect(mockSetConnections).toHaveBeenCalledWith(configs, credentials, {});
   });
 
   test("calls setConnections with empty inputs", () => {
     renderHook(() => useInitConnections([], {}));
 
     expect(mockSetConnections).toHaveBeenCalledTimes(1);
-    expect(mockSetConnections).toHaveBeenCalledWith([], {});
+    expect(mockSetConnections).toHaveBeenCalledWith([], {}, {});
   });
 });

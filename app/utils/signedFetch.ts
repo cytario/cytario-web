@@ -126,7 +126,7 @@ function isImageDataPath(pathname: string): boolean {
  * the browser HTTP cache can serve repeat reads without a network round-trip.
  */
 export function createSignedFetch(
-  getCredentials: () => Credentials,
+  getCredentials: () => Credentials | null,
   connectionConfig: Pick<ConnectionConfig, "region">,
   connectionName?: string,
 ): SignedFetch {
@@ -137,7 +137,7 @@ export function createSignedFetch(
   const buildSignedRequest = async (url: string, init?: RequestInit) => {
     const credentials = getCredentials();
 
-    if (!credentials.AccessKeyId || !credentials.SecretAccessKey) {
+    if (!credentials?.AccessKeyId || !credentials.SecretAccessKey) {
       throw new Error("Invalid credentials: AccessKeyId and SecretAccessKey are required");
     }
 

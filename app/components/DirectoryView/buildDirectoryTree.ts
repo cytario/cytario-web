@@ -24,9 +24,6 @@ export interface TreeNode {
   isLeaf?: boolean;
   /** `"idle"` marks a lazy stub awaiting fetch via `DirectoryViewTree`'s `onExpand`. */
   loadState?: "idle";
-
-  connectionStatus?: "connected" | "error";
-  connectionErrorMessage?: string;
 }
 
 function buildDirectoryTreeRecursive(

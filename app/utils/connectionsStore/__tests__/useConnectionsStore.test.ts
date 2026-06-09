@@ -32,8 +32,8 @@ describe("useConnectionsStore", () => {
       useConnectionsStore.getState().setConnections(configs, credsByName);
 
       const { connections } = useConnectionsStore.getState();
-      expect(connections["conn-a"]?.credentials.AccessKeyId).toBe("key-a");
-      expect(connections["conn-b"]?.credentials.AccessKeyId).toBe("key-b");
+      expect(connections["conn-a"]?.credentials?.AccessKeyId).toBe("key-a");
+      expect(connections["conn-b"]?.credentials?.AccessKeyId).toBe("key-b");
     });
 
     test("prunes connections that are no longer in the input", () => {
@@ -42,7 +42,7 @@ describe("useConnectionsStore", () => {
       expect(useConnectionsStore.getState().connections).toEqual({});
     });
 
-    test("skips configs without matching credentials", () => {
+    test("keeps configs without matching credentials, flagged as errored", () => {
       const configs = [
         mock.connectionConfig({ name: "conn-a" }),
         mock.connectionConfig({ name: "conn-b" }),
@@ -52,11 +52,17 @@ describe("useConnectionsStore", () => {
         // conn-b has no credentials
       };
 
-      useConnectionsStore.getState().setConnections(configs, partial);
+      useConnectionsStore.getState().setConnections(configs, partial, {
+        "conn-b": "STS assume role failed",
+      });
 
       const { connections } = useConnectionsStore.getState();
-      expect(connections["conn-a"]).toBeDefined();
-      expect(connections["conn-b"]).toBeUndefined();
+      // Credentialed connection is usable immediately — no stuck "loading".
+      expect(connections["conn-a"]?.status).toBe("connected");
+      // Broken connection stays visible/manageable rather than vanishing.
+      expect(connections["conn-b"]?.credentials).toBeNull();
+      expect(connections["conn-b"]?.status).toBe("error");
+      expect(connections["conn-b"]?.statusMessage).toBe("STS assume role failed");
     });
 
     test("sibling connections sharing a bucket each get their own entry", () => {

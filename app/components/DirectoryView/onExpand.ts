@@ -14,7 +14,8 @@ export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
   if (parent.isLeaf || parent.type === "file") return [];
 
   const conn = select.connection(parent.connectionName)(useConnectionsStore.getState());
-  if (!conn) return [];
+  // No entry, or a broken connection with no usable credentials — nothing to fetch.
+  if (!conn?.credentials) return [];
 
   const { nodes, isCapped } = await loadConnectionLevel({
     connectionConfig: conn.connectionConfig,
