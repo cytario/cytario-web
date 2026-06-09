@@ -1,10 +1,6 @@
 import { Button, EmptyState } from "@cytario/design";
 import { FileSearch, Plug } from "lucide-react";
-import {
-  type MetaFunction,
-  type ShouldRevalidateFunction,
-  useLoaderData,
-} from "react-router";
+import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
 import type { LoaderData } from "./connections.loader";
 import { Section } from "~/components/Container";

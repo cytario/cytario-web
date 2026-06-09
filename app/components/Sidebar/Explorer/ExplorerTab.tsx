@@ -17,8 +17,7 @@ export function ExplorerTab() {
   const [override, setOverride] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const selectedConnection =
-    override ??
-    (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
+    override ?? (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
 
   return (
     <div className="flex flex-col gap-2 overflow-y-auto py-2 h-full">
