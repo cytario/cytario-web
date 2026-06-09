@@ -6,6 +6,7 @@ import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { GlobalSearch } from "~/components/GlobalSearch";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
+import { PanelToggle } from "~/components/Sidebar/PanelToggle";
 import { UserMenu } from "~/components/UserMenu";
 
 /**
@@ -42,7 +43,8 @@ export function AppHeader() {
       className="z-20 flex justify-between items-center h-12 bg-slate-900 top-0 left-0 right-0"
       style={darkSurfaceTokens}
     >
-      <div className="h-full shrink min-w-0">
+      <div className="h-full flex items-center gap-1 shrink min-w-0 pl-2">
+        <PanelToggle />
         <Breadcrumbs />
       </div>
 
