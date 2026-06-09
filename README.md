@@ -306,7 +306,7 @@ npm run build    # Outputs build/server and build/client
 npm start        # Production server
 ```
 
-For containerized deployments, see the `Dockerfile`. Database migrations run automatically on startup via `docker-entrypoint.sh`.
+For containerized deployments, see the `Dockerfile`. The image is built on distroless (`gcr.io/distroless/nodejs24-debian12`); database migrations run automatically on startup via `docker-entrypoint.mjs`.
 
 ## Acknowledgements
 
