@@ -42,7 +42,7 @@ export default function ProtectedLayout() {
   return (
     <div className="flex h-full flex-col">
       <PluginSlots name="app-banner" identity={identity} />
-      <div className="relative flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0">
         <Sidebar />
         <div className="flex-1 overflow-x-hidden overflow-y-auto">
           <Outlet />

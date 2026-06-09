@@ -1,11 +1,11 @@
 import { IconButton } from "@cytario/design";
 import { PanelLeft } from "lucide-react";
 
-import { useSidebarStore } from "./useSidebarStore";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 
 export function PanelToggle() {
-  const isOpen = useSidebarStore((s) => s.isOpen);
-  const toggleOpen = useSidebarStore((s) => s.toggleOpen);
+  const isOpen = useLayoutStore((s) => s.sidebarOpen);
+  const toggle = useLayoutStore((s) => s.toggleSidebar);
 
   return (
     <IconButton
@@ -14,7 +14,7 @@ export function PanelToggle() {
       aria-expanded={isOpen}
       aria-controls="sidebar-panel"
       variant={isOpen ? "primary" : "ghost"}
-      onPress={toggleOpen}
+      onPress={toggle}
     />
   );
 }

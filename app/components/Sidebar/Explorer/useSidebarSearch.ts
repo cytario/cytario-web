@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { useSidebarStore } from "../useSidebarStore";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { searchConnection } from "~/utils/searchConnection";
 
@@ -16,7 +16,7 @@ interface SidebarSearch {
 // keyed by the query they belong to, so isSearching/nodes derive cleanly
 // without resetting state in the effect.
 export function useSidebarSearch(connectionName: string): SidebarSearch {
-  const query = useSidebarStore((s) => s.searchQuery).trim();
+  const query = useLayoutStore((s) => s.sidebarSearchQuery).trim();
   const [result, setResult] = useState<{ query: string; nodes: TreeNode[] }>({
     query: "",
     nodes: [],

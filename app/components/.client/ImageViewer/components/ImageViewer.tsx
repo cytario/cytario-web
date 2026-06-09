@@ -1,7 +1,7 @@
-import { FeatureBar } from "./FeatureBar/FeatureBar";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { ViewerHeader } from "./ViewerHeader";
+import { ViewerTabPortal } from "./ViewerTabPortal";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import type { SignedFetch } from "~/utils/signedFetch";
 
@@ -27,7 +27,7 @@ export const Viewer = ({ url, signedFetch }: ViewerProps) => {
         data-theme="dark"
         className="relative flex grow h-full bg-neutral-950 text-(--color-text-primary) overflow-hidden"
       >
-        <FeatureBar />
+        <ViewerTabPortal />
         <ImagePanels />
       </div>
     </ViewerStoreProvider>

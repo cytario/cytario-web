@@ -2,7 +2,7 @@ import { IconButton, Input } from "@cytario/design";
 import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { useSidebarStore } from "../useSidebarStore";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 
 const DEBOUNCE_MS = 300;
 
@@ -10,8 +10,8 @@ const DEBOUNCE_MS = 300;
 export const SIDEBAR_SEARCH_INPUT_ID = "sidebar-search-input";
 
 export function SidebarSearchInput() {
-  const setSearchQuery = useSidebarStore((s) => s.setSearchQuery);
-  const [value, setValue] = useState(() => useSidebarStore.getState().searchQuery);
+  const setSearchQuery = useLayoutStore((s) => s.setSidebarSearchQuery);
+  const [value, setValue] = useState(() => useLayoutStore.getState().sidebarSearchQuery);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

@@ -1,40 +1,38 @@
-import { useRef } from "react";
+import { motion, type MotionValue } from "motion/react";
 
-import { useSidebarStore } from "./useSidebarStore";
+import {
+  clampSidebarWidth,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  useLayoutStore,
+} from "~/components/DirectoryView/useLayoutStore";
 
-export function SidebarResizeHandle() {
-  const setWidth = useSidebarStore((s) => s.setWidth);
-  const drag = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    drag.current = { startX: e.clientX, startWidth: useSidebarStore.getState().width };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    setWidth(drag.current.startWidth + (e.clientX - drag.current.startX));
-  };
-
-  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    drag.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  };
+// Ported from the FeatureBar drag handle: drag the right edge to resize; drop
+// below half the min width to close (stored width is kept for re-open).
+export function SidebarResizeHandle({ motionWidth }: { motionWidth: MotionValue<number> }) {
+  const setSidebarWidth = useLayoutStore((s) => s.setSidebarWidth);
+  const setSidebarOpen = useLayoutStore((s) => s.setSidebarOpen);
 
   return (
-    <div
+    <motion.div
+      drag="x"
+      dragMomentum={false}
+      dragConstraints={{ left: 0, right: SIDEBAR_MAX_WIDTH }}
+      style={{ x: motionWidth }}
+      onDragEnd={() => {
+        const w = motionWidth.get();
+        if (w < SIDEBAR_MIN_WIDTH / 2) {
+          setSidebarOpen(false);
+          return;
+        }
+        const clamped = clampSidebarWidth(w);
+        setSidebarWidth(clamped);
+        motionWidth.set(clamped);
+      }}
       role="separator"
       aria-orientation="vertical"
       aria-label="Resize navigation panel"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      className="absolute top-0 right-0 z-10 h-full w-1.5 cursor-ew-resize bg-transparent hover:bg-(--color-border-strong) duration-100"
+      className="absolute top-0 left-0 z-10 h-full w-2 -translate-x-1/2 cursor-ew-resize hover:bg-(--color-border-strong)"
     />
   );
 }

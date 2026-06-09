@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { SIDEBAR_SEARCH_INPUT_ID } from "./Explorer/SidebarSearchInput";
-import { useSidebarStore } from "./useSidebarStore";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 
 // Cmd/Ctrl+B toggles the panel; on open, focuses Explorer search. Mount once.
 export function useSidebarShortcuts() {
@@ -18,15 +18,15 @@ export function useSidebarShortcuts() {
       if (isEditable(document.activeElement)) return;
 
       e.preventDefault();
-      const { isOpen, setOpen, setActiveTab } = useSidebarStore.getState();
+      const { sidebarOpen, setSidebarOpen, setSidebarTab } = useLayoutStore.getState();
 
-      if (isOpen) {
-        setOpen(false);
+      if (sidebarOpen) {
+        setSidebarOpen(false);
         return;
       }
 
-      setActiveTab("explorer");
-      setOpen(true);
+      setSidebarTab("explorer");
+      setSidebarOpen(true);
       requestAnimationFrame(() => {
         document.getElementById(SIDEBAR_SEARCH_INPUT_ID)?.focus();
       });
