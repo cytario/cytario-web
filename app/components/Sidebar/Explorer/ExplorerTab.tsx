@@ -1,6 +1,6 @@
 import { EmptyState } from "@cytario/design";
 import { Unplug } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
 import { SidebarSearchInput } from "./SidebarSearchInput";
@@ -9,13 +9,13 @@ import { ConnectionTree } from "../ConnectionTree";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
-// Memoized: a tab switch re-renders Sidebar but must not re-reconcile the tree.
-export const ExplorerTab = memo(function ExplorerTab() {
+export function ExplorerTab() {
   const connections = useConnectionsStore(select.connections);
   const connectionNames = useMemo(() => Object.keys(connections), [connections]);
   const routeName = useParams().name;
 
   const [override, setOverride] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const selectedConnection =
     override ??
     (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
@@ -30,8 +30,10 @@ export const ExplorerTab = memo(function ExplorerTab() {
               onSelect={setOverride}
             />
           </div>
-          <SidebarSearchInput />
-          {selectedConnection ? <ConnectionTree selectedConnection={selectedConnection} /> : null}
+          <SidebarSearchInput onQueryChange={setQuery} />
+          {selectedConnection ? (
+            <ConnectionTree selectedConnection={selectedConnection} query={query} />
+          ) : null}
         </>
       ) : (
         <EmptyState
@@ -42,4 +44,4 @@ export const ExplorerTab = memo(function ExplorerTab() {
       )}
     </div>
   );
-});
+}

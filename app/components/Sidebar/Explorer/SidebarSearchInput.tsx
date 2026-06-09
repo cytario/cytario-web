@@ -2,16 +2,18 @@ import { IconButton, Input } from "@cytario/design";
 import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
-
 const DEBOUNCE_MS = 300;
 
 // Focused by the Cmd/Ctrl+B shortcut.
 export const SIDEBAR_SEARCH_INPUT_ID = "sidebar-search-input";
 
-export function SidebarSearchInput() {
-  const setSearchQuery = useLayoutStore((s) => s.setSidebarSearchQuery);
-  const [value, setValue] = useState(() => useLayoutStore.getState().sidebarSearchQuery);
+interface SidebarSearchInputProps {
+  /** Debounced query sink (owned by ExplorerTab). */
+  onQueryChange: (query: string) => void;
+}
+
+export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
+  const [value, setValue] = useState("");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -23,13 +25,13 @@ export function SidebarSearchInput() {
   const onChange = (next: string) => {
     setValue(next);
     if (timeout.current) clearTimeout(timeout.current);
-    timeout.current = setTimeout(() => setSearchQuery(next), DEBOUNCE_MS);
+    timeout.current = setTimeout(() => onQueryChange(next), DEBOUNCE_MS);
   };
 
   const onClear = () => {
     setValue("");
     if (timeout.current) clearTimeout(timeout.current);
-    setSearchQuery("");
+    onQueryChange("");
   };
 
   return (

@@ -9,7 +9,7 @@ import { ModalOutlet } from "./ModalOutlet";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
 import { PluginSlots } from "~/components/PluginSlots";
-import { Sidebar } from "~/components/Sidebar/Sidebar";
+import { NavSidebar } from "~/components/Sidebar/NavSidebar";
 import { useSidebarShortcuts } from "~/components/Sidebar/useSidebarShortcuts";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
@@ -42,8 +42,8 @@ export default function ProtectedLayout() {
   return (
     <div className="flex h-full flex-col">
       <PluginSlots name="app-banner" identity={identity} />
-      <div className="flex flex-1 min-h-0">
-        <Sidebar />
+      <div className="relative flex flex-1 min-h-0">
+        <NavSidebar />
         <div className="flex-1 overflow-x-hidden overflow-y-auto">
           <Outlet />
         </div>

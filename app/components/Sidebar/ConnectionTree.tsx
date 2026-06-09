@@ -10,11 +10,12 @@ import { LavaLoader } from "~/components/LavaLoader";
 
 interface ConnectionTreeProps {
   selectedConnection: string;
+  query: string;
 }
 
-export function ConnectionTree({ selectedConnection }: ConnectionTreeProps) {
+export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
-  const { query, nodes: searchNodes, isSearching } = useSidebarSearch(selectedConnection);
+  const { nodes: searchNodes, isSearching } = useSidebarSearch(selectedConnection, query);
 
   const rootNodes = useMemo<TreeNode[]>(
     () => [

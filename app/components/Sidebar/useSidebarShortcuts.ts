@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 
 import { SIDEBAR_SEARCH_INPUT_ID } from "./Explorer/SidebarSearchInput";
-import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
+import { useNavSidebarStore, useViewerSidebarStore } from "./sidebarStores";
 
-// Cmd/Ctrl+B toggles the panel; on open, focuses Explorer search. Mount once.
+// Cmd/Ctrl+B toggles the nav (left) panel; on open, focuses Explorer search.
+// Cmd/Ctrl+Alt+B toggles the viewer (right) panel (VS Code secondary-sidebar
+// convention). Mount once at the layout. Both guard against editable focus.
 export function useSidebarShortcuts() {
   useEffect(() => {
     const isEditable = (el: EventTarget | null): boolean => {
@@ -13,23 +15,24 @@ export function useSidebarShortcuts() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const isToggle = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b";
-      if (!isToggle) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.shiftKey || e.key.toLowerCase() !== "b") return;
       if (isEditable(document.activeElement)) return;
 
       e.preventDefault();
-      const { sidebarOpen, setSidebarOpen, setSidebarTab } = useLayoutStore.getState();
 
-      if (sidebarOpen) {
-        setSidebarOpen(false);
+      if (e.altKey) {
+        useViewerSidebarStore.getState().toggle();
         return;
       }
 
-      setSidebarTab("explorer");
-      setSidebarOpen(true);
-      requestAnimationFrame(() => {
-        document.getElementById(SIDEBAR_SEARCH_INPUT_ID)?.focus();
-      });
+      const nav = useNavSidebarStore.getState();
+      if (nav.isOpen) {
+        nav.setOpen(false);
+        return;
+      }
+      nav.setOpen(true);
+      requestAnimationFrame(() => document.getElementById(SIDEBAR_SEARCH_INPUT_ID)?.focus());
     };
 
     document.addEventListener("keydown", onKeyDown);
