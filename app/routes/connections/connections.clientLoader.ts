@@ -1,55 +1,12 @@
-import { _Object } from "@aws-sdk/client-s3";
-import { Credentials } from "@aws-sdk/client-sts";
 import { type ClientLoaderFunctionArgs } from "react-router";
 
 import type { LoaderData, loadConnections } from "./connections.loader";
-import type { ConnectionConfig } from "~/.generated/client";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
-import { isImageFile } from "~/utils/fileType";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
-import { listObjectsClient } from "~/utils/listObjectsClient";
-import { getPrefix } from "~/utils/pathUtils";
-import { CorsLikelyError } from "~/utils/signedFetch";
+import { type ConnectionProbeResult, probeConnection } from "~/utils/probeConnection";
 
 const PREVIEW_CONCURRENCY = 4;
-
-const isImagePreview = (obj: _Object) => isImageFile(obj.Key ?? "");
-
-interface ConnectionProbeResult {
-  previewObj?: _Object;
-  status: "connected" | "error";
-  errorMessage?: string;
-}
-
-async function probeConnection(
-  config: ConnectionConfig,
-  credentials: Credentials,
-  signal?: AbortSignal,
-): Promise<ConnectionProbeResult> {
-  try {
-    const { contents } = await listObjectsClient(config, credentials, {
-      // Trailing slash required: the session policy only allows `<prefix>/`
-      // and `<prefix>/*`, so a bare `<prefix>` value 403s.
-      prefix: getPrefix(config.prefix),
-      recursive: true,
-      maxKeys: 100,
-      maxTotal: 100,
-      findFirst: isImagePreview,
-      signal,
-    });
-    return { previewObj: contents.find(isImagePreview), status: "connected" };
-  } catch (error) {
-    if (error instanceof CorsLikelyError) {
-      return {
-        status: "error",
-        errorMessage: "Browser blocked from reading the bucket — check the bucket's CORS policy.",
-      };
-    }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return { status: "error", errorMessage: message };
-  }
-}
 
 /**
  * Per-connection preview + health probe. One bounded-concurrency

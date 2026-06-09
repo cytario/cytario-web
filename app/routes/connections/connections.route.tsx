@@ -17,7 +17,6 @@ import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle"
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
-import { useSyncConnectionStatuses } from "~/utils/connectionsStore/useSyncConnectionStatuses";
 
 export const action = async (args: ActionFunctionArgs) => {
   switch (args.request.method.toUpperCase()) {
@@ -57,11 +56,9 @@ export const handle = {
 
 export default function ConnectionsListRoute() {
   const viewMode = useLayoutStore((state) => state.viewMode);
-  const { nodes, connectionStatuses } = useLoaderData<LoaderData>();
+  const { nodes } = useLoaderData<LoaderData>();
 
   const { openModal } = useModal();
-
-  useSyncConnectionStatuses(connectionStatuses);
 
   if (nodes.length === 0) {
     return (

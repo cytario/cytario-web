@@ -10,6 +10,7 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
 import { PluginSlots } from "~/components/PluginSlots";
 import { useInitConnections } from "~/hooks/useInitConnections";
+import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
 
 export const middleware = [authMiddleware];
 
@@ -33,6 +34,7 @@ export default function ProtectedLayout() {
   const { connectionConfigs, credentials, credentialErrors, identity } =
     useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors);
+  useConnectionHealthProbe();
 
   return (
     <div className="flex h-full flex-col">
