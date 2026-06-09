@@ -25,7 +25,9 @@ const ImagePreview = lazy(() =>
   })),
 );
 
-const gridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6";
+// Container queries (not viewport): column count tracks the content area width
+// — which shrinks when a sidebar pushes it — instead of the window width.
+const gridClass = "grid grid-cols-1 @lg:grid-cols-2 @3xl:grid-cols-3 gap-6";
 
 function useSignedFetch(connectionName: string) {
   const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
@@ -118,14 +120,18 @@ export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: Di
   if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
   return (
-    <div className={gridClass}>
-      {nodes.map((node) => {
-        const key = node.id;
-        if (kind === "connections") {
-          return <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />;
-        }
-        return <FileCardGridItem key={key} node={node} connectionName={node.connectionName} />;
-      })}
+    <div className="@container">
+      <div className={gridClass}>
+        {nodes.map((node) => {
+          const key = node.id;
+          if (kind === "connections") {
+            return (
+              <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />
+            );
+          }
+          return <FileCardGridItem key={key} node={node} connectionName={node.connectionName} />;
+        })}
+      </div>
     </div>
   );
 }
