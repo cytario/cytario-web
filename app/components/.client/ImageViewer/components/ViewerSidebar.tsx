@@ -16,8 +16,12 @@ export function ViewerSidebar() {
   const isOpen = useViewerSidebarStore((s) => s.isOpen);
   const width = useViewerSidebarStore((s) => s.width);
 
-  // skipHydration in the store: pull persisted prefs after mount (no SSR mismatch).
-  useEffect(() => void useViewerSidebarStore.persist.rehydrate(), []);
+  // Pull persisted width after mount (skipHydration), then always open on
+  // viewer arrival so the controls are visible regardless of last collapse.
+  useEffect(() => {
+    void useViewerSidebarStore.persist.rehydrate();
+    useViewerSidebarStore.getState().setOpen(true);
+  }, []);
 
   const motionWidth = useMotionValue(isOpen ? width : 0);
   useEffect(() => {
