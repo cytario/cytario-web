@@ -34,8 +34,9 @@ export function Sidebar() {
     <motion.aside
       id="sidebar-panel"
       aria-label="Navigation"
+      data-theme="dark"
       style={{ width: motionWidth }}
-      className="relative shrink-0 flex flex-col overflow-hidden border-r border-(--color-border-default) bg-(--color-surface-default)"
+      className="relative shrink-0 flex flex-col overflow-hidden border-r border-(--color-border-default) bg-(--color-surface-default) text-(--color-text-primary)"
       inert={!isOpen ? true : undefined}
     >
       <div className="flex h-full flex-col" style={{ minWidth: SIDEBAR_MIN_WIDTH }}>

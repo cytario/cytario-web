@@ -39,7 +39,7 @@ export function NodeLink({
   `;
 
   const clickAbleCx = `
-    hover:bg-slate-100
+    hover:bg-slate-100 dark:hover:bg-slate-800
     focus-visible:outline focus-visible:outline-(--color-border-focus)
   `;
 
