@@ -1,3 +1,5 @@
+import { EmptyState } from "@cytario/design";
+import { Unplug } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
@@ -31,7 +33,11 @@ export function ExplorerTab() {
           {selectedConnection ? <ConnectionTree selectedConnection={selectedConnection} /> : null}
         </>
       ) : (
-        <p className="px-3 py-2 text-sm text-(--color-text-secondary)">No connections available.</p>
+        <EmptyState
+          icon={Unplug}
+          title="No connections"
+          description="No storage connections are available yet."
+        />
       )}
     </div>
   );

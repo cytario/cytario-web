@@ -1,5 +1,5 @@
 import { MouseEventHandler } from "react";
-import { Link } from "react-router";
+import { NavLink } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { NodeContextMenu } from "./NodeContextMenu";
@@ -43,6 +43,8 @@ export function NodeLink({
     focus-visible:outline focus-visible:outline-(--color-border-focus)
   `;
 
+  const activeCx = "bg-(--color-surface-selected) font-semibold text-(--color-text-primary)";
+
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (!onClick) return;
     event.preventDefault();
@@ -53,10 +55,15 @@ export function NodeLink({
   return (
     <div className={twMerge(rowCx, className)}>
       {isClickable(node) ? (
-        <Link to={to} className={twMerge(rowCx, clickAbleCx)} onClick={handleClick}>
+        <NavLink
+          to={to}
+          end
+          className={({ isActive }) => twMerge(rowCx, clickAbleCx, isActive && activeCx)}
+          onClick={handleClick}
+        >
           <NodeIndicator node={node} />
           <TooltipSpan>{node.name}</TooltipSpan>
-        </Link>
+        </NavLink>
       ) : (
         <div className={rowCx}>
           <NodeIndicator node={node} />
