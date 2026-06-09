@@ -16,6 +16,9 @@ export function ViewerSidebar() {
   const isOpen = useViewerSidebarStore((s) => s.isOpen);
   const width = useViewerSidebarStore((s) => s.width);
 
+  // skipHydration in the store: pull persisted prefs after mount (no SSR mismatch).
+  useEffect(() => void useViewerSidebarStore.persist.rehydrate(), []);
+
   const motionWidth = useMotionValue(isOpen ? width : 0);
   useEffect(() => {
     const controls = animate(motionWidth, isOpen ? width : 0, { duration: 0.18 });
@@ -27,6 +30,7 @@ export function ViewerSidebar() {
       <SidebarResizeHandle store={useViewerSidebarStore} side="right" motionWidth={motionWidth} />
 
       <motion.aside
+        id="viewer-sidebar"
         aria-label="Image controls"
         style={{ width: motionWidth }}
         className="shrink-0 flex flex-col overflow-hidden border-l border-(--color-border-default) bg-(--color-surface-default)"

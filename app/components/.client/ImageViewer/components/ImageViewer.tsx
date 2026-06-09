@@ -46,9 +46,11 @@ function ViewerSidebarToggle() {
   return (
     <div data-theme="dark" className="absolute right-2 bottom-2 z-40">
       <IconButton
+        id="viewer-panel-toggle"
         icon={PanelRight}
         aria-label="Toggle image controls"
         aria-expanded={isOpen}
+        aria-controls="viewer-sidebar"
         variant={isOpen ? "primary" : "ghost"}
         onPress={toggle}
       />

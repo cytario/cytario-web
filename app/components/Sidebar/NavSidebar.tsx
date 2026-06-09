@@ -12,6 +12,9 @@ export function NavSidebar() {
   const isOpen = useNavSidebarStore((s) => s.isOpen);
   const width = useNavSidebarStore((s) => s.width);
 
+  // skipHydration in the store: pull persisted prefs after mount (no SSR mismatch).
+  useEffect(() => void useNavSidebarStore.persist.rehydrate(), []);
+
   const motionWidth = useMotionValue(isOpen ? width : 0);
   useEffect(() => {
     const controls = animate(motionWidth, isOpen ? width : 0, { duration: 0.18 });

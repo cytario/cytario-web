@@ -1,5 +1,5 @@
 import { EmptyState } from "@cytario/design";
-import { SearchX } from "lucide-react";
+import { AlertTriangle, SearchX } from "lucide-react";
 import { useMemo } from "react";
 
 import { useSidebarSearch } from "./Explorer/useSidebarSearch";
@@ -15,7 +15,12 @@ interface ConnectionTreeProps {
 
 export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
-  const { nodes: searchNodes, isSearching } = useSidebarSearch(selectedConnection, query);
+  const {
+    nodes: searchNodes,
+    isSearching,
+    error,
+    corsBlocked,
+  } = useSidebarSearch(selectedConnection, query);
 
   const rootNodes = useMemo<TreeNode[]>(
     () => [
@@ -39,6 +44,19 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
   if (query) {
     if (isSearching && searchNodes.length === 0) {
       return <LavaLoader rows={4} cols={3} />;
+    }
+    if (error) {
+      return (
+        <EmptyState
+          icon={AlertTriangle}
+          title="Search failed"
+          description={
+            corsBlocked
+              ? "The browser was blocked from reading this bucket — check its CORS policy."
+              : "Could not search this connection. Check the connection and try again."
+          }
+        />
+      );
     }
     if (searchNodes.length === 0) {
       return (

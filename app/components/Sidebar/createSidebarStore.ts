@@ -43,7 +43,14 @@ export function createSidebarStore({
         }),
         { name },
       ),
-      { name },
+      {
+        name,
+        // SSR: start from defaults on server + first client render (markup
+        // matches), then rehydrate from localStorage in an effect (see
+        // useRehydrateSidebar). Persist only prefs, never the action fns.
+        skipHydration: true,
+        partialize: (s) => ({ isOpen: s.isOpen, width: s.width }),
+      },
     ),
   );
 }

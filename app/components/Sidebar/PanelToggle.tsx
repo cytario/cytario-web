@@ -9,6 +9,7 @@ export function PanelToggle() {
 
   return (
     <IconButton
+      id="nav-panel-toggle"
       icon={PanelLeft}
       aria-label="Toggle navigation panel"
       aria-expanded={isOpen}
