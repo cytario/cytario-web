@@ -93,6 +93,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless cosign signing via GitHub OIDC
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -153,6 +154,21 @@ jobs:
         run: |
           docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ inputs.version }}
           docker buildx imagetools inspect harbor.cytario.org/oss/cytario-web:${{ inputs.version }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Keyless signing with the GitHub OIDC identity. The multi-arch index
+      # digest is content-addressed, so the same digest signs both registries.
+      - name: Sign images
+        env:
+          COSIGN_YES: "true"
+        run: |
+          digest=$(docker buildx imagetools inspect \
+            ghcr.io/${{ github.repository }}:${{ inputs.version }} \
+            --format '{{.Manifest.Digest}}')
+          cosign sign ghcr.io/${{ github.repository }}@${digest}
+          cosign sign harbor.cytario.org/oss/cytario-web@${digest}
 
       - name: Generate Summary
         if: always()

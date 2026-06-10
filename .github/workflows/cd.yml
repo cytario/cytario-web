@@ -24,6 +24,10 @@ jobs:
     uses: ./.github/workflows/container.yml
     needs: release
     if: ${{ needs.release.outputs.version != '' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # keyless cosign signing via GitHub OIDC
     with:
       version: ${{ needs.release.outputs.version }}
     secrets:
