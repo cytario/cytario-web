@@ -66,9 +66,16 @@ export function Sidebar({
   const motionWidth = useMotionValue(isOpen ? width : 0);
 
   useEffect(() => {
-    store.persist.rehydrate();
-    if (openOnMount) store.getState().setOpen(true);
-  }, [store, openOnMount]);
+    // rehydrate() applies persisted state in a microtask, so force-open and the
+    // width snap must run *after* it resolves — otherwise persisted state would
+    // clobber openOnMount, and the width would animate from default → stored on
+    // load. Snapping (set, not animate) lands the rehydrated size before paint.
+    void Promise.resolve(store.persist.rehydrate()).then(() => {
+      if (openOnMount) store.getState().setOpen(true);
+      const s = store.getState();
+      motionWidth.set(s.isOpen ? s.width : 0);
+    });
+  }, [store, openOnMount, motionWidth]);
 
   useEffect(() => {
     const controls = animate(motionWidth, isOpen ? width : 0, { duration: 0.18 });
@@ -87,7 +94,9 @@ export function Sidebar({
         focusById(sidebarToggleId(name)); // don't strand focus in the inert panel
       } else {
         s.setOpen(true);
-        if (onOpen) requestAnimationFrame(onOpen);
+        // Double rAF: wait for the re-render that lifts `inert` to commit before
+        // focusing, else focus() on the still-inert input is a no-op.
+        if (onOpen) requestAnimationFrame(() => requestAnimationFrame(onOpen));
       }
     };
     document.addEventListener("keydown", onKeyDown);

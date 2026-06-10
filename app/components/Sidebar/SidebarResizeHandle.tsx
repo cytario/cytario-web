@@ -54,7 +54,10 @@ export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeH
     const shrink = side === "left" ? "ArrowLeft" : "ArrowRight";
     if (e.key !== grow && e.key !== shrink) return;
     e.preventDefault();
-    commit((isOpen ? width : 0) + (e.key === grow ? KEYBOARD_STEP : -KEYBOARD_STEP));
+    // `width` is the stored width (retained while closed). Grow from closed
+    // reopens at it; shrink while closed is a no-op.
+    if (e.key === grow) commit(isOpen ? width + KEYBOARD_STEP : width);
+    else if (isOpen) commit(width - KEYBOARD_STEP);
   };
 
   return (

@@ -16,6 +16,15 @@ export function ExplorerTab() {
 
   const [override, setOverride] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  // Reset the manual pick when the route's connection changes, so the tree
+  // follows navigation into a different connection (adjust-state-during-render).
+  const [prevRouteName, setPrevRouteName] = useState(routeName);
+  if (routeName !== prevRouteName) {
+    setPrevRouteName(routeName);
+    setOverride(null);
+  }
+
   const selectedConnection =
     override ?? (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
 
