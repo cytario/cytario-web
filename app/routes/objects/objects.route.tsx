@@ -188,7 +188,9 @@ export default function ObjectsRoute() {
       <DirectoryView
         kind="entries"
         viewMode={viewMode}
-        name={connectionName}
+        // Title is the current level: last path segment in a subdirectory,
+        // the connection name at the root.
+        name={urlPath ? getName(urlPath, connectionName) : connectionName}
         nodes={nodes}
         secondaryActions={
           <>

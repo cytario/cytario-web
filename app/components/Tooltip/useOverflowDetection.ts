@@ -16,9 +16,19 @@ export function useOverflowDetection(ref: RefObject<HTMLElement | null>): boolea
 
     check();
 
-    const observer = new ResizeObserver(() => check());
+    // Defer + coalesce to the next frame so a live container resize (e.g.
+    // dragging a sidebar) can't drive a synchronous observe→setState→layout
+    // loop ("Maximum update depth").
+    let raf = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(check);
+    });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
   }, [ref]);
 
   return isTruncated;
