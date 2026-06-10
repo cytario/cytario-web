@@ -38,6 +38,7 @@ export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
     <div className="flex items-center gap-1 px-2">
       <Search size={16} className="shrink-0 text-(--color-text-secondary)" aria-hidden />
       <Input
+        size="sm"
         id={SIDEBAR_SEARCH_INPUT_ID}
         aria-label="Search connections"
         value={value}

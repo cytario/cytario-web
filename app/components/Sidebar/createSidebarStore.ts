@@ -24,6 +24,9 @@ interface SidebarStoreOptions {
   defaultWidth?: number;
 }
 
+/** Store handle returned by createSidebarStore — includes the persist API. */
+export type SidebarStoreApi = ReturnType<typeof createSidebarStore>;
+
 // One store per sidebar (left nav, right viewer). Separate persist keys so
 // each remembers its own open/width independently.
 export function createSidebarStore({

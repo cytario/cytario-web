@@ -1,8 +1,5 @@
 import { createSidebarStore } from "./createSidebarStore";
 
-// Left: connection navigation (Explorer). Present on every route.
+// Left: connection navigation (Explorer). App-shell domain, present on every
+// route. The viewer's sidebar store lives in the viewer module (it owns it).
 export const useNavSidebarStore = createSidebarStore({ name: "NavSidebar" });
-
-// Right: image controls (channels/overlays/presets). Viewer routes only,
-// open by default so controls are visible on arrival.
-export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" });
