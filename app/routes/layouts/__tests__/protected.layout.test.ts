@@ -41,8 +41,8 @@ const runLoader = (user = mock.user()) => {
     request,
     params: {},
     context: buildContext(user) as never,
-    unstable_pattern: "",
-    unstable_url: new URL(request.url),
+    pattern: "",
+    url: new URL(request.url),
   });
 };
 
