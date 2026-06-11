@@ -1,3 +1,4 @@
+import { TruncatedText } from "@cytario/design";
 import { MouseEventHandler } from "react";
 import { NavLink } from "react-router";
 import { twMerge } from "tailwind-merge";
@@ -5,7 +6,6 @@ import { twMerge } from "tailwind-merge";
 import { NodeContextMenu } from "./NodeContextMenu";
 import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { TooltipSpan } from "~/components/Tooltip/TooltipSpan";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -62,12 +62,12 @@ export function NodeLink({
           onClick={handleClick}
         >
           <NodeIndicator node={node} />
-          <TooltipSpan>{node.name}</TooltipSpan>
+          <TruncatedText>{node.name}</TruncatedText>
         </NavLink>
       ) : (
         <div className={rowCx}>
           <NodeIndicator node={node} />
-          <TooltipSpan>{node.name}</TooltipSpan>
+          <TruncatedText>{node.name}</TruncatedText>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { Switch } from "@cytario/design";
+import { Switch, Tooltip } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
@@ -7,7 +7,6 @@ import { select } from "../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { LavaLoader } from "~/components/LavaLoader";
-import { Tooltip } from "~/components/Tooltip/Tooltip";
 
 // viv library only supports 6 channels
 // See: https://github.com/hms-dbmi/viv/issues/687

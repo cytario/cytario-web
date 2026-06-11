@@ -1,10 +1,9 @@
-import { Checkbox } from "@cytario/design";
+import { Checkbox, TruncatedText } from "@cytario/design";
 import { Row, flexRender } from "@tanstack/react-table";
 import { KeyboardEvent, useCallback } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { ColumnConfig } from "./types";
-import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableBodyRowProps {
   row: Row<unknown>;
@@ -97,9 +96,9 @@ export function TableBodyRow({
           </th>
         ) : (
           <td key={cell.id} className={cxCell} style={style}>
-            <TooltipSpan ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
+            <TruncatedText ellipsis={columnConfig?.ellipsis} copyValue={copyValue}>
               {content}
-            </TooltipSpan>
+            </TruncatedText>
           </td>
         );
       })}

@@ -1,9 +1,8 @@
-import { Button } from "@cytario/design";
+import { Button, Tooltip } from "@cytario/design";
 
 import { rgb } from "./ChannelsController/ColorPicker/ColorPicker";
 import { select } from "../state/store/selectors";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
-import { Tooltip } from "~/components/Tooltip/Tooltip";
 
 const emptyObj = {};
 
