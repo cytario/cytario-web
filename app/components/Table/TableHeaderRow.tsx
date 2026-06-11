@@ -1,4 +1,4 @@
-import { Checkbox, IconButton } from "@cytario/design";
+import { Checkbox, IconButton, TruncatedText } from "@cytario/design";
 import { HeaderGroup, VisibilityState, flexRender } from "@tanstack/react-table";
 import { FilterX } from "lucide-react";
 import { twMerge } from "tailwind-merge";
@@ -8,7 +8,6 @@ import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { ColumnSortButton } from "./ColumnSortButton";
 import { TableMenu } from "./TableMenu";
 import { ColumnConfig } from "./types";
-import { TooltipSpan } from "../Tooltip/TooltipSpan";
 
 interface TableHeaderRowProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,9 +133,9 @@ export function TableHeaderRow({
                     onClick={header.column.getToggleSortingHandler() ?? undefined}
                   >
                     <div className="min-w-0">
-                      <TooltipSpan>
+                      <TruncatedText>
                         {flexRender(header.column.columnDef.header, header.getContext())}
-                      </TooltipSpan>
+                      </TruncatedText>
                     </div>
 
                     <ColumnSortButton header={header} />
@@ -145,9 +144,9 @@ export function TableHeaderRow({
                   // Non-Sortable Header
                   <div className={tableHeadCx}>
                     <div className="min-w-0">
-                      <TooltipSpan>
+                      <TruncatedText>
                         {flexRender(header.column.columnDef.header, header.getContext())}
-                      </TooltipSpan>
+                      </TruncatedText>
                     </div>
                   </div>
                 )}

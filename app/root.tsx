@@ -165,7 +165,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </main>
         </RouterProvider>
 
-        <div id="tooltip" />
         <ScrollRestoration />
         <Scripts />
       </body>
