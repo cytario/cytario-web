@@ -1,5 +1,6 @@
 import { selectBundle, createWorker, AsyncDuckDB, ConsoleLogger } from "@duckdb/duckdb-wasm";
 
+import { applyS3Credentials } from "./createDatabase";
 import { getLocalDuckDbBundles } from "./duckdbBundles";
 import { escapeSqlString } from "./escapeSqlString";
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
@@ -46,15 +47,7 @@ export async function convertCsvToParquet(resourceId: string) {
 
     const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
 
-    // Single-quote-escape every interpolated value — credentials, region,
-    // and S3 keys can carry `'` on non-AWS providers.
-    await conn.query(`SET s3_access_key_id='${escapeSqlString(credentials.AccessKeyId ?? "")}'`);
-    await conn.query(
-      `SET s3_secret_access_key='${escapeSqlString(credentials.SecretAccessKey ?? "")}'`,
-    );
-    if (credentials.SessionToken) {
-      await conn.query(`SET s3_session_token='${escapeSqlString(credentials.SessionToken)}'`);
-    }
+    await applyS3Credentials(conn, credentials);
     await conn.query(
       `SET s3_region='${escapeSqlString(connectionConfig.region ?? "eu-central-1")}'`,
     );

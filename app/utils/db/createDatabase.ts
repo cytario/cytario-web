@@ -64,7 +64,11 @@ const createDatabaseInternal = async (
 type DuckDbConnection = Awaited<ReturnType<typeof createDatabaseInternal>>;
 
 // Single-quote-escape every interpolated value — non-AWS providers may carry `'`.
-const applyS3Credentials = async (connection: DuckDbConnection, credentials: Credentials) => {
+// Shared with `convertCsvToParquet`, which bootstraps its own WASM instance.
+export const applyS3Credentials = async (
+  connection: Pick<DuckDbConnection, "query">,
+  credentials: Credentials,
+) => {
   const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
   await connection.query(`SET s3_access_key_id='${escapeSqlString(AccessKeyId ?? "")}'`);
   await connection.query(`SET s3_secret_access_key='${escapeSqlString(SecretAccessKey ?? "")}'`);
@@ -73,8 +77,14 @@ const applyS3Credentials = async (connection: DuckDbConnection, credentials: Cre
 
 const getConnection = createSingleton(createDatabaseInternal);
 
-/** `AccessKeyId` last applied via `SET s3_*`, per resourceId. */
-const appliedKeyIds = new Map<string, string | undefined>();
+// Keyed by the connection itself so a rebuilt connection (singleton retries
+// after a failed init) can never inherit a stale "already applied" verdict.
+const appliedKeyIds = new WeakMap<DuckDbConnection, string | undefined>();
+
+// Serialize `SET s3_*` per resourceId: two concurrent reads straddling a
+// rotation would otherwise interleave their SET trios on the shared
+// connection and leave a mismatched key/secret pair behind.
+const pendingApplications = new Map<string, Promise<void>>();
 
 /**
  * STS credentials rotate (~hourly, C-242) while the cached connection lives for
@@ -87,9 +97,20 @@ export const createDatabase = async (
   connectionConfig?: ConnectionConfig | null,
 ) => {
   const connection = await getConnection(resourceId, connectionConfig);
-  if (appliedKeyIds.get(resourceId) !== credentials.AccessKeyId) {
-    await applyS3Credentials(connection, credentials);
-    appliedKeyIds.set(resourceId, credentials.AccessKeyId);
-  }
+
+  const previous = pendingApplications.get(resourceId) ?? Promise.resolve();
+  const application = previous.then(async () => {
+    if (appliedKeyIds.get(connection) !== credentials.AccessKeyId) {
+      await applyS3Credentials(connection, credentials);
+      appliedKeyIds.set(connection, credentials.AccessKeyId);
+    }
+  });
+  // Keep the chain alive past a failed application so the next caller retries.
+  pendingApplications.set(
+    resourceId,
+    application.catch(() => {}),
+  );
+  await application;
+
   return connection;
 };

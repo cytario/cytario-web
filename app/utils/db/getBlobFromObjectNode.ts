@@ -1,5 +1,4 @@
-import { resolveResourceId } from "../connectionsStore/selectors";
-import { useConnectionsStore } from "../connectionsStore/useConnectionsStore";
+import { liveCredentials, resolveResourceId } from "../connectionsStore/selectors";
 import { useFileStore, type DownloadProgress } from "../localFilesStore/useFileStore";
 import { createSignedFetch } from "../signedFetch";
 
@@ -63,7 +62,7 @@ export const getUint8ArrayForResourceId = async (resourceId: string): Promise<Ui
   // Live getter + connectionName: a download outliving the STS credentials can
   // refresh and retry instead of failing on ExpiredToken (C-242).
   const signedFetch = createSignedFetch(
-    () => useConnectionsStore.getState().connections[connectionName]?.credentials,
+    liveCredentials(connectionName),
     connectionConfig,
     connectionName,
   );

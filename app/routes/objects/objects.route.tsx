@@ -26,7 +26,7 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { getFileType, isImageFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
@@ -243,7 +243,7 @@ export default function ObjectsRoute() {
       // `pathName` already includes the connection prefix.
       const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
-        () => useConnectionsStore.getState().connections[connectionName]?.credentials,
+        liveCredentials(connectionName),
         connectionConfig,
         connectionName,
       );

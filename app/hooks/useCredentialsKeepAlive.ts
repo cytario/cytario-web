@@ -2,16 +2,18 @@ import { Credentials } from "@aws-sdk/client-sts";
 import { useEffect, useRef } from "react";
 import { useRevalidator } from "react-router";
 
+import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { setCredentialsRefresher } from "~/utils/credentialsRefresh";
+import { setCredentialsRefresher, STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
 
 /**
- * Revalidate slightly inside the server's 5-minute STS staleness buffer
- * (`isValidCredentials`) so credentials rotate before they expire, and well
- * inside Keycloak's SSO idle timeout so the session survives long viewer
- * stretches that produce no other server traffic (reads are browser→S3).
+ * Revalidate inside the server's STS staleness buffer (`isValidCredentials`)
+ * so one tick always lands in the window where the loader re-mints — rotation
+ * happens before expiry. Each tick also keeps the Keycloak session inside its
+ * idle timeout: viewer stretches produce no other server traffic (reads are
+ * browser→S3).
  */
-const KEEP_ALIVE_INTERVAL_MS = 4 * 60 * 1000;
+const KEEP_ALIVE_INTERVAL_MS = STS_STALENESS_BUFFER_MS - 60 * 1000;
 
 /** How long to wait for a revalidation to land rotated credentials in the store. */
 const STORE_UPDATE_TIMEOUT_MS = 5_000;
@@ -29,7 +31,7 @@ const waitForRotatedCredentials = (
 ): Promise<Credentials | null> =>
   new Promise((resolve) => {
     const read = () => {
-      const credentials = useConnectionsStore.getState().connections[connectionName]?.credentials;
+      const credentials = liveCredentials(connectionName)();
       return credentials && credentials.AccessKeyId !== previousKeyId ? credentials : null;
     };
 
@@ -97,8 +99,7 @@ export function useCredentialsKeepAlive() {
     };
 
     const uninstall = setCredentialsRefresher(async (connectionName) => {
-      const previousKeyId =
-        useConnectionsStore.getState().connections[connectionName]?.credentials?.AccessKeyId;
+      const previousKeyId = liveCredentials(connectionName)()?.AccessKeyId;
 
       await revalidateOnce();
 
@@ -111,7 +112,7 @@ export function useCredentialsKeepAlive() {
 
       // No rotation observed — return what the store holds; the caller's
       // retry surfaces ExpiredCredentialsError if it is still stale.
-      const current = useConnectionsStore.getState().connections[connectionName]?.credentials;
+      const current = liveCredentials(connectionName)();
       if (!current) {
         throw new Error(`No credentials for connection "${connectionName}" after refresh.`);
       }

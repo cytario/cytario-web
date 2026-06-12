@@ -16,6 +16,14 @@ export interface ResolvedResource {
   httpsUrl: string;
 }
 
+/**
+ * Live, non-reactive credentials getter — the contract `createSignedFetch`
+ * needs for its lazy resolve: a fresh store read per call (never a captured
+ * snapshot), so retries after an STS rotation pick up the new credentials.
+ */
+export const liveCredentials = (connectionName: string) => (): Credentials | null =>
+  useConnectionsStore.getState().connections[connectionName]?.credentials ?? null;
+
 export const select = {
   connection: (connectionName: string) => (state: ConnectionsStore) =>
     state.connections[connectionName],
