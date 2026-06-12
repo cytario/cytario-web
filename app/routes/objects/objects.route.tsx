@@ -127,7 +127,7 @@ export default function ObjectsRoute() {
         name,
         type: isSingleFile ? "file" : "directory",
       },
-      { method: "post", action: "/api/recently-viewed" },
+      { method: "post", action: "/recent" },
     );
     // Other deps are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,14 +137,14 @@ export default function ObjectsRoute() {
   // Optimistic toggle while the request is in flight.
   let isPinned = loaderIsPinned;
   if (pinFetcher.state !== "idle") {
-    isPinned = pinFetcher.formMethod?.toLowerCase() === "post";
+    isPinned = pinFetcher.formMethod?.toLowerCase() === "put";
   }
 
   const togglePin = useCallback(() => {
     if (isPinned) {
       pinFetcher.submit(
         { connectionName, pathName: urlPath },
-        { method: "delete", action: "/api/pinned" },
+        { method: "delete", action: "/favorites" },
       );
     } else {
       const totalSize = nodes.reduce((sum, node) => sum + computeDirectorySize(node), 0);
@@ -160,7 +160,7 @@ export default function ObjectsRoute() {
           totalSize: String(totalSize),
           lastModified: lastModified ? String(lastModified) : "",
         },
-        { method: "post", action: "/api/pinned" },
+        { method: "put", action: "/favorites" },
       );
     }
   }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);

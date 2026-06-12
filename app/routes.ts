@@ -84,14 +84,6 @@ const apiRoutes = [
     path: "/api/cyberduck-profile/:name",
     file: "routes/api/cyberduck-profile.$name.ts",
   },
-  {
-    path: "/api/recently-viewed",
-    file: "routes/api/recently-viewed.ts",
-  },
-  {
-    path: "/api/pinned",
-    file: "routes/api/pinned.ts",
-  },
 ];
 
 export default [

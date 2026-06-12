@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const mockUpsertRecentlyViewed = vi.hoisted(() => vi.fn());
 const mockGetConnection = vi.hoisted(() => vi.fn());
 
-vi.mock("~/routes/recent/recent.server", () => ({
+vi.mock("../recent.server", () => ({
   upsertRecentlyViewed: mockUpsertRecentlyViewed,
 }));
 
@@ -18,7 +18,7 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   authMiddleware: vi.fn(),
 }));
 
-import { action } from "../recently-viewed";
+import { recordRecentlyViewed } from "../recordRecentlyViewed.action";
 
 function createFormData(entries: Record<string, string>): FormData {
   const formData = new FormData();
@@ -36,16 +36,16 @@ function createActionArgs(method: string, formData: FormData) {
   };
 
   return {
-    request: new Request("http://localhost/api/recently-viewed", {
+    request: new Request("http://localhost/recent", {
       method,
       body: formData,
     }),
     context: mockContext,
     params: {},
-  } as unknown as Parameters<typeof action>[0];
+  } as unknown as Parameters<typeof recordRecentlyViewed>[0];
 }
 
-describe("POST /api/recently-viewed", () => {
+describe("recordRecentlyViewed action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnection.mockResolvedValue({
@@ -65,7 +65,7 @@ describe("POST /api/recently-viewed", () => {
       type: "file",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
@@ -85,7 +85,7 @@ describe("POST /api/recently-viewed", () => {
       type: "unknown",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
 
     expect((response as Response).status).toBe(400);
     expect(mockUpsertRecentlyViewed).not.toHaveBeenCalled();
@@ -99,7 +99,7 @@ describe("POST /api/recently-viewed", () => {
       type: "file",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
 
     expect((response as Response).status).toBe(400);
     expect(mockUpsertRecentlyViewed).not.toHaveBeenCalled();
@@ -113,23 +113,10 @@ describe("POST /api/recently-viewed", () => {
       type: "file",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
 
     expect((response as Response).status).toBe(400);
     expect(mockUpsertRecentlyViewed).not.toHaveBeenCalled();
-  });
-
-  test("returns 405 for non-POST methods", async () => {
-    const formData = createFormData({
-      connectionName: "my-bucket",
-      pathName: "data/image.ome.tiff",
-      name: "image.ome.tiff",
-      type: "file",
-    });
-
-    const response = await action(createActionArgs("DELETE", formData));
-
-    expect((response as Response).status).toBe(405);
   });
 
   test("accepts directory type", async () => {
@@ -142,7 +129,7 @@ describe("POST /api/recently-viewed", () => {
       type: "directory",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
@@ -164,7 +151,7 @@ describe("POST /api/recently-viewed", () => {
       type: "file",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
 
     expect((response as Response).status).toBe(404);
     expect(mockUpsertRecentlyViewed).not.toHaveBeenCalled();
@@ -180,7 +167,7 @@ describe("POST /api/recently-viewed", () => {
       type: "file",
     });
 
-    const response = await action(createActionArgs("POST", formData));
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
 
     expect((response as Response).status).toBe(500);
   });
