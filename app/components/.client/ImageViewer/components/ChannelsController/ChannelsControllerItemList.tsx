@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { RadioGroup } from "react-aria-components";
 
 import { ChannelsControllerBrightfieldItem } from "./ChannelsControllerBrightfieldItem";
@@ -6,17 +6,9 @@ import { ChannelsControllerItem } from "./ChannelsControllerItem";
 import { select } from "../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
-
 const MAX_VISIBLE_CHANNELS = 6;
 
-export function ChannelsControllerItemList({
-  isExpanded,
-  setIsExpanded,
-}: {
-  isExpanded: boolean;
-  setIsExpanded: (isExpanded: boolean) => void;
-}) {
+export function ChannelsControllerItemList() {
   const channelsState = useViewerStore(select.channelsState);
   const channelIds = useViewerStore(select.channelIds);
   const maxChannelDomain = useViewerStore(select.maxChannelDomain);
@@ -27,7 +19,7 @@ export function ChannelsControllerItemList({
   const setChannelColor = useViewerStore(select.setChannelColor);
   const brightfieldGroup = useViewerStore(select.brightfieldGroup);
 
-  const pixelValues = useFeatureBarStore((state) => state.pixelValues);
+  const pixelValues = useViewerStore(select.pixelValues);
 
   const brightfieldChannelIds = useMemo(() => {
     if (!brightfieldGroup) return new Set<string>();
@@ -44,21 +36,11 @@ export function ChannelsControllerItemList({
   }, [brightfieldGroup, channelsState]);
 
   const visibleChannelIds = useMemo(
-    () =>
-      channelIds.filter(
-        (id) => !brightfieldChannelIds.has(id) && (isExpanded || channelsState?.[id]?.isVisible),
-      ),
-    [channelIds, channelsState, isExpanded, brightfieldChannelIds],
+    () => channelIds.filter((id) => !brightfieldChannelIds.has(id)),
+    [channelIds, brightfieldChannelIds],
   );
 
-  // Show brightfield item when expanded or when it's visible
-  const showBrightfield = brightfieldGroup && (isExpanded || isBrightfieldVisible);
-
-  useEffect(() => {
-    if (visibleChannelIds.length === 0 && !showBrightfield) {
-      setIsExpanded(true);
-    }
-  }, [setIsExpanded, visibleChannelIds.length, showBrightfield]);
+  const showBrightfield = !!brightfieldGroup;
 
   return (
     <RadioGroup

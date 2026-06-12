@@ -15,6 +15,7 @@ describe("selectors", () => {
     imagePanelIndex: 0,
     imagePanels: [0],
     cursorPosition: null,
+    pixelValues: {},
     layersStates: [
       {
         channels: {
@@ -64,6 +65,7 @@ describe("selectors", () => {
     // Mock action functions
     setError: vi.fn(),
     setCursorPosition: vi.fn(),
+    setPixelValues: vi.fn(),
     setViewStatePreview: vi.fn(),
     setViewStateActive: vi.fn(),
     setIsViewerLoading: vi.fn(),

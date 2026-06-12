@@ -99,6 +99,9 @@ export interface ViewerStoreState {
 
   cursorPosition: { x: number; y: number } | null;
 
+  /** Live pixel values under the cursor, keyed by channel id. Hot path (hover) — never persist. */
+  pixelValues: Record<string, number>;
+
   // after
   layersStates: {
     channels: ChannelsState;
@@ -130,6 +133,7 @@ interface ViewerStoreActions {
   setActiveImagePanelId: (imagePanelIndex: number) => void;
 
   setCursorPosition: (position: { x: number; y: number } | null) => void;
+  setPixelValues: (ids: string[], values: number[]) => void;
 
   addImagePanel: () => void;
 

@@ -1,34 +1,20 @@
-import { IconButton } from "@cytario/design";
-import { ChevronDown, ChevronRight, Circle, CircleDot, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
-import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
+import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureItem";
 
 interface FeatureItemProps {
   title: string;
+  /** Initial open state before any user interaction is persisted. */
+  defaultOpen?: boolean;
   /** Displayed next to the title, e.g. "4/12" for channel counts */
   badge?: string;
+  /** Controls rendered on the right side of the header row (sliders, toggles, …). */
+  actions?: React.ReactNode;
   header?: React.ReactNode;
   children: React.ReactNode;
-  sliderValue?: number;
-  onSliderChange?: (value: number) => void;
-  toggleValue?: boolean;
-  onToggleChange?: (value: boolean) => void;
-  toggleIcon?: LucideIcon;
-  toggleHidden?: boolean;
 }
 
-function FeatureItemInner({
-  title,
-  badge,
-  header,
-  children,
-  sliderValue,
-  onSliderChange,
-  toggleValue,
-  onToggleChange,
-  toggleIcon = CircleDot,
-  toggleHidden = false,
-}: FeatureItemProps) {
+function FeatureItemInner({ title, badge, actions, header, children }: FeatureItemProps) {
   const isOpen = useFeatureItemStore((s) => s.isOpen);
   const setIsOpen = useFeatureItemStore((s) => s.setIsOpen);
 
@@ -55,27 +41,7 @@ function FeatureItemInner({
 
           {badge && <span className="text-xs text-[var(--color-text-tertiary)]">{badge}</span>}
 
-          {onToggleChange && !toggleHidden && (
-            <IconButton
-              icon={toggleValue ? toggleIcon : Circle}
-              aria-label={toggleValue ? "Hide outlines" : "Show outlines"}
-              onPress={() => onToggleChange(!toggleValue)}
-              variant="ghost"
-              size="sm"
-              className={`border-none ${toggleValue ? "stroke-[var(--color-text-primary)]" : "stroke-[var(--color-text-tertiary)]"}`}
-            />
-          )}
-
-          {onSliderChange && (
-            <input
-              type="range"
-              min={0}
-              max={100}
-              className="w-20 h-4"
-              value={Math.round((sliderValue ?? 0.8) * 100)}
-              onChange={(e) => onSliderChange(Number(e.target.value) / 100)}
-            />
-          )}
+          {actions}
         </header>
 
         {/* Sticky content via props, e.g. Histogram */}
@@ -88,7 +54,7 @@ function FeatureItemInner({
 
 export function FeatureItem(props: FeatureItemProps) {
   return (
-    <FeatureItemStoreProvider name={props.title}>
+    <FeatureItemStoreProvider name={props.title} defaultOpen={props.defaultOpen}>
       <FeatureItemInner {...props} />
     </FeatureItemStoreProvider>
   );

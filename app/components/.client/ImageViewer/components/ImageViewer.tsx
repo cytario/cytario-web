@@ -2,11 +2,11 @@ import { IconButton } from "@cytario/design";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { ChannelsController } from "./ChannelsController/ChannelsController";
-import { Presets } from "./FeatureBar/Presets";
 import { ImagePreview } from "./Image/ImagePreview";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { OverlaysController } from "./OverlaysController/OverlaysController";
+import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
 import { useViewerSidebarStore } from "../state/store/viewerSidebarStore";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
