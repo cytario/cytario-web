@@ -10,15 +10,17 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
 }));
 
 vi.mock("~/routes/recent/recent.loader", () => ({
-  loadRecentlyViewed: vi.fn().mockResolvedValue([]),
+  loadRecentlyViewed: vi.fn(),
 }));
 
 vi.mock("~/routes/favorites/favorites.loader", () => ({
-  loadFavorites: vi.fn().mockResolvedValue([]),
+  loadFavorites: vi.fn(),
 }));
 
 const { authContext } = await import("~/.server/auth/authMiddleware");
 const { loader } = await import("~/routes/layouts/protected.layout");
+const { loadRecentlyViewed } = await import("~/routes/recent/recent.loader");
+const { loadFavorites } = await import("~/routes/favorites/favorites.loader");
 
 const buildContext = (user = mock.user()) => ({
   get: vi.fn((ctx) => {
@@ -47,6 +49,8 @@ const runLoader = (user = mock.user()) => {
 describe("protected layout loader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(loadRecentlyViewed).mockResolvedValue([]);
+    vi.mocked(loadFavorites).mockResolvedValue([]);
   });
 
   test("returns the Identity projection", async () => {
@@ -85,5 +89,17 @@ describe("protected layout loader", () => {
     expect(data.identity).not.toHaveProperty("sub");
     expect(data).not.toHaveProperty("user");
     expect(data).not.toHaveProperty("authTokens");
+  });
+
+  test("degrades to empty recents/favorites when a query rejects", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(loadRecentlyViewed).mockRejectedValue(new Error("DB connection lost"));
+    vi.mocked(loadFavorites).mockRejectedValue(new Error("DB connection lost"));
+
+    const data = await runLoader();
+
+    expect(data.recentlyViewed).toEqual([]);
+    expect(data.favorites).toEqual([]);
+    consoleError.mockRestore();
   });
 });

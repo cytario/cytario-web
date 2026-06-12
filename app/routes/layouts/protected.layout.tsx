@@ -8,6 +8,7 @@ import {
 import { ModalOutlet } from "./ModalOutlet";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
+import { createLabel } from "~/.server/logging";
 import { PluginSlots } from "~/components/PluginSlots";
 import { ExplorerTab } from "~/components/Sidebar/Explorer/ExplorerTab";
 import { SIDEBAR_SEARCH_INPUT_ID } from "~/components/Sidebar/Explorer/SidebarSearchInput";
@@ -22,6 +23,8 @@ import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnection
 
 export const middleware = [authMiddleware];
 
+const label = createLabel("dashboard", "cyan");
+
 // Response carries STS credentials — keep it out of every cache between origin
 // and browser.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
@@ -32,9 +35,19 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   // explicit revalidation to re-mint STS credentials, and RR runs this loader
   // on every navigation. Recents/favorites are two indexed queries riding
   // along — cheaper than risking a gate that also starves credential refresh.
+  //
+  // This layout has no ErrorBoundary, so a rejected query here would 500 the
+  // whole authenticated app. Recents/favorites are decorative — degrade to
+  // empty rather than block navigation or the credential keep-alive.
   const [recentlyViewed, favorites] = await Promise.all([
-    loadRecentlyViewed(user.sub, 20),
-    loadFavorites(user.sub),
+    loadRecentlyViewed(user.sub, 20).catch((error) => {
+      console.error(`${label} Failed to load recently viewed:`, error);
+      return [];
+    }),
+    loadFavorites(user.sub).catch((error) => {
+      console.error(`${label} Failed to load favorites:`, error);
+      return [];
+    }),
   ]);
   // Projection only — never the raw UserProfile, tokens, or credentials cross
   // to the client slot props.
