@@ -3,12 +3,13 @@ import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
-import { type HomeLoaderData } from "./home.clientLoader";
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
+import { type LoaderData } from "~/routes/connections/connections.loader";
 import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
+import { useDashboardStore } from "~/utils/dashboardStore/useDashboardStore";
 import { isImageFile } from "~/utils/fileType";
 
 const title = "Storage Connections";
@@ -33,15 +34,20 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
-export { enrichHomeWithPreviews as clientLoader } from "./home.clientLoader";
-export { loadHome as loader } from "./home.loader";
+export { enrichConnectionsWithPreviews as clientLoader } from "~/routes/connections/connections.clientLoader";
+export { loadConnections as loader } from "~/routes/connections/connections.loader";
 
 // Response carries STS credentials — keep it out of every cache between origin
 // and browser.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export default function HomeRoute() {
-  const { nodes, connectionConfigs, recentlyViewed, favorites } = useLoaderData<HomeLoaderData>();
+  const { nodes, connectionConfigs } = useLoaderData<LoaderData>();
+
+  // Recents/favorites are composed once in the protected layout and seeded to
+  // the dashboard store — home and the sidebar read the same source.
+  const recentlyViewed = useDashboardStore((s) => s.recentlyViewed);
+  const favorites = useDashboardStore((s) => s.favorites);
 
   const { openModal } = useModal();
 
