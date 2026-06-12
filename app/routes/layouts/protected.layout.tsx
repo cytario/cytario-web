@@ -15,6 +15,9 @@ import { Sidebar, SIDEBAR } from "~/components/Sidebar/Sidebar";
 import { useNavSidebarStore } from "~/components/Sidebar/sidebarStores";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
+import { useInitDashboard } from "~/hooks/useInitDashboard";
+import { loadFavorites } from "~/routes/favorites/favorites.loader";
+import { loadRecentlyViewed } from "~/routes/recent/recent.loader";
 import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
 
 export const middleware = [authMiddleware];
@@ -25,9 +28,24 @@ export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const { connectionConfigs, credentials, credentialErrors, user } = context.get(authContext);
+  // No shouldRevalidate gate: the credential keep-alive (C-242) drives an
+  // explicit revalidation to re-mint STS credentials, and RR runs this loader
+  // on every navigation. Recents/favorites are two indexed queries riding
+  // along — cheaper than risking a gate that also starves credential refresh.
+  const [recentlyViewed, favorites] = await Promise.all([
+    loadRecentlyViewed(user.sub, 20),
+    loadFavorites(user.sub),
+  ]);
   // Projection only — never the raw UserProfile, tokens, or credentials cross
   // to the client slot props.
-  return { connectionConfigs, credentials, credentialErrors, identity: toIdentity(user) };
+  return {
+    connectionConfigs,
+    credentials,
+    credentialErrors,
+    identity: toIdentity(user),
+    recentlyViewed,
+    favorites,
+  };
 };
 
 // Identity clientLoader — see `app/root.tsx`; works around RR's bulk-fetch
@@ -36,9 +54,10 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
   serverLoader<typeof loader>();
 
 export default function ProtectedLayout() {
-  const { connectionConfigs, credentials, credentialErrors, identity } =
+  const { connectionConfigs, credentials, credentialErrors, identity, recentlyViewed, favorites } =
     useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors);
+  useInitDashboard(recentlyViewed, favorites);
   useCredentialsKeepAlive();
   useConnectionHealthProbe();
 

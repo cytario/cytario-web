@@ -9,6 +9,14 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   authMiddleware: vi.fn(async (_ctx, next) => next()),
 }));
 
+vi.mock("~/routes/recent/recent.loader", () => ({
+  loadRecentlyViewed: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("~/routes/favorites/favorites.loader", () => ({
+  loadFavorites: vi.fn().mockResolvedValue([]),
+}));
+
 const { authContext } = await import("~/.server/auth/authMiddleware");
 const { loader } = await import("~/routes/layouts/protected.layout");
 
