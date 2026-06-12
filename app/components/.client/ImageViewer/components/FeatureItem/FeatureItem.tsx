@@ -1,7 +1,7 @@
 import { IconButton } from "@cytario/design";
 import { ChevronDown, ChevronRight, Circle, CircleDot, type LucideIcon } from "lucide-react";
 
-import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureBar";
+import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureItem";
 
 interface FeatureItemProps {
   title: string;

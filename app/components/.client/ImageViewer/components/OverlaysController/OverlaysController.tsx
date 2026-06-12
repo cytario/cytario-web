@@ -6,7 +6,7 @@ import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { FeatureItem } from "../FeatureBar/FeatureItem";
+import { FeatureItem } from "../FeatureItem/FeatureItem";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
 /**

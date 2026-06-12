@@ -5,15 +5,14 @@ import { Mock } from "vitest";
 
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { useFeatureBarStore, useFeatureItemStore } from "../../FeatureBar/useFeatureBar";
+import { useFeatureItemStore } from "../../FeatureItem/useFeatureItem";
 import { ChannelsController } from "../ChannelsController";
 
 vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 
-vi.mock("../../FeatureBar/useFeatureBar", () => ({
-  useFeatureBarStore: vi.fn(),
+vi.mock("../../FeatureItem/useFeatureItem", () => ({
   useFeatureItemStore: vi.fn(),
   FeatureItemStoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -86,18 +85,12 @@ describe("ChannelsController", () => {
         case select.setChannelsOpacity:
           return mockSetChannelsOpacity;
 
+        case select.pixelValues:
+          return { Red: 100, Green: 50 };
+
         default:
           return undefined;
       }
-    });
-
-    (useFeatureBarStore as unknown as Mock).mockImplementation((selector) => {
-      const state = {
-        isExpanded: true,
-        setIsExpanded: vi.fn(),
-        pixelValues: { Red: 100, Green: 50 },
-      };
-      return selector(state);
     });
 
     (useFeatureItemStore as Mock).mockImplementation((selector) => {

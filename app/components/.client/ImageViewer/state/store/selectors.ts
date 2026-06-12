@@ -59,6 +59,9 @@ export const select = {
   cursorPosition: (state: ViewerStore) => state.cursorPosition,
   setCursorPosition: (state: ViewerStore) => state.setCursorPosition,
 
+  pixelValues: (state: ViewerStore) => state.pixelValues,
+  setPixelValues: (state: ViewerStore) => state.setPixelValues,
+
   /* Channels State Management */
   setActiveChannelsStateIndex: (state: ViewerStore) => state.setActiveChannelsStateIndex,
   activeChannelsStateIndex: (state: ViewerStore) => state.imagePanels[state.imagePanelIndex],

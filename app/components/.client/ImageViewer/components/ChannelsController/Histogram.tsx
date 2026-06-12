@@ -34,7 +34,7 @@ export function Histogram() {
   const maxDomain = Math.max(...channelConfigs.map(({ domain }) => domain[1]));
   const xTicks = [0, 0.5, 1].map((r) => Math.round(ratioToIntensity(r, maxDomain, logScaleX)));
 
-  // Handle FeatureBar Resize
+  // Handle sidebar resize
   useLayoutEffect(() => {
     if (!ref.current) return;
     const observer = new ResizeObserver(([entry]) => {

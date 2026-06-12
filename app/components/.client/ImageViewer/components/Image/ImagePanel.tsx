@@ -11,7 +11,6 @@ import { ViewPort, ViewState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { handleImageViewerHover } from "../../utils/handleImageViewerHover";
 import { mapChannelConfigsToState } from "../../utils/mapChannelConfigsToState";
-import { useFeatureBarStore } from "../FeatureBar/useFeatureBar";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 import { Crosshair } from "../Measurements/Crosshair";
 import { Measurements } from "../Measurements/Measurements";
@@ -54,7 +53,7 @@ const ImagePanelInner = ({
 
   /** Setup Orthographic View */
   const { ids } = useMemo(() => mapChannelConfigsToState(channelsState ?? {}), [channelsState]);
-  const setPixelValues = useFeatureBarStore((state) => state.setPixelValues);
+  const setPixelValues = useViewerStore(select.setPixelValues);
 
   const onMultiscaleLayerHover = useCallback(
     (info: PickingInfo) => {

@@ -78,6 +78,7 @@ export const createViewerStore = (id: string) =>
             imagePanels: [],
 
             cursorPosition: null,
+            pixelValues: {},
 
             layersStates: [],
 
@@ -92,6 +93,17 @@ export const createViewerStore = (id: string) =>
 
             setCursorPosition: (cursorPosition) =>
               set((state) => ({ ...state, cursorPosition }), false, "setCursorPosition"),
+
+            setPixelValues: (ids, values) =>
+              set(
+                (state) => {
+                  ids.forEach((id, index) => {
+                    state.pixelValues[id] = values[index];
+                  });
+                },
+                false,
+                "setPixelValues",
+              ),
 
             setViewStatePreview: (viewStatePreview: ViewState) =>
               set(
