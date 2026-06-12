@@ -37,6 +37,7 @@ function useSignedFetch(connectionName: string) {
     return createSignedFetch(
       () => useConnectionsStore.getState().connections[connectionName]?.credentials,
       connectionConfig,
+      connectionName,
     );
   }, [connectionName, connectionConfig]);
 

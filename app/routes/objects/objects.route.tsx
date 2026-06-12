@@ -245,6 +245,7 @@ export default function ObjectsRoute() {
       const signedFetch = createSignedFetch(
         () => useConnectionsStore.getState().connections[connectionName]?.credentials,
         connectionConfig,
+        connectionName,
       );
       return (
         <ClientOnly>
