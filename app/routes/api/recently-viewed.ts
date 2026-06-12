@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getConnection } from "~/routes/connections/connections.server";
-import { upsertRecentlyViewed } from "~/utils/recentlyViewed.server";
+import { upsertRecentlyViewed } from "~/routes/recent/recent.server";
 
 const recentlyViewedSchema = z.object({
   connectionName: z.string().min(1),

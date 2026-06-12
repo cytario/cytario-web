@@ -4,9 +4,9 @@ import { type LoaderFunctionArgs } from "react-router";
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { getRecentlyViewed } from "~/routes/recent/recent.server";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
 import { getPinnedPaths } from "~/utils/pinnedPaths.server";
-import { getRecentlyViewed } from "~/utils/recentlyViewed.server";
 
 export type SerializedRecentlyViewed = {
   id: number;

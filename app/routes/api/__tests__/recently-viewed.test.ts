@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const mockUpsertRecentlyViewed = vi.hoisted(() => vi.fn());
 const mockGetConnection = vi.hoisted(() => vi.fn());
 
-vi.mock("~/utils/recentlyViewed.server", () => ({
+vi.mock("~/routes/recent/recent.server", () => ({
   upsertRecentlyViewed: mockUpsertRecentlyViewed,
 }));
 

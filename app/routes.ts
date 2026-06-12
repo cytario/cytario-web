@@ -28,7 +28,7 @@ const appRoutes = [
   },
   {
     path: "/recent",
-    file: "routes/recent.route.tsx",
+    file: "routes/recent/recent.route.tsx",
   },
   {
     path: "/search",
