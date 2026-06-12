@@ -13,6 +13,7 @@ import { ExplorerTab } from "~/components/Sidebar/Explorer/ExplorerTab";
 import { SIDEBAR_SEARCH_INPUT_ID } from "~/components/Sidebar/Explorer/SidebarSearchInput";
 import { Sidebar, SIDEBAR } from "~/components/Sidebar/Sidebar";
 import { useNavSidebarStore } from "~/components/Sidebar/sidebarStores";
+import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
 
@@ -38,6 +39,7 @@ export default function ProtectedLayout() {
   const { connectionConfigs, credentials, credentialErrors, identity } =
     useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors);
+  useCredentialsKeepAlive();
   useConnectionHealthProbe();
 
   return (

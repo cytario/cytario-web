@@ -6,6 +6,13 @@
 
 import type { Credentials } from "@aws-sdk/client-sts";
 
+/**
+ * How long before STS expiry the server treats credentials as stale and
+ * re-mints them (`isValidCredentials`). The client keep-alive interval must
+ * stay below this so one revalidation always lands inside the window.
+ */
+export const STS_STALENESS_BUFFER_MS = 5 * 60 * 1000;
+
 /** Thrown when no refresher is installed or the refresh+retry still fails. */
 export class ExpiredCredentialsError extends Error {
   public readonly connectionName?: string;

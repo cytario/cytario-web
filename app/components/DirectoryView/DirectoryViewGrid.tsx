@@ -8,7 +8,7 @@ import { ClientOnly } from "~/components/ClientOnly";
 import { GridItem } from "~/components/DirectoryView/GridItem";
 import { ProviderPill } from "~/components/Pills/ProviderPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
+import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { isImageFile } from "~/utils/fileType";
 import { constructS3Url } from "~/utils/resourceId";
@@ -34,10 +34,7 @@ function useSignedFetch(connectionName: string) {
 
   const signedFetch = useMemo(() => {
     if (!connectionConfig) return null;
-    return createSignedFetch(
-      () => useConnectionsStore.getState().connections[connectionName]?.credentials,
-      connectionConfig,
-    );
+    return createSignedFetch(liveCredentials(connectionName), connectionConfig, connectionName);
   }, [connectionName, connectionConfig]);
 
   return { connectionConfig, signedFetch };

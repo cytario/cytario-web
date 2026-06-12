@@ -4,6 +4,7 @@ import { buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
+import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 const label = createLabel("credentials", "cyan");
@@ -11,9 +12,7 @@ const label = createLabel("credentials", "cyan");
 export const isValidCredentials = (credentials?: { Expiration?: Date }): boolean => {
   if (!credentials?.Expiration) return false;
 
-  // Check if credentials are expired (with 5 minute buffer)
-  const bufferMs = 5 * 60 * 1000; // 5 minutes
-  return Date.now() < new Date(credentials.Expiration).getTime() - bufferMs;
+  return Date.now() < new Date(credentials.Expiration).getTime() - STS_STALENESS_BUFFER_MS;
 };
 
 /**

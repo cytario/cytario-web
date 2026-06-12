@@ -26,7 +26,9 @@ describe("createDatabase", () => {
   const mockConnect = vi.fn();
   const mockInstantiate = vi.fn();
   const mockOpen = vi.fn();
-  const mockConnection = { query: mockQuery };
+  // Fresh per test: `appliedKeyIds` is keyed by connection identity, and a
+  // shared mock object would carry "credentials already applied" across tests.
+  let mockConnection: { query: typeof mockQuery };
   const credentials = mock.credentials();
 
   beforeEach(() => {
@@ -49,6 +51,7 @@ describe("createDatabase", () => {
           connect: mockConnect,
         }) as never,
     );
+    mockConnection = { query: mockQuery };
     mockConnect.mockResolvedValue(mockConnection);
     mockQuery.mockResolvedValue({});
 
