@@ -70,10 +70,15 @@ export const handle = {
   },
 };
 
-// Revalidate only on URL change. Without this, aux fetcher submissions
-// (recently-viewed, pinned) would each retrigger the S3 listing — `formAction`
-// fires for fetcher submissions too, so the usual `if (formAction)` check is unsafe.
-export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl }) => {
+// `formAction` fires for fetcher submissions too, so a blanket `if (formAction)`
+// is unsafe here: the record-viewed fetcher posts to /recent on every nav and
+// must NOT retrigger the S3 listing. But the favorite toggle must refresh
+// `isFavorite` — once the fetcher idles the optimistic state evaporates and the
+// button reverts to stale loader data. Favorite toggles are rare, so one extra
+// listing per toggle is acceptable; everything else still revalidates only on
+// URL change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formAction }) => {
+  if (formAction === "/favorites") return true;
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   if (currentUrl.search !== nextUrl.search) return true;
   return false;
