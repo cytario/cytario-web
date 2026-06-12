@@ -19,6 +19,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
+import { filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
@@ -50,25 +51,9 @@ export default function RecentRoute() {
   const viewMode = useLayoutStore((s) => s.viewMode);
   const clearFetcher = useFetcher();
 
-  const configByName = useMemo(() => {
-    const map = new Map<string, (typeof connectionConfigs)[number]>();
-    for (const c of connectionConfigs) map.set(c.name, c);
-    return map;
-  }, [connectionConfigs]);
-
   const allItems: TreeNode[] = useMemo(
-    () =>
-      recentlyViewed
-        .filter((item) => configByName.has(item.connectionName))
-        .map((item) => ({
-          id: `${item.connectionName}/${item.pathName}`,
-          connectionName: item.connectionName,
-          pathName: item.pathName,
-          name: item.name,
-          type: item.type as TreeNode["type"],
-          children: [],
-        })),
-    [recentlyViewed, configByName],
+    () => filterByKnownConnection(recentlyViewed, connectionConfigs).map(recentToNode),
+    [recentlyViewed, connectionConfigs],
   );
 
   if (allItems.length === 0) {

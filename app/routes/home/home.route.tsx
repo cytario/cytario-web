@@ -3,20 +3,17 @@ import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
+import { type HomeLoaderData } from "./home.clientLoader";
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
-import {
-  type LoaderData,
-  type SerializedPinnedPath,
-  type SerializedRecentlyViewed,
-} from "~/routes/connections/connections.loader";
+import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
 import { isImageFile } from "~/utils/fileType";
 
 const title = "Storage Connections";
 const MAX_RECENT_IMAGES = 4;
-const MAX_PINNED = 10;
+const MAX_FAVORITES = 10;
 const MAX_RECENT_DIRS = 5;
 const MAX_RECENT_FILES = 6;
 const MAX_CONNECTIONS = 100;
@@ -36,39 +33,21 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
-export { enrichConnectionsWithPreviews as clientLoader } from "~/routes/connections/connections.clientLoader";
-export { loadConnections as loader } from "~/routes/connections/connections.loader";
+export { enrichHomeWithPreviews as clientLoader } from "./home.clientLoader";
+export { loadHome as loader } from "./home.loader";
 
 // Response carries STS credentials — keep it out of every cache between origin
 // and browser.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export default function HomeRoute() {
-  const { nodes, connectionConfigs, recentlyViewed, pinnedPaths } = useLoaderData<LoaderData>();
+  const { nodes, connectionConfigs, recentlyViewed, favorites } = useLoaderData<HomeLoaderData>();
 
   const { openModal } = useModal();
 
-  const configByName = useMemo(() => {
-    const map = new Map<string, (typeof connectionConfigs)[number]>();
-    for (const c of connectionConfigs) map.set(c.name, c);
-    return map;
-  }, [connectionConfigs]);
-
-  const allRecentItems: TreeNode[] = useMemo(
-    () =>
-      recentlyViewed
-        .filter((item: SerializedRecentlyViewed) => configByName.has(item.connectionName))
-        .map((item: SerializedRecentlyViewed) => {
-          return {
-            id: `${item.connectionName}/${item.pathName}`,
-            connectionName: item.connectionName,
-            pathName: item.pathName,
-            name: item.name,
-            type: item.type as TreeNode["type"],
-            children: [],
-          };
-        }),
-    [recentlyViewed, configByName],
+  const allRecentItems = useMemo(
+    () => filterByKnownConnection(recentlyViewed, connectionConfigs).map(recentToNode),
+    [recentlyViewed, connectionConfigs],
   );
 
   const { recentImages, recentDirs, recentFiles } = useMemo(() => {
@@ -83,28 +62,9 @@ export default function HomeRoute() {
     return { recentImages: images, recentDirs: dirs, recentFiles: files };
   }, [allRecentItems]);
 
-  const pinnedNodes: TreeNode[] = useMemo(
-    () =>
-      pinnedPaths
-        .filter((pin: SerializedPinnedPath) => configByName.has(pin.connectionName))
-        .map((pin: SerializedPinnedPath) => {
-          return {
-            id: `${pin.connectionName}/${pin.pathName}`,
-            connectionName: pin.connectionName,
-            pathName: pin.pathName,
-            name: pin.displayName,
-            type: "directory" as const,
-            children: [],
-            _Object:
-              pin.totalSize != null || pin.lastModified != null
-                ? ({
-                    Size: pin.totalSize ?? undefined,
-                    LastModified: pin.lastModified ? new Date(pin.lastModified) : undefined,
-                  } as TreeNode["_Object"])
-                : undefined,
-          };
-        }),
-    [pinnedPaths, configByName],
+  const favoriteNodes = useMemo(
+    () => filterByKnownConnection(favorites, connectionConfigs).map(favoriteToNode),
+    [favorites, connectionConfigs],
   );
 
   return (
@@ -117,7 +77,13 @@ export default function HomeRoute() {
         showAllHref="/recent"
       />
 
-      <DashboardSection title="Pinned" nodes={pinnedNodes} viewMode="list" maxItems={MAX_PINNED} />
+      <DashboardSection
+        title="Favorites"
+        nodes={favoriteNodes}
+        viewMode="list"
+        maxItems={MAX_FAVORITES}
+        showAllHref="/favorites"
+      />
 
       <DashboardSection
         title="Recently Browsed"

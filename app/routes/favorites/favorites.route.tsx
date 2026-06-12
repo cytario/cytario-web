@@ -18,6 +18,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
+import { favoriteToNode, filterByKnownConnection } from "~/utils/dashboardNodes";
 
 export const meta: MetaFunction = () => [{ title: "Favorites — Cytario" }];
 
@@ -48,32 +49,9 @@ export default function FavoritesRoute() {
   const { connectionConfigs, favorites } = useLoaderData<typeof loader>();
   const viewMode = useLayoutStore((s) => s.viewMode);
 
-  const configByName = useMemo(() => {
-    const map = new Map<string, (typeof connectionConfigs)[number]>();
-    for (const c of connectionConfigs) map.set(c.name, c);
-    return map;
-  }, [connectionConfigs]);
-
   const allItems: TreeNode[] = useMemo(
-    () =>
-      favorites
-        .filter((favorite) => configByName.has(favorite.connectionName))
-        .map((favorite) => ({
-          id: `${favorite.connectionName}/${favorite.pathName}`,
-          connectionName: favorite.connectionName,
-          pathName: favorite.pathName,
-          name: favorite.displayName,
-          type: "directory" as const,
-          children: [],
-          _Object:
-            favorite.totalSize != null || favorite.lastModified != null
-              ? ({
-                  Size: favorite.totalSize ?? undefined,
-                  LastModified: favorite.lastModified ? new Date(favorite.lastModified) : undefined,
-                } as TreeNode["_Object"])
-              : undefined,
-        })),
-    [favorites, configByName],
+    () => filterByKnownConnection(favorites, connectionConfigs).map(favoriteToNode),
+    [favorites, connectionConfigs],
   );
 
   if (allItems.length === 0) {
