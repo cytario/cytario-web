@@ -21,8 +21,8 @@ vi.mock("~/utils/listObjectsClient", () => ({
   listObjectsClient: (...args: unknown[]) => listObjectsClient(...args),
 }));
 
-vi.mock("~/utils/pinnedPaths.server", () => ({
-  checkIsPinnedPath: vi.fn().mockResolvedValue(false),
+vi.mock("~/routes/favorites/favorites.server", () => ({
+  checkIsFavorite: vi.fn().mockResolvedValue(false),
 }));
 
 const { authContext } = await import("~/.server/auth/authMiddleware");

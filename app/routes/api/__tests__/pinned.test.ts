@@ -7,9 +7,9 @@ const { mockAddPinnedPath, mockRemovePinnedPath } = vi.hoisted(() => ({
 
 const mockGetConnection = vi.hoisted(() => vi.fn());
 
-vi.mock("~/utils/pinnedPaths.server", () => ({
-  addPinnedPath: mockAddPinnedPath,
-  removePinnedPath: mockRemovePinnedPath,
+vi.mock("~/routes/favorites/favorites.server", () => ({
+  addFavorite: mockAddPinnedPath,
+  removeFavorite: mockRemovePinnedPath,
 }));
 
 vi.mock("~/routes/connections/connections.server", () => ({

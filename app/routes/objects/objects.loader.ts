@@ -6,13 +6,13 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
+import { checkIsFavorite } from "~/routes/favorites/favorites.server";
 import {
   ConnectionPrefixError,
   getName,
   prefixSchema,
   resolveConnectionPrefix,
 } from "~/utils/pathUtils";
-import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { isZarrPath } from "~/utils/zarrUtils";
 
 /**
@@ -87,7 +87,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   }
   const name = getName(pathName, bucketName);
 
-  const isPinned = await checkIsPinnedPath(user.sub, connectionName, urlPath);
+  const isPinned = await checkIsFavorite(user.sub, connectionName, urlPath);
   const serverDeterminedSingleFile = isZarrPath(pathName);
 
   // SSR-safe defaults; `clientLoader` overwrites the listing fields after hydration.

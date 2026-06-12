@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { getConnection } from "~/routes/connections/connections.server";
-import { addPinnedPath, removePinnedPath } from "~/utils/pinnedPaths.server";
+import { addFavorite, removeFavorite } from "~/routes/favorites/favorites.server";
 
 const pinSchema = z.object({
   connectionName: z.string().min(1),
@@ -44,7 +44,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     }
 
     try {
-      await addPinnedPath(user.sub, parsed.data);
+      await addFavorite(user.sub, parsed.data);
       return Response.json({ ok: true });
     } catch (error) {
       console.error("[pinned] Failed to add pin:", error);
@@ -68,7 +68,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     }
 
     try {
-      await removePinnedPath(user.sub, parsed.data.connectionName, parsed.data.pathName);
+      await removeFavorite(user.sub, parsed.data.connectionName, parsed.data.pathName);
       return Response.json({ ok: true });
     } catch (error) {
       console.error("[pinned] Failed to remove pin:", error);

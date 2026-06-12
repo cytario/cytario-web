@@ -4,9 +4,9 @@ import { type LoaderFunctionArgs } from "react-router";
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { getFavorites } from "~/routes/favorites/favorites.server";
 import { getRecentlyViewed } from "~/routes/recent/recent.server";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
-import { getPinnedPaths } from "~/utils/pinnedPaths.server";
 
 export type SerializedRecentlyViewed = {
   id: number;
@@ -50,7 +50,7 @@ export async function loadConnections({ context }: LoaderFunctionArgs) {
 
   const [recentlyViewedRaw, pinnedPathsRaw] = await Promise.all([
     getRecentlyViewed(userId, 20),
-    getPinnedPaths(userId),
+    getFavorites(userId),
   ]);
 
   const nodes: TreeNode[] = connectionConfigs.map((config) => ({

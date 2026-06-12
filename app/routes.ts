@@ -31,6 +31,10 @@ const appRoutes = [
     file: "routes/recent/recent.route.tsx",
   },
   {
+    path: "/favorites",
+    file: "routes/favorites/favorites.route.tsx",
+  },
+  {
     path: "/search",
     file: "routes/search.route.tsx",
   },
