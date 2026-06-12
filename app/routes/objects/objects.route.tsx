@@ -87,7 +87,7 @@ export default function ObjectsRoute() {
     urlPath,
     pathName,
     connectionConfig,
-    isPinned: loaderIsPinned,
+    isFavorite: loaderIsFavorite,
     isSingleFile,
     notification,
     pendingClientLoad,
@@ -133,16 +133,16 @@ export default function ObjectsRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, navigation.state]);
 
-  const pinFetcher = useFetcher();
+  const favoriteFetcher = useFetcher();
   // Optimistic toggle while the request is in flight.
-  let isPinned = loaderIsPinned;
-  if (pinFetcher.state !== "idle") {
-    isPinned = pinFetcher.formMethod?.toLowerCase() === "put";
+  let isFavorite = loaderIsFavorite;
+  if (favoriteFetcher.state !== "idle") {
+    isFavorite = favoriteFetcher.formMethod?.toLowerCase() === "put";
   }
 
-  const togglePin = useCallback(() => {
-    if (isPinned) {
-      pinFetcher.submit(
+  const toggleFavorite = useCallback(() => {
+    if (isFavorite) {
+      favoriteFetcher.submit(
         { connectionName, pathName: urlPath },
         { method: "delete", action: "/favorites" },
       );
@@ -152,7 +152,7 @@ export default function ObjectsRoute() {
         (max, node) => Math.max(max, computeDirectoryLastModified(node)),
         0,
       );
-      pinFetcher.submit(
+      favoriteFetcher.submit(
         {
           connectionName,
           pathName: urlPath,
@@ -163,7 +163,7 @@ export default function ObjectsRoute() {
         { method: "put", action: "/favorites" },
       );
     }
-  }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);
+  }, [connectionName, urlPath, isFavorite, nodes, favoriteFetcher]);
 
   if (connectionError) {
     return (
@@ -200,12 +200,12 @@ export default function ObjectsRoute() {
         }
       >
         <Button
-          onPress={togglePin}
+          onPress={toggleFavorite}
           variant="secondary"
-          aria-label={isPinned ? "Unpin directory" : "Pin directory"}
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
-          {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-          {isPinned ? "Pinned" : "Pin"}
+          {isFavorite ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+          {isFavorite ? "Favorited" : "Favorite"}
         </Button>
         <Button onPress={() => openModal("cyberduck", { connectionName })} variant="secondary">
           <Download size={16} />
