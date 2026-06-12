@@ -1,12 +1,13 @@
-import { Button, EmptyState } from "@cytario/design";
-import { Layers2 } from "lucide-react";
+import { Button, EmptyState, IconButton } from "@cytario/design";
+import { Circle, CircleDot, Layers2 } from "lucide-react";
 import { useState } from "react";
 
 import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { OverlaysControllerItem } from "./OverlaysController.Item";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { FeatureItem } from "../FeatureItem/FeatureItem";
+import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
+import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
 /**
@@ -32,11 +33,25 @@ export const OverlaysController = () => {
   return (
     <FeatureItem
       title="Overlays"
-      sliderValue={fillOpacity}
-      onSliderChange={setFillOpacity}
-      toggleValue={showCellOutline}
-      onToggleChange={setShowCellOutline}
-      toggleHidden={isInPointMode}
+      actions={
+        <>
+          {!isInPointMode && (
+            <IconButton
+              icon={showCellOutline ? CircleDot : Circle}
+              aria-label={showCellOutline ? "Hide outlines" : "Show outlines"}
+              onPress={() => setShowCellOutline(!showCellOutline)}
+              variant="ghost"
+              size="sm"
+              className={`border-none ${showCellOutline ? "stroke-(--color-text-primary)" : "stroke-(--color-text-tertiary)"}`}
+            />
+          )}
+          <FeatureItemSlider
+            aria-label="Overlay fill opacity"
+            value={fillOpacity}
+            onChange={setFillOpacity}
+          />
+        </>
+      }
     >
       {entries.map(([resourceId, overlayState]) => (
         <OverlaysControllerItem

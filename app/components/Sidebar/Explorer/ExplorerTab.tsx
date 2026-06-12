@@ -6,6 +6,7 @@ import { useParams } from "react-router";
 import { SidebarSearchInput } from "./SidebarSearchInput";
 import { ConnectionSwitcherChip } from "../ConnectionSwitcherChip";
 import { ConnectionTree } from "../ConnectionTree";
+import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -31,7 +32,7 @@ export function ExplorerTab() {
   return (
     <div className="flex flex-col gap-2 overflow-y-auto py-2 h-full">
       {connectionNames.length > 0 ? (
-        <>
+        <FeatureItem title="Connections" badge={String(connectionNames.length)} defaultOpen>
           <div className="px-2">
             <ConnectionSwitcherChip
               selectedConnection={selectedConnection ?? ""}
@@ -42,7 +43,7 @@ export function ExplorerTab() {
           {selectedConnection ? (
             <ConnectionTree selectedConnection={selectedConnection} query={query} />
           ) : null}
-        </>
+        </FeatureItem>
       ) : (
         <EmptyState
           icon={Unplug}

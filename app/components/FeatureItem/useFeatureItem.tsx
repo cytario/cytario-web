@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { create, StoreApi, UseBoundStore, useStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -7,17 +7,19 @@ interface FeatureItemStore {
   setIsOpen: (isOpen: boolean) => void;
 }
 
-export function createFeatureItemStore(name: string) {
+export function createFeatureItemStore(name: string, defaultOpen = false) {
   return create<FeatureItemStore>()(
     persist(
       devtools(
         (set) => ({
-          isOpen: false,
+          isOpen: defaultOpen,
           setIsOpen: (isOpen: boolean) => set({ isOpen }),
         }),
         { name },
       ),
-      { name },
+      // SSR: render the default on server + first client paint, then rehydrate
+      // from localStorage in an effect (same pattern as createSidebarStore).
+      { name, skipHydration: true },
     ),
   );
 }
@@ -28,12 +30,17 @@ const FeatureItemStoreContext = createContext<UseBoundStore<StoreApi<FeatureItem
 
 export function FeatureItemStoreProvider({
   name,
+  defaultOpen,
   children,
 }: {
   name: string;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [store] = useState(() => createFeatureItemStore(name));
+  const [store] = useState(() => createFeatureItemStore(name, defaultOpen));
+  useEffect(() => {
+    void store.persist.rehydrate();
+  }, [store]);
   return (
     <FeatureItemStoreContext.Provider value={store}>{children}</FeatureItemStoreContext.Provider>
   );

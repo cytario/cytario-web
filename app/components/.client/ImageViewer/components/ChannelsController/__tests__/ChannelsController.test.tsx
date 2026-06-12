@@ -5,14 +5,14 @@ import { Mock } from "vitest";
 
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { useFeatureItemStore } from "../../FeatureItem/useFeatureItem";
 import { ChannelsController } from "../ChannelsController";
+import { useFeatureItemStore } from "~/components/FeatureItem/useFeatureItem";
 
 vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 
-vi.mock("../../FeatureItem/useFeatureItem", () => ({
+vi.mock("~/components/FeatureItem/useFeatureItem", () => ({
   useFeatureItemStore: vi.fn(),
   FeatureItemStoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
