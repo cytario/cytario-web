@@ -1,15 +1,20 @@
 import { Button, EmptyState } from "@cytario/design";
 import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
-import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
+import {
+  type MetaFunction,
+  type ShouldRevalidateFunction,
+  useLoaderData,
+  useRouteLoaderData,
+} from "react-router";
 
 import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
 import { type LoaderData } from "~/routes/connections/connections.loader";
+import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
 import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
-import { useDashboardStore } from "~/utils/dashboardStore/useDashboardStore";
 import { isImageFile } from "~/utils/fileType";
 
 const title = "Storage Connections";
@@ -44,16 +49,20 @@ export const headers = () => ({ "Cache-Control": "no-store, private" });
 export default function HomeRoute() {
   const { nodes, connectionConfigs } = useLoaderData<LoaderData>();
 
-  // Recents/favorites are composed once in the protected layout and seeded to
-  // the dashboard store — home and the sidebar read the same source.
-  const recentlyViewed = useDashboardStore((s) => s.recentlyViewed);
-  const favorites = useDashboardStore((s) => s.favorites);
+  // Recents/favorites are composed once in the protected layout; home and the
+  // sidebar both read that loader.
+  const layoutData = useRouteLoaderData<typeof protectedLayoutLoader>(
+    "routes/layouts/protected.layout",
+  );
 
   const { openModal } = useModal();
 
   const allRecentItems = useMemo(
-    () => filterByKnownConnection(recentlyViewed, connectionConfigs).map(recentToNode),
-    [recentlyViewed, connectionConfigs],
+    () =>
+      filterByKnownConnection(layoutData?.recentlyViewed ?? [], connectionConfigs).map(
+        recentToNode,
+      ),
+    [layoutData, connectionConfigs],
   );
 
   const { recentImages, recentDirs, recentFiles } = useMemo(() => {
@@ -69,8 +78,9 @@ export default function HomeRoute() {
   }, [allRecentItems]);
 
   const favoriteNodes = useMemo(
-    () => filterByKnownConnection(favorites, connectionConfigs).map(favoriteToNode),
-    [favorites, connectionConfigs],
+    () =>
+      filterByKnownConnection(layoutData?.favorites ?? [], connectionConfigs).map(favoriteToNode),
+    [layoutData, connectionConfigs],
   );
 
   return (

@@ -16,7 +16,6 @@ import { Sidebar, SIDEBAR } from "~/components/Sidebar/Sidebar";
 import { useNavSidebarStore } from "~/components/Sidebar/sidebarStores";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
-import { useInitDashboard } from "~/hooks/useInitDashboard";
 import { loadFavorites } from "~/routes/favorites/favorites.loader";
 import { loadRecentlyViewed } from "~/routes/recent/recent.loader";
 import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
@@ -67,10 +66,9 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
   serverLoader<typeof loader>();
 
 export default function ProtectedLayout() {
-  const { connectionConfigs, credentials, credentialErrors, identity, recentlyViewed, favorites } =
+  const { connectionConfigs, credentials, credentialErrors, identity } =
     useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors);
-  useInitDashboard(recentlyViewed, favorites);
   useCredentialsKeepAlive();
   useConnectionHealthProbe();
 
