@@ -231,8 +231,10 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
         confirmLabel="Save Changes"
         confirmVariant="primary"
       >
-        <p className="text-sm text-slate-600">You are about to make the following changes:</p>
-        <ul className="list-disc list-inside text-sm text-slate-900 space-y-1">
+        <p className="text-sm text-(--color-text-secondary)">
+          You are about to make the following changes:
+        </p>
+        <ul className="list-disc list-inside text-sm text-(--color-text-primary) space-y-1">
           {warnings.map((w) => (
             <li key={w}>{w}</li>
           ))}

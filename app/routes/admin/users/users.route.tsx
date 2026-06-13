@@ -154,7 +154,7 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
     name: (row) => (
       <Link
         to={`${row.userId}?scope=${encodeURIComponent(scope)}`}
-        className="text-cytario-turquoise-700 hover:underline"
+        className="text-(--color-text-accent) hover:underline"
       >
         {row.name}
       </Link>
@@ -222,7 +222,7 @@ export default function AdminUsersRoute() {
   return (
     <Section>
       <SectionHeader name={headingLabel}>
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-(--color-text-tertiary)">
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>
         <ButtonLink
@@ -253,7 +253,10 @@ export default function AdminUsersRoute() {
 
       <Container>
         <section aria-labelledby="connections-heading" className="mb-6">
-          <h3 id="connections-heading" className="text-sm font-medium text-slate-500 mb-2">
+          <h3
+            id="connections-heading"
+            className="text-sm font-medium text-(--color-text-tertiary) mb-2"
+          >
             Connections
           </h3>
           {connections.length > 0 ? (
@@ -262,10 +265,10 @@ export default function AdminUsersRoute() {
                 <li key={conn.name}>
                   <Link
                     to={`/connections/${encodeURIComponent(conn.name)}`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm hover:border-slate-300 hover:bg-white transition-colors"
+                    className="inline-flex items-center gap-2 rounded-lg border border-(--color-border-default) bg-(--color-surface-subtle) px-3 py-1.5 text-sm hover:border-(--color-border-strong) hover:bg-white transition-colors"
                   >
                     <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
-                    <span className="font-medium text-cytario-turquoise-700 hover:underline">
+                    <span className="font-medium text-(--color-text-accent) hover:underline">
                       {conn.name}
                     </span>
                     <ProviderPill provider={conn.provider} />

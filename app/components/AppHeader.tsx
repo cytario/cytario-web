@@ -22,7 +22,7 @@ export function AppHeader() {
   return (
     <header
       data-theme="dark"
-      className="z-20 flex justify-between items-center h-12 bg-slate-900 top-0 left-0 right-0"
+      className="z-20 flex justify-between items-center h-12 bg-(--color-surface-default) top-0 left-0 right-0"
     >
       <div className="h-full flex items-center gap-1 shrink min-w-0 pl-2">
         <PanelToggle />

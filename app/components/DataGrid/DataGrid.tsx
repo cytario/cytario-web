@@ -93,7 +93,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
           cell: (info) => {
             const value = info.getValue();
             if (value === null || value === undefined) {
-              return <span className="text-gray-400 italic">null</span>;
+              return <span className="text-(--color-text-tertiary) italic">null</span>;
             }
             if (typeof value === "boolean") {
               return <Checkbox isSelected={value} isDisabled />;
@@ -152,13 +152,13 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   return (
     <div ref={containerRef} className="h-full overflow-auto">
       <table className="min-w-full border-collapse text-sm">
-        <thead className="bg-gray-100 dark:bg-slate-800 sticky top-0 z-10">
+        <thead className="bg-(--color-surface-muted) sticky top-0 z-10">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className="grid" style={{ gridTemplateColumns }}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className={`border-b border-gray-200 dark:border-slate-700 px-4 py-2 font-semibold ${
+                  className={`border-b border-(--color-border-default) px-4 py-2 font-semibold ${
                     RIGHT_ALIGNED_COLUMNS.has(header.id) ? "text-right" : "text-left"
                   }`}
                 >
@@ -181,7 +181,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
             return (
               <tr
                 key={row.id}
-                className="hover:bg-gray-50 dark:hover:bg-slate-800 absolute w-full grid"
+                className="hover:bg-(--color-surface-hover) absolute w-full grid"
                 style={{
                   gridTemplateColumns,
                   height: `${virtualRow.size}px`,
@@ -191,7 +191,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className={`border-b border-gray-100 dark:border-slate-700 tabular-nums px-4 flex items-center ${
+                    className={`border-b border-(--color-border-default) tabular-nums px-4 flex items-center ${
                       RIGHT_ALIGNED_COLUMNS.has(cell.column.id) ? "justify-end" : ""
                     }`}
                   >
@@ -203,7 +203,9 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
           })}
         </tbody>
       </table>
-      {isFetchingMore && <div className="p-2 text-center text-gray-500">Loading more...</div>}
+      {isFetchingMore && (
+        <div className="p-2 text-center text-(--color-text-tertiary)">Loading more...</div>
+      )}
     </div>
   );
 };

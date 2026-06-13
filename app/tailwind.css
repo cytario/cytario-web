@@ -6,20 +6,8 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
-  /* Custom colors */
-  --color-cytario-purple-500: #5c2483;
-
-  --color-cytario-turquoise-50: #f0fafa;
-  --color-cytario-turquoise-100: #cceded;
-  --color-cytario-turquoise-200: #99dbdb;
-  --color-cytario-turquoise-300: #66c9c9;
-  --color-cytario-turquoise-400: #4dc3c3;
-  --color-cytario-turquoise-500: #35b7b8;
-  --color-cytario-turquoise-600: #2a9293;
-  --color-cytario-turquoise-700: #1f7172;
-  --color-cytario-turquoise-800: #165859;
-  --color-cytario-turquoise-900: #0d3f40;
-  --color-cytario-turquoise-950: #072425;
+  /* Colors come from @cytario/design tokens (--color-surface-*, --color-text-*,
+     --color-teal-*, --color-purple-*); do not redefine them here. */
 
   /* Custom font family */
   --font-montserrat: "Montserrat", sans-serif;
@@ -54,11 +42,11 @@
 
 html,
 body {
-  @apply bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-300;
+  @apply bg-(--color-surface-default) text-(--color-text-primary);
 }
 
 ::selection {
-  @apply bg-cytario-purple-500/60 text-white;
+  @apply bg-(--color-surface-brand)/60 text-white;
 }
 
 @font-face {

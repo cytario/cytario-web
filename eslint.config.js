@@ -73,6 +73,24 @@ export default [
           },
         },
       ],
+      // Chrome must use design tokens (bg-(--color-*)), never raw Tailwind
+      // gray-family utilities or the retired cytario-* brand palette. Genuine
+      // shades go through the slate CSS var: e.g. bg-(--color-slate-300).
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "Literal[value=/(?:text|bg|border|ring|divide|fill|stroke|from|via|to|outline|placeholder|shadow)-(?:slate|gray|neutral|zinc|stone)-[0-9]|cytario-(?:purple|turquoise)/]",
+          message:
+            "Use design tokens (e.g. text-(--color-text-secondary), bg-(--color-surface-subtle)) instead of raw Tailwind gray/cytario color utilities.",
+        },
+        {
+          selector:
+            "TemplateElement[value.cooked=/(?:text|bg|border|ring|divide|fill|stroke|from|via|to|outline|placeholder|shadow)-(?:slate|gray|neutral|zinc|stone)-[0-9]|cytario-(?:purple|turquoise)/]",
+          message:
+            "Use design tokens (e.g. text-(--color-text-secondary), bg-(--color-surface-subtle)) instead of raw Tailwind gray/cytario color utilities.",
+        },
+      ],
     },
     settings: {
       react: {

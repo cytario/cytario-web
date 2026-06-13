@@ -18,7 +18,7 @@ export const WktSvg = ({ wkt, size = 48 }: WktSvgProps) => {
   const paths = parseWkt(wkt);
 
   if (paths.length === 0) {
-    return <span className="text-gray-400 italic">invalid</span>;
+    return <span className="text-(--color-text-tertiary) italic">invalid</span>;
   }
 
   // Calculate bounding box across all paths
@@ -58,7 +58,7 @@ export const WktSvg = ({ wkt, size = 48 }: WktSvgProps) => {
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      className="inline-block bg-gray-50 dark:bg-slate-700 rounded"
+      className="inline-block bg-(--color-surface-muted) rounded"
     >
       <path
         d={pathData}
@@ -66,7 +66,7 @@ export const WktSvg = ({ wkt, size = 48 }: WktSvgProps) => {
         fillOpacity={0.3}
         stroke="currentColor"
         strokeWidth={1}
-        className="text-cytario-turquoise-700"
+        className="text-(--color-text-accent)"
       />
     </svg>
   );

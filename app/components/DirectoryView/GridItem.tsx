@@ -33,7 +33,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
 
   return (
     <Link to={to} className={twMerge(cx, className)}>
-      <div className="shrink-0 overflow-hidden bg-neutral-900 aspect-4/3 rounded-t-lg">
+      <div className="shrink-0 overflow-hidden bg-(--color-slate-900) aspect-4/3 rounded-t-lg">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
             <NodeIcon node={node} size={32} />

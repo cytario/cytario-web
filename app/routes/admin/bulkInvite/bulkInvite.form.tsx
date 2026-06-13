@@ -125,7 +125,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
         handleSubmit();
       }}
     >
-      <p className="text-sm text-slate-500 mb-4">
+      <p className="text-sm text-(--color-text-tertiary) mb-4">
         Keycloak emails the invite to each address below. Group membership can be assigned after
         each user accepts.
       </p>
@@ -138,7 +138,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
 
       <table ref={tableRef} className="w-full border-collapse">
         <thead>
-          <tr className="text-left text-sm text-slate-500">
+          <tr className="text-left text-sm text-(--color-text-tertiary)">
             <th scope="col" className="w-10 pr-2 py-2 font-medium">
               #
             </th>
@@ -160,7 +160,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
           {rows.map((row, i) => {
             return (
               <tr key={row.id}>
-                <td className="pr-2 py-1 text-sm text-slate-400 tabular-nums text-right">
+                <td className="pr-2 py-1 text-sm text-(--color-text-tertiary) tabular-nums text-right">
                   {i + 1}
                 </td>
                 <td className="px-1 py-1">
