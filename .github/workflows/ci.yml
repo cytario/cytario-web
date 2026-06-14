@@ -73,5 +73,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless cosign signing via GitHub OIDC
     with:
       version: pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+    secrets:
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+      HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}

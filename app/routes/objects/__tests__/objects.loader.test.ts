@@ -55,8 +55,8 @@ describe("objects loader (C-193)", () => {
       request,
       params: { name: "test-conn", "*": "image.zarr" },
       context: buildContext() as never,
-      unstable_pattern: "",
-      unstable_url: new URL(request.url),
+      pattern: "",
+      url: new URL(request.url),
     });
 
     // Cache-Control: no-store, private is attached via the route-level
@@ -82,8 +82,8 @@ describe("objects loader (C-193)", () => {
         request,
         params: { name: "test-conn", "*": "../etc" },
         context: buildContext() as never,
-        unstable_pattern: "",
-        unstable_url: new URL(request.url),
+        pattern: "",
+        url: new URL(request.url),
       }),
     ).rejects.toMatchObject({ status: 400 });
   });

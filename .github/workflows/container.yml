@@ -5,6 +5,11 @@ on:
       version:
         required: true
         type: string
+    secrets:
+      HARBOR_USERNAME:
+        required: true
+      HARBOR_PASSWORD:
+        required: true
 
 env:
   TZ: "Europe/Berlin"
@@ -88,6 +93,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless cosign signing via GitHub OIDC
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -106,27 +112,63 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.cytario.org
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
       - name: Determine tags
         id: tags
         run: |
+          GHCR=ghcr.io/${{ github.repository }}
+          HARBOR=harbor.cytario.org/oss/cytario-web
           # For pre-release versions (pr-*), only tag with version
           # For release versions, tag with both latest and version
           if [[ "${{ inputs.version }}" == pr-* ]]; then
-            echo "tags=ghcr.io/${{ github.repository }}:${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "ghcr_tags=${GHCR}:${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "harbor_tags=${HARBOR}:${{ inputs.version }}" >> $GITHUB_OUTPUT
           else
-            echo "tags=ghcr.io/${{ github.repository }}:latest,ghcr.io/${{ github.repository }}:${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "ghcr_tags=${GHCR}:latest,${GHCR}:${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "harbor_tags=${HARBOR}:latest,${HARBOR}:${{ inputs.version }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(echo "${{ steps.tags.outputs.tags }}" | tr ',' '\n' | xargs -I {} echo "-t {}") \
+            $(echo "${{ steps.tags.outputs.ghcr_tags }}" | tr ',' '\n' | xargs -I {} echo "-t {}") \
             $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+
+      # Mirror the assembled multi-arch image from GHCR to Harbor. A
+      # cross-registry imagetools copy is reliable, unlike pushing by
+      # digest to two registries in one build.
+      - name: Mirror image to Harbor
+        run: |
+          docker buildx imagetools create \
+            $(echo "${{ steps.tags.outputs.harbor_tags }}" | tr ',' '\n' | xargs -I {} echo "-t {}") \
+            ghcr.io/${{ github.repository }}:${{ inputs.version }}
 
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ inputs.version }}
+          docker buildx imagetools inspect harbor.cytario.org/oss/cytario-web:${{ inputs.version }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Keyless signing with the GitHub OIDC identity. The multi-arch index
+      # digest is content-addressed, so the same digest signs both registries.
+      - name: Sign images
+        env:
+          COSIGN_YES: "true"
+        run: |
+          digest=$(docker buildx imagetools inspect \
+            ghcr.io/${{ github.repository }}:${{ inputs.version }} \
+            --format '{{.Manifest.Digest}}')
+          cosign sign ghcr.io/${{ github.repository }}@${digest}
+          cosign sign harbor.cytario.org/oss/cytario-web@${digest}
 
       - name: Generate Summary
         if: always()
@@ -135,12 +177,15 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ inputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Registry**: ghcr.io" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registries**: ghcr.io, harbor.cytario.org" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Tags**:" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ inputs.version }}" == pr-* ]]; then
             echo "  - \`ghcr.io/${{ github.repository }}:${{ inputs.version }}\` (pre-release)" >> $GITHUB_STEP_SUMMARY
+            echo "  - \`harbor.cytario.org/oss/cytario-web:${{ inputs.version }}\` (pre-release)" >> $GITHUB_STEP_SUMMARY
           else
             echo "  - \`ghcr.io/${{ github.repository }}:latest\`" >> $GITHUB_STEP_SUMMARY
             echo "  - \`ghcr.io/${{ github.repository }}:${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "  - \`harbor.cytario.org/oss/cytario-web:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "  - \`harbor.cytario.org/oss/cytario-web:${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           fi
