@@ -161,7 +161,7 @@ export function Table<TData extends object>({
       {/* Sticky header — sticks vertically, scrolls horizontally (hidden scrollbar) */}
       <div
         ref={headerRef}
-        className="sticky top-0 z-10 bg-white border-b border-slate-300 overflow-x-auto"
+        className="sticky top-0 z-10 bg-white border-b border-(--color-border-strong) overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
         onScroll={handleHeaderScroll}
       >

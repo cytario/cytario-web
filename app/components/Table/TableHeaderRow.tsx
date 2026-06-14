@@ -74,7 +74,7 @@ export function TableHeaderRow({
           hover:text-(--color-text-secondary)
           focus-visible:outline-none
           focus-visible:ring-2
-          focus-visible:ring-cytario-turquoise-700
+          focus-visible:ring-(--color-border-focus)
           focus-visible:ring-offset-1
           rounded-sm
         `;
@@ -128,7 +128,7 @@ export function TableHeaderRow({
                       tableHeadCx,
                       tableHeadToggleCx,
                       isRight && "flex-row-reverse",
-                      isSorted && "text-slate-900",
+                      isSorted && "text-(--color-text-primary)",
                     )}
                     onClick={header.column.getToggleSortingHandler() ?? undefined}
                   >

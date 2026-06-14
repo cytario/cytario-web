@@ -53,7 +53,7 @@ export default function ConfigRoute() {
       </Button>
       <div>
         {typeof window !== "undefined" && (
-          <code className="block bg-slate-100 p-4 overflow-auto">
+          <code className="block bg-(--color-surface-muted) p-4 overflow-auto">
             {JSON.stringify(localStorage, null, 2)}
           </code>
         )}

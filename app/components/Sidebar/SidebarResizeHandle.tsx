@@ -73,7 +73,7 @@ export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeH
       aria-valuenow={Math.round(isOpen ? width : 0)}
       aria-valuemin={0}
       aria-valuemax={SIDEBAR_MAX_WIDTH}
-      className={`absolute top-0 z-30 h-full w-4 cursor-ew-resize hover:bg-slate-400/40 ${
+      className={`absolute top-0 z-30 h-full w-4 cursor-ew-resize hover:bg-(--color-slate-400)/40 ${
         side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
       }`}
     />

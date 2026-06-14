@@ -286,7 +286,7 @@ export default function ObjectsRoute() {
       <div
         role="status"
         aria-live="polite"
-        className="flex h-full items-center justify-center p-8 text-slate-500"
+        className="flex h-full items-center justify-center p-8 text-(--color-text-tertiary)"
       >
         Loading…
       </div>

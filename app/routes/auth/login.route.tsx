@@ -81,7 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function LoginRoute() {
   return (
     <div className="flex items-center justify-center h-screen">
-      <p role="status" className="text-slate-500">
+      <p role="status" className="text-(--color-text-tertiary)">
         Redirecting to login...
       </p>
     </div>

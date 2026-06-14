@@ -133,7 +133,7 @@ export default function SearchRoute() {
     <Section>
       <H1>{`Search: ${searchQuery}`}</H1>
 
-      <div className="bg-slate-100 p-2">
+      <div className="bg-(--color-surface-muted) p-2">
         <DirectoryViewTree
           nodes={nodes}
           kind="entries"

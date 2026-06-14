@@ -1,4 +1,6 @@
-import { ColorBrandAccent, ColorBrandPrimary } from "@cytario/design";
+// The logo is the fixed brand identity — use the brand primitives directly
+// (theme-invariant), not theme-adaptive semantic tokens.
+import { ColorPurple700, ColorTeal500 } from "@cytario/design";
 import { motion } from "framer-motion";
 
 const W = 56;
@@ -23,7 +25,7 @@ const pathVariants = {
 
 export const Logo = ({
   color = "white",
-  highlightColor = ColorBrandAccent,
+  highlightColor = ColorTeal500,
   scale = 1,
   className,
 }: {
@@ -50,7 +52,7 @@ export const Logo = ({
       width={width}
       height={height}
       viewBox={`0 0 ${W} ${H}`}
-      fill={color ?? ColorBrandPrimary}
+      fill={color ?? ColorPurple700}
       className={className}
       variants={containerVariants}
       initial="hidden"

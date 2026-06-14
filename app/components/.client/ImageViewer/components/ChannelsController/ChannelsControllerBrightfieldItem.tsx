@@ -58,7 +58,7 @@ export function ChannelsControllerBrightfieldItem({
   return (
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
       {/* Tri-color indicator */}
-      <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-slate-500">
+      <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-(--color-slate-500)">
         <div className="grow h-full  bg-red-500" />
         <div className="grow h-full bg-green-500" />
         <div className="grow h-full  bg-blue-500" />

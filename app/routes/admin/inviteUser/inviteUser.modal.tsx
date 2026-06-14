@@ -35,7 +35,7 @@ export default function InviteModal() {
       <InviteUserForm scope={scope} inviteAnother={inviteAnother} actionData={actionData} />
       <footer className="flex items-center gap-3 mt-6">
         <Checkbox isSelected={inviteAnother} onChange={setInviteAnother} className="mr-auto">
-          <span className="text-sm text-slate-600">Invite another</span>
+          <span className="text-sm text-(--color-text-secondary)">Invite another</span>
         </Checkbox>
         <Button onPress={() => navigate(-1)} variant="secondary">
           Cancel
