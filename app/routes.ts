@@ -28,7 +28,11 @@ const appRoutes = [
   },
   {
     path: "/recent",
-    file: "routes/recent.route.tsx",
+    file: "routes/recent/recent.route.tsx",
+  },
+  {
+    path: "/favorites",
+    file: "routes/favorites/favorites.route.tsx",
   },
   {
     path: "/search",
@@ -79,14 +83,6 @@ const apiRoutes = [
   {
     path: "/api/cyberduck-profile/:name",
     file: "routes/api/cyberduck-profile.$name.ts",
-  },
-  {
-    path: "/api/recently-viewed",
-    file: "routes/api/recently-viewed.ts",
-  },
-  {
-    path: "/api/pinned",
-    file: "routes/api/pinned.ts",
   },
 ];
 

@@ -70,10 +70,15 @@ export const handle = {
   },
 };
 
-// Revalidate only on URL change. Without this, aux fetcher submissions
-// (recently-viewed, pinned) would each retrigger the S3 listing — `formAction`
-// fires for fetcher submissions too, so the usual `if (formAction)` check is unsafe.
-export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl }) => {
+// `formAction` fires for fetcher submissions too, so a blanket `if (formAction)`
+// is unsafe here: the record-viewed fetcher posts to /recent on every nav and
+// must NOT retrigger the S3 listing. But the favorite toggle must refresh
+// `isFavorite` — once the fetcher idles the optimistic state evaporates and the
+// button reverts to stale loader data. Favorite toggles are rare, so one extra
+// listing per toggle is acceptable; everything else still revalidates only on
+// URL change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formAction }) => {
+  if (formAction === "/favorites") return true;
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   if (currentUrl.search !== nextUrl.search) return true;
   return false;
@@ -87,7 +92,7 @@ export default function ObjectsRoute() {
     urlPath,
     pathName,
     connectionConfig,
-    isPinned: loaderIsPinned,
+    isFavorite: loaderIsFavorite,
     isSingleFile,
     notification,
     pendingClientLoad,
@@ -127,24 +132,24 @@ export default function ObjectsRoute() {
         name,
         type: isSingleFile ? "file" : "directory",
       },
-      { method: "post", action: "/api/recently-viewed" },
+      { method: "post", action: "/recent" },
     );
     // Other deps are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, navigation.state]);
 
-  const pinFetcher = useFetcher();
+  const favoriteFetcher = useFetcher();
   // Optimistic toggle while the request is in flight.
-  let isPinned = loaderIsPinned;
-  if (pinFetcher.state !== "idle") {
-    isPinned = pinFetcher.formMethod?.toLowerCase() === "post";
+  let isFavorite = loaderIsFavorite;
+  if (favoriteFetcher.state !== "idle") {
+    isFavorite = favoriteFetcher.formMethod?.toLowerCase() === "put";
   }
 
-  const togglePin = useCallback(() => {
-    if (isPinned) {
-      pinFetcher.submit(
+  const toggleFavorite = useCallback(() => {
+    if (isFavorite) {
+      favoriteFetcher.submit(
         { connectionName, pathName: urlPath },
-        { method: "delete", action: "/api/pinned" },
+        { method: "delete", action: "/favorites" },
       );
     } else {
       const totalSize = nodes.reduce((sum, node) => sum + computeDirectorySize(node), 0);
@@ -152,7 +157,7 @@ export default function ObjectsRoute() {
         (max, node) => Math.max(max, computeDirectoryLastModified(node)),
         0,
       );
-      pinFetcher.submit(
+      favoriteFetcher.submit(
         {
           connectionName,
           pathName: urlPath,
@@ -160,10 +165,10 @@ export default function ObjectsRoute() {
           totalSize: String(totalSize),
           lastModified: lastModified ? String(lastModified) : "",
         },
-        { method: "post", action: "/api/pinned" },
+        { method: "put", action: "/favorites" },
       );
     }
-  }, [connectionName, urlPath, isPinned, nodes, pinFetcher]);
+  }, [connectionName, urlPath, isFavorite, nodes, favoriteFetcher]);
 
   if (connectionError) {
     return (
@@ -200,12 +205,12 @@ export default function ObjectsRoute() {
         }
       >
         <Button
-          onPress={togglePin}
+          onPress={toggleFavorite}
           variant="secondary"
-          aria-label={isPinned ? "Unpin directory" : "Pin directory"}
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
-          {isPinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-          {isPinned ? "Pinned" : "Pin"}
+          {isFavorite ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+          {isFavorite ? "Favorited" : "Favorite"}
         </Button>
         <Button onPress={() => openModal("cyberduck", { connectionName })} variant="secondary">
           <Download size={16} />

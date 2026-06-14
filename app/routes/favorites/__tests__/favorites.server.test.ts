@@ -13,23 +13,18 @@ vi.mock("~/.server/db/prisma", () => ({
   prisma: mockPrisma,
 }));
 
-import {
-  addPinnedPath,
-  checkIsPinnedPath,
-  getPinnedPaths,
-  removePinnedPath,
-} from "../pinnedPaths.server";
+import { addFavorite, checkIsFavorite, getFavorites, removeFavorite } from "../favorites.server";
 
-describe("pinnedPaths.server", () => {
+describe("favorites.server", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("addPinnedPath", () => {
-    test("upserts a pinned path with BigInt totalSize", async () => {
+  describe("addFavorite", () => {
+    test("upserts a favorite with BigInt totalSize", async () => {
       mockPrisma.pinnedPath.upsert.mockResolvedValue({});
 
-      await addPinnedPath("user-1", {
+      await addFavorite("user-1", {
         connectionName: "bucket-a",
         pathName: "data/images/",
         displayName: "images",
@@ -53,7 +48,7 @@ describe("pinnedPaths.server", () => {
     test("handles null totalSize and lastModified", async () => {
       mockPrisma.pinnedPath.upsert.mockResolvedValue({});
 
-      await addPinnedPath("user-1", {
+      await addFavorite("user-1", {
         connectionName: "bucket-a",
         pathName: "data/",
         displayName: "data",
@@ -67,11 +62,11 @@ describe("pinnedPaths.server", () => {
     });
   });
 
-  describe("removePinnedPath", () => {
-    test("deletes a pinned path by userId, connectionName, and pathName", async () => {
+  describe("removeFavorite", () => {
+    test("deletes a favorite by userId, connectionName, and pathName", async () => {
       mockPrisma.pinnedPath.deleteMany.mockResolvedValue({ count: 1 });
 
-      await removePinnedPath("user-1", "bucket-a", "data/images/");
+      await removeFavorite("user-1", "bucket-a", "data/images/");
 
       expect(mockPrisma.pinnedPath.deleteMany).toHaveBeenCalledWith({
         where: { userId: "user-1", connectionName: "bucket-a", pathName: "data/images/" },
@@ -79,9 +74,9 @@ describe("pinnedPaths.server", () => {
     });
   });
 
-  describe("getPinnedPaths", () => {
-    test("fetches all pinned paths ordered by id desc", async () => {
-      const mockPins = [
+  describe("getFavorites", () => {
+    test("fetches all favorites ordered by id desc", async () => {
+      const mockFavorites = [
         {
           id: 3,
           userId: "user-1",
@@ -92,11 +87,11 @@ describe("pinnedPaths.server", () => {
           lastModified: new Date(),
         },
       ];
-      mockPrisma.pinnedPath.findMany.mockResolvedValue(mockPins);
+      mockPrisma.pinnedPath.findMany.mockResolvedValue(mockFavorites);
 
-      const result = await getPinnedPaths("user-1");
+      const result = await getFavorites("user-1");
 
-      expect(result).toEqual(mockPins);
+      expect(result).toEqual(mockFavorites);
       expect(mockPrisma.pinnedPath.findMany).toHaveBeenCalledWith({
         where: { userId: "user-1" },
         orderBy: { id: "desc" },
@@ -104,11 +99,11 @@ describe("pinnedPaths.server", () => {
     });
   });
 
-  describe("checkIsPinnedPath", () => {
-    test("returns true when path is pinned", async () => {
+  describe("checkIsFavorite", () => {
+    test("returns true when path is favorited", async () => {
       mockPrisma.pinnedPath.count.mockResolvedValue(1);
 
-      const result = await checkIsPinnedPath("user-1", "bucket-a", "data/");
+      const result = await checkIsFavorite("user-1", "bucket-a", "data/");
 
       expect(result).toBe(true);
       expect(mockPrisma.pinnedPath.count).toHaveBeenCalledWith({
@@ -116,10 +111,10 @@ describe("pinnedPaths.server", () => {
       });
     });
 
-    test("returns false when path is not pinned", async () => {
+    test("returns false when path is not favorited", async () => {
       mockPrisma.pinnedPath.count.mockResolvedValue(0);
 
-      const result = await checkIsPinnedPath("user-1", "bucket-a", "other/");
+      const result = await checkIsFavorite("user-1", "bucket-a", "other/");
 
       expect(result).toBe(false);
     });

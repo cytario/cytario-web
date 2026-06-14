@@ -6,13 +6,13 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
+import { checkIsFavorite } from "~/routes/favorites/favorites.server";
 import {
   ConnectionPrefixError,
   getName,
   prefixSchema,
   resolveConnectionPrefix,
 } from "~/utils/pathUtils";
-import { checkIsPinnedPath } from "~/utils/pinnedPaths.server";
 import { isZarrPath } from "~/utils/zarrUtils";
 
 /**
@@ -29,7 +29,7 @@ export interface BucketRouteServerLoaderResponse {
   name: string;
   credentials: Credentials | null;
   connectionConfig: ConnectionConfig;
-  isPinned: boolean;
+  isFavorite: boolean;
   /** Set when the URL points at a Zarr directory; the chunk listing is skipped. */
   serverDeterminedSingleFile: boolean;
   /** `true` during SSR; `clientLoader` flips it once the listing resolves. */
@@ -87,7 +87,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   }
   const name = getName(pathName, bucketName);
 
-  const isPinned = await checkIsPinnedPath(user.sub, connectionName, urlPath);
+  const isFavorite = await checkIsFavorite(user.sub, connectionName, urlPath);
   const serverDeterminedSingleFile = isZarrPath(pathName);
 
   // SSR-safe defaults; `clientLoader` overwrites the listing fields after hydration.
@@ -99,7 +99,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     name,
     credentials,
     connectionConfig,
-    isPinned,
+    isFavorite,
     serverDeterminedSingleFile,
     pendingClientLoad: connectionError ? false : true,
     nodes: [],

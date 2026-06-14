@@ -17,9 +17,9 @@ import {
   getRecentlyViewed,
   removeRecentlyViewed,
   upsertRecentlyViewed,
-} from "../recentlyViewed.server";
+} from "../recent.server";
 
-describe("recentlyViewed.server", () => {
+describe("recent.server", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

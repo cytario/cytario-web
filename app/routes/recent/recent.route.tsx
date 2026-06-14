@@ -9,6 +9,9 @@ import {
   useLoaderData,
 } from "react-router";
 
+import { clearRecentlyViewed } from "./clearRecentlyViewed.action";
+import { loadRecentlyViewed } from "./recent.loader";
+import { recordRecentlyViewed } from "./recordRecentlyViewed.action";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -16,7 +19,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { clearAllRecentlyViewed, getRecentlyViewed } from "~/utils/recentlyViewed.server";
+import { filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
@@ -24,28 +27,22 @@ export const handle = {
   breadcrumb: () => ({ label: "Recent", to: "/recent" }),
 };
 
-export const action = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
-  if (request.method.toUpperCase() === "DELETE") {
-    await clearAllRecentlyViewed(user.sub);
-    return { ok: true };
+export const action = async (args: ActionFunctionArgs) => {
+  switch (args.request.method.toUpperCase()) {
+    case "POST":
+      return recordRecentlyViewed(args);
+    case "DELETE":
+      return clearRecentlyViewed(args);
+    default:
+      return new Response("Method not allowed", { status: 405 });
   }
-  return null;
 };
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const { user, connectionConfigs } = context.get(authContext);
-  const raw = await getRecentlyViewed(user.sub, 50);
   return {
     connectionConfigs,
-    recentlyViewed: raw.map((item) => ({
-      id: item.id,
-      connectionName: item.connectionName,
-      pathName: item.pathName,
-      name: item.name,
-      type: item.type,
-      viewedAt: item.viewedAt.toISOString(),
-    })),
+    recentlyViewed: await loadRecentlyViewed(user.sub, 50),
   };
 };
 
@@ -54,25 +51,9 @@ export default function RecentRoute() {
   const viewMode = useLayoutStore((s) => s.viewMode);
   const clearFetcher = useFetcher();
 
-  const configByName = useMemo(() => {
-    const map = new Map<string, (typeof connectionConfigs)[number]>();
-    for (const c of connectionConfigs) map.set(c.name, c);
-    return map;
-  }, [connectionConfigs]);
-
   const allItems: TreeNode[] = useMemo(
-    () =>
-      recentlyViewed
-        .filter((item) => configByName.has(item.connectionName))
-        .map((item) => ({
-          id: `${item.connectionName}/${item.pathName}`,
-          connectionName: item.connectionName,
-          pathName: item.pathName,
-          name: item.name,
-          type: item.type as TreeNode["type"],
-          children: [],
-        })),
-    [recentlyViewed, configByName],
+    () => filterByKnownConnection(recentlyViewed, connectionConfigs).map(recentToNode),
+    [recentlyViewed, connectionConfigs],
   );
 
   if (allItems.length === 0) {

@@ -3,6 +3,7 @@ import { Unplug } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
+import { DashboardSections } from "./DashboardSections";
 import { SidebarSearchInput } from "./SidebarSearchInput";
 import { ConnectionSwitcherChip } from "../ConnectionSwitcherChip";
 import { ConnectionTree } from "../ConnectionTree";
@@ -51,6 +52,7 @@ export function ExplorerTab() {
           description="No storage connections are available yet."
         />
       )}
+      <DashboardSections />
     </div>
   );
 }
