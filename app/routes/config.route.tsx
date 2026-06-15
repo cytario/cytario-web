@@ -26,7 +26,7 @@ function PreferencesSection() {
       <Switch isSelected={showHiddenFiles} onChange={toggleShowHiddenFiles} className="text-sm">
         Show hidden files
       </Switch>
-      <p className="text-xs text-(--color-text-secondary)">
+      <p className="text-xs text-muted-foreground">
         Reveal dot-prefixed files and directories in browse views.
       </p>
     </div>
@@ -53,7 +53,7 @@ export default function ConfigRoute() {
       </Button>
       <div>
         {typeof window !== "undefined" && (
-          <code className="block bg-(--color-surface-muted) p-4 overflow-auto">
+          <code className="block bg-muted p-4 overflow-auto">
             {JSON.stringify(localStorage, null, 2)}
           </code>
         )}

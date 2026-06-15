@@ -137,10 +137,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="flex flex-col h-screen text-(--color-text-secondary) overflow-hidden font-montserrat bg-white">
+      <body className="flex flex-col h-screen text-muted-foreground overflow-hidden font-montserrat bg-white">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-(--color-text-accent)"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-secondary"
         >
           Skip to content
         </a>
@@ -149,9 +149,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div
             role="progressbar"
             aria-label="Loading page"
-            className="fixed top-0 left-0 right-0 z-50 h-1 bg-(--color-surface-accent)/30"
+            className="fixed top-0 left-0 right-0 z-50 h-1 bg-secondary/30"
           >
-            <div className="h-full bg-(--color-surface-accent) animate-progress-bar" />
+            <div className="h-full bg-secondary animate-progress-bar" />
           </div>
         )}
 
@@ -214,7 +214,7 @@ export function ErrorBoundary() {
         <div role="alert">
           <H1>{title}</H1>
           <p>{message}</p>
-          <a href="/" className="text-(--color-text-brand) underline mt-4 inline-block">
+          <a href="/" className="text-primary underline mt-4 inline-block">
             Go home
           </a>
         </div>

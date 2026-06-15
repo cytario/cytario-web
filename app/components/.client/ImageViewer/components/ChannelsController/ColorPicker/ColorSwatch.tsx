@@ -13,7 +13,7 @@ export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
       <div
         className={`
           w-5 h-5 m-1 rounded-full border-2 
-          border-(--color-border-default) group-hover:border-(--color-border-strong)
+          border-border group-hover:border-border
         `}
         style={{ backgroundColor: rgb(color) }}
       />

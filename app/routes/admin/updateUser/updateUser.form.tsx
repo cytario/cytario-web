@@ -213,7 +213,7 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
                     aria-label={group.path}
                     checked={memberGroupIds.has(group.id)}
                     onChange={() => toggleGroup(group.id)}
-                    className="w-4 h-4 cursor-pointer accent-(--color-action-primary)"
+                    className="w-4 h-4 cursor-pointer accent-primary"
                   />
                   <ScopePill scope={group.path} />
                 </label>
@@ -231,10 +231,10 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
         confirmLabel="Save Changes"
         confirmVariant="primary"
       >
-        <p className="text-sm text-(--color-text-secondary)">
+        <p className="text-sm text-muted-foreground">
           You are about to make the following changes:
         </p>
-        <ul className="list-disc list-inside text-sm text-(--color-text-primary) space-y-1">
+        <ul className="list-disc list-inside text-sm text-foreground space-y-1">
           {warnings.map((w) => (
             <li key={w}>{w}</li>
           ))}

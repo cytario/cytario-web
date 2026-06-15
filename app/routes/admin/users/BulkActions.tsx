@@ -190,9 +190,8 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
           confirmLabel={config.confirmLabel}
           confirmVariant={config.confirmVariant}
         >
-          <p className="text-sm text-(--color-text-secondary)">
-            This will affect{" "}
-            <span className="font-medium text-(--color-text-primary)">{count}</span> user
+          <p className="text-sm text-muted-foreground">
+            This will affect <span className="font-medium text-foreground">{count}</span> user
             {count !== 1 ? "s" : ""}.
           </p>
           {config.needsGroup && (

@@ -66,15 +66,15 @@ export function TableHeaderRow({
         // Match FilterBar's label styling (Input/Select's internal <Label>).
         const tableHeadCx = `
           flex items-center justify-between gap-1 h-8 text-left
-          text-sm font-medium text-(--color-text-primary)
+          text-sm font-medium text-foreground
         `;
 
         const tableHeadToggleCx = `
           cursor-pointer
-          hover:text-(--color-text-secondary)
+          hover:text-muted-foreground
           focus-visible:outline-none
           focus-visible:ring-2
-          focus-visible:ring-(--color-border-focus)
+          focus-visible:ring-ring
           focus-visible:ring-offset-1
           rounded-sm
         `;
@@ -128,7 +128,7 @@ export function TableHeaderRow({
                       tableHeadCx,
                       tableHeadToggleCx,
                       isRight && "flex-row-reverse",
-                      isSorted && "text-(--color-text-primary)",
+                      isSorted && "text-foreground",
                     )}
                     onClick={header.column.getToggleSortingHandler() ?? undefined}
                   >

@@ -39,11 +39,11 @@ export function NodeLink({
   `;
 
   const clickAbleCx = `
-    hover:bg-(--color-surface-hover)
-    focus-visible:outline focus-visible:outline-(--color-border-focus)
+    hover:bg-accent
+    focus-visible:outline focus-visible:outline-ring
   `;
 
-  const activeCx = "bg-(--color-surface-selected) font-semibold text-(--color-text-primary)";
+  const activeCx = "bg-accent font-semibold text-foreground";
 
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (!onClick) return;

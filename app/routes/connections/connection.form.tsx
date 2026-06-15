@@ -48,8 +48,8 @@ const FIELD_TO_STEP: Record<string, number> = {
   bucketEndpoint: 1,
 };
 
-const dtClass = "text-[var(--color-text-secondary)]";
-const ddClass = "font-[number:var(--font-weight-medium)] text-[var(--color-text-primary)]";
+const dtClass = "text-muted-foreground";
+const ddClass = "font-[number:var(--font-weight-medium)] text-foreground";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -351,14 +351,14 @@ export const ConnectionForm = ({
 
           {currentStep === LAST_STEP && (
             <div>
-              <p className="mb-(--spacing-2) text-(length:--font-size-sm) font-medium text-(--color-text-primary)">
+              <p className="mb-(--spacing-2) text-(length:--font-size-sm) font-medium text-foreground">
                 Summary
               </p>
               <div
                 className={[
                   "rounded-[var(--border-radius-md)]",
-                  "border border-[var(--color-border-default)]",
-                  "bg-[var(--color-surface-subtle)]",
+                  "border border-border",
+                  "bg-card",
                   "p-[var(--spacing-4)]",
                 ].join(" ")}
               >

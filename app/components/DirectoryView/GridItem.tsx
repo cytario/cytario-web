@@ -26,14 +26,14 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
 
   const cx = `
     group flex flex-col overflow-hidden rounded-lg
-    border border-(--color-border-default)
+    border border-border
     shadow-sm transition-all
-    hover:border-(--color-border-focus) hover:shadow-md
+    hover:border-ring hover:shadow-md
   `;
 
   return (
     <Link to={to} className={twMerge(cx, className)}>
-      <div className="shrink-0 overflow-hidden bg-(--color-slate-900) aspect-4/3 rounded-t-lg">
+      <div className="shrink-0 overflow-hidden bg-muted aspect-4/3 rounded-t-lg">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
             <NodeIcon node={node} size={32} />
@@ -41,7 +41,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
         )}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-(--color-border-default) bg-(--color-surface-default) px-3 py-2 rounded-b-lg">
+      <div className="flex flex-col gap-2 border-t border-border bg-background px-3 py-2 rounded-b-lg">
         <NodeLink node={node} isClickable={() => false} />
         {children && <div className="flex items-center gap-2">{children}</div>}
       </div>

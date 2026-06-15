@@ -7,9 +7,9 @@ function getStyle(sortDirection: false | SortDirection) {
   switch (sortDirection) {
     case "desc":
     case "asc":
-      return "text-(--color-text-secondary) group-hover/header:text-(--color-text-primary)";
+      return "text-muted-foreground group-hover/header:text-foreground";
     default:
-      return "text-(--color-text-tertiary) opacity-0 group-hover/header:opacity-100";
+      return "text-muted-foreground opacity-0 group-hover/header:opacity-100";
   }
 }
 

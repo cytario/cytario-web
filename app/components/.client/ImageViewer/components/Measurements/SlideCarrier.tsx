@@ -49,7 +49,7 @@ const Size = ({ value, vertical = false }: { value: number; vertical?: boolean }
         h-4 
         origin-top-left 
         text-xs font-semibold
-        text-(--color-text-secondary)
+        text-muted-foreground
         `}
       style={{
         width: vertical ? imageHeightScreen : imageWidthScreen,

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@cytario/design/tokens/utilities.css";
 @plugin "tailwindcss-react-aria-components";
 
 /* Match cytario-design's selector convention */
@@ -42,11 +43,11 @@
 
 html,
 body {
-  @apply bg-(--color-surface-default) text-(--color-text-primary);
+  @apply bg-background text-foreground;
 }
 
 ::selection {
-  @apply bg-(--color-surface-brand)/60 text-white;
+  @apply bg-primary/60 text-white;
 }
 
 @font-face {

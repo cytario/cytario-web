@@ -99,7 +99,7 @@ const LavaLoaderInner = ({ absolute = false, rows = 3, cols = 3 }: LavaLoaderPro
                 cx={size + col * size}
                 cy={size + row * size}
                 r={isActive ? 12 : 4}
-                className={`dot-${i}-${row} fill-(--color-slate-300) `}
+                className={`dot-${i}-${row} fill-muted-foreground `}
               />
             );
           })}

@@ -84,7 +84,7 @@ export function MinMaxSettings() {
         </label>
         <input
           id="min-contrast"
-          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-(--color-slate-500) bg-(--color-slate-950) text-(--color-slate-300) disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-border bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           type="number"
           value={minValue}
           disabled={!selectedChannel}
@@ -102,7 +102,7 @@ export function MinMaxSettings() {
         </label>
         <input
           id="max-contrast"
-          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-(--color-slate-500) bg-(--color-slate-950) text-(--color-slate-300) disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-border bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           type="number"
           value={maxValue}
           disabled={!selectedChannel}

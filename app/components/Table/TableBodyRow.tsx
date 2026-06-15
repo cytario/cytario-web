@@ -42,10 +42,10 @@ export function TableBodyRow({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       className={twMerge(
-        "w-full block border-b border-(--color-border-strong)",
-        "hover:bg-(--color-surface-subtle) transition-colors",
-        "focus-visible:outline-none focus-visible:bg-(--color-surface-muted) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-border-focus)",
-        row.getIsSelected() && "bg-(--color-surface-selected)",
+        "w-full block border-b border-border",
+        "hover:bg-card transition-colors",
+        "focus-visible:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        row.getIsSelected() && "bg-accent",
         className,
       )}
     >
@@ -87,7 +87,7 @@ export function TableBodyRow({
 
         return isIndexColumn ? (
           <th key={cell.id} className="p-2" style={style}>
-            <div className="flex items-center gap-1 text-sm text-(--color-text-tertiary) tabular-nums justify-between">
+            <div className="flex items-center gap-1 text-sm text-muted-foreground tabular-nums justify-between">
               {enableRowSelection && (
                 <Checkbox isSelected={row.getIsSelected()} onChange={() => row.toggleSelected()} />
               )}
