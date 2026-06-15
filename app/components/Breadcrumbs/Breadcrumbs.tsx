@@ -36,7 +36,7 @@ export function Breadcrumbs() {
   return (
     <div className="flex h-full items-center mx-2 gap-1">
       {rootCrumb && (
-        <Link to={rootCrumb.to} className="flex items-center h-full px-1">
+        <Link to={rootCrumb.to} aria-label="Go to home" className="flex items-center h-full px-1">
           <Logo scale={1.4} />
         </Link>
       )}
