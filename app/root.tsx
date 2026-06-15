@@ -23,7 +23,7 @@ import { UserProfile } from "./.server/auth/getUserInfo";
 import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
-import { Section } from "./components/Container";
+import { Container, Section } from "./components/Container";
 import { type NotificationInput } from "./components/Notification/Notification.store";
 import { cytarioConfig } from "./config";
 import { toastBridge, toToastVariant } from "./toast-bridge";
@@ -210,13 +210,15 @@ export function ErrorBoundary() {
 
   return (
     <Section>
-      <div role="alert">
-        <H1>{title}</H1>
-        <p>{message}</p>
-        <a href="/" className="text-(--color-text-brand) underline mt-4 inline-block">
-          Go home
-        </a>
-      </div>
+      <Container>
+        <div role="alert">
+          <H1>{title}</H1>
+          <p>{message}</p>
+          <a href="/" className="text-(--color-text-brand) underline mt-4 inline-block">
+            Go home
+          </a>
+        </div>
+      </Container>
     </Section>
   );
 }
