@@ -7,8 +7,10 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
-  /* Colors come from @cytario/design tokens (--color-surface-*, --color-text-*,
-     --color-teal-*, --color-purple-*); do not redefine them here. */
+  /* Colors come from @cytario/design tokens: semantic utilities (bg-background,
+     text-foreground, bg-primary, text-muted-foreground, …) generated from the
+     @theme inline layer, plus the --color-teal-* / --color-purple-* primitive
+     scales. Do not redefine them here. */
 
   /* Custom font family */
   --font-montserrat: "Montserrat", sans-serif;

@@ -195,9 +195,9 @@ import { cytarioConfig } from "~/config";
 - Custom font: Montserrat
 - Use `motion` library for animations
 - **No hardcoded color values** — never use hex (`#94a3b8`), named (`"white"`), or rgb literals in TypeScript/TSX. Use design tokens from `@cytario/design` instead:
-  - Tailwind classes: `text-slate-400`, `bg-neutral-0`, `border-slate-200`
-  - CSS variables in inline styles: `var(--color-slate-400)`, `var(--color-text-secondary)`
-  - Semantic tokens preferred over raw scales: `--color-text-tertiary` over `--color-slate-400`
+  - Semantic utilities (preferred): `text-foreground`, `bg-background`, `bg-primary`, `text-muted-foreground`, `border-border`, `bg-destructive`
+  - CSS variables in inline styles / CSS-in-JS only: `var(--color-muted-foreground)`, `var(--color-primary)`
+  - For a genuine neutral shade with no semantic role, use the slate **var** form `bg-(--color-slate-300)` — never the raw `bg-slate-300` utility, which the ESLint guardrail bans
   - Exceptions: SVG visualization code (deck.gl overlays, scientific imaging palettes) where raw RGBA arrays are required by the rendering API
 
 ### Testing
