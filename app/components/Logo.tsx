@@ -1,7 +1,7 @@
 // The logo is the fixed brand identity — use the brand primitives directly
 // (theme-invariant), not theme-adaptive semantic tokens.
 import { ColorPurple700, ColorTeal500 } from "@cytario/design";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 const W = 56;
 const H = 20;
@@ -34,6 +34,7 @@ export const Logo = ({
   scale?: number;
   className?: string;
 }) => {
+  const reduceMotion = useReducedMotion();
   const width = W * scale;
   const height = H * scale;
   const paths = {
@@ -48,6 +49,7 @@ export const Logo = ({
   };
   return (
     <motion.svg
+      role="img"
       aria-label="Cytario Logo"
       width={width}
       height={height}
@@ -55,7 +57,7 @@ export const Logo = ({
       fill={color ?? ColorPurple700}
       className={className}
       variants={containerVariants}
-      initial="hidden"
+      initial={reduceMotion ? false : "hidden"}
       animate="visible"
     >
       {Object.entries(paths).map(([key, d]) => (
