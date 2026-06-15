@@ -46,16 +46,16 @@ export function ChannelsControllerItem({
       relative
       flex items-center gap-2
       focus:outline-none
-      data-[focus]:outline-1
-      data-[focus]:outline-[var(--color-text-primary)]
+      focus-visible:outline-1
+      focus-visible:outline-foreground
       py-2
-      border-b border-[var(--color-surface-subtle)]
-      text-[var(--color-text-secondary)]
+      border-b border-card
+      text-muted-foreground
       transition-colors
       border-none
     `,
-    isVisible && "text-[var(--color-text-primary)]",
-    isActive && "bg-[var(--color-surface-subtle)]",
+    isVisible && "text-foreground",
+    isActive && "bg-card",
   );
 
   const disabled = !isVisible && visibleChannelCount >= MAX_VISIBLE_CHANNELS;
@@ -86,7 +86,7 @@ export function ChannelsControllerItem({
 
       {/* Pixel Value */}
       {pixelValue > 0 && (
-        <span className="text-xs tabular-nums text-(--color-text-secondary)">{pixelValue}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{pixelValue}</span>
       )}
 
       {/* Visibility Toggle */}

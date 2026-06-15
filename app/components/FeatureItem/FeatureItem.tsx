@@ -19,27 +19,27 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
   const setIsOpen = useFeatureItemStore((s) => s.setIsOpen);
 
   return (
-    <div className="flex flex-col w-full text-[var(--color-text-secondary)]">
-      <div className="z-10 sticky top-0 left-0 bg-[var(--color-surface-default)]">
+    <div className="flex flex-col w-full text-muted-foreground">
+      <div className="z-10 sticky top-0 left-0 bg-background">
         {/* Section divider */}
-        <div className="mx-3 h-px bg-[var(--color-border-default)]" />
+        <div className="mx-3 h-px bg-border" />
 
         <header className="flex items-center gap-2 px-3 pt-3 pb-2">
           <button
-            className="flex items-center gap-2 flex-grow text-left"
+            className="flex items-center gap-2 grow text-left"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? (
-              <ChevronDown size={14} className="text-[var(--color-text-secondary)] shrink-0" />
+              <ChevronDown size={14} className="text-muted-foreground shrink-0" />
             ) : (
-              <ChevronRight size={14} className="text-[var(--color-text-secondary)] shrink-0" />
+              <ChevronRight size={14} className="text-muted-foreground shrink-0" />
             )}
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {title}
             </span>
           </button>
 
-          {badge && <span className="text-xs text-[var(--color-text-tertiary)]">{badge}</span>}
+          {badge && <span className="text-xs text-muted-foreground">{badge}</span>}
 
           {actions}
         </header>

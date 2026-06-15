@@ -47,12 +47,12 @@ export function CreateGroupForm({ scope }: CreateGroupFormProps) {
       </Fieldset>
 
       {nameValue.trim() && (
-        <div className="flex items-center gap-2 text-sm text-(--color-text-tertiary)">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           Full path: <ScopePill scope={`${scope}/${nameValue.trim()}`} />
         </div>
       )}
 
-      <p className="text-sm text-(--color-text-tertiary)">
+      <p className="text-sm text-muted-foreground">
         You will be added as an admin of this group automatically.
       </p>
     </form>

@@ -42,7 +42,7 @@ export const OverlaysController = () => {
               onPress={() => setShowCellOutline(!showCellOutline)}
               variant="ghost"
               size="sm"
-              className={`border-none ${showCellOutline ? "stroke-(--color-text-primary)" : "stroke-(--color-text-tertiary)"}`}
+              className={`border-none ${showCellOutline ? "stroke-foreground" : "stroke-muted-foreground"}`}
             />
           )}
           <FeatureItemSlider

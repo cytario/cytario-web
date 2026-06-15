@@ -132,9 +132,9 @@ const ImagePanelInner = ({
         <div
           className={`
             absolute px-2 py-1 rounded shadow-lg
-            bg-[var(--color-surface-default)]
-            border border-[var(--color-border-default)]
-            text-[var(--color-text-primary)] text-sm
+            bg-background
+            border border-border
+            text-foreground text-sm
             pointer-events-none
           `}
           style={{
@@ -215,7 +215,7 @@ const TileLoaderIndicator = ({
         {channelsLoadingTiles.map((_, index) => (
           <div
             key={index}
-            className="w-2 h-2 rounded-sm m-1 bg-white border border-[var(--color-border-default)] animate-pulse"
+            className="w-2 h-2 rounded-sm m-1 bg-white border border-border animate-pulse"
           />
         ))}
       </div>
@@ -223,7 +223,7 @@ const TileLoaderIndicator = ({
         {overlaysLoadingTiles.map((_, index) => (
           <div
             key={index}
-            className="w-2 h-2 rounded-sm m-1 bg-white border border-[var(--color-border-default)] animate-pulse"
+            className="w-2 h-2 rounded-sm m-1 bg-white border border-border animate-pulse"
           />
         ))}
       </div>

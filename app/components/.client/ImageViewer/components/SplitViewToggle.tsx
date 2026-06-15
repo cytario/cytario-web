@@ -42,7 +42,7 @@ export const SplitViewToggle = () => {
           const background =
             colors.length > 0
               ? `linear-gradient(-45deg, ${colors.join(", ")})`
-              : "var(--color-surface-muted)";
+              : "var(--color-muted)";
 
           return (
             <div
@@ -52,7 +52,7 @@ export const SplitViewToggle = () => {
                 rounded-sm overflow-hidden
                 text-[10px] font-bold
                 border transition-all
-                ${activeImagePanelId === index ? "border-[var(--color-border-focus)] ring-1 ring-[var(--color-border-focus)] ring-offset-1 ring-offset-[var(--color-surface-default)]" : "border-[var(--color-border-strong)]"}
+                ${activeImagePanelId === index ? "border-ring ring-1 ring-ring ring-offset-1 ring-offset-background" : "border-border"}
               `}
               style={{ background }}
             >

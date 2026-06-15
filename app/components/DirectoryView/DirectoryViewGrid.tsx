@@ -49,7 +49,7 @@ function ImagePreviewSlot({
 }) {
   return (
     <ClientOnly>
-      <Suspense fallback={<div className="animate-pulse w-full h-full bg-(--color-slate-600)" />}>
+      <Suspense fallback={<div className="animate-pulse w-full h-full bg-muted" />}>
         <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
           <ImagePreview />
         </ViewerStoreProvider>

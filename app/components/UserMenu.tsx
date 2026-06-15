@@ -26,7 +26,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
               <div className="font-semibold">
                 {user.given_name} {user.family_name}
               </div>
-              <div className="text-[var(--color-text-secondary)]">{user.email}</div>
+              <div className="text-muted-foreground">{user.email}</div>
             </div>
           </MenuHeader>
 
@@ -79,7 +79,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
         icon={User}
         aria-label="User menu"
         variant="ghost"
-        className="flex-shrink-0 w-8 h-8 text-white hover:bg-white/15 pressed:bg-white/20"
+        className="shrink-0 w-8 h-8 text-white hover:bg-white/15 pressed:bg-white/20"
       />
     </Menu>
   );

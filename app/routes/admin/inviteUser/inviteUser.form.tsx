@@ -93,7 +93,7 @@ export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserF
             />
           )}
         />
-        <p className="text-sm text-(--color-text-tertiary)">
+        <p className="text-sm text-muted-foreground">
           Keycloak emails the invite to the address above. Group membership can be assigned after
           the user accepts.
         </p>

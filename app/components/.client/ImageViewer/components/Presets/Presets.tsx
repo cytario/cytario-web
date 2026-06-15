@@ -24,8 +24,8 @@ export function Presets({ children }: { children: React.ReactNode }) {
         className={`
           flex items-center justify-between
           gap-1.5 px-3 pt-4 pb-3
-          border-b border-[var(--color-border-default)]
-          flex-shrink-0
+          border-b border-border
+          shrink-0
           relative left-0 right-0
         `}
       >
@@ -43,15 +43,15 @@ export function Presets({ children }: { children: React.ReactNode }) {
                 p-0
 
                 border transition-colors
-                border-[var(--color-border-strong)]
-                bg-[var(--color-surface-muted)]
-                data-[hovered]:bg-[var(--color-border-strong)]
+                border-border
+                bg-muted
+                data-hovered:bg-border
 
-                data-[selected]:border-[var(--color-border-focus)]
-                data-[selected]:ring-1
-                data-[selected]:ring-[var(--color-border-focus)]
-                data-[selected]:ring-offset-1
-                data-[selected]:ring-offset-[var(--color-surface-default)]
+                selected:border-ring
+                selected:ring-1
+                selected:ring-ring
+                selected:ring-offset-1
+                selected:ring-offset-background
               `}
             >
               <PresetLabel index={index} />
@@ -93,8 +93,8 @@ export const PresetLabel = ({ index }: { index: number }) => {
         className={`
           absolute top-0 left-0 px-1 py-px
           text-[10px] font-bold leading-tight
-          text-[var(--color-text-secondary)]
-          group-data-[selected]/tab:text-[var(--color-text-primary)]
+          text-muted-foreground
+          group-selected/tab:text-foreground
         `}
       >
         {index + 1}

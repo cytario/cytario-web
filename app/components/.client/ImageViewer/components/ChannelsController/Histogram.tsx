@@ -47,12 +47,12 @@ export function Histogram() {
 
   return (
     <div ref={ref} className="relative top-0 overflow-hidden px-3 pt-3">
-      <div className="relative p-2 pb-2 bg-[var(--color-surface-subtle)] rounded overflow-visible">
+      <div className="relative p-2 pb-2 bg-card rounded overflow-visible">
         <div className="absolute right-2 top-2 z-10">
           <ToggleButton
             size="xs"
             variant="outlined"
-            className="text-(--color-text-tertiary)"
+            className="text-muted-foreground"
             aria-label={`Intensity axis scale: ${logScaleX ? "logarithmic" : "linear"}`}
             isSelected={logScaleX}
             onChange={setLogScaleX}
@@ -84,7 +84,7 @@ export function Histogram() {
 
         <DomainSlider domain={[0, maxDomain]} logScaleX={logScaleX} />
 
-        <div className="grid grid-cols-3 text-[10px] leading-loose text-(--color-text-tertiary) tabular-nums">
+        <div className="grid grid-cols-3 text-[10px] leading-loose text-muted-foreground tabular-nums">
           <span className="text-left">{xTicks[0]}</span>
           <span className="text-center">{xTicks[1]}</span>
           <span className="text-right">{xTicks[2]}</span>

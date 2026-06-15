@@ -35,16 +35,16 @@ export function ChannelsControllerBrightfieldItem({
       relative
       flex items-center gap-2
       focus:outline-none
-      data-[focus]:outline-1
-      data-[focus]:outline-[var(--color-text-primary)]
+      focus-visible:outline-1
+      focus-visible:outline-foreground
       py-2
-      border-b border-[var(--color-surface-subtle)]
-      text-[var(--color-text-secondary)]
+      border-b border-card
+      text-muted-foreground
       transition-colors
       border-none
     `,
-    isVisible && "text-[var(--color-text-primary)]",
-    isActive && "bg-[var(--color-surface-subtle)]",
+    isVisible && "text-foreground",
+    isActive && "bg-card",
   );
 
   // Brightfield needs 3 channel slots
@@ -58,7 +58,7 @@ export function ChannelsControllerBrightfieldItem({
   return (
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
       {/* Tri-color indicator */}
-      <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-(--color-slate-500)">
+      <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-border">
         <div className="grow h-full  bg-red-500" />
         <div className="grow h-full bg-green-500" />
         <div className="grow h-full  bg-blue-500" />
@@ -72,7 +72,7 @@ export function ChannelsControllerBrightfieldItem({
         <Switch
           isSelected={isVisible}
           onChange={() => toggleVisibility()}
-          color="var(--color-text-secondary)"
+          color="var(--color-muted-foreground)"
           isDisabled={disabled}
         />
       </Tooltip>

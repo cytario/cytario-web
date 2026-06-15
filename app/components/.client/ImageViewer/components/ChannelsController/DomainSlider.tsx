@@ -18,7 +18,7 @@ export const DomainSlider = ({
   const setContrastLimits = useViewerStore(select.setContrastLimits);
   const [min, max] = domain;
 
-  const color = selectedChannel ? rgb(selectedChannel.color) : "var(--color-text-tertiary)";
+  const color = selectedChannel ? rgb(selectedChannel.color) : "var(--color-muted-foreground)";
 
   // The slider operates in normalized [0, 1] ratio space, the same mapping the
   // histogram uses, so handle positions stay aligned under linear or log scaling.
@@ -43,14 +43,14 @@ export const DomainSlider = ({
           styles={{
             rail: { backgroundColor: "transparent", height: 1 },
             track: {
-              backgroundColor: "var(--color-surface-default)",
+              backgroundColor: "var(--color-background)",
               height: 1,
             },
             handle: {
               width: 16,
               height: 16,
               backgroundColor: color,
-              borderColor: "var(--color-surface-default)",
+              borderColor: "var(--color-background)",
               borderWidth: 2,
               boxShadow: "none",
               opacity: 1,

@@ -73,12 +73,12 @@ export function ColorPicker({ color, onColorChange }: ColorPickerProps) {
                   yChannel="brightness"
                   className="relative w-full h-40 rounded touch-none"
                 >
-                  <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
+                  <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md focus-visible:outline-2 focus-visible:outline-ring" />
                 </ColorArea>
 
                 <ColorSlider colorSpace="hsb" channel="hue" className="w-full" aria-label="Hue">
                   <SliderTrack className="relative h-3 rounded touch-none">
-                    <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md top-1/2 focus-visible:outline-2 focus-visible:outline-(--color-border-focus)" />
+                    <ColorThumb className="block w-4 h-4 rounded-full border-2 border-white shadow-md top-1/2 focus-visible:outline-2 focus-visible:outline-ring" />
                   </SliderTrack>
                 </ColorSlider>
 

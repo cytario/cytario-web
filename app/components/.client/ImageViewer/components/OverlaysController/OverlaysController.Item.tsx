@@ -88,7 +88,7 @@ export const OverlaysControllerItem = ({
       <div className="flex items-center gap-1.5 px-3 pt-2">
         <button
           type="button"
-          className="flex-1 min-w-0 truncate rounded border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-2 py-1 text-xs text-[var(--color-text-primary)] text-left"
+          className="flex-1 min-w-0 truncate rounded border border-border bg-card px-2 py-1 text-xs text-foreground text-left"
           onClick={() => setIsOpen(!isOpen)}
         >
           {fileName}
@@ -143,7 +143,7 @@ export const OverlaysControllerItem = ({
               );
             })
           ) : (
-            <div className="p-4 text-sm text-[var(--color-text-secondary)]">
+            <div className="p-4 text-sm text-muted-foreground">
               No markers found in this overlay
             </div>
           )}

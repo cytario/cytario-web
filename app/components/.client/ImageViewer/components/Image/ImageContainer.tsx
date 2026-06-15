@@ -33,17 +33,17 @@ export function ImageContainer({
   const error = useViewerStore(select.error);
 
   const style = `
-    relative flex flex-grow
+    relative flex grow
     w-full h-full 
     overflow-hidden
   `;
 
-  let background = "bg-[var(--color-surface-default)]";
+  let background = "bg-background";
   if (isPreview) background = "bg-black";
-  if (error) background = "bg-[var(--color-surface-muted)]";
+  if (error) background = "bg-muted";
 
-  let border = "border border-2 border-[var(--color-border-strong)]";
-  if (isActivePanel) border += " border-[var(--color-text-secondary)]";
+  let border = "border border-2 border-border";
+  if (isActivePanel) border += " border-muted-foreground";
   if (isPreview) border += " border-none";
   if (error) background += " border-none";
 
@@ -54,7 +54,7 @@ export function ImageContainer({
     pointer-events-none w-full h-full 
     absolute top-0 left-0
     border-[16px]
-    box-border border-[var(--color-text-secondary)]
+    box-border border-muted-foreground
   `,
     isActivePanel ? "animate-pulse-once" : "border-none",
   );
@@ -71,9 +71,9 @@ export function ImageContainer({
         {error ? (
           <div
             className={`
-          flex flex-grow w-full h-full flex-col
+          flex grow w-full h-full flex-col
           items-center justify-center text-center
-          overflow-hidden gap-1 p-2 text-(--color-slate-500)
+          overflow-hidden gap-1 p-2 text-muted-foreground
         `}
           >
             <ImageOff size={isPreview ? 20 : 32} strokeWidth={1.5} />

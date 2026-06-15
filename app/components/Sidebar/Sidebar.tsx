@@ -16,7 +16,7 @@ export const sidebarToggleId = (name: string) => `${slug(name)}-toggle`;
 // match. Teal accent explicitly (brand-accent = teal in light + dark), rather
 // than `variant="primary"` whose hue currently differs by theme.
 export const SIDEBAR_TOGGLE_ACTIVE_CLASS =
-  "bg-(--color-surface-accent) text-(--color-text-inverse) hover:bg-(--color-surface-accent)";
+  "bg-secondary text-primary-foreground hover:bg-secondary";
 
 const focusById = (id: string) => requestAnimationFrame(() => document.getElementById(id)?.focus());
 
@@ -110,7 +110,7 @@ export function Sidebar({
       data-theme="dark"
       style={{ width: motionWidth }}
       className={twMerge(
-        "relative shrink-0 border-(--color-border-default) bg-(--color-surface-default) text-(--color-text-primary)",
+        "relative shrink-0 border-border bg-background text-foreground",
         side === "left" ? "border-r" : "border-l",
       )}
     >

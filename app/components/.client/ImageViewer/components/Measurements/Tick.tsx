@@ -11,8 +11,8 @@ export const Tick = ({ number, offset }: TickProps) => {
   const adjustedOffset = offset - 2; // Account for border width
 
   const cx = twMerge(
-    "absolute left-0 bg-[var(--color-surface-default)]",
-    "border-l border-l-[var(--color-text-secondary)]",
+    "absolute left-0 bg-background",
+    "border-l border-l-muted-foreground",
     isMajor ? "h-4" : "h-2",
   );
 
