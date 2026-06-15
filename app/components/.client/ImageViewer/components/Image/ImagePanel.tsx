@@ -33,6 +33,11 @@ const ImagePanelInner = ({
   const viewStateActive = useViewerStore((store) => store.viewStateActive);
   const setViewStateActive = useViewerStore(select.setViewStateActive);
 
+  const viewStateUrl = useViewerStore(select.viewStateUrl);
+  const setViewStateUrl = useViewerStore(select.setViewStateUrl);
+  const pendingUrlViewport = useViewerStore(select.pendingUrlViewport);
+  const setPendingUrlViewport = useViewerStore(select.setPendingUrlViewport);
+
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
   const setActiveImagePanelId = useViewerStore(select.setActiveImagePanelId);
 
@@ -72,6 +77,21 @@ const ImagePanelInner = ({
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
 
+    // A shared `?v=` viewport was supplied: expand it into the ephemeral
+    // viewStateUrl once, seeded from the fit-to-screen base so unspecified
+    // fields (rotation, zoom limits) are sane. Does not touch viewStateActive.
+    if (pendingUrlViewport && !viewStateUrl) {
+      const base = calculateViewStateToFit(metadata, { width, height }, { padding });
+      setViewStateUrl({
+        ...base,
+        zoom: pendingUrlViewport.zoom,
+        target: pendingUrlViewport.target,
+        width,
+        height,
+      });
+      return;
+    }
+
     if (!viewStateActive) {
       const initViewState = calculateViewStateToFit(metadata, { width, height }, { padding });
       setViewStateActive(initViewState);
@@ -79,13 +99,30 @@ const ImagePanelInner = ({
       const updatedViewState = { ...viewStateActive, width, height };
       setViewStateActive(updatedViewState);
     }
-  }, [isActivePanel, metadata, padding, setViewStateActive, width, height, viewStateActive]);
+  }, [
+    isActivePanel,
+    metadata,
+    padding,
+    setViewStateActive,
+    width,
+    height,
+    viewStateActive,
+    pendingUrlViewport,
+    viewStateUrl,
+    setViewStateUrl,
+  ]);
 
   const onViewStateChange = useCallback(
     ({ viewState }: { viewState: OrthographicViewState }) => {
+      // First user interaction on a shared link commits the viewport into the
+      // persisted flow and drops the ephemeral URL state.
+      if (viewStateUrl) {
+        setPendingUrlViewport(null);
+        setViewStateUrl(null);
+      }
       setViewStateActive(viewState as ViewState);
     },
-    [setViewStateActive],
+    [viewStateUrl, setViewStateUrl, setPendingUrlViewport, setViewStateActive],
   );
 
   const handleInteractionStateChange = useCallback(
@@ -111,7 +148,9 @@ const ImagePanelInner = ({
     [isActivePanel],
   );
 
-  if (!loader || loader.length === 0 || !viewStateActive) return null;
+  const effectiveViewState = viewStateUrl ?? viewStateActive;
+
+  if (!loader || loader.length === 0 || !effectiveViewState) return null;
 
   return (
     <>
@@ -121,7 +160,7 @@ const ImagePanelInner = ({
         views={[view]}
         layers={layers}
         onViewStateChange={onViewStateChange}
-        viewState={{ detail: viewStateActive }}
+        viewState={{ detail: effectiveViewState }}
         getCursor={getCursor}
         onInteractionStateChange={handleInteractionStateChange}
         _pickable={true}

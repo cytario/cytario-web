@@ -47,6 +47,12 @@ export const select = {
   viewStateActive: (state: ViewerStore) => state.viewStateActive,
   setViewStateActive: (state: ViewerStore) => state.setViewStateActive,
 
+  /* View State from shared URL (ephemeral, not persisted) */
+  viewStateUrl: (state: ViewerStore) => state.viewStateUrl,
+  setViewStateUrl: (state: ViewerStore) => state.setViewStateUrl,
+  pendingUrlViewport: (state: ViewerStore) => state.pendingUrlViewport,
+  setPendingUrlViewport: (state: ViewerStore) => state.setPendingUrlViewport,
+
   setIsViewerLoading: (state: ViewerStore) => state.setIsViewerLoading,
 
   /* Tile Loading (per panel) */

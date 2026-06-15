@@ -1,6 +1,7 @@
 import { ImagePanel } from "./Image/ImagePanel";
 import { Magnifier } from "./Magnifier";
 import { select } from "../state/store/selectors";
+import { useClearSharedView } from "../state/store/useClearSharedView";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
 
 export const ImagePanels = () => {
@@ -8,7 +9,9 @@ export const ImagePanels = () => {
 
   const metadata = useViewerStore(select.metadata);
   const viewStateActive = useViewerStore(select.viewStateActive);
+  const viewStateUrl = useViewerStore(select.viewStateUrl);
   const setViewStateActive = useViewerStore(select.setViewStateActive);
+  const clearSharedView = useClearSharedView();
 
   return (
     <div className="flex flex-col w-full">
@@ -16,7 +19,9 @@ export const ImagePanels = () => {
         <Magnifier
           metadata={metadata}
           viewStateActive={viewStateActive}
+          viewStateUrl={viewStateUrl}
           setViewStateActive={setViewStateActive}
+          clearSharedView={clearSharedView}
         />
       </div>
       <div className="flex w-full h-full">

@@ -1,9 +1,10 @@
 import type { SupportedDtype } from "@vivjs/types";
 import { castDraft } from "immer";
 import { createStore } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import { createDebouncedStorage } from "./debouncedViewerStorage";
 import { getInitialChannelsState } from "./getInitialChannelsState";
 import {
   BRIGHTFIELD_GROUP_ID,
@@ -73,6 +74,8 @@ export const createViewerStore = (id: string) =>
             metadata: null,
             viewStatePreview: null,
             viewStateActive: null,
+            viewStateUrl: null,
+            pendingUrlViewport: null,
 
             imagePanelIndex: -1,
             imagePanels: [],
@@ -123,6 +126,24 @@ export const createViewerStore = (id: string) =>
                 },
                 false,
                 "setViewStateActive",
+              ),
+
+            setViewStateUrl: (viewStateUrl: ViewState | null) =>
+              set(
+                (state) => {
+                  state.viewStateUrl = viewStateUrl;
+                },
+                false,
+                "setViewStateUrl",
+              ),
+
+            setPendingUrlViewport: (pendingUrlViewport) =>
+              set(
+                (state) => {
+                  state.pendingUrlViewport = pendingUrlViewport;
+                },
+                false,
+                "setPendingUrlViewport",
               ),
 
             setIsViewerLoading: (isViewerLoading: boolean) =>
@@ -668,6 +689,9 @@ export const createViewerStore = (id: string) =>
       {
         name: "ViewerStore-" + id,
         version: 2,
+        // Debounced: per-frame view-state writes during pan/zoom would otherwise
+        // serialize the full partialized state to localStorage every frame.
+        storage: createJSONStorage(() => createDebouncedStorage()),
         migrate: createMigrate<PersistedViewerState>(
           {
             0: (state) => {

@@ -28,11 +28,13 @@ export const Viewer = ({ url, signedFetch }: ViewerProps) => {
   return (
     <ViewerStoreProvider url={url} signedFetch={signedFetch}>
       <ViewerHeader>
-        {({ metadata, viewStateActive, setViewStateActive }) => (
+        {({ metadata, viewStateActive, viewStateUrl, setViewStateActive, clearSharedView }) => (
           <Magnifier
             metadata={metadata}
             viewStateActive={viewStateActive}
+            viewStateUrl={viewStateUrl}
             setViewStateActive={setViewStateActive}
+            clearSharedView={clearSharedView}
           />
         )}
       </ViewerHeader>

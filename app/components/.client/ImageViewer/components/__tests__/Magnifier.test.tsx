@@ -8,6 +8,10 @@ vi.mock("../Image/ResetViewStateButton", () => ({
   ResetViewStateButton: () => <button type="button">Reset</button>,
 }));
 
+vi.mock("../Image/ShareViewButton", () => ({
+  ShareViewButton: () => <button type="button">Share</button>,
+}));
+
 const makeViewState = (zoom = 0): ViewState =>
   ({
     zoom,
@@ -29,7 +33,9 @@ describe("Magnifier", () => {
   const defaultProps = {
     metadata: null as ViewerStore["metadata"] | null,
     viewStateActive: makeViewState(),
+    viewStateUrl: null,
     setViewStateActive,
+    clearSharedView: vi.fn(),
   };
 
   beforeEach(() => {
@@ -48,14 +54,14 @@ describe("Magnifier", () => {
     const viewState = makeViewState(0); // zoom 0 = 20x at objectivePower 20
     render(<Magnifier {...defaultProps} viewStateActive={viewState} />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("20.0");
+    expect(screen.getByRole("textbox")).toHaveValue("20.0x");
   });
 
   test("displays magnification for non-zero zoom", () => {
     const viewState = makeViewState(1); // zoom 1 = 40x
     render(<Magnifier {...defaultProps} viewStateActive={viewState} />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("40.0");
+    expect(screen.getByRole("textbox")).toHaveValue("40.0x");
   });
 
   test("clicking a preset button sets the correct zoom", async () => {
@@ -83,7 +89,7 @@ describe("Magnifier", () => {
   test("displays 20.0 when viewStateActive is null (default zoom 0)", () => {
     render(<Magnifier {...defaultProps} viewStateActive={null} />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("20.0");
+    expect(screen.getByRole("textbox")).toHaveValue("20.0x");
   });
 
   test("renders the segmented control with correct aria-label", () => {

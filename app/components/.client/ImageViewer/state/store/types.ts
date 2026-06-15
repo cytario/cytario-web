@@ -91,6 +91,19 @@ export interface ViewerStoreState {
 
   viewStatePreview: ViewState | null;
   viewStateActive: ViewState | null;
+  /**
+   * Ephemeral viewport hydrated from a shared `?v=` link. Takes precedence over
+   * `viewStateActive` for rendering but is NOT persisted — merely viewing a
+   * shared link must not clobber the opener's saved view. Cleared on the first
+   * user pan/zoom, which commits the viewport into `viewStateActive`.
+   */
+  viewStateUrl: ViewState | null;
+  /**
+   * Decoded `?v=` viewport awaiting metadata + viewport dimensions before it can
+   * be expanded into a full `viewStateUrl`. Set once on mount by the hydration
+   * hook; not persisted.
+   */
+  pendingUrlViewport: { zoom: number; target: [number, number] } | null;
 
   selectedChannelId: keyof ChannelsState | null;
 
@@ -129,6 +142,8 @@ interface ViewerStoreActions {
 
   setViewStatePreview: (viewState: ViewState) => void;
   setViewStateActive: (viewState: ViewState) => void;
+  setViewStateUrl: (viewState: ViewState | null) => void;
+  setPendingUrlViewport: (viewport: { zoom: number; target: [number, number] } | null) => void;
 
   setActiveImagePanelId: (imagePanelIndex: number) => void;
 

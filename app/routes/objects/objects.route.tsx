@@ -31,6 +31,7 @@ import { getFileType, isImageFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
+import { VIEW_STATE_PARAM } from "~/utils/viewStateParam";
 
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then((module) => ({
@@ -80,9 +81,18 @@ export const handle = {
 export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formAction }) => {
   if (formAction === "/favorites") return true;
   if (currentUrl.pathname !== nextUrl.pathname) return true;
-  if (currentUrl.search !== nextUrl.search) return true;
+  // The viewer's `?v=` viewport param is client-only; toggling it (e.g. Reset
+  // stripping it) must not re-list S3 or re-mint STS credentials.
+  if (searchWithoutViewParam(currentUrl.search) !== searchWithoutViewParam(nextUrl.search))
+    return true;
   return false;
 };
+
+function searchWithoutViewParam(search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete(VIEW_STATE_PARAM);
+  return params.toString();
+}
 
 export default function ObjectsRoute() {
   const {
