@@ -1,8 +1,9 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { connectionSchema, parseS3Uri } from "./connection.schema";
-import { Prisma } from "~/.generated/client";
-import { authContext } from "~/.server/auth/authMiddleware";
+import { Prisma, type ConnectionConfig } from "~/.generated/client";
+import { authContext, type AuthContextData } from "~/.server/auth/authMiddleware";
+import { getAllSessionCredentials } from "~/.server/auth/getSessionCredentials";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { describeCorsFailure, describeCorsWarning, probeBucketCors } from "~/.server/corsPreflight";
@@ -46,8 +47,54 @@ export async function createConnection(
   });
 }
 
+/**
+ * Soft post-create check: attempt to mint STS credentials for the new config
+ * so an un-assumable role surfaces immediately as a warning. Reuses the same
+ * mint path as the per-request credential fetch. Never throws — returns a
+ * user-facing warning string, or `undefined` when the role assumed cleanly.
+ */
+async function probeRoleAssumable(
+  auth: AuthContextData,
+  organization: string,
+  ownerScope: string,
+  createdBy: string,
+  config: {
+    name: string;
+    bucketName: string;
+    provider: string;
+    roleArn: string | null;
+    region: string | null;
+    endpoint: string;
+    prefix?: string;
+  },
+): Promise<string | undefined> {
+  const probeConfig: ConnectionConfig = {
+    id: 0,
+    name: config.name,
+    organization,
+    ownerScope,
+    createdBy,
+    bucketName: config.bucketName,
+    provider: config.provider,
+    endpoint: config.endpoint,
+    roleArn: config.roleArn,
+    region: config.region,
+    prefix: config.prefix ?? "",
+  };
+
+  try {
+    const { errors } = await getAllSessionCredentials(auth, [probeConfig]);
+    const reason = errors[config.name];
+    if (!reason) return undefined;
+    return `The IAM role could not be assumed yet (${reason}) — the connection was saved but may not work until the role and its trust policy are correct.`;
+  } catch {
+    return "The IAM role could not be verified yet — the connection was saved but may not work until the role is reachable.";
+  }
+}
+
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const auth = context.get(authContext);
+  const { user } = auth;
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
@@ -121,19 +168,30 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
     await createConnection(user.organization, data.ownerScope, user.sub, newConfig);
 
-    if (corsResult.warnings.length > 0) {
-      session.set("notification", {
-        status: "warning",
-        message: `Connection added. ${corsResult.warnings
-          .map((w) => describeCorsWarning(w, cytarioOrigin))
-          .join(" ")}`,
-      });
-    } else {
-      session.set("notification", {
-        status: "success",
-        message: "Storage connection added successfully.",
-      });
-    }
+    // Verify the IAM role can actually be assumed. This is a soft check, not a
+    // gate: a freshly-created role/trust-policy can take seconds to propagate
+    // in STS, so a failure here is surfaced as a warning rather than blocking
+    // the (already-persisted) connection. The per-request credential mint will
+    // retry on every page load.
+    const roleWarning = await probeRoleAssumable(
+      auth,
+      user.organization,
+      data.ownerScope,
+      user.sub,
+      newConfig,
+    );
+
+    const warnings = [
+      ...corsResult.warnings.map((w) => describeCorsWarning(w, cytarioOrigin)),
+      ...(roleWarning ? [roleWarning] : []),
+    ];
+
+    session.set(
+      "notification",
+      warnings.length > 0
+        ? { status: "warning", message: `Connection added. ${warnings.join(" ")}` }
+        : { status: "success", message: "Storage connection added successfully." },
+    );
 
     return redirect(`/connections/${encodeURIComponent(data.name)}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
