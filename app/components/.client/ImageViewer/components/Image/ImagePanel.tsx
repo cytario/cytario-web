@@ -70,16 +70,16 @@ const ImagePanelInner = ({
   const layers = [multiscaleLayer, ...markersLayers];
 
   useEffect(() => {
-    if (!metadata || !width || !height) return;
+    if (!isActivePanel || !metadata || !width || !height) return;
 
     if (!viewStateActive) {
       const initViewState = calculateViewStateToFit(metadata, { width, height }, { padding });
-
       setViewStateActive(initViewState);
     } else if (viewStateActive.width !== width || viewStateActive.height !== height) {
-      setViewStateActive({ ...viewStateActive, width, height });
+      const updatedViewState = { ...viewStateActive, width, height };
+      setViewStateActive(updatedViewState);
     }
-  }, [metadata, padding, setViewStateActive, width, height, viewStateActive]);
+  }, [isActivePanel, metadata, padding, setViewStateActive, width, height, viewStateActive]);
 
   const onViewStateChange = useCallback(
     ({ viewState }: { viewState: OrthographicViewState }) => {
