@@ -70,6 +70,21 @@ describe("removeFavorite action", () => {
     expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "my-bucket", "data/images/");
   });
 
+  test("removes a connection-root favorite with empty pathName", async () => {
+    mockRemoveFavorite.mockResolvedValue(undefined);
+
+    const formData = createFormData({
+      connectionName: "my-bucket",
+      pathName: "",
+    });
+
+    const response = await removeFavoriteAction(createActionArgs("DELETE", formData));
+    const json = await (response as Response).json();
+
+    expect(json).toEqual({ ok: true });
+    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "my-bucket", "");
+  });
+
   test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
       connectionName: "",

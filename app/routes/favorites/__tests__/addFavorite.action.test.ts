@@ -99,6 +99,26 @@ describe("addFavorite action", () => {
     });
   });
 
+  test("adds a connection-root favorite with empty pathName", async () => {
+    mockAddFavorite.mockResolvedValue(undefined);
+
+    const formData = createFormData({
+      connectionName: "my-bucket",
+      pathName: "",
+      displayName: "my-bucket",
+    });
+
+    const response = await addFavoriteAction(createActionArgs("PUT", formData));
+    const json = await (response as Response).json();
+
+    expect(json).toEqual({ ok: true });
+    expect(mockAddFavorite).toHaveBeenCalledWith("user-1", {
+      connectionName: "my-bucket",
+      pathName: "",
+      displayName: "my-bucket",
+    });
+  });
+
   test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
       connectionName: "",
