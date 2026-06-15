@@ -77,6 +77,28 @@ describe("recordRecentlyViewed action", () => {
     });
   });
 
+  test("records a connection-root entry with empty pathName", async () => {
+    mockUpsertRecentlyViewed.mockResolvedValue(undefined);
+
+    const formData = createFormData({
+      connectionName: "my-bucket",
+      pathName: "",
+      name: "my-bucket",
+      type: "directory",
+    });
+
+    const response = await recordRecentlyViewed(createActionArgs("POST", formData));
+    const json = await (response as Response).json();
+
+    expect(json).toEqual({ ok: true });
+    expect(mockUpsertRecentlyViewed).toHaveBeenCalledWith("user-1", {
+      connectionName: "my-bucket",
+      pathName: "",
+      name: "my-bucket",
+      type: "directory",
+    });
+  });
+
   test("returns 400 with invalid type", async () => {
     const formData = createFormData({
       connectionName: "my-bucket",
