@@ -10,7 +10,7 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
 import { createLabel } from "~/.server/logging";
 import { PluginSlots } from "~/components/PluginSlots";
-import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerTab";
+import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadFavorites } from "~/routes/favorites/favorites.loader";
