@@ -8,7 +8,6 @@ import {
   useRouteLoaderData,
 } from "react-router";
 
-import { Section } from "~/components/Container";
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
@@ -84,13 +83,34 @@ export default function HomeRoute() {
   );
 
   return (
-    <div className="flex flex-col gap-8 py-8 sm:gap-12 sm:py-12 lg:gap-16 lg:py-16">
+    <>
+      {nodes.length === 0 && (
+        <EmptyState
+          icon={FileSearch}
+          title="Start exploring your data"
+          description="Add a connection to view your cloud storage."
+          action={
+            <Button size="lg" variant="neutral" onPress={() => openModal("add-connection")}>
+              Add Connection
+            </Button>
+          }
+        />
+      )}
+
+      <DashboardSection
+        title="Connections"
+        nodes={nodes}
+        viewMode="grid"
+        maxItems={MAX_CONNECTIONS}
+        to="/connections"
+      />
+
       <DashboardSection
         title="Recently Viewed"
         nodes={recentImages}
         viewMode="grid"
         maxItems={MAX_RECENT_IMAGES}
-        showAllHref="/recent"
+        to="/recent"
       />
 
       <DashboardSection
@@ -98,7 +118,7 @@ export default function HomeRoute() {
         nodes={favoriteNodes}
         viewMode="list"
         maxItems={MAX_FAVORITES}
-        showAllHref="/favorites"
+        to="/favorites"
       />
 
       <DashboardSection
@@ -106,7 +126,7 @@ export default function HomeRoute() {
         nodes={recentDirs}
         viewMode="list"
         maxItems={MAX_RECENT_DIRS}
-        showAllHref="/recent"
+        to="/recent"
       />
 
       <DashboardSection
@@ -114,31 +134,8 @@ export default function HomeRoute() {
         nodes={recentFiles}
         viewMode="grid"
         maxItems={MAX_RECENT_FILES}
-        showAllHref="/recent"
+        to="/recent"
       />
-
-      <DashboardSection
-        title="Connections"
-        nodes={nodes}
-        viewMode="grid"
-        maxItems={MAX_CONNECTIONS}
-        showAllHref="/connections"
-      />
-
-      {nodes.length === 0 && (
-        <Section flush>
-          <EmptyState
-            icon={FileSearch}
-            title="Start exploring your data"
-            description="Add a connection to view your cloud storage."
-            action={
-              <Button size="lg" variant="neutral" onPress={() => openModal("add-connection")}>
-                Add Connection
-              </Button>
-            }
-          />
-        </Section>
-      )}
-    </div>
+    </>
   );
 }

@@ -32,8 +32,6 @@ interface DirectoryViewProps {
   children?: ReactNode;
   /** Actions rendered in a second row beneath the header title */
   secondaryActions?: ReactNode;
-  /** Omit default section padding (for gap-based layouts) */
-  flush?: boolean;
 }
 
 export function DirectoryView({
@@ -43,7 +41,6 @@ export function DirectoryView({
   name,
   children,
   secondaryActions,
-  flush,
 }: DirectoryViewProps) {
   const columns = kind === "connections" ? connectionColumns : fileColumns;
   const isGrid = viewMode === "grid";
@@ -89,9 +86,10 @@ export function DirectoryView({
   }, [visibleNodes, columns, kind, connections]);
 
   return (
-    <Section flush={flush}>
-      <SectionHeader name={name} secondaryActions={secondaryActions}>
+    <Section>
+      <SectionHeader name={name}>
         {children}
+        {secondaryActions}
       </SectionHeader>
 
       {showFilters && viewMode !== "list" && (

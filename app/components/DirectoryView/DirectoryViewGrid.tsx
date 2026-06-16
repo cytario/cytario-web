@@ -25,10 +25,6 @@ const ImagePreview = lazy(() =>
   })),
 );
 
-// Container queries (not viewport): column count tracks the content area width
-// — which shrinks when a sidebar pushes it — instead of the window width.
-const gridClass = "grid grid-cols-1 @lg:grid-cols-2 @3xl:grid-cols-3 gap-6";
-
 function useSignedFetch(connectionName: string) {
   const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
 
@@ -116,18 +112,23 @@ function FileCardGridItem({ node, connectionName }: { node: TreeNode; connection
 export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: DirectoryKind }) {
   if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
+  // Container queries (not viewport): column count tracks the content area width
+  // — which shrinks when a sidebar pushes it — instead of the window width.
+  const cx = `
+    grid gap-6
+    grid-cols-1 @md:grid-cols-2 @lg:grid-cols-3 @4xl:grid-cols-4 
+  `;
+
   return (
     <div className="@container">
-      <div className={gridClass}>
-        {nodes.map((node) => {
-          const key = node.id;
-          if (kind === "connections") {
-            return (
-              <BucketCardGridItem key={key} node={node} connectionName={node.connectionName} />
-            );
-          }
-          return <FileCardGridItem key={key} node={node} connectionName={node.connectionName} />;
-        })}
+      <div className={cx}>
+        {nodes.map((node) =>
+          kind === "connections" ? (
+            <BucketCardGridItem key={node.id} node={node} connectionName={node.connectionName} />
+          ) : (
+            <FileCardGridItem key={node.id} node={node} connectionName={node.connectionName} />
+          ),
+        )}
       </div>
     </div>
   );

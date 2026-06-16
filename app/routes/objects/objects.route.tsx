@@ -206,13 +206,18 @@ export default function ObjectsRoute() {
       >
         <Button
           onPress={toggleFavorite}
+          size="sm"
           variant="secondary"
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           {isFavorite ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
           {isFavorite ? "Favorited" : "Favorite"}
         </Button>
-        <Button onPress={() => openModal("cyberduck", { connectionName })} variant="secondary">
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={() => openModal("cyberduck", { connectionName })}
+        >
           <Download size={16} />
           Access with Cyberduck
         </Button>

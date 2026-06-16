@@ -43,8 +43,8 @@ export default function ConnectionsListRoute() {
           title="No connections"
           description="Add a connection to view your cloud storage."
           action={
-            <Button size="lg" variant="neutral" onPress={() => openModal("add-connection")}>
-              Add Connection
+            <Button size="lg" variant="secondary" onPress={() => openModal("add-connection")}>
+              <Plug size={24} /> Add Connection
             </Button>
           }
         />
@@ -65,7 +65,7 @@ export default function ConnectionsListRoute() {
         </>
       }
     >
-      <Button variant="secondary" onPress={() => openModal("add-connection")}>
+      <Button size="sm" variant="secondary" onPress={() => openModal("add-connection")}>
         <Plug size={16} /> Add Connection
       </Button>
     </DirectoryView>
