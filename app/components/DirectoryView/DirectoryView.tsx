@@ -18,7 +18,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 /**
  * What the DirectoryView is listing. Drives column config, the table
  * subcomponent, the grid card, and the shared filter-store slot.
- * - `"connections"` — top-level list of storage connections (provider/scope/region columns).
+ * - `"connections"` — top-level list of connections (provider/scope/region columns).
  * - `"entries"` — files **and** directories inside a connection (type/size/modified columns).
  */
 export type DirectoryKind = "connections" | "entries";

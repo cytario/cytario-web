@@ -116,7 +116,7 @@ export function DirectoryViewTableConnection({
       getRowId={(row) => row.name}
       cellRenderers={cellRenderers}
       tableId="connections"
-      ariaLabel="Storage connections"
+      ariaLabel="Connections"
       showFilters={showFilters}
     />
   );

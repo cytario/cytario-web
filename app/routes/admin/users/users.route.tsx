@@ -247,7 +247,7 @@ export default function AdminUsersRoute() {
           Bulk Invite
         </ButtonLink>
         <Button variant="secondary" iconLeft={Plug} onPress={() => openModal("add-connection")}>
-          Connect Storage
+          Add Connection
         </Button>
       </SectionHeader>
 
@@ -273,7 +273,7 @@ export default function AdminUsersRoute() {
             </ul>
           ) : (
             <Banner variant="warning" title="No connections linked to this group">
-              Members won&apos;t be able to access any data until you connect storage.
+              Members won&apos;t be able to access any data until you add a connection.
             </Banner>
           )}
         </section>

@@ -17,7 +17,7 @@ import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected
 import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
 import { isImageFile } from "~/utils/fileType";
 
-const title = "Storage Connections";
+const title = "cytario®";
 const MAX_RECENT_IMAGES = 4;
 const MAX_FAVORITES = 10;
 const MAX_RECENT_DIRS = 5;
@@ -25,7 +25,7 @@ const MAX_RECENT_FILES = 6;
 const MAX_CONNECTIONS = 100;
 
 export const meta: MetaFunction = () => {
-  return [{ title }, { name: "description", content: "Manage your storage connections" }];
+  return [{ title }, { name: "description", content: "Manage your connections" }];
 };
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
@@ -118,7 +118,7 @@ export default function HomeRoute() {
       />
 
       <DashboardSection
-        title={title}
+        title="Connections"
         nodes={nodes}
         viewMode="grid"
         maxItems={MAX_CONNECTIONS}
@@ -130,10 +130,10 @@ export default function HomeRoute() {
           <EmptyState
             icon={FileSearch}
             title="Start exploring your data"
-            description="Add a storage connection to view your cloud storage."
+            description="Add a connection to view your cloud storage."
             action={
               <Button size="lg" variant="neutral" onPress={() => openModal("add-connection")}>
-                Connect Storage
+                Add Connection
               </Button>
             }
           />

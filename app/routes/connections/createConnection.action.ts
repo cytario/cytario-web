@@ -131,7 +131,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
     } else {
       session.set("notification", {
         status: "success",
-        message: "Storage connection added successfully.",
+        message: "Connection added successfully.",
       });
     }
 

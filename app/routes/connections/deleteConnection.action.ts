@@ -59,7 +59,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   session.set("notification", {
     status: "success",
-    message: "Storage connection deleted.",
+    message: "Connection deleted.",
   });
 
   return redirect("/connections", {

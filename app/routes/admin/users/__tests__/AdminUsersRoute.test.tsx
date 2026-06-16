@@ -178,9 +178,9 @@ describe("AdminUsersRoute", () => {
     expect(screen.queryByText(/No connections linked to this group/)).not.toBeInTheDocument();
   });
 
-  test("renders Connect Storage button", async () => {
+  test("renders Add Connection button", async () => {
     renderRoute();
 
-    expect(await screen.findByRole("button", { name: /Connect Storage/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Add Connection/ })).toBeInTheDocument();
   });
 });
