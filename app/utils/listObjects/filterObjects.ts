@@ -1,6 +1,6 @@
 import { _Object } from "@aws-sdk/client-s3";
 
-import { search } from "~/components/GlobalSearch/search";
+import { search } from "./search";
 
 export const filterObjects = (
   objects: Readonly<_Object>[] = [],

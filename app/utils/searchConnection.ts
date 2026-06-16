@@ -1,6 +1,6 @@
 import { buildDirectoryTree, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
-import { listObjectsClient } from "~/utils/listObjectsClient";
+import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
 import { getPrefix } from "~/utils/pathUtils";
 import { CorsLikelyError } from "~/utils/signedFetch";
 

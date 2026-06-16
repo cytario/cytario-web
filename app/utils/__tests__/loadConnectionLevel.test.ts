@@ -4,7 +4,7 @@ import mock from "./__mocks__";
 import { loadConnectionLevel } from "../loadConnectionLevel";
 
 const listObjectsClient = vi.fn();
-vi.mock("../listObjectsClient", () => ({
+vi.mock("../listObjects/listObjectsClient", () => ({
   listObjectsClient: (...args: unknown[]) => listObjectsClient(...args),
 }));
 

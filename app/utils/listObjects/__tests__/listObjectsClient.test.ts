@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import mock from "./__mocks__";
 import {
   __resetCredentialsRefresher,
   ExpiredCredentialsError,
   setCredentialsRefresher,
-} from "../credentialsRefresh";
+} from "../../credentialsRefresh";
+import { CorsLikelyError } from "../../signedFetch";
 import { listObjectsClient } from "../listObjectsClient";
-import { CorsLikelyError } from "../signedFetch";
+import mock from "~/utils/__tests__/__mocks__";
 
 const xml = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">${body}</ListBucketResult>`;

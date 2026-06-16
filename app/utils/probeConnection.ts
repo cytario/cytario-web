@@ -3,7 +3,7 @@ import { Credentials } from "@aws-sdk/client-sts";
 
 import type { ConnectionConfig } from "~/.generated/client";
 import { isImageFile } from "~/utils/fileType";
-import { listObjectsClient } from "~/utils/listObjectsClient";
+import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
 import { getPrefix } from "~/utils/pathUtils";
 import { CorsLikelyError } from "~/utils/signedFetch";
 
