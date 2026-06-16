@@ -1,44 +1,36 @@
 import { H2 } from "@cytario/design";
 import { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
 interface SectionProps {
   children: ReactNode;
   className?: string;
-  /** When true, omit default vertical padding (useful inside gap-based layouts) */
-  flush?: boolean;
 }
 
-export function Section({ children, className, flush }: SectionProps) {
-  return (
-    <section
-      className={`grow bg-white ${flush ? "" : "py-8 sm:py-12 lg:py-16"} ${className ?? ""}`}
-    >
-      {children}
-    </section>
-  );
+export function Section({ children, className }: SectionProps) {
+  const cx = twMerge(`grow bg-background py-8 sm:py-12 lg:py-16`, className);
+  return <section className={cx}>{children}</section>;
 }
 
-export const Container = ({ children, wide }: { children: ReactNode; wide?: boolean }) => {
-  return <div className={wide ? "mx-auto px-4" : "container mx-auto px-4"}>{children}</div>;
+interface ContainerProps {
+  children: ReactNode;
+}
+
+export const Container = ({ children }: ContainerProps) => {
+  return <div className="container mx-auto px-4">{children}</div>;
 };
 
-export function SectionHeader({
-  name,
-  children,
-  secondaryActions,
-}: {
+interface SectionHeaderProps {
   name: string;
   children?: ReactNode;
-  secondaryActions?: ReactNode;
-}) {
+}
+
+export function SectionHeader({ name, children }: SectionHeaderProps) {
   return (
     <Container>
-      <header className="flex flex-col justify-between mb-8 gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {name && <H2 className="grow">{name}</H2>}
-          {children}
-        </div>
-        {secondaryActions && <div className="flex items-center gap-2">{secondaryActions}</div>}
+      <header className="flex flex-wrap items-center justify-between gap-2 mb-8">
+        <H2 className="grow">{name}</H2>
+        <div className="flex flex-wrap items-center gap-2">{children}</div>
       </header>
     </Container>
   );

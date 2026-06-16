@@ -31,7 +31,7 @@ export default function CreateConnectionModal({ onClose }: { onClose: () => void
   const defaultScope = resolveDefaultScope(searchParams.get("scope"), user.adminScopes, user.sub);
 
   return (
-    <RouteModal title="Connect Storage" onClose={onClose}>
+    <RouteModal title="Add Connection" onClose={onClose}>
       <ConnectionForm
         adminScopes={user.adminScopes}
         userId={user.sub}

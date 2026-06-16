@@ -41,8 +41,7 @@ export const OverlaysController = () => {
               aria-label={showCellOutline ? "Hide outlines" : "Show outlines"}
               onPress={() => setShowCellOutline(!showCellOutline)}
               variant="ghost"
-              size="sm"
-              className={`border-none ${showCellOutline ? "stroke-foreground" : "stroke-muted-foreground"}`}
+              size="xs"
             />
           )}
           <FeatureItemSlider

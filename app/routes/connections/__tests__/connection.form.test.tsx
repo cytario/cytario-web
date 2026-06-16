@@ -107,7 +107,7 @@ async function goToPage3() {
   await user.click(nextButton);
 
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Connect Storage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Connection" })).toBeInTheDocument();
   });
 
   return user;
@@ -124,7 +124,7 @@ async function goToPage3MinIO() {
   await user.click(nextButton);
 
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Connect Storage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Connection" })).toBeInTheDocument();
   });
 
   return user;
@@ -242,7 +242,7 @@ describe("ConnectionForm", () => {
       await goToPage2();
 
       expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Connect Storage" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add Connection" })).not.toBeInTheDocument();
     });
 
     test("shows Role ARN help text", async () => {
@@ -288,12 +288,12 @@ describe("ConnectionForm", () => {
   });
 
   describe("page 3 — summary and confirm (AWS)", () => {
-    test("renders Summary heading and Connect Storage button", async () => {
+    test("renders Summary heading and Add Connection button", async () => {
       renderForm();
       await goToPage3();
 
       expect(screen.getByText("Summary")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Connect Storage" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add Connection" })).toBeInTheDocument();
     });
 
     test("displays provider, name, bucket, and region in summary", async () => {
@@ -319,7 +319,7 @@ describe("ConnectionForm", () => {
       const user = await goToPage3();
 
       const submitButton = screen.getByRole("button", {
-        name: "Connect Storage",
+        name: "Add Connection",
       });
       await user.click(submitButton);
 
@@ -360,13 +360,13 @@ describe("ConnectionForm", () => {
       expect(dtTexts).not.toContain("Region");
     });
 
-    test("submits MinIO form data when Connect Storage is clicked", async () => {
+    test("submits MinIO form data when Add Connection is clicked", async () => {
       mockSubmit.mockClear();
       renderForm();
       const user = await goToPage3MinIO();
 
       const submitButton = screen.getByRole("button", {
-        name: "Connect Storage",
+        name: "Add Connection",
       });
       await user.click(submitButton);
 

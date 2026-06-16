@@ -38,7 +38,7 @@ export function ImageContainer({
     overflow-hidden
   `;
 
-  let background = "bg-background";
+  let background = "bg-card";
   if (isPreview) background = "bg-black";
   if (error) background = "bg-muted";
 
@@ -71,10 +71,10 @@ export function ImageContainer({
         {error ? (
           <div
             className={`
-          flex grow w-full h-full flex-col
-          items-center justify-center text-center
-          overflow-hidden gap-1 p-2 text-muted-foreground
-        `}
+              flex grow w-full h-full flex-col
+              items-center justify-center text-center
+              overflow-hidden gap-1 p-2 text-muted-foreground
+            `}
           >
             <ImageOff size={isPreview ? 20 : 32} strokeWidth={1.5} />
             <div className="text-xs">Preview unavailable</div>

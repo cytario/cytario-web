@@ -1,5 +1,5 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
-import { ArrowRight, EllipsisVertical, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, Ellipsis, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Form, useRouteLoaderData } from "react-router";
 
@@ -71,10 +71,10 @@ export const NodeContextMenu = ({ node }: { node: TreeNode }) => {
         }
       >
         <IconButton
-          icon={EllipsisVertical}
+          icon={Ellipsis}
           aria-label={`Actions for ${node.name}`}
           variant="ghost"
-          size="sm"
+          size="xs"
         />
       </Menu>
 

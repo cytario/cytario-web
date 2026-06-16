@@ -17,7 +17,7 @@ export { loadConnections as loader } from "./connections.loader";
 // and browser.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
-const title = "Storage Connections";
+const title = "Connections";
 
 export const meta: MetaFunction = () => [{ title: `${title} — Cytario` }];
 
@@ -40,11 +40,11 @@ export default function ConnectionsListRoute() {
       <Section>
         <EmptyState
           icon={FileSearch}
-          title="No storage connections"
-          description="Add a storage connection to view your cloud storage."
+          title="No connections"
+          description="Add a connection to view your cloud storage."
           action={
-            <Button size="lg" variant="neutral" onPress={() => openModal("add-connection")}>
-              Connect Storage
+            <Button size="lg" variant="secondary" onPress={() => openModal("add-connection")}>
+              <Plug size={24} /> Add Connection
             </Button>
           }
         />
@@ -65,8 +65,8 @@ export default function ConnectionsListRoute() {
         </>
       }
     >
-      <Button variant="secondary" onPress={() => openModal("add-connection")}>
-        <Plug size={16} /> Connect Storage
+      <Button size="sm" variant="secondary" onPress={() => openModal("add-connection")}>
+        <Plug size={16} /> Add Connection
       </Button>
     </DirectoryView>
   );

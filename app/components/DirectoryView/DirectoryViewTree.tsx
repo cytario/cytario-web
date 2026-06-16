@@ -69,7 +69,7 @@ export function DirectoryViewTree({
   if (initialNodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
   return (
-    <div {...tree.getContainerProps("Directory tree")} className="flex flex-col">
+    <div {...tree.getContainerProps("Directory tree")} className="flex flex-col py-2">
       {tree.getItems().map((item) => {
         const node = item.getItemData();
         if (!node) return null;
@@ -83,22 +83,30 @@ export function DirectoryViewTree({
           <div
             key={item.getKey()}
             {...itemProps}
-            style={{ paddingLeft: `${level * 16}px` }}
-            className="flex items-center min-h-8"
+            style={{ paddingLeft: `${level * 28}px` }}
+            className="flex items-center mx-2"
           >
             {isFolder ? (
               <IconButton
                 icon={ChevronRight}
                 aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onPress={() => (isExpanded ? item.collapse() : item.expand())}
-                className={twMerge("shrink-0 transition-transform", isExpanded && "rotate-90")}
+                className={twMerge(
+                  "shrink-0 transition-transform text-muted-foreground",
+                  isExpanded && "rotate-90",
+                  isExpanded && "text-foreground",
+                )}
               />
             ) : (
-              <span className="inline-block w-6 shrink-0" aria-hidden />
+              <span className="inline-block w-7 shrink-0" aria-hidden />
             )}
-            <NodeLink node={node} {...nodeLinkProps} />
+            <NodeLink
+              node={node}
+              {...nodeLinkProps}
+              className={twMerge(isExpanded && "text-foreground")}
+            />
           </div>
         );
       })}

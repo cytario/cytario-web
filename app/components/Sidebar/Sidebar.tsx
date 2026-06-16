@@ -117,7 +117,7 @@ export function Sidebar({
       {/* inert + clip on this wrapper (not the aside) so the resize handle below
           stays interactive and unclipped when the panel is closed. */}
       <div className="h-full w-full overflow-hidden" inert={!isOpen || undefined}>
-        <div className="flex h-full flex-col" style={{ minWidth: SIDEBAR_MIN_WIDTH }}>
+        <div className="flex h-full flex-col overflow-auto" style={{ minWidth: SIDEBAR_MIN_WIDTH }}>
           {children}
         </div>
       </div>

@@ -48,6 +48,18 @@ body {
   @apply bg-background text-foreground;
 }
 
+/* Global keyboard-focus baseline. Lives in @layer base so design-system
+   components that opt out via the `outline-none` utility (and supply their own
+   ring) still win — base loses to the utilities layer. */
+@layer base {
+  :focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-background),
+      0 0 0 4px var(--color-ring);
+  }
+}
+
 ::selection {
   @apply bg-primary/60 text-white;
 }

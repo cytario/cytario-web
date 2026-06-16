@@ -6,7 +6,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 import { CorsLikelyError } from "~/utils/signedFetch";
 
 const listObjectsClient = vi.fn();
-vi.mock("~/utils/listObjectsClient", () => ({
+vi.mock("~/utils/listObjects/listObjectsClient", () => ({
   listObjectsClient: (...args: unknown[]) => listObjectsClient(...args),
 }));
 

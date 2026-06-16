@@ -1,6 +1,6 @@
 import type { Credentials } from "@aws-sdk/client-sts";
 
-import { listObjectsClient } from "./listObjectsClient";
+import { listObjectsClient } from "./listObjects/listObjectsClient";
 import { resolveConnectionPrefix } from "./pathUtils";
 import type { ConnectionConfig } from "~/.generated/client";
 import { buildLevelTree, TreeNode } from "~/components/DirectoryView/buildDirectoryTree";

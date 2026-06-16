@@ -3,11 +3,11 @@ import type { _Object } from "@aws-sdk/client-s3";
 import type { Credentials } from "@aws-sdk/client-sts";
 import { SignatureV4 } from "@smithy/signature-v4";
 
-import { ExpiredCredentialsError, requestCredentialsRefresh } from "./credentialsRefresh";
+import { ExpiredCredentialsError, requestCredentialsRefresh } from "../credentialsRefresh";
 import { filterObjects } from "./filterObjects";
-import { DEFAULT_MAX_TOTAL } from "./listingLimits";
-import { constructS3Url } from "./resourceId";
-import { CorsLikelyError } from "./signedFetch";
+import { DEFAULT_MAX_TOTAL } from "../listingLimits";
+import { constructS3Url } from "../resourceId";
+import { CorsLikelyError } from "../signedFetch";
 import type { ConnectionConfig } from "~/.generated/client";
 
 const DEFAULT_PAGE_SIZE = 1000;

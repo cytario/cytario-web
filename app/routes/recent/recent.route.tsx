@@ -86,7 +86,11 @@ export default function RecentRoute() {
         </>
       }
     >
-      <Button variant="secondary" onPress={() => clearFetcher.submit({}, { method: "delete" })}>
+      <Button
+        variant="secondary"
+        size="sm"
+        onPress={() => clearFetcher.submit({}, { method: "delete" })}
+      >
         <Trash2 size={16} />
         Clear history
       </Button>

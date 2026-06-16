@@ -383,7 +383,7 @@ export const ConnectionForm = ({
           <FormWizardNav
             onNext={handleNext}
             isSubmitting={isSubmitting}
-            submitLabel={isEditMode ? "Save Changes" : "Connect Storage"}
+            submitLabel={isEditMode ? "Save Changes" : "Add Connection"}
           />
         </form>
       </div>

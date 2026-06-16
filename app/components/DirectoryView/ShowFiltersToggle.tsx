@@ -1,4 +1,4 @@
-import { ToggleButton } from "@cytario/design";
+import { Button } from "@cytario/design";
 import { ListFilter } from "lucide-react";
 
 import { useLayoutStore } from "./useLayoutStore";
@@ -8,14 +8,9 @@ export function ShowFiltersToggle() {
   const toggleShowFilters = useLayoutStore((s) => s.toggleShowFilters);
 
   return (
-    <ToggleButton
-      size="sm"
-      isSquare
-      isSelected={showFilters}
-      onChange={toggleShowFilters}
-      aria-label={showFilters ? "Hide filters" : "Show filters"}
-    >
+    <Button size="sm" variant="outline" onPress={toggleShowFilters}>
       <ListFilter size={16} />
-    </ToggleButton>
+      {showFilters ? "Hide filters" : "Show filters"}
+    </Button>
   );
 }
