@@ -35,7 +35,7 @@ export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
   };
 
   return (
-    <div className="flex items-center gap-1 px-2">
+    <div className="flex items-center gap-1">
       <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden />
       <Input
         size="sm"

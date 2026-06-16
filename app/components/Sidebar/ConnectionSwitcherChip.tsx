@@ -23,7 +23,6 @@ export function ConnectionSwitcherChip({
   return (
     <Select
       size="sm"
-      label="Connection"
       aria-label="Select connection"
       items={items}
       value={selectedConnection}

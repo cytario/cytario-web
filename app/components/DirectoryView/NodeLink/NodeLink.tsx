@@ -33,17 +33,18 @@ export function NodeLink({
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
   const rowCx = `
-    flex items-center grow min-w-0
+    flex items-center grow 
+    min-w-0 h-7 gap-0.5
     border border-transparent
     rounded-md
   `;
 
   const clickAbleCx = `
-    hover:bg-accent
+    hover:bg-muted hover:text-foreground
     focus-visible:outline focus-visible:outline-ring
   `;
 
-  const activeCx = "bg-accent font-semibold text-foreground";
+  const activeCx = "bg-muted text-foreground";
 
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (!onClick) return;
