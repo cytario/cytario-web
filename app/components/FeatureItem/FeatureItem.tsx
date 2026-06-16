@@ -1,14 +1,11 @@
+import { Badge } from "@cytario/design";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureItem";
 
 interface FeatureItemProps {
   title: string;
-  /** Initial open state before any user interaction is persisted. */
-  defaultOpen?: boolean;
-  /** Displayed next to the title, e.g. "4/12" for channel counts */
   badge?: string;
-  /** Controls rendered on the right side of the header row (sliders, toggles, …). */
   actions?: React.ReactNode;
   header?: React.ReactNode;
   children: React.ReactNode;
@@ -19,42 +16,57 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
   const setIsOpen = useFeatureItemStore((s) => s.setIsOpen);
 
   return (
-    <div className="flex flex-col w-full text-muted-foreground">
-      <div className="z-10 sticky top-0 left-0 bg-background">
-        {/* Section divider */}
-        <div className="mx-3 h-px bg-border" />
-
-        <header className="flex items-center gap-2 px-3 pt-3 pb-2">
+    <div className="flex flex-col w-full bg-card text-muted-foreground">
+      <header className="z-10 sticky top-0 left-0">
+        {/* Header Bar */}
+        <div
+          className={`
+            border-t border-t-accent
+            flex grow
+            transition-colors
+            bg-background
+            hover:text-foreground
+          `}
+        >
           <button
-            className="flex items-center gap-2 grow text-left"
+            data-expander
+            className={`
+              cursor-pointer
+              flex items-center grow
+              h-12 gap-1 px-2
+              hover:text-foreground
+              transition-colors
+            `}
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? (
-              <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+              <ChevronDown size={14} className="shrink-0" />
             ) : (
-              <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+              <ChevronRight size={14} className="shrink-0" />
             )}
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {title}
-            </span>
+
+            {title}
           </button>
 
-          {badge && <span className="text-xs text-muted-foreground">{badge}</span>}
-
-          {actions}
-        </header>
+          {/* Header Actions */}
+          <div className="flex items-center gap-2 px-2">
+            {badge && <Badge size="sm">{badge}</Badge>}
+            {actions}
+          </div>
+        </div>
 
         {/* Sticky content via props, e.g. Histogram */}
-        {isOpen && header}
-      </div>
-      {isOpen && children}
+        {isOpen && <div className="bg-background">{header}</div>}
+      </header>
+
+      {isOpen && <div className="bg-card">{children}</div>}
     </div>
   );
 }
 
 export function FeatureItem(props: FeatureItemProps) {
   return (
-    <FeatureItemStoreProvider name={props.title} defaultOpen={props.defaultOpen}>
+    <FeatureItemStoreProvider name={props.title}>
       <FeatureItemInner {...props} />
     </FeatureItemStoreProvider>
   );

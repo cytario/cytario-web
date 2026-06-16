@@ -7,12 +7,12 @@ interface FeatureItemStore {
   setIsOpen: (isOpen: boolean) => void;
 }
 
-export function createFeatureItemStore(name: string, defaultOpen = false) {
+export function createFeatureItemStore(name: string) {
   return create<FeatureItemStore>()(
     persist(
       devtools(
         (set) => ({
-          isOpen: defaultOpen,
+          isOpen: false,
           setIsOpen: (isOpen: boolean) => set({ isOpen }),
         }),
         { name },
@@ -30,14 +30,12 @@ const FeatureItemStoreContext = createContext<UseBoundStore<StoreApi<FeatureItem
 
 export function FeatureItemStoreProvider({
   name,
-  defaultOpen,
   children,
 }: {
   name: string;
-  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [store] = useState(() => createFeatureItemStore(name, defaultOpen));
+  const [store] = useState(() => createFeatureItemStore(name));
   useEffect(() => {
     void store.persist.rehydrate();
   }, [store]);
