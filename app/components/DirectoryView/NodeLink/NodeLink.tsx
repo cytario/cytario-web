@@ -34,6 +34,7 @@ export function NodeLink({
 
   const rowCx = `
     flex items-center grow 
+    font-medium text-sm
     min-w-0 h-7 gap-0.5
     border border-transparent
     rounded-md

@@ -25,15 +25,16 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
   const cx = `
-    group flex flex-col overflow-hidden rounded-lg
+    group flex flex-col overflow-hidden rounded-2xl
+    bg-background
     border border-border
-    shadow-sm transition-all
-    hover:border-ring hover:shadow-md
+    transition-all
+    hover:border-ring
   `;
 
   return (
     <Link to={to} className={twMerge(cx, className)}>
-      <div className="shrink-0 overflow-hidden bg-muted aspect-4/3 rounded-t-lg">
+      <div className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
             <NodeIcon node={node} size={32} />
@@ -41,7 +42,13 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
         )}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-border bg-background px-3 py-2 rounded-b-lg">
+      <div
+        className={`
+          flex flex-col
+          p-2 gap-1
+          border-t border-border
+        `}
+      >
         <NodeLink node={node} isClickable={() => false} />
         {children && <div className="flex items-center gap-2">{children}</div>}
       </div>

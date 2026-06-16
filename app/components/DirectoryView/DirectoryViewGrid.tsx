@@ -1,3 +1,4 @@
+import { Pill } from "@cytario/design";
 import { filesize } from "filesize";
 import { lazy, Suspense, useMemo } from "react";
 
@@ -104,7 +105,7 @@ function FileCardGridItem({ node, connectionName }: { node: TreeNode; connection
         ) : undefined
       }
     >
-      {typeof size === "string" && <span>{size}</span>}
+      {typeof size === "string" && <Pill color="slate">{size}</Pill>}
     </GridItem>
   );
 }
@@ -112,18 +113,18 @@ function FileCardGridItem({ node, connectionName }: { node: TreeNode; connection
 export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: DirectoryKind }) {
   if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
-  // Container queries (not viewport): column count tracks the content area width
-  // — which shrinks when a sidebar pushes it — instead of the window width.
   const cx = `
     grid gap-6
     grid-cols-1 @md:grid-cols-2 @lg:grid-cols-3 @4xl:grid-cols-4 
   `;
 
   return (
+    // Container queries (not viewport): column count tracks the content area width
+    // — which shrinks when a sidebar pushes it — instead of the window width.
     <div className="@container">
       <div className={cx}>
         {nodes.map((node) =>
-          kind === "connections" ? (
+          node.type === "bucket" ? (
             <BucketCardGridItem key={node.id} node={node} connectionName={node.connectionName} />
           ) : (
             <FileCardGridItem key={node.id} node={node} connectionName={node.connectionName} />

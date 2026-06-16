@@ -8,7 +8,7 @@ interface SectionProps {
 }
 
 export function Section({ children, className }: SectionProps) {
-  const cx = twMerge(`grow bg-white py-8 sm:py-12 lg:py-16`, className);
+  const cx = twMerge(`grow bg-background py-8 sm:py-12 lg:py-16`, className);
   return <section className={cx}>{children}</section>;
 }
 
@@ -28,9 +28,9 @@ interface SectionHeaderProps {
 export function SectionHeader({ name, children }: SectionHeaderProps) {
   return (
     <Container>
-      <header className="flex flex-wrap items-center justify-between mb-4 gap-2">
+      <header className="flex flex-wrap items-center justify-between gap-2 mb-8">
         <H2 className="grow">{name}</H2>
-        {children}
+        <div className="flex flex-wrap items-center gap-2">{children}</div>
       </header>
     </Container>
   );

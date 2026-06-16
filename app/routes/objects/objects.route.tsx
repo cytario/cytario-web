@@ -211,7 +211,7 @@ export default function ObjectsRoute() {
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           {isFavorite ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-          {isFavorite ? "Favorited" : "Favorite"}
+          {isFavorite ? "Remove Favorite" : "Add Favorite"}
         </Button>
         <Button
           size="sm"
