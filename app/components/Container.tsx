@@ -23,7 +23,6 @@ export const Container = ({ children }: ContainerProps) => {
 interface SectionHeaderProps {
   name: string;
   children?: ReactNode;
-  /** Trailing menu pinned next to the title (e.g. the current node's actions). */
   contextMenu?: ReactNode;
 }
 

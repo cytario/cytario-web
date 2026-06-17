@@ -81,7 +81,7 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
     <Section>
       <SectionHeader
         name={node.name}
-        contextMenu={<NodeContextMenu node={node} triggerVariant="secondary" />}
+        contextMenu={<NodeContextMenu node={node} triggerVariant="secondary" isCurrent />}
       >
         {children}
       </SectionHeader>

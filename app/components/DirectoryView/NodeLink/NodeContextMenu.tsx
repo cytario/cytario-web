@@ -25,19 +25,18 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 import { buildConnectionPath } from "~/utils/resourceId";
 
 /**
- * Trailing context menu shown for every `TreeNode` (bucket, directory, file).
- * All real nodes share Open / Open in new tab / Copy S3 URI / favorite; buckets
- * additionally expose Edit and Delete when the user may modify the connection.
- * Synthetic aggregate roots (no `connectionName`, e.g. the connections list
- * header) have no per-node actions and render nothing.
+ * Trailing context menu for a `TreeNode` (bucket, directory, file). All node
+ * types share Open / Open in new tab / Copy S3 URI / favorite; buckets also
+ * expose Edit and Delete when the user may modify the connection.
  */
 export const NodeContextMenu = ({
   node,
   triggerVariant = "ghost",
+  isCurrent = false,
 }: {
   node: TreeNode;
-  /** Trigger button style. Rows use the default ghost; the header uses secondary. */
   triggerVariant?: "ghost" | "secondary";
+  isCurrent?: boolean;
 }) => {
   const isBucket = node.type === "bucket";
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -45,22 +44,23 @@ export const NodeContextMenu = ({
   const focusReturnRef = useRef<HTMLElement | null>(null);
   const { openModal } = useModal();
 
-  const { isFavorite, toggle: toggleFavorite } = useFavorite(node);
+  const { isFavorite, isPending: favoritePending, toggle: toggleFavorite } = useFavorite(node);
 
   const connectionConfig = useConnectionsStore(select.connectionConfig(node.connectionName));
+
   const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
+
+  if (!connectionConfig) return null;
+
   const user = rootData?.user;
   const userCanModify =
     isBucket && user && connectionConfig ? canModify(user, connectionConfig) : false;
-
-  // Synthetic aggregate root (collection of connections) — no node actions.
-  if (!node.connectionName) return null;
 
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
   const copyS3Uri = async () => {
     try {
-      const { s3Uri } = resolveResourceId(`${node.connectionName}/${node.pathName}`);
+      const { s3Uri } = resolveResourceId(node.id);
       await navigator.clipboard.writeText(s3Uri);
       toastBridge.emit({ variant: "success", message: "S3 URI copied to clipboard" });
     } catch {
@@ -73,9 +73,11 @@ export const NodeContextMenu = ({
       <Menu
         content={
           <>
-            <MenuItem id="open" icon={ArrowRight} href={to}>
-              Open
-            </MenuItem>
+            {!isCurrent && (
+              <MenuItem id="open" icon={ArrowRight} href={to}>
+                Open
+              </MenuItem>
+            )}
             <MenuItem id="open-new-tab" icon={ExternalLink} href={to} target="_blank">
               Open in new tab
             </MenuItem>
@@ -93,6 +95,7 @@ export const NodeContextMenu = ({
             <MenuItem
               id="favorite"
               icon={isFavorite ? BookmarkCheck : Bookmark}
+              isDisabled={favoritePending}
               onAction={toggleFavorite}
             >
               {isFavorite ? "Remove Favorite" : "Add Favorite"}

@@ -104,7 +104,6 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             pathName: "",
             name: "test-bucket",
-            isFavorite: false,
           };
         },
       },
@@ -133,7 +132,6 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             name: "file.ome.tiff",
             isSingleFile: true,
-            isFavorite: false,
           };
         },
       },
