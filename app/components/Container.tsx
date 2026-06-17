@@ -23,13 +23,18 @@ export const Container = ({ children }: ContainerProps) => {
 interface SectionHeaderProps {
   name: string;
   children?: ReactNode;
+  /** Trailing menu pinned next to the title (e.g. the current node's actions). */
+  contextMenu?: ReactNode;
 }
 
-export function SectionHeader({ name, children }: SectionHeaderProps) {
+export function SectionHeader({ name, children, contextMenu }: SectionHeaderProps) {
   return (
     <Container>
-      <header className="flex flex-wrap items-center justify-between gap-2 mb-8">
-        <H2 className="grow">{name}</H2>
+      <header className="flex flex-wrap items-center justify-between gap-2 mb-12">
+        <div className="flex grow items-center gap-2">
+          <H2>{name}</H2>
+          {contextMenu}
+        </div>
         <div className="flex flex-wrap items-center gap-2">{children}</div>
       </header>
     </Container>

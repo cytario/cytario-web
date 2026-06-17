@@ -16,9 +16,12 @@ import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
-import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { favoriteToNode, filterByKnownConnection } from "~/utils/dashboardNodes";
+import {
+  buildAggregateRoot,
+  favoriteToNode,
+  filterByKnownConnection,
+} from "~/utils/dashboardNodes";
 
 export const meta: MetaFunction = () => [{ title: "Favorites — Cytario" }];
 
@@ -47,7 +50,6 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 export default function FavoritesRoute() {
   const { connectionConfigs, favorites } = useLoaderData<typeof loader>();
-  const viewMode = useLayoutStore((s) => s.viewMode);
 
   const allItems: TreeNode[] = useMemo(
     () => filterByKnownConnection(favorites, connectionConfigs).map(favoriteToNode),
@@ -72,17 +74,9 @@ export default function FavoritesRoute() {
   }
 
   return (
-    <DirectoryView
-      kind="entries"
-      viewMode={viewMode}
-      nodes={allItems}
-      name="Favorites"
-      secondaryActions={
-        <>
-          <ShowFiltersToggle />
-          <ViewModeToggle />
-        </>
-      }
-    />
+    <DirectoryView kind="entries" node={buildAggregateRoot("Favorites", allItems)}>
+      <ShowFiltersToggle />
+      <ViewModeToggle />
+    </DirectoryView>
   );
 }

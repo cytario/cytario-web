@@ -17,9 +17,8 @@ import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
-import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
+import { buildAggregateRoot, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
@@ -48,7 +47,6 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 export default function RecentRoute() {
   const { connectionConfigs, recentlyViewed } = useLoaderData<typeof loader>();
-  const viewMode = useLayoutStore((s) => s.viewMode);
   const clearFetcher = useFetcher();
 
   const allItems: TreeNode[] = useMemo(
@@ -74,18 +72,7 @@ export default function RecentRoute() {
   }
 
   return (
-    <DirectoryView
-      kind="entries"
-      viewMode={viewMode}
-      nodes={allItems}
-      name="Recent"
-      secondaryActions={
-        <>
-          <ShowFiltersToggle />
-          <ViewModeToggle />
-        </>
-      }
-    >
+    <DirectoryView kind="entries" node={buildAggregateRoot("Recent", allItems)}>
       <Button
         variant="secondary"
         size="sm"
@@ -94,6 +81,8 @@ export default function RecentRoute() {
         <Trash2 size={16} />
         Clear history
       </Button>
+      <ShowFiltersToggle />
+      <ViewModeToggle />
     </DirectoryView>
   );
 }

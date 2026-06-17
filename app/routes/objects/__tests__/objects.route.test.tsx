@@ -20,6 +20,10 @@ vi.mock("~/utils/listObjectsClient", () => ({
   listObjectsClient: vi.fn(),
 }));
 
+vi.mock("~/routes/favorites/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+
 vi.mock("@cytario/design", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@cytario/design")>();
   return {

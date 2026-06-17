@@ -1,6 +1,6 @@
 import { Button, EmptyState } from "@cytario/design";
-import { AlertTriangle, Ban, Bookmark, BookmarkCheck, Download } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef } from "react";
+import { AlertTriangle, Ban } from "lucide-react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import {
   type MetaFunction,
   type ShouldRevalidateFunction,
@@ -16,13 +16,9 @@ import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
-import {
-  computeDirectoryLastModified,
-  computeDirectorySize,
-} from "~/components/DirectoryView/buildDirectoryTree";
+import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
-import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
@@ -72,13 +68,10 @@ export const handle = {
 
 // `formAction` fires for fetcher submissions too, so a blanket `if (formAction)`
 // is unsafe here: the record-viewed fetcher posts to /recent on every nav and
-// must NOT retrigger the S3 listing. But the favorite toggle must refresh
-// `isFavorite` — once the fetcher idles the optimistic state evaporates and the
-// button reverts to stale loader data. Favorite toggles are rare, so one extra
-// listing per toggle is acceptable; everything else still revalidates only on
-// URL change.
-export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formAction }) => {
-  if (formAction === "/favorites") return true;
+// must NOT retrigger the S3 listing. Favorite state now lives on the
+// `protected.layout` loader (consumed via `useFavorite`), which revalidates on
+// its own after a /favorites toggle, so the listing only re-runs on URL change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl }) => {
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   if (currentUrl.search !== nextUrl.search) return true;
   return false;
@@ -92,14 +85,12 @@ export default function ObjectsRoute() {
     urlPath,
     pathName,
     connectionConfig,
-    isFavorite: loaderIsFavorite,
     isSingleFile,
     notification,
     pendingClientLoad,
     connectionError,
   } = useLoaderData<typeof clientLoader>();
 
-  const viewMode = useLayoutStore((state) => state.viewMode);
   const navigate = useNavigate();
   const { openModal } = useModal();
 
@@ -138,38 +129,6 @@ export default function ObjectsRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, navigation.state]);
 
-  const favoriteFetcher = useFetcher();
-  // Optimistic toggle while the request is in flight.
-  let isFavorite = loaderIsFavorite;
-  if (favoriteFetcher.state !== "idle") {
-    isFavorite = favoriteFetcher.formMethod?.toLowerCase() === "put";
-  }
-
-  const toggleFavorite = useCallback(() => {
-    if (isFavorite) {
-      favoriteFetcher.submit(
-        { connectionName, pathName: urlPath },
-        { method: "delete", action: "/favorites" },
-      );
-    } else {
-      const totalSize = nodes.reduce((sum, node) => sum + computeDirectorySize(node), 0);
-      const lastModified = nodes.reduce(
-        (max, node) => Math.max(max, computeDirectoryLastModified(node)),
-        0,
-      );
-      favoriteFetcher.submit(
-        {
-          connectionName,
-          pathName: urlPath,
-          displayName: urlPath ? getName(urlPath, connectionName) : connectionName,
-          totalSize: String(totalSize),
-          lastModified: lastModified ? String(lastModified) : "",
-        },
-        { method: "put", action: "/favorites" },
-      );
-    }
-  }, [connectionName, urlPath, isFavorite, nodes, favoriteFetcher]);
-
   if (connectionError) {
     return (
       <EmptyState
@@ -189,38 +148,24 @@ export default function ObjectsRoute() {
   }
 
   if (nodes.length > 0) {
+    // Title is the current level: last path segment in a subdirectory, the
+    // connection name at the root.
+    const displayName = urlPath ? getName(urlPath, connectionName) : connectionName;
+    // The directory/bucket being listed, assembled as a single TreeNode so the
+    // header renders the same context menu (favorite, copy, …) the rows expose.
+    const currentNode: TreeNode = {
+      id: `${connectionName}/${urlPath}`,
+      connectionName,
+      pathName: urlPath,
+      name: displayName,
+      type: urlPath ? "directory" : "bucket",
+      children: nodes,
+    };
+
     return (
-      <DirectoryView
-        kind="entries"
-        viewMode={viewMode}
-        // Title is the current level: last path segment in a subdirectory,
-        // the connection name at the root.
-        name={urlPath ? getName(urlPath, connectionName) : connectionName}
-        nodes={nodes}
-        secondaryActions={
-          <>
-            <ShowFiltersToggle />
-            <ViewModeToggle />
-          </>
-        }
-      >
-        <Button
-          onPress={toggleFavorite}
-          size="sm"
-          variant="secondary"
-          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          {isFavorite ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-          {isFavorite ? "Remove Favorite" : "Add Favorite"}
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onPress={() => openModal("cyberduck", { connectionName })}
-        >
-          <Download size={16} />
-          Access with Cyberduck
-        </Button>
+      <DirectoryView kind="entries" node={currentNode}>
+        <ShowFiltersToggle />
+        <ViewModeToggle />
       </DirectoryView>
     );
   }

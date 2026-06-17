@@ -3,6 +3,22 @@ import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { SerializedFavorite } from "~/routes/favorites/favorites.loader";
 import type { SerializedRecentlyViewed } from "~/routes/recent/recent.loader";
 
+/**
+ * A synthetic root over a flat list of nodes (connections, favorites, recents).
+ * Carries no `connectionName`, so its header `NodeContextMenu` has no per-node
+ * actions and renders nothing — these pages favorite per-row, not per-page.
+ */
+export function buildAggregateRoot(name: string, children: TreeNode[]): TreeNode {
+  return {
+    id: `aggregate-root/${name}`,
+    connectionName: "",
+    pathName: "",
+    name,
+    type: "directory",
+    children,
+  };
+}
+
 /** Build the bucket-level connection nodes that seed the connections grid. */
 export function buildConnectionNodes(configs: ConnectionConfig[]): TreeNode[] {
   return configs.map((config) => ({

@@ -6,9 +6,9 @@ import type { LoaderData } from "./connections.loader";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
-import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
+import { buildAggregateRoot } from "~/utils/dashboardNodes";
 
 export { enrichConnectionsWithPreviews as clientLoader } from "./connections.clientLoader";
 export { loadConnections as loader } from "./connections.loader";
@@ -30,7 +30,6 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export default function ConnectionsListRoute() {
-  const viewMode = useLayoutStore((state) => state.viewMode);
   const { nodes } = useLoaderData<LoaderData>();
 
   const { openModal } = useModal();
@@ -53,21 +52,12 @@ export default function ConnectionsListRoute() {
   }
 
   return (
-    <DirectoryView
-      kind="connections"
-      viewMode={viewMode}
-      nodes={nodes}
-      name={title}
-      secondaryActions={
-        <>
-          <ShowFiltersToggle />
-          <ViewModeToggle />
-        </>
-      }
-    >
+    <DirectoryView kind="connections" node={buildAggregateRoot(title, nodes)}>
       <Button size="sm" variant="secondary" onPress={() => openModal("add-connection")}>
         <Plug size={16} /> Add Connection
       </Button>
+      <ShowFiltersToggle />
+      <ViewModeToggle />
     </DirectoryView>
   );
 }

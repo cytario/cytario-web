@@ -21,10 +21,6 @@ vi.mock("~/utils/listObjects/listObjectsClient", () => ({
   listObjectsClient: (...args: unknown[]) => listObjectsClient(...args),
 }));
 
-vi.mock("~/routes/favorites/favorites.server", () => ({
-  checkIsFavorite: vi.fn().mockResolvedValue(false),
-}));
-
 const { authContext } = await import("~/.server/auth/authMiddleware");
 const { getConnection } = await import("~/routes/connections/connections.server");
 
@@ -97,7 +93,6 @@ describe("objects loader (C-193)", () => {
       name: "image.zarr",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig(),
-      isFavorite: false,
       serverDeterminedSingleFile: true,
       pendingClientLoad: true,
     });
@@ -122,7 +117,6 @@ describe("objects loader (C-193)", () => {
       name: "test-conn",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig({ prefix: "" }),
-      isFavorite: false,
       serverDeterminedSingleFile: false,
       pendingClientLoad: true,
     });
@@ -154,7 +148,6 @@ describe("objects loader (C-193)", () => {
       name: "test-conn",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig({ prefix: "" }),
-      isFavorite: false,
       serverDeterminedSingleFile: false,
       pendingClientLoad: true,
     });
@@ -185,7 +178,6 @@ describe("objects loader (C-193)", () => {
       name: "file.tif",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig({ prefix: "" }),
-      isFavorite: false,
       serverDeterminedSingleFile: false,
       pendingClientLoad: true,
     });
@@ -216,7 +208,6 @@ describe("objects loader (C-193)", () => {
       name: "test-conn",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig({ prefix: "" }),
-      isFavorite: false,
       serverDeterminedSingleFile: false,
       pendingClientLoad: true,
     });
@@ -246,7 +237,6 @@ describe("objects loader (C-193)", () => {
       name: "test-conn",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig({ prefix: "" }),
-      isFavorite: false,
       serverDeterminedSingleFile: false,
       pendingClientLoad: true,
     });
@@ -277,7 +267,6 @@ describe("objects loader (C-193)", () => {
       name: "test-conn",
       credentials: mock.credentials(),
       connectionConfig: mock.connectionConfig({ prefix: "" }),
-      isFavorite: false,
       serverDeterminedSingleFile: false,
       pendingClientLoad: true,
     });

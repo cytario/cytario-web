@@ -6,7 +6,6 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
-import { checkIsFavorite } from "~/routes/favorites/favorites.server";
 import {
   ConnectionPrefixError,
   getName,
@@ -29,7 +28,6 @@ export interface BucketRouteServerLoaderResponse {
   name: string;
   credentials: Credentials | null;
   connectionConfig: ConnectionConfig;
-  isFavorite: boolean;
   /** Set when the URL points at a Zarr directory; the chunk listing is skipped. */
   serverDeterminedSingleFile: boolean;
   /** `true` during SSR; `clientLoader` flips it once the listing resolves. */
@@ -87,7 +85,6 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   }
   const name = getName(pathName, bucketName);
 
-  const isFavorite = await checkIsFavorite(user.sub, connectionName, urlPath);
   const serverDeterminedSingleFile = isZarrPath(pathName);
 
   // SSR-safe defaults; `clientLoader` overwrites the listing fields after hydration.
@@ -99,7 +96,6 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     name,
     credentials,
     connectionConfig,
-    isFavorite,
     serverDeterminedSingleFile,
     pendingClientLoad: connectionError ? false : true,
     nodes: [],

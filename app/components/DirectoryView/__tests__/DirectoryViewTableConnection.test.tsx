@@ -5,6 +5,10 @@ import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTableConnection } from "../DirectoryViewTableConnection";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/routes/favorites/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+
 const credentials = mock.credentials();
 const connections = {
   "aws-my-aws-bucket": {
