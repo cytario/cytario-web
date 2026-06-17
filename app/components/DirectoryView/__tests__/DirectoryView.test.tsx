@@ -1,27 +1,42 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { createRoutesStub } from "react-router";
 
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryView } from "../DirectoryView";
-import { useLayoutStore } from "../useLayoutStore";
+import { type ViewMode, useLayoutStore } from "../useLayoutStore";
 import { useTableStore } from "~/components/Table/state/useTableStore";
 import mock from "~/utils/__tests__/__mocks__";
+import { buildAggregateRoot } from "~/utils/dashboardNodes";
 
 vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(),
 }));
 
-function renderDirectoryView(
-  props: Partial<React.ComponentProps<typeof DirectoryView>> & {
-    nodes: TreeNode[];
-    name: string;
-    viewMode: React.ComponentProps<typeof DirectoryView>["viewMode"];
-  },
-) {
+vi.mock("~/routes/favorites/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+
+// DirectoryView now takes a single `node`; the tests still think in terms of
+// `nodes` + `name` + `viewMode`, so translate: viewMode → store, and wrap the
+// flat list in an aggregate root.
+function renderDirectoryView(props: {
+  nodes: TreeNode[];
+  name: string;
+  viewMode: ViewMode;
+  children?: ReactNode;
+}) {
+  const { nodes, name, viewMode, children } = props;
+  useLayoutStore.setState({ viewMode });
+  const node = buildAggregateRoot(name, nodes);
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => <DirectoryView kind="entries" {...props} />,
+      Component: () => (
+        <DirectoryView kind="entries" node={node}>
+          {children}
+        </DirectoryView>
+      ),
     },
   ]);
   return render(<RemixStub initialEntries={["/"]} />);
@@ -201,14 +216,14 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText(".hidden-file")).toBeInTheDocument();
   });
 
-  test("renders secondary actions slot", () => {
+  test("renders the children action slot", () => {
     renderDirectoryView({
       viewMode: "list",
       nodes: mockNodes,
       name: "Test Directory",
-      secondaryActions: <button data-testid="secondary-btn">Extra</button>,
+      children: <button data-testid="action-btn">Extra</button>,
     });
 
-    expect(screen.getByTestId("secondary-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("action-btn")).toBeInTheDocument();
   });
 });

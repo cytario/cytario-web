@@ -8,8 +8,9 @@ import { DirectoryViewTableDirectory, fileColumns } from "./DirectoryViewTableDi
 import { DirectoryViewTree } from "./DirectoryViewTree";
 import { FilterBar } from "./FilterBar";
 import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
+import { NodeContextMenu } from "./NodeLink/NodeContextMenu";
 import { onExpand } from "./onExpand";
-import { type ViewMode, useLayoutStore } from "./useLayoutStore";
+import { useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { select } from "~/utils/connectionsStore/selectors";
@@ -24,24 +25,15 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 export type DirectoryKind = "connections" | "entries";
 
 interface DirectoryViewProps {
-  /** What this view is listing — describes the route, not the data. */
   kind: DirectoryKind;
-  nodes: TreeNode[];
-  viewMode: ViewMode;
-  name: string;
+  node: TreeNode;
+
   children?: ReactNode;
-  /** Actions rendered in a second row beneath the header title */
-  secondaryActions?: ReactNode;
 }
 
-export function DirectoryView({
-  kind,
-  viewMode,
-  nodes,
-  name,
-  children,
-  secondaryActions,
-}: DirectoryViewProps) {
+export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
+  const nodes = useMemo(() => node.children ?? [], [node.children]);
+  const viewMode = useLayoutStore((s) => s.viewMode);
   const columns = kind === "connections" ? connectionColumns : fileColumns;
   const isGrid = viewMode === "grid";
   const isTree = viewMode === "tree";
@@ -87,9 +79,11 @@ export function DirectoryView({
 
   return (
     <Section>
-      <SectionHeader name={name}>
+      <SectionHeader
+        name={node.name}
+        contextMenu={<NodeContextMenu node={node} triggerVariant="secondary" isCurrent />}
+      >
         {children}
-        {secondaryActions}
       </SectionHeader>
 
       {showFilters && viewMode !== "list" && (

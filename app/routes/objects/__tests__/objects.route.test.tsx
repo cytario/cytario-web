@@ -20,6 +20,10 @@ vi.mock("~/utils/listObjectsClient", () => ({
   listObjectsClient: vi.fn(),
 }));
 
+vi.mock("~/routes/favorites/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+
 vi.mock("@cytario/design", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@cytario/design")>();
   return {
@@ -100,7 +104,6 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             pathName: "",
             name: "test-bucket",
-            isFavorite: false,
           };
         },
       },
@@ -129,7 +132,6 @@ describe("Bucket Route", () => {
             bucketName: "test-bucket",
             name: "file.ome.tiff",
             isSingleFile: true,
-            isFavorite: false,
           };
         },
       },

@@ -54,15 +54,3 @@ export async function getFavorites(userId: string): Promise<PinnedPath[]> {
     orderBy: { id: "desc" },
   });
 }
-
-/** Check if a specific path is favorited for a user. */
-export async function checkIsFavorite(
-  userId: string,
-  connectionName: string,
-  pathName: string,
-): Promise<boolean> {
-  const count = await prisma.pinnedPath.count({
-    where: { userId, connectionName, pathName },
-  });
-  return count > 0;
-}

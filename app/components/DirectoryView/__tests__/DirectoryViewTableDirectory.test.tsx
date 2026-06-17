@@ -4,6 +4,10 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTableDirectory } from "../DirectoryViewTableDirectory";
 
+vi.mock("~/routes/favorites/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+
 describe("DirectoryViewTableDirectory", () => {
   describe("file type nodes", () => {
     const mockFileNodes: TreeNode[] = [

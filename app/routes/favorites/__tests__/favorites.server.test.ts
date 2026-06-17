@@ -13,7 +13,7 @@ vi.mock("~/.server/db/prisma", () => ({
   prisma: mockPrisma,
 }));
 
-import { addFavorite, checkIsFavorite, getFavorites, removeFavorite } from "../favorites.server";
+import { addFavorite, getFavorites, removeFavorite } from "../favorites.server";
 
 describe("favorites.server", () => {
   beforeEach(() => {
@@ -96,27 +96,6 @@ describe("favorites.server", () => {
         where: { userId: "user-1" },
         orderBy: { id: "desc" },
       });
-    });
-  });
-
-  describe("checkIsFavorite", () => {
-    test("returns true when path is favorited", async () => {
-      mockPrisma.pinnedPath.count.mockResolvedValue(1);
-
-      const result = await checkIsFavorite("user-1", "bucket-a", "data/");
-
-      expect(result).toBe(true);
-      expect(mockPrisma.pinnedPath.count).toHaveBeenCalledWith({
-        where: { userId: "user-1", connectionName: "bucket-a", pathName: "data/" },
-      });
-    });
-
-    test("returns false when path is not favorited", async () => {
-      mockPrisma.pinnedPath.count.mockResolvedValue(0);
-
-      const result = await checkIsFavorite("user-1", "bucket-a", "other/");
-
-      expect(result).toBe(false);
     });
   });
 });

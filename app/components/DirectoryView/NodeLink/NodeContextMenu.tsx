@@ -1,5 +1,15 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
-import { ArrowRight, Ellipsis, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  Bookmark,
+  BookmarkCheck,
+  Copy,
+  Download,
+  Ellipsis,
+  ExternalLink,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { Form, useRouteLoaderData } from "react-router";
 
@@ -7,41 +17,88 @@ import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
+import { useFavorite } from "~/routes/favorites/useFavorite";
+import { toastBridge } from "~/toast-bridge";
 import { canModify } from "~/utils/authorization";
-import { select } from "~/utils/connectionsStore/selectors";
+import { resolveResourceId, select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 /**
- * Trailing context menu shown for every `TreeNode` (bucket, directory, file).
- * All node types share Open / Open in new tab; buckets additionally expose
- * Edit and Delete when the user may modify the connection.
+ * Trailing context menu for a `TreeNode` (bucket, directory, file). All node
+ * types share Open / Open in new tab / Copy S3 URI / favorite; buckets also
+ * expose Edit and Delete when the user may modify the connection.
  */
-export const NodeContextMenu = ({ node }: { node: TreeNode }) => {
+export const NodeContextMenu = ({
+  node,
+  triggerVariant = "ghost",
+  isCurrent = false,
+}: {
+  node: TreeNode;
+  triggerVariant?: "ghost" | "secondary";
+  isCurrent?: boolean;
+}) => {
   const isBucket = node.type === "bucket";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusReturnRef = useRef<HTMLElement | null>(null);
   const { openModal } = useModal();
 
-  const to = buildConnectionPath(node.connectionName, node.pathName);
+  const { isFavorite, isPending: favoritePending, toggle: toggleFavorite } = useFavorite(node);
 
   const connectionConfig = useConnectionsStore(select.connectionConfig(node.connectionName));
+
   const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
+
+  if (!connectionConfig) return null;
+
   const user = rootData?.user;
   const userCanModify =
     isBucket && user && connectionConfig ? canModify(user, connectionConfig) : false;
+
+  const to = buildConnectionPath(node.connectionName, node.pathName);
+
+  const copyS3Uri = async () => {
+    try {
+      const { s3Uri } = resolveResourceId(node.id);
+      await navigator.clipboard.writeText(s3Uri);
+      toastBridge.emit({ variant: "success", message: "S3 URI copied to clipboard" });
+    } catch {
+      toastBridge.emit({ variant: "error", message: "Could not copy the S3 URI" });
+    }
+  };
 
   return (
     <>
       <Menu
         content={
           <>
-            <MenuItem id="open" icon={ArrowRight} href={to}>
-              Open
-            </MenuItem>
+            {!isCurrent && (
+              <MenuItem id="open" icon={ArrowRight} href={to}>
+                Open
+              </MenuItem>
+            )}
             <MenuItem id="open-new-tab" icon={ExternalLink} href={to} target="_blank">
               Open in new tab
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem id="copy-s3-uri" icon={Copy} onAction={copyS3Uri}>
+              Copy S3 URI
+            </MenuItem>
+            <MenuItem
+              id="cyberduck"
+              icon={Download}
+              onAction={() => openModal("cyberduck", { connectionName: node.connectionName })}
+            >
+              Access with Cyberduck
+            </MenuItem>
+            <MenuItem
+              id="favorite"
+              icon={isFavorite ? BookmarkCheck : Bookmark}
+              isDisabled={favoritePending}
+              onAction={toggleFavorite}
+            >
+              {isFavorite ? "Remove Favorite" : "Add Favorite"}
             </MenuItem>
             {userCanModify && (
               <>
@@ -73,7 +130,7 @@ export const NodeContextMenu = ({ node }: { node: TreeNode }) => {
         <IconButton
           icon={Ellipsis}
           aria-label={`Actions for ${node.name}`}
-          variant="ghost"
+          variant={triggerVariant}
           size="xs"
         />
       </Menu>

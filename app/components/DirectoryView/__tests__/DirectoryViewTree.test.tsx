@@ -4,6 +4,10 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTree } from "../DirectoryViewTree";
 
+vi.mock("~/routes/favorites/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+
 const mockNodes: TreeNode[] = [
   {
     id: "results/",
