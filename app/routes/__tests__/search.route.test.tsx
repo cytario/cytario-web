@@ -159,8 +159,8 @@ describe("SearchRoute", () => {
     expect(result.notification?.message).toMatch(/blocked/);
   });
 
-  test("handle returns the breadcrumb", () => {
-    expect(handle.breadcrumb()).toEqual({ label: "Search", to: "/search" });
+  test("handle exposes the route as a virtual breadcrumb node", () => {
+    expect(handle.node()).toMatchObject({ name: "Search", connectionName: "", type: "directory" });
   });
 
   test("clientLoader fans out one listing per connection scoped to its own prefix", async () => {

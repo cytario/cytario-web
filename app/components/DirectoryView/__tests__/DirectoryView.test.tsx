@@ -7,7 +7,7 @@ import { DirectoryView } from "../DirectoryView";
 import { type ViewMode, useLayoutStore } from "../useLayoutStore";
 import { useTableStore } from "~/components/Table/state/useTableStore";
 import mock from "~/utils/__tests__/__mocks__";
-import { buildAggregateRoot } from "~/utils/dashboardNodes";
+import { buildVirtualNode } from "~/utils/treeNodeFactories";
 
 vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   loadSingleFileOmeTiff: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock("~/routes/favorites/useFavorite", () => ({
 
 // DirectoryView now takes a single `node`; the tests still think in terms of
 // `nodes` + `name` + `viewMode`, so translate: viewMode → store, and wrap the
-// flat list in an aggregate root.
+// flat list in a virtual node.
 function renderDirectoryView(props: {
   nodes: TreeNode[];
   name: string;
@@ -28,7 +28,7 @@ function renderDirectoryView(props: {
 }) {
   const { nodes, name, viewMode, children } = props;
   useLayoutStore.setState({ viewMode });
-  const node = buildAggregateRoot(name, nodes);
+  const node = buildVirtualNode(name, nodes);
   const RemixStub = createRoutesStub([
     {
       path: "/",

@@ -8,7 +8,7 @@ import type { SerializedRecentlyViewed } from "~/routes/recent/recent.loader";
  * Carries no `connectionName`, so its header `NodeContextMenu` has no per-node
  * actions and renders nothing — these pages favorite per-row, not per-page.
  */
-export function buildAggregateRoot(name: string, children: TreeNode[]): TreeNode {
+export function buildVirtualNode(name: string, children: TreeNode[]): TreeNode {
   return {
     id: `aggregate-root/${name}`,
     connectionName: "",
@@ -17,19 +17,6 @@ export function buildAggregateRoot(name: string, children: TreeNode[]): TreeNode
     type: "directory",
     children,
   };
-}
-
-/** Build the bucket-level connection nodes that seed the connections grid. */
-export function buildConnectionNodes(configs: ConnectionConfig[]): TreeNode[] {
-  return configs.map((config) => ({
-    id: `${config.name}/`,
-    connectionName: config.name,
-    name: config.name,
-    type: "bucket" as const,
-    pathName: "",
-    children: [],
-    loadState: "idle" as const,
-  }));
 }
 
 /** A recently viewed item as a navigable tree node. */

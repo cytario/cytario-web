@@ -18,15 +18,15 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import {
-  buildAggregateRoot,
+  buildVirtualNode,
   favoriteToNode,
   filterByKnownConnection,
-} from "~/utils/dashboardNodes";
+} from "~/utils/treeNodeFactories";
 
 export const meta: MetaFunction = () => [{ title: "Favorites — Cytario" }];
 
 export const handle = {
-  breadcrumb: () => ({ label: "Favorites", to: "/favorites" }),
+  node: () => buildVirtualNode("Favorites", []),
 };
 
 export const action = async (args: ActionFunctionArgs) => {
@@ -74,7 +74,7 @@ export default function FavoritesRoute() {
   }
 
   return (
-    <DirectoryView kind="entries" node={buildAggregateRoot("Favorites", allItems)}>
+    <DirectoryView kind="entries" node={buildVirtualNode("Favorites", allItems)}>
       <ShowFiltersToggle />
       <ViewModeToggle />
     </DirectoryView>

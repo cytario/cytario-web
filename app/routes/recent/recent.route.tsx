@@ -18,12 +18,12 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { buildAggregateRoot, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
+import { buildVirtualNode, filterByKnownConnection, recentToNode } from "~/utils/treeNodeFactories";
 
 export const meta: MetaFunction = () => [{ title: "Recent — Cytario" }];
 
 export const handle = {
-  breadcrumb: () => ({ label: "Recent", to: "/recent" }),
+  node: () => buildVirtualNode("Recent", []),
 };
 
 export const action = async (args: ActionFunctionArgs) => {
@@ -72,7 +72,7 @@ export default function RecentRoute() {
   }
 
   return (
-    <DirectoryView kind="entries" node={buildAggregateRoot("Recent", allItems)}>
+    <DirectoryView kind="entries" node={buildVirtualNode("Recent", allItems)}>
       <Button
         variant="secondary"
         size="sm"

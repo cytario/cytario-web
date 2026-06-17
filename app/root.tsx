@@ -26,6 +26,8 @@ import { AppHeader } from "./components/AppHeader";
 import { Container, Section } from "./components/Container";
 import { type NotificationInput } from "./components/Notification/Notification.store";
 import { cytarioConfig } from "./config";
+import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
+import { FavoritesProvider } from "./routes/favorites/useFavorite";
 import { toastBridge, toToastVariant } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
 
@@ -51,10 +53,6 @@ export const links: LinksFunction = () => [
   },
   { rel: "manifest", href: "/favicon/site.webmanifest" },
 ];
-
-export const handle = {
-  breadcrumb: () => ({ label: "", to: "/", isRoot: true }),
-};
 
 export const middleware: MiddlewareFunction[] = [sessionMiddleware];
 
@@ -98,6 +96,11 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoaderResponse>("root");
+  // Favorites load on the protected layout; read here so the header shares one
+  // controller with the routed subtree. Undefined off that layout (e.g. login).
+  const protectedData = useRouteLoaderData<{ favorites?: SerializedFavorite[] }>(
+    "routes/layouts/protected.layout",
+  );
   const location = useLocation();
   const navigation = useNavigation();
   const navigate = useNavigate();
@@ -158,11 +161,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* No `useHref`: RR's collapses `//` in absolute URLs (C-201).
             Only needed for basename / hash routing — neither is in use. */}
         <RouterProvider navigate={navigate}>
-          {data?.user && <AppHeader />}
+          <FavoritesProvider favorites={protectedData?.favorites ?? []}>
+            {data?.user && <AppHeader />}
 
-          <main id="main-content" className="relative flex-1 min-h-0 outline-none">
-            {children}
-          </main>
+            <main id="main-content" className="relative flex-1 min-h-0 outline-none">
+              {children}
+            </main>
+          </FavoritesProvider>
         </RouterProvider>
 
         <ScrollRestoration />

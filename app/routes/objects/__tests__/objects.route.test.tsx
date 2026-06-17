@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { ActionFunctionArgs, createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
-import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import ObjectsRoute, { handle } from "~/routes/objects/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -55,12 +54,8 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
   ),
 }));
 
-vi.mock("~/components/Breadcrumbs/getCrumbs", () => ({
-  getCrumbs: vi.fn(() => []),
-}));
-
 describe("Bucket Route", () => {
-  test("handle calls `getCrumbs` with correct arguments", () => {
+  test("handle.node builds the current TreeNode from params + data", () => {
     const mockArgs = {
       params: {
         name: "aws-test-bucket",
@@ -73,16 +68,14 @@ describe("Bucket Route", () => {
       },
     } as unknown as ActionFunctionArgs;
 
-    handle.breadcrumb(mockArgs);
-
-    expect(getCrumbs).toHaveBeenCalledWith(
-      "/connections/aws-test-bucket",
-      ["bucket", "folder", "file.ome.tiff"],
-      {
-        dataConnectionName: "aws-test-bucket",
-        dataConnectionPath: "/connections/aws-test-bucket",
-      },
-    );
+    expect(handle.node(mockArgs)).toEqual({
+      id: "aws-test-bucket/bucket/folder/file.ome.tiff",
+      connectionName: "aws-test-bucket",
+      pathName: "bucket/folder/file.ome.tiff",
+      name: "file.ome.tiff",
+      type: "directory",
+      children: [],
+    });
   });
 
   test("renders `DirectoryView`, if there are multiple nodes", async () => {
