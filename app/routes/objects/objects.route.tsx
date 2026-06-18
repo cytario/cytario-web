@@ -13,7 +13,6 @@ import {
 import { clientLoader } from "./objects.clientLoader";
 import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
-import { getCrumbs } from "~/components/Breadcrumbs/getCrumbs";
 import { ClientOnly } from "~/components/ClientOnly";
 import { DataGrid } from "~/components/DataGrid/DataGrid";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -47,22 +46,32 @@ export const meta: MetaFunction<typeof clientLoader> = ({ loaderData }) => [
   { title: loaderData?.name ?? "Cytario" },
 ];
 
+/** The bucket/directory at the current URL as a single TreeNode. */
+export function buildCurrentNode(
+  connectionName: string,
+  urlPath: string,
+  children: TreeNode[] = [],
+): TreeNode {
+  const displayName = urlPath ? getName(urlPath, connectionName) : connectionName;
+  return {
+    id: `${connectionName}/${urlPath}`,
+    connectionName,
+    pathName: urlPath,
+    name: displayName,
+    type: urlPath ? "directory" : "bucket",
+    children,
+  };
+}
+
 export const handle = {
-  breadcrumb: (match: {
+  node: (match: {
     params: Record<string, string | undefined>;
     data?: BucketRouteLoaderResponse;
-  }) => {
+  }): TreeNode => {
     const { params, data } = match;
     const connectionName = data?.connectionName ?? params.name ?? "";
-    const pathName = params["*"] ?? "";
-
-    const segments = pathName ? pathName.split("/") : [];
-    const basePath = `/connections/${connectionName}`;
-
-    return getCrumbs(basePath, segments, {
-      dataConnectionName: connectionName,
-      dataConnectionPath: basePath,
-    });
+    const urlPath = params["*"] ?? "";
+    return buildCurrentNode(connectionName, urlPath);
   },
 };
 
@@ -148,19 +157,7 @@ export default function ObjectsRoute() {
   }
 
   if (nodes.length > 0) {
-    // Title is the current level: last path segment in a subdirectory, the
-    // connection name at the root.
-    const displayName = urlPath ? getName(urlPath, connectionName) : connectionName;
-    // The directory/bucket being listed, assembled as a single TreeNode so the
-    // header renders the same context menu (favorite, copy, …) the rows expose.
-    const currentNode: TreeNode = {
-      id: `${connectionName}/${urlPath}`,
-      connectionName,
-      pathName: urlPath,
-      name: displayName,
-      type: urlPath ? "directory" : "bucket",
-      children: nodes,
-    };
+    const currentNode = buildCurrentNode(connectionName, urlPath, nodes);
 
     return (
       <DirectoryView kind="entries" node={currentNode}>

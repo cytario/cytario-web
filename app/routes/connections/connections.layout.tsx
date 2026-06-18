@@ -3,11 +3,10 @@ import { type ActionFunctionArgs, Outlet } from "react-router";
 import { createAction } from "./createConnection.action";
 import { deleteAction } from "./deleteConnection.action";
 import { updateAction } from "./updateConnection.action";
+import { buildVirtualNode } from "~/utils/treeNodeFactories";
 
-// Breadcrumb-bearing parent so the `Connections` root crumb propagates to the
-// list (index) and to deep object routes alike.
 export const handle = {
-  breadcrumb: () => ({ label: "Connections", to: "/connections" }),
+  node: () => buildVirtualNode("Connections", []),
 };
 
 // Connection CRUD resolves to this route; keep its response uncached (carries

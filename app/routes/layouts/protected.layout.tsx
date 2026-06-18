@@ -14,7 +14,6 @@ import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadFavorites } from "~/routes/favorites/favorites.loader";
-import { FavoritesProvider } from "~/routes/favorites/useFavorite";
 import { loadRecentlyViewed } from "~/routes/recent/recent.loader";
 import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
 
@@ -64,26 +63,24 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
   serverLoader<typeof loader>();
 
 export default function ProtectedLayout() {
-  const { connectionConfigs, credentials, credentialErrors, identity, favorites } =
+  const { connectionConfigs, credentials, credentialErrors, identity } =
     useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors);
   useCredentialsKeepAlive();
   useConnectionHealthProbe();
 
   return (
-    <FavoritesProvider favorites={favorites}>
-      <div className="flex h-full flex-col">
-        <PluginSlots name="app-banner" identity={identity} />
-        <div className="relative flex flex-1 min-h-0">
-          <ExplorerSidebar />
+    <div className="flex h-full flex-col">
+      <PluginSlots name="app-banner" identity={identity} />
+      <div className="relative flex flex-1 min-h-0">
+        <ExplorerSidebar />
 
-          <div className="flex-1 overflow-x-hidden overflow-y-auto">
-            <Outlet />
-          </div>
-          <ModalOutlet />
+        <div className="flex-1 overflow-x-hidden overflow-y-auto">
+          <Outlet />
         </div>
-        <PluginSlots name="app-overlay" identity={identity} />
+        <ModalOutlet />
       </div>
-    </FavoritesProvider>
+      <PluginSlots name="app-overlay" identity={identity} />
+    </div>
   );
 }

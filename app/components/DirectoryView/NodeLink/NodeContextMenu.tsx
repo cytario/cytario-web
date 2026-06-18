@@ -5,7 +5,7 @@ import {
   BookmarkCheck,
   Copy,
   Download,
-  Ellipsis,
+  EllipsisVertical,
   ExternalLink,
   Pencil,
   Trash2,
@@ -31,11 +31,9 @@ import { buildConnectionPath } from "~/utils/resourceId";
  */
 export const NodeContextMenu = ({
   node,
-  triggerVariant = "ghost",
   isCurrent = false,
 }: {
   node: TreeNode;
-  triggerVariant?: "ghost" | "secondary";
   isCurrent?: boolean;
 }) => {
   const isBucket = node.type === "bucket";
@@ -50,13 +48,13 @@ export const NodeContextMenu = ({
 
   const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
 
+  const to = buildConnectionPath(node.connectionName, node.pathName);
+
   if (!connectionConfig) return null;
 
   const user = rootData?.user;
   const userCanModify =
     isBucket && user && connectionConfig ? canModify(user, connectionConfig) : false;
-
-  const to = buildConnectionPath(node.connectionName, node.pathName);
 
   const copyS3Uri = async () => {
     try {
@@ -128,9 +126,9 @@ export const NodeContextMenu = ({
         }
       >
         <IconButton
-          icon={Ellipsis}
+          icon={EllipsisVertical}
           aria-label={`Actions for ${node.name}`}
-          variant={triggerVariant}
+          variant="ghost"
           size="xs"
         />
       </Menu>

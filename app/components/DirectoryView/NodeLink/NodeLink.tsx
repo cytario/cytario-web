@@ -1,6 +1,6 @@
 import { TruncatedText } from "@cytario/design";
 import { MouseEventHandler } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
 
 import { NodeContextMenu } from "./NodeContextMenu";
@@ -22,6 +22,8 @@ export interface NodeLinkProps {
  * buckets, file-type icon otherwise), the node name, and an optional trailing
  * context menu trigger. Pass `isClickable={() => false}` to render the row as
  * a non-navigating block (e.g. when an outer element already owns navigation).
+ * A node whose path matches the current URL is treated as the current location:
+ * non-navigating, active-styled, and flagged `isCurrent` to its context menu.
  */
 export function NodeLink({
   node,
@@ -31,13 +33,14 @@ export function NodeLink({
   className,
 }: NodeLinkProps) {
   const to = buildConnectionPath(node.connectionName, node.pathName);
+  const isCurrent = Boolean(useMatch({ path: to, end: true }));
+  const clickable = isClickable(node) && !isCurrent;
 
   const rowCx = `
     flex items-center grow 
     font-medium text-sm
-    min-w-0 h-7 gap-0.5
-    border border-transparent
-    rounded-md
+    min-w-0 h-7 px-1 gap-0.5
+    rounded-full
   `;
 
   const clickAbleCx = `
@@ -56,7 +59,7 @@ export function NodeLink({
 
   return (
     <div className={twMerge(rowCx, className)}>
-      {isClickable(node) ? (
+      {clickable ? (
         <NavLink
           to={to}
           end
@@ -67,13 +70,13 @@ export function NodeLink({
           <TruncatedText>{node.name}</TruncatedText>
         </NavLink>
       ) : (
-        <div className={rowCx}>
+        <div className={twMerge(rowCx, isCurrent && activeCx)}>
           <NodeIndicator node={node} />
           <TruncatedText>{node.name}</TruncatedText>
         </div>
       )}
 
-      {contextMenu && <NodeContextMenu node={node} />}
+      {contextMenu && <NodeContextMenu node={node} isCurrent={isCurrent} />}
     </div>
   );
 }

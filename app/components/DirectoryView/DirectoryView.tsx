@@ -8,7 +8,6 @@ import { DirectoryViewTableDirectory, fileColumns } from "./DirectoryViewTableDi
 import { DirectoryViewTree } from "./DirectoryViewTree";
 import { FilterBar } from "./FilterBar";
 import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
-import { NodeContextMenu } from "./NodeLink/NodeContextMenu";
 import { onExpand } from "./onExpand";
 import { useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
@@ -79,12 +78,7 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
 
   return (
     <Section>
-      <SectionHeader
-        name={node.name}
-        contextMenu={<NodeContextMenu node={node} triggerVariant="secondary" isCurrent />}
-      >
-        {children}
-      </SectionHeader>
+      <SectionHeader name={node.name}>{children}</SectionHeader>
 
       {showFilters && viewMode !== "list" && (
         <Container>

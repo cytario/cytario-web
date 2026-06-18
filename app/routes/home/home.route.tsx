@@ -13,8 +13,8 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
 import { type LoaderData } from "~/routes/connections/connections.loader";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
-import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/dashboardNodes";
 import { isImageFile } from "~/utils/fileType";
+import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/treeNodeFactories";
 
 const title = "cytario®";
 const MAX_RECENT_IMAGES = 4;

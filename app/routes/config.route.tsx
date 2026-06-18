@@ -4,9 +4,10 @@ import { LoaderFunction, useLoaderData } from "react-router";
 import { Section } from "~/components/Container";
 import { DescriptionList } from "~/components/DescriptionList";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
+import { buildVirtualNode } from "~/utils/treeNodeFactories";
 
 export const handle = {
-  breadcrumb: () => ({ label: "Config", to: "/config" }),
+  node: () => buildVirtualNode("Config", []),
 };
 
 export const loader: LoaderFunction = async () => {

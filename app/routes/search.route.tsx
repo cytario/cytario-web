@@ -10,6 +10,7 @@ import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
 import { searchConnection } from "~/utils/searchConnection";
+import { buildVirtualNode } from "~/utils/treeNodeFactories";
 
 const SEARCH_CONCURRENCY = 6;
 
@@ -20,7 +21,7 @@ export interface SearchRouteLoaderResponse {
 }
 
 export const handle = {
-  breadcrumb: () => ({ label: "Search", to: "/search" }),
+  node: () => buildVirtualNode("Search", []),
 };
 
 // Client-only loader — credentials already live in `ConnectionsStore`, so a

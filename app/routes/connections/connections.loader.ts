@@ -5,7 +5,19 @@ import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
-import { buildConnectionNodes } from "~/utils/dashboardNodes";
+
+/** Bucket-level connection nodes that seed the connections grid. */
+function buildConnectionNodes(configs: ConnectionConfig[]): TreeNode[] {
+  return configs.map((config) => ({
+    id: `${config.name}/`,
+    connectionName: config.name,
+    name: config.name,
+    type: "bucket" as const,
+    pathName: "",
+    children: [],
+    loadState: "idle" as const,
+  }));
+}
 
 export interface ServerLoaderData {
   nodes: TreeNode[];

@@ -8,7 +8,7 @@ import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { recentToNode } from "~/utils/dashboardNodes";
+import { recentToNode } from "~/utils/treeNodeFactories";
 
 const MAX_SIDEBAR_ITEMS = 8;
 

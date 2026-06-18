@@ -2,124 +2,87 @@ import { render } from "@testing-library/react";
 import { MemoryRouter, useMatches } from "react-router";
 import { Mock } from "vitest";
 
+import { type TreeNode } from "../../DirectoryView/buildDirectoryTree";
 import { Breadcrumbs } from "../Breadcrumbs";
+
+const renderBreadcrumbs = () =>
+  render(
+    <MemoryRouter>
+      <Breadcrumbs />
+    </MemoryRouter>,
+  );
 
 vi.mock("react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router")>();
-  return {
-    ...actual,
-    useMatches: vi.fn(() => [
-      { handle: { breadcrumb: () => ({ label: "Home", to: "/home" }) } },
-      { handle: { breadcrumb: () => ({ label: "Login", to: "/login" }) } },
-    ]),
-  };
+  return { ...actual, useMatches: vi.fn(() => []) };
 });
 
-vi.mock("@cytario/design", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@cytario/design")>();
-  return {
-    ...actual,
-    Breadcrumbs: ({ items }: { items: Array<{ id: string; label: string; href?: string }> }) => (
-      <nav aria-label="Breadcrumb">
-        <ol>
-          {items.map((item) => (
-            <li key={item.id}>{item.href ? <a href={item.href}>{item.label}</a> : item.label}</li>
-          ))}
-        </ol>
-      </nav>
-    ),
-  };
-});
+vi.mock("../../Logo", () => ({ Logo: () => <span>Logo</span> }));
 
-vi.mock("../../Logo", () => ({
-  Logo: () => <span>Logo</span>,
+// Stand-in so the test exercises trail-building, not NodeLink's router/store deps.
+vi.mock("../../DirectoryView/NodeLink/NodeLink", () => ({
+  NodeLink: ({ node, contextMenu }: { node: TreeNode; contextMenu?: boolean }) => (
+    <span data-menu={contextMenu ? "true" : "false"}>{node.name}</span>
+  ),
 }));
 
+const staticNode = (name: string): TreeNode => ({
+  id: `virtual/${name}`,
+  connectionName: "",
+  pathName: "",
+  name,
+  type: "directory",
+  children: [],
+});
+
+const connectionNode = (connectionName: string, pathName: string, name: string): TreeNode => ({
+  id: `${connectionName}/${pathName}`,
+  connectionName,
+  pathName,
+  name,
+  type: "directory",
+  children: [],
+});
+
 describe("Breadcrumbs", () => {
-  test("renders breadcrumbs based on matches", () => {
-    const { getByText } = render(<Breadcrumbs />);
-
-    expect(getByText("Home")).toBeInTheDocument();
-    expect(getByText("Login")).toBeInTheDocument();
-  });
-
-  test("does not render breadcrumbs if no matches", () => {
-    (useMatches as Mock).mockReturnValue([]);
-
-    const { container } = render(<Breadcrumbs />);
-
-    expect(container.querySelector("nav")).not.toBeInTheDocument();
-  });
-
-  test("does not render breadcrumbs if matches have no handle", () => {
+  test("renders a crumb per node, splitting connection paths into ancestors", () => {
     (useMatches as Mock).mockReturnValue([
-      {},
+      { pathname: "/connections", handle: { node: () => staticNode("Connections") } },
       {
-        handle: {},
+        pathname: "/connections/bucket/a/b",
+        handle: { node: () => connectionNode("bucket", "a/b", "b") },
       },
     ]);
 
-    const { container } = render(<Breadcrumbs />);
+    const { getByText } = renderBreadcrumbs();
 
-    expect(container.querySelector("nav")).not.toBeInTheDocument();
-  });
-
-  test("renders only matches with breadcrumb handle", () => {
-    (useMatches as Mock).mockReturnValue([
-      { handle: { breadcrumb: () => ({ label: "Home", to: "/home" }) } },
-      { handle: {} },
-      { handle: { breadcrumb: () => ({ label: "Login", to: "/login" }) } },
-    ]);
-
-    const { getByText, queryByText } = render(<Breadcrumbs />);
-
-    expect(getByText("Home")).toBeInTheDocument();
-    expect(getByText("Login")).toBeInTheDocument();
-    expect(queryByText("About")).not.toBeInTheDocument();
-  });
-
-  test("renders root crumb with Logo separately from design system Breadcrumbs", () => {
-    (useMatches as Mock).mockReturnValue([
-      {
-        handle: {
-          breadcrumb: () => ({ label: "Root", to: "/", isRoot: true }),
-        },
-      },
-      { handle: { breadcrumb: () => ({ label: "Page", to: "/page" }) } },
-    ]);
-
-    const { getByText } = render(
-      <MemoryRouter>
-        <Breadcrumbs />
-      </MemoryRouter>,
+    // Connections (static) + bucket → a → b (split from "a/b").
+    ["Connections", "bucket", "a", "b"].forEach((label) =>
+      expect(getByText(label)).toBeInTheDocument(),
     );
+  });
+
+  test("only the leaf crumb gets a context menu", () => {
+    (useMatches as Mock).mockReturnValue([
+      {
+        pathname: "/connections/bucket/a/b",
+        handle: { node: () => connectionNode("bucket", "a/b", "b") },
+      },
+    ]);
+
+    const { getByText } = renderBreadcrumbs();
+
+    expect(getByText("b").getAttribute("data-menu")).toBe("true");
+    expect(getByText("bucket").getAttribute("data-menu")).toBe("false");
+    expect(getByText("a").getAttribute("data-menu")).toBe("false");
+  });
+
+  test("renders only the Logo when no match carries a node handle", () => {
+    (useMatches as Mock).mockReturnValue([{}, { handle: {} }]);
+
+    const { getByText, container } = renderBreadcrumbs();
 
     expect(getByText("Logo")).toBeInTheDocument();
-    expect(getByText("Page")).toBeInTheDocument();
-  });
-
-  test("marks the last crumb as active (no href)", () => {
-    (useMatches as Mock).mockReturnValue([
-      {
-        handle: {
-          breadcrumb: () => ({ label: "Home", to: "/home" }),
-        },
-      },
-      {
-        handle: {
-          breadcrumb: () => ({
-            label: "Current",
-            to: "/current",
-            isActive: true,
-          }),
-        },
-      },
-    ]);
-
-    const { getByText } = render(<Breadcrumbs />);
-
-    // Active crumb should not be a link
-    const currentEl = getByText("Current");
-    expect(currentEl.tagName).not.toBe("A");
+    expect(container.querySelectorAll("[data-menu]")).toHaveLength(0);
   });
 });

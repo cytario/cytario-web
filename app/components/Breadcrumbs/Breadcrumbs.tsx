@@ -1,48 +1,49 @@
-import { Breadcrumbs as DesignBreadcrumbs, type BreadcrumbItem } from "@cytario/design";
+import { ChevronRight } from "lucide-react";
 import { Link, UIMatch, useMatches } from "react-router";
 
+import { nodeToTrail } from "./breadcrumbTrail";
+import { type TreeNode } from "../DirectoryView/buildDirectoryTree";
+import { NodeLink } from "../DirectoryView/NodeLink/NodeLink";
 import { Logo } from "../Logo";
 
-export interface BreadcrumbData {
-  label: string;
-  to: string;
-  isRoot?: boolean;
-  isActive?: boolean;
-}
-
-type BreadcrumbMatch = UIMatch<
-  null,
-  { breadcrumb: (match: BreadcrumbMatch) => BreadcrumbData | BreadcrumbData[] }
->;
+type NodeMatch = UIMatch<unknown, { node?: (match: NodeMatch) => TreeNode | null }>;
 
 export function Breadcrumbs() {
-  const matches = useMatches() as BreadcrumbMatch[];
-  const filteredMatches = matches.filter((match) => match.handle && match.handle.breadcrumb);
+  const matches = useMatches() as NodeMatch[];
 
-  const crumbs = filteredMatches.flatMap((match) => {
-    const result = match.handle.breadcrumb(match);
-    return Array.isArray(result) ? result : [result];
-  });
-
-  const rootCrumb = crumbs.find((c) => c.isRoot);
-  const navCrumbs = crumbs.filter((c) => !c.isRoot);
-
-  const items: BreadcrumbItem[] = navCrumbs.map((crumb) => ({
-    id: crumb.to,
-    label: crumb.label,
-    href: crumb.isActive ? undefined : crumb.to,
-  }));
+  const trail: TreeNode[] = matches
+    .filter((match) => typeof match.handle?.node === "function")
+    .flatMap((match) => {
+      const node = match.handle.node!(match);
+      return node ? nodeToTrail(node) : [];
+    });
 
   return (
-    <div className="flex h-full items-center mx-2 gap-1">
-      {rootCrumb && (
-        <Link to={rootCrumb.to} aria-label="Go to home" className="flex items-center h-full px-1">
-          <Logo scale={1.4} />
-        </Link>
-      )}
-      {items.length > 0 && (
-        <DesignBreadcrumbs items={items} className="flex items-center overflow-hidden" />
-      )}
-    </div>
+    <nav aria-label="Breadcrumb" className="flex h-full items-center overflow-hidden">
+      <Link to="/" aria-label="Go to home" className="flex items-center h-full px-2">
+        <Logo scale={1.4} />
+      </Link>
+      <ol className="flex min-w-0 items-center">
+        {trail.map((node, index) => {
+          const isLeaf = index === trail.length - 1;
+          return (
+            <li
+              key={node.id}
+              className="flex min-w-0 items-center"
+              aria-current={isLeaf ? "page" : undefined}
+            >
+              {index > 0 && (
+                <ChevronRight
+                  size={16}
+                  className="shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              )}
+              <NodeLink node={node} contextMenu={isLeaf} />
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

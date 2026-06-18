@@ -8,7 +8,7 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
-import { buildAggregateRoot } from "~/utils/dashboardNodes";
+import { buildVirtualNode } from "~/utils/treeNodeFactories";
 
 export { enrichConnectionsWithPreviews as clientLoader } from "./connections.clientLoader";
 export { loadConnections as loader } from "./connections.loader";
@@ -52,7 +52,7 @@ export default function ConnectionsListRoute() {
   }
 
   return (
-    <DirectoryView kind="connections" node={buildAggregateRoot(title, nodes)}>
+    <DirectoryView kind="connections" node={buildVirtualNode(title, nodes)}>
       <Button size="sm" variant="secondary" onPress={() => openModal("add-connection")}>
         <Plug size={16} /> Add Connection
       </Button>
