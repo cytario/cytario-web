@@ -1,5 +1,4 @@
 import { ChevronRight } from "lucide-react";
-import { Fragment } from "react";
 import { Link, UIMatch, useMatches } from "react-router";
 
 import { nodeToTrail } from "./breadcrumbTrail";
@@ -20,25 +19,31 @@ export function Breadcrumbs() {
     });
 
   return (
-    <div className="flex h-full items-center overflow-hidden">
+    <nav aria-label="Breadcrumb" className="flex h-full items-center overflow-hidden">
       <Link to="/" aria-label="Go to home" className="flex items-center h-full px-2">
         <Logo scale={1.4} />
       </Link>
-      {trail.map((node, index) => {
-        const isLeaf = index === trail.length - 1;
-        return (
-          <Fragment key={node.id}>
-            {index > 0 && (
-              <ChevronRight
-                size={16}
-                className="shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-            )}
-            <NodeLink node={node} contextMenu={isLeaf} />
-          </Fragment>
-        );
-      })}
-    </div>
+      <ol className="flex min-w-0 items-center">
+        {trail.map((node, index) => {
+          const isLeaf = index === trail.length - 1;
+          return (
+            <li
+              key={node.id}
+              className="flex min-w-0 items-center"
+              aria-current={isLeaf ? "page" : undefined}
+            >
+              {index > 0 && (
+                <ChevronRight
+                  size={16}
+                  className="shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              )}
+              <NodeLink node={node} contextMenu={isLeaf} />
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
