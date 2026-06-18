@@ -5,7 +5,7 @@ import {
   BookmarkCheck,
   Copy,
   Download,
-  Ellipsis,
+  EllipsisVertical,
   ExternalLink,
   Pencil,
   Trash2,
@@ -126,7 +126,7 @@ export const NodeContextMenu = ({
         }
       >
         <IconButton
-          icon={Ellipsis}
+          icon={EllipsisVertical}
           aria-label={`Actions for ${node.name}`}
           variant="ghost"
           size="xs"
