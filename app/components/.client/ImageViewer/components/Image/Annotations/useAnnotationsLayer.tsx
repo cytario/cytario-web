@@ -27,6 +27,33 @@ const classColor = (feature: AnnotationFeature): RGB =>
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
 /**
+ * Stamps identity onto edited features (per the sidecar schema): any feature
+ * lacking an `id` gets a fresh `id` + `createdAt`/`updatedAt`, and a feature at
+ * a changed index gets its `updatedAt` bumped. Draw modes emit bare geometry,
+ * so feature identity is assigned here on the way to the store. `id`-less is the
+ * robust signal for "new" — it doesn't depend on the edit's featureIndexes.
+ */
+const stampEdit = (
+  features: AnnotationFeature[],
+  changed: number[] | undefined,
+): AnnotationFeature[] => {
+  const now = new Date().toISOString();
+  return features.map((feature, i) => {
+    const properties = feature.properties ?? {};
+    if (!properties.id) {
+      return {
+        ...feature,
+        properties: { ...properties, id: crypto.randomUUID(), createdAt: now, updatedAt: now },
+      };
+    }
+    if (changed?.includes(i)) {
+      return { ...feature, properties: { ...properties, updatedAt: now } };
+    }
+    return feature;
+  });
+};
+
+/**
  * Builds the `EditableGeoJsonLayer` for the image's annotations, rendering and
  * editing the shared working set held in the viewer store. Coordinates are
  * level-0 pixel space (CARTESIAN, matching the viewer's `OrthographicView`).
@@ -55,8 +82,9 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       getLineWidth: 2,
       lineWidthMinPixels: 1,
       pointRadiusMinPixels: 4,
-      onEdit: ({ updatedData, editType }) => {
-        setFeatures(updatedData.features as AnnotationFeature[]);
+      onEdit: ({ updatedData, editType, editContext }) => {
+        const changed: number[] | undefined = editContext?.featureIndexes;
+        setFeatures(stampEdit(updatedData.features as AnnotationFeature[], changed));
         if (editType === "addFeature") {
           setSelectedIndexes([updatedData.features.length - 1]);
         }
