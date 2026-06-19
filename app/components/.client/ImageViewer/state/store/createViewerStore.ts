@@ -8,20 +8,7 @@ import { createCoreSlice } from "./slices/viewer.core.store";
 import { createOverlaysSlice } from "./slices/viewer.overlays.store";
 import { createViewSlice } from "./slices/viewer.view.store";
 import type { ViewerStore } from "./types";
-import { createMigrate } from "~/utils/persistMigration";
-
-type PersistedViewerState = Pick<
-  ViewerStore,
-  "selectedChannelId" | "imagePanelIndex" | "imagePanels" | "layersStates" | "viewStateActive"
->;
-
-const VIEWER_FALLBACK_STATE: PersistedViewerState = {
-  selectedChannelId: null,
-  imagePanelIndex: -1,
-  imagePanels: [],
-  layersStates: [],
-  viewStateActive: null,
-};
+import { viewerStoreMigrate, viewerStorePartialize } from "./viewerStore.persistence";
 
 /**
  * Creates a Zustand store for one image-viewer instance. State + actions are
@@ -36,7 +23,6 @@ export const createViewerStore = (id: string) =>
         devtools(
           (set, get, store) => ({
             id,
-
             ...createCoreSlice(set, get, store),
             ...createViewSlice(set, get, store),
             ...createChannelsSlice(set, get, store),
@@ -51,41 +37,8 @@ export const createViewerStore = (id: string) =>
       {
         name: "ViewerStore-" + id,
         version: 2,
-        migrate: createMigrate<PersistedViewerState>(
-          {
-            0: (state) => {
-              const s = state as Record<string, unknown>;
-              return {
-                selectedChannelId: null,
-                imagePanelIndex: -1,
-                imagePanels: [],
-                layersStates: [],
-                viewStateActive: s?.viewStateActive ?? null,
-              };
-            },
-            // C-149: resourceId format changed from provider/bucket/path to
-            // connectionName/path. Clear persisted overlay keys — they'll be
-            // re-added on next use.
-            1: (state) => {
-              const s = state as PersistedViewerState;
-              return {
-                ...s,
-                layersStates: (s.layersStates ?? []).map((ls) => ({
-                  ...ls,
-                  overlays: {},
-                })),
-              };
-            },
-          },
-          VIEWER_FALLBACK_STATE,
-        ),
-        partialize: (state) => ({
-          selectedChannelId: state.selectedChannelId,
-          imagePanelIndex: state.imagePanelIndex,
-          imagePanels: state.imagePanels,
-          layersStates: state.layersStates,
-          viewStateActive: state.viewStateActive,
-        }),
+        migrate: viewerStoreMigrate,
+        partialize: viewerStorePartialize,
         onRehydrateStorage: () => (_state, error) => {
           if (error) {
             console.error(`[ViewerStore-${id}] Rehydration failed:`, error);
