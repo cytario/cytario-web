@@ -1,80 +1,19 @@
 import { parseSync } from "@loaders.gl/core";
 import { WKTLoader } from "@loaders.gl/wkt";
 
+import { GeometrySvg, type Point } from "./GeometrySvg";
+
 interface WktSvgProps {
   wkt: string;
   size?: number;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
+/** Parses a WKT polygon string into rings and renders it via `GeometrySvg`. */
+export const WktSvg = ({ wkt, size = 48 }: WktSvgProps) => (
+  <GeometrySvg rings={parseWkt(wkt)} size={size} />
+);
 
-/**
- * Parse WKT polygon string and render as SVG
- */
-export const WktSvg = ({ wkt, size = 48 }: WktSvgProps) => {
-  const paths = parseWkt(wkt);
-
-  if (paths.length === 0) {
-    return <span className="text-muted-foreground italic">invalid</span>;
-  }
-
-  // Calculate bounding box across all paths
-  const allPoints = paths.flat();
-  const xs = allPoints.map((p) => p.x);
-  const ys = allPoints.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-
-  const width = maxX - minX || 1;
-  const height = maxY - minY || 1;
-  const padding = 2;
-  const scale = (size - padding * 2) / Math.max(width, height);
-
-  // Transform points to fit in SVG with padding
-  const transformPoint = (p: Point) => ({
-    x: (p.x - minX) * scale + padding + (size - padding * 2 - width * scale) / 2,
-    // Flip Y axis (SVG Y grows down, geo Y grows up)
-    y: size - ((p.y - minY) * scale + padding + (size - padding * 2 - height * scale) / 2),
-  });
-
-  const pathData = paths
-    .map((ring) => {
-      const transformed = ring.map(transformPoint);
-      return (
-        transformed
-          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
-          .join(" ") + " Z"
-      );
-    })
-    .join(" ");
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      className="inline-block bg-muted rounded"
-    >
-      <path
-        d={pathData}
-        fill="currentColor"
-        fillOpacity={0.3}
-        stroke="currentColor"
-        strokeWidth={1}
-        className="text-secondary"
-      />
-    </svg>
-  );
-};
-
-/**
- * Parse WKT string using @loaders.gl/wkt and extract coordinate rings
- */
+/** Parse WKT string using @loaders.gl/wkt and extract coordinate rings. */
 function parseWkt(wkt: string): Point[][] {
   try {
     const geometry = parseSync(wkt, WKTLoader);
