@@ -1,6 +1,8 @@
 import { OrthographicViewState } from "@deck.gl/core";
+import type { StateCreator } from "zustand";
 
 import { Image, Loader } from "./ome.tif.types";
+import type { AnnotationsSlice } from "./slices/viewer.annotations.store";
 
 export type RGBA = [number, number, number, number];
 export type RGB = [number, number, number];
@@ -76,6 +78,8 @@ export interface CellMarker {
 
 export type OverlayState = Record<string, CellMarker>; // Dateset ~ File
 export type OverlaysState = Record<string, OverlayState>; // Datasets
+
+export type AnnotationMode = "view" | "draw-polygon" | "draw-point";
 
 export interface ViewerStoreState {
   id: string;
@@ -161,4 +165,16 @@ interface ViewerStoreActions {
   setShowCellOutline: (show: boolean) => void;
 }
 
-export type ViewerStore = ViewerStoreState & ViewerStoreActions;
+export type ViewerStore = ViewerStoreState & ViewerStoreActions & AnnotationsSlice;
+
+/**
+ * Slice creator typed for the viewer store's `persist → immer → devtools`
+ * middleware stack — `set` carries both the immer mutable draft and the
+ * devtools action-label third argument. Shared by every `slices/viewer.*.store`.
+ */
+export type ViewerSlice<T> = StateCreator<
+  ViewerStore,
+  [["zustand/persist", unknown], ["zustand/immer", never], ["zustand/devtools", never]],
+  [],
+  T
+>;

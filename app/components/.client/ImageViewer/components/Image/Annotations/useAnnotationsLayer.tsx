@@ -1,14 +1,21 @@
-import { GeoJsonLayer } from "@deck.gl/layers";
-import type { FeatureCollection, Geometry } from "geojson";
-import { useEffect, useMemo, useState } from "react";
+import {
+  DrawPointMode,
+  DrawPolygonMode,
+  EditableGeoJsonLayer,
+  ViewMode,
+} from "@deck.gl-community/editable-layers";
+import type { FeatureCollection } from "geojson";
+import { useMemo } from "react";
 
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import {
-  getAnnotationsWasm,
-  type AnnotationFeature,
-  type AnnotationProperties,
-} from "~/utils/db/getAnnotationsWasm";
+import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
+
+const MODE_CLASSES = {
+  view: ViewMode,
+  "draw-polygon": DrawPolygonMode,
+  "draw-point": DrawPointMode,
+} as const;
 
 const DEFAULT_COLOR: RGB = [120, 120, 120];
 
@@ -18,45 +25,38 @@ const classColor = (feature: AnnotationFeature): RGB =>
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
 /**
- * Reads the image's annotation sidecars and returns a deck.gl `GeoJsonLayer`
- * rendering them. Coordinates are level-0 pixel space, matching the viewer's
- * `OrthographicView` (flipY) — no transform needed. Read-only for now.
+ * Builds the `EditableGeoJsonLayer` for the image's annotations, rendering and
+ * editing the shared working set held in the viewer store. Coordinates are
+ * level-0 pixel space (CARTESIAN, matching the viewer's `OrthographicView`).
+ * Edits flow back through `onEdit` → `setAnnotationFeatures`, which autosaves.
  */
 export const useAnnotationsLayer = (imagePanelId: number) => {
-  const resourceId = useViewerStore((s) => s.id);
-  const [features, setFeatures] = useState<AnnotationFeature[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getAnnotationsWasm(resourceId)
-      .then((next) => {
-        if (!cancelled) setFeatures(next);
-      })
-      .catch((error) => {
-        console.error("[useAnnotationsLayer] failed to load annotations:", error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [resourceId]);
+  const features = useViewerStore((s) => s.annotationFeatures);
+  const mode = useViewerStore((s) => s.annotationMode);
+  const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
+  const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
+  const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
 
   return useMemo(() => {
-    if (features.length === 0) return null;
-    const data: FeatureCollection<Geometry, AnnotationProperties> = {
-      type: "FeatureCollection",
-      features,
-    };
-    return new GeoJsonLayer<AnnotationProperties>({
+    const data: FeatureCollection = { type: "FeatureCollection", features };
+    return new EditableGeoJsonLayer({
       id: `annotations-${imagePanelId}`,
       data,
+      mode: MODE_CLASSES[mode],
+      selectedFeatureIndexes: selectedIndexes,
+      coordinateSystem: "cartesian",
       pickable: true,
-      filled: true,
-      stroked: true,
-      getFillColor: (f) => withAlpha(classColor(f), 60),
-      getLineColor: (f) => withAlpha(classColor(f), 255),
+      getFillColor: (f) => withAlpha(classColor(f as AnnotationFeature), 60),
+      getLineColor: (f) => withAlpha(classColor(f as AnnotationFeature), 255),
       getLineWidth: 2,
       lineWidthMinPixels: 1,
-      pointRadiusMinPixels: 3,
+      pointRadiusMinPixels: 4,
+      onEdit: ({ updatedData, editType }) => {
+        setFeatures(updatedData.features as AnnotationFeature[]);
+        if (editType === "addFeature") {
+          setSelectedIndexes([updatedData.features.length - 1]);
+        }
+      },
     });
-  }, [features, imagePanelId]);
+  }, [features, mode, selectedIndexes, imagePanelId, setFeatures, setSelectedIndexes]);
 };

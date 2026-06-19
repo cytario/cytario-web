@@ -63,6 +63,10 @@ describe("createViewerStore", () => {
       imagePanels: [],
       cursorPosition: null,
       pixelValues: {},
+      annotationFeatures: [],
+      annotationMode: "view",
+      annotationSelectedIndexes: [],
+      annotationsDirty: false,
       layersStates: [],
       setError: expect.any(Function),
       setCursorPosition: expect.any(Function),
@@ -93,6 +97,10 @@ describe("createViewerStore", () => {
       setOverlaysFillOpacity: expect.any(Function),
       setChannelsOpacity: expect.any(Function),
       setShowCellOutline: expect.any(Function),
+      setAnnotationFeatures: expect.any(Function),
+      seedAnnotationFeatures: expect.any(Function),
+      setAnnotationMode: expect.any(Function),
+      setAnnotationSelectedIndexes: expect.any(Function),
     });
   });
 

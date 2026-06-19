@@ -5,6 +5,7 @@ import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import { getInitialChannelsState } from "./getInitialChannelsState";
+import { createAnnotationsSlice } from "./slices/viewer.annotations.store";
 import {
   BRIGHTFIELD_GROUP_ID,
   ByteDomain,
@@ -59,7 +60,7 @@ export const createViewerStore = (id: string) =>
     persist(
       immer(
         devtools(
-          (set, get) => ({
+          (set, get, store) => ({
             id,
 
             error: null,
@@ -81,6 +82,8 @@ export const createViewerStore = (id: string) =>
             pixelValues: {},
 
             layersStates: [],
+
+            ...createAnnotationsSlice(set, get, store),
 
             setError: (error: Error | null) =>
               set(

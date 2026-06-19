@@ -16,6 +16,10 @@ describe("selectors", () => {
     imagePanels: [0],
     cursorPosition: null,
     pixelValues: {},
+    annotationFeatures: [],
+    annotationMode: "view",
+    annotationSelectedIndexes: [],
+    annotationsDirty: false,
     layersStates: [
       {
         channels: {
@@ -92,6 +96,10 @@ describe("selectors", () => {
     setOverlaysFillOpacity: vi.fn(),
     setChannelsOpacity: vi.fn(),
     setShowCellOutline: vi.fn(),
+    setAnnotationFeatures: vi.fn(),
+    seedAnnotationFeatures: vi.fn(),
+    setAnnotationMode: vi.fn(),
+    setAnnotationSelectedIndexes: vi.fn(),
     ...overrides,
   });
 
