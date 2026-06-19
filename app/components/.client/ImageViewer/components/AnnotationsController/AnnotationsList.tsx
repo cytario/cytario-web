@@ -1,6 +1,7 @@
 import type { Geometry } from "geojson";
 import { useMemo } from "react";
 
+import { flyToFeatureViewState } from "./flyToFeature";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { GeometrySvg, type Point } from "~/components/DataGrid/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -55,6 +56,15 @@ export const AnnotationsList = () => {
   const features = useViewerStore((s) => s.annotationFeatures);
   const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
   const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
+  const viewState = useViewerStore((s) => s.viewStateActive);
+  const setViewState = useViewerStore((s) => s.setViewStateActive);
+
+  const selectAndFly = (index: number, feature: AnnotationFeature) => {
+    setSelectedIndexes([index]);
+    if (!viewState) return;
+    const next = flyToFeatureViewState(feature.geometry, viewState);
+    if (next) setViewState(next);
+  };
 
   const groups = useMemo<AnnotationGroup[]>(() => {
     const byName = new Map<string, AnnotationGroup>();
@@ -93,7 +103,7 @@ export const AnnotationsList = () => {
                   key={feature.properties?.id ?? index}
                   type="button"
                   aria-pressed={isSelected}
-                  onClick={() => setSelectedIndexes([index])}
+                  onClick={() => selectAndFly(index, feature)}
                   className={`rounded border text-muted-foreground hover:text-foreground ${
                     isSelected ? "border-primary text-foreground" : "border-border"
                   }`}
