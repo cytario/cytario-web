@@ -63,7 +63,7 @@ const DUCKDB_CORE_VERSION = "1.4.3";
 const PLATFORMS = ["wasm_mvp", "wasm_eh", "wasm_threads"];
 // `parquet` is autoloaded by DuckDB on the first `parquet_scan(...)` —
 // must be mirrored alongside the explicitly INSTALLed extensions.
-const EXTENSIONS = ["httpfs", "spatial", "parquet"];
+const EXTENSIONS = ["httpfs", "spatial", "parquet", "json"];
 
 const UPSTREAM_REPO = "https://extensions.duckdb.org";
 const OUTPUT_ROOT = resolve(REPO_ROOT, "public", "duckdb-extensions");
