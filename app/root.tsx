@@ -65,7 +65,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   return false;
 };
 
-interface RootLoaderResponse {
+export interface RootLoaderResponse {
   user?: UserProfile;
   notification?: NotificationInput;
   accountSettingsUrl?: string;

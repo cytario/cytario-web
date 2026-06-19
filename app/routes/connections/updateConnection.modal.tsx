@@ -1,8 +1,8 @@
-import { useRouteLoaderData, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import { ConnectionForm } from "./connection.form";
-import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { RouteModal } from "~/components/RouteModal";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export default function UpdateConnectionModal({
@@ -17,8 +17,7 @@ export default function UpdateConnectionModal({
     nodeName ? state.connections[nodeName]?.connectionConfig : undefined,
   );
 
-  const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
-  const user = rootData?.user;
+  const user = useCurrentUser();
 
   if (!user || !nodeName || !connectionConfig) return null;
 

@@ -11,11 +11,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { Form, useRouteLoaderData } from "react-router";
+import { Form } from "react-router";
 
-import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useModal } from "~/hooks/useModal";
 import { useFavorite } from "~/routes/favorites/useFavorite";
 import { toastBridge } from "~/toast-bridge";
@@ -46,13 +46,12 @@ export const NodeContextMenu = ({
 
   const connectionConfig = useConnectionsStore(select.connectionConfig(node.connectionName));
 
-  const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
+  const user = useCurrentUser();
 
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
   if (!connectionConfig) return null;
 
-  const user = rootData?.user;
   const userCanModify =
     isBucket && user && connectionConfig ? canModify(user, connectionConfig) : false;
 
