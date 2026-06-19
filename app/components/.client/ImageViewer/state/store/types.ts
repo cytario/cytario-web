@@ -1,8 +1,11 @@
 import { OrthographicViewState } from "@deck.gl/core";
 import type { StateCreator } from "zustand";
 
-import { Image, Loader } from "./ome.tif.types";
 import type { AnnotationsSlice } from "./slices/viewer.annotations.store";
+import type { ChannelsSlice } from "./slices/viewer.channels.store";
+import type { CoreSlice } from "./slices/viewer.core.store";
+import type { OverlaysSlice } from "./slices/viewer.overlays.store";
+import type { ViewSlice } from "./slices/viewer.view.store";
 
 export type RGBA = [number, number, number, number];
 export type RGB = [number, number, number];
@@ -82,90 +85,16 @@ export type OverlaysState = Record<string, OverlayState>; // Datasets
 export type AnnotationMode = "view" | "draw-polygon" | "draw-point";
 
 export interface ViewerStoreState {
+  /** Image identity (`connectionName/pathName`) — keys persistence + devtools. */
   id: string;
-
-  isViewerLoading: boolean;
-
-  metadata: Image | null;
-  loader: Loader | null;
-  // Full value range of the loader's pixel dtype (e.g. [0, 65535] for 16-bit).
-  // Derived from the loader, not persisted — the clamp ceiling for contrast input.
-  valueRange: ByteDomain;
-  error: Error | null;
-
-  viewStatePreview: ViewState | null;
-  viewStateActive: ViewState | null;
-
-  selectedChannelId: keyof ChannelsState | null;
-
-  imagePanelIndex: number;
-  imagePanels: number[];
-
-  cursorPosition: { x: number; y: number } | null;
-
-  /** Live pixel values under the cursor, keyed by channel id. Hot path (hover) — never persist. */
-  pixelValues: Record<string, number>;
-
-  // after
-  layersStates: {
-    channels: ChannelsState;
-    channelIds: string[];
-    overlays: OverlaysState;
-    channelsOpacity: number;
-    overlaysFillOpacity: number;
-    showCellOutline: boolean;
-    isChannelsLoading: number;
-    isOverlaysLoading: number;
-  }[];
 }
 
-interface ViewerStoreActions {
-  setSelectedChannelId: (selectedChannelId: keyof ChannelsState | null) => void;
-
-  setIsViewerLoading: (val: boolean) => void;
-  setIsChannelsLoading: (imagePanelId: number, count: number) => void;
-  setIsOverlaysLoading: (imagePanelId: number, count: number) => void;
-
-  setError: (error: Error | null) => void;
-
-  setMetadata: (metadata: Image) => void;
-  setLoader: (loader: Loader) => void;
-
-  setViewStatePreview: (viewState: ViewState) => void;
-  setViewStateActive: (viewState: ViewState) => void;
-
-  setActiveImagePanelId: (imagePanelIndex: number) => void;
-
-  setCursorPosition: (position: { x: number; y: number } | null) => void;
-  setPixelValues: (ids: string[], values: number[]) => void;
-
-  addImagePanel: () => void;
-
-  addChannelsState: () => void;
-  removeChannelsState: (channelsStateIndex: number) => void;
-  setActiveChannelsStateIndex: (channelsStateIndex: number) => void;
-  removeImagePanel: (index: number) => void;
-
-  setContrastLimits: (contrastLimits: ByteDomain) => void;
-  resetContrastLimits: () => void;
-
-  setChannelVisibility: (key: keyof ChannelsStateColumns, isVisible: boolean) => void;
-
-  setMarkerVisibility: (fileName: string, markerName: string, isVisible: boolean) => void;
-
-  setChannelColor: (key: keyof ChannelsState, color: RGBA) => void;
-  setMarkerColor: (fileName: string, markerName: string, color: RGBA) => void;
-
-  addOverlaysState: (overlaysState: OverlaysState) => void;
-  updateOverlaysState: (overlayId: string, overlayState: OverlayState) => void;
-  removeOverlaysState: (overlaysStateId: string) => void;
-
-  setOverlaysFillOpacity: (fillOpacity: number) => void;
-  setChannelsOpacity: (opacity: number) => void;
-  setShowCellOutline: (show: boolean) => void;
-}
-
-export type ViewerStore = ViewerStoreState & ViewerStoreActions & AnnotationsSlice;
+export type ViewerStore = ViewerStoreState &
+  AnnotationsSlice &
+  ViewSlice &
+  CoreSlice &
+  OverlaysSlice &
+  ChannelsSlice;
 
 /**
  * Slice creator typed for the viewer store's `persist → immer → devtools`
