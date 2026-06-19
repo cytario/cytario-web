@@ -2,6 +2,7 @@ import { InteractionState, OrthographicViewState, PickingInfo } from "@deck.gl/c
 import DeckGL from "@deck.gl/react";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
+import { useAnnotationsLayer } from "./Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "./Channels/useChannelsLayer";
 import { ImageContainer } from "./ImageContainer";
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
@@ -67,7 +68,8 @@ const ImagePanelInner = ({
   /* Setup Layers */
   const multiscaleLayer = useChannelsLayer(imagePanelId, onMultiscaleLayerHover);
   const markersLayers = useOverlaysLayers(imagePanelId, setTooltip);
-  const layers = [multiscaleLayer, ...markersLayers];
+  const annotationsLayer = useAnnotationsLayer(imagePanelId);
+  const layers = [multiscaleLayer, ...markersLayers, annotationsLayer];
 
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
@@ -159,7 +161,6 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
   const isOverlaysLoading = layerState?.isOverlaysLoading ?? 0;
   const setCursorPosition = useViewerStore(select.setCursorPosition);
   const setActiveImagePanelId = useViewerStore(select.setActiveImagePanelId);
-
   const isActivePanel = activeImagePanelId === imagePanelId;
 
   return (
