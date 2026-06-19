@@ -11,6 +11,7 @@ import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
 import { getPolygon } from "./getPolygon";
 import { MarkerProps } from "./markerUniforms";
 import { CellMarker } from "../../../state/store/types";
+import { OVERLAY_CACHE_NS, getCachedTile } from "../../../utils/sharedTileCache";
 import { toastBridge } from "~/toast-bridge";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
@@ -64,7 +65,13 @@ export const OverlaysLayer = ({
       // Get ALL marker column names (not just enabled ones)
       const allMarkerKeys = Object.keys(fileMarkers);
 
-      const data = await getTileDataWasm(resourceId, index, allMarkerKeys);
+      // Shared across panels: the 2nd ImagePanel reuses the 1st panel's DuckDB
+      // result instead of re-running the query. Keyed by resource + tile index
+      // + marker columns; markers are part of the key because they shape the query.
+      const cacheKey = `${resourceId}|${index.z}-${index.x}-${index.y}|${allMarkerKeys.join(",")}`;
+      const data = await getCachedTile(OVERLAY_CACHE_NS, cacheKey, () =>
+        getTileDataWasm(resourceId, index, allMarkerKeys),
+      );
 
       return data;
     } catch (error) {
