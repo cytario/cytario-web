@@ -20,13 +20,13 @@ import {
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface ViewerProps {
-  url: string;
+  resourceId: string;
   signedFetch: SignedFetch;
 }
 
-export const Viewer = ({ url, signedFetch }: ViewerProps) => {
+export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
   return (
-    <ViewerStoreProvider url={url} signedFetch={signedFetch}>
+    <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier

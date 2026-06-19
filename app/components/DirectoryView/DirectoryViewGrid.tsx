@@ -12,7 +12,6 @@ import { ScopePill } from "~/components/Pills/ScopePill";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { isImageFile } from "~/utils/fileType";
-import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
@@ -38,16 +37,16 @@ function useSignedFetch(connectionName: string) {
 }
 
 function ImagePreviewSlot({
-  s3Url,
+  resourceId,
   signedFetch,
 }: {
-  s3Url: string;
+  resourceId: string;
   signedFetch: ReturnType<typeof createSignedFetch>;
 }) {
   return (
     <ClientOnly>
       <Suspense fallback={<div className="animate-pulse w-full h-full bg-muted" />}>
-        <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
+        <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
           <ImagePreview />
         </ViewerStoreProvider>
       </Suspense>
@@ -59,15 +58,14 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
   const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
 
   const previewKey = node._Object?.Key ?? null;
-  const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
-  const s3Url = hasPreview && connectionConfig ? constructS3Url(connectionConfig, previewKey) : "";
+  const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch && !!connectionConfig;
 
   return (
     <GridItem
       node={node}
       preview={
         hasPreview && signedFetch ? (
-          <ImagePreviewSlot s3Url={s3Url} signedFetch={signedFetch} />
+          <ImagePreviewSlot resourceId={node.id} signedFetch={signedFetch} />
         ) : undefined
       }
     >
@@ -82,17 +80,12 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
 }
 
 function FileCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
-  const { connectionConfig: config, signedFetch } = useSignedFetch(connectionName);
+  const { signedFetch } = useSignedFetch(connectionName);
   const explicitKey = node._Object?.Key ?? null;
   const resolvedHttpsUrl = useConnectionsStore(selectHttpsUrl(node.id));
 
-  const s3Url =
-    explicitKey && isImageFile(explicitKey) && config
-      ? constructS3Url(config, explicitKey)
-      : isImageFile(node.name)
-        ? (resolvedHttpsUrl ?? "")
-        : "";
-  const hasPreview = !!s3Url && !!signedFetch;
+  const isImage = (explicitKey ? isImageFile(explicitKey) : false) || isImageFile(node.name);
+  const hasPreview = isImage && !!signedFetch && !!resolvedHttpsUrl;
 
   const size = node.type === "file" && node._Object?.Size ? filesize(node._Object.Size) : undefined;
 
@@ -101,7 +94,7 @@ function FileCardGridItem({ node, connectionName }: { node: TreeNode; connection
       node={node}
       preview={
         hasPreview && signedFetch ? (
-          <ImagePreviewSlot s3Url={s3Url} signedFetch={signedFetch} />
+          <ImagePreviewSlot resourceId={node.id} signedFetch={signedFetch} />
         ) : undefined
       }
     >

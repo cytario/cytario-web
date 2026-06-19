@@ -34,6 +34,11 @@ vi.mock("~/utils/resourceId", () => ({
     (_config: unknown, s3Key: string) => `https://bucket.s3.amazonaws.com/${s3Key}`,
   ),
 }));
+// registerViewer derives the load URL from the resourceId; identity mock keeps
+// the URL-shaped test inputs/assertions valid.
+vi.mock("~/utils/connectionsStore/selectors", () => ({
+  resolveResourceId: vi.fn((resourceId: string) => ({ httpsUrl: resourceId })),
+}));
 
 const mockSignedFetch = vi.fn();
 
@@ -69,7 +74,7 @@ describe("ViewerStoreContext", () => {
 
       render(
         <ViewerStoreProvider
-          url="https://bucket.s3.amazonaws.com/image.ome.tif"
+          resourceId="https://bucket.s3.amazonaws.com/image.ome.tif"
           signedFetch={mockSignedFetch}
         >
           <div data-testid="child">Child content</div>
@@ -91,7 +96,7 @@ describe("ViewerStoreContext", () => {
 
       const url = `https://bucket.s3.amazonaws.com/new-${Date.now()}.ome.tif`;
       render(
-        <ViewerStoreProvider url={url} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -112,7 +117,7 @@ describe("ViewerStoreContext", () => {
 
       const url = `https://bucket.s3.amazonaws.com/same-${Date.now()}.ome.tif`;
       const { rerender } = render(
-        <ViewerStoreProvider url={url} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -122,7 +127,7 @@ describe("ViewerStoreContext", () => {
       });
 
       rerender(
-        <ViewerStoreProvider url={url} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch}>
           <div>Test Updated</div>
         </ViewerStoreProvider>,
       );
@@ -161,7 +166,7 @@ describe("ViewerStoreContext", () => {
       });
 
       render(
-        <ViewerStoreProvider url={uniqueUrl} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={uniqueUrl} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -207,7 +212,7 @@ describe("ViewerStoreContext", () => {
       });
 
       render(
-        <ViewerStoreProvider url={uniqueUrl} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={uniqueUrl} signedFetch={mockSignedFetch}>
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -244,7 +249,7 @@ describe("ViewerStoreContext", () => {
 
       render(
         <ViewerStoreProvider
-          url={`https://bucket.s3.amazonaws.com/bad-${Date.now()}.ome.tif`}
+          resourceId={`https://bucket.s3.amazonaws.com/bad-${Date.now()}.ome.tif`}
           signedFetch={mockSignedFetch}
         >
           <div>Test</div>

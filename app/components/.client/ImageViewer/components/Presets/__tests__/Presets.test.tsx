@@ -11,10 +11,7 @@ function renderPresets() {
     {
       path: "/connections/test-bucket/test.ome.tif",
       Component: () => (
-        <ViewerStoreProvider
-          url="https://bucket.s3.eu-central-1.amazonaws.com/test.ome.tif"
-          signedFetch={mockSignedFetch}
-        >
+        <ViewerStoreProvider resourceId="test-bucket/test.ome.tif" signedFetch={mockSignedFetch}>
           <Presets>
             <div data-testid="preset-content">Content</div>
           </Presets>
