@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
+import { getCachedTile } from "../../../utils/sharedTileCache";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 const EMPTY_OBJECT = Object.freeze({});
@@ -46,7 +47,7 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
   const loader = useMemo(() => {
     if (!rawLoader || rawLoader.length === 0) return rawLoader;
 
-    return rawLoader.map((loaderLevel) => {
+    return rawLoader.map((loaderLevel, levelIndex) => {
       const originalGetTile = loaderLevel.getTile.bind(loaderLevel);
 
       // Create wrapped loader that preserves all original properties
@@ -59,7 +60,12 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
         loadTile(tileId);
 
         try {
-          const result = await originalGetTile(params);
+          // Shared across panels: a second ImagePanel's getTile resolves from
+          // memory instead of refetching. Keyed by pyramid level + tile coords
+          // + full selection (channel/z/t); namespaced to rawLoader so an image
+          // switch drops the cache. signal is intentionally excluded from the key.
+          const cacheKey = `${levelIndex}:${params.x}:${params.y}:${JSON.stringify(params.selection)}`;
+          const result = await getCachedTile(rawLoader, cacheKey, () => originalGetTile(params));
 
           finishTile(tileId);
 
