@@ -82,7 +82,7 @@ export interface CellMarker {
 export type OverlayState = Record<string, CellMarker>; // Dateset ~ File
 export type OverlaysState = Record<string, OverlayState>; // Datasets
 
-export type AnnotationMode = "view" | "draw-polygon" | "draw-point";
+export type AnnotationMode = "view" | "draw-polygon" | "draw-freehand" | "draw-point";
 
 export interface ViewerStoreState {
   /** Image identity (`connectionName/pathName`) — keys persistence + devtools. */

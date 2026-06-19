@@ -5,10 +5,12 @@ export interface AnnotationsSlice {
   annotationFeatures: AnnotationFeature[];
   annotationMode: AnnotationMode;
   annotationSelectedIndexes: number[];
+  annotationOpacity: number;
   annotationsDirty: boolean;
 
   /** Replace annotation features from a user edit — marks dirty (→ autosave). */
   setAnnotationFeatures: (features: AnnotationFeature[]) => void;
+  setAnnotationOpacity: (opacity: number) => void;
   /** Replace annotation features from the S3 seed — does not mark dirty. */
   seedAnnotationFeatures: (features: AnnotationFeature[]) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
@@ -20,6 +22,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   annotationFeatures: [],
   annotationMode: "view",
   annotationSelectedIndexes: [],
+  annotationOpacity: 1,
   annotationsDirty: false,
 
   setAnnotationFeatures: (features) =>
@@ -30,6 +33,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
       },
       false,
       "setAnnotationFeatures",
+    ),
+
+  setAnnotationOpacity: (opacity) =>
+    set(
+      (state) => {
+        state.annotationOpacity = opacity;
+      },
+      false,
+      "setAnnotationOpacity",
     ),
 
   seedAnnotationFeatures: (features) =>

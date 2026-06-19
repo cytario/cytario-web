@@ -19,6 +19,7 @@ describe("selectors", () => {
     annotationFeatures: [],
     annotationMode: "view",
     annotationSelectedIndexes: [],
+    annotationOpacity: 1,
     annotationsDirty: false,
     layersStates: [
       {
@@ -97,6 +98,7 @@ describe("selectors", () => {
     setChannelsOpacity: vi.fn(),
     setShowCellOutline: vi.fn(),
     setAnnotationFeatures: vi.fn(),
+    setAnnotationOpacity: vi.fn(),
     seedAnnotationFeatures: vi.fn(),
     setAnnotationMode: vi.fn(),
     setAnnotationSelectedIndexes: vi.fn(),

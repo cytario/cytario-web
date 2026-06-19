@@ -1,5 +1,6 @@
 import {
   DrawPointMode,
+  DrawPolygonByDraggingMode,
   DrawPolygonMode,
   EditableGeoJsonLayer,
   ViewMode,
@@ -14,6 +15,7 @@ import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 const MODE_CLASSES = {
   view: ViewMode,
   "draw-polygon": DrawPolygonMode,
+  "draw-freehand": DrawPolygonByDraggingMode,
   "draw-point": DrawPointMode,
 } as const;
 
@@ -33,6 +35,7 @@ const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 export const useAnnotationsLayer = (imagePanelId: number) => {
   const features = useViewerStore((s) => s.annotationFeatures);
   const mode = useViewerStore((s) => s.annotationMode);
+  const opacity = useViewerStore((s) => s.annotationOpacity);
   const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
   const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
   const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
@@ -44,6 +47,7 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       data,
       mode: MODE_CLASSES[mode],
       selectedFeatureIndexes: selectedIndexes,
+      opacity,
       coordinateSystem: "cartesian",
       pickable: true,
       getFillColor: (f) => withAlpha(classColor(f as AnnotationFeature), 60),
@@ -58,5 +62,5 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
         }
       },
     });
-  }, [features, mode, selectedIndexes, imagePanelId, setFeatures, setSelectedIndexes]);
+  }, [features, mode, opacity, selectedIndexes, imagePanelId, setFeatures, setSelectedIndexes]);
 };
