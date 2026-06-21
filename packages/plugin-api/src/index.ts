@@ -31,4 +31,3 @@ export type { SlotName, SlotProps, SlotRegistry, HostConfig } from "./slots";
 export { assertApiCompatible, IncompatiblePluginError } from "./apiVersion";
 export { sanitizeHeaders } from "./headers";
 export { satisfies } from "./satisfies";
-export { hostApiVersion } from "./version";
