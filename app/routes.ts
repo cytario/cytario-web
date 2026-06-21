@@ -15,6 +15,10 @@ const authRoutes = [
     file: "routes/auth/callback.route.tsx",
   },
   {
+    path: "/auth/refresh",
+    file: "routes/auth/refresh.route.tsx",
+  },
+  {
     path: "/onboarding",
     file: "routes/onboarding.route.tsx",
   },
