@@ -101,11 +101,25 @@ describe("auth / gates / slots surface", () => {
     expect(calls.map((c) => c.slot)).toEqual(["app-overlay", "app-banner"]);
   });
 
-  test("SlotProps carries the Identity projection", () => {
+  test("SlotProps carries the Identity projection and host runtime URLs", () => {
     const props: SlotProps = {
       identity: { organizationAttributes: {}, groups: [], adminScopes: [] },
+      hostConfig: {
+        portalUrl: "https://admin.cytario.com",
+        webappUrl: "https://app.cytario.com",
+      },
     };
     expect(props.identity.groups).toEqual([]);
+    expect(props.hostConfig.portalUrl).toBe("https://admin.cytario.com");
+    expect(props.hostConfig.webappUrl).toBe("https://app.cytario.com");
+  });
+
+  test("hostConfig.portalUrl is optional for portal-less hosts", () => {
+    const props: SlotProps = {
+      identity: { organizationAttributes: {}, groups: [], adminScopes: [] },
+      hostConfig: { webappUrl: "https://app.cytario.com" },
+    };
+    expect(props.hostConfig.portalUrl).toBeUndefined();
   });
 
   test("a CytarioPlugin can register a gate and slots via PluginContext", () => {

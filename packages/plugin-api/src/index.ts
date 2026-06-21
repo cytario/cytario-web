@@ -26,7 +26,7 @@ export type {
 export { normalizePixelType } from "./image";
 export type { Identity } from "./auth";
 export type { GateOutcome, GateRequest, SessionGate, GateRegistry } from "./gates";
-export type { SlotName, SlotProps, SlotRegistry } from "./slots";
+export type { SlotName, SlotProps, SlotRegistry, HostConfig } from "./slots";
 
 export { assertApiCompatible, IncompatiblePluginError } from "./apiVersion";
 export { sanitizeHeaders } from "./headers";
