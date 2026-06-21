@@ -5,8 +5,9 @@ import type {
   PluginContext,
   SlotRegistry,
 } from "@cytario/plugin-api";
-import { IncompatiblePluginError, assertApiCompatible, hostApiVersion } from "@cytario/plugin-api";
+import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
+import { HOST_API_VERSION } from "~/lib/hostApiVersion";
 
 /**
  * Registries each entry can inject. Gates are live server-side, slots are live
@@ -65,7 +66,7 @@ export async function bootstrapPluginsCore(
   const env: PluginContext["env"] = registries?.env ?? "client";
   for (const plugin of plugins) {
     try {
-      assertApiCompatible(plugin, hostApiVersion);
+      assertApiCompatible(plugin, HOST_API_VERSION);
     } catch (err) {
       const message =
         err instanceof IncompatiblePluginError

@@ -1,8 +1,9 @@
 // Host-side integration test for @cytario/plugin-api: registry
 // round-trip, auto-derived FILE_TYPE_REGISTRY entry, apiVersion gate.
 import noopPlugin, { NOOP_SENTINEL } from "./fixtures/noop-plugin";
-import { IncompatiblePluginError, assertApiCompatible, hostApiVersion } from "@cytario/plugin-api";
+import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
+import { HOST_API_VERSION } from "~/lib/hostApiVersion";
 import { getFileType, isImageFile } from "~/utils/fileType";
 
 beforeEach(() => {
@@ -12,7 +13,7 @@ beforeEach(() => {
 describe("noop-plugin integration", () => {
   test("registers and resolves end-to-end via the scoped FormatRegistry", async () => {
     // Mirror what bootstrapPlugins does: build a scoped ctx, await register.
-    assertApiCompatible(noopPlugin, hostApiVersion);
+    assertApiCompatible(noopPlugin, HOST_API_VERSION);
     const ctx = {
       formats: formatRegistry.scopedFor(noopPlugin.name),
       gates: { register: () => {} },
@@ -39,7 +40,7 @@ describe("noop-plugin integration", () => {
   });
 
   test("auto-derives FILE_TYPE_REGISTRY entry from the plugin name and default icon", async () => {
-    assertApiCompatible(noopPlugin, hostApiVersion);
+    assertApiCompatible(noopPlugin, HOST_API_VERSION);
     await noopPlugin.register({
       formats: formatRegistry.scopedFor(noopPlugin.name),
       gates: { register: () => {} },
@@ -62,7 +63,7 @@ describe("noop-plugin integration", () => {
       ...noopPlugin,
       apiVersion: "^99.0.0",
     };
-    expect(() => assertApiCompatible(incompatible, hostApiVersion)).toThrow(
+    expect(() => assertApiCompatible(incompatible, HOST_API_VERSION)).toThrow(
       IncompatiblePluginError,
     );
   });

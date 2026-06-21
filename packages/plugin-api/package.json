@@ -29,7 +29,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node scripts/write-version.mjs && tsup",
+    "build": "tsup",
     "release": "semantic-release"
   }
 }

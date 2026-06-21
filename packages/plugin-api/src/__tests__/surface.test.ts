@@ -6,12 +6,7 @@ describe("public surface", () => {
     expect(typeof api.assertApiCompatible).toBe("function");
     expect(typeof api.sanitizeHeaders).toBe("function");
     expect(typeof api.satisfies).toBe("function");
-    expect(typeof api.hostApiVersion).toBe("string");
     expect(api.IncompatiblePluginError).toBeDefined();
-  });
-
-  test("hostApiVersion is a valid semver triple", () => {
-    expect(api.hostApiVersion).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   test("CytarioPlugin can be satisfied by a literal", () => {
