@@ -11,6 +11,7 @@ import { toIdentity } from "~/.server/auth/getUserInfo";
 import { createLabel } from "~/.server/logging";
 import { PluginSlots } from "~/components/PluginSlots";
 import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
+import { cytarioConfig } from "~/config";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
 import { loadFavorites } from "~/routes/favorites/favorites.loader";
@@ -52,6 +53,10 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     credentials,
     credentialErrors,
     identity: toIdentity(user),
+    hostConfig: {
+      portalUrl: cytarioConfig.endpoints.portal,
+      webappUrl: cytarioConfig.endpoints.webapp,
+    },
     recentlyViewed,
     favorites,
   };
@@ -63,7 +68,7 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
   serverLoader<typeof loader>();
 
 export default function ProtectedLayout() {
-  const { connectionConfigs, credentials, credentialErrors, identity } =
+  const { connectionConfigs, credentials, credentialErrors, identity, hostConfig } =
     useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors);
   useCredentialsKeepAlive();
@@ -71,7 +76,7 @@ export default function ProtectedLayout() {
 
   return (
     <div className="flex h-full flex-col">
-      <PluginSlots name="app-banner" identity={identity} />
+      <PluginSlots name="app-banner" identity={identity} hostConfig={hostConfig} />
       <div className="relative flex flex-1 min-h-0">
         <ExplorerSidebar />
 
@@ -80,7 +85,7 @@ export default function ProtectedLayout() {
         </div>
         <ModalOutlet />
       </div>
-      <PluginSlots name="app-overlay" identity={identity} />
+      <PluginSlots name="app-overlay" identity={identity} hostConfig={hostConfig} />
     </div>
   );
 }
