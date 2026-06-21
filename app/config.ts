@@ -3,6 +3,8 @@ import { CookieOptions } from "react-router";
 interface CytarioConfig {
   endpoints: {
     webapp: string;
+    /** Customer portal base URL. Unset on deployments without a portal (e.g. OSS). */
+    portal?: string;
   };
   auth: {
     baseUrl: string;
@@ -42,11 +44,13 @@ const {
   COOKIE_SECRET,
   NODE_ENV,
   WEB_HOST,
+  PORTAL_HOST,
 } = process.env;
 
 export const cytarioConfig: Readonly<CytarioConfig> = {
   endpoints: {
     webapp: WEB_HOST!,
+    portal: PORTAL_HOST,
   },
   auth: {
     baseUrl: BASE_URL!,
