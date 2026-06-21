@@ -101,6 +101,51 @@ describe("refresh loader (token-refresh primitive)", () => {
     expect(sessionStorage.commitSession).toHaveBeenCalledWith(session);
   });
 
+  // `Sec-`-prefixed headers are forbidden header names the Request constructor
+  // silently drops, so stub the request shape to carry Sec-Fetch-Mode.
+  const requestWithFetchMode = (urlStr: string, mode: string) =>
+    ({
+      url: urlStr,
+      headers: { get: (key: string) => (key === "Sec-Fetch-Mode" ? mode : null) },
+    }) as unknown as Request;
+
+  test("rejects cross-site subresource requests without touching the session", async () => {
+    const session = buildSession();
+    (getSession as Mock).mockResolvedValue(session);
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const request = requestWithFetchMode(
+      "http://localhost/auth/refresh?return_to=/dashboard",
+      "no-cors",
+    );
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect(response.status).toBe(404);
+    expect(getSession).not.toHaveBeenCalled();
+    expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  test("allows top-level navigations (Sec-Fetch-Mode: navigate)", async () => {
+    const session = buildSession();
+    (getSession as Mock).mockResolvedValue(session);
+    (refreshAccessTokenWithLock as Mock).mockResolvedValue({
+      accessToken: "new-access",
+      refreshToken: "new-refresh",
+      idToken: "new-id",
+    });
+    (getUserInfo as Mock).mockResolvedValue({ sub: "123" });
+
+    const request = requestWithFetchMode(
+      "http://localhost/auth/refresh?return_to=/dashboard",
+      "navigate",
+    );
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe("/dashboard");
+  });
+
   test("validates return_to against open-redirect guard", async () => {
     const session = buildSession();
     (getSession as Mock).mockResolvedValue(session);

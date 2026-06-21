@@ -24,6 +24,18 @@ const label = createLabel("auth-refresh", "magenta");
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.info(`${label} Refresh initiated`);
 
+  // Refreshing re-mints tokens, so this GET is state-mutating. Restrict it to
+  // top-level navigations: a browser sends `Sec-Fetch-Mode: navigate` for real
+  // navigations (incl. server-issued redirects), but `no-cors`/`cors` for
+  // cross-site subresource embeds (`<img src=...>`, fetch). Rejecting the
+  // latter blocks forced-refresh CSRF and Keycloak amplification. Non-browser
+  // clients omit the header and are allowed.
+  const fetchMode = request.headers.get("Sec-Fetch-Mode");
+  if (fetchMode && fetchMode !== "navigate") {
+    console.warn(`${label} Rejected non-navigation request (Sec-Fetch-Mode: ${fetchMode})`);
+    return new Response("Not Found", { status: 404 });
+  }
+
   const url = new URL(request.url);
   const returnTo = validateRedirectTo(url.searchParams.get("return_to") || undefined);
   const loginFallback = `/login?redirect=${encodeURIComponent(returnTo)}`;
