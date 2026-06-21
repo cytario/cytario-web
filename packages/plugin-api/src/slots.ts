@@ -3,9 +3,26 @@ import type { Identity } from "./auth";
 /** Host-defined mount points. v1 surface. */
 export type SlotName = "app-overlay" | "app-banner";
 
-/** Props the host passes to every slot component (client-only). */
+/** Host runtime URLs handed to slot components for cross-app linking. */
+export interface HostConfig {
+  /**
+   * Absolute base URL of the customer-facing portal (billing, account).
+   * Optional: undefined when the host has no portal (e.g. an OSS deployment).
+   * Consumers must handle its absence rather than fall back to a hardcoded origin.
+   */
+  portalUrl?: string;
+  /** Absolute base URL of this webapp instance (the image browser). */
+  webappUrl: string;
+}
+
+/**
+ * Props the host passes to every slot component (client-only): the identity
+ * projection and host runtime URLs. `hostConfig` is host-populated at render
+ * time and always present; safe URLs only (no PII or secrets).
+ */
 export interface SlotProps {
   identity: Identity;
+  hostConfig: HostConfig;
 }
 
 export interface SlotRegistry {
