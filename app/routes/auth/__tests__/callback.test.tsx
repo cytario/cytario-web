@@ -182,6 +182,23 @@ describe("callback loader", () => {
     });
   });
 
+  test("falls back to interactive login on silent re-auth login_required", async () => {
+    const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const request = new Request(
+      "http://localhost/auth/callback?error=login_required&state=valid-state",
+    );
+
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect((response as Response).status).toBe(302);
+    // Return path recovered from the one-shot state, no error notification.
+    expect((response as Response).headers.get("Location")).toBe(
+      `/login?redirect=${encodeURIComponent("/dashboard")}`,
+    );
+    expect(mockSession.set).not.toHaveBeenCalledWith("notification", expect.anything());
+    consoleSpy.mockRestore();
+  });
+
   test("catches errors and shows generic message", async () => {
     vi.mocked(exchangeAuthCode).mockRejectedValue(new Error("Token exchange failed: 400"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});

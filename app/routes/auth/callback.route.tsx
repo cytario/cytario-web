@@ -38,6 +38,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // Handle errors from authorization server
   if (error) {
+    // A silent re-auth (prompt=none) has no usable SSO session — this is an
+    // expected outcome, not a failure. Fall back to interactive login,
+    // recovering the return path from the (one-shot) state.
+    if (error === "login_required" || error === "interaction_required") {
+      const redirectTo = validateRedirectTo(
+        state ? (await validateOAuthState(state))?.redirectTo : undefined,
+      );
+      console.info(`${label} Silent re-auth not possible (${error}), redirecting to login`);
+      return redirect(`/login?redirect=${encodeURIComponent(redirectTo)}`);
+    }
+
     console.error(`${label} Authorization error:`, error, errorDescription);
     return failWithNotification(
       request,

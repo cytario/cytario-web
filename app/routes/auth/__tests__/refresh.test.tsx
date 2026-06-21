@@ -2,33 +2,32 @@ import { LoaderFunctionArgs } from "react-router";
 import { Mock } from "vitest";
 
 import { loader } from "../refresh.route";
-import { getUserInfo } from "~/.server/auth/getUserInfo";
-import { validateRedirectTo } from "~/.server/auth/oauthState";
-import { refreshAccessTokenWithLock } from "~/.server/auth/refreshAuthTokens";
-import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { generateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
+import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 
 vi.mock("~/.server/auth/getSession", () => ({
   getSession: vi.fn(),
 }));
 
-vi.mock("~/.server/auth/getUserInfo", () => ({
-  getUserInfo: vi.fn(),
-}));
-
 vi.mock("~/.server/auth/oauthState", () => ({
+  generateOAuthState: vi.fn(),
   validateRedirectTo: vi.fn((v?: string) => {
     if (!v) return "/";
     return v.startsWith("/") ? v : "/";
   }),
 }));
 
-vi.mock("~/.server/auth/refreshAuthTokens", () => ({
-  refreshAccessTokenWithLock: vi.fn(),
+vi.mock("~/.server/auth/wellKnownEndpoints", () => ({
+  getWellKnownEndpoints: vi.fn(),
 }));
 
-vi.mock("~/.server/auth/sessionStorage", () => ({
-  sessionStorage: {
-    commitSession: vi.fn().mockResolvedValue("session-cookie"),
+vi.mock("~/config", () => ({
+  cytarioConfig: {
+    endpoints: { webapp: "https://app.example.com" },
+    auth: {
+      clientId: "test-client-id",
+      scopes: ["openid", "profile", "organization"],
+    },
   },
 }));
 
@@ -46,59 +45,48 @@ vi.mock("react-router", async (importOriginal) => {
 
 const { getSession } = await import("~/.server/auth/getSession");
 
-const buildSession = (overrides: Record<string, unknown> = {}) => {
-  const store: Record<string, unknown> = {
-    user: { sub: "123", email: "test@example.com" },
-    authTokens: { accessToken: "old-access", refreshToken: "old-refresh", idToken: "old-id" },
-    ...overrides,
-  };
-  return {
-    id: "session-id-123",
-    get: vi.fn((key: string) => store[key]),
-    set: vi.fn((key: string, value: unknown) => {
-      store[key] = value;
-    }),
-    __store: store,
-  };
+const authenticatedSession = () => ({
+  id: "session-id-123",
+  get: vi.fn((key: string) => (key === "user" ? { sub: "123", email: "test@example.com" } : null)),
+});
+
+const primeOAuthState = () => {
+  (generateOAuthState as Mock).mockResolvedValue({
+    state: "random-state-123",
+    codeChallenge: "test-challenge",
+    nonce: "test-nonce",
+  });
+  (getWellKnownEndpoints as Mock).mockResolvedValue({
+    authorization_endpoint: "https://keycloak.example.com/auth",
+  });
 };
 
-describe("refresh loader (token-refresh primitive)", () => {
+describe("refresh loader (silent re-authentication primitive)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test("re-mints tokens, refreshes user, redirects to validated return_to", async () => {
-    const session = buildSession();
-    (getSession as Mock).mockResolvedValue(session);
-    (refreshAccessTokenWithLock as Mock).mockResolvedValue({
-      accessToken: "new-access",
-      refreshToken: "new-refresh",
-      idToken: "new-id",
-    });
-    (getUserInfo as Mock).mockResolvedValue({
-      sub: "123",
-      email: "test@example.com",
-      organization: "acme",
-    });
+  test("redirects to Keycloak with prompt=none and PKCE params", async () => {
+    (getSession as Mock).mockResolvedValue(authenticatedSession());
+    primeOAuthState();
 
     const request = new Request("http://localhost/auth/refresh?return_to=/dashboard");
     const response = await loader({ request } as LoaderFunctionArgs);
 
-    expect(refreshAccessTokenWithLock).toHaveBeenCalledWith("session-id-123", "old-refresh");
-    expect(getUserInfo).toHaveBeenCalledWith("new-access");
-    expect(session.set).toHaveBeenCalledWith("authTokens", {
-      accessToken: "new-access",
-      refreshToken: "new-refresh",
-      idToken: "new-id",
-    });
-    expect(session.__store.user).toEqual({
-      sub: "123",
-      email: "test@example.com",
-      organization: "acme",
-    });
+    expect(generateOAuthState).toHaveBeenCalledWith("/dashboard");
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/dashboard");
-    expect(sessionStorage.commitSession).toHaveBeenCalledWith(session);
+
+    const location = response.headers.get("Location")!;
+    expect(location).toContain("https://keycloak.example.com/auth");
+    expect(location).toContain("prompt=none");
+    expect(location).toContain("response_type=code");
+    expect(location).toContain("state=random-state-123");
+    expect(location).toContain("code_challenge=test-challenge");
+    expect(location).toContain("code_challenge_method=S256");
+    expect(location).toContain("nonce=test-nonce");
+    expect(location).toContain(
+      "redirect_uri=" + encodeURIComponent("https://app.example.com/auth/callback"),
+    );
   });
 
   // `Sec-`-prefixed headers are forbidden header names the Request constructor
@@ -110,8 +98,7 @@ describe("refresh loader (token-refresh primitive)", () => {
     }) as unknown as Request;
 
   test("rejects cross-site subresource requests without touching the session", async () => {
-    const session = buildSession();
-    (getSession as Mock).mockResolvedValue(session);
+    (getSession as Mock).mockResolvedValue(authenticatedSession());
     const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const request = requestWithFetchMode(
@@ -122,19 +109,13 @@ describe("refresh loader (token-refresh primitive)", () => {
 
     expect(response.status).toBe(404);
     expect(getSession).not.toHaveBeenCalled();
-    expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
+    expect(generateOAuthState).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 
   test("allows top-level navigations (Sec-Fetch-Mode: navigate)", async () => {
-    const session = buildSession();
-    (getSession as Mock).mockResolvedValue(session);
-    (refreshAccessTokenWithLock as Mock).mockResolvedValue({
-      accessToken: "new-access",
-      refreshToken: "new-refresh",
-      idToken: "new-id",
-    });
-    (getUserInfo as Mock).mockResolvedValue({ sub: "123" });
+    (getSession as Mock).mockResolvedValue(authenticatedSession());
+    primeOAuthState();
 
     const request = requestWithFetchMode(
       "http://localhost/auth/refresh?return_to=/dashboard",
@@ -143,45 +124,38 @@ describe("refresh loader (token-refresh primitive)", () => {
     const response = await loader({ request } as LoaderFunctionArgs);
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/dashboard");
+    expect(response.headers.get("Location")).toContain("prompt=none");
   });
 
   test("validates return_to against open-redirect guard", async () => {
-    const session = buildSession();
-    (getSession as Mock).mockResolvedValue(session);
-    (refreshAccessTokenWithLock as Mock).mockResolvedValue({
-      accessToken: "new-access",
-      refreshToken: "new-refresh",
-      idToken: "new-id",
-    });
-    (getUserInfo as Mock).mockResolvedValue({ sub: "123" });
+    (getSession as Mock).mockResolvedValue(authenticatedSession());
+    primeOAuthState();
 
     const request = new Request(
       "http://localhost/auth/refresh?return_to=https://evil.example.com/phish",
     );
-    const response = await loader({ request } as LoaderFunctionArgs);
+    await loader({ request } as LoaderFunctionArgs);
 
     expect(validateRedirectTo).toHaveBeenCalledWith("https://evil.example.com/phish");
-    expect(response.headers.get("Location")).toBe("/");
+    // Off-host target collapses to "/", so no return path is carried into state.
+    expect(generateOAuthState).toHaveBeenCalledWith(undefined);
   });
 
-  test("falls back to login when no active session", async () => {
-    const session = buildSession({ user: undefined, authTokens: undefined });
-    (getSession as Mock).mockResolvedValue(session);
+  test("falls back to interactive login when no active session", async () => {
+    (getSession as Mock).mockResolvedValue({ get: vi.fn(() => null) });
 
     const request = new Request("http://localhost/auth/refresh?return_to=/dashboard");
     const response = await loader({ request } as LoaderFunctionArgs);
 
-    expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
+    expect(generateOAuthState).not.toHaveBeenCalled();
     expect(response.headers.get("Location")).toBe(
       `/login?redirect=${encodeURIComponent("/dashboard")}`,
     );
   });
 
-  test("falls back to login when refresh fails", async () => {
-    const session = buildSession();
-    (getSession as Mock).mockResolvedValue(session);
-    (refreshAccessTokenWithLock as Mock).mockRejectedValue(new Error("refresh expired"));
+  test("falls back to interactive login when state generation fails", async () => {
+    (getSession as Mock).mockResolvedValue(authenticatedSession());
+    (generateOAuthState as Mock).mockRejectedValue(new Error("Redis connection failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const request = new Request("http://localhost/auth/refresh?return_to=/dashboard");
