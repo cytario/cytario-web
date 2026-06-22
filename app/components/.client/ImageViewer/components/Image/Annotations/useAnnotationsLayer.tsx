@@ -1,3 +1,4 @@
+import { GeoJsonLayer } from "@deck.gl/layers";
 import {
   DrawPointMode,
   DrawPolygonByDraggingMode,
@@ -21,6 +22,14 @@ const MODE_CLASSES = {
 } as const;
 
 const DEFAULT_COLOR: RGB = [120, 120, 120];
+
+// Concentric selection outlines, widest first (drawn underneath) → narrowest on
+// top, giving a high-contrast triple ring readable on any background.
+const SELECTION_RINGS: { width: number; color: RGBA }[] = [
+  { width: 8, color: [255, 255, 255, 255] },
+  { width: 4.5, color: [56, 189, 248, 255] },
+  { width: 1.5, color: [255, 255, 255, 255] },
+];
 
 const classColor = (feature: AnnotationFeature): RGB =>
   feature.properties?.classification?.color ?? DEFAULT_COLOR;
@@ -73,7 +82,8 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
     const hidden = new Set(hiddenClasses);
     const isHidden = (f: AnnotationFeature) => hidden.has(classNameOf(f));
-    return new EditableGeoJsonLayer({
+
+    const editableLayer = new EditableGeoJsonLayer({
       id: `annotations-${imagePanelId}`,
       data,
       mode: MODE_CLASSES[mode],
@@ -100,6 +110,37 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
         }
       },
     });
+
+    // Concentric outline halo on the selected feature(s) — selection isn't
+    // visibly rendered in view mode, so stack GeoJsonLayers (widest first) over
+    // the editable layer. Hidden features are excluded so a halo never reveals one.
+    const selectedFeatures = selectedIndexes
+      .map((i) => features[i])
+      .filter((f): f is AnnotationFeature => Boolean(f) && !isHidden(f));
+
+    const highlightLayers =
+      selectedFeatures.length === 0
+        ? []
+        : SELECTION_RINGS.map(
+            (ring, r) =>
+              new GeoJsonLayer({
+                id: `annotations-${imagePanelId}-selection-${r}`,
+                data: { type: "FeatureCollection", features: selectedFeatures },
+                coordinateSystem: "cartesian",
+                pickable: false,
+                stroked: true,
+                filled: false,
+                getLineColor: ring.color,
+                getLineWidth: ring.width,
+                lineWidthUnits: "pixels",
+                lineWidthMinPixels: ring.width,
+                pointType: "circle",
+                getPointRadius: 4,
+                pointRadiusUnits: "pixels",
+              }),
+          );
+
+    return [editableLayer, ...highlightLayers];
   }, [
     features,
     mode,

@@ -68,8 +68,8 @@ const ImagePanelInner = ({
   /* Setup Layers */
   const multiscaleLayer = useChannelsLayer(imagePanelId, onMultiscaleLayerHover);
   const markersLayers = useOverlaysLayers(imagePanelId, setTooltip);
-  const annotationsLayer = useAnnotationsLayer(imagePanelId);
-  const layers = [multiscaleLayer, ...markersLayers, annotationsLayer];
+  const annotationsLayers = useAnnotationsLayer(imagePanelId);
+  const layers = [multiscaleLayer, ...markersLayers, ...annotationsLayers];
 
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
