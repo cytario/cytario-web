@@ -33,6 +33,7 @@ const fetchTemporaryCredentials = async (
   connectionConfig: ConnectionConfig,
   idToken: string,
   roleSessionName: string,
+  subject: string,
 ): Promise<Credentials> => {
   const { region, endpoint, roleArn, provider, organization, bucketName, prefix } =
     connectionConfig;
@@ -52,7 +53,7 @@ const fetchTemporaryCredentials = async (
   // so we omit it there — the role's intrinsic scope is the only bound.
   const Policy =
     provider === "aws"
-      ? buildSessionPolicy({ organization, bucketName, prefix, region: actualRegion })
+      ? buildSessionPolicy({ organization, bucketName, prefix, region: actualRegion, subject })
       : undefined;
 
   const command = new AssumeRoleWithWebIdentityCommand({
@@ -122,6 +123,7 @@ export const getAllSessionCredentials = async (
         config,
         sessionData.authTokens.idToken,
         roleSessionName,
+        sessionData.user.sub,
       ),
     })),
   );

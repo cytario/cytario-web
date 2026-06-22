@@ -31,11 +31,13 @@ const findStatement = (policy: ParsedPolicy, action: string): PolicyStatement =>
 
 const REGION = "eu-central-1";
 const ORG = "vericura";
+const SUBJECT = "4cd912ea-5136-4b2d-8959-d5e983cbea05";
 const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
   organization: ORG,
   bucketName: "my-bucket",
   prefix: "",
   region: REGION,
+  subject: SUBJECT,
   ...overrides,
 });
 
@@ -218,5 +220,33 @@ describe("buildSessionPolicy", () => {
     expect(() => buildSessionPolicy(args({ organization: "" }))).toThrow(
       /Organization is required/,
     );
+  });
+
+  test("PutObject is scoped to the caller's OWN sidecar (`*.annotations.<sub>.json`)", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+
+    const put = findStatement(policy, "s3:PutObject");
+    expect(put.Effect).toBe("Allow");
+    expect(put.Resource).toBe(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
+    expect(put.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
+    // The user segment is pinned, not a wildcard — no writing another user's file.
+    expect(put.Resource).not.toContain("annotations.*.json");
+  });
+
+  test("PutObject scope omits the prefix segment for whole-bucket connections", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "" })));
+
+    expect(findStatement(policy, "s3:PutObject").Resource).toBe(
+      `arn:aws:s3:::my-bucket/*.annotations.${SUBJECT}.json`,
+    );
+  });
+
+  test("throws when subject is empty (would widen Put scope to all users)", () => {
+    expect(() => buildSessionPolicy(args({ subject: "" }))).toThrow(/Subject is required/);
+  });
+
+  test("rejects subject containing IAM wildcard characters", () => {
+    expect(() => buildSessionPolicy(args({ subject: "*" }))).toThrow(/wildcard/i);
+    expect(() => buildSessionPolicy(args({ subject: "user?" }))).toThrow(/wildcard/i);
   });
 });

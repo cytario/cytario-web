@@ -14,6 +14,8 @@ export interface SessionPolicyArgs {
   bucketName: string;
   prefix: string | null | undefined;
   region: string;
+  /** Keycloak `sub` of the caller — pins their writable sidecar to their own file. */
+  subject: string;
 }
 
 const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, "");
@@ -77,20 +79,24 @@ function getObjectStatement(
 }
 
 /**
- * `PutObject` limited to annotation sidecars (`*.annotations.*.json`) under the
- * connection prefix. Image data (`.ome.tif`/`.zarr`), `offsets.json`, and
- * parquet stay read-only; the ORG tag keeps writes tenant-scoped. Overwrite is
- * `PutObject` (read-modify-write of the user's own file) — no `DeleteObject`.
+ * `PutObject` limited to the caller's OWN annotation sidecars
+ * (`*.annotations.<sub>.json`) under the connection prefix — the trailing
+ * `<sub>` segment stops a tampered client from writing another user's file
+ * (which the cross-user read union would then surface as forged authorship).
+ * Image data (`.ome.tif`/`.zarr`), `offsets.json`, and parquet stay read-only;
+ * the ORG tag keeps writes tenant-scoped. Overwrite is `PutObject` (full-file
+ * write of the user's own file) — no `DeleteObject`.
  */
 function getPutStatement(
   bucketArn: string,
   prefix: string,
+  subject: string,
   orgTagCondition: Record<string, string>,
 ) {
-  const sidecarArn = [bucketArn, prefix, "*.annotations.*.json"].filter(Boolean).join("/");
+  const sidecarArn = [bucketArn, prefix, `*.annotations.${subject}.json`].filter(Boolean).join("/");
 
   return {
-    Sid: "PutAnnotationSidecars",
+    Sid: "PutOwnAnnotationSidecars",
     Effect: "Allow",
     Action: "s3:PutObject",
     Resource: sidecarArn,
@@ -128,9 +134,19 @@ export const buildSessionPolicy = ({
   bucketName,
   prefix: prefixRaw,
   region,
+  subject,
 }: SessionPolicyArgs): string => {
   if (!organization) {
     throw new Error("Organization is required to build a session policy");
+  }
+
+  // The subject is interpolated into the PutObject Resource ARN; an empty or
+  // wildcard sub would widen the write scope to other users' sidecars.
+  if (!subject) {
+    throw new Error("Subject is required to build a session policy");
+  }
+  if (/[*?]/.test(subject)) {
+    throw new Error("Subject may not contain IAM wildcard characters (`*`, `?`)");
   }
 
   const prefix = stripSlashes(prefixRaw ?? "");
@@ -155,7 +171,7 @@ export const buildSessionPolicy = ({
     Statement: [
       getListStatement(bucketArn, prefix, orgTagCondition),
       getObjectStatement(bucketArn, prefix, orgTagCondition),
-      getPutStatement(bucketArn, prefix, orgTagCondition),
+      getPutStatement(bucketArn, prefix, subject, orgTagCondition),
       getDecryptStatement(region, orgTagCondition),
     ],
   };
