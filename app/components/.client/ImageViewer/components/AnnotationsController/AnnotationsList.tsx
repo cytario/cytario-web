@@ -1,4 +1,6 @@
+import { IconButton, Menu, MenuItem } from "@cytario/design";
 import type { Geometry } from "geojson";
+import { EllipsisVertical, ZoomIn } from "lucide-react";
 import { useMemo } from "react";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
@@ -63,7 +65,7 @@ export const AnnotationsList = () => {
   const viewState = useViewerStore((s) => s.viewStateActive);
   const setViewState = useViewerStore((s) => s.setViewStateActive);
 
-  const selectAndFly = (index: number, feature: AnnotationFeature) => {
+  const zoomToFeature = (index: number, feature: AnnotationFeature) => {
     setSelectedIndexes([index]);
     if (!viewState) return;
     const next = flyToFeatureViewState(feature.geometry, viewState);
@@ -103,17 +105,39 @@ export const AnnotationsList = () => {
               {group.items.map(({ feature, index }) => {
                 const isSelected = selectedIndexes.includes(index);
                 return (
-                  <button
-                    key={feature.properties?.id ?? index}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => selectAndFly(index, feature)}
-                    className={`rounded border text-muted-foreground hover:text-foreground ${
-                      isSelected ? "border-primary text-foreground" : "border-border"
-                    }`}
-                  >
-                    <GeometryThumb geometry={feature.geometry} color={cssColor} />
-                  </button>
+                  <div key={feature.properties?.id ?? index} className="group/thumb relative">
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedIndexes([index])}
+                      className={`rounded border text-muted-foreground hover:text-foreground ${
+                        isSelected ? "border-primary text-foreground" : "border-border"
+                      }`}
+                    >
+                      <GeometryThumb geometry={feature.geometry} color={cssColor} />
+                    </button>
+
+                    <div className="absolute right-0 top-0 rounded bg-background/80 opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100">
+                      <Menu
+                        content={
+                          <MenuItem
+                            id="zoom"
+                            icon={ZoomIn}
+                            onAction={() => zoomToFeature(index, feature)}
+                          >
+                            Zoom to annotation
+                          </MenuItem>
+                        }
+                      >
+                        <IconButton
+                          icon={EllipsisVertical}
+                          aria-label="Annotation actions"
+                          variant="ghost"
+                          size="xs"
+                        />
+                      </Menu>
+                    </div>
+                  </div>
                 );
               })}
             </div>
