@@ -57,8 +57,8 @@ interface AnnotationGroup {
  *  preview selects it and flies the viewport to it. */
 export const AnnotationsList = () => {
   const features = useViewerStore((s) => s.annotationFeatures);
-  const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
-  const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
+  const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
+  const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
   const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
@@ -66,16 +66,20 @@ export const AnnotationsList = () => {
   const viewState = useViewerStore((s) => s.viewStateActive);
   const setViewState = useViewerStore((s) => s.setViewStateActive);
 
-  const zoomToFeature = (index: number, feature: AnnotationFeature) => {
-    setSelectedIndexes([index]);
+  const select = (feature: AnnotationFeature) => {
+    setSelectedIds(feature.properties?.id ? [feature.properties.id] : []);
+  };
+
+  const zoomToFeature = (feature: AnnotationFeature) => {
+    select(feature);
     if (!viewState) return;
     const next = flyToFeatureViewState(feature.geometry, viewState);
     if (next) setViewState(next);
   };
 
-  const deleteFeature = (index: number) => {
-    setSelectedIndexes([]);
-    setFeatures(features.filter((_, i) => i !== index));
+  const deleteFeature = (feature: AnnotationFeature) => {
+    setSelectedIds([]);
+    setFeatures(features.filter((f) => f !== feature));
   };
 
   const groups = useMemo<AnnotationGroup[]>(() => {
@@ -109,13 +113,14 @@ export const AnnotationsList = () => {
 
             <div className="flex flex-wrap gap-1.5 pt-1">
               {group.items.map(({ feature, index }) => {
-                const isSelected = selectedIndexes.includes(index);
+                const id = feature.properties?.id;
+                const isSelected = !!id && selectedIds.includes(id);
                 return (
-                  <div key={feature.properties?.id ?? index} className="group/thumb relative">
+                  <div key={id ?? index} className="group/thumb relative">
                     <button
                       type="button"
                       aria-pressed={isSelected}
-                      onClick={() => setSelectedIndexes([index])}
+                      onClick={() => select(feature)}
                       className={`rounded border text-muted-foreground hover:text-foreground ${
                         isSelected ? "border-primary text-foreground" : "border-border"
                       }`}
@@ -130,7 +135,7 @@ export const AnnotationsList = () => {
                             <MenuItem
                               id="zoom"
                               icon={ZoomIn}
-                              onAction={() => zoomToFeature(index, feature)}
+                              onAction={() => zoomToFeature(feature)}
                             >
                               Zoom to annotation
                             </MenuItem>
@@ -139,7 +144,7 @@ export const AnnotationsList = () => {
                               id="delete"
                               icon={Trash2}
                               isDanger
-                              onAction={() => deleteFeature(index)}
+                              onAction={() => deleteFeature(feature)}
                             >
                               Delete annotation
                             </MenuItem>

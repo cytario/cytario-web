@@ -65,7 +65,7 @@ describe("createViewerStore", () => {
       pixelValues: {},
       annotationFeatures: [],
       annotationMode: "view",
-      annotationSelectedIndexes: [],
+      annotationSelectedIds: [],
       annotationOpacity: 1,
       annotationHiddenClasses: [],
       annotationOwnerId: null,
@@ -109,7 +109,7 @@ describe("createViewerStore", () => {
       setAnnotationOwner: expect.any(Function),
       markAnnotationsSaved: expect.any(Function),
       setAnnotationMode: expect.any(Function),
-      setAnnotationSelectedIndexes: expect.any(Function),
+      setAnnotationSelectedIds: expect.any(Function),
     });
   });
 

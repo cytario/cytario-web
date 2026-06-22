@@ -19,10 +19,10 @@ const drawingTools = [
 export const AnnotationsTools = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
-  const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
+  const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
 
   const toggle = (target: AnnotationMode) => {
-    setSelectedIndexes([]);
+    setSelectedIds([]);
     setMode(activeMode === target ? "view" : target);
   };
   return (

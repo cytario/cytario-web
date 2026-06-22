@@ -12,7 +12,9 @@ export const classNameOf = (feature: AnnotationFeature): string =>
 export interface AnnotationsSlice {
   annotationFeatures: AnnotationFeature[];
   annotationMode: AnnotationMode;
-  annotationSelectedIndexes: number[];
+  /** `properties.id`s of selected features — stable across edits/reorders,
+   *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
+  annotationSelectedIds: string[];
   annotationOpacity: number;
   /** Classification names whose features are hidden — view-only, not persisted. */
   annotationHiddenClasses: string[];
@@ -35,7 +37,7 @@ export interface AnnotationsSlice {
   /** Replace annotation features from the S3 seed — does not mark dirty. */
   seedAnnotationFeatures: (features: AnnotationFeature[]) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
-  setAnnotationSelectedIndexes: (indexes: number[]) => void;
+  setAnnotationSelectedIds: (ids: string[]) => void;
   /** Identify who owns the editable set (their sidecar is the write target). */
   setAnnotationOwner: (userId: string) => void;
   /** Record a successful persist: the sidecar now exists and the set is clean. */
@@ -46,7 +48,7 @@ export interface AnnotationsSlice {
 export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   annotationFeatures: [],
   annotationMode: "view",
-  annotationSelectedIndexes: [],
+  annotationSelectedIds: [],
   annotationOpacity: 1,
   annotationHiddenClasses: [],
   annotationOwnerId: null,
@@ -139,12 +141,12 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
       "setAnnotationMode",
     ),
 
-  setAnnotationSelectedIndexes: (indexes) =>
+  setAnnotationSelectedIds: (ids) =>
     set(
       (state) => {
-        state.annotationSelectedIndexes = indexes;
+        state.annotationSelectedIds = ids;
       },
       false,
-      "setAnnotationSelectedIndexes",
+      "setAnnotationSelectedIds",
     ),
 });

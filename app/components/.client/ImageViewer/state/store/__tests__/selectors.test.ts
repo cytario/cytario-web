@@ -18,7 +18,7 @@ describe("selectors", () => {
     pixelValues: {},
     annotationFeatures: [],
     annotationMode: "view",
-    annotationSelectedIndexes: [],
+    annotationSelectedIds: [],
     annotationOpacity: 1,
     annotationHiddenClasses: [],
     annotationOwnerId: null,
@@ -108,7 +108,7 @@ describe("selectors", () => {
     setAnnotationOwner: vi.fn(),
     markAnnotationsSaved: vi.fn(),
     setAnnotationMode: vi.fn(),
-    setAnnotationSelectedIndexes: vi.fn(),
+    setAnnotationSelectedIds: vi.fn(),
     ...overrides,
   });
 

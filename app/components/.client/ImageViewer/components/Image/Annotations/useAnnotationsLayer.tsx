@@ -74,20 +74,29 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
   const mode = useViewerStore((s) => s.annotationMode);
   const opacity = useViewerStore((s) => s.annotationOpacity);
   const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
-  const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
+  const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
-  const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
+  const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
     const hidden = new Set(hiddenClasses);
     const isHidden = (f: AnnotationFeature) => hidden.has(classNameOf(f));
 
+    // Resolve selected ids → array indexes only here, at the deck boundary.
+    const selected = new Set(selectedIds);
+    const isSelected = (f: AnnotationFeature) =>
+      !!f.properties?.id && selected.has(f.properties.id);
+    const selectedFeatureIndexes = features.reduce<number[]>((acc, f, i) => {
+      if (isSelected(f)) acc.push(i);
+      return acc;
+    }, []);
+
     const editableLayer = new EditableGeoJsonLayer({
       id: `annotations-${imagePanelId}`,
       data,
       mode: MODE_CLASSES[mode],
-      selectedFeatureIndexes: selectedIndexes,
+      selectedFeatureIndexes,
       opacity,
       coordinateSystem: "cartesian",
       pickable: true,
@@ -104,9 +113,11 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       },
       onEdit: ({ updatedData, editType, editContext }) => {
         const changed: number[] | undefined = editContext?.featureIndexes;
-        setFeatures(stampEdit(updatedData.features as AnnotationFeature[], changed));
+        const stamped = stampEdit(updatedData.features as AnnotationFeature[], changed);
+        setFeatures(stamped);
         if (editType === "addFeature") {
-          setSelectedIndexes([updatedData.features.length - 1]);
+          const newId = stamped[stamped.length - 1]?.properties?.id;
+          if (newId) setSelectedIds([newId]);
         }
       },
     });
@@ -114,9 +125,7 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
     // Concentric outline halo on the selected feature(s) — selection isn't
     // visibly rendered in view mode, so stack GeoJsonLayers (widest first) over
     // the editable layer. Hidden features are excluded so a halo never reveals one.
-    const selectedFeatures = selectedIndexes
-      .map((i) => features[i])
-      .filter((f): f is AnnotationFeature => Boolean(f) && !isHidden(f));
+    const selectedFeatures = features.filter((f) => isSelected(f) && !isHidden(f));
 
     const highlightLayers =
       selectedFeatures.length === 0
@@ -146,9 +155,9 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
     mode,
     opacity,
     hiddenClasses,
-    selectedIndexes,
+    selectedIds,
     imagePanelId,
     setFeatures,
-    setSelectedIndexes,
+    setSelectedIds,
   ]);
 };
