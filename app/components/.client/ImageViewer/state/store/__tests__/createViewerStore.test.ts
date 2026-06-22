@@ -68,6 +68,8 @@ describe("createViewerStore", () => {
       annotationSelectedIndexes: [],
       annotationOpacity: 1,
       annotationHiddenClasses: [],
+      annotationOwnerId: null,
+      annotationSidecarExists: false,
       annotationsDirty: false,
       layersStates: [],
       setError: expect.any(Function),
@@ -104,6 +106,8 @@ describe("createViewerStore", () => {
       toggleAnnotationClassVisibility: expect.any(Function),
       setAnnotationClassColor: expect.any(Function),
       seedAnnotationFeatures: expect.any(Function),
+      setAnnotationOwner: expect.any(Function),
+      markAnnotationsSaved: expect.any(Function),
       setAnnotationMode: expect.any(Function),
       setAnnotationSelectedIndexes: expect.any(Function),
     });

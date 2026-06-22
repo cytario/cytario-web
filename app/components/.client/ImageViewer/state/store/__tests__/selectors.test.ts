@@ -21,6 +21,8 @@ describe("selectors", () => {
     annotationSelectedIndexes: [],
     annotationOpacity: 1,
     annotationHiddenClasses: [],
+    annotationOwnerId: null,
+    annotationSidecarExists: false,
     annotationsDirty: false,
     layersStates: [
       {
@@ -103,6 +105,8 @@ describe("selectors", () => {
     toggleAnnotationClassVisibility: vi.fn(),
     setAnnotationClassColor: vi.fn(),
     seedAnnotationFeatures: vi.fn(),
+    setAnnotationOwner: vi.fn(),
+    markAnnotationsSaved: vi.fn(),
     setAnnotationMode: vi.fn(),
     setAnnotationSelectedIndexes: vi.fn(),
     ...overrides,

@@ -1,5 +1,5 @@
 import { createStore } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import { createAnnotationsSlice } from "./slices/viewer.annotations.store";
@@ -13,37 +13,41 @@ import { viewerStoreMigrate, viewerStorePartialize } from "./viewerStore.persist
 /**
  * Creates a Zustand store for one image-viewer instance. State + actions are
  * composed from domain slices (`slices/viewer.*.store.ts`) — core, view,
- * channels, overlays, annotations — over the `persist → immer → devtools`
- * middleware stack. Only `id` lives at the root; it keys persistence + devtools.
+ * channels, overlays, annotations — over the
+ * `subscribeWithSelector → persist → immer → devtools` middleware stack.
+ * `subscribeWithSelector` lets the annotation autosave writer subscribe to a
+ * single slice of state. Only `id` lives at the root; it keys persistence + devtools.
  */
 export const createViewerStore = (id: string) =>
   createStore<ViewerStore>()(
-    persist(
-      immer(
-        devtools(
-          (set, get, store) => ({
-            id,
-            ...createCoreSlice(set, get, store),
-            ...createViewSlice(set, get, store),
-            ...createChannelsSlice(set, get, store),
-            ...createOverlaysSlice(set, get, store),
-            ...createAnnotationsSlice(set, get, store),
-          }),
-          {
-            name: "ViewerStore-" + id,
-          },
+    subscribeWithSelector(
+      persist(
+        immer(
+          devtools(
+            (set, get, store) => ({
+              id,
+              ...createCoreSlice(set, get, store),
+              ...createViewSlice(set, get, store),
+              ...createChannelsSlice(set, get, store),
+              ...createOverlaysSlice(set, get, store),
+              ...createAnnotationsSlice(set, get, store),
+            }),
+            {
+              name: "ViewerStore-" + id,
+            },
+          ),
         ),
-      ),
-      {
-        name: "ViewerStore-" + id,
-        version: 2,
-        migrate: viewerStoreMigrate,
-        partialize: viewerStorePartialize,
-        onRehydrateStorage: () => (_state, error) => {
-          if (error) {
-            console.error(`[ViewerStore-${id}] Rehydration failed:`, error);
-          }
+        {
+          name: "ViewerStore-" + id,
+          version: 2,
+          migrate: viewerStoreMigrate,
+          partialize: viewerStorePartialize,
+          onRehydrateStorage: () => (_state, error) => {
+            if (error) {
+              console.error(`[ViewerStore-${id}] Rehydration failed:`, error);
+            }
+          },
         },
-      },
+      ),
     ),
   );

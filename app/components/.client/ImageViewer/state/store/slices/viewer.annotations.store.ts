@@ -16,6 +16,13 @@ export interface AnnotationsSlice {
   annotationOpacity: number;
   /** Classification names whose features are hidden — view-only, not persisted. */
   annotationHiddenClasses: string[];
+  /** Keycloak `sub` owning the editable set — gates the autosave writer. */
+  annotationOwnerId: string | null;
+  /** Whether this user's sidecar exists on S3. Gates lazy-create (no empty
+   *  file until the first real annotation) and persists across the seed → edit
+   *  handoff. Shared by seed + the autosave writer. */
+  annotationSidecarExists: boolean;
+  /** Set by a user edit, cleared once persisted — gates the autosave writer. */
   annotationsDirty: boolean;
 
   /** Replace annotation features from a user edit — marks dirty (→ autosave). */
@@ -29,6 +36,10 @@ export interface AnnotationsSlice {
   seedAnnotationFeatures: (features: AnnotationFeature[]) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
   setAnnotationSelectedIndexes: (indexes: number[]) => void;
+  /** Identify who owns the editable set (their sidecar is the write target). */
+  setAnnotationOwner: (userId: string) => void;
+  /** Record a successful persist: the sidecar now exists and the set is clean. */
+  markAnnotationsSaved: () => void;
 }
 
 /** Per-image editable annotation state (features live on S3, never persisted). */
@@ -38,6 +49,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   annotationSelectedIndexes: [],
   annotationOpacity: 1,
   annotationHiddenClasses: [],
+  annotationOwnerId: null,
+  annotationSidecarExists: false,
   annotationsDirty: false,
 
   setAnnotationFeatures: (features) =>
@@ -92,9 +105,29 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
       (state) => {
         state.annotationFeatures = features;
         state.annotationsDirty = false;
+        state.annotationSidecarExists = features.length > 0; // non-empty seed ⇒ sidecar exists
       },
       false,
       "seedAnnotationFeatures",
+    ),
+
+  setAnnotationOwner: (userId) =>
+    set(
+      (state) => {
+        state.annotationOwnerId = userId;
+      },
+      false,
+      "setAnnotationOwner",
+    ),
+
+  markAnnotationsSaved: () =>
+    set(
+      (state) => {
+        state.annotationSidecarExists = true;
+        state.annotationsDirty = false;
+      },
+      false,
+      "markAnnotationsSaved",
     ),
 
   setAnnotationMode: (mode) =>

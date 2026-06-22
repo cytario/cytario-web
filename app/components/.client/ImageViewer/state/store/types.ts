@@ -97,13 +97,19 @@ export type ViewerStore = ViewerStoreState &
   ChannelsSlice;
 
 /**
- * Slice creator typed for the viewer store's `persist → immer → devtools`
- * middleware stack — `set` carries both the immer mutable draft and the
- * devtools action-label third argument. Shared by every `slices/viewer.*.store`.
+ * Slice creator typed for the viewer store's
+ * `subscribeWithSelector → persist → immer → devtools` middleware stack — `set`
+ * carries both the immer mutable draft and the devtools action-label third
+ * argument. Shared by every `slices/viewer.*.store`.
  */
 export type ViewerSlice<T> = StateCreator<
   ViewerStore,
-  [["zustand/persist", unknown], ["zustand/immer", never], ["zustand/devtools", never]],
+  [
+    ["zustand/subscribeWithSelector", never],
+    ["zustand/persist", unknown],
+    ["zustand/immer", never],
+    ["zustand/devtools", never],
+  ],
   [],
   T
 >;
