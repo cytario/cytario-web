@@ -1,6 +1,5 @@
 import { GeoJsonLayer } from "@deck.gl/layers";
 import {
-  DrawPointMode,
   DrawPolygonByDraggingMode,
   DrawPolygonMode,
   EditableGeoJsonLayer,
@@ -9,6 +8,7 @@ import {
 import type { FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
+import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import { classNameOf } from "../../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
@@ -18,10 +18,14 @@ const MODE_CLASSES = {
   view: ViewMode,
   "draw-polygon": DrawPolygonMode,
   "draw-freehand": DrawPolygonByDraggingMode,
-  "draw-point": DrawPointMode,
+  "draw-point": ClickOrDragPointMode,
 } as const;
 
 const DEFAULT_COLOR: RGB = [120, 120, 120];
+
+// Edit types emitted mid-interaction with no committed data change — persisting
+// them would rebuild the layer mid-stroke and break the active draw.
+const TRANSIENT_EDITS = new Set(["addTentativePosition", "updateTentativeFeature"]);
 
 // Concentric selection outlines, widest first (drawn underneath) → narrowest on
 // top, giving a high-contrast triple ring readable on any background.
@@ -111,7 +115,14 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
         getFillColor: hiddenClasses,
         getLineColor: hiddenClasses,
       },
+
       onEdit: ({ updatedData, editType, editContext }) => {
+        // Transient draw events (tentative vertices/feature mid-drag) carry no
+        // committed change — persisting them churns `annotationFeatures`, which
+        // rebuilds this layer mid-stroke and thrashes the draw mode's internal
+        // state (the committed shape then fails to paint). Ignore them.
+        if (TRANSIENT_EDITS.has(editType)) return;
+
         const changed: number[] | undefined = editContext?.featureIndexes;
         const stamped = stampEdit(updatedData.features as AnnotationFeature[], changed);
         setFeatures(stamped);
