@@ -2,7 +2,7 @@ import type { Feature, Geometry } from "geojson";
 
 import { createDatabase } from "./createDatabase";
 import { resolveResourceId } from "../connectionsStore/selectors";
-import { getSidecarGlob, getSidecarKey } from "../sidecarKey";
+import { getSidecarKey } from "../sidecarKey";
 
 export interface AnnotationClassification {
   name: string;
@@ -20,15 +20,11 @@ export interface AnnotationProperties {
 
 export type AnnotationFeature = Feature<Geometry, AnnotationProperties>;
 
-// A glob matching no objects, or a single sidecar that doesn't exist yet (404),
-// just means "no annotations" — not a failure. (GetObject is granted, so a 404
-// on read is genuine absence, not a permission denial.)
-function isNoFilesError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /no files found|matched no files|IO Error.*glob|404|no such (file|key)|unable to connect/i.test(
-    message,
-  );
-}
+// Existence check via S3 ListObjects (we grant ListBucket) — a missing sidecar
+// returns 0 rows instead of throwing, so absence is data, not an exception we'd
+// have to recognize by parsing duckdb error strings. Both the own-file key and
+// the multi-user glob are valid `glob()` patterns.
+export const sidecarFilesQuery = /*sql*/ `SELECT file FROM glob(?)`;
 
 export const annotationsQuery = /*sql*/ `
   SELECT unnest(json_extract(content::JSON, '$.features[*]'))::VARCHAR AS feature
@@ -41,20 +37,31 @@ export const annotationsQuery = /*sql*/ `
  * (single-writer, no cross-user contamination). Without, globs every user's
  * sidecar into a read-only union (display / reports). Returns `[]` when the
  * image is not a known image type or has no annotations yet.
+ *
+ * Absence is resolved by an explicit `glob()` (→ 0 rows), never by catching the
+ * read's error — so connectivity/permission/server errors propagate instead of
+ * being mistaken for "no annotations" (which would let an empty seed clobber the
+ * real sidecar on the next autosave).
  */
 export async function getAnnotationsWasm(
   resourceId: string,
   userId?: string,
 ): Promise<AnnotationFeature[]> {
   const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-  const target = userId
-    ? getSidecarKey(s3Uri, { kind: "annotations", userId })
-    : getSidecarGlob(s3Uri, { kind: "annotations" });
-  if (!target) return [];
+  const target = getSidecarKey(s3Uri, "annotations", userId);
 
   const connection = await createDatabase(resourceId, credentials, connectionConfig);
-  const statement = await connection.prepare(annotationsQuery);
 
+  const globStatement = await connection.prepare(sidecarFilesQuery);
+  let hasSidecar: boolean;
+  try {
+    hasSidecar = (await globStatement.query(target)).numRows > 0;
+  } finally {
+    await globStatement.close();
+  }
+  if (!hasSidecar) return [];
+
+  const statement = await connection.prepare(annotationsQuery);
   try {
     const table = await statement.query(target);
     const features: AnnotationFeature[] = [];
@@ -63,9 +70,6 @@ export async function getAnnotationsWasm(
       if (raw) features.push(JSON.parse(raw) as AnnotationFeature);
     }
     return features;
-  } catch (error) {
-    if (isNoFilesError(error)) return [];
-    throw error;
   } finally {
     await statement.close();
   }

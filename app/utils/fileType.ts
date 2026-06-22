@@ -186,8 +186,16 @@ export function getExtension(name: string): string | undefined {
   return lower.slice(lastDot + 1);
 }
 
-// Signed URLs carry `?` query params; without stripping, `foo.ext?sig=abc`
-// fails the `\.ext/?$` pattern and resolves to "Unknown".
+/**
+ * Strips the query string and fragment from a path/URL, returning just the
+ * path portion. Signed URLs carry `?` query params (e.g. `foo.ext?sig=abc`),
+ * which break extension-suffix matching (`\.ext$`) and resolve to "Unknown" —
+ * strip them before any extension/type detection.
+ *
+ * @example
+ * stripUrlSuffix("s3://b/slide.ome.tif?X-Amz-Signature=abc") // "s3://b/slide.ome.tif"
+ * stripUrlSuffix("data/slide.png#thumb")                     // "data/slide.png"
+ */
 export function stripUrlSuffix(path: string): string {
   const queryIdx = path.indexOf("?");
   const hashIdx = path.indexOf("#");

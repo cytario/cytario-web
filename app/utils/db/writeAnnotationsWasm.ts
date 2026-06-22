@@ -25,8 +25,7 @@ export async function writeAnnotations(
   features: AnnotationFeature[],
 ): Promise<void> {
   const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-  const key = getSidecarKey(s3Uri, { kind: "annotations", userId });
-  if (!key) throw new Error(`Not an image resource: ${resourceId}`);
+  const key = getSidecarKey(s3Uri, "annotations", userId);
 
   const connection = await createDatabase(resourceId, credentials, connectionConfig);
 
@@ -38,7 +37,7 @@ export async function writeAnnotations(
     ? `[${features.map((f) => `'${escapeSqlString(JSON.stringify(f))}'::JSON`).join(", ")}]`
     : "CAST([] AS JSON[])";
 
-  await connection.query(`
+  await connection.query(/*sql*/ `
     COPY (
       SELECT
         'FeatureCollection' AS type,
