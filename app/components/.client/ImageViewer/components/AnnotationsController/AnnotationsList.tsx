@@ -1,12 +1,15 @@
 import type { Geometry } from "geojson";
 import { useMemo } from "react";
 
+import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { flyToFeatureViewState } from "./flyToFeature";
+import { classNameOf } from "../../state/store/slices/viewer.annotations.store";
+import { RGB } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { rgb } from "../ChannelsController/ColorPicker/ColorPicker";
 import { GeometrySvg, type Point } from "~/components/DataGrid/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-const UNCLASSIFIED = "Unclassified";
 const THUMB_SIZE = 48;
 
 /** GeoJSON polygon geometry → screen-space rings (annotation coords are already
@@ -43,19 +46,20 @@ const GeometryThumb = ({ geometry, color }: { geometry: Geometry; color?: string
 
 interface AnnotationGroup {
   name: string;
-  color: string | null;
+  color: RGB | null;
   items: { feature: AnnotationFeature; index: number }[];
 }
 
-const swatchColor = (rgb?: [number, number, number]): string | null =>
-  rgb ? `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})` : null;
-
-/** Groups the annotation features by classification name (with an
- *  `Unclassified` fallback) and lists them; clicking a row selects it. */
+/** Groups the annotation features by classification (with an `Unclassified`
+ *  fallback). Each group can be shown/hidden and recolored; clicking a feature
+ *  preview selects it and flies the viewport to it. */
 export const AnnotationsList = () => {
   const features = useViewerStore((s) => s.annotationFeatures);
   const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
   const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
+  const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
+  const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
+  const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
   const viewState = useViewerStore((s) => s.viewStateActive);
   const setViewState = useViewerStore((s) => s.setViewStateActive);
 
@@ -69,11 +73,10 @@ export const AnnotationsList = () => {
   const groups = useMemo<AnnotationGroup[]>(() => {
     const byName = new Map<string, AnnotationGroup>();
     features.forEach((feature, index) => {
-      const classification = feature.properties?.classification;
-      const name = classification?.name ?? UNCLASSIFIED;
+      const name = classNameOf(feature);
       let group = byName.get(name);
       if (!group) {
-        group = { name, color: swatchColor(classification?.color), items: [] };
+        group = { name, color: feature.properties?.classification?.color ?? null, items: [] };
         byName.set(name, group);
       }
       group.items.push({ feature, index });
@@ -83,38 +86,40 @@ export const AnnotationsList = () => {
 
   return (
     <div className="flex flex-col gap-2 px-3 py-2">
-      {groups.map((group) => (
-        <div key={group.name} className="flex flex-col">
-          <div className="flex items-center gap-1.5 py-1 text-xs font-medium text-foreground">
-            <span
-              className="size-3 shrink-0 rounded-sm border border-border"
-              style={group.color ? { backgroundColor: group.color } : undefined}
-              aria-hidden
+      {groups.map((group) => {
+        const cssColor = group.color ? rgb([...group.color, 255]) : undefined;
+        return (
+          <div key={group.name} className="flex flex-col">
+            <AnnotationGroupRow
+              name={group.name}
+              count={group.items.length}
+              color={group.color}
+              isVisible={!hiddenClasses.includes(group.name)}
+              onToggleVisibility={() => toggleClassVisibility(group.name)}
+              onColorChange={group.color ? (color) => setClassColor(group.name, color) : undefined}
             />
-            <span className="truncate">{group.name}</span>
-            <span className="text-muted-foreground">{group.items.length}</span>
-          </div>
 
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {group.items.map(({ feature, index }) => {
-              const isSelected = selectedIndexes.includes(index);
-              return (
-                <button
-                  key={feature.properties?.id ?? index}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => selectAndFly(index, feature)}
-                  className={`rounded border text-muted-foreground hover:text-foreground ${
-                    isSelected ? "border-primary text-foreground" : "border-border"
-                  }`}
-                >
-                  <GeometryThumb geometry={feature.geometry} color={group.color ?? undefined} />
-                </button>
-              );
-            })}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {group.items.map(({ feature, index }) => {
+                const isSelected = selectedIndexes.includes(index);
+                return (
+                  <button
+                    key={feature.properties?.id ?? index}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => selectAndFly(index, feature)}
+                    className={`rounded border text-muted-foreground hover:text-foreground ${
+                      isSelected ? "border-primary text-foreground" : "border-border"
+                    }`}
+                  >
+                    <GeometryThumb geometry={feature.geometry} color={cssColor} />
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

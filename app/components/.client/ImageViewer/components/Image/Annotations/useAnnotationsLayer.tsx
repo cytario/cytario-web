@@ -8,6 +8,7 @@ import {
 import type { FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
+import { classNameOf } from "../../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -63,12 +64,15 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
   const features = useViewerStore((s) => s.annotationFeatures);
   const mode = useViewerStore((s) => s.annotationMode);
   const opacity = useViewerStore((s) => s.annotationOpacity);
+  const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
   const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
   const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
   const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
+    const hidden = new Set(hiddenClasses);
+    const isHidden = (f: AnnotationFeature) => hidden.has(classNameOf(f));
     return new EditableGeoJsonLayer({
       id: `annotations-${imagePanelId}`,
       data,
@@ -77,11 +81,17 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       opacity,
       coordinateSystem: "cartesian",
       pickable: true,
-      getFillColor: (f) => withAlpha(classColor(f as AnnotationFeature), 60),
-      getLineColor: (f) => withAlpha(classColor(f as AnnotationFeature), 255),
+      getFillColor: (f) =>
+        withAlpha(classColor(f as AnnotationFeature), isHidden(f as AnnotationFeature) ? 0 : 60),
+      getLineColor: (f) =>
+        withAlpha(classColor(f as AnnotationFeature), isHidden(f as AnnotationFeature) ? 0 : 255),
       getLineWidth: 2,
       lineWidthMinPixels: 1,
       pointRadiusMinPixels: 4,
+      updateTriggers: {
+        getFillColor: hiddenClasses,
+        getLineColor: hiddenClasses,
+      },
       onEdit: ({ updatedData, editType, editContext }) => {
         const changed: number[] | undefined = editContext?.featureIndexes;
         setFeatures(stampEdit(updatedData.features as AnnotationFeature[], changed));
@@ -90,5 +100,14 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
         }
       },
     });
-  }, [features, mode, opacity, selectedIndexes, imagePanelId, setFeatures, setSelectedIndexes]);
+  }, [
+    features,
+    mode,
+    opacity,
+    hiddenClasses,
+    selectedIndexes,
+    imagePanelId,
+    setFeatures,
+    setSelectedIndexes,
+  ]);
 };

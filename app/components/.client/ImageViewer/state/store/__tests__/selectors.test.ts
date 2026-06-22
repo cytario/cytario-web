@@ -20,6 +20,7 @@ describe("selectors", () => {
     annotationMode: "view",
     annotationSelectedIndexes: [],
     annotationOpacity: 1,
+    annotationHiddenClasses: [],
     annotationsDirty: false,
     layersStates: [
       {
@@ -99,6 +100,8 @@ describe("selectors", () => {
     setShowCellOutline: vi.fn(),
     setAnnotationFeatures: vi.fn(),
     setAnnotationOpacity: vi.fn(),
+    toggleAnnotationClassVisibility: vi.fn(),
+    setAnnotationClassColor: vi.fn(),
     seedAnnotationFeatures: vi.fn(),
     setAnnotationMode: vi.fn(),
     setAnnotationSelectedIndexes: vi.fn(),
