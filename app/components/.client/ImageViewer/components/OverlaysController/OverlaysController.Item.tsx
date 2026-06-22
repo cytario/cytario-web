@@ -14,7 +14,7 @@ import { select as connectionsSelect } from "~/utils/connectionsStore/selectors"
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
-import { getFileName, parseResourceId } from "~/utils/resourceId";
+import { parseResourceId } from "~/utils/resourceId";
 
 interface OverlaysControllerItemProps {
   resourceId: string;
@@ -39,7 +39,7 @@ export const OverlaysControllerItem = ({
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fileName = getFileName(resourceId);
+  const { connectionName, fileName } = parseResourceId(resourceId);
   const hasMarkers = Object.keys(overlayState).length > 0;
 
   // Calculate maxDomain from actual marker counts (for progress bar scaling)
@@ -48,7 +48,6 @@ export const OverlaysControllerItem = ({
     1, // Prevent division by zero
   );
 
-  const { connectionName } = parseResourceId(resourceId);
   const connectionConfig = useConnectionsStore(connectionsSelect.connectionConfig(connectionName));
 
   // Fetch markers on mount if not already loaded

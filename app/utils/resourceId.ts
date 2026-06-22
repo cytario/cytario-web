@@ -1,12 +1,20 @@
+import { getExtension } from "./fileType";
 import type { ConnectionConfig } from "~/.generated/client";
 
 export interface ResourceIdParts {
   connectionName: string;
   pathName: string;
+  /** Last path segment, with extension — e.g. `"USL-2024-58461-31.ome.tif"`. Empty for bucket-level ids. */
+  fileName: string;
+  /** File name without its (compound) extension — e.g. `"USL-2024-58461-31"`. */
+  name: string;
+  /** Compound-aware extension (e.g. `"ome.tif"`), or `undefined` for directories/buckets. */
+  extension: string | undefined;
 }
 
 /**
- * Parses a resourceId (`connectionName/pathName`) into its parts.
+ * Parses a resourceId (`connectionName/pathName`) into its parts, including the
+ * file name, base name, and (compound-aware) extension of the last segment.
  * @throws Error if resourceId is malformed
  */
 export function parseResourceId(resourceId: string): ResourceIdParts {
@@ -18,20 +26,16 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
   }
 
   const connectionName = resourceId.slice(0, slashIndex);
-
-  const pathName = resourceId.slice(slashIndex + 1).replace(/^\/+/, "");
-
   if (!connectionName) {
     throw new Error(`Invalid resourceId: "${resourceId}" — empty connectionName`);
   }
 
-  return { connectionName, pathName };
-}
+  const pathName = resourceId.slice(slashIndex + 1).replace(/^\/+/, "");
+  const fileName = pathName.replace(/\/+$/, "").split("/").pop() ?? "";
+  const extension = getExtension(fileName);
+  const name = extension ? fileName.slice(0, -(extension.length + 1)) : fileName;
 
-/** Returns the file name (last path segment) from a resourceId. */
-export function getFileName(resourceId: string): string {
-  const { pathName } = parseResourceId(resourceId);
-  return pathName.split("/").pop() || pathName;
+  return { connectionName, pathName, fileName, name, extension };
 }
 
 /** Builds a routable URL path from a connection name and an object path. */
