@@ -1,6 +1,6 @@
-import { IconButton, Menu, MenuItem } from "@cytario/design";
+import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
 import type { Geometry } from "geojson";
-import { EllipsisVertical, ZoomIn } from "lucide-react";
+import { EllipsisVertical, Trash2, ZoomIn } from "lucide-react";
 import { useMemo } from "react";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
@@ -59,6 +59,7 @@ export const AnnotationsList = () => {
   const features = useViewerStore((s) => s.annotationFeatures);
   const selectedIndexes = useViewerStore((s) => s.annotationSelectedIndexes);
   const setSelectedIndexes = useViewerStore((s) => s.setAnnotationSelectedIndexes);
+  const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
   const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
@@ -70,6 +71,11 @@ export const AnnotationsList = () => {
     if (!viewState) return;
     const next = flyToFeatureViewState(feature.geometry, viewState);
     if (next) setViewState(next);
+  };
+
+  const deleteFeature = (index: number) => {
+    setSelectedIndexes([]);
+    setFeatures(features.filter((_, i) => i !== index));
   };
 
   const groups = useMemo<AnnotationGroup[]>(() => {
@@ -120,13 +126,24 @@ export const AnnotationsList = () => {
                     <div className="absolute right-0 top-0 rounded bg-background/80 opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100">
                       <Menu
                         content={
-                          <MenuItem
-                            id="zoom"
-                            icon={ZoomIn}
-                            onAction={() => zoomToFeature(index, feature)}
-                          >
-                            Zoom to annotation
-                          </MenuItem>
+                          <>
+                            <MenuItem
+                              id="zoom"
+                              icon={ZoomIn}
+                              onAction={() => zoomToFeature(index, feature)}
+                            >
+                              Zoom to annotation
+                            </MenuItem>
+                            <MenuSeparator />
+                            <MenuItem
+                              id="delete"
+                              icon={Trash2}
+                              isDanger
+                              onAction={() => deleteFeature(index)}
+                            >
+                              Delete annotation
+                            </MenuItem>
+                          </>
                         }
                       >
                         <IconButton
