@@ -38,6 +38,28 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
   return { connectionName, pathName, fileName, name, extension };
 }
 
+/**
+ * Ancestor directory node ids for a resource, from the connection root down to
+ * the folder that contains it (the resource itself is excluded). Ids match
+ * `DirectoryViewTree` node ids — `connectionName/pathName` with a trailing
+ * slash on directories — so the result can be passed as `defaultExpandedItems`
+ * to reveal a deep-linked node in the sidebar tree.
+ *
+ * `pathName` must be decoded (S3-key form, e.g. `customers/Project 6712/x.tif`).
+ */
+export function ancestorDirIds(connectionName: string, pathName: string): string[] {
+  const ids = [`${connectionName}/`];
+  // Drop the trailing segment: it's the resource being viewed, not a parent to expand.
+  const segments = pathName.replace(/\/+$/, "").split("/").filter(Boolean);
+  segments.pop();
+  let acc = "";
+  for (const segment of segments) {
+    acc += `${segment}/`;
+    ids.push(`${connectionName}/${acc}`);
+  }
+  return ids;
+}
+
 /** Builds a routable URL path from a connection name and an object path. */
 export function buildConnectionPath(connectionName: string, pathName: string): string {
   const path = pathName

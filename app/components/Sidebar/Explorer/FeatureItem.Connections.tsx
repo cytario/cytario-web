@@ -13,7 +13,8 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 export function FeatureItemConnections() {
   const connections = useConnectionsStore(select.connections);
   const connectionNames = useMemo(() => Object.keys(connections), [connections]);
-  const routeName = useParams().name;
+  const params = useParams();
+  const routeName = params.name;
 
   const [override, setOverride] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -28,6 +29,10 @@ export function FeatureItemConnections() {
 
   const selectedConnection =
     override ?? (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
+
+  // Reveal the active resource only when the tree shows the route's own
+  // connection — not when the user manually switched to a different one.
+  const activePathName = selectedConnection === routeName ? params["*"] : undefined;
 
   return (
     <FeatureItem
@@ -53,7 +58,11 @@ export function FeatureItemConnections() {
       }
     >
       {selectedConnection ? (
-        <ConnectionTree selectedConnection={selectedConnection} query={query} />
+        <ConnectionTree
+          selectedConnection={selectedConnection}
+          query={query}
+          activePathName={activePathName}
+        />
       ) : (
         <EmptyState
           icon={Unplug}
