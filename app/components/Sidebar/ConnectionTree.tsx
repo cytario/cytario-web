@@ -7,13 +7,21 @@ import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree"
 import { onExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { ancestorDirIds } from "~/utils/resourceId";
 
 interface ConnectionTreeProps {
   selectedConnection: string;
   query: string;
+  /**
+   * Decoded path of the resource the current route points at (S3-key form).
+   * When set, the tree mounts with every ancestor folder pre-expanded so a
+   * deep link / reload reveals where the resource lives. Omit to show only the
+   * collapsed root.
+   */
+  activePathName?: string;
 }
 
-export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProps) {
+export function ConnectionTree({ selectedConnection, query, activePathName }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
   const connectionName =
     useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
@@ -44,6 +52,11 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
   );
 
   const searchExpanded = useMemo(() => collectInteriorIds(searchNodes), [searchNodes]);
+
+  const browseExpanded = useMemo(
+    () => (activePathName ? ancestorDirIds(selectedConnection, activePathName) : [rootId]),
+    [activePathName, selectedConnection, rootId],
+  );
 
   if (query) {
     if (isSearching && searchNodes.length === 0) {
@@ -84,7 +97,8 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
       nodes={rootNodes}
       kind="entries"
       onExpand={onExpand}
-      defaultExpandedItems={[rootId]}
+      defaultExpandedItems={browseExpanded}
+      revealItems={browseExpanded}
     />
   );
 }
