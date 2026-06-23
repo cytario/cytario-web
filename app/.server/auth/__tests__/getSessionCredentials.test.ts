@@ -269,6 +269,7 @@ describe("getAllSessionCredentials", () => {
         bucketName: "test-bucket",
         prefix: "",
         region: "us-west-2",
+        subject: "user-123",
       }),
     });
   });
@@ -287,6 +288,7 @@ describe("getAllSessionCredentials", () => {
       bucketName: "scoped-bucket",
       prefix: "tenant-a",
       region: "us-east-1",
+      subject: "user-123",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
@@ -308,6 +310,7 @@ describe("getAllSessionCredentials", () => {
       bucketName: "whole-bucket",
       prefix: "",
       region: "us-east-1",
+      subject: "user-123",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(

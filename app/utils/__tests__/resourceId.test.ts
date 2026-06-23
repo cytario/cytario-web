@@ -6,6 +6,9 @@ describe("parseResourceId", () => {
     expect(parseResourceId("my-conn/folder/file.txt")).toEqual({
       connectionName: "my-conn",
       pathName: "folder/file.txt",
+      fileName: "file.txt",
+      name: "file",
+      extension: "txt",
     });
   });
 
@@ -13,6 +16,9 @@ describe("parseResourceId", () => {
     expect(parseResourceId("my-conn/")).toEqual({
       connectionName: "my-conn",
       pathName: "",
+      fileName: "",
+      name: "",
+      extension: undefined,
     });
   });
 
@@ -20,6 +26,9 @@ describe("parseResourceId", () => {
     expect(parseResourceId("my-conn/a/b/c.parquet")).toEqual({
       connectionName: "my-conn",
       pathName: "a/b/c.parquet",
+      fileName: "c.parquet",
+      name: "c",
+      extension: "parquet",
     });
   });
 

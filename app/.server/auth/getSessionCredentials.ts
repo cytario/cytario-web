@@ -33,6 +33,7 @@ const fetchTemporaryCredentials = async (
   connectionConfig: ConnectionConfig,
   idToken: string,
   roleSessionName: string,
+  subject: string,
 ): Promise<Credentials> => {
   const { region, endpoint, roleArn, provider, organization, bucketName, prefix } =
     connectionConfig;
@@ -50,9 +51,9 @@ const fetchTemporaryCredentials = async (
   // the configured prefix scope even if the role itself is broader.
   // Non-AWS providers (e.g. MinIO) may ignore or reject the `Policy` field,
   // so we omit it there — the role's intrinsic scope is the only bound.
-  const sessionPolicy =
+  const Policy =
     provider === "aws"
-      ? buildSessionPolicy({ organization, bucketName, prefix, region: actualRegion })
+      ? buildSessionPolicy({ organization, bucketName, prefix, region: actualRegion, subject })
       : undefined;
 
   const command = new AssumeRoleWithWebIdentityCommand({
@@ -60,7 +61,7 @@ const fetchTemporaryCredentials = async (
     RoleSessionName: roleSessionName,
     WebIdentityToken: idToken,
     DurationSeconds: 60 * 60 * 1, // 1 hour
-    ...(sessionPolicy ? { Policy: sessionPolicy } : {}),
+    ...(Policy ? { Policy } : {}),
   });
 
   const { Credentials } = await stsClient.send(command);
@@ -122,6 +123,7 @@ export const getAllSessionCredentials = async (
         config,
         sessionData.authTokens.idToken,
         roleSessionName,
+        sessionData.user.sub,
       ),
     })),
   );

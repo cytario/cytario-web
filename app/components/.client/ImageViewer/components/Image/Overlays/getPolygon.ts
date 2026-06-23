@@ -25,7 +25,9 @@ export const getPolygon = (arrowTable: Table) => {
     const geometry = parseSync(wkbBuffer, WKBLoader) as Geometry;
 
     if (geometry.type === "Polygon") {
-      return geometry.coordinates as Position[][];
+      // deck's Position is a strict numeric tuple; GeoJSON coordinates are
+      // `number[][]` — runtime-identical, bridge the type via `unknown`.
+      return geometry.coordinates as unknown as Position[][];
     }
     if (geometry.type === "MultiPolygon") {
       // SolidPolygonLayer one polygon per row — render first, preprocess upstream for full fidelity.
@@ -34,7 +36,7 @@ export const getPolygon = (arrowTable: Table) => {
         "warn",
         "[getPolygon] MultiPolygon downgraded to first polygon; preprocess to one row per polygon for full rendering",
       );
-      return (geometry.coordinates[0] ?? [[]]) as Position[][];
+      return (geometry.coordinates[0] ?? [[]]) as unknown as Position[][];
     }
     warnOnce("unknown-type", "error", "[getPolygon] unexpected geometry type:", geometry);
     return [[]];

@@ -12,7 +12,6 @@ import { ScopePill } from "~/components/Pills/ScopePill";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { isImageFile } from "~/utils/fileType";
-import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
@@ -38,16 +37,16 @@ function useSignedFetch(connectionName: string) {
 }
 
 function ImagePreviewSlot({
-  s3Url,
+  resourceId,
   signedFetch,
 }: {
-  s3Url: string;
+  resourceId: string;
   signedFetch: ReturnType<typeof createSignedFetch>;
 }) {
   return (
     <ClientOnly>
       <Suspense fallback={<div className="animate-pulse w-full h-full bg-muted" />}>
-        <ViewerStoreProvider url={s3Url} signedFetch={signedFetch}>
+        <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
           <ImagePreview />
         </ViewerStoreProvider>
       </Suspense>
@@ -58,16 +57,27 @@ function ImagePreviewSlot({
 function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
   const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
 
+  // The connection probe attaches the first image in the bucket as `_Object`.
+  // Its Key is the full S3 key; the preview resourceId is prefix-relative
+  // (resolveResourceId re-adds connectionConfig.prefix), so strip the prefix —
+  // `node.id` is the bucket root, which has no image to render.
   const previewKey = node._Object?.Key ?? null;
-  const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch;
-  const s3Url = hasPreview && connectionConfig ? constructS3Url(connectionConfig, previewKey) : "";
+  const previewResourceId = useMemo(() => {
+    if (!previewKey || !connectionConfig || !isImageFile(previewKey)) return null;
+    const prefix = connectionConfig.prefix?.replace(/^\/+|\/+$/g, "") ?? "";
+    const pathName =
+      prefix && previewKey.startsWith(`${prefix}/`)
+        ? previewKey.slice(prefix.length + 1)
+        : previewKey;
+    return `${connectionName}/${pathName}`;
+  }, [previewKey, connectionConfig, connectionName]);
 
   return (
     <GridItem
       node={node}
       preview={
-        hasPreview && signedFetch ? (
-          <ImagePreviewSlot s3Url={s3Url} signedFetch={signedFetch} />
+        previewResourceId && signedFetch ? (
+          <ImagePreviewSlot resourceId={previewResourceId} signedFetch={signedFetch} />
         ) : undefined
       }
     >
@@ -82,17 +92,12 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
 }
 
 function FileCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
-  const { connectionConfig: config, signedFetch } = useSignedFetch(connectionName);
+  const { signedFetch } = useSignedFetch(connectionName);
   const explicitKey = node._Object?.Key ?? null;
   const resolvedHttpsUrl = useConnectionsStore(selectHttpsUrl(node.id));
 
-  const s3Url =
-    explicitKey && isImageFile(explicitKey) && config
-      ? constructS3Url(config, explicitKey)
-      : isImageFile(node.name)
-        ? (resolvedHttpsUrl ?? "")
-        : "";
-  const hasPreview = !!s3Url && !!signedFetch;
+  const isImage = (explicitKey ? isImageFile(explicitKey) : false) || isImageFile(node.name);
+  const hasPreview = isImage && !!signedFetch && !!resolvedHttpsUrl;
 
   const size = node.type === "file" && node._Object?.Size ? filesize(node._Object.Size) : undefined;
 
@@ -101,7 +106,7 @@ function FileCardGridItem({ node, connectionName }: { node: TreeNode; connection
       node={node}
       preview={
         hasPreview && signedFetch ? (
-          <ImagePreviewSlot s3Url={s3Url} signedFetch={signedFetch} />
+          <ImagePreviewSlot resourceId={node.id} signedFetch={signedFetch} />
         ) : undefined
       }
     >

@@ -1,12 +1,15 @@
 {
   "$comment": "SHA-256 checksums for DuckDB-WASM extensions mirrored locally. Pinned by scripts/download-duckdb-extensions.mjs — every entry must be reviewed and re-populated by hand at each DuckDB core version bump. Keys are `v<version>/<platform>/<ext>`.",
   "v1.4.3/wasm_eh/httpfs": "5e76d1fb0779c4803ebfd6fb49b80ff833c11b9a6f55208a701e63a491df1d5c",
+  "v1.4.3/wasm_eh/json": "b997276c8e15cc3ebdeda340d73d15dc1c4f4755ad281280451cb0a2f79302e9",
   "v1.4.3/wasm_eh/parquet": "22765c8f7dc741cda2b571a66ac7bb355295d7d69a6c37e5315b265672984f55",
   "v1.4.3/wasm_eh/spatial": "04b776946da64a15a7b14501790c75093e38f876acc46b2922f0daeb6aaa1d60",
   "v1.4.3/wasm_mvp/httpfs": "88e7d15f1c6ac066cca28b4ee1046486a5110783dea82c28fc4f973924f12498",
+  "v1.4.3/wasm_mvp/json": "5771b6d57335eca8e2ba4fdaacb491a53b49577bd7f1b0c39e2cd7a39b4e9313",
   "v1.4.3/wasm_mvp/parquet": "0785c6c95d003eff4faa7b3b4b660f02c9c92f6d68d135ddf330d42e3a650600",
   "v1.4.3/wasm_mvp/spatial": "7a745cfc5259f69b46f077bc6afeb7a6aefb8ef8d8b336bb0b770e5449708bb4",
   "v1.4.3/wasm_threads/httpfs": "20b0a02de0b0a7de2a846bc40d5b504f031580949c7e5828c9da672a8961d241",
+  "v1.4.3/wasm_threads/json": "63de3b32668fb8a50a1e7ad7c36009113ec9b35a583cb3eae9631700961dbf6f",
   "v1.4.3/wasm_threads/parquet": "4bae942b3a6d2b68f92203408c2b45b66cb107ec3fa119e0f000f368810ca98b",
   "v1.4.3/wasm_threads/spatial": "83ad79d02f1dc5d72a0d5d63fa4a49e9f2a9413e947e889956f3ffabaee095c6"
 }

@@ -1,8 +1,8 @@
-import { useRouteLoaderData, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import { ConnectionForm } from "./connection.form";
-import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { RouteModal } from "~/components/RouteModal";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 
 /**
  * Resolve the best default owner scope from a URL scope param.
@@ -22,8 +22,7 @@ export function resolveDefaultScope(
 }
 
 export default function CreateConnectionModal({ onClose }: { onClose: () => void }) {
-  const rootData = useRouteLoaderData("root") as { user?: UserProfile } | undefined;
-  const user = rootData?.user;
+  const user = useCurrentUser();
   const [searchParams] = useSearchParams();
 
   if (!user) return null;

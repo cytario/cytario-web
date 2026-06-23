@@ -2,10 +2,12 @@ import { createContext, useContext, type ReactNode, useMemo } from "react";
 import { useStore, create } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { attachAnnotationAutosave } from "./annotationAutosave";
 import { createViewerStore } from "./createViewerStore";
 import type { ViewerStore } from "./types";
 import { registerBuiltinFormats } from "../formats/builtins";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
+import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 // Idempotent — guarantees built-ins are registered by the time this provider
@@ -16,29 +18,36 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
 interface ViewerRegistryStore {
   viewers: Record<string, ViewerStoreApi>;
-  registerViewer: (url: string, signedFetch: SignedFetch) => ViewerStoreApi;
+  registerViewer: (resourceId: string, signedFetch: SignedFetch) => ViewerStoreApi;
 }
 
 /**
- * Caches viewer stores by URL so navigating back preserves channels,
- * view state, overlays. Lazy credentials mean cached stores pick up
- * fresh STS tokens automatically.
+ * Caches viewer stores by the stable resourceId (`connectionName/pathName`) so
+ * navigating back preserves channels, view state, overlays — and so persisted
+ * state survives connection/endpoint/URL-shape changes (C-270). The S3 URL is
+ * derived from the resourceId for loading only; it is never the identity. Lazy
+ * credentials mean cached stores pick up fresh STS tokens automatically.
  */
 const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
     (set, get) => ({
       viewers: {},
-      registerViewer: (url, signedFetch) => {
-        const existingStore = get().viewers[url];
+      registerViewer: (resourceId, signedFetch) => {
+        const existingStore = get().viewers[resourceId];
         if (existingStore) return existingStore;
 
-        const viewerStore = createViewerStore(url);
+        const viewerStore = createViewerStore(resourceId);
         const viewerState = viewerStore.getState();
         const abortController = new AbortController();
 
-        const loadImage = () => {
-          const { handler } = formatRegistry.resolve(url);
-          return handler.load(url, {
+        // Debounced S3 autosave for annotations, bound to the store (not a
+        // component) so pending writes survive image switches.
+        attachAnnotationAutosave(viewerStore);
+
+        const loadImage = async () => {
+          const { httpsUrl } = resolveResourceId(resourceId);
+          const { handler } = formatRegistry.resolve(httpsUrl);
+          return handler.load(httpsUrl, {
             signedFetch,
             signal: abortController.signal,
           });
@@ -58,7 +67,7 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
 
         set(
           (registryState) => ({
-            viewers: { ...registryState.viewers, [url]: viewerStore },
+            viewers: { ...registryState.viewers, [resourceId]: viewerStore },
           }),
           false,
           "registerViewer",
@@ -74,18 +83,26 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
 const ViewerStoreContext = createContext<ViewerStoreApi | null>(null);
 
 interface ViewerStoreProviderProps {
-  /** Direct S3 URL to the image (constructed by the caller via constructS3Url). */
-  url: string;
+  /** Stable image identity (`connectionName/pathName`). Keys the store and is
+   *  resolved to the S3 URL for loading. */
+  resourceId: string;
   /** SigV4-signing fetch function. Resolves credentials lazily per request. */
   signedFetch: SignedFetch;
   children: ReactNode;
 }
 
-// Viewer is auth-agnostic — caller owns URL construction and signing.
-export const ViewerStoreProvider = ({ url, signedFetch, children }: ViewerStoreProviderProps) => {
+// Caller owns signing; the viewer derives the S3 URL from the resourceId.
+export const ViewerStoreProvider = ({
+  resourceId,
+  signedFetch,
+  children,
+}: ViewerStoreProviderProps) => {
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
 
-  const store = useMemo(() => registerViewer(url, signedFetch), [url, signedFetch, registerViewer]);
+  const store = useMemo(
+    () => registerViewer(resourceId, signedFetch),
+    [resourceId, signedFetch, registerViewer],
+  );
 
   return <ViewerStoreContext.Provider value={store}>{children}</ViewerStoreContext.Provider>;
 };

@@ -1,15 +1,17 @@
 import { IconButton } from "@cytario/design";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 
+import { AnnotationsController } from "./AnnotationsController/AnnotationsController";
 import { ChannelsController } from "./ChannelsController/ChannelsController";
+import { AnnotationsSync } from "./Image/Annotations/AnnotationsSync";
 import { ImagePreview } from "./Image/ImagePreview";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { OverlaysController } from "./OverlaysController/OverlaysController";
 import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
-import { useViewerSidebarStore } from "../state/store/viewerSidebarStore";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
+import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import {
   Sidebar,
   SIDEBAR,
@@ -20,13 +22,16 @@ import {
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface ViewerProps {
-  url: string;
+  resourceId: string;
   signedFetch: SignedFetch;
 }
 
-export const Viewer = ({ url, signedFetch }: ViewerProps) => {
+export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" });
+
+export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
   return (
-    <ViewerStoreProvider url={url} signedFetch={signedFetch}>
+    <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
+      <AnnotationsSync />
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
@@ -55,6 +60,7 @@ export const Viewer = ({ url, signedFetch }: ViewerProps) => {
             </div>
             <ChannelsController />
             <OverlaysController />
+            <AnnotationsController />
           </Presets>
         </Sidebar>
         <ViewerSidebarToggle />

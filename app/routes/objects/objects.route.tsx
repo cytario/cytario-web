@@ -24,7 +24,6 @@ import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { getFileType, isImageFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
-import { constructS3Url } from "~/utils/resourceId";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const Viewer = lazy(() =>
@@ -92,7 +91,6 @@ export default function ObjectsRoute() {
     name,
     nodes,
     urlPath,
-    pathName,
     connectionConfig,
     isSingleFile,
     notification,
@@ -192,8 +190,6 @@ export default function ObjectsRoute() {
     // Gate on `isImageFile` so plugin-contributed formats reach `<Viewer>`
     // without per-format branching here.
     if (isImageFile(resourceId)) {
-      // `pathName` already includes the connection prefix.
-      const s3Url = constructS3Url(connectionConfig, pathName);
       const signedFetch = createSignedFetch(
         liveCredentials(connectionName),
         connectionConfig,
@@ -202,7 +198,7 @@ export default function ObjectsRoute() {
       return (
         <ClientOnly>
           <Suspense fallback={<div>Loading viewer...</div>}>
-            <Viewer url={s3Url} signedFetch={signedFetch} />
+            <Viewer resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );

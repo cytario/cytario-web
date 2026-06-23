@@ -16,6 +16,14 @@ describe("selectors", () => {
     imagePanels: [0],
     cursorPosition: null,
     pixelValues: {},
+    annotationFeatures: [],
+    annotationMode: "view",
+    annotationSelectedIds: [],
+    annotationOpacity: 1,
+    annotationHiddenClasses: [],
+    annotationOwnerId: null,
+    annotationSidecarExists: false,
+    annotationsDirty: false,
     layersStates: [
       {
         channels: {
@@ -92,6 +100,15 @@ describe("selectors", () => {
     setOverlaysFillOpacity: vi.fn(),
     setChannelsOpacity: vi.fn(),
     setShowCellOutline: vi.fn(),
+    setAnnotationFeatures: vi.fn(),
+    setAnnotationOpacity: vi.fn(),
+    toggleAnnotationClassVisibility: vi.fn(),
+    setAnnotationClassColor: vi.fn(),
+    seedAnnotationFeatures: vi.fn(),
+    setAnnotationOwner: vi.fn(),
+    markAnnotationsSaved: vi.fn(),
+    setAnnotationMode: vi.fn(),
+    setAnnotationSelectedIds: vi.fn(),
     ...overrides,
   });
 
