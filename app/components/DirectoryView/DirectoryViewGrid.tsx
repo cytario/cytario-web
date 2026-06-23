@@ -57,15 +57,27 @@ function ImagePreviewSlot({
 function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
   const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
 
+  // The connection probe attaches the first image in the bucket as `_Object`.
+  // Its Key is the full S3 key; the preview resourceId is prefix-relative
+  // (resolveResourceId re-adds connectionConfig.prefix), so strip the prefix —
+  // `node.id` is the bucket root, which has no image to render.
   const previewKey = node._Object?.Key ?? null;
-  const hasPreview = !!previewKey && isImageFile(previewKey) && !!signedFetch && !!connectionConfig;
+  const previewResourceId = useMemo(() => {
+    if (!previewKey || !connectionConfig || !isImageFile(previewKey)) return null;
+    const prefix = connectionConfig.prefix?.replace(/^\/+|\/+$/g, "") ?? "";
+    const pathName =
+      prefix && previewKey.startsWith(`${prefix}/`)
+        ? previewKey.slice(prefix.length + 1)
+        : previewKey;
+    return `${connectionName}/${pathName}`;
+  }, [previewKey, connectionConfig, connectionName]);
 
   return (
     <GridItem
       node={node}
       preview={
-        hasPreview && signedFetch ? (
-          <ImagePreviewSlot resourceId={node.id} signedFetch={signedFetch} />
+        previewResourceId && signedFetch ? (
+          <ImagePreviewSlot resourceId={previewResourceId} signedFetch={signedFetch} />
         ) : undefined
       }
     >
