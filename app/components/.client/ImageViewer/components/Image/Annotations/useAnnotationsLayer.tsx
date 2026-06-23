@@ -23,9 +23,21 @@ const MODE_CLASSES = {
 
 const DEFAULT_COLOR: RGB = [120, 120, 120];
 
-// Edit types emitted mid-interaction with no committed data change — persisting
-// them would rebuild the layer mid-stroke and break the active draw.
-const TRANSIENT_EDITS = new Set(["addTentativePosition", "updateTentativeFeature"]);
+// Edit types that change committed geometry and must be persisted. An allowlist
+// fails safe: any other type (tentative draw events like addTentativePosition/
+// updateTentativeFeature, or cancelFeature/invalidPolygon/invalidHole — all
+// carrying unchanged data) is ignored, so we never persist a no-op and rebuild
+// the layer mid-stroke (which drops the active draw). Today's modes only emit
+// `addFeature`; the rest are forward-compat for modify/translate modes.
+const COMMITTING_EDITS = new Set([
+  "addFeature",
+  "addPosition",
+  "removePosition",
+  "movePosition",
+  "finishMovePosition",
+  "addHole",
+  "unionGeometry",
+]);
 
 // Concentric selection outlines, widest first (drawn underneath) → narrowest on
 // top, giving a high-contrast triple ring readable on any background.
@@ -117,11 +129,10 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       },
 
       onEdit: ({ updatedData, editType, editContext }) => {
-        // Transient draw events (tentative vertices/feature mid-drag) carry no
-        // committed change — persisting them churns `annotationFeatures`, which
-        // rebuilds this layer mid-stroke and thrashes the draw mode's internal
-        // state (the committed shape then fails to paint). Ignore them.
-        if (TRANSIENT_EDITS.has(editType)) return;
+        // Persist only committing edits — anything else (tentative draw events,
+        // cancel/invalid) carries unchanged data; persisting it would rebuild
+        // this layer mid-stroke and drop the active draw.
+        if (!COMMITTING_EDITS.has(editType)) return;
 
         const changed: number[] | undefined = editContext?.featureIndexes;
         const stamped = stampEdit(updatedData.features as AnnotationFeature[], changed);
