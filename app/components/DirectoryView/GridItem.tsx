@@ -37,7 +37,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
       <div className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
-            <NodeIcon node={node} size={32} />
+            <NodeIcon node={node} size="xl" />
           </div>
         )}
       </div>

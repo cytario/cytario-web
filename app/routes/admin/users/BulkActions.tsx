@@ -1,5 +1,4 @@
 import { Button, Select } from "@cytario/design";
-import { Ban, Check, UserMinus, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
@@ -149,7 +148,7 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
         size="sm"
         onPress={() => openDialog("addToGroup")}
         isDisabled={isSubmitting}
-        iconLeft={UserPlus}
+        iconLeft="UserPlus"
       >
         Add to group
       </Button>
@@ -158,7 +157,7 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
         size="sm"
         onPress={() => openDialog("removeFromGroup")}
         isDisabled={isSubmitting}
-        iconLeft={UserMinus}
+        iconLeft="UserMinus"
       >
         Remove from group
       </Button>
@@ -167,7 +166,7 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
         size="sm"
         onPress={() => openDialog("enableAccounts")}
         isDisabled={isSubmitting}
-        iconLeft={Check}
+        iconLeft="Check"
       >
         Enable
       </Button>
@@ -176,7 +175,7 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
         size="sm"
         onPress={() => openDialog("disableAccounts")}
         isDisabled={isSubmitting}
-        iconLeft={Ban}
+        iconLeft="Ban"
       >
         Disable
       </Button>

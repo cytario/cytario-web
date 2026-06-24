@@ -1,5 +1,4 @@
 import { IconButton } from "@cytario/design";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { SIDEBAR, SIDEBAR_TOGGLE_ACTIVE_CLASS, sidebarDomId, sidebarToggleId } from "./Sidebar";
 import { useNavSidebarStore } from "./sidebarStores";
@@ -11,7 +10,7 @@ export function PanelToggle() {
   return (
     <IconButton
       id={sidebarToggleId(SIDEBAR.nav)}
-      icon={isOpen ? PanelLeftClose : PanelLeftOpen}
+      icon={isOpen ? "PanelLeftClose" : "PanelLeftOpen"}
       aria-label="Toggle navigation panel"
       aria-expanded={isOpen}
       aria-controls={sidebarDomId(SIDEBAR.nav)}

@@ -1,5 +1,4 @@
 import { EmptyState, IconButtonLink } from "@cytario/design";
-import { ArrowRight, Star } from "lucide-react";
 import { useMemo } from "react";
 import { useRouteLoaderData } from "react-router";
 
@@ -34,7 +33,7 @@ export function FeatureItemFavorites() {
       actions={
         <IconButtonLink
           href="/favorites"
-          icon={ArrowRight}
+          icon="ArrowRight"
           aria-label="View all favorites"
           variant="ghost"
           size="sm"
@@ -44,7 +43,7 @@ export function FeatureItemFavorites() {
       {nodes.length > 0 ? (
         <SidebarNodeList nodes={nodes} />
       ) : (
-        <EmptyState icon={Star} title="No favorites" description="No favorites yet." />
+        <EmptyState icon="Star" title="No favorites" description="No favorites yet." />
       )}
     </FeatureItem>
   );

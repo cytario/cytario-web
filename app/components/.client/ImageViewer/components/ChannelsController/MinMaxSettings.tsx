@@ -1,5 +1,4 @@
 import { IconButton } from "@cytario/design";
-import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { select } from "../../state/store/selectors";
@@ -114,7 +113,7 @@ export function MinMaxSettings() {
       <IconButton
         aria-label="Reset contrast"
         isDisabled={isResetDisabled}
-        icon={RotateCcw}
+        icon="RotateCcw"
         onPress={resetContrastLimits}
       />
     </div>

@@ -1,6 +1,5 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
 import type { Geometry } from "geojson";
-import { EllipsisVertical, Trash2, ZoomIn } from "lucide-react";
 import { useMemo } from "react";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
@@ -134,7 +133,7 @@ export const AnnotationsList = () => {
                           <>
                             <MenuItem
                               id="zoom"
-                              icon={ZoomIn}
+                              icon="ZoomIn"
                               onAction={() => zoomToFeature(feature)}
                             >
                               Zoom to annotation
@@ -142,7 +141,7 @@ export const AnnotationsList = () => {
                             <MenuSeparator />
                             <MenuItem
                               id="delete"
-                              icon={Trash2}
+                              icon="Trash2"
                               isDanger
                               onAction={() => deleteFeature(feature)}
                             >
@@ -152,7 +151,7 @@ export const AnnotationsList = () => {
                         }
                       >
                         <IconButton
-                          icon={EllipsisVertical}
+                          icon="EllipsisVertical"
                           aria-label="Annotation actions"
                           variant="ghost"
                           size="xs"

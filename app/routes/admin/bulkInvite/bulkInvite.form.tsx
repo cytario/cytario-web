@@ -1,5 +1,4 @@
 import { Button, Icon, IconButton, Input } from "@cytario/design";
-import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -196,7 +195,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
                 <td className="pl-1 py-1">
                   {rows.length > 1 && (
                     <IconButton
-                      icon={X}
+                      icon="X"
                       size="sm"
                       variant="ghost"
                       onPress={() => removeRow(i)}
@@ -212,7 +211,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
 
       <div className="mt-2">
         <Button variant="ghost" size="sm" onPress={addRow}>
-          <Icon icon={Plus} size="sm" />
+          <Icon icon="Plus" size="sm" />
           Add Row
         </Button>
       </div>

@@ -1,17 +1,6 @@
-import {
-  Braces,
-  FileSpreadsheet,
-  Image,
-  Microscope,
-  Table,
-  icons,
-  type LucideIcon,
-} from "lucide-react";
+import { iconRegistry, type IconName } from "@cytario/design";
 
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
-
-export type { LucideIcon };
-export type LucideIconName = keyof typeof icons;
 
 export type FileType =
   | "OME-TIFF"
@@ -30,8 +19,7 @@ interface FileTypeEntry {
   pattern: RegExp;
   type: FileType;
   label: string;
-  icon: LucideIconName;
-  iconComponent: LucideIcon;
+  icon: IconName;
   isImage: boolean;
 }
 
@@ -44,7 +32,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "OME-TIFF",
     label: "OME-TIFF",
     icon: "Microscope",
-    iconComponent: Microscope,
     isImage: true,
   },
   {
@@ -52,7 +39,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "OME-Zarr",
     label: "OME-Zarr",
     icon: "Microscope",
-    iconComponent: Microscope,
     isImage: true,
   },
   {
@@ -60,7 +46,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "OME-Zarr",
     label: "OME-Zarr",
     icon: "Microscope",
-    iconComponent: Microscope,
     isImage: true,
   },
   {
@@ -68,7 +53,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "TIFF",
     label: "TIFF",
     icon: "Image",
-    iconComponent: Image,
     isImage: true,
   },
   {
@@ -76,7 +60,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "Parquet",
     label: "Parquet",
     icon: "Table",
-    iconComponent: Table,
     isImage: false,
   },
   {
@@ -84,7 +67,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "CSV",
     label: "CSV",
     icon: "FileSpreadsheet",
-    iconComponent: FileSpreadsheet,
     isImage: false,
   },
   {
@@ -92,7 +74,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "JSON",
     label: "NDJSON",
     icon: "Braces",
-    iconComponent: Braces,
     isImage: false,
   },
   {
@@ -100,7 +81,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "JSON",
     label: "JSON",
     icon: "Braces",
-    iconComponent: Braces,
     isImage: false,
   },
   {
@@ -108,7 +88,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "PNG",
     label: "PNG",
     icon: "Image",
-    iconComponent: Image,
     isImage: true,
   },
   {
@@ -116,7 +95,6 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "JPEG",
     label: "JPEG",
     icon: "Image",
-    iconComponent: Image,
     isImage: true,
   },
 ];
@@ -130,12 +108,6 @@ function extensionToPattern(ext: string): RegExp {
   return new RegExp(`\\.${escapeForRegExp(ext)}\\/?$`, "i");
 }
 
-function resolveLucideIcon(name: string | undefined): LucideIcon {
-  if (!name) return Image;
-  const lookup = (icons as Record<string, LucideIcon>)[name];
-  return lookup ?? Image;
-}
-
 // Built-ins filtered out (pluginName === "cytario-web") to avoid doubling up
 // with STATIC_FILE_TYPES. Sorted by descending pattern-source length so
 // compound extensions outrank plain ones. One FileTypeEntry is emitted per
@@ -147,14 +119,13 @@ function pluginFileTypes(): FileTypeEntry[] {
     if (pluginName === "cytario-web") continue;
     const label = handler.fileTypeMeta?.label ?? pluginName;
     const iconName = handler.fileTypeMeta?.icon ?? "Image";
-    const iconComponent = resolveLucideIcon(iconName);
+    const icon: IconName = iconName in iconRegistry ? (iconName as IconName) : "Image";
     for (const key of keys) {
       entries.push({
         pattern: typeof key === "string" ? extensionToPattern(key) : key,
         type: label,
         label,
-        icon: iconName as LucideIconName,
-        iconComponent,
+        icon,
         isImage: true,
       });
     }

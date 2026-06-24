@@ -6,7 +6,6 @@ import {
   MenuSection,
   MenuSeparator,
 } from "@cytario/design";
-import { LogOut, Settings, User } from "lucide-react";
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
@@ -66,17 +65,17 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
             </>
           )}
 
-          <MenuItem id="account-settings" icon={Settings} href={accountSettingsUrl} target="_blank">
+          <MenuItem id="account-settings" icon="Settings" href={accountSettingsUrl} target="_blank">
             Account Settings
           </MenuItem>
-          <MenuItem id="logout" icon={LogOut} href="/logout">
+          <MenuItem id="logout" icon="LogOut" href="/logout">
             Logout
           </MenuItem>
         </>
       }
     >
       <IconButton
-        icon={User}
+        icon="User"
         aria-label="User menu"
         variant="ghost"
         className="shrink-0 w-8 h-8 text-white hover:bg-white/15 pressed:bg-white/20"

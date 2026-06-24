@@ -1,5 +1,4 @@
 import { Button, EmptyState } from "@cytario/design";
-import { FileSearch } from "lucide-react";
 import { useMemo } from "react";
 import {
   type MetaFunction,
@@ -86,7 +85,7 @@ export default function HomeRoute() {
     <>
       {nodes.length === 0 && (
         <EmptyState
-          icon={FileSearch}
+          icon="FileSearch"
           title="Start exploring your data"
           description="Add a connection to view your cloud storage."
           action={

@@ -1,6 +1,5 @@
 import { Badge, Banner, Button, ButtonLink, EmptyState, Pill } from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
-import { FolderPlus, Plug, UserPlus, Users, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   type MetaFunction,
@@ -228,25 +227,25 @@ export default function AdminUsersRoute() {
         <ButtonLink
           href={`/admin/users/create-group?scope=${encodeURIComponent(scope)}`}
           variant="secondary"
-          iconLeft={FolderPlus}
+          iconLeft="FolderPlus"
         >
           Create Group
         </ButtonLink>
         <ButtonLink
           href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`}
           variant="secondary"
-          iconLeft={UserPlus}
+          iconLeft="UserPlus"
         >
           Invite User
         </ButtonLink>
         <ButtonLink
           href={`/admin/users/bulk-invite?scope=${encodeURIComponent(scope)}`}
           variant="secondary"
-          iconLeft={UsersRound}
+          iconLeft="UsersRound"
         >
           Bulk Invite
         </ButtonLink>
-        <Button variant="secondary" iconLeft={Plug} onPress={() => openModal("add-connection")}>
+        <Button variant="secondary" iconLeft="Plug" onPress={() => openModal("add-connection")}>
           Add Connection
         </Button>
       </SectionHeader>
@@ -292,7 +291,7 @@ export default function AdminUsersRoute() {
           />
         ) : (
           <EmptyState
-            icon={Users}
+            icon="Users"
             title="No users yet"
             description="Invite team members to get started."
             action={

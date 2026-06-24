@@ -1,15 +1,4 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
-import {
-  ArrowRight,
-  Bookmark,
-  BookmarkCheck,
-  Copy,
-  Download,
-  EllipsisVertical,
-  ExternalLink,
-  Pencil,
-  Trash2,
-} from "lucide-react";
 import { useRef, useState } from "react";
 import { Form } from "react-router";
 
@@ -71,27 +60,27 @@ export const NodeContextMenu = ({
         content={
           <>
             {!isCurrent && (
-              <MenuItem id="open" icon={ArrowRight} href={to}>
+              <MenuItem id="open" icon="ArrowRight" href={to}>
                 Open
               </MenuItem>
             )}
-            <MenuItem id="open-new-tab" icon={ExternalLink} href={to} target="_blank">
+            <MenuItem id="open-new-tab" icon="ExternalLink" href={to} target="_blank">
               Open in new tab
             </MenuItem>
             <MenuSeparator />
-            <MenuItem id="copy-s3-uri" icon={Copy} onAction={copyS3Uri}>
+            <MenuItem id="copy-s3-uri" icon="Copy" onAction={copyS3Uri}>
               Copy S3 URI
             </MenuItem>
             <MenuItem
               id="cyberduck"
-              icon={Download}
+              icon="Download"
               onAction={() => openModal("cyberduck", { connectionName: node.connectionName })}
             >
               Access with Cyberduck
             </MenuItem>
             <MenuItem
               id="favorite"
-              icon={isFavorite ? BookmarkCheck : Bookmark}
+              icon={isFavorite ? "BookmarkCheck" : "Bookmark"}
               isDisabled={favoritePending}
               onAction={toggleFavorite}
             >
@@ -102,14 +91,14 @@ export const NodeContextMenu = ({
                 <MenuSeparator />
                 <MenuItem
                   id="edit"
-                  icon={Pencil}
+                  icon="Pencil"
                   onAction={() => openModal("edit-connection", { nodeName: node.name })}
                 >
                   Edit
                 </MenuItem>
                 <MenuItem
                   id="delete"
-                  icon={Trash2}
+                  icon="Trash2"
                   isDanger
                   textValue="Delete connection"
                   onAction={() => {
@@ -125,7 +114,7 @@ export const NodeContextMenu = ({
         }
       >
         <IconButton
-          icon={EllipsisVertical}
+          icon="EllipsisVertical"
           aria-label={`Actions for ${node.name}`}
           variant="ghost"
           size="xs"

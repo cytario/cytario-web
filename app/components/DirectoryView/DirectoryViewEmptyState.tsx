@@ -1,5 +1,4 @@
 import { Button, EmptyState } from "@cytario/design";
-import { FilterX, SearchX } from "lucide-react";
 
 import type { DirectoryKind } from "./DirectoryView";
 import { useColumnFilters } from "../Table/useColumnFilters";
@@ -15,11 +14,11 @@ export function DirectoryViewEmptyState({ kind }: { kind: DirectoryKind }) {
 
   return (
     <EmptyState
-      icon={SearchX}
+      icon="SearchX"
       title="No results"
       description="No results match your filters"
       action={
-        <Button variant="secondary" iconLeft={FilterX} onPress={resetFilters}>
+        <Button variant="secondary" iconLeft="FilterX" onPress={resetFilters}>
           Clear all filters
         </Button>
       }

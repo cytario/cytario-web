@@ -1,5 +1,4 @@
 import { Button, EmptyState, IconButton } from "@cytario/design";
-import { Circle, CircleDot, Layers2 } from "lucide-react";
 import { useState } from "react";
 
 import { LoadOverlayModal } from "./OverlayPicker.modal";
@@ -37,7 +36,7 @@ export const OverlaysController = () => {
         <>
           {!isInPointMode && (
             <IconButton
-              icon={showCellOutline ? CircleDot : Circle}
+              icon={showCellOutline ? "CircleDot" : "Circle"}
               aria-label={showCellOutline ? "Hide outlines" : "Show outlines"}
               onPress={() => setShowCellOutline(!showCellOutline)}
               variant="ghost"
@@ -65,7 +64,7 @@ export const OverlaysController = () => {
           <EmptyState
             title="Add Overlay"
             description="Add parquet cell detection files"
-            icon={Layers2}
+            icon="Layers2"
             className="py-6"
             action={
               <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>

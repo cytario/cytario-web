@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
-import { ImageOff } from "lucide-react";
+import { Icon } from "@cytario/design";
 import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -76,7 +76,7 @@ export function ImageContainer({
               overflow-hidden gap-1 p-2 text-muted-foreground
             `}
           >
-            <ImageOff size={isPreview ? 20 : 32} strokeWidth={1.5} />
+            <Icon icon="ImageOff" size={isPreview ? "md" : "xl"} strokeWidth={1.5} />
             <div className="text-xs">Preview unavailable</div>
           </div>
         ) : (

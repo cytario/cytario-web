@@ -1,5 +1,4 @@
 import { IconButton } from "@cytario/design";
-import { Lasso, MapPin, Spline } from "lucide-react";
 
 import { type AnnotationMode } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
@@ -11,9 +10,9 @@ import { useViewerStore } from "../../state/store/ViewerStoreContext";
  */
 
 const drawingTools = [
-  { mode: "draw-polygon", icon: Lasso, label: "Draw polygon" },
-  { mode: "draw-freehand", icon: Spline, label: "Draw freehand" },
-  { mode: "draw-point", icon: MapPin, label: "Draw point" },
+  { mode: "draw-polygon", icon: "Lasso", label: "Draw polygon" },
+  { mode: "draw-freehand", icon: "Spline", label: "Draw freehand" },
+  { mode: "draw-point", icon: "MapPin", label: "Draw point" },
 ] as const;
 
 export const AnnotationsTools = () => {

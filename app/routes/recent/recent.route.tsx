@@ -1,5 +1,4 @@
-import { Button, EmptyState, H2 } from "@cytario/design";
-import { Clock, Trash2 } from "lucide-react";
+import { Button, EmptyState, H2, Icon } from "@cytario/design";
 import { useMemo } from "react";
 import {
   type ActionFunctionArgs,
@@ -63,7 +62,7 @@ export default function RecentRoute() {
           </header>
         </Container>
         <EmptyState
-          icon={Clock}
+          icon="Clock"
           title="No recent items"
           description="Items you view or browse will appear here."
         />
@@ -78,7 +77,7 @@ export default function RecentRoute() {
         size="sm"
         onPress={() => clearFetcher.submit({}, { method: "delete" })}
       >
-        <Trash2 size={16} />
+        <Icon icon="Trash2" size="sm" />
         Clear history
       </Button>
       <ShowFiltersToggle />

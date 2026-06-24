@@ -1,6 +1,5 @@
 import { IconButton, Menu, MenuCheckboxItem, MenuItem, MenuSeparator } from "@cytario/design";
 import type { VisibilityState } from "@tanstack/react-table";
-import { Columns3 } from "lucide-react";
 import type { Selection } from "react-aria-components";
 
 import { useTableStore } from "./state/useTableStore";
@@ -56,7 +55,7 @@ export function TableMenu({
         </>
       }
     >
-      <IconButton icon={Columns3} variant="ghost" size="sm" aria-label="Column settings" />
+      <IconButton icon="Columns3" variant="ghost" size="sm" aria-label="Column settings" />
     </Menu>
   );
 }

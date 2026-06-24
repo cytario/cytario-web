@@ -1,5 +1,4 @@
 import { IconButton } from "@cytario/design";
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { AnnotationsController } from "./AnnotationsController/AnnotationsController";
 import { ChannelsController } from "./ChannelsController/ChannelsController";
@@ -77,7 +76,7 @@ function ViewerSidebarToggle() {
     <div data-theme="dark" className="absolute right-2 bottom-2 z-40">
       <IconButton
         id={sidebarToggleId(SIDEBAR.viewer)}
-        icon={isOpen ? PanelRightClose : PanelRightOpen}
+        icon={isOpen ? "PanelRightClose" : "PanelRightOpen"}
         aria-label="Toggle image controls"
         aria-expanded={isOpen}
         aria-controls={sidebarDomId(SIDEBAR.viewer)}

@@ -1,5 +1,4 @@
-import { Button } from "@cytario/design";
-import { ListFilter } from "lucide-react";
+import { Button, Icon } from "@cytario/design";
 
 import { useLayoutStore } from "./useLayoutStore";
 
@@ -9,7 +8,7 @@ export function ShowFiltersToggle() {
 
   return (
     <Button size="sm" variant="outline" onPress={toggleShowFilters}>
-      <ListFilter size={16} />
+      <Icon icon="ListFilter" size="sm" />
       {showFilters ? "Hide filters" : "Show filters"}
     </Button>
   );
