@@ -8,7 +8,6 @@ import {
   ColumnDef,
   type Row,
 } from "@tanstack/react-table";
-import { FilterX, SearchX } from "lucide-react";
 import { ReactNode, useCallback, useMemo, useRef } from "react";
 
 import { TableBodyRow } from "./TableBodyRow";
@@ -194,11 +193,11 @@ export function Table<TData extends object>({
               <tr>
                 <td colSpan={columns.length + 1}>
                   <EmptyState
-                    icon={SearchX}
+                    icon="SearchX"
                     title="No results"
                     description="No results match your filters"
                     action={
-                      <Button variant="secondary" iconLeft={FilterX} onPress={resetFilters}>
+                      <Button variant="secondary" iconLeft="FilterX" onPress={resetFilters}>
                         Clear all filters
                       </Button>
                     }

@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { Icon } from "@cytario/design";
 import { Link, UIMatch, useMatches } from "react-router";
 
 import { nodeToTrail } from "./breadcrumbTrail";
@@ -33,11 +33,7 @@ export function Breadcrumbs() {
               aria-current={isLeaf ? "page" : undefined}
             >
               {index > 0 && (
-                <ChevronRight
-                  size={16}
-                  className="shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
+                <Icon icon="ChevronRight" size="sm" className="text-muted-foreground" />
               )}
               <NodeLink node={node} contextMenu={isLeaf} />
             </li>

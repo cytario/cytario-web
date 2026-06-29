@@ -1,5 +1,4 @@
 import { ButtonLink, H3, Link } from "@cytario/design";
-import { Download } from "lucide-react";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
@@ -59,7 +58,7 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
         href={`/api/cyberduck-profile/${connectionName}`}
         variant="primary"
         size="lg"
-        iconLeft={Download}
+        iconLeft="Download"
         download
       >
         Download Cyberduck Profile

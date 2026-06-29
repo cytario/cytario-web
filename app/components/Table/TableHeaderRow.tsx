@@ -1,6 +1,5 @@
 import { Checkbox, IconButton, TruncatedText } from "@cytario/design";
 import { HeaderGroup, VisibilityState, flexRender } from "@tanstack/react-table";
-import { FilterX } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
 import { ColumnFilterInput } from "./ColumnFilterInput";
@@ -110,11 +109,11 @@ export function TableHeaderRow({
                 </div>
                 {hasFilters && (
                   <IconButton
-                    icon={FilterX}
+                    icon="FilterX"
                     size="sm"
                     variant="secondary"
                     onPress={onClearAllFilters}
-                    aria-label="Clear all filters"
+                    label="Clear all filters"
                   />
                 )}
               </div>

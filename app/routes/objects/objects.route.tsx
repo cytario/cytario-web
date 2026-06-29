@@ -1,5 +1,4 @@
 import { Button, EmptyState } from "@cytario/design";
-import { AlertTriangle, Ban } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import {
   type MetaFunction,
@@ -139,7 +138,7 @@ export default function ObjectsRoute() {
   if (connectionError) {
     return (
       <EmptyState
-        icon={AlertTriangle}
+        icon="AlertTriangle"
         title="Connection unavailable"
         description={connectionError}
         action={
@@ -208,7 +207,7 @@ export default function ObjectsRoute() {
       <EmptyState
         title="Unsupported file format."
         description="The selected file format is not supported for viewing."
-        icon={Ban}
+        icon="Ban"
         action={
           <Button
             onPress={() => {
@@ -240,7 +239,7 @@ export default function ObjectsRoute() {
     <EmptyState
       title="No objects found in this bucket."
       description="Try uploading some files or check your permissions."
-      icon={Ban}
+      icon="Ban"
       action={
         <Button
           onPress={() => {

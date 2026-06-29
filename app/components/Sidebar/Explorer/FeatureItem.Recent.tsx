@@ -1,5 +1,4 @@
 import { EmptyState, IconButtonLink } from "@cytario/design";
-import { ArrowRight, Clock } from "lucide-react";
 import { useMemo } from "react";
 import { useRouteLoaderData } from "react-router";
 
@@ -34,8 +33,8 @@ export function FeatureItemRecent() {
       actions={
         <IconButtonLink
           href="/recent"
-          icon={ArrowRight}
-          aria-label="View all recent items"
+          icon="ArrowRight"
+          label="View all recent items"
           variant="ghost"
           size="sm"
         />
@@ -45,7 +44,7 @@ export function FeatureItemRecent() {
         <SidebarNodeList nodes={nodes} />
       ) : (
         <EmptyState
-          icon={Clock}
+          icon="Clock"
           title="Nothing recent"
           description="No recently viewed items yet."
         />

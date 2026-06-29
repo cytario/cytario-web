@@ -1,5 +1,4 @@
 import { EmptyState, IconButtonLink } from "@cytario/design";
-import { ArrowRight, Unplug } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
@@ -36,8 +35,8 @@ export function FeatureItemConnections() {
       actions={
         <IconButtonLink
           href="/connections"
-          icon={ArrowRight}
-          aria-label="View all connections"
+          icon="ArrowRight"
+          label="View all connections"
           variant="ghost"
           size="sm"
         />
@@ -56,7 +55,7 @@ export function FeatureItemConnections() {
         <ConnectionTree selectedConnection={selectedConnection} query={query} />
       ) : (
         <EmptyState
-          icon={Unplug}
+          icon="Unplug"
           title="No connections"
           description="No connections are available yet."
         />

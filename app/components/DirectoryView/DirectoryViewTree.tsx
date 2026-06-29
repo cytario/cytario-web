@@ -1,7 +1,6 @@
 import { IconButton } from "@cytario/design";
 import { asyncDataLoaderFeature, hotkeysCoreFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { ChevronRight } from "lucide-react";
 import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -88,8 +87,8 @@ export function DirectoryViewTree({
           >
             {isFolder ? (
               <IconButton
-                icon={ChevronRight}
-                aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                icon="ChevronRight"
+                label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
                 variant="ghost"
                 size="xs"
                 onPress={() => (isExpanded ? item.collapse() : item.expand())}

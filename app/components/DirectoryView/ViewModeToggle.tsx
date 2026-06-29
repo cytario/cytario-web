@@ -1,16 +1,15 @@
-import { SegmentedControl, SegmentedControlItem } from "@cytario/design";
-import { FolderTree, LayoutGrid, List } from "lucide-react";
+import { Icon, type IconName, SegmentedControl, SegmentedControlItem } from "@cytario/design";
 
 import { useLayoutStore, type ViewMode } from "./useLayoutStore";
 
 const modes: {
   id: ViewMode;
   label: string;
-  Icon: typeof List;
+  iconName: IconName;
 }[] = [
-  { id: "list", label: "List view", Icon: List },
-  { id: "grid", label: "Grid view", Icon: LayoutGrid },
-  { id: "tree", label: "Tree view", Icon: FolderTree },
+  { id: "list", label: "List view", iconName: "List" },
+  { id: "grid", label: "Grid view", iconName: "LayoutGrid" },
+  { id: "tree", label: "Tree view", iconName: "FolderTree" },
 ];
 
 export function ViewModeToggle() {
@@ -27,9 +26,9 @@ export function ViewModeToggle() {
       size="sm"
       aria-label="View mode"
     >
-      {modes.map(({ id, label, Icon }) => (
+      {modes.map(({ id, label, iconName }) => (
         <SegmentedControlItem key={id} id={id} aria-label={label}>
-          <Icon size={16} />
+          <Icon icon={iconName} size="sm" />
         </SegmentedControlItem>
       ))}
     </SegmentedControl>

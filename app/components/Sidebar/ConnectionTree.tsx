@@ -1,5 +1,4 @@
 import { EmptyState } from "@cytario/design";
-import { AlertTriangle, SearchX } from "lucide-react";
 import { useMemo } from "react";
 
 import { useSidebarSearch } from "./Explorer/useSidebarSearch";
@@ -48,7 +47,7 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
     if (error) {
       return (
         <EmptyState
-          icon={AlertTriangle}
+          icon="AlertTriangle"
           title="Search failed"
           description={
             corsBlocked
@@ -60,7 +59,7 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
     }
     if (searchNodes.length === 0) {
       return (
-        <EmptyState icon={SearchX} title="No matches" description={`Nothing matches “${query}”.`} />
+        <EmptyState icon="SearchX" title="No matches" description={`Nothing matches “${query}”.`} />
       );
     }
     return (

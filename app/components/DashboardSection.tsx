@@ -1,5 +1,4 @@
-import { ButtonLink } from "@cytario/design";
-import { ArrowRight } from "lucide-react";
+import { ButtonLink, Icon } from "@cytario/design";
 
 import { Container, Section, SectionHeader } from "~/components/Container";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -29,7 +28,7 @@ export function DashboardSection({ title, nodes, viewMode, maxItems, to }: Dashb
       <SectionHeader name={title}>
         <ButtonLink href={to} variant="secondary" size="sm">
           View all
-          <ArrowRight size={16} />
+          <Icon icon="ArrowRight" size="sm" />
         </ButtonLink>
       </SectionHeader>
 

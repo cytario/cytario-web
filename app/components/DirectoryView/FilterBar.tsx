@@ -1,5 +1,4 @@
 import { Button, IconButton, Input, Pill, Select, type SelectItem } from "@cytario/design";
-import { FilterX, X } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 
 import type { ColumnConfig } from "~/components/Table/types";
@@ -61,7 +60,7 @@ export function FilterBar({ columns, tableId, dynamicOptions }: FilterBarProps) 
         />
       ))}
       {hasActive && (
-        <Button variant="ghost" size="sm" iconLeft={FilterX} onPress={resetFilters}>
+        <Button variant="ghost" size="sm" iconLeft="FilterX" onPress={resetFilters}>
           Clear all
         </Button>
       )}
@@ -95,11 +94,11 @@ function FilterControl({ column, options, value, onChange }: FilterControlProps)
       />
       {value && (
         <IconButton
-          icon={X}
+          icon="X"
           size="sm"
           variant="ghost"
           onPress={clear}
-          aria-label={`Clear ${column.header} filter`}
+          label={`Clear ${column.header} filter`}
         />
       )}
     </div>

@@ -1,5 +1,4 @@
-import { Button, EmptyState } from "@cytario/design";
-import { FileSearch, Plug } from "lucide-react";
+import { Button, EmptyState, Icon } from "@cytario/design";
 import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
 import type { LoaderData } from "./connections.loader";
@@ -38,12 +37,12 @@ export default function ConnectionsListRoute() {
     return (
       <Section>
         <EmptyState
-          icon={FileSearch}
+          icon="FileSearch"
           title="No connections"
           description="Add a connection to view your cloud storage."
           action={
             <Button size="lg" variant="secondary" onPress={() => openModal("add-connection")}>
-              <Plug size={24} /> Add Connection
+              <Icon icon="Plug" size="lg" /> Add Connection
             </Button>
           }
         />
@@ -54,7 +53,7 @@ export default function ConnectionsListRoute() {
   return (
     <DirectoryView kind="connections" node={buildVirtualNode(title, nodes)}>
       <Button size="sm" variant="secondary" onPress={() => openModal("add-connection")}>
-        <Plug size={16} /> Add Connection
+        <Icon icon="Plug" size="sm" /> Add Connection
       </Button>
       <ShowFiltersToggle />
       <ViewModeToggle />

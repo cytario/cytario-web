@@ -1,5 +1,4 @@
 import { IconButton, IconButtonLink, useToast } from "@cytario/design";
-import { ExternalLink, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { RadioGroup } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
@@ -95,15 +94,15 @@ export const OverlaysControllerItem = ({
 
         <IconButtonLink
           href={`/connections/${resourceId}`}
-          icon={ExternalLink}
-          aria-label="Open file"
+          icon="ExternalLink"
+          label="Open file"
           variant="ghost"
           size="sm"
         />
 
         <IconButton
-          icon={X}
-          aria-label="Remove overlay"
+          icon="X"
+          label="Remove overlay"
           variant="ghost"
           size="sm"
           onPress={() => {

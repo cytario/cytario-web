@@ -12,12 +12,6 @@ const slug = (name: string) => name.toLowerCase().replace(/\s+/g, "-");
 export const sidebarDomId = (name: string) => `${slug(name)}-sidebar`;
 export const sidebarToggleId = (name: string) => `${slug(name)}-toggle`;
 
-// Active (open) styling for a sidebar toggle, shared by both toggles so they
-// match. Teal accent explicitly (brand-accent = teal in light + dark), rather
-// than `variant="primary"` whose hue currently differs by theme.
-export const SIDEBAR_TOGGLE_ACTIVE_CLASS =
-  "bg-secondary text-primary-foreground hover:bg-secondary";
-
 const focusById = (id: string) => requestAnimationFrame(() => document.getElementById(id)?.focus());
 
 const isEditable = (el: EventTarget | null) =>

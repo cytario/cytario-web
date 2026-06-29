@@ -1,5 +1,4 @@
-import { IconButton, Input } from "@cytario/design";
-import { Search, X } from "lucide-react";
+import { Icon, IconButton, Input } from "@cytario/design";
 import { useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 300;
@@ -36,7 +35,7 @@ export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
 
   return (
     <div className="flex items-center gap-1">
-      <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden />
+      <Icon icon="Search" size="sm" className="text-muted-foreground" />
       <Input
         size="sm"
         id={SIDEBAR_SEARCH_INPUT_ID}
@@ -46,13 +45,7 @@ export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
         placeholder="Search…"
       />
       {value ? (
-        <IconButton
-          icon={X}
-          size="sm"
-          variant="ghost"
-          onPress={onClear}
-          aria-label="Clear search"
-        />
+        <IconButton icon="X" size="sm" variant="ghost" onPress={onClear} label="Clear search" />
       ) : null}
     </div>
   );

@@ -1,6 +1,5 @@
 import { IconButton, Input, Pill, Select, type SelectItem } from "@cytario/design";
 import { Column } from "@tanstack/react-table";
-import { X } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 
 interface ColumnFilterInputProps {
@@ -82,13 +81,7 @@ export function ColumnFilterInput({
         />
       )}
       {filterValue && (
-        <IconButton
-          icon={X}
-          size="sm"
-          variant="ghost"
-          onPress={clearFilter}
-          aria-label="Clear filter"
-        />
+        <IconButton icon="X" size="sm" variant="ghost" onPress={clearFilter} label="Clear filter" />
       )}
     </div>
   );

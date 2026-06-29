@@ -1,5 +1,4 @@
-import { Badge } from "@cytario/design";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Badge, Icon } from "@cytario/design";
 
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureItem";
 
@@ -40,9 +39,9 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? (
-              <ChevronDown size={14} className="shrink-0" />
+              <Icon icon="ChevronDown" size="xs" />
             ) : (
-              <ChevronRight size={14} className="shrink-0" />
+              <Icon icon="ChevronRight" size="xs" />
             )}
 
             {title}

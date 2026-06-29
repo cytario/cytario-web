@@ -1,5 +1,4 @@
 import { EmptyState, H2 } from "@cytario/design";
-import { Star } from "lucide-react";
 import { useMemo } from "react";
 import {
   type ActionFunctionArgs,
@@ -65,7 +64,7 @@ export default function FavoritesRoute() {
           </header>
         </Container>
         <EmptyState
-          icon={Star}
+          icon="Star"
           title="No favorites"
           description="Directories you favorite will appear here."
         />

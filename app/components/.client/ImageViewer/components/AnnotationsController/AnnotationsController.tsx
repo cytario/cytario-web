@@ -1,5 +1,4 @@
 import { EmptyState } from "@cytario/design";
-import { Spline } from "lucide-react";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { AnnotationsTools } from "./AnnotationsTools";
@@ -25,7 +24,7 @@ export const AnnotationsController = () => {
         <EmptyState
           title="No annotations"
           description="Use the draw tools to add regions."
-          icon={Spline}
+          icon="Spline"
           className="py-6"
         />
       ) : (
