@@ -115,7 +115,7 @@ export const NodeContextMenu = ({
       >
         <IconButton
           icon="EllipsisVertical"
-          aria-label={`Actions for ${node.name}`}
+          label={`Actions for ${node.name}`}
           variant="ghost"
           size="xs"
         />

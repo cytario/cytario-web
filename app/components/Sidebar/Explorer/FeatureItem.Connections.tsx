@@ -36,7 +36,7 @@ export function FeatureItemConnections() {
         <IconButtonLink
           href="/connections"
           icon="ArrowRight"
-          aria-label="View all connections"
+          label="View all connections"
           variant="ghost"
           size="sm"
         />

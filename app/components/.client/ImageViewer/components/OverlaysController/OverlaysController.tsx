@@ -37,7 +37,7 @@ export const OverlaysController = () => {
           {!isInPointMode && (
             <IconButton
               icon={showCellOutline ? "CircleDot" : "Circle"}
-              aria-label={showCellOutline ? "Hide outlines" : "Show outlines"}
+              label={showCellOutline ? "Hide outlines" : "Show outlines"}
               onPress={() => setShowCellOutline(!showCellOutline)}
               variant="ghost"
               size="xs"

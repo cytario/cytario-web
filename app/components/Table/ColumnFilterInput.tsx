@@ -81,13 +81,7 @@ export function ColumnFilterInput({
         />
       )}
       {filterValue && (
-        <IconButton
-          icon="X"
-          size="sm"
-          variant="ghost"
-          onPress={clearFilter}
-          aria-label="Clear filter"
-        />
+        <IconButton icon="X" size="sm" variant="ghost" onPress={clearFilter} label="Clear filter" />
       )}
     </div>
   );

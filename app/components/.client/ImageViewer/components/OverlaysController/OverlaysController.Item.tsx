@@ -95,14 +95,14 @@ export const OverlaysControllerItem = ({
         <IconButtonLink
           href={`/connections/${resourceId}`}
           icon="ExternalLink"
-          aria-label="Open file"
+          label="Open file"
           variant="ghost"
           size="sm"
         />
 
         <IconButton
           icon="X"
-          aria-label="Remove overlay"
+          label="Remove overlay"
           variant="ghost"
           size="sm"
           onPress={() => {

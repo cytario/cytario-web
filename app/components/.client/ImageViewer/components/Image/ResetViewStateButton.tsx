@@ -23,7 +23,7 @@ export const ResetViewStateButton = ({
 
   return (
     <IconButton
-      aria-label="Reset View State"
+      label="Reset View State"
       className="w-10"
       icon="Fullscreen"
       onPress={() => {

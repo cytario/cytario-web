@@ -76,7 +76,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
     >
       <IconButton
         icon="User"
-        aria-label="User menu"
+        label="User menu"
         variant="ghost"
         className="shrink-0 w-8 h-8 text-white hover:bg-white/15 pressed:bg-white/20"
       />

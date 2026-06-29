@@ -113,7 +113,7 @@ export function TableHeaderRow({
                     size="sm"
                     variant="secondary"
                     onPress={onClearAllFilters}
-                    aria-label="Clear all filters"
+                    label="Clear all filters"
                   />
                 )}
               </div>

@@ -55,7 +55,7 @@ export function TableMenu({
         </>
       }
     >
-      <IconButton icon="Columns3" variant="ghost" size="sm" aria-label="Column settings" />
+      <IconButton icon="Columns3" variant="ghost" size="sm" label="Column settings" />
     </Menu>
   );
 }

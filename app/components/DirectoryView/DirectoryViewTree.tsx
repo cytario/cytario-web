@@ -88,7 +88,7 @@ export function DirectoryViewTree({
             {isFolder ? (
               <IconButton
                 icon="ChevronRight"
-                aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
                 variant="ghost"
                 size="xs"
                 onPress={() => (isExpanded ? item.collapse() : item.expand())}

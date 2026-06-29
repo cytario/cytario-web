@@ -34,7 +34,7 @@ export function FeatureItemFavorites() {
         <IconButtonLink
           href="/favorites"
           icon="ArrowRight"
-          aria-label="View all favorites"
+          label="View all favorites"
           variant="ghost"
           size="sm"
         />

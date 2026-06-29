@@ -199,7 +199,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
                       size="sm"
                       variant="ghost"
                       onPress={() => removeRow(i)}
-                      aria-label="Remove row"
+                      label="Remove row"
                     />
                   )}
                 </td>

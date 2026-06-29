@@ -45,13 +45,7 @@ export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
         placeholder="Search…"
       />
       {value ? (
-        <IconButton
-          icon="X"
-          size="sm"
-          variant="ghost"
-          onPress={onClear}
-          aria-label="Clear search"
-        />
+        <IconButton icon="X" size="sm" variant="ghost" onPress={onClear} label="Clear search" />
       ) : null}
     </div>
   );

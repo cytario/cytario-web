@@ -77,7 +77,7 @@ function ViewerSidebarToggle() {
       <IconButton
         id={sidebarToggleId(SIDEBAR.viewer)}
         icon={isOpen ? "PanelRightClose" : "PanelRightOpen"}
-        aria-label="Toggle image controls"
+        label="Toggle image controls"
         aria-expanded={isOpen}
         aria-controls={sidebarDomId(SIDEBAR.viewer)}
         variant="ghost"

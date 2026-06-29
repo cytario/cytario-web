@@ -98,7 +98,7 @@ function FilterControl({ column, options, value, onChange }: FilterControlProps)
           size="sm"
           variant="ghost"
           onPress={clear}
-          aria-label={`Clear ${column.header} filter`}
+          label={`Clear ${column.header} filter`}
         />
       )}
     </div>

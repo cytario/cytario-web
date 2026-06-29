@@ -32,7 +32,7 @@ export const AnnotationsTools = () => {
           <IconButton
             key={mode}
             icon={icon}
-            aria-label={isActive ? "Stop drawing" : label}
+            label={isActive ? "Stop drawing" : label}
             aria-pressed={isActive}
             variant="ghost"
             size="xs"

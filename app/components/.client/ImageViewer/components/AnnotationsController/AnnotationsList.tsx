@@ -152,7 +152,7 @@ export const AnnotationsList = () => {
                       >
                         <IconButton
                           icon="EllipsisVertical"
-                          aria-label="Annotation actions"
+                          label="Annotation actions"
                           variant="ghost"
                           size="xs"
                         />

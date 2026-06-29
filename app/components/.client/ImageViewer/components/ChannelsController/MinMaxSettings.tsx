@@ -111,7 +111,7 @@ export function MinMaxSettings() {
         />
       </div>
       <IconButton
-        aria-label="Reset contrast"
+        label="Reset contrast"
         isDisabled={isResetDisabled}
         icon="RotateCcw"
         onPress={resetContrastLimits}

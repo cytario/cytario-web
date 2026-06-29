@@ -11,7 +11,7 @@ export function PanelToggle() {
     <IconButton
       id={sidebarToggleId(SIDEBAR.nav)}
       icon={isOpen ? "PanelLeftClose" : "PanelLeftOpen"}
-      aria-label="Toggle navigation panel"
+      label="Toggle navigation panel"
       aria-expanded={isOpen}
       aria-controls={sidebarDomId(SIDEBAR.nav)}
       variant="ghost"

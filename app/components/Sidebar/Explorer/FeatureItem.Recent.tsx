@@ -34,7 +34,7 @@ export function FeatureItemRecent() {
         <IconButtonLink
           href="/recent"
           icon="ArrowRight"
-          aria-label="View all recent items"
+          label="View all recent items"
           variant="ghost"
           size="sm"
         />
