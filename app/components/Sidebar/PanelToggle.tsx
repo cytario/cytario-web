@@ -13,6 +13,7 @@ export function PanelToggle() {
       icon={isOpen ? "PanelLeftClose" : "PanelLeftOpen"}
       label="Toggle navigation panel"
       aria-controls={sidebarDomId(SIDEBAR.nav)}
+      aria-expanded={isOpen}
       variant="ghost"
       isSelected={isOpen}
       onChange={toggle}
