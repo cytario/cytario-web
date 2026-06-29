@@ -74,12 +74,7 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
         </>
       }
     >
-      <IconButton
-        icon="User"
-        label="User menu"
-        variant="ghost"
-        className="shrink-0 w-8 h-8 text-white hover:bg-white/15 pressed:bg-white/20"
-      />
+      <IconButton icon="User" label="User menu" variant="ghost" size="sm" />
     </Menu>
   );
 }

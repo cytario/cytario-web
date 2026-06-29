@@ -1,6 +1,6 @@
-import { IconButton } from "@cytario/design";
+import { IconButtonToggle } from "@cytario/design";
 
-import { SIDEBAR, SIDEBAR_TOGGLE_ACTIVE_CLASS, sidebarDomId, sidebarToggleId } from "./Sidebar";
+import { SIDEBAR, sidebarDomId, sidebarToggleId } from "./Sidebar";
 import { useNavSidebarStore } from "./sidebarStores";
 
 export function PanelToggle() {
@@ -8,15 +8,15 @@ export function PanelToggle() {
   const toggle = useNavSidebarStore((s) => s.toggle);
 
   return (
-    <IconButton
+    <IconButtonToggle
       id={sidebarToggleId(SIDEBAR.nav)}
       icon={isOpen ? "PanelLeftClose" : "PanelLeftOpen"}
       label="Toggle navigation panel"
-      aria-expanded={isOpen}
       aria-controls={sidebarDomId(SIDEBAR.nav)}
       variant="ghost"
-      className={isOpen ? SIDEBAR_TOGGLE_ACTIVE_CLASS : undefined}
-      onPress={toggle}
+      isSelected={isOpen}
+      onChange={toggle}
+      size="sm"
     />
   );
 }

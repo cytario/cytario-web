@@ -1,4 +1,4 @@
-import { IconButton } from "@cytario/design";
+import { IconButtonToggle } from "@cytario/design";
 
 import { AnnotationsController } from "./AnnotationsController/AnnotationsController";
 import { ChannelsController } from "./ChannelsController/ChannelsController";
@@ -11,13 +11,7 @@ import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
-import {
-  Sidebar,
-  SIDEBAR,
-  SIDEBAR_TOGGLE_ACTIVE_CLASS,
-  sidebarDomId,
-  sidebarToggleId,
-} from "~/components/Sidebar/Sidebar";
+import { Sidebar, SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface ViewerProps {
@@ -74,15 +68,14 @@ function ViewerSidebarToggle() {
   const toggle = useViewerSidebarStore((s) => s.toggle);
   return (
     <div data-theme="dark" className="absolute right-2 bottom-2 z-40">
-      <IconButton
+      <IconButtonToggle
         id={sidebarToggleId(SIDEBAR.viewer)}
         icon={isOpen ? "PanelRightClose" : "PanelRightOpen"}
         label="Toggle image controls"
-        aria-expanded={isOpen}
         aria-controls={sidebarDomId(SIDEBAR.viewer)}
         variant="ghost"
-        className={isOpen ? SIDEBAR_TOGGLE_ACTIVE_CLASS : undefined}
-        onPress={toggle}
+        isSelected={isOpen}
+        onChange={toggle}
       />
     </div>
   );
