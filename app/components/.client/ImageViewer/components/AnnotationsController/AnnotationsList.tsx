@@ -4,7 +4,10 @@ import { useMemo } from "react";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { flyToFeatureViewState } from "./flyToFeature";
-import { classNameOf } from "../../state/store/slices/viewer.annotations.store";
+import {
+  classNameOf,
+  selectUserHiddenClasses,
+} from "../../state/store/slices/viewer.annotations.store";
 import { RGB } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { rgb } from "../ChannelsController/ColorPicker/ColorPicker";
@@ -51,15 +54,24 @@ interface AnnotationGroup {
   items: { feature: AnnotationFeature; index: number }[];
 }
 
-/** Groups the annotation features by classification (with an `Unclassified`
- *  fallback). Each group can be shown/hidden and recolored; clicking a feature
- *  preview selects it and flies the viewport to it. */
-export const AnnotationsList = () => {
-  const features = useViewerStore((s) => s.annotationFeatures);
+interface AnnotationsListProps {
+  /** Owner of this set; the key edits route to. */
+  userId: string;
+  features: AnnotationFeature[];
+  /** Current user owns this set → drawing/recolor/delete enabled. Peers are
+   *  read-only until role-based edit-others lands; for now the menu still shows
+   *  on every geometry, only the destructive actions are disabled. */
+  editable: boolean;
+}
+
+/** Groups one user's annotation features by classification (with an
+ *  `Unclassified` fallback). Each group can be shown/hidden and (when editable)
+ *  recolored; a thumbnail click selects + flies to the feature. */
+export const AnnotationsList = ({ userId, features, editable }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
-  const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
-  const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
+  const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
+  const hiddenClasses = useViewerStore(selectUserHiddenClasses(userId));
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
   const viewState = useViewerStore((s) => s.viewStateActive);
@@ -78,7 +90,10 @@ export const AnnotationsList = () => {
 
   const deleteFeature = (feature: AnnotationFeature) => {
     setSelectedIds([]);
-    setFeatures(features.filter((f) => f !== feature));
+    updateUserFeatures(
+      userId,
+      features.filter((f) => f !== feature),
+    );
   };
 
   const groups = useMemo<AnnotationGroup[]>(() => {
@@ -106,8 +121,12 @@ export const AnnotationsList = () => {
               count={group.items.length}
               color={group.color}
               isVisible={!hiddenClasses.includes(group.name)}
-              onToggleVisibility={() => toggleClassVisibility(group.name)}
-              onColorChange={group.color ? (color) => setClassColor(group.name, color) : undefined}
+              onToggleVisibility={() => toggleClassVisibility(userId, group.name)}
+              onColorChange={
+                editable && group.color
+                  ? (color) => setClassColor(userId, group.name, color)
+                  : undefined
+              }
             />
 
             <div className="flex flex-wrap gap-1.5 pt-1">
@@ -143,6 +162,7 @@ export const AnnotationsList = () => {
                               id="delete"
                               icon="Trash2"
                               isDanger
+                              isDisabled={!editable}
                               onAction={() => deleteFeature(feature)}
                             >
                               Delete annotation

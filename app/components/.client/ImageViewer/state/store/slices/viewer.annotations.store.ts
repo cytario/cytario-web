@@ -1,5 +1,5 @@
-import type { AnnotationMode, RGB, ViewerSlice } from "../types";
-import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
+import type { AnnotationMode, RGB, ViewerSlice, ViewerStore } from "../types";
+import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
 
 /** Group name for features without a classification. */
 export const UNCLASSIFIED = "Unclassified";
@@ -9,127 +9,130 @@ export const UNCLASSIFIED = "Unclassified";
 export const classNameOf = (feature: AnnotationFeature): string =>
   feature.properties?.classification?.name ?? UNCLASSIFIED;
 
+/** Per-user view state — ephemeral, never persisted (lives apart from the
+ *  S3-backed `annotationsByUser` so a view change can't trigger a sidecar write). */
+export interface UserAnnotationView {
+  opacity: number;
+  /** Classification names hidden for THIS user's set (per-user, not global). */
+  hiddenClasses: string[];
+}
+
+/** Stable empty references so selectors never return a fresh value (zustand
+ *  compares with `Object.is` — a new array each call loops renders). Read-only
+ *  by convention; never mutated. */
+const NO_FEATURES: AnnotationFeature[] = [];
+const NO_HIDDEN: string[] = [];
+
+/** A single user's feature set from the map (or a stable empty array). */
+export const selectUserFeatures =
+  (userId: string | undefined) =>
+  (state: ViewerStore): AnnotationFeature[] =>
+    (userId && state.annotationsByUser[userId]) || NO_FEATURES;
+
+/** A single user's layer opacity (defaults to fully opaque). */
+export const selectUserOpacity =
+  (userId: string | undefined) =>
+  (state: ViewerStore): number =>
+    (userId ? state.annotationView[userId]?.opacity : undefined) ?? 1;
+
+/** A single user's hidden classification names (stable empty array by default). */
+export const selectUserHiddenClasses =
+  (userId: string | undefined) =>
+  (state: ViewerStore): string[] =>
+    (userId ? state.annotationView[userId]?.hiddenClasses : undefined) ?? NO_HIDDEN;
+
 export interface AnnotationsSlice {
-  annotationFeatures: AnnotationFeature[];
+  /** Every user's annotations, keyed by Keycloak `sub` — the single source of
+   *  truth. Own is just `annotationsByUser[ownSub]`; no own/peer split is stored.
+   *  Edit-others (future, role-gated) writes another key, same as own. */
+  annotationsByUser: AnnotationsByUser;
   annotationMode: AnnotationMode;
   /** `properties.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
-  annotationOpacity: number;
-  /** Classification names whose features are hidden — view-only, not persisted. */
-  annotationHiddenClasses: string[];
-  /** Keycloak `sub` owning the editable set — gates the autosave writer. */
-  annotationOwnerId: string | null;
-  /** Whether this user's sidecar exists on S3. Gates lazy-create (no empty
-   *  file until the first real annotation) and persists across the seed → edit
-   *  handoff. Shared by seed + the autosave writer. */
-  annotationSidecarExists: boolean;
-  /** Set by a user edit, cleared once persisted — gates the autosave writer. */
-  annotationsDirty: boolean;
+  /** Per-user view state (opacity, hidden classes), keyed by `sub`. Kept apart
+   *  from `annotationsByUser` so a view change never enters the persist diff. */
+  annotationView: Record<string, UserAnnotationView>;
 
-  /** Replace annotation features from a user edit — marks dirty (→ autosave). */
-  setAnnotationFeatures: (features: AnnotationFeature[]) => void;
-  setAnnotationOpacity: (opacity: number) => void;
-  /** Show/hide every feature of a classification (display only). */
-  toggleAnnotationClassVisibility: (name: string) => void;
-  /** Recolor every feature of a classification — marks dirty (→ autosave). */
-  setAnnotationClassColor: (name: string, color: RGB) => void;
-  /** Replace annotation features from the S3 seed — does not mark dirty. */
-  seedAnnotationFeatures: (features: AnnotationFeature[]) => void;
+  /** Install the per-user map from the one-time S3 read. The sync middleware
+   *  sets its persisted baseline to the same refs first, so this no-ops the
+   *  resulting diff (no write-back of what was just read). */
+  seedAnnotations: (byUser: AnnotationsByUser) => void;
+  /** Replace one user's features (draw/move/delete). Immer gives that key a
+   *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
+  updateUserFeatures: (userId: string, features: AnnotationFeature[]) => void;
+  /** Recolor every feature of a classification within one user's set. */
+  setAnnotationClassColor: (userId: string, name: string, color: RGB) => void;
+  /** Set one user's layer opacity. */
+  setAnnotationOpacity: (userId: string, opacity: number) => void;
+  /** Show/hide a classification within ONE user's set (display only). */
+  toggleAnnotationClassVisibility: (userId: string, name: string) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
   setAnnotationSelectedIds: (ids: string[]) => void;
-  /** Identify who owns the editable set (their sidecar is the write target). */
-  setAnnotationOwner: (userId: string) => void;
-  /** Record a successful persist: the sidecar now exists and the set is clean. */
-  markAnnotationsSaved: () => void;
 }
 
-/** Per-image editable annotation state (features live on S3, never persisted). */
+/** Per-image annotation state. Features live on S3 (one sidecar per user); this
+ *  slice holds the working copy + view state. Persistence is the sync middleware
+ *  (`attachAnnotationSync`), bound to the store — never serialized here. */
 export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
-  annotationFeatures: [],
+  annotationsByUser: {},
   annotationMode: "view",
   annotationSelectedIds: [],
-  annotationOpacity: 1,
-  annotationHiddenClasses: [],
-  annotationOwnerId: null,
-  annotationSidecarExists: false,
-  annotationsDirty: false,
+  annotationView: {},
 
-  setAnnotationFeatures: (features) =>
+  seedAnnotations: (byUser) =>
     set(
       (state) => {
-        state.annotationFeatures = features;
-        state.annotationsDirty = true;
+        state.annotationsByUser = byUser;
       },
       false,
-      "setAnnotationFeatures",
+      "seedAnnotations",
     ),
 
-  toggleAnnotationClassVisibility: (name) =>
+  updateUserFeatures: (userId, features) =>
     set(
       (state) => {
-        const hidden = state.annotationHiddenClasses;
-        const index = hidden.indexOf(name);
-        if (index === -1) hidden.push(name);
-        else hidden.splice(index, 1);
+        state.annotationsByUser[userId] = features;
       },
       false,
-      "toggleAnnotationClassVisibility",
+      "updateUserFeatures",
     ),
 
-  setAnnotationClassColor: (name, color) =>
+  setAnnotationClassColor: (userId, name, color) =>
     set(
       (state) => {
-        let changed = false;
-        for (const feature of state.annotationFeatures) {
+        const features = state.annotationsByUser[userId];
+        if (!features) return;
+        for (const feature of features) {
           if (feature.properties?.classification?.name === name) {
             feature.properties.classification.color = color;
-            changed = true;
           }
         }
-        if (changed) state.annotationsDirty = true;
       },
       false,
       "setAnnotationClassColor",
     ),
 
-  setAnnotationOpacity: (opacity) =>
+  toggleAnnotationClassVisibility: (userId, name) =>
     set(
       (state) => {
-        state.annotationOpacity = opacity;
+        const view = (state.annotationView[userId] ??= { opacity: 1, hiddenClasses: [] });
+        const index = view.hiddenClasses.indexOf(name);
+        if (index === -1) view.hiddenClasses.push(name);
+        else view.hiddenClasses.splice(index, 1);
+      },
+      false,
+      "toggleAnnotationClassVisibility",
+    ),
+
+  setAnnotationOpacity: (userId, opacity) =>
+    set(
+      (state) => {
+        const view = (state.annotationView[userId] ??= { opacity: 1, hiddenClasses: [] });
+        view.opacity = opacity;
       },
       false,
       "setAnnotationOpacity",
-    ),
-
-  seedAnnotationFeatures: (features) =>
-    set(
-      (state) => {
-        state.annotationFeatures = features;
-        state.annotationsDirty = false;
-        state.annotationSidecarExists = features.length > 0; // non-empty seed ⇒ sidecar exists
-      },
-      false,
-      "seedAnnotationFeatures",
-    ),
-
-  setAnnotationOwner: (userId) =>
-    set(
-      (state) => {
-        state.annotationOwnerId = userId;
-      },
-      false,
-      "setAnnotationOwner",
-    ),
-
-  markAnnotationsSaved: () =>
-    set(
-      (state) => {
-        state.annotationSidecarExists = true;
-        state.annotationsDirty = false;
-      },
-      false,
-      "markAnnotationsSaved",
     ),
 
   setAnnotationMode: (mode) =>

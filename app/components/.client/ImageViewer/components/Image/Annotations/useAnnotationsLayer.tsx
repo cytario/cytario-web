@@ -9,9 +9,13 @@ import type { FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
-import { classNameOf } from "../../../state/store/slices/viewer.annotations.store";
+import {
+  classNameOf,
+  selectUserFeatures,
+} from "../../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 const MODE_CLASSES = {
@@ -83,21 +87,24 @@ const stampEdit = (
  * Builds the `EditableGeoJsonLayer` for the image's annotations, rendering and
  * editing the shared working set held in the viewer store. Coordinates are
  * level-0 pixel space (CARTESIAN, matching the viewer's `OrthographicView`).
- * Edits flow back through `onEdit` → `setAnnotationFeatures`, which autosaves.
+ * Edits flow back through `onEdit` → `updateUserFeatures(ownUserId, …)`, which
+ * the sync middleware diffs and autosaves to the user's own sidecar.
  */
 export const useAnnotationsLayer = (imagePanelId: number) => {
-  const features = useViewerStore((s) => s.annotationFeatures);
+  const ownUserId = useCurrentUser()?.sub;
+  const features = useViewerStore(selectUserFeatures(ownUserId));
+  const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
+  const annotationView = useViewerStore((s) => s.annotationView);
   const mode = useViewerStore((s) => s.annotationMode);
-  const opacity = useViewerStore((s) => s.annotationOpacity);
-  const hiddenClasses = useViewerStore((s) => s.annotationHiddenClasses);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
-  const setFeatures = useViewerStore((s) => s.setAnnotationFeatures);
+  const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
-    const hidden = new Set(hiddenClasses);
-    const isHidden = (f: AnnotationFeature) => hidden.has(classNameOf(f));
+    const ownView = ownUserId ? annotationView[ownUserId] : undefined;
+    const ownHidden = new Set(ownView?.hiddenClasses ?? []);
+    const isHidden = (f: AnnotationFeature) => ownHidden.has(classNameOf(f));
 
     // Resolve selected ids → array indexes only here, at the deck boundary.
     const selected = new Set(selectedIds);
@@ -113,7 +120,7 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       data,
       mode: MODE_CLASSES[mode],
       selectedFeatureIndexes,
-      opacity,
+      opacity: ownView?.opacity ?? 1,
       coordinateSystem: "cartesian",
       pickable: true,
       getFillColor: (f) =>
@@ -124,8 +131,8 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       lineWidthMinPixels: 1,
       pointRadiusMinPixels: 4,
       updateTriggers: {
-        getFillColor: hiddenClasses,
-        getLineColor: hiddenClasses,
+        getFillColor: ownView?.hiddenClasses,
+        getLineColor: ownView?.hiddenClasses,
       },
 
       onEdit: ({ updatedData, editType, editContext }) => {
@@ -134,15 +141,56 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
         // this layer mid-stroke and drop the active draw.
         if (!COMMITTING_EDITS.has(editType)) return;
 
+        if (!ownUserId) return; // edits route to the current user's own key
         const changed: number[] | undefined = editContext?.featureIndexes;
         const stamped = stampEdit(updatedData.features as AnnotationFeature[], changed);
-        setFeatures(stamped);
+        updateUserFeatures(ownUserId, stamped);
         if (editType === "addFeature") {
           const newId = stamped[stamped.length - 1]?.properties?.id;
           if (newId) setSelectedIds([newId]);
         }
       },
     });
+
+    // Other users' sets: one read-only layer each (not pickable, not editable,
+    // dimmer than own), drawn beneath the editable layer. Hidden classes fade to
+    // alpha 0, mirroring the editable layer.
+    const peerLayers = Object.entries(annotationsByUser)
+      .filter(([userId]) => userId !== ownUserId)
+      .map(([userId, peerFeatures]) => {
+        const peerView = annotationView[userId];
+        const peerHidden = new Set(peerView?.hiddenClasses ?? []);
+        const isPeerHidden = (f: AnnotationFeature) => peerHidden.has(classNameOf(f));
+        return new GeoJsonLayer({
+          id: `annotations-${imagePanelId}-peer-${userId}`,
+          data: { type: "FeatureCollection", features: peerFeatures },
+          coordinateSystem: "cartesian",
+          pickable: false,
+          opacity: peerView?.opacity ?? 1,
+          stroked: true,
+          filled: true,
+          getFillColor: (f) =>
+            withAlpha(
+              classColor(f as AnnotationFeature),
+              isPeerHidden(f as AnnotationFeature) ? 0 : 40,
+            ),
+          getLineColor: (f) =>
+            withAlpha(
+              classColor(f as AnnotationFeature),
+              isPeerHidden(f as AnnotationFeature) ? 0 : 200,
+            ),
+          getLineWidth: 2,
+          lineWidthMinPixels: 1,
+          pointType: "circle",
+          getPointRadius: 4,
+          pointRadiusUnits: "pixels",
+          pointRadiusMinPixels: 4,
+          updateTriggers: {
+            getFillColor: peerView?.hiddenClasses,
+            getLineColor: peerView?.hiddenClasses,
+          },
+        });
+      });
 
     // Concentric outline halo on the selected feature(s) — selection isn't
     // visibly rendered in view mode, so stack GeoJsonLayers (widest first) over
@@ -171,15 +219,16 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
               }),
           );
 
-    return [editableLayer, ...highlightLayers];
+    return [...peerLayers, editableLayer, ...highlightLayers];
   }, [
     features,
+    annotationsByUser,
+    annotationView,
     mode,
-    opacity,
-    hiddenClasses,
     selectedIds,
     imagePanelId,
-    setFeatures,
+    ownUserId,
+    updateUserFeatures,
     setSelectedIds,
   ]);
 };

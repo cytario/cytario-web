@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode, useMemo } from "react";
 import { useStore, create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-import { attachAnnotationAutosave } from "./annotationAutosave";
+import { attachAnnotationSync } from "./annotationSync";
 import { createViewerStore } from "./createViewerStore";
 import type { ViewerStore } from "./types";
 import { registerBuiltinFormats } from "../formats/builtins";
@@ -40,9 +40,10 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
         const viewerState = viewerStore.getState();
         const abortController = new AbortController();
 
-        // Debounced S3 autosave for annotations, bound to the store (not a
-        // component) so pending writes survive image switches.
-        attachAnnotationAutosave(viewerStore);
+        // Annotation ↔ S3 sync (read+seed+debounced per-user write), bound to
+        // the store (not a component) so it loads once per image and pending
+        // writes survive image switches and panel collapse.
+        attachAnnotationSync(viewerStore);
 
         const loadImage = async () => {
           const { httpsUrl } = resolveResourceId(resourceId);

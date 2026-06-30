@@ -18,16 +18,22 @@ export interface AnnotationProperties {
 
 export type AnnotationFeature = Feature<Geometry, AnnotationProperties>;
 
+/** Features per owner (Keycloak `sub`), level-0 pixel coordinates. */
+export type AnnotationsByUser = Record<string, AnnotationFeature[]>;
+
 /**
- * Reads a user's own annotation features (level-0 pixel coordinates) from their
- * sidecar — the editable/savable set (single-writer, no cross-user
- * contamination). Returns `[]` when the image has no annotations yet.
+ * Reads EVERY user's annotations for the image in one round-trip — the single
+ * source of truth for the viewer's per-user map. Each owner's sidecar is parsed
+ * to its feature array; owners with an empty set are dropped (no key until a
+ * user actually has annotations, which keeps the lazy-create semantics). Reads
+ * only — IAM pins writes to each caller's own `sub`.
  */
-export async function getAnnotationsWasm(
-  resourceId: string,
-  userId: string,
-): Promise<AnnotationFeature[]> {
-  const repo = new SidecarRepository(resourceId, userId);
-  const collection = await repo.read<FeatureCollection>("annotations");
-  return (collection?.features as AnnotationFeature[] | undefined) ?? [];
+export async function readAllAnnotations(resourceId: string): Promise<AnnotationsByUser> {
+  const documents = await SidecarRepository.readAll<FeatureCollection>(resourceId, "annotations");
+  const byUser: AnnotationsByUser = {};
+  for (const [userId, collection] of Object.entries(documents)) {
+    const features = (collection?.features as AnnotationFeature[] | undefined) ?? [];
+    if (features.length) byUser[userId] = features;
+  }
+  return byUser;
 }
