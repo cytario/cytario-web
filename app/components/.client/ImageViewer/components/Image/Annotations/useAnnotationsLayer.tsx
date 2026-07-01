@@ -207,9 +207,9 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
       },
     });
 
-    // Other users' sets: one read-only layer each (not pickable, not editable,
-    // dimmer than own), drawn beneath the editable layer. Hidden classes fade to
-    // alpha 0, mirroring the editable layer.
+    // Other users' sets: one layer each, read-only (selectable + hoverable, not
+    // editable), dimmer than own, drawn beneath the editable layer. Hidden
+    // classes fade to alpha 0, mirroring the editable layer.
     const peerLayers = Object.entries(annotationsByUser)
       .filter(([userId]) => userId !== ownUserId)
       .map(([userId, peerFeatures]) => {

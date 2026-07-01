@@ -2,7 +2,7 @@ import type { AnnotationMode, RGB, ViewerSlice, ViewerStore } from "../types";
 import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
 
 /** Group name for features without a classification. */
-export const UNCLASSIFIED = "Unclassified";
+const UNCLASSIFIED = "Unclassified";
 
 /** Fallback color for features/groups without a classification — a neutral gray,
  *  shared by the canvas layer, the group-row dot, and the sidebar thumbnail so
@@ -33,12 +33,6 @@ export const selectUserFeatures =
   (userId: string | undefined) =>
   (state: ViewerStore): AnnotationFeature[] =>
     (userId && state.annotationsByUser[userId]) || NO_FEATURES;
-
-/** A single user's layer opacity (defaults to fully opaque). */
-export const selectUserOpacity =
-  (userId: string | undefined) =>
-  (state: ViewerStore): number =>
-    (userId ? state.annotationView[userId]?.opacity : undefined) ?? 1;
 
 /** A single user's hidden classification names (stable empty array by default). */
 export const selectUserHiddenClasses =

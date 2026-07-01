@@ -10,8 +10,7 @@ interface AnnotationGroupRowProps {
   /** Classification color, or null for the unclassified group (no recolor). */
   color: RGB | null;
   isVisible: boolean;
-  /** Omit to render without a visibility switch (read-only group). */
-  onToggleVisibility?: () => void;
+  onToggleVisibility: () => void;
   onColorChange?: (color: RGB) => void;
 }
 
@@ -45,14 +44,12 @@ export function AnnotationGroupRow({
       )}
       <span className="flex-1 truncate text-xs font-medium text-foreground">{name}</span>
       <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-      {onToggleVisibility && (
-        <Switch
-          isSelected={isVisible}
-          onChange={onToggleVisibility}
-          color={rgb(swatch)}
-          aria-label={`Toggle ${name} visibility`}
-        />
-      )}
+      <Switch
+        isSelected={isVisible}
+        onChange={onToggleVisibility}
+        color={rgb(swatch)}
+        aria-label={`Toggle ${name} visibility`}
+      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
   // present here means that user's sidecar exists on S3.
   let persisted: Record<string, AnnotationFeature[]> = {};
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let flushing = false;
 
   // One-time read → seed. Setting the baseline to the SAME refs the seed installs
   // means the subscription fire it triggers diffs to zero — no write-back of what
@@ -35,37 +36,45 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
     })
     .catch((error) => console.error("[annotations] load failed:", error));
 
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
+  };
+
   const flush = async () => {
     timer = null;
-    const { id, annotationsByUser } = store.getState();
-    const changedUserIds = Object.keys(annotationsByUser).filter(
-      (userId) => annotationsByUser[userId] !== persisted[userId],
-    );
+    // Serialize: a full-file write is async, and two overlapping flushes could
+    // land an older snapshot after a newer one on S3. If one is in flight,
+    // re-defer instead of interleaving.
+    if (flushing) return schedule();
+    flushing = true;
+    try {
+      const { id, annotationsByUser } = store.getState();
+      const changedUserIds = Object.keys(annotationsByUser).filter(
+        (userId) => annotationsByUser[userId] !== persisted[userId],
+      );
 
-    for (const userId of changedUserIds) {
-      const snapshot = annotationsByUser[userId];
-      // Lazy-create: never write an empty file for a user who never had one.
-      if (snapshot.length === 0 && persisted[userId] === undefined) continue;
-      try {
-        await writeAnnotations(id, userId, snapshot);
-        // Advance the baseline only if no newer edit replaced this user's array
-        // mid-write — otherwise that edit's own debounce will persist it.
-        if (store.getState().annotationsByUser[userId] === snapshot) persisted[userId] = snapshot;
-      } catch (error) {
-        // Leave the baseline stale → retried on the next change. Peer writes 403
-        // here until role-based edit-others + IAM land; the UI mutates only own.
-        console.error(`[annotations] save failed for ${userId}:`, error);
+      for (const userId of changedUserIds) {
+        const snapshot = annotationsByUser[userId];
+        // Lazy-create: never write an empty file for a user who never had one.
+        if (snapshot.length === 0 && persisted[userId] === undefined) continue;
+        try {
+          await writeAnnotations(id, userId, snapshot);
+          // Advance the baseline only if no newer edit replaced this user's array
+          // mid-write — otherwise that edit's own debounce will persist it.
+          if (store.getState().annotationsByUser[userId] === snapshot) persisted[userId] = snapshot;
+        } catch (error) {
+          // Leave the baseline stale → retried on the next change. Peer writes 403
+          // here until role-based edit-others + IAM land; the UI mutates only own.
+          console.error(`[annotations] save failed for ${userId}:`, error);
+        }
       }
+    } finally {
+      flushing = false;
     }
   };
 
   // Fires on every map change (edits and the seed); the seed diffs to zero via
   // the baseline, so only real edits debounce a write.
-  store.subscribe(
-    (s) => s.annotationsByUser,
-    () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
-    },
-  );
+  store.subscribe((s) => s.annotationsByUser, schedule);
 }

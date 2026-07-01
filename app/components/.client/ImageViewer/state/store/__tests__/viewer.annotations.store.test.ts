@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createViewerStore } from "../createViewerStore";
-import {
-  selectUserFeatures,
-  selectUserHiddenClasses,
-  selectUserOpacity,
-} from "../slices/viewer.annotations.store";
+import { selectUserFeatures, selectUserHiddenClasses } from "../slices/viewer.annotations.store";
 import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
 
 // Helpers ----------------------------------------------------------------
@@ -264,27 +260,6 @@ describe("selectUserFeatures", () => {
     const result = selectUserFeatures(undefined)(store.getState());
 
     expect(result).toEqual([]);
-  });
-});
-
-describe("selectUserOpacity", () => {
-  it("defaults to 1 when no view entry exists", () => {
-    const store = createViewerStore("suo-1");
-
-    expect(selectUserOpacity("absent")(store.getState())).toBe(1);
-  });
-
-  it("returns the stored opacity once set", () => {
-    const store = createViewerStore("suo-2");
-    store.getState().setAnnotationOpacity("user-a", 0.4);
-
-    expect(selectUserOpacity("user-a")(store.getState())).toBe(0.4);
-  });
-
-  it("defaults to 1 when userId is undefined", () => {
-    const store = createViewerStore("suo-3");
-
-    expect(selectUserOpacity(undefined)(store.getState())).toBe(1);
   });
 });
 
