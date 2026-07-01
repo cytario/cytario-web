@@ -26,9 +26,13 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let flushing = false;
 
-  // One-time read → seed. Setting the baseline to the SAME refs the seed installs
-  // means the subscription fire it triggers diffs to zero — no write-back of what
-  // was just read, which is the job the old dirty flag did.
+  // One-time read → seed. The baseline is the read result, and seedAnnotations
+  // MERGES (installs only keys the user has not already touched). So an untouched
+  // seeded key equals its baseline and diffs to zero — no write-back of what was
+  // just read — while a region drawn before the read resolved is either kept as
+  // the user's own version (its key was absent from the read) or, if its key is
+  // absent from the baseline entirely, diffed against `undefined` in flush() and
+  // written. Either way the pre-seed draw survives instead of being clobbered.
   readAllAnnotations(store.getState().id)
     .then((byUser) => {
       persisted = { ...byUser };

@@ -34,7 +34,12 @@ function makeFakeStore() {
     id: "conn/slide.ome.tif",
     annotationsByUser: {},
     seedAnnotations: (byUser) => {
-      state.annotationsByUser = byUser;
+      // Mirror the real slice: merge, installing only keys not already present.
+      for (const [userId, features] of Object.entries(byUser)) {
+        if (state.annotationsByUser[userId] === undefined) {
+          state.annotationsByUser[userId] = features;
+        }
+      }
     },
   };
   const store = {
@@ -72,10 +77,37 @@ describe("attachAnnotationSync", () => {
     attachAnnotationSync(store);
     await vi.runAllTimersAsync(); // settle the read → seed
 
-    expect(state.annotationsByUser).toBe(seeded);
+    expect(state.annotationsByUser["user-1"]).toBe(seeded["user-1"]);
     fire(); // the seed's own subscription fire must diff to zero
     await vi.runAllTimersAsync();
     expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pre-seed draw and schedules it for write (C-313 seed race)", async () => {
+    // The read is slow; seed it with a stale version of the same user's key.
+    let resolveRead: (v: AnnotationsByUser) => void = () => {};
+    readMock.mockImplementation(
+      () => new Promise<AnnotationsByUser>((resolve) => (resolveRead = resolve)),
+    );
+    const { store, state, fire } = makeFakeStore();
+
+    attachAnnotationSync(store);
+
+    // User draws BEFORE the read resolves.
+    const drawn = [feature()];
+    state.annotationsByUser = { "user-1": drawn };
+    fire();
+
+    // Now the one-time read resolves — the seed must NOT clobber the draw.
+    resolveRead({ "user-1": [feature()] });
+    await vi.runAllTimersAsync();
+
+    // In-memory draw survived the seed.
+    expect(state.annotationsByUser["user-1"]).toBe(drawn);
+    // And it is written: the baseline (read result) had no matching ref for it,
+    // so the per-key diff schedules the pre-seed draw for persistence.
+    expect(writeMock).toHaveBeenCalledTimes(1);
+    expect(writeMock).toHaveBeenCalledWith("conn/slide.ome.tif", "user-1", drawn);
   });
 
   it("debounces an edit and writes only the changed user's sidecar", async () => {

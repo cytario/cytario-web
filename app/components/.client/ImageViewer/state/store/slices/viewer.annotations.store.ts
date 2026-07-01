@@ -53,9 +53,13 @@ export interface AnnotationsSlice {
    *  from `annotationsByUser` so a view change never enters the persist diff. */
   annotationView: Record<string, UserAnnotationView>;
 
-  /** Install the per-user map from the one-time S3 read. The sync middleware
-   *  sets its persisted baseline to the same refs first, so this no-ops the
-   *  resulting diff (no write-back of what was just read). */
+  /** Merge the per-user map from the one-time S3 read into the working copy.
+   *  Only keys not already present are installed — a user who drew a region
+   *  before the async read resolved keeps their in-memory version, so the seed
+   *  can never clobber a pre-seed draw. The sync middleware sets its persisted
+   *  baseline to the read result, so untouched seeded keys diff to zero (no
+   *  write-back of what was just read) while a pre-seed draw absent from the
+   *  baseline still diffs and gets written. */
   seedAnnotations: (byUser: AnnotationsByUser) => void;
   /** Replace one user's features (draw/move/delete). Immer gives that key a
    *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
@@ -82,7 +86,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   seedAnnotations: (byUser) =>
     set(
       (state) => {
-        state.annotationsByUser = byUser;
+        // Merge, not replace: a key the user already touched (drew into) before
+        // this async read resolved wins — installing only absent keys prevents
+        // the seed from clobbering a pre-seed draw.
+        for (const [userId, features] of Object.entries(byUser)) {
+          if (state.annotationsByUser[userId] === undefined) {
+            state.annotationsByUser[userId] = features;
+          }
+        }
       },
       false,
       "seedAnnotations",

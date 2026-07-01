@@ -26,13 +26,13 @@ const makeFeature = (overrides?: {
 // -----------------------------------------------------------------------
 
 describe("seedAnnotations", () => {
-  it("replaces annotationsByUser with the supplied map", () => {
+  it("installs a supplied key that was not present before", () => {
     const store = createViewerStore("seed-1");
-    const byUser: AnnotationsByUser = { "user-a": [makeFeature({ id: "f1" })] };
+    const features = [makeFeature({ id: "f1" })];
 
-    store.getState().seedAnnotations(byUser);
+    store.getState().seedAnnotations({ "user-a": features });
 
-    expect(store.getState().annotationsByUser).toBe(byUser);
+    expect(store.getState().annotationsByUser["user-a"]).toBe(features);
   });
 
   it("does not mark any entry dirty (annotationView stays empty)", () => {
@@ -46,16 +46,34 @@ describe("seedAnnotations", () => {
     expect(store.getState().annotationView).toEqual({});
   });
 
-  it("replaces a previously seeded map entirely", () => {
+  it("merges: adds absent keys while preserving keys already present", () => {
     const store = createViewerStore("seed-3");
-    const first: AnnotationsByUser = { "user-a": [makeFeature()] };
-    const second: AnnotationsByUser = { "user-b": [makeFeature()] };
+    const existing = [makeFeature({ id: "keep" })];
+    store.getState().updateUserFeatures("user-a", existing);
 
-    store.getState().seedAnnotations(first);
-    store.getState().seedAnnotations(second);
+    store.getState().seedAnnotations({
+      "user-a": [makeFeature({ id: "from-s3" })],
+      "user-b": [makeFeature({ id: "b1" })],
+    });
 
-    expect(store.getState().annotationsByUser).toBe(second);
-    expect(store.getState().annotationsByUser["user-a"]).toBeUndefined();
+    // user-a was already present (user-touched) → in-memory version wins
+    expect(store.getState().annotationsByUser["user-a"]).toBe(existing);
+    // user-b was absent → the seeded set is installed
+    expect(store.getState().annotationsByUser["user-b"]![0].properties!.id).toBe("b1");
+  });
+
+  it("regression (C-313): a pre-seed draw survives a seed that also targets that key", () => {
+    const store = createViewerStore("seed-4");
+    // Simulate the user drawing a region before the async S3 read resolves.
+    const drawn = [makeFeature({ id: "just-drawn" })];
+    store.getState().updateUserFeatures("user-a", drawn);
+
+    // The one-time read resolves with a different (older) version of the same key.
+    store.getState().seedAnnotations({ "user-a": [makeFeature({ id: "stale-from-s3" })] });
+
+    // The user's in-memory version must be kept, not clobbered by the seed.
+    expect(store.getState().annotationsByUser["user-a"]).toBe(drawn);
+    expect(store.getState().annotationsByUser["user-a"]![0].properties!.id).toBe("just-drawn");
   });
 });
 
