@@ -1,3 +1,4 @@
+import type { PickingInfo } from "@deck.gl/core";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import {
   DrawPolygonByDraggingMode,
@@ -5,7 +6,7 @@ import {
   EditableGeoJsonLayer,
   ViewMode,
 } from "@deck.gl-community/editable-layers";
-import type { FeatureCollection } from "geojson";
+import type { Feature, FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
@@ -118,25 +119,47 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       return acc;
     }, []);
 
+    // Props shared by the own (editable) and peer (read-only) layers: fill/line
+    // colored by classification (hidden classes → alpha 0) and view-mode
+    // click-to-select. Only the alphas and per-user hidden/opacity differ.
+    const selectOnClick = (info: PickingInfo) => {
+      if (mode !== "view") return; // in draw modes a click is a draw action
+      const id = (info.object as AnnotationFeature | undefined)?.properties?.id;
+      if (id) setSelectedIds([id]);
+    };
+
+    const paint = (
+      hiddenClasses: string[] | undefined,
+      opacity: number,
+      fillAlpha: number,
+      lineAlpha: number,
+    ) => {
+      const hidden = new Set(hiddenClasses ?? []);
+      const colorAt = (f: Feature, alpha: number): RGBA =>
+        withAlpha(
+          classColor(f as AnnotationFeature),
+          hidden.has(classNameOf(f as AnnotationFeature)) ? 0 : alpha,
+        );
+      return {
+        coordinateSystem: "cartesian" as const,
+        pickable: true,
+        opacity,
+        onClick: selectOnClick,
+        getFillColor: (f: Feature) => colorAt(f, fillAlpha),
+        getLineColor: (f: Feature) => colorAt(f, lineAlpha),
+        getLineWidth: 2,
+        lineWidthMinPixels: 1,
+        pointRadiusMinPixels: 4,
+        updateTriggers: { getFillColor: hiddenClasses, getLineColor: hiddenClasses },
+      };
+    };
+
     const editableLayer = new EditableGeoJsonLayer({
       id: `annotations-${imagePanelId}`,
       data,
       mode: MODE_CLASSES[mode],
       selectedFeatureIndexes,
-      opacity: ownView?.opacity ?? 1,
-      coordinateSystem: "cartesian",
-      pickable: true,
-      getFillColor: (f) =>
-        withAlpha(classColor(f as AnnotationFeature), isHidden(f as AnnotationFeature) ? 0 : 60),
-      getLineColor: (f) =>
-        withAlpha(classColor(f as AnnotationFeature), isHidden(f as AnnotationFeature) ? 0 : 255),
-      getLineWidth: 2,
-      lineWidthMinPixels: 1,
-      pointRadiusMinPixels: 4,
-      updateTriggers: {
-        getFillColor: ownView?.hiddenClasses,
-        getLineColor: ownView?.hiddenClasses,
-      },
+      ...paint(ownView?.hiddenClasses, ownView?.opacity ?? 1, 60, 255),
 
       onEdit: ({ updatedData, editType, editContext }) => {
         // Persist only committing edits — anything else (tentative draw events,
@@ -162,40 +185,16 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
       .filter(([userId]) => userId !== ownUserId)
       .map(([userId, peerFeatures]) => {
         const peerView = annotationView[userId];
-        const peerHidden = new Set(peerView?.hiddenClasses ?? []);
-        const isPeerHidden = (f: AnnotationFeature) => peerHidden.has(classNameOf(f));
         return new GeoJsonLayer({
           id: `annotations-${imagePanelId}-peer-${userId}`,
           data: { type: "FeatureCollection", features: peerFeatures },
-          coordinateSystem: "cartesian",
-          pickable: true,
-          onClick: ({ object }) => {
-            const id = (object as AnnotationFeature | undefined)?.properties?.id;
-            if (id) setSelectedIds([id]);
-          },
-          opacity: peerView?.opacity ?? 1,
+          // Peers are dimmer than own (40/200 vs 60/255) but otherwise identical.
+          ...paint(peerView?.hiddenClasses, peerView?.opacity ?? 1, 40, 200),
           stroked: true,
           filled: true,
-          getFillColor: (f) =>
-            withAlpha(
-              classColor(f as AnnotationFeature),
-              isPeerHidden(f as AnnotationFeature) ? 0 : 40,
-            ),
-          getLineColor: (f) =>
-            withAlpha(
-              classColor(f as AnnotationFeature),
-              isPeerHidden(f as AnnotationFeature) ? 0 : 200,
-            ),
-          getLineWidth: 2,
-          lineWidthMinPixels: 1,
           pointType: "circle",
           getPointRadius: 4,
           pointRadiusUnits: "pixels",
-          pointRadiusMinPixels: 4,
-          updateTriggers: {
-            getFillColor: peerView?.hiddenClasses,
-            getLineColor: peerView?.hiddenClasses,
-          },
         });
       });
 
