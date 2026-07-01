@@ -1,3 +1,4 @@
+import { H3 } from "@cytario/design";
 import type { PickingInfo } from "@deck.gl/core";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import {
@@ -7,7 +8,7 @@ import {
   ViewMode,
 } from "@deck.gl-community/editable-layers";
 import type { Feature, FeatureCollection } from "geojson";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
@@ -19,6 +20,8 @@ import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
+
+type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
 
 const MODE_CLASSES = {
   view: ViewMode,
@@ -60,6 +63,26 @@ const classColor = (feature: AnnotationFeature): RGB =>
 
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
+/** Hover tooltip content, styled like the overlay feature tooltip: id headline,
+ *  then a color swatch + classification name. */
+const AnnotationTooltip = ({ feature }: { feature: AnnotationFeature }) => {
+  const [r, g, b] = classColor(feature);
+  return (
+    <div className="flex flex-col gap-1">
+      <header>
+        <H3 className="text-lg font-normal">ID: {feature.properties?.id}</H3>
+      </header>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-4 h-4 rounded-full"
+          style={{ backgroundColor: `rgb(${r}, ${g}, ${b})` }}
+        />
+        {classNameOf(feature)}
+      </div>
+    </div>
+  );
+};
+
 /**
  * Stamps identity onto edited features (per the sidecar schema): any feature
  * lacking an `id` gets a fresh `id` + `createdAt`/`updatedAt`, and a feature at
@@ -94,7 +117,7 @@ const stampEdit = (
  * Edits flow back through `onEdit` → `updateUserFeatures(ownUserId, …)`, which
  * the sync middleware diffs and autosaves to the user's own sidecar.
  */
-export const useAnnotationsLayer = (imagePanelId: number) => {
+export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetTooltip) => {
   const ownUserId = useCurrentUser()?.sub;
   const features = useViewerStore(selectUserFeatures(ownUserId));
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
@@ -145,6 +168,12 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
         pickable: true,
         opacity,
         onClick: selectOnClick,
+        onHover: (info: PickingInfo) => {
+          const f = info.object as AnnotationFeature | undefined;
+          setTooltip?.(
+            f ? { content: <AnnotationTooltip feature={f} />, x: info.x, y: info.y } : null,
+          );
+        },
         getFillColor: (f: Feature) => colorAt(f, fillAlpha),
         getLineColor: (f: Feature) => colorAt(f, lineAlpha),
         getLineWidth: 2,
@@ -252,5 +281,6 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
     ownUserId,
     updateUserFeatures,
     setSelectedIds,
+    setTooltip,
   ]);
 };
