@@ -7,6 +7,7 @@ import { flyToFeatureViewState } from "./flyToFeature";
 import {
   classNameOf,
   selectUserHiddenClasses,
+  UNCLASSIFIED_COLOR,
 } from "../../state/store/slices/viewer.annotations.store";
 import { RGB } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
@@ -31,13 +32,42 @@ const geometryToRings = (geometry: Geometry): Point[][] => {
   return [];
 };
 
-const GeometryThumb = ({ geometry, color }: { geometry: Geometry; color?: string }) => {
+/** Concentric white/black/white rings around a selected point, mirroring the
+ *  on-slide point selection frame. Radii outermost-first (drawn underneath). */
+const POINT_SELECTION_RINGS = [
+  { r: 6.5, stroke: "#fff" },
+  { r: 5.5, stroke: "#000" },
+  { r: 4.5, stroke: "#fff" },
+];
+
+const GeometryThumb = ({
+  geometry,
+  color,
+  selected,
+}: {
+  geometry: Geometry;
+  color?: string;
+  selected?: boolean;
+}) => {
   if (geometry.type === "Point") {
+    const c = THUMB_SIZE / 2;
     return (
       <svg width={THUMB_SIZE} height={THUMB_SIZE} className="inline-block rounded bg-muted">
+        {selected &&
+          POINT_SELECTION_RINGS.map((ring) => (
+            <circle
+              key={ring.r}
+              cx={c}
+              cy={c}
+              r={ring.r}
+              fill="none"
+              stroke={ring.stroke}
+              strokeWidth={1.5}
+            />
+          ))}
         <circle
-          cx={THUMB_SIZE / 2}
-          cy={THUMB_SIZE / 2}
+          cx={c}
+          cy={c}
           r={3}
           fill={color ?? "currentColor"}
           className={color ? undefined : "fill-secondary"}
@@ -45,7 +75,14 @@ const GeometryThumb = ({ geometry, color }: { geometry: Geometry; color?: string
       </svg>
     );
   }
-  return <GeometrySvg rings={geometryToRings(geometry)} size={THUMB_SIZE} color={color} />;
+  return (
+    <GeometrySvg
+      rings={geometryToRings(geometry)}
+      size={THUMB_SIZE}
+      color={color}
+      selected={selected}
+    />
+  );
 };
 
 interface AnnotationGroup {
@@ -113,7 +150,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   return (
     <div className="flex flex-col gap-2 px-3 py-2">
       {groups.map((group) => {
-        const cssColor = group.color ? rgb([...group.color, 255]) : undefined;
+        const cssColor = rgb([...(group.color ?? UNCLASSIFIED_COLOR), 255]);
         return (
           <div key={group.name} className="flex flex-col">
             <AnnotationGroupRow
@@ -139,11 +176,13 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
                       type="button"
                       aria-pressed={isSelected}
                       onClick={() => select(feature)}
-                      className={`rounded border text-muted-foreground hover:text-foreground ${
-                        isSelected ? "border-primary text-foreground" : "border-border"
-                      }`}
+                      className="rounded border border-border text-muted-foreground hover:text-foreground"
                     >
-                      <GeometryThumb geometry={feature.geometry} color={cssColor} />
+                      <GeometryThumb
+                        geometry={feature.geometry}
+                        color={cssColor}
+                        selected={isSelected}
+                      />
                     </button>
 
                     <div className="absolute right-0 top-0 rounded bg-background/80 opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100">

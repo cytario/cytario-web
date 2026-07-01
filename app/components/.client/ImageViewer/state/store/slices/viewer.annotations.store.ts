@@ -4,6 +4,11 @@ import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotat
 /** Group name for features without a classification. */
 export const UNCLASSIFIED = "Unclassified";
 
+/** Fallback color for features/groups without a classification — a neutral gray,
+ *  shared by the canvas layer, the group-row dot, and the sidebar thumbnail so
+ *  "Unclassified" looks identical everywhere. */
+export const UNCLASSIFIED_COLOR: RGB = [120, 120, 120];
+
 /** A feature's classification name, or the `Unclassified` fallback. Shared by
  *  the list grouping and the layer's visibility check so they agree on keys. */
 export const classNameOf = (feature: AnnotationFeature): string =>

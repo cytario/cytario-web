@@ -1,9 +1,8 @@
 import { Switch } from "@cytario/design";
 
+import { UNCLASSIFIED_COLOR } from "../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../state/store/types";
 import { ColorPicker, rgb } from "../ChannelsController/ColorPicker/ColorPicker";
-
-const DEFAULT_DOT: RGB = [120, 120, 120];
 
 interface AnnotationGroupRowProps {
   name: string;
@@ -30,7 +29,7 @@ export function AnnotationGroupRow({
   onToggleVisibility,
   onColorChange,
 }: AnnotationGroupRowProps) {
-  const swatch: RGBA = [...(color ?? DEFAULT_DOT), 255];
+  const swatch: RGBA = [...(color ?? UNCLASSIFIED_COLOR), 255];
   const canRecolor = color !== null && onColorChange;
 
   return (

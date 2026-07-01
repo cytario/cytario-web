@@ -12,6 +12,7 @@ import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
   classNameOf,
   selectUserFeatures,
+  UNCLASSIFIED_COLOR,
 } from "../../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
@@ -24,8 +25,6 @@ const MODE_CLASSES = {
   "draw-freehand": DrawPolygonByDraggingMode,
   "draw-point": ClickOrDragPointMode,
 } as const;
-
-const DEFAULT_COLOR: RGB = [120, 120, 120];
 
 // Edit types that change committed geometry and must be persisted. An allowlist
 // fails safe: any other type (tentative draw events like addTentativePosition/
@@ -43,16 +42,20 @@ const COMMITTING_EDITS = new Set([
   "unionGeometry",
 ]);
 
-// Concentric selection outlines, widest first (drawn underneath) → narrowest on
-// top, giving a high-contrast triple ring readable on any background.
-const SELECTION_RINGS: { width: number; color: RGBA }[] = [
-  { width: 8, color: [255, 255, 255, 255] },
-  { width: 4.5, color: [56, 189, 248, 255] },
-  { width: 1.5, color: [255, 255, 255, 255] },
+// Dual-contrast selection frame: white/black/white achromatic rings, widest
+// drawn underneath. Achromatic (not a hue) so it never collides with a
+// classification color, and the white↔black alternation stays legible on pure
+// black, pure white, and arbitrary colored slide backgrounds. Drawn beneath the
+// feature's own color line so the classification color stays on top, framed.
+// `width` = polygon stroke (px); `radius` = concentric ring radius for points.
+const SELECTION_RINGS: { width: number; radius: number; color: RGBA }[] = [
+  { width: 9, radius: 9, color: [255, 255, 255, 255] },
+  { width: 6, radius: 7.5, color: [0, 0, 0, 255] },
+  { width: 3.5, radius: 6, color: [255, 255, 255, 255] },
 ];
 
 const classColor = (feature: AnnotationFeature): RGB =>
-  feature.properties?.classification?.color ?? DEFAULT_COLOR;
+  feature.properties?.classification?.color ?? UNCLASSIFIED_COLOR;
 
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
@@ -165,7 +168,11 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
           id: `annotations-${imagePanelId}-peer-${userId}`,
           data: { type: "FeatureCollection", features: peerFeatures },
           coordinateSystem: "cartesian",
-          pickable: false,
+          pickable: true,
+          onClick: ({ object }) => {
+            const id = (object as AnnotationFeature | undefined)?.properties?.id;
+            if (id) setSelectedIds([id]);
+          },
           opacity: peerView?.opacity ?? 1,
           stroked: true,
           filled: true,
@@ -194,8 +201,18 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
 
     // Concentric outline halo on the selected feature(s) — selection isn't
     // visibly rendered in view mode, so stack GeoJsonLayers (widest first) over
-    // the editable layer. Hidden features are excluded so a halo never reveals one.
-    const selectedFeatures = features.filter((f) => isSelected(f) && !isHidden(f));
+    // the editable layer. Selection is global across users, so the halo spans
+    // own + peer sets; hidden features (per their own owner) are excluded so a
+    // halo never reveals one.
+    const selectedFeatures: AnnotationFeature[] = [
+      ...features.filter((f) => isSelected(f) && !isHidden(f)),
+      ...Object.entries(annotationsByUser)
+        .filter(([userId]) => userId !== ownUserId)
+        .flatMap(([userId, peerFeatures]) => {
+          const peerHidden = new Set(annotationView[userId]?.hiddenClasses ?? []);
+          return peerFeatures.filter((f) => isSelected(f) && !peerHidden.has(classNameOf(f)));
+        }),
+    ];
 
     const highlightLayers =
       selectedFeatures.length === 0
@@ -210,16 +227,22 @@ export const useAnnotationsLayer = (imagePanelId: number) => {
                 stroked: true,
                 filled: false,
                 getLineColor: ring.color,
-                getLineWidth: ring.width,
+                // Points get a thin stroke at increasing radii (concentric
+                // circles); polygons get the full ring width centered on the path.
+                getLineWidth: (f) =>
+                  (f as AnnotationFeature).geometry?.type === "Point" ? 1.5 : ring.width,
                 lineWidthUnits: "pixels",
-                lineWidthMinPixels: ring.width,
+                lineWidthMinPixels: 1,
                 pointType: "circle",
-                getPointRadius: 4,
+                getPointRadius: ring.radius,
                 pointRadiusUnits: "pixels",
+                pointRadiusMinPixels: ring.radius,
               }),
           );
 
-    return [...peerLayers, editableLayer, ...highlightLayers];
+    // Selection frame beneath the color layers so the classification color line
+    // stays on top and the achromatic frame reads around it; own above peers.
+    return [...highlightLayers, ...peerLayers, editableLayer];
   }, [
     features,
     annotationsByUser,

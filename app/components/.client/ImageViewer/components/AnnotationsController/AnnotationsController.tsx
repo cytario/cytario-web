@@ -31,7 +31,7 @@ export const AnnotationsController = () => {
         return (
           <FeatureItem
             key={userId}
-            title={isOwn ? "You" : `User ${userId.slice(0, 6)}`}
+            title={isOwn ? "Annotations (You)" : `Annotations (${userId.slice(0, 6)})`}
             badge={features.length ? String(features.length) : undefined}
             header={isOwn ? <AnnotationsTools /> : undefined}
             actions={
