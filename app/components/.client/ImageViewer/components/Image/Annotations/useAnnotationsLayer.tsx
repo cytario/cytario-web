@@ -23,6 +23,11 @@ import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
 
+/** Minimal structural shape of the modifier flags carried by the DOM event
+ *  behind a deck picking event — all optional so any concrete DOM event
+ *  (Mouse/Pointer/Touch) is assignable to the click handler. */
+type ModifierKeys = { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean };
+
 const MODE_CLASSES = {
   view: ViewMode,
   "draw-polygon": DrawPolygonMode,
@@ -145,10 +150,21 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
     // Props shared by the own (editable) and peer (read-only) layers: fill/line
     // colored by classification (hidden classes → alpha 0) and view-mode
     // click-to-select. Only the alphas and per-user hidden/opacity differ.
-    const selectOnClick = (info: PickingInfo) => {
+    const selectOnClick = (info: PickingInfo, event?: { srcEvent?: ModifierKeys }) => {
       if (mode !== "view") return; // in draw modes a click is a draw action
       const id = (info.object as AnnotationFeature | undefined)?.properties?.id;
-      if (id) setSelectedIds([id]);
+      if (!id) return;
+      const src = event?.srcEvent;
+      // Any modifier keeps the selection additive — toggle the clicked feature in
+      // or out. Range-select needs an ordered list, which the canvas has no
+      // meaningful notion of, so Shift behaves like Cmd/Ctrl here.
+      if (src && (src.metaKey || src.ctrlKey || src.shiftKey)) {
+        setSelectedIds(
+          selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
+        );
+        return;
+      }
+      setSelectedIds([id]);
     };
 
     const paint = (
