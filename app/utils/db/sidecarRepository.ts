@@ -1,20 +1,20 @@
 import { createDatabase } from "./createDatabase";
 import { escapeSqlString } from "./escapeSqlString";
 import { resolveResourceId } from "../connectionsStore/selectors";
-import { getSidecarKey, type SidecarKind } from "../sidecarKey";
+import { getSidecarKey, parseOwnerFromKey, type SidecarKind } from "../sidecarKey";
 
 const sidecarFilesQuery = /*sql*/ `SELECT file FROM glob(?)`;
-const readTextQuery = /*sql*/ `SELECT content FROM read_text(?)`;
+const readAllTextQuery = /*sql*/ `SELECT filename, content FROM read_text(?)`;
 
 /**
- * Transport for a single user's sidecar files (annotations, settings, …) in the
- * customer's S3 bucket, via duckdb-wasm. Owns key derivation, existence, and
- * read/write of the JSON document — but not its shape: each `kind` layers its
- * own envelope/parsing on top (see `getAnnotationsWasm` / `writeAnnotations`).
+ * Transport for sidecar files (annotations, settings, …) in the customer's S3
+ * bucket, via duckdb-wasm. Owns key derivation and read/write of the JSON
+ * document — but not its shape: each `kind` layers its own envelope/parsing on
+ * top (see `readAllAnnotations` / `writeAnnotations`).
  *
- * Single-writer per key: one user owns one file per kind, so `write` is a
- * full-file overwrite. Scoped to one image (`resourceId`) and one owner
- * (`userId`) — the multi-user read union is a separate concern.
+ * Single-writer per key: one user owns one file per kind, so `write` (instance,
+ * scoped to one image + owner) is a full-file overwrite. The all-owners read
+ * union is the static `readAll`.
  */
 export class SidecarRepository {
   constructor(
@@ -22,39 +22,55 @@ export class SidecarRepository {
     private readonly userId: string,
   ) {}
 
+  /**
+   * Every owner's sidecar of `kind` for the image, in ONE round-trip: a wildcard
+   * `read_text` over `*.<kind>.*.json` returns one row per file (`filename` +
+   * `content`); the `<userId>` segment is parsed from each filename. Keyed by
+   * owner id. A zero-match `read_text` throws, so an empty `glob` short-circuits
+   * to `{}` first. Parsing each `content` into its document shape is the caller's
+   * concern (see `readAllAnnotations`).
+   */
+  static async readAll<T>(resourceId: string, kind: SidecarKind): Promise<Record<string, T>> {
+    const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+    const connection = await createDatabase(resourceId, credentials, connectionConfig);
+    const glob = getSidecarKey(s3Uri, kind); // omit userId ⇒ `*` wildcard over all owners
+
+    const globStatement = await connection.prepare(sidecarFilesQuery);
+    try {
+      if ((await globStatement.query(glob)).numRows === 0) return {};
+    } finally {
+      await globStatement.close();
+    }
+
+    const statement = await connection.prepare(readAllTextQuery);
+    try {
+      const rows = (await statement.query(glob)).toArray() as {
+        filename: string;
+        content: string;
+      }[];
+      const byOwner: Record<string, T> = {};
+      for (const { filename, content } of rows) {
+        const userId = parseOwnerFromKey(filename, kind);
+        if (!userId || !content) continue;
+        // One corrupt/truncated sidecar must not abort the whole union read —
+        // skip it (and log) so every other owner's annotations still load.
+        try {
+          byOwner[userId] = JSON.parse(content) as T;
+        } catch (error) {
+          console.error(`[sidecar] skipping unparseable ${kind} file for ${userId}:`, error);
+        }
+      }
+      return byOwner;
+    } finally {
+      await statement.close();
+    }
+  }
+
   private async target(kind: SidecarKind) {
     const { credentials, connectionConfig, s3Uri } = resolveResourceId(this.resourceId);
     const connection = await createDatabase(this.resourceId, credentials, connectionConfig);
     const key = getSidecarKey(s3Uri, kind, this.userId);
     return { connection, key, s3Uri };
-  }
-
-  /** Whether the sidecar exists on S3 (ListObjects via `glob`, 0 rows = absent). */
-  async exists(kind: SidecarKind): Promise<boolean> {
-    const { connection, key } = await this.target(kind);
-    const statement = await connection.prepare(sidecarFilesQuery);
-    try {
-      return (await statement.query(key)).numRows > 0;
-    } finally {
-      await statement.close();
-    }
-  }
-
-  /**
-   * Parse the sidecar JSON document, or `null` when it doesn't exist. Existence
-   * is resolved by `glob` first, so a missing file is `null` — never a thrown
-   * read error mistaken for absence (connectivity/permission errors propagate).
-   */
-  async read<T>(kind: SidecarKind): Promise<T | null> {
-    if (!(await this.exists(kind))) return null;
-    const { connection, key } = await this.target(kind);
-    const statement = await connection.prepare(readTextQuery);
-    try {
-      const row = (await statement.query(key)).toArray()[0] as { content?: string } | undefined;
-      return row?.content ? (JSON.parse(row.content) as T) : null;
-    } finally {
-      await statement.close();
-    }
   }
 
   /**

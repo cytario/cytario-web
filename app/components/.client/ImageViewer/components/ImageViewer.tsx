@@ -2,7 +2,6 @@ import { IconButtonToggle } from "@cytario/design";
 
 import { AnnotationsController } from "./AnnotationsController/AnnotationsController";
 import { ChannelsController } from "./ChannelsController/ChannelsController";
-import { AnnotationsSync } from "./Image/Annotations/AnnotationsSync";
 import { ImagePreview } from "./Image/ImagePreview";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
@@ -24,7 +23,6 @@ export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" 
 export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
   return (
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
-      <AnnotationsSync />
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier

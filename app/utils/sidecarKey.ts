@@ -22,3 +22,12 @@ export function getSidecarKey(imageKey: string, kind: SidecarKind, userId = "*")
   const base = ext ? imageKey.slice(0, -(ext.length + 1)) : imageKey;
   return `${base}.${kind}.${userId}.json`;
 }
+
+/**
+ * Owner id (`userId`) from a sidecar filename produced by `getSidecarKey`. The
+ * capture is greedy up to the final `.json`, so a `userId` that itself contains
+ * dots (e.g. a federated IdP subject) is still parsed, not dropped.
+ */
+export function parseOwnerFromKey(filename: string, kind: SidecarKind): string | undefined {
+  return filename.match(new RegExp(`\\.${kind}\\.(.+)\\.json$`))?.[1];
+}

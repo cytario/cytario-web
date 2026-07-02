@@ -9,9 +9,23 @@ interface GeometrySvgProps {
   size?: number;
   /** CSS color for fill + stroke; falls back to the `text-secondary` token. */
   color?: string;
+  /** Draw the achromatic white/black/white selection frame around the shape,
+   *  mirroring the on-slide selection halo. */
+  selected?: boolean;
 }
 
+// Default inset; when selected, the widest frame stroke bleeds ±(width/2)
+// outside the path, so pad more to keep it inside the viewBox.
 const PADDING = 2;
+const SELECTED_PADDING = 4;
+
+/** White/black/white selection frame, widest first (rendered underneath), so
+ *  the achromatic frame reads on any background and the color path sits on top. */
+const SELECTION_STROKES: { stroke: string; width: number }[] = [
+  { stroke: "#fff", width: 5 },
+  { stroke: "#000", width: 3.5 },
+  { stroke: "#fff", width: 2 },
+];
 
 /**
  * Renders coordinate rings as a fitted SVG thumbnail. Pure renderer: it scales
@@ -19,11 +33,12 @@ const PADDING = 2;
  * pass rings already in screen space (Y-down). Source-format parsing (WKT,
  * GeoJSON, …) and any coordinate-space conversion belong in the caller.
  */
-export const GeometrySvg = ({ rings, size = 48, color }: GeometrySvgProps) => {
+export const GeometrySvg = ({ rings, size = 48, color, selected }: GeometrySvgProps) => {
   if (rings.length === 0) {
     return <span className="text-muted-foreground italic">invalid</span>;
   }
 
+  const padding = selected ? SELECTED_PADDING : PADDING;
   const points = rings.flat();
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
@@ -31,11 +46,11 @@ export const GeometrySvg = ({ rings, size = 48, color }: GeometrySvgProps) => {
   const minY = Math.min(...ys);
   const width = Math.max(...xs) - minX || 1;
   const height = Math.max(...ys) - minY || 1;
-  const scale = (size - PADDING * 2) / Math.max(width, height);
+  const scale = (size - padding * 2) / Math.max(width, height);
 
   const transform = (p: Point) => ({
-    x: (p.x - minX) * scale + PADDING + (size - PADDING * 2 - width * scale) / 2,
-    y: (p.y - minY) * scale + PADDING + (size - PADDING * 2 - height * scale) / 2,
+    x: (p.x - minX) * scale + padding + (size - padding * 2 - width * scale) / 2,
+    y: (p.y - minY) * scale + padding + (size - padding * 2 - height * scale) / 2,
   });
 
   const pathData = rings
@@ -56,6 +71,17 @@ export const GeometrySvg = ({ rings, size = 48, color }: GeometrySvgProps) => {
       viewBox={`0 0 ${size} ${size}`}
       className="inline-block rounded bg-muted"
     >
+      {selected &&
+        SELECTION_STROKES.map((ring, i) => (
+          <path
+            key={i}
+            d={pathData}
+            fill="none"
+            stroke={ring.stroke}
+            strokeWidth={ring.width}
+            strokeLinejoin="round"
+          />
+        ))}
       <path
         d={pathData}
         fill={color ?? "currentColor"}
