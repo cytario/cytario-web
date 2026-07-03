@@ -6,8 +6,9 @@ import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 const makeFeature = (overrides?: Partial<AnnotationFeature>): AnnotationFeature => ({
   type: "Feature",
+  id: "feat-1",
   geometry: { type: "Point", coordinates: [100, 200] },
-  properties: { id: "feat-1" },
+  properties: {},
   ...overrides,
 });
 

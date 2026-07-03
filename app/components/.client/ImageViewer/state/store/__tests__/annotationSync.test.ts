@@ -12,8 +12,10 @@ vi.mock("~/utils/db/writeAnnotationsWasm", () => ({ writeAnnotations: vi.fn() })
 const readMock = vi.mocked(readAllAnnotations);
 const writeMock = vi.mocked(writeAnnotations);
 
+let featureSeq = 0;
 const feature = (): AnnotationFeature => ({
   type: "Feature",
+  id: `f${++featureSeq}`,
   geometry: { type: "Point", coordinates: [0, 0] },
   properties: {},
 });

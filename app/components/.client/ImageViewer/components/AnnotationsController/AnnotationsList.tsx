@@ -60,7 +60,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   const orderedIds = useMemo(
     () =>
       annotationsGroups.flatMap(
-        (g) => g.items.map((it) => it.feature.properties?.id).filter(Boolean) as string[],
+        (g) => g.items.map((it) => it.feature.id).filter(Boolean) as string[],
       ),
     [annotationsGroups],
   );
@@ -69,7 +69,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   const anchorId = useRef<string | null>(null);
 
   const select = (feature: AnnotationFeature, e?: MouseEvent | React.MouseEvent) => {
-    const id = feature.properties?.id;
+    const id = feature.id;
     if (!id) {
       setSelectedIds([]);
       return;
@@ -105,7 +105,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   const zoomToFeature = (feature: AnnotationFeature) => {
     // Select the target without routing through select() — zoom is navigation,
     // not a selection gesture, so it must not move the Shift-range anchor.
-    const id = feature.properties?.id;
+    const id = feature.id;
     setSelectedIds(id ? [id] : []);
     if (!viewState) return;
     const next = flyToFeatureViewState(feature.geometry, viewState);
@@ -140,7 +140,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
 
             <div className="flex flex-wrap gap-1.5 pt-1">
               {items.map(({ feature, index }) => {
-                const id = feature.properties?.id;
+                const id = feature.id;
                 return (
                   <AnnotationThumb
                     key={id ?? index}

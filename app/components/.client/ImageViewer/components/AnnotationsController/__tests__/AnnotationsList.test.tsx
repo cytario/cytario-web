@@ -26,6 +26,7 @@ const makeFeature = (
   color?: [number, number, number],
 ): AnnotationFeature => ({
   type: "Feature",
+  id,
   geometry: {
     type: "Polygon",
     coordinates: [
@@ -39,16 +40,18 @@ const makeFeature = (
     ],
   },
   properties: {
-    id,
     ...(className ? { classification: { name: className, color: color ?? [255, 0, 0] } } : {}),
   },
 });
 
-const makeIdlessFeature = (): AnnotationFeature => ({
-  type: "Feature",
-  geometry: { type: "Point", coordinates: [0, 0] },
-  properties: {},
-});
+// Intentionally malformed (no top-level id) to exercise the component's
+// defensive idless handling; validation drops these before render in practice.
+const makeIdlessFeature = (): AnnotationFeature =>
+  ({
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [0, 0] },
+    properties: {},
+  }) as unknown as AnnotationFeature;
 
 function buildStore(userId = "user-a", features: AnnotationFeature[] = []) {
   const store = createViewerStore(`test-${Math.random()}`);
@@ -269,7 +272,7 @@ describe("AnnotationsList — delete", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete annotation" }));
 
     expect(currentStore.getState().annotationsByUser["user-a"]).toHaveLength(1);
-    expect(currentStore.getState().annotationsByUser["user-a"]![0].properties!.id).toBe("f2");
+    expect(currentStore.getState().annotationsByUser["user-a"]![0].id).toBe("f2");
   });
 
   test("delete clears the selection and anchor", () => {

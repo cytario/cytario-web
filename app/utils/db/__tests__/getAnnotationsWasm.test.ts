@@ -11,8 +11,12 @@ vi.mock("../sidecarRepository", () => ({
 
 const readAllMock = vi.mocked(SidecarRepository.readAll);
 
+let featureSeq = 0;
+// Carries a top-level GeoJSON `id` so the readAllAnnotations validate pass
+// (C-307) keeps it — this test asserts the per-user mapping, not validation.
 const makeFeature = (): AnnotationFeature => ({
   type: "Feature",
+  id: `f${++featureSeq}`,
   geometry: { type: "Point", coordinates: [0, 0] },
   properties: {},
 });

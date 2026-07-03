@@ -6,15 +6,16 @@ import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotat
 
 // Helpers ----------------------------------------------------------------
 
+let featureSeq = 0;
 const makeFeature = (overrides?: {
   id?: string;
   className?: string;
   color?: [number, number, number];
 }): AnnotationFeature => ({
   type: "Feature",
+  id: overrides?.id ?? `feat-${++featureSeq}`,
   geometry: { type: "Point", coordinates: [0, 0] },
   properties: {
-    ...(overrides?.id !== undefined ? { id: overrides.id } : {}),
     ...(overrides?.className !== undefined
       ? { classification: { name: overrides.className, color: overrides?.color ?? [255, 0, 0] } }
       : {}),
@@ -59,7 +60,7 @@ describe("seedAnnotations", () => {
     // user-a was already present (user-touched) → in-memory version wins
     expect(store.getState().annotationsByUser["user-a"]).toBe(existing);
     // user-b was absent → the seeded set is installed
-    expect(store.getState().annotationsByUser["user-b"]![0].properties!.id).toBe("b1");
+    expect(store.getState().annotationsByUser["user-b"]![0].id).toBe("b1");
   });
 
   it("regression (C-313): a pre-seed draw survives a seed that also targets that key", () => {
@@ -73,7 +74,7 @@ describe("seedAnnotations", () => {
 
     // The user's in-memory version must be kept, not clobbered by the seed.
     expect(store.getState().annotationsByUser["user-a"]).toBe(drawn);
-    expect(store.getState().annotationsByUser["user-a"]![0].properties!.id).toBe("just-drawn");
+    expect(store.getState().annotationsByUser["user-a"]![0].id).toBe("just-drawn");
   });
 });
 

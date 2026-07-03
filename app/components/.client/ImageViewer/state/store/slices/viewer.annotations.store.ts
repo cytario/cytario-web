@@ -46,7 +46,7 @@ export interface AnnotationsSlice {
    *  Edit-others (future, role-gated) writes another key, same as own. */
   annotationsByUser: AnnotationsByUser;
   annotationMode: AnnotationMode;
-  /** `properties.id`s of selected features — stable across edits/reorders,
+  /** `feature.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
   /** Per-user view state (opacity, hidden classes), keyed by `sub`. Kept apart

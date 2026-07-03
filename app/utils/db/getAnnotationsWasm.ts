@@ -1,22 +1,17 @@
-import type { Feature, FeatureCollection, Geometry } from "geojson";
+import type { FeatureCollection } from "geojson";
 
+import type { AnnotationFeature } from "./annotationSchema";
+import { validAnnotationFeatures } from "./annotationSchema";
 import { SidecarRepository } from "./sidecarRepository";
 
-export interface AnnotationClassification {
-  name: string;
-  color: [number, number, number];
-}
-
-export interface AnnotationProperties {
-  id?: string;
-  name?: string;
-  classification?: AnnotationClassification;
-  createdAt?: string;
-  updatedAt?: string;
-  [key: string]: unknown;
-}
-
-export type AnnotationFeature = Feature<Geometry, AnnotationProperties>;
+// The annotation feature/property/classification types are derived from the zod
+// schema (single source of truth, C-307); re-exported here so existing importers
+// keep their `~/utils/db/getAnnotationsWasm` path.
+export type {
+  AnnotationClassification,
+  AnnotationFeature,
+  AnnotationProperties,
+} from "./annotationSchema";
 
 /** Features per owner (Keycloak `sub`), level-0 pixel coordinates. */
 export type AnnotationsByUser = Record<string, AnnotationFeature[]>;
@@ -32,7 +27,9 @@ export async function readAllAnnotations(resourceId: string): Promise<Annotation
   const documents = await SidecarRepository.readAll<FeatureCollection>(resourceId, "annotations");
   const byUser: AnnotationsByUser = {};
   for (const [userId, collection] of Object.entries(documents)) {
-    const features = (collection?.features as AnnotationFeature[] | undefined) ?? [];
+    // Validate + normalize on read: drop malformed features (external/legacy),
+    // auto-close rings, normalize ids — so nothing degenerate reaches render.
+    const features = validAnnotationFeatures(collection?.features);
     if (features.length) byUser[userId] = features;
   }
   return byUser;
