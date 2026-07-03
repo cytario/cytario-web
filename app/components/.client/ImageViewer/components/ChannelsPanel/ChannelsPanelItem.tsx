@@ -6,6 +6,7 @@ import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
 import { select } from "../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { PanelRow } from "../PanelRow";
 import { LavaLoader } from "~/components/LavaLoader";
 
 // viv library only supports 6 channels
@@ -24,7 +25,9 @@ interface ChannelsPanelItemProps {
   onColorChange?: (color: RGBA) => void;
 }
 
-/** Individual channel row in the ChannelsPanel. Displays color dot, name, pixel value, visibility toggle, and a loading overlay. */
+/** Individual channel row in the ChannelsPanel: a RAC Radio (channel selection)
+ *  wrapping the shared PanelRow — color picker, name, pixel value, visibility
+ *  toggle, intensity bar and loading overlay. */
 export function ChannelsPanelItem({
   name,
   isVisible,
@@ -43,19 +46,13 @@ export function ChannelsPanelItem({
     `
       group/radio
       cursor-pointer
-      relative
-      flex items-center gap-2
       focus:outline-none
       focus-visible:outline-1
       focus-visible:outline-foreground
-      py-2
-      border-b border-card
       text-muted-foreground
       transition-colors
-      border-none
     `,
     isVisible && "text-foreground",
-    isActive && "bg-card",
   );
 
   const disabled = !isVisible && visibleChannelCount >= MAX_VISIBLE_CHANNELS;
@@ -65,41 +62,38 @@ export function ChannelsPanelItem({
 
   return (
     <Radio key={name} value={name} className={cx}>
-      {/* Intensity Indicator */}
-      <div className="absolute bottom-0 left-0 right-0 h-0.5">
-        {isVisible && (
-          <div
-            className="h-full"
-            style={{
-              width: `${(pixelValue / maxDomain) * 100}%`,
-              backgroundColor: rgb(color),
-            }}
-          />
-        )}
-      </div>
-
-      {/* Color Picker (dot) */}
-      <ColorPicker color={color} onColorChange={onColorChange ?? (() => {})} />
-
-      {/* Channel Name */}
-      <span className="flex-1 text-sm truncate">{name}</span>
-
-      {/* Pixel Value */}
-      {pixelValue > 0 && (
-        <span className="text-xs tabular-nums text-muted-foreground">{pixelValue}</span>
-      )}
-
-      {/* Visibility Toggle */}
-      <Tooltip content={tooltip}>
-        <Switch
-          isSelected={isVisible}
-          onChange={() => toggleChannelVisibility()}
-          color={rgb(color)}
-          isDisabled={disabled}
-        />
-      </Tooltip>
-
-      {isLoading && <LavaLoader absolute rows={1} cols={6} />}
+      <PanelRow
+        selected={isActive}
+        accessory={
+          <>
+            <div className="absolute bottom-0 left-0 right-0 h-0.5">
+              {isVisible && (
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${(pixelValue / maxDomain) * 100}%`,
+                    backgroundColor: rgb(color),
+                  }}
+                />
+              )}
+            </div>
+            {isLoading && <LavaLoader absolute rows={1} cols={6} />}
+          </>
+        }
+        swatch={<ColorPicker color={color} onColorChange={onColorChange ?? (() => {})} />}
+        title={name}
+        value={pixelValue > 0 ? pixelValue : undefined}
+        toggle={
+          <Tooltip content={tooltip}>
+            <Switch
+              isSelected={isVisible}
+              onChange={() => toggleChannelVisibility()}
+              color={rgb(color)}
+              isDisabled={disabled}
+            />
+          </Tooltip>
+        }
+      />
     </Radio>
   );
 }

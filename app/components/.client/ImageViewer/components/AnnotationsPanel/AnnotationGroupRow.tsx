@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { UNCLASSIFIED_COLOR } from "../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../state/store/types";
 import { ColorPicker, rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
+import { PanelRow } from "../PanelRow";
 
 interface AnnotationGroupRowProps {
   name: string;
@@ -18,7 +19,7 @@ interface AnnotationGroupRowProps {
   isActive?: boolean;
   /** Own set only: make this group the active class. */
   onSelectActive?: () => void;
-  /** Own set only: commit an edited class name — rename, or name the unclassified bucket. */
+  /** Own set only: commit an edited class name. */
   onRename?: (newName: string) => void;
   /** Own set only: delete this class (drops the registry entry, unclassifies members). */
   onDelete?: () => void;
@@ -27,10 +28,11 @@ interface AnnotationGroupRowProps {
 }
 
 /**
- * Classification group header: color swatch + name + count + visibility toggle,
- * plus (own set) active-class selection and inline rename. Reuses the channel
- * controller's `ColorPicker` and the design-system `Switch`. The unclassified
- * group shows a dashed ghost swatch and a muted "name this class" affordance.
+ * Classification group header composed of the shared PanelRow: color swatch,
+ * name, count, and visibility toggle, plus (own set) active-class selection —
+ * the name button carries the radio semantics, the row shows the selected
+ * treatment — and hover-revealed rename/delete. The unclassified group shows a
+ * dashed ghost swatch and a muted italic name.
  */
 export function AnnotationGroupRow({
   name,
@@ -65,44 +67,34 @@ export function AnnotationGroupRow({
     setDraft(name);
   };
 
+  const titleCx = twMerge(
+    "w-full truncate text-left text-sm font-medium text-foreground",
+    isUnclassified && "italic text-muted-foreground",
+  );
+
   return (
-    <div
-      className={twMerge(
-        "group/grouprow flex items-center gap-2 rounded border-l-2 border-transparent px-1 py-1",
-        isActive && "border-primary bg-muted",
-      )}
-    >
-      {onSelectActive && (
-        <button
-          type="button"
-          role="radio"
-          aria-checked={isActive}
-          aria-label={`Draw new regions into ${name}`}
-          onClick={onSelectActive}
-          className="flex size-4 shrink-0 items-center justify-center rounded-full border border-border"
-        >
-          {isActive && <span className="size-2 rounded-full bg-primary" aria-hidden />}
-        </button>
-      )}
-
-      {canRecolor ? (
-        <ColorPicker color={swatch} onColorChange={([r, g, b]) => onColorChange([r, g, b])} />
-      ) : (
-        <span
-          className={twMerge(
-            "size-3 shrink-0 rounded-sm border border-border",
-            isUnclassified && "border-dashed",
-          )}
-          style={isUnclassified ? undefined : { backgroundColor: rgb(swatch) }}
-          aria-hidden
-        />
-      )}
-
-      {editing ? (
-        <div className="flex-1">
+    <PanelRow
+      selected={isActive}
+      titleTruncate={!editing}
+      swatch={
+        canRecolor ? (
+          <ColorPicker color={swatch} onColorChange={([r, g, b]) => onColorChange([r, g, b])} />
+        ) : (
+          <span
+            className={twMerge(
+              "size-3 shrink-0 rounded-sm border border-border",
+              isUnclassified && "border-dashed",
+            )}
+            style={isUnclassified ? undefined : { backgroundColor: rgb(swatch) }}
+            aria-hidden
+          />
+        )
+      }
+      title={
+        editing ? (
           <Input
             size="sm"
-            aria-label={isUnclassified ? "Name this class" : `Rename ${name} class`}
+            aria-label={`Rename ${name} class`}
             placeholder="Name this class…"
             value={draft}
             onChange={setDraft}
@@ -115,59 +107,55 @@ export function AnnotationGroupRow({
               else if (e.key === "Escape") cancel();
             }}
           />
-        </div>
-      ) : onSelectActive ? (
-        <button
-          type="button"
-          onClick={onSelectActive}
-          className={twMerge(
-            "flex-1 truncate text-left text-xs font-medium text-foreground",
-            isUnclassified && "italic text-muted-foreground",
-          )}
-        >
-          {name}
-        </button>
-      ) : (
-        <span
-          className={twMerge(
-            "flex-1 truncate text-xs font-medium text-foreground",
-            isUnclassified && "italic text-muted-foreground",
-          )}
-        >
-          {name}
-        </span>
-      )}
-
-      {!editing && (onRename || onDelete) && (
-        <span className="flex opacity-0 transition-opacity group-hover/grouprow:opacity-100 focus-within:opacity-100">
-          {onRename && (
-            <IconButton
-              icon="Pencil"
-              label={isUnclassified ? "Name this class" : `Rename ${name}`}
-              variant="ghost"
-              size="xs"
-              onPress={startEdit}
-            />
-          )}
-          {onDelete && (
-            <IconButton
-              icon="Trash2"
-              label={`Delete ${name} class`}
-              variant="ghost"
-              size="xs"
-              onPress={onDelete}
-            />
-          )}
-        </span>
-      )}
-
-      <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-      <Switch
-        isSelected={isVisible}
-        onChange={onToggleVisibility}
-        color={rgb(swatch)}
-        aria-label={`Toggle ${name} visibility`}
-      />
-    </div>
+        ) : onSelectActive ? (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={`Draw new regions into ${name}`}
+            onClick={onSelectActive}
+            className={titleCx}
+          >
+            {name}
+          </button>
+        ) : (
+          <span className={titleCx}>{name}</span>
+        )
+      }
+      actions={
+        !editing &&
+        (onRename || onDelete) && (
+          <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/panelrow:opacity-100">
+            {onRename && (
+              <IconButton
+                icon="Pencil"
+                label={`Rename ${name}`}
+                variant="ghost"
+                size="xs"
+                onPress={startEdit}
+              />
+            )}
+            {onDelete && (
+              <IconButton
+                icon="Trash2"
+                label={`Delete ${name} class`}
+                variant="ghost"
+                size="xs"
+                onPress={onDelete}
+              />
+            )}
+          </span>
+        )
+      }
+      value={count}
+      toggle={
+        <Switch
+          isSelected={isVisible}
+          onChange={onToggleVisibility}
+          color={rgb(swatch)}
+          aria-label={`Toggle ${name} visibility`}
+        />
+      }
+    />
   );
 }

@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { select } from "../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { PanelRow } from "../PanelRow";
 import { LavaLoader } from "~/components/LavaLoader";
 
 // viv library only supports 6 channels
@@ -32,19 +33,13 @@ export function ChannelsPanelBrightfieldItem({
     `
       group/radio
       cursor-pointer
-      relative
-      flex items-center gap-2
       focus:outline-none
       focus-visible:outline-1
       focus-visible:outline-foreground
-      py-2
-      border-b border-card
       text-muted-foreground
       transition-colors
-      border-none
     `,
     isVisible && "text-foreground",
-    isActive && "bg-card",
   );
 
   // Brightfield needs 3 channel slots
@@ -57,27 +52,28 @@ export function ChannelsPanelBrightfieldItem({
 
   return (
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
-      {/* Tri-color indicator */}
-      <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-border">
-        <div className="grow h-full  bg-red-500" />
-        <div className="grow h-full bg-green-500" />
-        <div className="grow h-full  bg-blue-500" />
-      </div>
-
-      {/* Label */}
-      <span className="flex-1 text-sm truncate">Brightfield</span>
-
-      {/* Visibility Toggle */}
-      <Tooltip content={tooltip}>
-        <Switch
-          isSelected={isVisible}
-          onChange={() => toggleVisibility()}
-          color="var(--color-muted-foreground)"
-          isDisabled={disabled}
-        />
-      </Tooltip>
-
-      {isLoading && <LavaLoader absolute rows={1} cols={6} />}
+      <PanelRow
+        selected={isActive}
+        accessory={isLoading && <LavaLoader absolute rows={1} cols={6} />}
+        swatch={
+          <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-border">
+            <div className="grow h-full  bg-red-500" />
+            <div className="grow h-full bg-green-500" />
+            <div className="grow h-full  bg-blue-500" />
+          </div>
+        }
+        title="Brightfield"
+        toggle={
+          <Tooltip content={tooltip}>
+            <Switch
+              isSelected={isVisible}
+              onChange={() => toggleVisibility()}
+              color="var(--color-muted-foreground)"
+              isDisabled={disabled}
+            />
+          </Tooltip>
+        }
+      />
     </Radio>
   );
 }
