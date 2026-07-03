@@ -144,6 +144,9 @@ export interface AnnotationsSlice {
   deleteAnnotationClass: (userId: string, name: string) => void;
   /** Set the whole annotation layer's opacity (0–1). */
   setAnnotationsOpacity: (opacity: number) => void;
+  /** Show/hide ALL of one user's annotations at once (hides every class the
+   *  user's features currently use; showing clears that user's hidden set). */
+  setAnnotationUserHidden: (userId: string, hidden: boolean) => void;
   /** Show/hide a classification within ONE user's set (display only). */
   toggleAnnotationClassVisibility: (userId: string, name: string) => void;
   /** Ensure a class is visible for ONE user (idempotent un-hide) — e.g. after
@@ -344,6 +347,18 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
       },
       false,
       "setAnnotationsOpacity",
+    ),
+
+  setAnnotationUserHidden: (userId, hidden) =>
+    set(
+      (state) => {
+        const view = (state.annotationView[userId] ??= { hiddenClasses: [] });
+        view.hiddenClasses = hidden
+          ? [...new Set((state.annotationsByUser[userId] ?? []).map(classNameOf))]
+          : [];
+      },
+      false,
+      "setAnnotationUserHidden",
     ),
 
   setAnnotationMode: (mode) =>

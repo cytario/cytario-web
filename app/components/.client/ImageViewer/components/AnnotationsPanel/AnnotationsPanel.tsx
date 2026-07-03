@@ -1,9 +1,12 @@
-import { Badge } from "@cytario/design";
+import { Badge, Switch } from "@cytario/design";
 import { useMemo, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { AnnotationsTools } from "./AnnotationsTools";
-import { classNameOf } from "../../state/store/slices/viewer.annotations.store";
+import {
+  classNameOf,
+  selectUserHiddenClasses,
+} from "../../state/store/slices/viewer.annotations.store";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
@@ -30,7 +33,12 @@ const AnnotationFileBlock = ({
   editable: boolean;
 }) => {
   const imageResourceId = useViewerStore((s) => s.id);
+  const hiddenClasses = useViewerStore(selectUserHiddenClasses(userId));
+  const setUserHidden = useViewerStore((s) => s.setAnnotationUserHidden);
   const [isOpen, setIsOpen] = useState(true);
+
+  // The file is "visible" while at least one of its regions' classes isn't hidden.
+  const anyVisible = features.some((f) => !hiddenClasses.includes(classNameOf(f)));
 
   // The user's sidecar as a TreeNode — a real, co-located S3 object.
   const node = useMemo<TreeNode>(() => {
@@ -51,6 +59,13 @@ const AnnotationFileBlock = ({
       <div className="flex items-center gap-2">
         <NodeLink node={node} onClick={() => setIsOpen(!isOpen)} />
         {features.length > 0 && <Badge>{features.length}</Badge>}
+        {features.length > 0 && (
+          <Switch
+            isSelected={anyVisible}
+            onChange={(visible) => setUserHidden(userId, !visible)}
+            aria-label={`Toggle ${label} annotations visibility`}
+          />
+        )}
       </div>
 
       {isOpen && <AnnotationsList userId={userId} features={features} editable={editable} />}

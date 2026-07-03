@@ -35,7 +35,16 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
   const [isLoading, setIsLoading] = useState(false);
 
   const { connectionName, pathName, fileName } = parseResourceId(resourceId);
-  const hasMarkers = Object.keys(overlayState).length > 0;
+  const markerEntries = Object.entries(overlayState);
+  const hasMarkers = markerEntries.length > 0;
+  const anyMarkerVisible = markerEntries.some(([, m]) => m.isVisible);
+
+  // File-level visibility: flip every marker in the file at once.
+  const setFileVisible = (visible: boolean) =>
+    updateOverlaysState(
+      resourceId,
+      Object.fromEntries(markerEntries.map(([name, m]) => [name, { ...m, isVisible: visible }])),
+    );
 
   // The overlay file as a TreeNode, so the file row renders as the shared
   // NodeLink (icon + name + context menu) used across the directory views.
@@ -94,7 +103,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
     <div className="flex flex-col">
       {/* File row: clicking the name toggles the marker list; navigation and
           removal live in the node's context menu. */}
-      <div className="p-2">
+      <div className="flex items-center gap-2 p-2">
         <NodeLink
           node={node}
           onClick={() => setIsOpen(!isOpen)}
@@ -114,6 +123,14 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
             </MenuItem>
           }
         />
+        {hasMarkers && <Badge>{markerEntries.length}</Badge>}
+        {hasMarkers && (
+          <Switch
+            isSelected={anyMarkerVisible}
+            onChange={(visible) => setFileVisible(visible)}
+            aria-label={`Toggle ${fileName} markers visibility`}
+          />
+        )}
       </div>
 
       {/* Body: one PanelRow per marker — no radio semantics, markers have no

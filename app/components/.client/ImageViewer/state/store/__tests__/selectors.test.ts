@@ -108,6 +108,7 @@ describe("selectors", () => {
     createAnnotationClass: vi.fn(),
     deleteAnnotationClass: vi.fn(),
     setAnnotationsOpacity: vi.fn(),
+    setAnnotationUserHidden: vi.fn(),
     toggleAnnotationClassVisibility: vi.fn(),
     showAnnotationClass: vi.fn(),
     setAnnotationMode: vi.fn(),
