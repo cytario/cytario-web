@@ -59,13 +59,12 @@ const AnnotationFileBlock = ({
       <div className="flex items-center gap-2">
         <NodeLink node={node} onClick={() => setIsOpen(!isOpen)} />
         <Badge>{features.length}</Badge>
-        {features.length > 0 && (
-          <Switch
-            isSelected={anyVisible}
-            onChange={(visible) => setUserHidden(userId, !visible)}
-            aria-label={`Toggle ${label} annotations visibility`}
-          />
-        )}
+        <Switch
+          isSelected={anyVisible}
+          isDisabled={features.length === 0}
+          onChange={(visible) => setUserHidden(userId, !visible)}
+          aria-label={`Toggle ${label} annotations visibility`}
+        />
       </div>
 
       {isOpen && <AnnotationsList userId={userId} features={features} editable={editable} />}
