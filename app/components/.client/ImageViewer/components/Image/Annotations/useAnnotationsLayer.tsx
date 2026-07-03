@@ -19,6 +19,7 @@ import {
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
@@ -75,7 +76,7 @@ const AnnotationTooltip = ({ feature }: { feature: AnnotationFeature }) => {
   return (
     <div className="flex flex-col gap-1">
       <header>
-        <H3 className="text-lg font-normal">ID: {feature.properties?.id}</H3>
+        <H3 className="text-lg font-normal">ID: {feature.id}</H3>
       </header>
       <div className="flex items-center gap-2">
         <div
@@ -102,10 +103,11 @@ const stampEdit = (
   const now = new Date().toISOString();
   return features.map((feature, i) => {
     const properties = feature.properties ?? {};
-    if (!properties.id) {
+    if (!feature.id) {
       return {
         ...feature,
-        properties: { ...properties, id: crypto.randomUUID(), createdAt: now, updatedAt: now },
+        id: crypto.randomUUID(),
+        properties: { ...properties, createdAt: now, updatedAt: now },
       };
     }
     if (changed?.includes(i)) {
@@ -140,8 +142,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
 
     // Resolve selected ids → array indexes only here, at the deck boundary.
     const selected = new Set(selectedIds);
-    const isSelected = (f: AnnotationFeature) =>
-      !!f.properties?.id && selected.has(f.properties.id);
+    const isSelected = (f: AnnotationFeature) => !!f.id && selected.has(f.id);
     const selectedFeatureIndexes = features.reduce<number[]>((acc, f, i) => {
       if (isSelected(f)) acc.push(i);
       return acc;
@@ -152,7 +153,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
     // click-to-select. Only the alphas and per-user hidden/opacity differ.
     const selectOnClick = (info: PickingInfo, event?: { srcEvent?: ModifierKeys }) => {
       if (mode !== "view") return; // in draw modes a click is a draw action
-      const id = (info.object as AnnotationFeature | undefined)?.properties?.id;
+      const id = (info.object as AnnotationFeature | undefined)?.id;
       if (!id) return;
       const src = event?.srcEvent;
       // Any modifier keeps the selection additive — toggle the clicked feature in
@@ -215,10 +216,15 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
         if (!ownUserId) return; // edits route to the current user's own key
         const changed: number[] | undefined = editContext?.featureIndexes;
         const stamped = stampEdit(updatedData.features as AnnotationFeature[], changed);
-        updateUserFeatures(ownUserId, stamped);
+        // Validate before persist: a degenerate/aborted draw (empty ring,
+        // `[[null]]`) is dropped and never written to S3 — the store is valid by
+        // construction.
+        const valid = validAnnotationFeatures(stamped);
+        updateUserFeatures(ownUserId, valid);
         if (editType === "addFeature") {
-          const newId = stamped[stamped.length - 1]?.properties?.id;
-          if (newId) setSelectedIds([newId]);
+          // Select the new feature only if it survived validation.
+          const newId = stamped[stamped.length - 1]?.id;
+          if (newId && valid.some((f) => f.id === newId)) setSelectedIds([newId]);
         }
       },
     });

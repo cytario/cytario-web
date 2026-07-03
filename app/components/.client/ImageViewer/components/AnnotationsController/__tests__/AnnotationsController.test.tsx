@@ -41,8 +41,9 @@ vi.mock("../AnnotationsList", () => ({
 
 const makeFeature = (id: string): AnnotationFeature => ({
   type: "Feature",
+  id,
   geometry: { type: "Point", coordinates: [0, 0] },
-  properties: { id },
+  properties: {},
 });
 
 function buildStore() {
