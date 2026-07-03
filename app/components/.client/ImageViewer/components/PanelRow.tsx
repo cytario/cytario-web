@@ -9,7 +9,8 @@ interface PanelRowProps {
   titleTruncate?: boolean;
   /** Hover/focus-revealed row actions (e.g. rename, delete). */
   actions?: ReactNode;
-  /** Trailing metric: a pixel value, a member count… */
+  /** Trailing metric. Numbers/strings render in the muted measurement style
+   *  (pixel intensity); counts should be passed as a `<Badge>` node. */
   value?: ReactNode;
   /** Trailing control, typically a visibility Switch. */
   toggle?: ReactNode;
@@ -41,10 +42,10 @@ export function PanelRow({
 }: PanelRowProps) {
   const cx = twMerge(
     `
-      group/panelrow 
+      group/panelrow
       relative flex items-center
-      gap-1 rounded-full
-      p-1
+      gap-0.5 rounded-full
+      px-2 py-1
       font-medium text-sm
       hover:bg-muted
     `,
@@ -54,12 +55,19 @@ export function PanelRow({
   return (
     <div className={cx}>
       {accessory}
-      {swatch}
-      <span className={twMerge("min-w-0 flex-1 text-sm", titleTruncate && "truncate")}>
-        {title}
-      </span>
+      {/* w-6 gutter mirrors NodeLink's NodeIndicator so stacked file rows and
+          panel rows share the same title left edge. */}
+      {swatch && (
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center">{swatch}</span>
+      )}
+      <span className={twMerge("min-w-0 flex-1", titleTruncate && "truncate")}>{title}</span>
       {actions}
-      {value != null && <span className="text-xs tabular-nums text-muted-foreground">{value}</span>}
+      {value != null &&
+        (typeof value === "number" || typeof value === "string" ? (
+          <span className="text-xs tabular-nums text-muted-foreground">{value}</span>
+        ) : (
+          value
+        ))}
       {toggle}
     </div>
   );

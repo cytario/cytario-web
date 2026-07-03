@@ -1,4 +1,4 @@
-import { IconButton, Input, Switch } from "@cytario/design";
+import { Badge, IconButton, Input, Switch } from "@cytario/design";
 import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -6,6 +6,7 @@ import { UNCLASSIFIED_COLOR } from "../../state/store/slices/viewer.annotations.
 import { RGB, RGBA } from "../../state/store/types";
 import { ColorPicker, rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 import { PanelRow } from "../PanelRow";
+import { Swatch } from "../Swatch";
 
 interface AnnotationGroupRowProps {
   name: string;
@@ -67,8 +68,9 @@ export function AnnotationGroupRow({
     setDraft(name);
   };
 
+  // Type scale comes from PanelRow (text-sm font-medium); only the deltas here.
   const titleCx = twMerge(
-    "w-full truncate text-left text-sm font-medium text-foreground",
+    "w-full truncate text-left text-foreground",
     isUnclassified && "italic text-muted-foreground",
   );
 
@@ -80,15 +82,10 @@ export function AnnotationGroupRow({
         canRecolor ? (
           <ColorPicker color={swatch} onColorChange={([r, g, b]) => onColorChange([r, g, b])} />
         ) : (
-          // Static, non-interactive swatch in ColorSwatch's shape so every row
-          // reads the same; dashed + unfilled marks the unclassified bucket.
-          <span
-            className={twMerge(
-              "h-5 w-5 shrink-0 rounded-full border-2 border-border",
-              isUnclassified && "border-dashed",
-            )}
-            style={isUnclassified ? undefined : { backgroundColor: rgb(swatch) }}
-            aria-hidden
+          // Dashed + unfilled marks the unclassified bucket.
+          <Swatch
+            color={isUnclassified ? undefined : rgb(swatch)}
+            className={isUnclassified ? "border-dashed" : undefined}
           />
         )
       }
@@ -149,7 +146,7 @@ export function AnnotationGroupRow({
           </span>
         )
       }
-      value={count}
+      value={count > 0 ? <Badge>{count}</Badge> : undefined}
       toggle={
         <Switch
           isSelected={isVisible}

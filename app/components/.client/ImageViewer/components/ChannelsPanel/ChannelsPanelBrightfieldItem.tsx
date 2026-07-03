@@ -6,6 +6,7 @@ import { select } from "../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { PanelRow } from "../PanelRow";
+import { Swatch } from "../Swatch";
 import { LavaLoader } from "~/components/LavaLoader";
 
 // viv library only supports 6 channels
@@ -56,11 +57,11 @@ export function ChannelsPanelBrightfieldItem({
         selected={isActive}
         accessory={isLoading && <LavaLoader absolute rows={1} cols={6} />}
         swatch={
-          <div className="flex w-5 h-5 rounded-full overflow-hidden border-2 border-border">
-            <div className="grow h-full  bg-red-500" />
-            <div className="grow h-full bg-green-500" />
-            <div className="grow h-full  bg-blue-500" />
-          </div>
+          <Swatch>
+            <span className="grow h-full bg-red-500" />
+            <span className="grow h-full bg-green-500" />
+            <span className="grow h-full bg-blue-500" />
+          </Swatch>
         }
         title="Brightfield"
         toggle={

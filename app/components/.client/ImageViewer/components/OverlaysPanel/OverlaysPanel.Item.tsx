@@ -1,4 +1,4 @@
-import { MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
+import { Badge, MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
 import { useEffect, useMemo, useState } from "react";
 
 import { getOverlayState } from "./getOverlayState";
@@ -119,7 +119,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
       {/* Body: one PanelRow per marker — no radio semantics, markers have no
           selected-item concept (yet). */}
       {isOpen && (
-        <div className="flex flex-col px-3">
+        <div className="flex flex-col gap-1 px-3">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LavaLoader />
@@ -154,7 +154,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
                     />
                   }
                   title={name}
-                  value={count > 0 ? count : undefined}
+                  value={count > 0 ? <Badge>{count}</Badge> : undefined}
                   toggle={
                     <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
                       <Switch
