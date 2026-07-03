@@ -58,7 +58,7 @@ const AnnotationFileBlock = ({
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
         <NodeLink node={node} onClick={() => setIsOpen(!isOpen)} />
-        {features.length > 0 && <Badge>{features.length}</Badge>}
+        <Badge>{features.length}</Badge>
         {features.length > 0 && (
           <Switch
             isSelected={anyVisible}
