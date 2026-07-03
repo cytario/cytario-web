@@ -12,7 +12,7 @@ import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { LavaLoader } from "~/components/LavaLoader";
 import { select as connectionsSelect } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
+import { getMarkerInfoWasm, getOverlayCellCount } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -33,6 +33,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
 
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [cellCount, setCellCount] = useState<number | null>(null);
 
   const { connectionName, pathName, fileName } = parseResourceId(resourceId);
   const markerEntries = Object.entries(overlayState);
@@ -99,6 +100,18 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
     fetchMarkers();
   }, [hasMarkers, resourceId, connectionConfig, updateOverlaysState, toast, fileName]);
 
+  // Total cell/object count for the file-level badge (rows in the parquet).
+  useEffect(() => {
+    if (!connectionConfig) return;
+    let cancelled = false;
+    getOverlayCellCount(resourceId)
+      .then((n) => !cancelled && setCellCount(n))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [resourceId, connectionConfig]);
+
   return (
     <div className="flex flex-col">
       {/* File row: clicking the name toggles the marker list; navigation and
@@ -123,7 +136,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
             </MenuItem>
           }
         />
-        {hasMarkers && <Badge>{markerEntries.length}</Badge>}
+        {cellCount != null && <Badge>{cellCount}</Badge>}
         {hasMarkers && (
           <Switch
             isSelected={anyMarkerVisible}
