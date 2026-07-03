@@ -80,9 +80,11 @@ export function AnnotationGroupRow({
         canRecolor ? (
           <ColorPicker color={swatch} onColorChange={([r, g, b]) => onColorChange([r, g, b])} />
         ) : (
+          // Static, non-interactive swatch in ColorSwatch's shape so every row
+          // reads the same; dashed + unfilled marks the unclassified bucket.
           <span
             className={twMerge(
-              "size-3 shrink-0 rounded-sm border border-border",
+              "h-5 w-5 shrink-0 rounded-full border-2 border-border",
               isUnclassified && "border-dashed",
             )}
             style={isUnclassified ? undefined : { backgroundColor: rgb(swatch) }}

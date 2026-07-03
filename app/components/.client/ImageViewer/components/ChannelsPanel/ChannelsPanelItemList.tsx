@@ -60,7 +60,7 @@ export function ChannelsPanelItemList() {
         setSelectedChannelId(name);
         setChannelVisibility(name as keyof ChannelsStateColumns, true);
       }}
-      className="flex flex-col px-3"
+      className="flex flex-col p-2 gap-1"
     >
       {visibleChannelIds.map((id) => {
         const config = channelsState?.[id];

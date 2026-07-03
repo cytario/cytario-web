@@ -1,13 +1,12 @@
-import { MenuItem, useToast } from "@cytario/design";
+import { MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
 import { useEffect, useMemo, useState } from "react";
-import { RadioGroup } from "react-aria-components";
-import { twMerge } from "tailwind-merge";
 
 import { getOverlayState } from "./getOverlayState";
 import { select } from "../../state/store/selectors";
-import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
+import { OverlayState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { ChannelsPanelItem } from "../ChannelsPanel/ChannelsPanelItem";
+import { ColorPicker, rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
+import { PanelRow } from "../PanelRow";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { LavaLoader } from "~/components/LavaLoader";
@@ -31,8 +30,6 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
 
   // Get file download progress from the file store
   const fileProgress = useFileStore((state) => state.files[resourceId]?.progress);
-
-  const cx = twMerge("flex flex-col px-3");
 
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -119,9 +116,10 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
         />
       </div>
 
-      {/* Body */}
+      {/* Body: one PanelRow per marker — no radio semantics, markers have no
+          selected-item concept (yet). */}
       {isOpen && (
-        <RadioGroup aria-label="Overlay markers" className={cx}>
+        <div className="flex flex-col px-3">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LavaLoader />
@@ -131,19 +129,41 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
             </div>
           ) : hasMarkers ? (
             Object.entries(overlayState).map(([markerName, { color, count, isVisible }]) => {
+              const name = markerName.replace("marker_positive_", "");
               return (
-                <ChannelsPanelItem
+                <PanelRow
                   key={markerName}
-                  name={markerName.replace("marker_positive_", "") as keyof ChannelsStateColumns}
-                  color={color}
-                  isVisible={isVisible}
-                  isLoading={false}
-                  pixelValue={count}
-                  maxDomain={maxDomain}
-                  toggleChannelVisibility={() =>
-                    setMarkerVisibility(resourceId, markerName, !isVisible)
+                  className={isVisible ? "text-foreground" : "text-muted-foreground"}
+                  accessory={
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5">
+                      {isVisible && (
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${(count / maxDomain) * 100}%`,
+                            backgroundColor: rgb(color),
+                          }}
+                        />
+                      )}
+                    </div>
                   }
-                  onColorChange={(color) => setMarkerColor(resourceId, markerName, color)}
+                  swatch={
+                    <ColorPicker
+                      color={color}
+                      onColorChange={(color) => setMarkerColor(resourceId, markerName, color)}
+                    />
+                  }
+                  title={name}
+                  value={count > 0 ? count : undefined}
+                  toggle={
+                    <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
+                      <Switch
+                        isSelected={isVisible}
+                        onChange={() => setMarkerVisibility(resourceId, markerName, !isVisible)}
+                        color={rgb(color)}
+                      />
+                    </Tooltip>
+                  }
                 />
               );
             })
@@ -152,7 +172,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
               No markers found in this overlay
             </div>
           )}
-        </RadioGroup>
+        </div>
       )}
     </div>
   );

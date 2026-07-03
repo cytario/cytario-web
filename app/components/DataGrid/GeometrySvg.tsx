@@ -69,7 +69,7 @@ export const GeometrySvg = ({ rings, size = 48, color, selected }: GeometrySvgPr
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      className="inline-block rounded bg-muted"
+      className="inline-block bg-muted"
     >
       {selected &&
         SELECTION_STROKES.map((ring, i) => (

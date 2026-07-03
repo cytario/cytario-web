@@ -39,14 +39,20 @@ export function PanelRow({
   selected,
   className,
 }: PanelRowProps) {
+  const cx = twMerge(
+    `
+      group/panelrow 
+      relative flex items-center
+      gap-1 rounded-full
+      p-1
+      font-medium text-sm
+      hover:bg-muted
+    `,
+    selected && "bg-muted",
+    className,
+  );
   return (
-    <div
-      className={twMerge(
-        "group/panelrow relative flex items-center gap-2 rounded border-l-2 border-transparent py-2 pl-1",
-        selected && "border-primary bg-muted",
-        className,
-      )}
-    >
+    <div className={cx}>
       {accessory}
       {swatch}
       <span className={twMerge("min-w-0 flex-1 text-sm", titleTruncate && "truncate")}>

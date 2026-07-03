@@ -8,15 +8,14 @@ interface ColorSwatchProps extends ButtonProps {
 }
 
 export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
+  const cx = `
+    w-5 h-5 rounded-full border-2
+    border-border group-hover:border-border
+  `;
+
   return (
     <Button className="group cursor-pointer flex items-center justify-center" {...props}>
-      <div
-        className={`
-          w-5 h-5 m-1 rounded-full border-2 
-          border-border group-hover:border-border
-        `}
-        style={{ backgroundColor: rgb(color) }}
-      />
+      <div className={cx} style={{ backgroundColor: rgb(color) }} />
     </Button>
   );
 }

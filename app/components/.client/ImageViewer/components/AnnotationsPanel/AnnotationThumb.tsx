@@ -40,8 +40,9 @@ const GeometryThumb = ({
 }) => {
   if (geometry.type === "Point") {
     const c = THUMB_SIZE / 2;
+
     return (
-      <svg width={THUMB_SIZE} height={THUMB_SIZE} className="inline-block rounded bg-muted">
+      <svg width={THUMB_SIZE} height={THUMB_SIZE} className="inline-block bg-muted">
         {selected &&
           POINT_SELECTION_RINGS.map((ring) => (
             <circle
@@ -64,6 +65,7 @@ const GeometryThumb = ({
       </svg>
     );
   }
+
   return (
     <GeometrySvg
       rings={geometryToRings(geometry)}
@@ -112,7 +114,7 @@ export const AnnotationThumb = ({
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
-        className="rounded border border-border text-muted-foreground hover:text-foreground"
+        className="rounded-2xl border border-border text-muted-foreground hover:text-foreground overflow-hidden"
       >
         <GeometryThumb geometry={feature.geometry} color={color} selected={selected} />
       </button>
