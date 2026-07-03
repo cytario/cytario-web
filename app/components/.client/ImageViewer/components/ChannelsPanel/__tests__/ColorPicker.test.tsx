@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-import { OVERLAY_COLORS } from "../../OverlaysPanel/getOverlayState";
+import { CATEGORICAL_COLORS } from "../../../categoricalColors";
 import { ColorPicker } from "../ColorPicker/ColorPicker";
 
 const RED_RGBA: [number, number, number, number] = [255, 0, 0, 255];
@@ -23,7 +23,7 @@ describe("ColorPicker", () => {
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
-    expect(presetButtons).toHaveLength(OVERLAY_COLORS.length + 1); // 8 + white
+    expect(presetButtons).toHaveLength(CATEGORICAL_COLORS.length + 1); // 8 + white
   });
 
   test("popover renders the HSV slider and hex input", async () => {

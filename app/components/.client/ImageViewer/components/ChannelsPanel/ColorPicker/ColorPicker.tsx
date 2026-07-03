@@ -10,8 +10,8 @@ import {
 } from "react-aria-components";
 
 import { ColorSwatch } from "./ColorSwatch";
+import { CATEGORICAL_COLORS } from "../../../categoricalColors";
 import { RGB, RGBA } from "../../../state/store/types";
-import { OVERLAY_COLORS } from "../../OverlaysPanel/getOverlayState";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
   const rgb = color.slice(0, 3);
@@ -19,7 +19,7 @@ export function rgb(color: RGB | RGBA, alpha = 255): string {
 }
 
 const WHITE: RGBA = [255, 255, 255, 255];
-const COLOR_PALLETTE_WITH_WHITE: RGBA[] = [...OVERLAY_COLORS, WHITE];
+const COLOR_PALLETTE_WITH_WHITE: RGBA[] = [...CATEGORICAL_COLORS, WHITE];
 
 interface ColorPickerProps {
   color: RGBA;

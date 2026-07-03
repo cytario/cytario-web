@@ -1,6 +1,4 @@
-// De-facto categorical palette shared with channels/overlays; centralization to a
-// neutral module (and design tokens) is tracked as a follow-up.
-import { OVERLAY_COLORS } from "../../../components/OverlaysPanel/getOverlayState";
+import { CATEGORICAL_COLORS } from "../../../categoricalColors";
 import type { AnnotationMode, RGB, ViewerSlice, ViewerStore } from "../types";
 import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
 
@@ -29,7 +27,7 @@ export const isReservedClassName = (name: string): boolean =>
   name.trim().toLowerCase() === UNCLASSIFIED.toLowerCase();
 
 /** RGB view of the shared categorical palette (drops the palette's alpha). */
-const PALETTE: RGB[] = OVERLAY_COLORS.map(([r, g, b]): RGB => [r, g, b]);
+const PALETTE: RGB[] = CATEGORICAL_COLORS.map(([r, g, b]): RGB => [r, g, b]);
 
 const colorKey = (c: RGB): string => c.join(",");
 
