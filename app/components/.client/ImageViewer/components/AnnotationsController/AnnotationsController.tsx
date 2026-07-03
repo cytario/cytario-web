@@ -1,4 +1,3 @@
-import { EmptyState } from "@cytario/design";
 import { useMemo } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
@@ -40,16 +39,7 @@ export const AnnotationsController = () => {
           />
         }
       >
-        {features.length ? (
-          <AnnotationsList userId={userId} features={features} editable={isOwn} />
-        ) : (
-          <EmptyState
-            title="No annotations"
-            description="Use the draw tools to add regions."
-            icon="Spline"
-            className="py-6"
-          />
-        )}
+        <AnnotationsList userId={userId} features={features} editable={isOwn} />
       </FeatureItem>
     );
   });

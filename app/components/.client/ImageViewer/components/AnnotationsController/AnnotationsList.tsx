@@ -1,11 +1,14 @@
-import { useMemo, useRef } from "react";
+import { Button, EmptyState, Input } from "@cytario/design";
+import { useMemo, useRef, useState } from "react";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { AnnotationThumb } from "./AnnotationThumb";
-import { flyToFeatureViewState } from "./flyToFeature";
+import { flyToFeaturesViewState } from "./flyToFeature";
 import {
   classNameOf,
+  isReservedClassName,
   selectUserHiddenClasses,
+  UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../state/store/slices/viewer.annotations.store";
 import { RGB } from "../../state/store/types";
@@ -39,11 +42,34 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   const hiddenClasses = useViewerStore(selectUserHiddenClasses(userId));
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
+  const setClassForIds = useViewerStore((s) => s.setAnnotationClassForIds);
+  const activeClass = useViewerStore((s) => s.annotationActiveClass);
+  const setActiveClass = useViewerStore((s) => s.setAnnotationActiveClass);
+  const renameClass = useViewerStore((s) => s.renameAnnotationClass);
+  const classes = useViewerStore((s) => s.annotationClasses);
+  const createClass = useViewerStore((s) => s.createAnnotationClass);
+  const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
   const viewState = useViewerStore((s) => s.viewStateActive);
   const setViewState = useViewerStore((s) => s.setViewStateActive);
 
+  // "Add class" reveals an inline name input; the class is created only on a
+  // non-empty commit (no default-named placeholder is ever persisted).
+  const [adding, setAdding] = useState(false);
+
+  // Act on the current selection when the actioned feature is part of a
+  // multi-selection, else on just that feature — shared by classify, delete,
+  // and zoom so every row action targets the same set.
+  const actionTargets = (feature: AnnotationFeature): string[] =>
+    selectedIds.length > 1 && selectedIds.includes(feature.id) ? selectedIds : [feature.id];
+
   const annotationsGroups = useMemo<AnnotationGroup[]>(() => {
     const byName = new Map<string, AnnotationGroup>();
+    // Own set: always show the Unclassified bucket, pinned first — the default
+    // draw target — then every defined class (registry), so empty classes show.
+    if (editable) {
+      byName.set(UNCLASSIFIED, { name: UNCLASSIFIED, color: null, items: [] });
+      for (const c of classes) byName.set(c.name, { name: c.name, color: c.color, items: [] });
+    }
     features.forEach((feature, index) => {
       const name = classNameOf(feature);
       let group = byName.get(name);
@@ -54,7 +80,14 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
       group.items.push({ feature, index });
     });
     return [...byName.values()];
-  }, [features]);
+  }, [features, editable, classes]);
+
+  // Existing named classes offered as move targets (the unclassified bucket is
+  // reached via "Clear classification", not a move).
+  const namedClasses = useMemo(
+    () => annotationsGroups.map((g) => g.name).filter((name) => !isReservedClassName(name)),
+    [annotationsGroups],
+  );
 
   // Flattened ids in displayed (grouped) order — the axis a Shift-range walks.
   const orderedIds = useMemo(
@@ -103,21 +136,27 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   };
 
   const zoomToFeature = (feature: AnnotationFeature) => {
-    // Select the target without routing through select() — zoom is navigation,
-    // not a selection gesture, so it must not move the Shift-range anchor.
-    const id = feature.id;
-    setSelectedIds(id ? [id] : []);
+    // Zoom to the whole selection (combined bounds) when the actioned region is
+    // part of it, else to just that region — same target rule as classify.
+    // Select without routing through select() — zoom is navigation, not a
+    // selection gesture, so it must not move the Shift-range anchor.
+    const ids = new Set(actionTargets(feature));
+    setSelectedIds([...ids]);
     if (!viewState) return;
-    const next = flyToFeatureViewState(feature.geometry, viewState);
+    const geometries = features.filter((f) => ids.has(f.id)).map((f) => f.geometry);
+    const next = flyToFeaturesViewState(geometries, viewState);
     if (next) setViewState(next);
   };
 
-  const deleteFeature = (feature: AnnotationFeature) => {
+  const deleteFeatures = (feature: AnnotationFeature) => {
+    // Delete the whole selection when the actioned region is part of it, else
+    // just that region — same target rule as classify.
+    const ids = new Set(actionTargets(feature));
     setSelectedIds([]);
     anchorId.current = null;
     updateUserFeatures(
       userId,
-      features.filter((f) => f !== feature),
+      features.filter((f) => !ids.has(f.id)),
     );
   };
 
@@ -125,6 +164,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
     <div className="flex flex-col gap-2 px-3 py-2">
       {annotationsGroups.map(({ name, color, items }) => {
         const cssColor = rgb([...(color ?? UNCLASSIFIED_COLOR), 255]);
+        const isUnclassified = isReservedClassName(name);
         return (
           <div key={name} className="flex flex-col">
             <AnnotationGroupRow
@@ -136,6 +176,19 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
               onColorChange={
                 editable && color ? (color) => setClassColor(userId, name, color) : undefined
               }
+              isActive={editable && (isUnclassified ? activeClass === null : activeClass === name)}
+              onSelectActive={
+                editable ? () => setActiveClass(isUnclassified ? null : name) : undefined
+              }
+              onRename={
+                // Named classes only — new classes are created via "Add class",
+                // so the Unclassified bucket is never renamed.
+                editable && !isUnclassified
+                  ? (newName) => renameClass(userId, name, newName)
+                  : undefined
+              }
+              onDelete={editable && !isUnclassified ? () => deleteClass(userId, name) : undefined}
+              isUnclassified={isUnclassified}
             />
 
             <div className="flex flex-wrap gap-1.5 pt-1">
@@ -148,9 +201,20 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
                     selected={!!id && selectedIds.includes(id)}
                     color={cssColor}
                     editable={editable}
+                    // Don't offer moving into the group the region already sits in.
+                    classNames={namedClasses.filter((n) => n !== name)}
                     onSelect={(e) => select(feature, e)}
                     onZoom={() => zoomToFeature(feature)}
-                    onDelete={() => deleteFeature(feature)}
+                    onClassify={(className) =>
+                      setClassForIds(userId, actionTargets(feature), className)
+                    }
+                    // Already-unclassified regions have nothing to clear.
+                    onClear={
+                      isUnclassified
+                        ? undefined
+                        : () => setClassForIds(userId, actionTargets(feature), null)
+                    }
+                    onDelete={() => deleteFeatures(feature)}
                   />
                 );
               })}
@@ -158,6 +222,70 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
           </div>
         );
       })}
+
+      {editable &&
+        (adding ? (
+          <NewClassInput
+            onCommit={(className) => {
+              createClass(className);
+              setAdding(false);
+            }}
+            onCancel={() => setAdding(false)}
+          />
+        ) : (
+          <Button variant="ghost" size="sm" onPress={() => setAdding(true)} iconLeft="Plus">
+            Add class
+          </Button>
+        ))}
+
+      {editable && features.length === 0 && (
+        <EmptyState
+          title="No annotations yet"
+          description="Select a class above, then use the draw tools to add your first region."
+          icon="Spline"
+          className="py-4"
+        />
+      )}
     </div>
   );
 };
+
+/** Inline name field for creating a class — commits on a non-empty Enter/blur,
+ *  cancels (creating nothing) on empty or Escape. */
+function NewClassInput({
+  onCommit,
+  onCancel,
+}: {
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  // Enter and blur can both fire on the same interaction; settle once so the
+  // class isn't created twice.
+  const settled = useRef(false);
+  const settle = (action: () => void) => {
+    if (settled.current) return;
+    settled.current = true;
+    action();
+  };
+  const commit = () => {
+    const name = draft.trim();
+    settle(() => (name ? onCommit(name) : onCancel()));
+  };
+  return (
+    <Input
+      size="sm"
+      aria-label="New class name"
+      placeholder="Name this class…"
+      value={draft}
+      onChange={setDraft}
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      autoFocus
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+        else if (e.key === "Escape") settle(onCancel);
+      }}
+    />
+  );
+}

@@ -81,20 +81,29 @@ interface AnnotationThumbProps {
   color?: string;
   /** Own set → destructive actions enabled; peers are read-only. */
   editable: boolean;
+  /** Existing class names offered as move targets (own set only). */
+  classNames?: string[];
   onSelect: (event: React.MouseEvent) => void;
   onZoom: () => void;
+  /** Assign the selection to a class (own set only). */
+  onClassify?: (name: string) => void;
+  /** Clear the selection's classification → Unclassified (own set only). */
+  onClear?: () => void;
   onDelete: () => void;
 }
 
 /** A single annotation in the sidebar list: a selectable geometry thumbnail with
- *  a hover/focus-revealed actions menu (zoom, delete). */
+ *  a hover/focus-revealed actions menu (zoom, classify, delete). */
 export const AnnotationThumb = ({
   feature,
   selected,
   color,
   editable,
+  classNames,
   onSelect,
   onZoom,
+  onClassify,
+  onClear,
   onDelete,
 }: AnnotationThumbProps) => {
   return (
@@ -114,6 +123,26 @@ export const AnnotationThumb = ({
             <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
               Zoom to annotation
             </MenuItem>
+            {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
+              <>
+                <MenuSeparator />
+                {(classNames ?? []).map((name) => (
+                  <MenuItem
+                    key={name}
+                    id={`move:${name}`}
+                    icon="Tag"
+                    onAction={() => onClassify(name)}
+                  >
+                    Move to {name}
+                  </MenuItem>
+                ))}
+                {onClear && (
+                  <MenuItem id="unclassify" icon="X" onAction={onClear}>
+                    Clear classification
+                  </MenuItem>
+                )}
+              </>
+            )}
             <MenuSeparator />
             <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
               Delete annotation
