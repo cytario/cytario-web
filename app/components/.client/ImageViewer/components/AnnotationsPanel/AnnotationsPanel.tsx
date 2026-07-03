@@ -64,7 +64,7 @@ const AnnotationFileBlock = ({
   );
 };
 
-export const AnnotationsController = () => {
+export const AnnotationsPanel = () => {
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const ownUserId = useCurrentUser()?.sub;
 

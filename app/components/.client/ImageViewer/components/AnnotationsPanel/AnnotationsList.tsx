@@ -13,7 +13,7 @@ import {
 } from "../../state/store/slices/viewer.annotations.store";
 import { RGB } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { rgb } from "../ChannelsController/ColorPicker/ColorPicker";
+import { rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 interface AnnotationGroup {

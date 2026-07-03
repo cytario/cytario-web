@@ -5,7 +5,7 @@ import { Mock } from "vitest";
 
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { ChannelsController } from "../ChannelsController";
+import { ChannelsPanel } from "../ChannelsPanel";
 import { useFeatureItemStore } from "~/components/FeatureItem/useFeatureItem";
 
 vi.mock("../../../state/store/ViewerStoreContext", () => ({
@@ -21,7 +21,7 @@ vi.mock("../Histogram", () => ({
   Histogram: vi.fn(() => <div data-testid="histogram-mock" />),
 }));
 
-describe("ChannelsController", () => {
+describe("ChannelsPanel", () => {
   const mockSetChannelVisibility = vi.fn();
   const mockSetSelectedChannelId = vi.fn();
   const mockSetChannelColor = vi.fn();
@@ -108,7 +108,7 @@ describe("ChannelsController", () => {
         <TabList aria-label="Presets">
           <Tab id="0">1</Tab>
         </TabList>
-        <ChannelsController />
+        <ChannelsPanel />
       </Tabs>,
     );
   };

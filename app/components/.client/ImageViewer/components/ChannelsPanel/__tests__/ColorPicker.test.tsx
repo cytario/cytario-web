@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-import { OVERLAY_COLORS } from "../../OverlaysController/getOverlayState";
+import { OVERLAY_COLORS } from "../../OverlaysPanel/getOverlayState";
 import { ColorPicker } from "../ColorPicker/ColorPicker";
 
 const RED_RGBA: [number, number, number, number] = [255, 0, 0, 255];

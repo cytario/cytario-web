@@ -1,6 +1,6 @@
 import { createDatabase } from "./createDatabase";
 import { resolveResourceId } from "../connectionsStore/selectors";
-import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysController/getOverlayState";
+import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysPanel/getOverlayState";
 
 /**
  * Extract marker information from DuckDB-WASM database.

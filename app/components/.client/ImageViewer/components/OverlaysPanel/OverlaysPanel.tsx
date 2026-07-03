@@ -2,7 +2,7 @@ import { Button, EmptyState, IconButton } from "@cytario/design";
 import { useState } from "react";
 
 import { LoadOverlayModal } from "./OverlayPicker.modal";
-import { OverlaysControllerItem } from "./OverlaysController.Item";
+import { OverlaysPanelItem } from "./OverlaysPanel.Item";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
@@ -10,10 +10,10 @@ import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
 /**
- * OverlaysController component manages the display and interaction of overlays in the image viewer.
+ * OverlaysPanel component manages the display and interaction of overlays in the image viewer.
  * It allows users to toggle the visibility of different overlays and provides options to add new overlays.
  */
-export const OverlaysController = () => {
+export const OverlaysPanel = () => {
   const overlaysStates = useViewerStore(select.overlaysStates);
   const fillOpacity = useViewerStore(select.overlaysFillOpacity);
   const setFillOpacity = useViewerStore(select.setOverlaysFillOpacity);
@@ -58,11 +58,7 @@ export const OverlaysController = () => {
       }
     >
       {entries.map(([resourceId, overlayState]) => (
-        <OverlaysControllerItem
-          key={resourceId}
-          resourceId={resourceId}
-          overlayState={overlayState}
-        />
+        <OverlaysPanelItem key={resourceId} resourceId={resourceId} overlayState={overlayState} />
       ))}
 
       <footer className="p-2 flex justify-center">

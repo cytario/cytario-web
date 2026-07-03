@@ -12,19 +12,19 @@ import { LavaLoader } from "~/components/LavaLoader";
 const MAX_VISIBLE_CHANNELS = 6;
 const BRIGHTFIELD_CHANNEL_COUNT = 3;
 
-interface ChannelsControllerBrightfieldItemProps {
+interface ChannelsPanelBrightfieldItemProps {
   isVisible: boolean;
   isLoading: boolean;
   visibleChannelCount: number;
   toggleVisibility: () => void;
 }
 
-export function ChannelsControllerBrightfieldItem({
+export function ChannelsPanelBrightfieldItem({
   isVisible,
   isLoading,
   visibleChannelCount,
   toggleVisibility,
-}: ChannelsControllerBrightfieldItemProps) {
+}: ChannelsPanelBrightfieldItemProps) {
   const selectedChannelId = useViewerStore(select.selectedChannelId);
   const isActive = selectedChannelId === BRIGHTFIELD_GROUP_ID;
 

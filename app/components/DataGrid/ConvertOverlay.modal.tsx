@@ -1,4 +1,4 @@
-import { AddOverlay } from "~/components/.client/ImageViewer/components/OverlaysController/AddOverlay";
+import { AddOverlay } from "~/components/.client/ImageViewer/components/OverlaysPanel/AddOverlay";
 import { RouteModal } from "~/components/RouteModal";
 
 /** CSV to Parquet conversion modal. */

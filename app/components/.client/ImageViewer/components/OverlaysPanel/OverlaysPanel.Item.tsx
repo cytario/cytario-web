@@ -7,7 +7,7 @@ import { getOverlayState } from "./getOverlayState";
 import { select } from "../../state/store/selectors";
 import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
+import { ChannelsPanelItem } from "../ChannelsPanel/ChannelsPanelItem";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { LavaLoader } from "~/components/LavaLoader";
@@ -17,15 +17,12 @@ import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { parseResourceId } from "~/utils/resourceId";
 
-interface OverlaysControllerItemProps {
+interface OverlaysPanelItemProps {
   resourceId: string;
   overlayState: OverlayState;
 }
 
-export const OverlaysControllerItem = ({
-  resourceId,
-  overlayState,
-}: OverlaysControllerItemProps) => {
+export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelItemProps) => {
   const setMarkerVisibility = useViewerStore(select.setMarkerVisibility);
   const setMarkerColor = useViewerStore(select.setMarkerColor);
   const removeOverlaysState = useViewerStore(select.removeOverlaysState);
@@ -135,7 +132,7 @@ export const OverlaysControllerItem = ({
           ) : hasMarkers ? (
             Object.entries(overlayState).map(([markerName, { color, count, isVisible }]) => {
               return (
-                <ChannelsControllerItem
+                <ChannelsPanelItem
                   key={markerName}
                   name={markerName.replace("marker_positive_", "") as keyof ChannelsStateColumns}
                   color={color}

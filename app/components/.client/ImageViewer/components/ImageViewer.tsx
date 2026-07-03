@@ -1,11 +1,11 @@
 import { IconButtonToggle } from "@cytario/design";
 
-import { AnnotationsController } from "./AnnotationsController/AnnotationsController";
-import { ChannelsController } from "./ChannelsController/ChannelsController";
+import { AnnotationsPanel } from "./AnnotationsPanel/AnnotationsPanel";
+import { ChannelsPanel } from "./ChannelsPanel/ChannelsPanel";
 import { ImagePreview } from "./Image/ImagePreview";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
-import { OverlaysController } from "./OverlaysController/OverlaysController";
+import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
 import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
@@ -49,9 +49,9 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
             <div className="block h-60 w-full shrink-0">
               <ImagePreview isInteractive />
             </div>
-            <ChannelsController />
-            <OverlaysController />
-            <AnnotationsController />
+            <ChannelsPanel />
+            <OverlaysPanel />
+            <AnnotationsPanel />
           </Presets>
         </Sidebar>
         <ViewerSidebarToggle />

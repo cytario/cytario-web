@@ -1,6 +1,6 @@
 // De-facto categorical palette shared with channels/overlays; centralization to a
 // neutral module (and design tokens) is tracked as a follow-up.
-import { OVERLAY_COLORS } from "../../../components/OverlaysController/getOverlayState";
+import { OVERLAY_COLORS } from "../../../components/OverlaysPanel/getOverlayState";
 import type { AnnotationMode, RGB, ViewerSlice, ViewerStore } from "../types";
 import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
 

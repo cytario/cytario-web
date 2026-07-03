@@ -5,13 +5,13 @@ import { Mock } from "vitest";
 import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { ChannelsControllerItem } from "../ChannelsControllerItem";
+import { ChannelsPanelItem } from "../ChannelsPanelItem";
 
 vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 
-describe("ChannelsControllerItem", () => {
+describe("ChannelsPanelItem", () => {
   const mockToggleChannelVisibility = vi.fn();
   const mockOnColorChange = vi.fn();
 
@@ -40,7 +40,7 @@ describe("ChannelsControllerItem", () => {
   const renderWithRadioGroup = (props = {}) => {
     return render(
       <RadioGroup aria-label="Test channels" value="Red" onChange={vi.fn()}>
-        <ChannelsControllerItem {...defaultProps} {...props} />
+        <ChannelsPanelItem {...defaultProps} {...props} />
       </RadioGroup>,
     );
   };

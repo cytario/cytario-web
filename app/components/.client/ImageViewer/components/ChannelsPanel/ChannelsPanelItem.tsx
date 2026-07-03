@@ -12,7 +12,7 @@ import { LavaLoader } from "~/components/LavaLoader";
 // See: https://github.com/hms-dbmi/viv/issues/687
 const MAX_VISIBLE_CHANNELS = 6;
 
-interface ChannelsControllerItemProps {
+interface ChannelsPanelItemProps {
   name: keyof ChannelsStateColumns;
   color: RGBA;
   isVisible: boolean;
@@ -24,8 +24,8 @@ interface ChannelsControllerItemProps {
   onColorChange?: (color: RGBA) => void;
 }
 
-/** Individual channel row in the ChannelsController. Displays color dot, name, pixel value, visibility toggle, and a loading overlay. */
-export function ChannelsControllerItem({
+/** Individual channel row in the ChannelsPanel. Displays color dot, name, pixel value, visibility toggle, and a loading overlay. */
+export function ChannelsPanelItem({
   name,
   isVisible,
   isLoading,
@@ -35,7 +35,7 @@ export function ChannelsControllerItem({
   visibleChannelCount = 0,
   toggleChannelVisibility,
   onColorChange,
-}: ChannelsControllerItemProps) {
+}: ChannelsPanelItemProps) {
   const selectedChannelId = useViewerStore(select.selectedChannelId);
   const isActive = selectedChannelId === name;
 

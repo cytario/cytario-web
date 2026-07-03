@@ -11,7 +11,7 @@ import {
 
 import { ColorSwatch } from "./ColorSwatch";
 import { RGB, RGBA } from "../../../state/store/types";
-import { OVERLAY_COLORS } from "../../OverlaysController/getOverlayState";
+import { OVERLAY_COLORS } from "../../OverlaysPanel/getOverlayState";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
   const rgb = color.slice(0, 3);

@@ -1,6 +1,6 @@
 import { Button, Tooltip } from "@cytario/design";
 
-import { rgb } from "./ChannelsController/ColorPicker/ColorPicker";
+import { rgb } from "./ChannelsPanel/ColorPicker/ColorPicker";
 import { select } from "../state/store/selectors";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
 

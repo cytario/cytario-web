@@ -4,7 +4,7 @@ import { useStore } from "zustand";
 
 import { createViewerStore } from "../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../state/store/types";
-import { AnnotationsController } from "../AnnotationsController";
+import { AnnotationsPanel } from "../AnnotationsPanel";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 // Inject a real store instance without the image-loading side-effects.
@@ -23,7 +23,7 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 
 // AnnotationsTools renders draw-mode controls that pull from the store and
 // have deep dependencies (canvas layer modes, etc.); stub it to keep these
-// tests focused on the AnnotationsController layout logic.
+// tests focused on the AnnotationsPanel layout logic.
 vi.mock("../AnnotationsTools", () => ({
   AnnotationsTools: () => <div data-testid="annotations-tools" />,
 }));
@@ -63,7 +63,7 @@ function buildStore() {
 }
 
 function renderController() {
-  return render(<AnnotationsController />);
+  return render(<AnnotationsPanel />);
 }
 
 /** Opens all FeatureItem accordions (click every [data-expander] button). */
@@ -77,7 +77,7 @@ function openAll() {
 // Own-first ordering
 // -----------------------------------------------------------------------
 
-describe("AnnotationsController — own-first ordering", () => {
+describe("AnnotationsPanel — own-first ordering", () => {
   test("own user's file block appears before peer blocks", () => {
     const store = buildStore();
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
@@ -117,7 +117,7 @@ describe("AnnotationsController — own-first ordering", () => {
 // Empty own section injection
 // -----------------------------------------------------------------------
 
-describe("AnnotationsController — empty own block", () => {
+describe("AnnotationsPanel — empty own block", () => {
   test("renders an own file block even when the user has no annotations yet", () => {
     buildStore(); // empty store — own user has no key
 
@@ -145,7 +145,7 @@ describe("AnnotationsController — empty own block", () => {
 // Editable gating — own vs peers
 // -----------------------------------------------------------------------
 
-describe("AnnotationsController — editable gating", () => {
+describe("AnnotationsPanel — editable gating", () => {
   test("own AnnotationsList is rendered with editable=true", () => {
     const store = buildStore();
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);

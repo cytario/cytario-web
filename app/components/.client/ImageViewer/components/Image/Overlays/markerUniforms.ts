@@ -58,7 +58,7 @@ export const markerUniforms = {
  *
  * The shader supports 32 marker bits but only 8 color slots (the bit-to-color
  * mapping is `i % 8` in the fragment shader). Multiple markers can therefore
- * collide on a single slot; the OverlaysController exposes a per-marker color
+ * collide on a single slot; the OverlaysPanel exposes a per-marker color
  * picker that lets the user override any individual marker's color.
  *
  * Slot assignment is FIRST-wins: slot `s` takes its color from

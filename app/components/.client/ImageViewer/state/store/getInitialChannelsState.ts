@@ -2,7 +2,7 @@ import type { SupportedDtype } from "@vivjs/types";
 
 import { Channel, Image, Loader } from "./ome.tif.types";
 import { ChannelConfig, ChannelsState, RGB } from "./types";
-import { OVERLAY_COLORS } from "../../components/OverlaysController/getOverlayState";
+import { OVERLAY_COLORS } from "../../components/OverlaysPanel/getOverlayState";
 import { getDtypeMax } from "../../utils/getDtypeMax";
 import { getSelectionStats } from "../../utils/getSelectionStats";
 
