@@ -35,6 +35,14 @@ vi.mock("../AnnotationsList", () => ({
   ),
 }));
 
+// NodeLink needs a router (NavLink); stub it to the node label to keep these
+// tests focused on the controller's block layout.
+vi.mock("~/components/DirectoryView/NodeLink/NodeLink", () => ({
+  NodeLink: ({ node }: { node: { name: string } }) => (
+    <div data-testid={`node-link-${node.name}`}>{node.name}</div>
+  ),
+}));
+
 // -----------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------
@@ -47,7 +55,9 @@ const makeFeature = (id: string): AnnotationFeature => ({
 });
 
 function buildStore() {
-  const store = createViewerStore(`test-${Math.random()}`);
+  // A valid resourceId (connectionName/pathName) — the controller derives each
+  // user's sidecar TreeNode from the image's resourceId.
+  const store = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`);
   currentStore = store;
   return store;
 }
@@ -68,35 +78,38 @@ function openAll() {
 // -----------------------------------------------------------------------
 
 describe("AnnotationsController — own-first ordering", () => {
-  test("own user's section appears before peer sections", () => {
+  test("own user's file block appears before peer blocks", () => {
     const store = buildStore();
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
     store.getState().updateUserFeatures("peer-a", [makeFeature("f2")]);
     store.getState().updateUserFeatures("peer-b", [makeFeature("f3")]);
 
     renderController();
+    openAll();
 
-    const items = screen.getAllByText(/^Annotations/);
-    expect(items[0]).toHaveTextContent("Annotations (You)");
+    const blocks = screen.getAllByTestId(/^node-link-/);
+    expect(blocks[0]).toHaveTextContent("You");
   });
 
-  test("own section is titled 'Annotations (You)'", () => {
+  test("own file block is labeled 'You'", () => {
     const store = buildStore();
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
 
     renderController();
+    openAll();
 
-    expect(screen.getByText("Annotations (You)")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-You")).toBeInTheDocument();
   });
 
-  test("peer section title shows a truncated user id", () => {
+  test("peer file block shows a truncated user id", () => {
     const store = buildStore();
     store.getState().updateUserFeatures("peer-xyz", [makeFeature("f1")]);
 
     renderController();
+    openAll();
 
     // peer-xyz → first 6 chars "peer-x"
-    expect(screen.getByText("Annotations (peer-x)")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-peer-x")).toBeInTheDocument();
   });
 });
 
@@ -104,22 +117,24 @@ describe("AnnotationsController — own-first ordering", () => {
 // Empty own section injection
 // -----------------------------------------------------------------------
 
-describe("AnnotationsController — empty own section", () => {
-  test("renders an own section even when the user has no annotations yet", () => {
+describe("AnnotationsController — empty own block", () => {
+  test("renders an own file block even when the user has no annotations yet", () => {
     buildStore(); // empty store — own user has no key
 
     renderController();
+    openAll();
 
-    expect(screen.getByText("Annotations (You)")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-You")).toBeInTheDocument();
   });
 
-  test("empty own section does not appear when ownUserId is unknown", () => {
+  test("empty own block does not appear when ownUserId is unknown", () => {
     currentUserId = undefined;
     buildStore();
 
     renderController();
+    openAll();
 
-    expect(screen.queryByText("Annotations (You)")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("node-link-You")).not.toBeInTheDocument();
 
     // Restore for subsequent tests.
     currentUserId = "own-user";
@@ -153,7 +168,7 @@ describe("AnnotationsController — editable gating", () => {
     expect(peerList).toHaveAttribute("data-editable", "false");
   });
 
-  test("draw tools appear only in the own section header (not in peer sections)", () => {
+  test("draw tools appear once, in the single section header", () => {
     const store = buildStore();
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
     store.getState().updateUserFeatures("peer-a", [makeFeature("f2")]);
@@ -161,7 +176,7 @@ describe("AnnotationsController — editable gating", () => {
     renderController();
     openAll();
 
-    // AnnotationsTools is only injected into the own FeatureItem header.
+    // AnnotationsTools lives in the one Annotations section header, not per file block.
     expect(screen.getAllByTestId("annotations-tools")).toHaveLength(1);
   });
 });
