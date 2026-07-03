@@ -99,7 +99,7 @@ export const AnnotationsPanel = () => {
   return (
     <FeatureItem
       title="Annotations"
-      badge={total ? `${visible}/${total}` : undefined}
+      badge={`${visible}/${total}`}
       header={<AnnotationsTools />}
       actions={
         <FeatureItemSlider
