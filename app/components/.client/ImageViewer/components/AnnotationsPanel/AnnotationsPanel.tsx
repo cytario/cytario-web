@@ -48,8 +48,8 @@ const AnnotationFileBlock = ({
   }, [imageResourceId, userId, label]);
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-1.5 px-2 pt-2">
+    <div className="flex flex-col gap-2 p-2">
+      <div className="flex items-center gap-2">
         <NodeLink node={node} onClick={() => setIsOpen(!isOpen)} />
         {features.length > 0 && <Badge>{features.length}</Badge>}
         <FeatureItemSlider
@@ -84,7 +84,7 @@ export const AnnotationsPanel = () => {
       badge={total ? String(total) : undefined}
       header={<AnnotationsTools />}
     >
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col">
         {entries.map(([userId, features]) => (
           <AnnotationFileBlock
             key={userId}
