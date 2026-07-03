@@ -150,6 +150,7 @@ export function AnnotationGroupRow({
       toggle={
         <Switch
           isSelected={isVisible}
+          isDisabled={count === 0}
           onChange={onToggleVisibility}
           color={rgb(swatch)}
           aria-label={`Toggle ${name} visibility`}
