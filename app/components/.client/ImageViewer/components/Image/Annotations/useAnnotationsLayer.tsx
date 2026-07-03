@@ -13,13 +13,18 @@ import { type ReactNode, useMemo } from "react";
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
   classNameOf,
+  isReservedClassName,
   selectUserFeatures,
+  UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/slices/viewer.annotations.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
-import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
+import {
+  type AnnotationClassification,
+  validAnnotationFeatures,
+} from "~/utils/db/annotationSchema";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
@@ -99,15 +104,22 @@ const AnnotationTooltip = ({ feature }: { feature: AnnotationFeature }) => {
 const stampEdit = (
   features: AnnotationFeature[],
   changed: number[] | undefined,
+  active: AnnotationClassification | null,
 ): AnnotationFeature[] => {
   const now = new Date().toISOString();
   return features.map((feature, i) => {
     const properties = feature.properties ?? {};
     if (!feature.id) {
+      // A freshly drawn region inherits the active class (none → unclassified).
       return {
         ...feature,
         id: crypto.randomUUID(),
-        properties: { ...properties, createdAt: now, updatedAt: now },
+        properties: {
+          ...properties,
+          ...(active ? { classification: active } : {}),
+          createdAt: now,
+          updatedAt: now,
+        },
       };
     }
     if (changed?.includes(i)) {
@@ -133,6 +145,17 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const showAnnotationClass = useViewerStore((s) => s.showAnnotationClass);
+  const activeClass = useViewerStore((s) => s.annotationActiveClass);
+
+  // The active class resolved to a stampable classification. Active is always an
+  // existing own group (or none), so its color comes from the current set.
+  const activeClassification = useMemo<AnnotationClassification | null>(() => {
+    if (!activeClass || isReservedClassName(activeClass)) return null;
+    const color = features.find((f) => f.properties?.classification?.name === activeClass)
+      ?.properties?.classification?.color;
+    return color ? { name: activeClass, color } : null;
+  }, [activeClass, features]);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
@@ -215,7 +238,11 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
 
         if (!ownUserId) return; // edits route to the current user's own key
         const changed: number[] | undefined = editContext?.featureIndexes;
-        const stamped = stampEdit(updatedData.features as AnnotationFeature[], changed);
+        const stamped = stampEdit(
+          updatedData.features as AnnotationFeature[],
+          changed,
+          activeClassification,
+        );
         // Validate before persist: a degenerate/aborted draw (empty ring,
         // `[[null]]`) is dropped and never written to S3 — the store is valid by
         // construction.
@@ -224,7 +251,11 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
         if (editType === "addFeature") {
           // Select the new feature only if it survived validation.
           const newId = stamped[stamped.length - 1]?.id;
-          if (newId && valid.some((f) => f.id === newId)) setSelectedIds([newId]);
+          if (newId && valid.some((f) => f.id === newId)) {
+            setSelectedIds([newId]);
+            // Never draw into a hidden class — reveal the class the region landed in.
+            showAnnotationClass(ownUserId, activeClassification?.name ?? UNCLASSIFIED);
+          }
         }
       },
     });
@@ -303,6 +334,8 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
     ownUserId,
     updateUserFeatures,
     setSelectedIds,
+    showAnnotationClass,
     setTooltip,
+    activeClassification,
   ]);
 };

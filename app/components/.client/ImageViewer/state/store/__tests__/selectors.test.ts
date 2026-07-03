@@ -20,6 +20,8 @@ describe("selectors", () => {
     annotationMode: "view",
     annotationSelectedIds: [],
     annotationView: {},
+    annotationActiveClass: null,
+    annotationClasses: [],
     layersStates: [
       {
         channels: {
@@ -99,8 +101,14 @@ describe("selectors", () => {
     seedAnnotations: vi.fn(),
     updateUserFeatures: vi.fn(),
     setAnnotationClassColor: vi.fn(),
+    setAnnotationClassForIds: vi.fn(),
+    renameAnnotationClass: vi.fn(),
+    setAnnotationActiveClass: vi.fn(),
+    createAnnotationClass: vi.fn(),
+    deleteAnnotationClass: vi.fn(),
     setAnnotationOpacity: vi.fn(),
     toggleAnnotationClassVisibility: vi.fn(),
+    showAnnotationClass: vi.fn(),
     setAnnotationMode: vi.fn(),
     setAnnotationSelectedIds: vi.fn(),
     ...overrides,

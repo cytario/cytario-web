@@ -5,7 +5,13 @@ import { createMigrate } from "~/utils/persistMigration";
  *  truth for both the migrate fallback and `createViewerStore`'s `partialize`. */
 type PersistedViewerState = Pick<
   ViewerStore,
-  "selectedChannelId" | "imagePanelIndex" | "imagePanels" | "layersStates" | "viewStateActive"
+  | "selectedChannelId"
+  | "imagePanelIndex"
+  | "imagePanels"
+  | "layersStates"
+  | "viewStateActive"
+  | "annotationClasses"
+  | "annotationActiveClass"
 >;
 
 const VIEWER_FALLBACK_STATE: PersistedViewerState = {
@@ -14,6 +20,8 @@ const VIEWER_FALLBACK_STATE: PersistedViewerState = {
   imagePanels: [],
   layersStates: [],
   viewStateActive: null,
+  annotationClasses: [],
+  annotationActiveClass: null,
 };
 
 export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
@@ -51,4 +59,8 @@ export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState 
   imagePanels: state.imagePanels,
   layersStates: state.layersStates,
   viewStateActive: state.viewStateActive,
+  // Per-image class registry + active class — browser-persisted for now; a
+  // "settings" sidecar is the eventual home.
+  annotationClasses: state.annotationClasses,
+  annotationActiveClass: state.annotationActiveClass,
 });
