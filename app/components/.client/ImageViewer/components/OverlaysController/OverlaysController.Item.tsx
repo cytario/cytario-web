@@ -1,5 +1,5 @@
-import { IconButton, IconButtonLink, useToast } from "@cytario/design";
-import { useEffect, useState } from "react";
+import { MenuItem, useToast } from "@cytario/design";
+import { useEffect, useMemo, useState } from "react";
 import { RadioGroup } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
@@ -8,6 +8,8 @@ import { select } from "../../state/store/selectors";
 import { ChannelsStateColumns, OverlayState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { ChannelsControllerItem } from "../ChannelsController/ChannelsControllerItem";
+import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { LavaLoader } from "~/components/LavaLoader";
 import { select as connectionsSelect } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -38,8 +40,22 @@ export const OverlaysControllerItem = ({
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { connectionName, fileName } = parseResourceId(resourceId);
+  const { connectionName, pathName, fileName } = parseResourceId(resourceId);
   const hasMarkers = Object.keys(overlayState).length > 0;
+
+  // The overlay file as a TreeNode, so the file row renders as the shared
+  // NodeLink (icon + name + context menu) used across the directory views.
+  const node = useMemo<TreeNode>(
+    () => ({
+      id: resourceId,
+      connectionName,
+      pathName,
+      name: fileName,
+      type: "file",
+      isLeaf: true,
+    }),
+    [resourceId, connectionName, pathName, fileName],
+  );
 
   // Calculate maxDomain from actual marker counts (for progress bar scaling)
   const maxDomain = Math.max(
@@ -82,33 +98,27 @@ export const OverlaysControllerItem = ({
 
   return (
     <div className="flex flex-col">
-      {/* File info row */}
-      <div className="flex items-center gap-1.5 px-3 pt-2">
-        <button
-          type="button"
-          className="flex-1 min-w-0 truncate rounded border border-border bg-card px-2 py-1 text-xs text-foreground text-left"
+      {/* File row: clicking the name toggles the marker list; navigation and
+          removal live in the node's context menu. */}
+      <div className="p-2">
+        <NodeLink
+          node={node}
           onClick={() => setIsOpen(!isOpen)}
-        >
-          {fileName}
-        </button>
-
-        <IconButtonLink
-          href={`/connections/${resourceId}`}
-          icon="ExternalLink"
-          label="Open file"
-          variant="ghost"
-          size="sm"
-        />
-
-        <IconButton
-          icon="X"
-          label="Remove overlay"
-          variant="ghost"
-          size="sm"
-          onPress={() => {
-            const confirmation = confirm(`Are you sure you want to remove overlay "${fileName}"?`);
-            if (confirmation) removeOverlaysState(resourceId);
-          }}
+          contextMenuItems={
+            <MenuItem
+              id="remove-overlay"
+              icon="X"
+              isDanger
+              onAction={() => {
+                const confirmation = confirm(
+                  `Are you sure you want to remove overlay "${fileName}"?`,
+                );
+                if (confirmation) removeOverlaysState(resourceId);
+              }}
+            >
+              Remove overlay
+            </MenuItem>
+          }
         />
       </div>
 

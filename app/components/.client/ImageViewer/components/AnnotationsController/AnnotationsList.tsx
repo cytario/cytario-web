@@ -161,7 +161,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   };
 
   return (
-    <div className="flex flex-col gap-2 px-3 py-2">
+    <div className="flex flex-col gap-2 px-4 py-2">
       {annotationsGroups.map(({ name, color, items }) => {
         const cssColor = rgb([...(color ?? UNCLASSIFIED_COLOR), 255]);
         const isUnclassified = isReservedClassName(name);
@@ -233,7 +233,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
             onCancel={() => setAdding(false)}
           />
         ) : (
-          <Button variant="ghost" size="sm" onPress={() => setAdding(true)} iconLeft="Plus">
+          <Button size="sm" variant="ghost" onPress={() => setAdding(true)} iconLeft="Plus">
             Add class
           </Button>
         ))}

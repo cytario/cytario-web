@@ -29,6 +29,12 @@ export const OverlaysController = () => {
   // ViewerStoreProvider, which is outside ModalOutlet's tree.
   const [isOpen, setIsOpen] = useState(false);
 
+  const addOverlayButton = (
+    <Button size="sm" variant="ghost" iconLeft="Plus" onPress={() => setIsOpen(true)}>
+      Add overlay
+    </Button>
+  );
+
   return (
     <FeatureItem
       title="Overlays"
@@ -59,23 +65,17 @@ export const OverlaysController = () => {
         />
       ))}
 
-      <footer className="px-3 pb-3">
+      <footer className="p-2 flex justify-center">
         {entries.length === 0 ? (
           <EmptyState
             title="Add Overlay"
             description="Add parquet cell detection files"
             icon="Layers2"
             className="py-6"
-            action={
-              <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>
-                Add Overlay
-              </Button>
-            }
+            action={addOverlayButton}
           />
         ) : (
-          <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>
-            Add Overlay
-          </Button>
+          addOverlayButton
         )}
       </footer>
 

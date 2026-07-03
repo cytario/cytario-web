@@ -1,5 +1,5 @@
 import { TruncatedText } from "@cytario/design";
-import { MouseEventHandler } from "react";
+import { MouseEventHandler, ReactNode } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
 
@@ -12,6 +12,8 @@ export interface NodeLinkProps {
   node: TreeNode;
   onClick?: (node: TreeNode) => void;
   contextMenu?: boolean;
+  /** Caller-specific `MenuItem`s appended to the context menu (see `NodeContextMenu`). */
+  contextMenuItems?: ReactNode;
   isClickable?: (node: TreeNode) => boolean;
   className?: string;
 }
@@ -29,6 +31,7 @@ export function NodeLink({
   node,
   onClick,
   contextMenu = true,
+  contextMenuItems,
   isClickable = () => true,
   className,
 }: NodeLinkProps) {
@@ -39,7 +42,7 @@ export function NodeLink({
   const rowCx = `
     flex items-center grow 
     font-medium text-sm
-    min-w-0 h-7 px-1 gap-0.5
+    min-w-0 h-7 px-2 gap-0.5
     rounded-full
   `;
 
@@ -58,7 +61,7 @@ export function NodeLink({
   };
 
   return (
-    <div className={twMerge(rowCx, className)}>
+    <div className={twMerge(rowCx, className, "px-0")}>
       {clickable ? (
         <NavLink
           to={to}
@@ -76,7 +79,9 @@ export function NodeLink({
         </div>
       )}
 
-      {contextMenu && <NodeContextMenu node={node} isCurrent={isCurrent} />}
+      {contextMenu && (
+        <NodeContextMenu node={node} isCurrent={isCurrent} extraItems={contextMenuItems} />
+      )}
     </div>
   );
 }
