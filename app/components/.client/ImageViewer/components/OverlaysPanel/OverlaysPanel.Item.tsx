@@ -171,7 +171,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
                     />
                   }
                   title={name}
-                  value={count > 0 ? <Badge>{count}</Badge> : undefined}
+                  value={count > 0 ? count : undefined}
                   toggle={
                     <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
                       <Switch
