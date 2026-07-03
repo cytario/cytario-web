@@ -16,8 +16,8 @@ import { getSidecarKey } from "~/utils/sidecarKey";
 
 /** One user's annotation sidecar inside the Annotations section: the file as a
  *  NodeLink (label = user, node = the real sidecar object so Open / Copy S3 URI
- *  work), a region count and an opacity popover trailing it, and the user's
- *  class groups beneath. Clicking the name collapses the group list. */
+ *  work) with a region count, and the user's class groups beneath. Clicking the
+ *  name collapses the group list. Opacity is section-level (whole layer). */
 const AnnotationFileBlock = ({
   userId,
   label,
@@ -30,8 +30,6 @@ const AnnotationFileBlock = ({
   editable: boolean;
 }) => {
   const imageResourceId = useViewerStore((s) => s.id);
-  const opacity = useViewerStore((s) => s.annotationView[userId]?.opacity ?? 1);
-  const setOpacity = useViewerStore((s) => s.setAnnotationOpacity);
   const [isOpen, setIsOpen] = useState(true);
 
   // The user's sidecar as a TreeNode — a real, co-located S3 object.
@@ -53,11 +51,6 @@ const AnnotationFileBlock = ({
       <div className="flex items-center gap-2">
         <NodeLink node={node} onClick={() => setIsOpen(!isOpen)} />
         {features.length > 0 && <Badge>{features.length}</Badge>}
-        <FeatureItemSlider
-          aria-label={`${label} annotation opacity`}
-          value={opacity}
-          onChange={(value) => setOpacity(userId, value)}
-        />
       </div>
 
       {isOpen && <AnnotationsList userId={userId} features={features} editable={editable} />}
@@ -68,6 +61,8 @@ const AnnotationFileBlock = ({
 export const AnnotationsPanel = () => {
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
+  const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
+  const setAnnotationsOpacity = useViewerStore((s) => s.setAnnotationsOpacity);
   const ownUserId = useCurrentUser()?.sub;
 
   // One block per user, own first. Own always appears — even with no
@@ -91,6 +86,13 @@ export const AnnotationsPanel = () => {
       title="Annotations"
       badge={total ? `${visible}/${total}` : undefined}
       header={<AnnotationsTools />}
+      actions={
+        <FeatureItemSlider
+          aria-label="Annotation opacity"
+          value={annotationsOpacity}
+          onChange={setAnnotationsOpacity}
+        />
+      }
     >
       <div className="flex flex-col">
         {entries.map(([userId, features]) => (

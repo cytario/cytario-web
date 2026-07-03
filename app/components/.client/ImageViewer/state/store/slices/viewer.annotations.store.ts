@@ -57,7 +57,6 @@ const pickClassColor = (classes: AnnotationClass[], features: AnnotationFeature[
 /** Per-user view state — ephemeral, never persisted (lives apart from the
  *  S3-backed `annotationsByUser` so a view change can't trigger a sidecar write). */
 export interface UserAnnotationView {
-  opacity: number;
   /** Classification names hidden for THIS user's set (per-user, not global). */
   hiddenClasses: string[];
 }
@@ -96,9 +95,12 @@ export interface AnnotationsSlice {
   /** `feature.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
-  /** Per-user view state (opacity, hidden classes), keyed by `sub`. Kept apart
-   *  from `annotationsByUser` so a view change never enters the persist diff. */
+  /** Per-user view state (hidden classes), keyed by `sub`. Kept apart from
+   *  `annotationsByUser` so a view change never enters the persist diff. */
   annotationView: Record<string, UserAnnotationView>;
+  /** Opacity of the whole annotation layer (all users), 0–1. Section-level,
+   *  ephemeral — mirrors the channels/overlays opacity control. */
+  annotationsOpacity: number;
   /** Own-set class into which newly drawn regions are placed; `null` = draw
    *  unclassified. Resolved to `classification` only when a region commits.
    *  Browser-persisted per image (a "settings" sidecar is the eventual home). */
@@ -140,8 +142,8 @@ export interface AnnotationsSlice {
   /** Delete an own-set class: drop it from the registry, clear it from any
    *  member features (→ unclassified), and clear the active class if it matched. */
   deleteAnnotationClass: (userId: string, name: string) => void;
-  /** Set one user's layer opacity. */
-  setAnnotationOpacity: (userId: string, opacity: number) => void;
+  /** Set the whole annotation layer's opacity (0–1). */
+  setAnnotationsOpacity: (opacity: number) => void;
   /** Show/hide a classification within ONE user's set (display only). */
   toggleAnnotationClassVisibility: (userId: string, name: string) => void;
   /** Ensure a class is visible for ONE user (idempotent un-hide) — e.g. after
@@ -161,6 +163,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   annotationView: {},
   annotationActiveClass: null,
   annotationClasses: [],
+  annotationsOpacity: 1,
 
   seedAnnotations: (byUser) =>
     set(
@@ -314,7 +317,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   toggleAnnotationClassVisibility: (userId, name) =>
     set(
       (state) => {
-        const view = (state.annotationView[userId] ??= { opacity: 1, hiddenClasses: [] });
+        const view = (state.annotationView[userId] ??= { hiddenClasses: [] });
         const index = view.hiddenClasses.indexOf(name);
         if (index === -1) view.hiddenClasses.push(name);
         else view.hiddenClasses.splice(index, 1);
@@ -334,14 +337,13 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
       "showAnnotationClass",
     ),
 
-  setAnnotationOpacity: (userId, opacity) =>
+  setAnnotationsOpacity: (opacity) =>
     set(
       (state) => {
-        const view = (state.annotationView[userId] ??= { opacity: 1, hiddenClasses: [] });
-        view.opacity = opacity;
+        state.annotationsOpacity = opacity;
       },
       false,
-      "setAnnotationOpacity",
+      "setAnnotationsOpacity",
     ),
 
   setAnnotationMode: (mode) =>

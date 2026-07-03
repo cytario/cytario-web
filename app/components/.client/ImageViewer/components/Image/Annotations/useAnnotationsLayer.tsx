@@ -141,6 +141,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
   const features = useViewerStore(selectUserFeatures(ownUserId));
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
+  const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
   const mode = useViewerStore((s) => s.annotationMode);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
@@ -228,7 +229,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
       data,
       mode: MODE_CLASSES[mode],
       selectedFeatureIndexes,
-      ...paint(ownView?.hiddenClasses, ownView?.opacity ?? 1, 60, 255),
+      ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
 
       onEdit: ({ updatedData, editType, editContext }) => {
         // Persist only committing edits — anything else (tentative draw events,
@@ -271,7 +272,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
           id: `annotations-${imagePanelId}-peer-${userId}`,
           data: { type: "FeatureCollection", features: peerFeatures },
           // Peers are dimmer than own (40/200 vs 60/255) but otherwise identical.
-          ...paint(peerView?.hiddenClasses, peerView?.opacity ?? 1, 40, 200),
+          ...paint(peerView?.hiddenClasses, annotationsOpacity, 40, 200),
           stroked: true,
           filled: true,
           pointType: "circle",
@@ -328,6 +329,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
     features,
     annotationsByUser,
     annotationView,
+    annotationsOpacity,
     mode,
     selectedIds,
     imagePanelId,

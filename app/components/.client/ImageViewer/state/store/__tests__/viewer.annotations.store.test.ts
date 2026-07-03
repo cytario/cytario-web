@@ -206,44 +206,22 @@ describe("toggleAnnotationClassVisibility", () => {
 });
 
 // -----------------------------------------------------------------------
-// setAnnotationOpacity — including lazy init
+// setAnnotationsOpacity — section-level (whole layer)
 // -----------------------------------------------------------------------
 
-describe("setAnnotationOpacity", () => {
-  it("sets the opacity for a new user, creating the view entry", () => {
+describe("setAnnotationsOpacity", () => {
+  it("defaults to 1", () => {
+    const store = createViewerStore("sao-0");
+
+    expect(store.getState().annotationsOpacity).toBe(1);
+  });
+
+  it("sets the whole-layer opacity", () => {
     const store = createViewerStore("sao-1");
 
-    store.getState().setAnnotationOpacity("user-a", 0.5);
+    store.getState().setAnnotationsOpacity(0.5);
 
-    expect(store.getState().annotationView["user-a"]?.opacity).toBe(0.5);
-  });
-
-  it("lazy-initialises hiddenClasses to empty when creating the entry", () => {
-    const store = createViewerStore("sao-2");
-
-    store.getState().setAnnotationOpacity("user-a", 0.7);
-
-    expect(store.getState().annotationView["user-a"]?.hiddenClasses).toEqual([]);
-  });
-
-  it("updates opacity without touching hiddenClasses when entry already exists", () => {
-    const store = createViewerStore("sao-3");
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
-
-    store.getState().setAnnotationOpacity("user-a", 0.3);
-
-    expect(store.getState().annotationView["user-a"]?.opacity).toBe(0.3);
-    expect(store.getState().annotationView["user-a"]?.hiddenClasses).toContain("Tumor");
-  });
-
-  it("only affects the targeted user's opacity", () => {
-    const store = createViewerStore("sao-4");
-    store.getState().setAnnotationOpacity("user-a", 0.5);
-    store.getState().setAnnotationOpacity("user-b", 0.9);
-
-    store.getState().setAnnotationOpacity("user-a", 0.2);
-
-    expect(store.getState().annotationView["user-b"]?.opacity).toBe(0.9);
+    expect(store.getState().annotationsOpacity).toBe(0.5);
   });
 });
 
