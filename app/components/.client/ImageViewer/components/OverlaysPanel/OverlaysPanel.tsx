@@ -25,6 +25,14 @@ export const OverlaysPanel = () => {
   const isInPointMode = isPointMode(currentZoom);
 
   const entries = Object.entries(overlaysStates);
+
+  // visible/total markers across all loaded overlay files — the same badge
+  // semantic as the Channels panel.
+  const markers = entries.flatMap(([, overlayState]) => Object.values(overlayState));
+  const badge = markers.length
+    ? `${markers.filter((m) => m.isVisible).length}/${markers.length}`
+    : undefined;
+
   // Local state (not useModal) because this modal must render inside
   // ViewerStoreProvider, which is outside ModalOutlet's tree.
   const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +46,7 @@ export const OverlaysPanel = () => {
   return (
     <FeatureItem
       title="Overlays"
+      badge={badge}
       actions={
         <>
           {!isInPointMode && (

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { AnnotationsTools } from "./AnnotationsTools";
+import { classNameOf } from "../../state/store/slices/viewer.annotations.store";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
@@ -66,6 +67,7 @@ const AnnotationFileBlock = ({
 
 export const AnnotationsPanel = () => {
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
+  const annotationView = useViewerStore((s) => s.annotationView);
   const ownUserId = useCurrentUser()?.sub;
 
   // One block per user, own first. Own always appears — even with no
@@ -76,12 +78,18 @@ export const AnnotationsPanel = () => {
     return list.sort(([a], [b]) => (a === ownUserId ? -1 : b === ownUserId ? 1 : 0));
   }, [annotationsByUser, ownUserId]);
 
+  // visible/total regions across all users — the same badge semantic as the
+  // Channels panel; a region is visible while its class isn't toggled off.
   const total = entries.reduce((sum, [, features]) => sum + features.length, 0);
+  const visible = entries.reduce((sum, [userId, features]) => {
+    const hidden = annotationView[userId]?.hiddenClasses ?? [];
+    return sum + features.filter((f) => !hidden.includes(classNameOf(f))).length;
+  }, 0);
 
   return (
     <FeatureItem
       title="Annotations"
-      badge={total ? String(total) : undefined}
+      badge={total ? `${visible}/${total}` : undefined}
       header={<AnnotationsTools />}
     >
       <div className="flex flex-col">
