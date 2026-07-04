@@ -1,5 +1,53 @@
 import mock from "~/utils/__tests__/__mocks__";
-import { canCreate, canModify, canSee, filterVisible } from "~/utils/authorization";
+import {
+  adminCovers,
+  adminScopesCover,
+  canCreate,
+  canModify,
+  canSee,
+  filterVisible,
+} from "~/utils/authorization";
+
+describe("adminCovers", () => {
+  test("org-root sentinel covers everything", () => {
+    expect(adminCovers("*", "anything/deep")).toBe(true);
+  });
+
+  test("exact match covers", () => {
+    expect(adminCovers("lab", "lab")).toBe(true);
+  });
+
+  test("ancestor covers descendant", () => {
+    expect(adminCovers("lab", "lab/team-x")).toBe(true);
+  });
+
+  test("does not cover a sibling with a shared prefix", () => {
+    expect(adminCovers("lab", "lab-extra")).toBe(false);
+  });
+
+  test("descendant does not cover ancestor", () => {
+    expect(adminCovers("lab/team-x", "lab")).toBe(false);
+  });
+});
+
+describe("adminScopesCover", () => {
+  test("any covering admin scope authorizes the target", () => {
+    expect(adminScopesCover(["other", "lab"], "lab/team-x")).toBe(true);
+  });
+
+  test("no covering admin scope rejects the target", () => {
+    expect(adminScopesCover(["lab"], "other/team")).toBe(false);
+  });
+
+  test("the `*` target is only coverable by an org-root admin", () => {
+    expect(adminScopesCover(["*"], "*")).toBe(true);
+    expect(adminScopesCover(["lab"], "*")).toBe(false);
+  });
+
+  test("empty admin scopes authorize nothing", () => {
+    expect(adminScopesCover([], "lab")).toBe(false);
+  });
+});
 
 const inOrg = (ownerScope: string, organization = "org1") => ({ organization, ownerScope });
 

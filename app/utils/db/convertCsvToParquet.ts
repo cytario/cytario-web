@@ -45,12 +45,10 @@ export async function convertCsvToParquet(resourceId: string) {
     const createTableSQL = buildCreateTableQuery(resourceId, "polygon");
     await conn.query(createTableSQL);
 
-    const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
+    const { credentials, region, s3Uri } = resolveResourceId(resourceId);
 
     await applyS3Credentials(conn, credentials);
-    await conn.query(
-      `SET s3_region='${escapeSqlString(connectionConfig.region ?? "eu-central-1")}'`,
-    );
+    await conn.query(`SET s3_region='${escapeSqlString(region ?? "eu-central-1")}'`);
 
     const parquetDestination = `${s3Uri}.parquet`;
     const escapedParquetDestination = escapeSqlString(parquetDestination);

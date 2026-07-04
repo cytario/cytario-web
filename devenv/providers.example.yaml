@@ -1,0 +1,35 @@
+# Example OSS provider catalog (SRS-CY-60005).
+#
+# In an OSS self-hosted build (no admin portal) the connection-creation and share
+# selectors are populated from this deploy-time file, referenced by
+# PROVIDERS_OSS_CONFIG_PATH. The operator pre-provisions the OIDC identity
+# provider and the IAM roles out of band; there is no runtime CreateRole and no
+# Cytario Admin Role in this variant.
+#
+# The shape mirrors the admin-portal lookup JSON (§4.12) exactly, so the two
+# build sources are interchangeable. It never contains a Cytario Admin Role ARN,
+# an ExternalId, or any management credential.
+
+providerConnections:
+  - id: aws-eu-central-1
+    providerType: aws
+    endpoint: null # null => AWS default (https://s3.<region>.amazonaws.com)
+    region: eu-central-1
+    status: connected # pending | connected | drifted | error
+
+providerRoles:
+  - id: reader-lab-team-a
+    providerConnectionId: aws-eu-central-1
+    roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/reader
+    name: Reader (lab/team-a)
+    allowedScopes:
+      - lab/team-a
+    allowsSharing: false # false => the role does not permit s3:PutBucketPolicy
+
+  - id: sharer-lab
+    providerConnectionId: aws-eu-central-1
+    roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/sharer
+    name: Sharer (lab)
+    allowedScopes:
+      - lab
+    allowsSharing: true

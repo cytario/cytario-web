@@ -43,6 +43,7 @@ export function useConnectionHealthProbe() {
       const result = await probeConnection(
         connection.connectionConfig,
         connection.credentials!,
+        connection.provider,
         controller.signal,
       );
       if (cancelled) return;

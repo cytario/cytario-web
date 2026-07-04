@@ -7,6 +7,12 @@ import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
 import { getPrefix } from "~/utils/pathUtils";
 import { CorsLikelyError } from "~/utils/signedFetch";
 
+/** Non-secret provider address (region/endpoint) resolved from the catalog. */
+export interface ProbeProvider {
+  region?: string | null;
+  endpoint?: string | null;
+}
+
 const isImagePreview = (obj: _Object) => isImageFile(obj.Key ?? "");
 
 export interface ConnectionProbeResult {
@@ -26,19 +32,29 @@ export interface ConnectionProbeResult {
 export async function probeConnection(
   config: ConnectionConfig,
   credentials: Credentials,
+  provider?: ProbeProvider,
   signal?: AbortSignal,
 ): Promise<ConnectionProbeResult> {
   try {
-    const { contents } = await listObjectsClient(config, credentials, {
-      // Trailing slash required: the session policy only allows `<prefix>/`
-      // and `<prefix>/*`, so a bare `<prefix>` value 403s.
-      prefix: getPrefix(config.prefix),
-      recursive: true,
-      maxKeys: 100,
-      maxTotal: 100,
-      findFirst: isImagePreview,
-      signal,
-    });
+    const { contents } = await listObjectsClient(
+      {
+        name: config.name,
+        bucketName: config.bucketName,
+        region: provider?.region,
+        endpoint: provider?.endpoint,
+      },
+      credentials,
+      {
+        // Trailing slash required: the session policy only allows `<prefix>/`
+        // and `<prefix>/*`, so a bare `<prefix>` value 403s.
+        prefix: getPrefix(config.prefix),
+        recursive: true,
+        maxKeys: 100,
+        maxTotal: 100,
+        findFirst: isImagePreview,
+        signal,
+      },
+    );
     return { previewObj: contents.find(isImagePreview), status: "connected" };
   } catch (error) {
     if (error instanceof CorsLikelyError) {

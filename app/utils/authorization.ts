@@ -14,10 +14,21 @@ import type { UserProfile } from "~/.server/auth/getUserInfo";
  */
 export const ORG_ROOT_SCOPE = "*";
 
-/** Minimal resource shape needed for tenant + intra-org authorization. */
+/**
+ * Minimal resource shape needed for tenant + intra-org authorization. A resource
+ * names its intra-org owner scope either as `ownerScope` (users, groups) or as
+ * `scope` (a storage connection, whose owner-scope column is `scope`); both carry
+ * the identical org-relative group path / user sub / `*` sentinel.
+ */
 export interface AuthorizationResource {
   organization: string;
-  ownerScope: string;
+  ownerScope?: string;
+  scope?: string;
+}
+
+/** The resource's owner scope, sourced from `ownerScope` or the connection's `scope`. */
+function ownerScopeOf(resource: AuthorizationResource): string {
+  return resource.ownerScope ?? resource.scope ?? "";
 }
 
 /** Tenant boundary: a resource must belong to the user's active organization. */
@@ -25,9 +36,28 @@ function inActiveOrg(user: UserProfile, resource: AuthorizationResource): boolea
   return user.organization !== undefined && user.organization === resource.organization;
 }
 
-function adminCovers(adminScope: string, ownerScope: string): boolean {
+/**
+ * Admin-scope ancestry predicate: an admin authority over
+ * `adminScope` covers `ownerScope` iff it is the org-root sentinel, an exact
+ * match, or a strict ancestor. This is the single source of truth for "does this
+ * admin scope cover that target scope", reused by `canSee`/`canModify`/
+ * `canCreate` here and by the request guards in `app/routes/admin/*` — so the
+ * Share write's server-side grant authorization evaluates the
+ * identical rule as user management.
+ */
+export function adminCovers(adminScope: string, ownerScope: string): boolean {
   if (adminScope === ORG_ROOT_SCOPE) return true;
   return ownerScope === adminScope || ownerScope.startsWith(adminScope + "/");
+}
+
+/**
+ * True iff any of the user's admin scopes covers `targetScope`. The `*` sentinel
+ * target is only coverable by an org-root admin (a bearer of `*`), never by a
+ * named-scope admin.
+ */
+export function adminScopesCover(adminScopes: string[], targetScope: string): boolean {
+  if (targetScope === ORG_ROOT_SCOPE) return adminScopes.includes(ORG_ROOT_SCOPE);
+  return adminScopes.some((adminScope) => adminCovers(adminScope, targetScope));
 }
 
 /**
@@ -43,7 +73,7 @@ function adminCovers(adminScope: string, ownerScope: string): boolean {
  */
 export function canSee(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
-  const { ownerScope } = resource;
+  const ownerScope = ownerScopeOf(resource);
   if (ownerScope === ORG_ROOT_SCOPE) return true;
   if (ownerScope === user.sub) return true;
   if (user.groups.includes(ownerScope)) return true;
@@ -64,7 +94,7 @@ export function canSee(user: UserProfile, resource: AuthorizationResource): bool
  */
 export function canModify(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
-  const { ownerScope } = resource;
+  const ownerScope = ownerScopeOf(resource);
   if (ownerScope === user.sub) return true;
   return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
@@ -80,7 +110,7 @@ export function canModify(user: UserProfile, resource: AuthorizationResource): b
  */
 export function canCreate(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
-  const { ownerScope } = resource;
+  const ownerScope = ownerScopeOf(resource);
   if (ownerScope === user.sub) return true;
   return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }

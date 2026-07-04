@@ -124,6 +124,7 @@ describe("authMiddleware", () => {
     vi.mocked(getAllSessionCredentials).mockImplementation(async (sessionData) => ({
       credentials: sessionData.credentials,
       errors: {},
+      providers: {},
     }));
     vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
       accessToken: "new-access-token",
@@ -213,6 +214,7 @@ describe("authMiddleware", () => {
       vi.mocked(getAllSessionCredentials).mockResolvedValue({
         credentials: newCredentials,
         errors: {},
+        providers: {},
       });
 
       const args = createMiddlewareArgs();

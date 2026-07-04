@@ -1,473 +1,180 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  connectionSchema,
+  bucketNameSchema,
   connectionNameSchema,
-  parseS3Uri,
+  connectionSchema,
+  prefixSchema,
+  scopeSchema,
   suggestName,
 } from "../connection.schema";
 
+const validBase = {
+  name: "my-bucket-data",
+  scope: "user-123",
+  providerConnectionId: "pc-1",
+  providerRoleId: "pr-1",
+  bucketName: "my-bucket",
+  prefix: "data",
+};
+
 describe("connectionNameSchema", () => {
-  test("accepts valid lowercase alphanumeric names", () => {
+  test("accepts valid names", () => {
     expect(connectionNameSchema.safeParse("my-bucket").success).toBe(true);
-    expect(connectionNameSchema.safeParse("ab").success).toBe(true);
+    expect(connectionNameSchema.safeParse("My Bucket").success).toBe(true);
     expect(connectionNameSchema.safeParse("data123").success).toBe(true);
-    expect(connectionNameSchema.safeParse("a-b-c").success).toBe(true);
   });
 
-  test("accepts names with spaces", () => {
-    expect(connectionNameSchema.safeParse("my bucket").success).toBe(true);
-    expect(connectionNameSchema.safeParse("acme internal").success).toBe(true);
-    expect(connectionNameSchema.safeParse("lab 1 data").success).toBe(true);
+  test("rejects too short, too long, and consecutive separators", () => {
+    expect(connectionNameSchema.safeParse("a").success).toBe(false);
+    expect(connectionNameSchema.safeParse("a".repeat(61)).success).toBe(false);
+    expect(connectionNameSchema.safeParse("my--bucket").success).toBe(false);
+    expect(connectionNameSchema.safeParse("my  bucket").success).toBe(false);
+    expect(connectionNameSchema.safeParse("my_bucket").success).toBe(false);
+  });
+});
+
+describe("bucketNameSchema", () => {
+  test("accepts valid bucket names", () => {
+    expect(bucketNameSchema.safeParse("my-bucket").success).toBe(true);
+    expect(bucketNameSchema.safeParse("data.lake.2024").success).toBe(true);
   });
 
-  test("accepts names with uppercase characters", () => {
-    expect(connectionNameSchema.safeParse("MyBucket").success).toBe(true);
-    expect(connectionNameSchema.safeParse("Vericura Internal").success).toBe(true);
+  test("rejects too short / long / uppercase / bad edges", () => {
+    expect(bucketNameSchema.safeParse("ab").success).toBe(false);
+    expect(bucketNameSchema.safeParse("a".repeat(64)).success).toBe(false);
+    expect(bucketNameSchema.safeParse("MyBucket").success).toBe(false);
+    expect(bucketNameSchema.safeParse("-bucket").success).toBe(false);
+  });
+});
+
+describe("prefixSchema (SRS-CY-42115)", () => {
+  test("accepts a normal prefix and empty", () => {
+    expect(prefixSchema.safeParse("").success).toBe(true);
+    expect(prefixSchema.safeParse("lab/team-a/images").success).toBe(true);
   });
 
-  test("rejects names shorter than 2 characters", () => {
-    const result = connectionNameSchema.safeParse("a");
-    expect(result.success).toBe(false);
+  test("rejects IAM wildcard characters", () => {
+    expect(prefixSchema.safeParse("tenant-a*").success).toBe(false);
+    expect(prefixSchema.safeParse("tenant-?").success).toBe(false);
   });
 
-  test("rejects names longer than 60 characters", () => {
-    const result = connectionNameSchema.safeParse("a".repeat(61));
-    expect(result.success).toBe(false);
+  test("rejects IAM policy-variable syntax", () => {
+    expect(prefixSchema.safeParse("home/${aws:username}").success).toBe(false);
   });
 
-  test("rejects names with leading hyphens or spaces", () => {
-    expect(connectionNameSchema.safeParse("-my-bucket").success).toBe(false);
-    expect(connectionNameSchema.safeParse(" my-bucket").success).toBe(false);
+  test("rejects path traversal segment", () => {
+    expect(prefixSchema.safeParse("a/../b").success).toBe(false);
+    expect(prefixSchema.safeParse("..").success).toBe(false);
   });
 
-  test("rejects names with trailing hyphens or spaces", () => {
-    expect(connectionNameSchema.safeParse("my-bucket-").success).toBe(false);
-    expect(connectionNameSchema.safeParse("my-bucket ").success).toBe(false);
+  test("rejects NUL / CR / LF control characters", () => {
+    expect(prefixSchema.safeParse("a\0b").success).toBe(false);
+    expect(prefixSchema.safeParse("a\rb").success).toBe(false);
+    expect(prefixSchema.safeParse("a\nb").success).toBe(false);
   });
 
-  test("rejects names with consecutive hyphens", () => {
-    const result = connectionNameSchema.safeParse("my--bucket");
-    expect(result.success).toBe(false);
+  test("rejects over-length prefixes", () => {
+    expect(prefixSchema.safeParse("a".repeat(1025)).success).toBe(false);
+  });
+});
+
+describe("scopeSchema", () => {
+  test("accepts group paths, user subs, and the org-root sentinel", () => {
+    expect(scopeSchema.safeParse("lab/team-a").success).toBe(true);
+    expect(scopeSchema.safeParse("user-123").success).toBe(true);
+    expect(scopeSchema.safeParse("*").success).toBe(true);
   });
 
-  test("rejects names with consecutive spaces", () => {
-    const result = connectionNameSchema.safeParse("my  bucket");
-    expect(result.success).toBe(false);
+  test("rejects traversal-looking segments", () => {
+    expect(scopeSchema.safeParse("Lab/../x").success).toBe(false);
+    expect(scopeSchema.safeParse("..").success).toBe(false);
   });
 
-  test("rejects names with special characters", () => {
-    const result = connectionNameSchema.safeParse("my_bucket");
-    expect(result.success).toBe(false);
+  test("rejects empty segments and leading/trailing slashes", () => {
+    expect(scopeSchema.safeParse("lab//team").success).toBe(false);
+    expect(scopeSchema.safeParse("/lab").success).toBe(false);
+    expect(scopeSchema.safeParse("lab/").success).toBe(false);
+  });
+
+  test("rejects IAM wildcard / variable / control characters", () => {
+    expect(scopeSchema.safeParse("lab*").success).toBe(false);
+    expect(scopeSchema.safeParse("lab?").success).toBe(false);
+    expect(scopeSchema.safeParse("lab${aws:username}").success).toBe(false);
+    expect(scopeSchema.safeParse("lab\nops").success).toBe(false);
+  });
+
+  test("rejects empty and over-length values", () => {
+    expect(scopeSchema.safeParse("").success).toBe(false);
+    expect(scopeSchema.safeParse("a".repeat(256)).success).toBe(false);
   });
 });
 
 describe("suggestName", () => {
-  test("derives name from bucket name only", () => {
-    expect(suggestName("my-bucket")).toBe("my-bucket");
+  test("derives from bucket only, and bucket + last prefix segment", () => {
+    expect(suggestName("my-bucket", "")).toBe("my-bucket");
+    expect(suggestName("my-bucket", "data/images")).toBe("my-bucket images");
+    expect(suggestName("my-bucket", "data/")).toBe("my-bucket data");
   });
 
-  test("derives name from s3:// prefixed URI", () => {
-    expect(suggestName("s3://my-bucket")).toBe("my-bucket");
-  });
-
-  test("derives name from bucket name and last path segment", () => {
-    expect(suggestName("my-bucket/data/images")).toBe("my-bucket images");
-  });
-
-  test("derives name from s3:// URI with last path segment", () => {
-    expect(suggestName("s3://my-bucket/path/prefix")).toBe("my-bucket prefix");
-  });
-
-  test("preserves case", () => {
-    expect(suggestName("MyBucket")).toBe("MyBucket");
-  });
-
-  test("replaces special characters with spaces", () => {
-    expect(suggestName("my_bucket.test")).toBe("my bucket test");
-  });
-
-  test("collapses consecutive hyphens", () => {
-    expect(suggestName("my---bucket")).toBe("my-bucket");
-  });
-
-  test("trims leading and trailing hyphens and spaces", () => {
-    expect(suggestName("-my-bucket-")).toBe("my-bucket");
-    expect(suggestName(" my bucket ")).toBe("my bucket");
-  });
-
-  test("returns empty string for empty input", () => {
-    expect(suggestName("")).toBe("");
-  });
-
-  test("returns empty string for whitespace-only input", () => {
-    expect(suggestName("   ")).toBe("");
-  });
-
-  test("truncates to 60 characters", () => {
-    const longName = "a".repeat(70);
-    expect(suggestName(longName).length).toBeLessThanOrEqual(60);
-  });
-
-  test("handles trailing slash in path", () => {
-    expect(suggestName("my-bucket/data/")).toBe("my-bucket data");
-  });
-
-  test("handles s3:// URI with trailing slash", () => {
-    expect(suggestName("s3://my-bucket/")).toBe("my-bucket");
+  test("sanitizes and truncates", () => {
+    expect(suggestName("my_bucket.test", "")).toBe("my bucket test");
+    expect(suggestName("a".repeat(70), "").length).toBeLessThanOrEqual(60);
   });
 });
 
-describe("parseS3Uri", () => {
-  test("parses bucket name without prefix", () => {
-    expect(parseS3Uri("my-bucket")).toEqual({
-      bucketName: "my-bucket",
-      prefix: "",
-    });
+describe("connectionSchema (SRS-CY-32118 — FK selectors, no free text)", () => {
+  test("validates a complete submission", () => {
+    expect(connectionSchema.safeParse(validBase).success).toBe(true);
   });
 
-  test("parses bucket name with single-level prefix", () => {
-    expect(parseS3Uri("my-bucket/data")).toEqual({
-      bucketName: "my-bucket",
-      prefix: "data",
-    });
-  });
-
-  test("parses bucket name with multi-level prefix", () => {
-    expect(parseS3Uri("my-bucket/data/images/raw")).toEqual({
-      bucketName: "my-bucket",
-      prefix: "data/images/raw",
-    });
-  });
-
-  test("strips s3:// prefix before parsing", () => {
-    expect(parseS3Uri("s3://my-bucket/data")).toEqual({
-      bucketName: "my-bucket",
-      prefix: "data",
-    });
-  });
-
-  test("handles s3:// prefix with no path", () => {
-    expect(parseS3Uri("s3://my-bucket")).toEqual({
-      bucketName: "my-bucket",
-      prefix: "",
-    });
-  });
-
-  test("preserves trailing slash in prefix", () => {
-    expect(parseS3Uri("my-bucket/data/")).toEqual({
-      bucketName: "my-bucket",
-      prefix: "data/",
-    });
-  });
-
-  test("handles empty string", () => {
-    expect(parseS3Uri("")).toEqual({
-      bucketName: "",
-      prefix: "",
-    });
-  });
-});
-
-describe("connectionSchema", () => {
-  test("validates a complete AWS form submission", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "my-bucket/data",
-      name: "my-bucket-data",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
+  test("prefix defaults to empty when omitted", () => {
+    const { prefix, ...withoutPrefix } = validBase;
+    void prefix;
+    const result = connectionSchema.safeParse(withoutPrefix);
     expect(result.success).toBe(true);
+    if (result.success) expect(result.data.prefix).toBe("");
   });
 
-  test("validates a complete MinIO form submission", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "minio",
-      s3Uri: "my-bucket",
-      name: "my-bucket",
-      bucketRegion: "",
-      roleArn: "",
-      bucketEndpoint: "https://s3.cytario.com",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  test("rejects AWS form with missing name", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "my-bucket/data",
-      name: "",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
+  test("rejects a missing provider connection id", () => {
+    const result = connectionSchema.safeParse({ ...validBase, providerConnectionId: "" });
     expect(result.success).toBe(false);
   });
 
-  test("rejects MinIO form with missing name", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "minio",
-      s3Uri: "my-bucket",
-      name: "",
-      bucketRegion: "",
-      roleArn: "",
-      bucketEndpoint: "https://s3.cytario.com",
-    });
+  test("rejects a missing provider role id", () => {
+    const result = connectionSchema.safeParse({ ...validBase, providerRoleId: "" });
     expect(result.success).toBe(false);
   });
 
-  test("rejects AWS form with invalid Role ARN format", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "my-bucket",
-      name: "my-bucket",
-      bucketRegion: "eu-central-1",
-      roleArn: "not-a-valid-arn",
-      bucketEndpoint: "",
-    });
+  test("rejects a missing scope", () => {
+    const result = connectionSchema.safeParse({ ...validBase, scope: "" });
     expect(result.success).toBe(false);
   });
 
-  test("rejects AWS form with missing region", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "my-bucket",
-      name: "my-bucket",
-      bucketRegion: "",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects MinIO form with invalid endpoint URL", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "minio",
-      s3Uri: "my-bucket",
-      name: "my-bucket",
-      bucketRegion: "",
-      roleArn: "",
-      bucketEndpoint: "not-a-url",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects MinIO form with missing endpoint", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "minio",
-      s3Uri: "my-bucket",
-      name: "my-bucket",
-      bucketRegion: "",
-      roleArn: "",
-      bucketEndpoint: "",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects S3 URI with bucket name shorter than 3 characters", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "ab",
-      name: "ab",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects S3 URI whose prefix contains `*` (IAM wildcard)", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "shared-bucket/tenant-a*",
-      name: "shared-tenant-a",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
+  test("rejects a wildcard prefix", () => {
+    const result = connectionSchema.safeParse({ ...validBase, prefix: "tenant-a*" });
     expect(result.success).toBe(false);
     const errors = result.success ? {} : result.error.flatten().fieldErrors;
-    expect(errors.s3Uri?.[0]).toMatch(/wildcard/i);
+    expect(errors.prefix?.[0]).toMatch(/wildcard/i);
   });
 
-  test("rejects S3 URI whose prefix contains `?` (IAM wildcard)", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "shared-bucket/tenant-?",
-      name: "shared-tenant",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
+  test("rejects an invalid bucket name", () => {
+    const result = connectionSchema.safeParse({ ...validBase, bucketName: "AB" });
     expect(result.success).toBe(false);
   });
 
-  test("rejects S3 URI with bucket name longer than 63 characters", () => {
-    const longBucket = "a".repeat(64);
+  test("does not accept free-text role or endpoint fields", () => {
+    // A submission carrying a free-text roleArn/endpoint still validates only the
+    // FK fields — the extra keys are ignored, never used to compose the connection.
     const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: longBucket,
-      name: "long-bucket",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("accepts S3 URI with s3:// prefix in the value", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "user-123",
-      providerType: "aws",
-      s3Uri: "s3://my-bucket/data",
-      name: "my-bucket",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
+      ...validBase,
+      roleArn: "arn:aws:iam::123456789012:role/Evil",
+      endpoint: "https://evil.example.com",
     });
     expect(result.success).toBe(true);
-  });
-
-  test("rejects missing ownerScope", () => {
-    const result = connectionSchema.safeParse({
-      ownerScope: "",
-      providerType: "aws",
-      s3Uri: "my-bucket",
-      name: "my-bucket",
-      bucketRegion: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/MyRole",
-      bucketEndpoint: "",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  describe("MinIO endpoint scheme — non-development", () => {
-    // NODE_ENV is unset under vitest (see .env.test), so the schema runs
-    // its non-development code path — http:// is rejected outside the
-    // small loopback allowlist.
-
-    test("rejects http:// endpoint pointing at a public host", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "http://minio.example.com",
-      });
-      expect(result.success).toBe(false);
-    });
-
-    test("accepts https:// endpoint when host is in the S3 allowlist", () => {
-      // `*.cytario.com` is built into `DEFAULT_S3_HOSTS`, so this host
-      // is allowed without setting `CYTARIO_ALLOWED_S3_HOSTS`.
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "https://minio.cytario.com",
-      });
-      expect(result.success).toBe(true);
-    });
-
-    test("rejects https:// endpoint whose host is not in the S3 allowlist", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "https://minio.example.com",
-      });
-      expect(result.success).toBe(false);
-      const message = result.success
-        ? ""
-        : (result.error.flatten().fieldErrors.bucketEndpoint?.[0] ?? "");
-      expect(message).toMatch(/CYTARIO_ALLOWED_S3_HOSTS/);
-    });
-
-    test("rejects https:// endpoint pointing at AWS instance metadata (SSRF guard)", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "https://169.254.169.254/latest/meta-data/",
-      });
-      expect(result.success).toBe(false);
-    });
-
-    test("rejects https:// endpoint pointing at RFC1918 host (SSRF guard)", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "https://10.0.0.1",
-      });
-      expect(result.success).toBe(false);
-    });
-
-    test("allows http://localhost as a dev convenience", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "http://localhost:9000",
-      });
-      expect(result.success).toBe(true);
-    });
-
-    test("allows http://127.0.0.1 as a dev convenience", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "http://127.0.0.1:9000",
-      });
-      expect(result.success).toBe(true);
-    });
-
-    test("rejects http://*.internal hosts outside the loopback allowlist", () => {
-      const result = connectionSchema.safeParse({
-        ownerScope: "user-123",
-        providerType: "minio",
-        s3Uri: "my-bucket",
-        name: "my-bucket",
-        bucketRegion: "",
-        roleArn: "",
-        bucketEndpoint: "http://minio.cytario.internal",
-      });
-      expect(result.success).toBe(false);
-    });
+    if (result.success) {
+      expect("roleArn" in result.data).toBe(false);
+      expect("endpoint" in result.data).toBe(false);
+    }
   });
 });

@@ -22,8 +22,8 @@ export async function getTileDataWasm(
   markerColumns: string[] = [],
 ): Promise<Table | null> {
   try {
-    const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-    const connection = await createDatabase(resourceId, credentials, connectionConfig);
+    const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
+    const connection = await createDatabase(resourceId, credentials, { region, endpoint });
     await ensureSpatialLoaded(connection);
     const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns);
     const arrowTable = await connection.query(tileQuery);

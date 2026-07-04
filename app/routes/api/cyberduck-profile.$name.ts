@@ -1,6 +1,10 @@
 import { ActionFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import {
+  getProviderCatalog,
+  resolveConnectionProvider,
+} from "~/.server/providers/providerCatalog.server";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
 import { getConnection } from "~/routes/connections/connections.server";
@@ -24,8 +28,23 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { bucketName, prefix } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
-  const actualRegion = connectionConfig.region ?? "eu-central-1";
-  const providerConfig = getS3ProviderConfig(connectionConfig.endpoint, actualRegion);
+  // The concrete role/endpoint/region live on the referenced provider connection +
+  // provider role, resolved from the org catalog, not on the connection.
+  let resolved;
+  try {
+    const catalog = await getProviderCatalog(connectionConfig.organization);
+    resolved = resolveConnectionProvider(catalog, connectionConfig);
+  } catch {
+    resolved = undefined;
+  }
+  if (!resolved) {
+    return new Response("Provider connection or role is unavailable for this connection", {
+      status: 502,
+    });
+  }
+
+  const actualRegion = resolved.region;
+  const providerConfig = getS3ProviderConfig(resolved.endpoint, actualRegion);
 
   // Derive a unique vendor ID from the webapp hostname (e.g. "cytario.com" -> "cytario-com")
   const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
@@ -36,7 +55,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     connectionName,
     bucketName,
     prefix: prefix?.replace(/\/$/, "") || "",
-    roleArn: connectionConfig.roleArn,
+    roleArn: resolved.roleArn,
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
     stsEndpoint: providerConfig.stsEndpoint,

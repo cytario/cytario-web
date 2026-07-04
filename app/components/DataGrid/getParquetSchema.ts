@@ -12,8 +12,8 @@ export interface ParquetColumn {
  * Supports: parquet, csv, json
  */
 export async function getParquetSchema(resourceId: string): Promise<ParquetColumn[]> {
-  const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-  const connection = await createDatabase(resourceId, credentials, connectionConfig);
+  const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
+  const connection = await createDatabase(resourceId, credentials, { region, endpoint });
   const fileType = getFileType(resourceId);
 
   let result;

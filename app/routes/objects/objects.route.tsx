@@ -21,6 +21,7 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType, isImageFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { createSignedFetch } from "~/utils/signedFetch";
@@ -90,7 +91,6 @@ export default function ObjectsRoute() {
     name,
     nodes,
     urlPath,
-    connectionConfig,
     isSingleFile,
     notification,
     pendingClientLoad,
@@ -99,6 +99,9 @@ export default function ObjectsRoute() {
 
   const navigate = useNavigate();
   const { openModal } = useModal();
+  const signingRegion = useConnectionsStore(
+    (state) => state.connections[connectionName]?.provider?.region,
+  );
 
   useEffect(() => {
     if (notification) {
@@ -191,7 +194,7 @@ export default function ObjectsRoute() {
     if (isImageFile(resourceId)) {
       const signedFetch = createSignedFetch(
         liveCredentials(connectionName),
-        connectionConfig,
+        signingRegion,
         connectionName,
       );
       return (

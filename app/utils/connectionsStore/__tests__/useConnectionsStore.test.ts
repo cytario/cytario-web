@@ -9,9 +9,23 @@ describe("useConnectionsStore", () => {
     bucketName: "test-bucket",
   });
 
-  /** Helper: seed the store with a single connection. */
-  const seed = (config = connectionConfig, creds = credentials) => {
-    useConnectionsStore.getState().setConnections([config], { [config.name]: creds });
+  /**
+   * Helper: seed the store with a single connection. The non-secret provider
+   * region/endpoint now live in the resolved-provider map, not on the config row.
+   */
+  const seed = (
+    config = connectionConfig,
+    creds = credentials,
+    provider?: { region: string; endpoint: string | null; allowsSharing?: boolean },
+  ) => {
+    useConnectionsStore
+      .getState()
+      .setConnections(
+        [config],
+        { [config.name]: creds },
+        {},
+        provider ? { [config.name]: { allowsSharing: false, ...provider } } : {},
+      );
   };
 
   beforeEach(() => {
@@ -107,10 +121,10 @@ describe("useConnectionsStore", () => {
         mock.connectionConfig({
           name: "prefixed-conn",
           bucketName: "my-bucket",
-          region: "eu-central-1",
-          endpoint: "",
           prefix: "tenant-a",
         }),
+        credentials,
+        { region: "eu-central-1", endpoint: null },
       );
 
       const url = selectHttpsUrl("prefixed-conn/sample-001.ome.tif")(
@@ -127,10 +141,10 @@ describe("useConnectionsStore", () => {
         mock.connectionConfig({
           name: "no-prefix",
           bucketName: "my-bucket",
-          region: "eu-central-1",
-          endpoint: "",
           prefix: "",
         }),
+        credentials,
+        { region: "eu-central-1", endpoint: null },
       );
 
       const url = selectHttpsUrl("no-prefix/file.ome.tif")(useConnectionsStore.getState());
@@ -143,10 +157,10 @@ describe("useConnectionsStore", () => {
         mock.connectionConfig({
           name: "prefixed-conn",
           bucketName: "my-bucket",
-          region: "eu-central-1",
-          endpoint: "",
           prefix: "data",
         }),
+        credentials,
+        { region: "eu-central-1", endpoint: null },
       );
 
       const resourceId = "prefixed-conn/image.ome.tif";

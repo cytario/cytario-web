@@ -17,8 +17,8 @@ export async function getOverlayCellCount(resourceId: string): Promise<number> {
  * Extract marker information from DuckDB-WASM database.
  */
 export async function getMarkerInfoWasm(resourceId: string): Promise<MarkerInfo> {
-  const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-  const connection = await createDatabase(resourceId, credentials, connectionConfig);
+  const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
+  const connection = await createDatabase(resourceId, credentials, { region, endpoint });
 
   try {
     const countResult = await connection.query(/*sql*/ `

@@ -14,11 +14,26 @@ export interface ConnectionStatusUpdate {
   statusMessage?: string;
 }
 
+/**
+ * The non-secret provider attributes a connection references but does not store —
+ * resolved server-side from the org catalog and shipped to the client so
+ * the data-plane can construct S3 URLs and sign requests. Never carries a role ARN
+ * or any credential. Absent when the catalog reference is stale/unavailable.
+ */
+export interface ResolvedConnectionProviderClient {
+  region: string;
+  endpoint: string | null;
+  /** Whether the connection's provider role permits onward sharing. */
+  allowsSharing: boolean;
+}
+
 /** Static config + STS credentials + live health for one connection. */
 export interface Connection {
   connectionConfig: ConnectionConfig;
   /** `null` when STS credentials could not be minted (broken connection). */
   credentials: Credentials | null;
+  /** Resolved non-secret provider attributes (region/endpoint) for the data-plane. */
+  provider?: ResolvedConnectionProviderClient;
   status: ConnectionStatus;
   /** Human-readable cause, set when `status === "error"`. */
   statusMessage?: string;
@@ -43,6 +58,7 @@ export interface ConnectionsStore {
     configs: ConnectionConfig[],
     credentials: Record<string, Credentials>,
     errors?: Record<string, string>,
+    providers?: Record<string, ResolvedConnectionProviderClient>,
   ) => void;
   /** Patch live health for already-loaded connections (e.g. after a probe). */
   setConnectionStatuses: (updates: Record<string, ConnectionStatusUpdate>) => void;
@@ -57,7 +73,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
     immer((set) => ({
       connections: {},
 
-      setConnections: (configs, credentials, errors = {}) => {
+      setConnections: (configs, credentials, errors = {}, providers = {}) => {
         set(
           (state) => {
             const next: Record<string, Connection> = {};
@@ -84,7 +100,13 @@ export const useConnectionsStore = create<ConnectionsStore>()(
                 status = "connected";
               }
 
-              next[cname] = { connectionConfig, credentials: creds, status, statusMessage };
+              next[cname] = {
+                connectionConfig,
+                credentials: creds,
+                provider: providers[cname] ?? prev?.provider,
+                status,
+                statusMessage,
+              };
             }
             state.connections = next;
           },

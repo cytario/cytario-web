@@ -11,8 +11,8 @@ export async function getParquetRows(
   limit = 100,
   offset = 0,
 ): Promise<Record<string, unknown>[]> {
-  const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-  const connection = await createDatabase(resourceId, credentials, connectionConfig);
+  const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
+  const connection = await createDatabase(resourceId, credentials, { region, endpoint });
   const fileType = getFileType(resourceId);
   const readFn = getReadFunction(fileType, s3Uri);
 

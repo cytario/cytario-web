@@ -12,7 +12,7 @@ const credentials: Credentials = {
   SessionToken: "FwoGZXIvYXdzEBYaDK",
   Expiration: new Date(),
 };
-const connectionConfig = { region: "us-west-2" };
+const connectionConfig = "us-west-2";
 const signedFetch = createSignedFetch(() => credentials, connectionConfig);
 
 beforeEach(() => {

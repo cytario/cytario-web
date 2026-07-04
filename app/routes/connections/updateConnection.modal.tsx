@@ -21,19 +21,16 @@ export default function UpdateConnectionModal({
 
   if (!user || !nodeName || !connectionConfig) return null;
 
-  const { bucketName, prefix, provider, ownerScope, roleArn, region, endpoint } = connectionConfig;
-
-  const s3Uri = prefix ? `${bucketName}/${prefix}` : bucketName;
+  const { bucketName, prefix, scope, providerConnectionId, providerRoleId } = connectionConfig;
 
   const initialData = {
     originalName: nodeName,
     name: nodeName,
-    providerType: provider as "aws" | "minio",
-    s3Uri,
-    ownerScope,
-    roleArn: roleArn ?? "",
-    bucketRegion: region ?? "",
-    bucketEndpoint: provider === "minio" ? endpoint : "",
+    scope,
+    providerConnectionId,
+    providerRoleId,
+    bucketName,
+    prefix,
   };
 
   return (

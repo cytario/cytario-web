@@ -6,9 +6,11 @@ import { SignatureV4 } from "@smithy/signature-v4";
 import { ExpiredCredentialsError, requestCredentialsRefresh } from "../credentialsRefresh";
 import { filterObjects } from "./filterObjects";
 import { DEFAULT_MAX_TOTAL } from "../listingLimits";
-import { constructS3Url } from "../resourceId";
+import { type BucketAddress, constructS3Url } from "../resourceId";
 import { CorsLikelyError } from "../signedFetch";
-import type { ConnectionConfig } from "~/.generated/client";
+
+/** A connection's bucket address plus its store name (for the credential refresh). */
+export type ConnectionAddress = BucketAddress & { name: string };
 
 const DEFAULT_PAGE_SIZE = 1000;
 
@@ -212,7 +214,7 @@ async function isExpiredTokenResponse(response: Response): Promise<boolean> {
  * failure surfaces as `ExpiredCredentialsError` for the UI to prompt re-auth.
  */
 export async function listObjectsClient(
-  connectionConfig: Pick<ConnectionConfig, "name" | "bucketName" | "region" | "endpoint">,
+  connectionConfig: ConnectionAddress,
   credentials: Credentials,
   options: ListObjectsClientOptions = {},
 ): Promise<ListObjectsClientResult> {

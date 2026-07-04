@@ -10,7 +10,7 @@ vi.mock("~/.server/db/prisma", () => ({
     connectionConfig: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
-      upsert: vi.fn(),
+      create: vi.fn(),
       delete: vi.fn(),
     },
   },
@@ -88,66 +88,29 @@ describe("connectionConfig.server", () => {
   });
 
   describe("createConnection", () => {
-    test("calls prisma.upsert with correct parameters", async () => {
+    test("strictly creates — never an upsert that could repoint an existing row", async () => {
       const newConfig = {
         name: "new-conn",
         bucketName: "my-bucket",
-        provider: "aws",
-        roleArn: "arn:aws:iam::123:role/test",
-        region: "us-east-1",
-        endpoint: "https://s3.amazonaws.com",
+        providerConnectionId: "pc-1",
+        providerRoleId: "pr-1",
         prefix: "data/",
       };
 
-      vi.mocked(prisma.connectionConfig.upsert).mockResolvedValue(
+      vi.mocked(prisma.connectionConfig.create).mockResolvedValue(
         mock.connectionConfig({ ...newConfig }),
       );
 
       await createConnection("org1", "lab", "user-123", newConfig);
 
-      expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith({
-        where: {
-          organization_provider_bucketName_prefix: {
-            organization: "org1",
-            provider: "aws",
-            bucketName: "my-bucket",
-            prefix: "data/",
-          },
-        },
-        update: { ...newConfig, ownerScope: "lab", prefix: "data/" },
-        create: {
+      expect(prisma.connectionConfig.create).toHaveBeenCalledWith({
+        data: {
           organization: "org1",
-          ownerScope: "lab",
+          scope: "lab",
           createdBy: "user-123",
           ...newConfig,
-          prefix: "data/",
         },
       });
-    });
-
-    test("defaults prefix to empty string when not provided", async () => {
-      const newConfig = {
-        name: "new-conn",
-        bucketName: "my-bucket",
-        provider: "aws",
-        roleArn: null,
-        region: null,
-        endpoint: "https://s3.amazonaws.com",
-      };
-
-      vi.mocked(prisma.connectionConfig.upsert).mockResolvedValue(mock.connectionConfig());
-
-      await createConnection("org1", "lab", "user-123", newConfig);
-
-      expect(prisma.connectionConfig.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            organization_provider_bucketName_prefix: expect.objectContaining({
-              prefix: "",
-            }),
-          }),
-        }),
-      );
     });
   });
 

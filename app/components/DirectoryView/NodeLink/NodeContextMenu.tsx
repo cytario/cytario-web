@@ -32,12 +32,14 @@ export const NodeContextMenu = ({
   const isBucket = node.type === "bucket";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const reapplyFormRef = useRef<HTMLFormElement>(null);
   const focusReturnRef = useRef<HTMLElement | null>(null);
   const { openModal } = useModal();
 
   const { isFavorite, isPending: favoritePending, toggle: toggleFavorite } = useFavorite(node);
 
-  const connectionConfig = useConnectionsStore(select.connectionConfig(node.connectionName));
+  const connection = useConnectionsStore(select.connection(node.connectionName));
+  const connectionConfig = connection?.connectionConfig;
 
   const user = useCurrentUser();
 
@@ -47,6 +49,12 @@ export const NodeContextMenu = ({
 
   const userCanModify =
     isBucket && user && connectionConfig ? canModify(user, connectionConfig) : false;
+
+  // Offer Share only on a folder whose connection's provider role permits onward
+  // sharing. The `allowsSharing` gate here is advisory UI; the
+  // authoritative grant authorization runs server-side.
+  const isFolder = node.type === "directory" || node.type === "bucket";
+  const canShare = isFolder && (connection?.provider?.allowsSharing ?? false);
 
   const copyS3Uri = async () => {
     try {
@@ -90,9 +98,33 @@ export const NodeContextMenu = ({
             >
               {isFavorite ? "Remove Favorite" : "Add Favorite"}
             </MenuItem>
+            {canShare && (
+              <MenuItem
+                id="share"
+                icon="Send"
+                onAction={() =>
+                  openModal("share-folder", {
+                    connectionName: node.connectionName,
+                    nodePath: node.pathName,
+                  })
+                }
+              >
+                Share
+              </MenuItem>
+            )}
             {userCanModify && (
               <>
                 <MenuSeparator />
+                {(connectionConfig.bucketPolicyStatus === "drifted" ||
+                  connectionConfig.bucketPolicyStatus === "error") && (
+                  <MenuItem
+                    id="reapply"
+                    icon="RotateCcw"
+                    onAction={() => reapplyFormRef.current?.requestSubmit()}
+                  >
+                    Re-apply bucket policy
+                  </MenuItem>
+                )}
                 <MenuItem
                   id="edit"
                   icon="Pencil"
@@ -134,6 +166,11 @@ export const NodeContextMenu = ({
       {isBucket && (
         <>
           <Form method="delete" action="/connections" ref={formRef} className="hidden">
+            <input type="hidden" name="connectionName" value={node.name} />
+          </Form>
+
+          <Form method="post" action="/connections" ref={reapplyFormRef} className="hidden">
+            <input type="hidden" name="_intent" value="reapply" />
             <input type="hidden" name="connectionName" value={node.name} />
           </Form>
 

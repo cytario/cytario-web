@@ -5,13 +5,15 @@ import { createSingleton } from "./createSingleton";
 import { getLocalDuckDbBundles } from "./duckdbBundles";
 import { escapeSqlString } from "./escapeSqlString";
 import { shouldUseSSL, getEndpointHostname } from "../s3Provider";
-import { ConnectionConfig } from "~/.generated/client";
+
+/** The non-secret provider address DuckDB needs to reach the bucket. */
+export interface DatabaseProvider {
+  region?: string | null;
+  endpoint?: string | null;
+}
 
 /** Initialize a DuckDB WASM connection with S3 support (singleton per resourceId). */
-const createDatabaseInternal = async (
-  resourceId: string,
-  connectionConfig?: ConnectionConfig | null,
-) => {
+const createDatabaseInternal = async (resourceId: string, provider?: DatabaseProvider | null) => {
   console.info("[getTileDataWasm] Initializing DuckDB WASM with S3 support...");
 
   const bundle = await selectBundle(getLocalDuckDbBundles());
@@ -46,8 +48,8 @@ const createDatabaseInternal = async (
   await connection.query("SET http_keep_alive = true;");
 
   // Always path-style: dotted bucket names break the vhost wildcard cert.
-  const endpoint = connectionConfig?.endpoint;
-  const region = connectionConfig?.region ?? "eu-central-1";
+  const endpoint = provider?.endpoint;
+  const region = provider?.region ?? "eu-central-1";
   const useSSL = shouldUseSSL(endpoint);
   const hostname = getEndpointHostname(endpoint);
 
@@ -94,9 +96,9 @@ const pendingApplications = new Map<string, Promise<void>>();
 export const createDatabase = async (
   resourceId: string,
   credentials: Credentials,
-  connectionConfig?: ConnectionConfig | null,
+  provider?: DatabaseProvider | null,
 ) => {
-  const connection = await getConnection(resourceId, connectionConfig);
+  const connection = await getConnection(resourceId, provider);
 
   const previous = pendingApplications.get(resourceId) ?? Promise.resolve();
   const application = previous.then(async () => {

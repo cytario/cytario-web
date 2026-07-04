@@ -39,6 +39,8 @@ describe("getTileDataWasm", () => {
       pathName: "data/file.parquet",
       credentials: mock.credentials(),
       connectionConfig,
+      region: "eu-central-1",
+      endpoint: null,
       s3Uri: `s3://${connectionConfig.bucketName}/data/file.parquet`,
       httpsUrl: `https://${connectionConfig.bucketName}.s3.eu-central-1.amazonaws.com/data/file.parquet`,
     });

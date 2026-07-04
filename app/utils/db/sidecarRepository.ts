@@ -31,8 +31,8 @@ export class SidecarRepository {
    * concern (see `readAllAnnotations`).
    */
   static async readAll<T>(resourceId: string, kind: SidecarKind): Promise<Record<string, T>> {
-    const { credentials, connectionConfig, s3Uri } = resolveResourceId(resourceId);
-    const connection = await createDatabase(resourceId, credentials, connectionConfig);
+    const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
+    const connection = await createDatabase(resourceId, credentials, { region, endpoint });
     const glob = getSidecarKey(s3Uri, kind); // omit userId ⇒ `*` wildcard over all owners
 
     const globStatement = await connection.prepare(sidecarFilesQuery);
@@ -67,8 +67,8 @@ export class SidecarRepository {
   }
 
   private async target(kind: SidecarKind) {
-    const { credentials, connectionConfig, s3Uri } = resolveResourceId(this.resourceId);
-    const connection = await createDatabase(this.resourceId, credentials, connectionConfig);
+    const { credentials, region, endpoint, s3Uri } = resolveResourceId(this.resourceId);
+    const connection = await createDatabase(this.resourceId, credentials, { region, endpoint });
     const key = getSidecarKey(s3Uri, kind, this.userId);
     return { connection, key, s3Uri };
   }

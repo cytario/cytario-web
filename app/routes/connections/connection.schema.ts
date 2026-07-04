@@ -1,6 +1,25 @@
 import { z } from "zod";
 
-import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+
+/**
+ * A submitted owner scope: the org-root sentinel, a user sub, or a group path.
+ * Constrained before it reaches `adminCovers` or a generated policy condition —
+ * traversal-looking segments (`Lab/../x`) and IAM wildcard/variable characters
+ * are rejected outright rather than relying on downstream predicates.
+ */
+export const scopeSchema = z
+  .string()
+  .min(1, "Scope is required")
+  .max(255, "Scope must be at most 255 characters")
+  .refine(
+    (val) => val === ORG_ROOT_SCOPE || !/[*?\0\r\n]|\$\{/.test(val),
+    "Scope contains invalid characters",
+  )
+  .refine(
+    (val) => val === ORG_ROOT_SCOPE || !val.split("/").some((s) => s === "" || s === ".."),
+    "Scope may not contain empty or traversal path segments",
+  );
 
 export const connectionNameSchema = z
   .string()
@@ -13,80 +32,73 @@ export const connectionNameSchema = z
   .refine((val) => !val.includes("--"), "Name must not contain consecutive hyphens")
   .refine((val) => !val.includes("  "), "Name must not contain consecutive spaces");
 
-const isDevelopment = process.env.NODE_ENV === "development";
-const HTTP_ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+/** Maximum length of a connection / share prefix before generation. */
+export const MAX_PREFIX_LENGTH = 1024;
 
-// `https://` endpoints must also pass the S3 allowlist; without that gate the
-// server-side CORS probe could fetch IMDS / RFC1918 / loopback URLs.
-const endpointUrlSchema = z
+/**
+ * Validate a prefix before it enters any generated bucket policy:
+ * reject IAM-wildcard characters (`*`, `?`), IAM policy-variable syntax (`${...}`),
+ * the traversal segment `..`, the control characters NUL / CR / LF, and over-length
+ * values, surfacing an explicit error and refusing to generate. Applied identically
+ * to a connection prefix and to a shared folder prefix.
+ */
+export const prefixSchema = z
   .string()
-  .url("Invalid endpoint URL")
+  .max(MAX_PREFIX_LENGTH, `Prefix must be at most ${MAX_PREFIX_LENGTH} characters`)
+  .refine((val) => !/[*?]/.test(val), "Prefix may not contain IAM wildcard characters (`*`, `?`)")
   .refine(
-    (val) => {
-      let parsed: URL;
-      try {
-        parsed = new URL(val);
-      } catch {
-        return false;
-      }
-      if (parsed.protocol === "https:") return true;
-      if (parsed.protocol !== "http:") return false;
-      return isDevelopment || HTTP_ALLOWED_HOSTS.has(parsed.hostname);
-    },
-    {
-      message: "Endpoint must use https:// (http:// only allowed for localhost, 127.0.0.1, or ::1)",
-    },
+    (val) => !/\$\{/.test(val),
+    "Prefix may not contain IAM policy-variable syntax (`${...}`)",
   )
   .refine(
-    (val) => {
-      // Allowlist gate is https-only; the dev http carve-out above bypasses it
-      // intentionally so local MinIO keeps working.
-      let parsed: URL;
-      try {
-        parsed = new URL(val);
-      } catch {
-        return false;
-      }
-      if (parsed.protocol !== "https:") return true;
-      return isAllowedS3Host(val);
-    },
-    {
-      message:
-        "Endpoint host is not in the cytario S3 allowlist. Ask the operator to add it to CYTARIO_ALLOWED_S3_HOSTS.",
-    },
-  );
-
-const arnPattern = /^arn:aws:iam::\d{12}:role\/[\w+=,.@-]+$/;
-
-const s3UriSchema = z
-  .string()
-  .min(1, "S3 URI is required")
-  .refine(
-    (val) => {
-      const cleaned = val.replace(/^s3:\/\//, "");
-      const bucketName = cleaned.split("/")[0];
-      return bucketName.length >= 3 && bucketName.length <= 63;
-    },
-    { message: "Invalid S3 URI - bucket name must be 3-63 characters" },
+    (val) => !val.split("/").some((segment) => segment === ".."),
+    "Prefix may not contain the path-traversal segment `..`",
   )
   .refine(
-    (val) => {
-      // Reject IAM wildcards — a prefix like `tenant-a*` would expand the
-      // session policy's `StringLike` condition to neighbouring tenants.
-      const cleaned = val.replace(/^s3:\/\//, "");
-      const slashIdx = cleaned.indexOf("/");
-      if (slashIdx === -1) return true;
-      const prefix = cleaned.slice(slashIdx + 1);
-      return !/[*?]/.test(prefix);
-    },
-    {
-      message: "Prefix may not contain IAM wildcard characters (`*`, `?`)",
-    },
+    (val) => !/[\0\r\n]/.test(val),
+    "Prefix may not contain NUL, carriage-return, or line-feed characters",
   );
 
-/** Auto-suggest a connection name from an S3 URI (e.g. "s3://my-bucket/path" → "my-bucket"). */
-export function suggestName(s3Uri: string): string {
-  const { bucketName, prefix } = parseS3Uri(s3Uri);
+/** S3 bucket-name syntax (3–63 chars, DNS-label style, no uppercase). */
+export const bucketNameSchema = z
+  .string()
+  .min(3, "Bucket name must be at least 3 characters")
+  .max(63, "Bucket name must be at most 63 characters")
+  .regex(
+    /^[a-z0-9][a-z0-9.-]*[a-z0-9]$/,
+    "Bucket name must be lowercase alphanumeric with dots or hyphens, no leading/trailing separator",
+  );
+
+/**
+ * A storage connection is composed by SELECTING a provider connection and a
+ * provider role — never a free-text cloud role identifier or
+ * endpoint. The concrete cloud role, endpoint, and region are carried by the
+ * chosen provider connection + provider role (resolved server-side from the
+ * catalog) and are never accepted from the form.
+ */
+export const connectionSchema = z.object({
+  name: connectionNameSchema,
+  scope: scopeSchema,
+  providerConnectionId: z.string().min(1, "A provider connection is required"),
+  providerRoleId: z.string().min(1, "A provider role is required"),
+  bucketName: bucketNameSchema,
+  prefix: prefixSchema.default(""),
+});
+
+export type ConnectBucketFormData = z.input<typeof connectionSchema>;
+export type ConnectionFormValues = z.output<typeof connectionSchema>;
+
+export const defaultFormValues: ConnectBucketFormData = {
+  name: "",
+  scope: "",
+  providerConnectionId: "",
+  providerRoleId: "",
+  bucketName: "",
+  prefix: "",
+};
+
+/** Auto-suggest a connection name from a bucket + optional prefix. */
+export function suggestName(bucketName: string, prefix: string): string {
   const lastSegment = prefix.replace(/\/$/, "").split("/").filter(Boolean).pop();
   const base = lastSegment ? `${bucketName} ${lastSegment}` : bucketName;
   return base
@@ -96,47 +108,3 @@ export function suggestName(s3Uri: string): string {
     .replace(/^[- ]|[- ]$/g, "")
     .slice(0, 60);
 }
-
-export const parseS3Uri = (uri: string): { bucketName: string; prefix: string } => {
-  const cleaned = uri.replace(/^s3:\/\//, "");
-  const [bucketName, ...prefixParts] = cleaned.split("/");
-  const prefix = prefixParts.join("/");
-  return { bucketName, prefix };
-};
-
-const awsFormSchema = z.object({
-  name: connectionNameSchema,
-  ownerScope: z.string().min(1, "Scope is required"),
-  providerType: z.literal("aws"),
-  s3Uri: s3UriSchema,
-  bucketRegion: z.string().min(1, "Region is required"),
-  roleArn: z.string().regex(arnPattern, "Invalid AWS Role ARN format"),
-  bucketEndpoint: z.string().default(""),
-});
-
-const minioFormSchema = z.object({
-  name: connectionNameSchema,
-  ownerScope: z.string().min(1, "Scope is required"),
-  providerType: z.literal("minio"),
-  s3Uri: s3UriSchema,
-  bucketRegion: z.string().default(""),
-  roleArn: z.string().default(""),
-  bucketEndpoint: endpointUrlSchema,
-});
-
-export const connectionSchema = z.discriminatedUnion("providerType", [
-  awsFormSchema,
-  minioFormSchema,
-]);
-
-export type ConnectBucketFormData = z.input<typeof connectionSchema>;
-
-export const defaultFormValues: ConnectBucketFormData = {
-  name: "",
-  ownerScope: "",
-  providerType: "aws",
-  s3Uri: "",
-  bucketRegion: "eu-central-1",
-  roleArn: "",
-  bucketEndpoint: "",
-};

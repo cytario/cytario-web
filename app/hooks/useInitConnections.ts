@@ -3,7 +3,10 @@ import { useEffect } from "react";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { select } from "~/utils/connectionsStore/selectors";
-import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import {
+  type ResolvedConnectionProviderClient,
+  useConnectionsStore,
+} from "~/utils/connectionsStore/useConnectionsStore";
 
 /**
  * Replace the client connections store with the auth-context set. Uses an
@@ -14,10 +17,11 @@ export function useInitConnections(
   connectionConfigs: ConnectionConfig[],
   credentials: Record<string, Credentials>,
   credentialErrors: Record<string, string> = {},
+  connectionProviders: Record<string, ResolvedConnectionProviderClient> = {},
 ) {
   const setConnections = useConnectionsStore(select.setConnections);
 
   useEffect(() => {
-    setConnections(connectionConfigs, credentials, credentialErrors);
-  }, [connectionConfigs, credentials, credentialErrors, setConnections]);
+    setConnections(connectionConfigs, credentials, credentialErrors, connectionProviders);
+  }, [connectionConfigs, credentials, credentialErrors, connectionProviders, setConnections]);
 }

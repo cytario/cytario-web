@@ -2,7 +2,10 @@ import { type ClientLoaderFunctionArgs } from "react-router";
 
 import type { LoaderData, loadConnections } from "./connections.loader";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
+import {
+  type ConnectionStatusUpdate,
+  useConnectionsStore,
+} from "~/utils/connectionsStore/useConnectionsStore";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
 import { type ConnectionProbeResult, probeConnection } from "~/utils/probeConnection";
 
@@ -29,7 +32,8 @@ export async function enrichConnectionsWithPreviews({
       if (!creds) {
         return { status: "error", errorMessage: "No credentials available for this connection." };
       }
-      return probeConnection(config, creds, signal);
+      const provider = useConnectionsStore.getState().connections[config.name]?.provider;
+      return probeConnection(config, creds, provider, signal);
     },
   );
 

@@ -10,42 +10,30 @@ import {
 } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { KeyboardEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useActionData, useNavigation, useSubmit } from "react-router";
 
-import AWS_REGIONS from "./awsRegions.json";
 import {
   type ConnectBucketFormData,
   connectionSchema,
   defaultFormValues,
-  parseS3Uri,
   suggestName,
 } from "./connection.schema";
-import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { adminCovers } from "~/utils/authorization";
 
-const STEP_LABELS = ["Storage Type", "Connection Details", "Confirm"];
+const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
 
-const providerItems: SelectItem[] = [
-  { id: "aws", name: "AWS S3" },
-  { id: "minio", name: "MinIO" },
-];
-
-const regionItems: SelectItem[] = AWS_REGIONS.map((region) => ({
-  id: region.value,
-  name: `${region.label} (${region.value})`,
-}));
-
 const FIELD_TO_STEP: Record<string, number> = {
-  providerType: 0,
-  s3Uri: 0,
+  providerConnectionId: 0,
+  providerRoleId: 0,
+  bucketName: 0,
+  prefix: 0,
   name: 0,
-  ownerScope: 1,
-  roleArn: 1,
-  bucketRegion: 1,
-  bucketEndpoint: 1,
+  scope: 1,
 };
 
 const dtClass = "text-muted-foreground";
@@ -64,15 +52,15 @@ interface ConnectionFormProps {
   adminScopes: string[];
   userId: string;
   initialData?: ConnectBucketFormData & { originalName: string };
-  /** Pre-select owner scope (e.g. from admin page ?scope= param). Falls back to userId. */
-  defaultOwnerScope?: string;
+  /** Pre-select scope (e.g. from admin page ?scope= param). Falls back to userId. */
+  defaultScope?: string;
 }
 
 export const ConnectionForm = ({
   adminScopes,
   userId,
   initialData,
-  defaultOwnerScope,
+  defaultScope,
 }: ConnectionFormProps) => {
   const isEditMode = !!initialData;
   const submit = useSubmit();
@@ -82,6 +70,7 @@ export const ConnectionForm = ({
     status?: string;
   }>();
   const navigation = useNavigation();
+  const { catalog, error: catalogError, loading: catalogLoading } = useProviderCatalog();
 
   const serverErrors = actionData?.status === "error" ? actionData.errors : undefined;
   const formError = actionData?.status === "error" ? actionData.formError : undefined;
@@ -99,12 +88,8 @@ export const ConnectionForm = ({
   const { control, handleSubmit, setError, setValue, trigger } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectionSchema),
     defaultValues: initialData
-      ? {
-          ...defaultFormValues,
-          ...initialData,
-          ownerScope: initialData.ownerScope || defaultOwnerScope || userId,
-        }
-      : { ...defaultFormValues, ownerScope: defaultOwnerScope || userId },
+      ? { ...defaultFormValues, ...initialData, scope: initialData.scope || defaultScope || userId }
+      : { ...defaultFormValues, scope: defaultScope || userId },
     mode: "onTouched",
   });
 
@@ -112,36 +97,56 @@ export const ConnectionForm = ({
     if (!serverErrors) return;
     for (const [field, messages] of Object.entries(serverErrors)) {
       if (messages?.[0]) {
-        setError(field as keyof ConnectBucketFormData, {
-          message: messages[0],
-        });
+        setError(field as keyof ConnectBucketFormData, { message: messages[0] });
       }
     }
   }, [serverErrors, setError]);
 
-  const providerType = useWatch({ control, name: "providerType" });
-  const isAWS = providerType === "aws";
-
-  const s3Uri = useWatch({ control, name: "s3Uri" });
+  const providerConnectionId = useWatch({ control, name: "providerConnectionId" });
+  const providerRoleId = useWatch({ control, name: "providerRoleId" });
+  const bucketName = useWatch({ control, name: "bucketName" });
+  const prefix = useWatch({ control, name: "prefix" });
   const nameValue = useWatch({ control, name: "name" });
-  const bucketRegion = useWatch({ control, name: "bucketRegion" });
-  const roleArn = useWatch({ control, name: "roleArn" });
-  const bucketEndpoint = useWatch({ control, name: "bucketEndpoint" });
+  const scope = useWatch({ control, name: "scope" });
+
+  const connectionItems: SelectItem[] = useMemo(
+    () =>
+      (catalog?.providerConnections ?? []).map((c) => ({
+        id: c.id,
+        name: c.endpoint
+          ? `${c.region} (${c.endpoint})`
+          : `${c.providerType.toUpperCase()} ${c.region}`,
+      })),
+    [catalog],
+  );
+
+  // Advisory role filtering: offer only roles on the chosen provider
+  // connection whose allowed scopes cover the chosen scope. The authoritative check
+  // is server-side.
+  const roleItems: SelectItem[] = useMemo(() => {
+    const roles = (catalog?.providerRoles ?? []).filter(
+      (r) => r.providerConnectionId === providerConnectionId,
+    );
+    const covering = scope
+      ? roles.filter((r) => r.allowedScopes.some((allowed) => adminCovers(allowed, scope)))
+      : roles;
+    return covering.map((r) => ({ id: r.id, name: r.name }));
+  }, [catalog, providerConnectionId, scope]);
 
   const userEditedName = useRef(isEditMode);
   const isAutoUpdatingName = useRef(false);
 
   useEffect(() => {
-    if (!userEditedName.current && s3Uri) {
+    if (!userEditedName.current && bucketName) {
       isAutoUpdatingName.current = true;
-      setValue("name", suggestName(s3Uri));
+      setValue("name", suggestName(bucketName, prefix ?? ""));
       isAutoUpdatingName.current = false;
     }
-  }, [s3Uri, setValue]);
+  }, [bucketName, prefix, setValue]);
 
   const fieldsPerStep: Record<number, (keyof ConnectBucketFormData)[]> = {
-    0: ["providerType", "s3Uri", "name"],
-    1: isAWS ? ["ownerScope", "roleArn", "bucketRegion"] : ["ownerScope", "bucketEndpoint"],
+    0: ["providerConnectionId", "providerRoleId", "bucketName", "prefix", "name"],
+    1: ["scope"],
   };
 
   const onSubmit = (data: ConnectBucketFormData) => {
@@ -167,9 +172,7 @@ export const ConnectionForm = ({
     const fieldsToValidate = fieldsPerStep[currentStep];
     if (!fieldsToValidate) return;
     const isValid = await trigger(fieldsToValidate);
-    if (isValid) {
-      setCurrentStep(currentStep + 1);
-    }
+    if (isValid) setCurrentStep(currentStep + 1);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
@@ -179,7 +182,8 @@ export const ConnectionForm = ({
     }
   };
 
-  const { bucketName, prefix } = parseS3Uri(s3Uri);
+  const selectedRoleName =
+    catalog?.providerRoles.find((r) => r.id === providerRoleId)?.name ?? providerRoleId;
 
   return (
     <FormWizard
@@ -196,6 +200,13 @@ export const ConnectionForm = ({
           </Banner>
         )}
 
+        {catalogError && (
+          <Banner variant="warning" title="Provider catalog unavailable">
+            {catalogError} Existing connections keep working; you cannot compose a new one until the
+            catalog is reachable.
+          </Banner>
+        )}
+
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
         <form
           className="flex flex-col gap-(--spacing-6)"
@@ -205,14 +216,34 @@ export const ConnectionForm = ({
           {currentStep === 0 && (
             <Fieldset>
               <Controller
-                name="providerType"
+                name="providerConnectionId"
                 control={control}
                 render={({ field, fieldState }) => (
                   <Select
-                    label="Provider"
-                    items={providerItems}
-                    renderItem={(item) => <ProviderPill provider={item.id} />}
-                    selectedKey={field.value}
+                    label="Provider connection"
+                    description="The cloud storage account to connect through."
+                    items={connectionItems}
+                    isDisabled={catalogLoading || connectionItems.length === 0}
+                    selectedKey={field.value || null}
+                    onSelectionChange={(key) => {
+                      field.onChange(key);
+                      setValue("providerRoleId", "");
+                    }}
+                    errorMessage={fieldState.error?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                name="providerRoleId"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Select
+                    label="Provider role"
+                    description="The role Cytario assumes to access your data."
+                    items={roleItems}
+                    isDisabled={!providerConnectionId || roleItems.length === 0}
+                    selectedKey={field.value || null}
                     onSelectionChange={(key) => field.onChange(key)}
                     errorMessage={fieldState.error?.message}
                   />
@@ -220,21 +251,35 @@ export const ConnectionForm = ({
               />
 
               <Controller
-                name="s3Uri"
+                name="bucketName"
                 control={control}
                 render={({ field, fieldState }) => (
                   <Input
-                    label="S3 URI"
-                    description="Bucket name and optional path prefix."
+                    label="Bucket"
+                    description="Name of the S3 bucket."
                     value={field.value}
-                    onChange={(val) => {
-                      const trimmed = val.replace(/^s3:\/\//, "");
-                      field.onChange(trimmed);
-                    }}
+                    onChange={field.onChange}
                     onBlur={field.onBlur}
                     name={field.name}
-                    placeholder="my-bucket/path/prefix"
-                    prefix="s3://"
+                    placeholder="my-bucket"
+                    size="lg"
+                    errorMessage={fieldState.error?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                name="prefix"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Input
+                    label="Prefix"
+                    description="Optional path prefix within the bucket."
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    placeholder="path/prefix"
                     size="lg"
                     errorMessage={fieldState.error?.message}
                   />
@@ -247,12 +292,10 @@ export const ConnectionForm = ({
                 render={({ field, fieldState }) => (
                   <Input
                     label="Name"
-                    description="A friendly name, auto-suggested from the S3 URI."
+                    description="A friendly name, auto-suggested from the bucket."
                     value={field.value}
                     onChange={(val) => {
-                      if (!isAutoUpdatingName.current) {
-                        userEditedName.current = true;
-                      }
+                      if (!isAutoUpdatingName.current) userEditedName.current = true;
                       field.onChange(val);
                     }}
                     onBlur={field.onBlur}
@@ -268,9 +311,9 @@ export const ConnectionForm = ({
 
           {currentStep === 1 && (
             <Fieldset>
-              {adminScopes.length > 0 && (
+              {adminScopes.length > 0 ? (
                 <Controller
-                  name="ownerScope"
+                  name="scope"
                   control={control}
                   render={({ field, fieldState }) => (
                     <Select
@@ -278,10 +321,7 @@ export const ConnectionForm = ({
                       description="Who can access this connection."
                       items={[
                         { id: userId, name: "Personal" },
-                        ...adminScopes.map((str) => ({
-                          id: str,
-                          name: str,
-                        })),
+                        ...adminScopes.map((str) => ({ id: str, name: str })),
                       ]}
                       selectedKey={field.value}
                       onSelectionChange={(key) => field.onChange(key)}
@@ -290,61 +330,10 @@ export const ConnectionForm = ({
                     />
                   )}
                 />
-              )}
-
-              {isAWS ? (
-                <>
-                  <Controller
-                    name="roleArn"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Input
-                        label="Role ARN"
-                        description="IAM role Cytario assumes to access your S3 data."
-                        value={field.value}
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        placeholder="arn:aws:iam::123456789012:role/MyRole"
-                        size="lg"
-                        errorMessage={fieldState.error?.message}
-                      />
-                    )}
-                  />
-
-                  <Controller
-                    name="bucketRegion"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Select
-                        label="Region"
-                        description="AWS region where this bucket is located."
-                        items={regionItems}
-                        selectedKey={field.value}
-                        onSelectionChange={(key) => field.onChange(key)}
-                        errorMessage={fieldState.error?.message}
-                      />
-                    )}
-                  />
-                </>
               ) : (
-                <Controller
-                  name="bucketEndpoint"
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Input
-                      label="Endpoint"
-                      description="Endpoint URL of your S3-compatible storage."
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      placeholder="https://s3.cytario.com"
-                      size="lg"
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
+                <p className="text-(length:--font-size-sm) text-muted-foreground">
+                  This connection is personal to you.
+                </p>
               )}
             </Fieldset>
           )}
@@ -363,18 +352,11 @@ export const ConnectionForm = ({
                 ].join(" ")}
               >
                 <dl className="flex flex-col gap-[var(--spacing-2)] text-[length:var(--font-size-sm)]">
-                  <SummaryRow label="Provider" value={isAWS ? "AWS S3" : "MinIO"} />
                   <SummaryRow label="Name" value={nameValue} />
                   <SummaryRow label="Bucket" value={bucketName} />
                   {prefix && <SummaryRow label="Prefix" value={prefix} />}
-                  {isAWS ? (
-                    <>
-                      <SummaryRow label="Role ARN" value={roleArn ?? ""} />
-                      <SummaryRow label="Region" value={bucketRegion ?? ""} />
-                    </>
-                  ) : (
-                    <SummaryRow label="Endpoint" value={bucketEndpoint ?? ""} />
-                  )}
+                  <SummaryRow label="Role" value={selectedRoleName ?? ""} />
+                  <SummaryRow label="Scope" value={scope === userId ? "Personal" : scope} />
                 </dl>
               </div>
             </div>

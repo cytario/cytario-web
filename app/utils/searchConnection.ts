@@ -27,7 +27,7 @@ export async function searchConnection({
   query: string;
   signal?: AbortSignal;
 }): Promise<SearchConnectionResult> {
-  const { connectionConfig: config, credentials } = connection;
+  const { connectionConfig: config, credentials, provider } = connection;
   const prefix = getPrefix(config.prefix);
   const bucketBase = {
     id: `${config.name}/`,
@@ -49,12 +49,21 @@ export async function searchConnection({
   }
 
   try {
-    const { contents, isCapped } = await listObjectsClient(config, credentials, {
-      query,
-      prefix,
-      recursive: true,
-      signal,
-    });
+    const { contents, isCapped } = await listObjectsClient(
+      {
+        name: config.name,
+        bucketName: config.bucketName,
+        region: provider?.region,
+        endpoint: provider?.endpoint,
+      },
+      credentials,
+      {
+        query,
+        prefix,
+        recursive: true,
+        signal,
+      },
+    );
     return {
       node: {
         ...bucketBase,
