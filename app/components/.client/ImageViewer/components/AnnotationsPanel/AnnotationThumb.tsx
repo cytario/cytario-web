@@ -1,5 +1,6 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
 import type { Geometry } from "geojson";
+import { useRef } from "react";
 
 import { GeometrySvg, type Point } from "~/components/DataGrid/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -94,8 +95,9 @@ interface AnnotationThumbProps {
   onDelete: () => void;
 }
 
-/** A single annotation in the sidebar list: a selectable geometry thumbnail with
- *  a hover/focus-revealed actions menu (zoom, classify, delete). */
+/** A single annotation in the sidebar list: a selectable geometry thumbnail.
+ *  Click selects, double-click zooms to the feature, right-click (or the
+ *  hover/focus-revealed kebab, for keyboard) opens the actions menu. */
 export const AnnotationThumb = ({
   feature,
   selected,
@@ -108,12 +110,29 @@ export const AnnotationThumb = ({
   onClear,
   onDelete,
 }: AnnotationThumbProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Right-click opens the same actions menu the kebab does — fire the kebab's
+  // trigger (the design-system Menu has no controlled-open API).
+  const openMenu = () =>
+    containerRef.current
+      ?.querySelector<HTMLButtonElement>('button[aria-label="Annotation actions"]')
+      ?.click();
+
   return (
-    <div className="group/thumb relative">
+    <div
+      ref={containerRef}
+      className="group/thumb relative"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        openMenu();
+      }}
+    >
       <button
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
+        onDoubleClick={onZoom}
         className="rounded-2xl border border-border text-muted-foreground hover:text-foreground overflow-hidden"
       >
         <GeometryThumb geometry={feature.geometry} color={color} selected={selected} />
