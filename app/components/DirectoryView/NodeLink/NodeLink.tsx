@@ -1,5 +1,5 @@
 import { TruncatedText } from "@cytario/design";
-import { MouseEventHandler, ReactNode } from "react";
+import { MouseEventHandler, ReactNode, useRef } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
 
@@ -60,8 +60,25 @@ export function NodeLink({
     onClick(node);
   };
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Right-click opens the node's context menu (the Menu has no controlled-open
+  // API, so fire its trigger). Falls through to the native menu when this row
+  // has no context menu.
+  const handleContextMenu: MouseEventHandler<HTMLDivElement> = (event) => {
+    if (!contextMenu) return;
+    event.preventDefault();
+    containerRef.current
+      ?.querySelector<HTMLButtonElement>('button[aria-label^="Actions for "]')
+      ?.click();
+  };
+
   return (
-    <div className={twMerge(rowCx, className, "px-0")}>
+    <div
+      ref={containerRef}
+      className={twMerge(rowCx, className, "px-0")}
+      onContextMenu={handleContextMenu}
+    >
       {clickable ? (
         <NavLink
           to={to}
