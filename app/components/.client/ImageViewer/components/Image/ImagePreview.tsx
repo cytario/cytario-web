@@ -2,6 +2,7 @@ import { PickingInfo } from "@deck.gl/core";
 import { DeckGL } from "@deck.gl/react";
 import { useCallback, useEffect } from "react";
 
+import { useAnnotationsLayer } from "./Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "./Channels/useChannelsLayer";
 import { ImageContainer } from "./ImageContainer";
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
@@ -48,6 +49,8 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
   const multiscaleLayer = useChannelsLayer(activeImagePanelId);
   const markersLayers = useOverlaysLayers(activeImagePanelId);
+  // Read-only: annotations render in the preview but clicks keep panning.
+  const annotationsLayers = useAnnotationsLayer(activeImagePanelId, undefined, false);
 
   const setViewState = useCallback(
     ({ coordinate }: PickingInfo) => {
@@ -79,7 +82,7 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
       width={viewPort.width}
       height={viewPort.height}
       views={[view]}
-      layers={[multiscaleLayer, ...markersLayers]}
+      layers={[multiscaleLayer, ...markersLayers, ...annotationsLayers]}
       viewState={{ detail: viewStatePreview }}
       getCursor={getCursor}
       onClick={setViewState}
