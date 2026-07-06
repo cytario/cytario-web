@@ -1,4 +1,4 @@
-import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
+import { MenuItem, MenuSeparator } from "@cytario/design";
 import { type ReactNode, useRef, useState } from "react";
 import { Form } from "react-router";
 
@@ -14,13 +14,16 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 import { buildConnectionPath } from "~/utils/resourceId";
 
 /**
- * Trailing context menu for a `TreeNode` (bucket, directory, file). All node
- * types share Open / Open in new tab / Copy S3 URI / favorite; buckets also
- * expose Edit and Delete when the user may modify the connection. Callers can
- * append caller-specific `MenuItem`s via `extraItems` (e.g. the viewer's
- * "Remove overlay"), rendered after a trailing separator.
+ * Context-menu content for a `TreeNode` (bucket, directory, file), for driving
+ * `useContextMenu`. All node types share Open / Open in new tab / Copy S3 URI /
+ * favorite; buckets also expose Edit and Delete when the user may modify the
+ * connection. Callers can append caller-specific `MenuItem`s via `extraItems`
+ * (e.g. the viewer's "Remove overlay"), rendered after a trailing separator.
+ *
+ * Returns the menu `content` and a `dialog` (the delete-confirm portal for
+ * buckets) that the consumer renders alongside the menu.
  */
-export const NodeContextMenu = ({
+export const useNodeContextMenu = ({
   node,
   isCurrent = false,
   extraItems,
@@ -28,7 +31,7 @@ export const NodeContextMenu = ({
   node: TreeNode;
   isCurrent?: boolean;
   extraItems?: ReactNode;
-}) => {
+}): { content: ReactNode; dialog: ReactNode } => {
   const isBucket = node.type === "bucket";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -43,7 +46,7 @@ export const NodeContextMenu = ({
 
   const to = buildConnectionPath(node.connectionName, node.pathName);
 
-  if (!connectionConfig) return null;
+  if (!connectionConfig) return { content: null, dialog: null };
 
   const userCanModify =
     isBucket && user && connectionConfig ? canModify(user, connectionConfig) : false;
@@ -58,102 +61,91 @@ export const NodeContextMenu = ({
     }
   };
 
-  return (
+  const content = (
     <>
-      <Menu
-        content={
-          <>
-            {!isCurrent && (
-              <MenuItem id="open" icon="ArrowRight" href={to}>
-                Open
-              </MenuItem>
-            )}
-            <MenuItem id="open-new-tab" icon="ExternalLink" href={to} target="_blank">
-              Open in new tab
-            </MenuItem>
-            <MenuSeparator />
-            <MenuItem id="copy-s3-uri" icon="Copy" onAction={copyS3Uri}>
-              Copy S3 URI
-            </MenuItem>
-            <MenuItem
-              id="cyberduck"
-              icon="Download"
-              onAction={() => openModal("cyberduck", { connectionName: node.connectionName })}
-            >
-              Access with Cyberduck
-            </MenuItem>
-            <MenuItem
-              id="favorite"
-              icon={isFavorite ? "BookmarkCheck" : "Bookmark"}
-              isDisabled={favoritePending}
-              onAction={toggleFavorite}
-            >
-              {isFavorite ? "Remove Favorite" : "Add Favorite"}
-            </MenuItem>
-            {userCanModify && (
-              <>
-                <MenuSeparator />
-                <MenuItem
-                  id="edit"
-                  icon="Pencil"
-                  onAction={() => openModal("edit-connection", { nodeName: node.name })}
-                >
-                  Edit
-                </MenuItem>
-                <MenuItem
-                  id="delete"
-                  icon="Trash2"
-                  isDanger
-                  textValue="Delete connection"
-                  onAction={() => {
-                    focusReturnRef.current = document.activeElement as HTMLElement | null;
-                    setConfirmOpen(true);
-                  }}
-                >
-                  Delete
-                </MenuItem>
-              </>
-            )}
-            {extraItems && (
-              <>
-                <MenuSeparator />
-                {extraItems}
-              </>
-            )}
-          </>
-        }
+      {!isCurrent && (
+        <MenuItem id="open" icon="ArrowRight" href={to}>
+          Open
+        </MenuItem>
+      )}
+      <MenuItem id="open-new-tab" icon="ExternalLink" href={to} target="_blank">
+        Open in new tab
+      </MenuItem>
+      <MenuSeparator />
+      <MenuItem id="copy-s3-uri" icon="Copy" onAction={copyS3Uri}>
+        Copy S3 URI
+      </MenuItem>
+      <MenuItem
+        id="cyberduck"
+        icon="Download"
+        onAction={() => openModal("cyberduck", { connectionName: node.connectionName })}
       >
-        <IconButton
-          icon="EllipsisVertical"
-          label={`Actions for ${node.name}`}
-          variant="ghost"
-          size="xs"
-        />
-      </Menu>
-
-      {isBucket && (
+        Access with Cyberduck
+      </MenuItem>
+      <MenuItem
+        id="favorite"
+        icon={isFavorite ? "BookmarkCheck" : "Bookmark"}
+        isDisabled={favoritePending}
+        onAction={toggleFavorite}
+      >
+        {isFavorite ? "Remove Favorite" : "Add Favorite"}
+      </MenuItem>
+      {userCanModify && (
         <>
-          <Form method="delete" action="/connections" ref={formRef} className="hidden">
-            <input type="hidden" name="connectionName" value={node.name} />
-          </Form>
-
-          <ConfirmDialog
-            open={confirmOpen}
-            onCancel={() => {
-              setConfirmOpen(false);
-              requestAnimationFrame(() => focusReturnRef.current?.focus());
-            }}
-            onConfirm={() => formRef.current?.requestSubmit()}
-            title="Remove connection?"
-            confirmLabel="Remove"
+          <MenuSeparator />
+          <MenuItem
+            id="edit"
+            icon="Pencil"
+            onAction={() => openModal("edit-connection", { nodeName: node.name })}
           >
-            <p>
-              This will remove <strong>{node.name}</strong> and its associated recents and pins. The
-              underlying storage is not affected.
-            </p>
-          </ConfirmDialog>
+            Edit
+          </MenuItem>
+          <MenuItem
+            id="delete"
+            icon="Trash2"
+            isDanger
+            textValue="Delete connection"
+            onAction={() => {
+              focusReturnRef.current = document.activeElement as HTMLElement | null;
+              setConfirmOpen(true);
+            }}
+          >
+            Delete
+          </MenuItem>
+        </>
+      )}
+      {extraItems && (
+        <>
+          <MenuSeparator />
+          {extraItems}
         </>
       )}
     </>
   );
+
+  const dialog = isBucket ? (
+    <>
+      <Form method="delete" action="/connections" ref={formRef} className="hidden">
+        <input type="hidden" name="connectionName" value={node.name} />
+      </Form>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onCancel={() => {
+          setConfirmOpen(false);
+          requestAnimationFrame(() => focusReturnRef.current?.focus());
+        }}
+        onConfirm={() => formRef.current?.requestSubmit()}
+        title="Remove connection?"
+        confirmLabel="Remove"
+      >
+        <p>
+          This will remove <strong>{node.name}</strong> and its associated recents and pins. The
+          underlying storage is not affected.
+        </p>
+      </ConfirmDialog>
+    </>
+  ) : null;
+
+  return { content, dialog };
 };

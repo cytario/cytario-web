@@ -1,9 +1,9 @@
-import { TruncatedText } from "@cytario/design";
-import { MouseEventHandler, ReactNode, useRef } from "react";
+import { IconButton, TruncatedText, useContextMenu } from "@cytario/design";
+import { MouseEventHandler, ReactNode } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
 
-import { NodeContextMenu } from "./NodeContextMenu";
+import { useNodeContextMenu } from "./NodeContextMenu";
 import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { buildConnectionPath } from "~/utils/resourceId";
@@ -60,25 +60,18 @@ export function NodeLink({
     onClick(node);
   };
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Right-click opens the node's context menu (the Menu has no controlled-open
-  // API, so fire its trigger). Falls through to the native menu when this row
-  // has no context menu.
-  const handleContextMenu: MouseEventHandler<HTMLDivElement> = (event) => {
-    if (!contextMenu) return;
-    event.preventDefault();
-    containerRef.current
-      ?.querySelector<HTMLButtonElement>('button[aria-label^="Actions for "]')
-      ?.click();
-  };
+  const { content, dialog } = useNodeContextMenu({
+    node,
+    isCurrent,
+    extraItems: contextMenuItems,
+  });
+  const { targetProps, triggerProps, menu } = useContextMenu({ content });
+  // Right-click the whole row (or the kebab, for keyboard) opens the menu at the
+  // cursor. Rows without a menu fall through to the native context menu.
+  const hasMenu = contextMenu && content != null;
 
   return (
-    <div
-      ref={containerRef}
-      className={twMerge(rowCx, className, "px-0")}
-      onContextMenu={handleContextMenu}
-    >
+    <div className={twMerge(rowCx, className, "px-0")} {...(hasMenu ? targetProps : {})}>
       {clickable ? (
         <NavLink
           to={to}
@@ -96,8 +89,18 @@ export function NodeLink({
         </div>
       )}
 
-      {contextMenu && (
-        <NodeContextMenu node={node} isCurrent={isCurrent} extraItems={contextMenuItems} />
+      {hasMenu && (
+        <>
+          <IconButton
+            {...triggerProps}
+            icon="EllipsisVertical"
+            label={`Actions for ${node.name}`}
+            variant="ghost"
+            size="xs"
+          />
+          {menu}
+          {dialog}
+        </>
       )}
     </div>
   );

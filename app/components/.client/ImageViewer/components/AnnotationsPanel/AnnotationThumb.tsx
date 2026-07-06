@@ -1,6 +1,5 @@
-import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
+import { IconButton, MenuItem, MenuSeparator, useContextMenu } from "@cytario/design";
 import type { Geometry } from "geojson";
-import { useRef } from "react";
 
 import { GeometrySvg, type Point } from "~/components/DataGrid/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -110,24 +109,37 @@ export const AnnotationThumb = ({
   onClear,
   onDelete,
 }: AnnotationThumbProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Right-click opens the same actions menu the kebab does — fire the kebab's
-  // trigger (the design-system Menu has no controlled-open API).
-  const openMenu = () =>
-    containerRef.current
-      ?.querySelector<HTMLButtonElement>('button[aria-label="Annotation actions"]')
-      ?.click();
+  const { targetProps, triggerProps, menu } = useContextMenu({
+    content: (
+      <>
+        <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
+          Zoom to annotation
+        </MenuItem>
+        {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
+          <>
+            <MenuSeparator />
+            {(classNames ?? []).map((name) => (
+              <MenuItem key={name} id={`move:${name}`} icon="Tag" onAction={() => onClassify(name)}>
+                Move to {name}
+              </MenuItem>
+            ))}
+            {onClear && (
+              <MenuItem id="unclassify" icon="X" onAction={onClear}>
+                Clear classification
+              </MenuItem>
+            )}
+          </>
+        )}
+        <MenuSeparator />
+        <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
+          Delete annotation
+        </MenuItem>
+      </>
+    ),
+  });
 
   return (
-    <div
-      ref={containerRef}
-      className="group/thumb relative"
-      onContextMenu={(e) => {
-        e.preventDefault();
-        openMenu();
-      }}
-    >
+    <div className="group/thumb relative" {...targetProps}>
       <button
         type="button"
         aria-pressed={selected}
@@ -138,48 +150,16 @@ export const AnnotationThumb = ({
         <GeometryThumb geometry={feature.geometry} color={color} selected={selected} />
       </button>
 
-      <Menu
-        content={
-          <>
-            <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
-              Zoom to annotation
-            </MenuItem>
-            {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
-              <>
-                <MenuSeparator />
-                {(classNames ?? []).map((name) => (
-                  <MenuItem
-                    key={name}
-                    id={`move:${name}`}
-                    icon="Tag"
-                    onAction={() => onClassify(name)}
-                  >
-                    Move to {name}
-                  </MenuItem>
-                ))}
-                {onClear && (
-                  <MenuItem id="unclassify" icon="X" onAction={onClear}>
-                    Clear classification
-                  </MenuItem>
-                )}
-              </>
-            )}
-            <MenuSeparator />
-            <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
-              Delete annotation
-            </MenuItem>
-          </>
-        }
-      >
-        <IconButton
-          icon="EllipsisVertical"
-          label="Annotation actions"
-          variant="ghost"
-          size="xs"
-          // Show on thumb hover or keyboard focus-within (the menu trigger), so the actions stay discoverable without cluttering every thumbnail.
-          className="absolute top-0 right-0 opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100"
-        />
-      </Menu>
+      <IconButton
+        {...triggerProps}
+        icon="EllipsisVertical"
+        label="Annotation actions"
+        variant="ghost"
+        size="xs"
+        // Show on thumb hover or keyboard focus-within, so the actions stay discoverable without cluttering every thumbnail.
+        className="absolute top-0 right-0 opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100"
+      />
+      {menu}
     </div>
   );
 };
