@@ -12,6 +12,7 @@ import { type ReactNode, useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
+  classColor as registeredClassColor,
   classNameOf,
   isReservedClassName,
   selectUserFeatures,
@@ -148,15 +149,16 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const showAnnotationClass = useViewerStore((s) => s.showAnnotationClass);
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
+  const annotationClasses = useViewerStore((s) => s.annotationClasses);
 
-  // The active class resolved to a stampable classification. Active is always an
-  // existing own group (or none), so its color comes from the current set.
+  // The active class resolved to a stampable classification. The registry is
+  // the source of truth so a freshly created, still-empty class stamps too;
+  // member features are only the fallback for unregistered legacy names.
   const activeClassification = useMemo<AnnotationClassification | null>(() => {
     if (!activeClass || isReservedClassName(activeClass)) return null;
-    const color = features.find((f) => f.properties?.classification?.name === activeClass)
-      ?.properties?.classification?.color;
+    const color = registeredClassColor(annotationClasses, features, activeClass);
     return color ? { name: activeClass, color } : null;
-  }, [activeClass, features]);
+  }, [activeClass, annotationClasses, features]);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };

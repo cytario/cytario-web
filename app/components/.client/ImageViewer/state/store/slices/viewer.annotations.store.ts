@@ -33,7 +33,7 @@ const colorKey = (c: RGB): string => c.join(",");
 
 /** The color already assigned to a class of this name — the registry first (so
  *  an empty defined class keeps its color), then any member feature. */
-const classColor = (
+export const classColor = (
   classes: AnnotationClass[],
   features: AnnotationFeature[],
   name: string,
