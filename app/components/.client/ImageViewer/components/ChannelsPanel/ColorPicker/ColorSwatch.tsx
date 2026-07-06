@@ -16,8 +16,8 @@ export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
   return (
     <Button
       className={`
-        group flex items-center justify-center 
-        cursor-pointer disabled:cursor-default
+        group flex items-center justify-center
+        cursor-pointer disabled:cursor-default disabled:opacity-50
       `}
       {...props}
     >

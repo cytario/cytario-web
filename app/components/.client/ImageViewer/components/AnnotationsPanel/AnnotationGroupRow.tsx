@@ -77,7 +77,14 @@ export function AnnotationGroupRow({
     <PanelRow
       selected={isActive}
       titleTruncate={!editing}
-      swatch={<ColorPicker color={swatch} onColorChange={onColorChange} isDisabled={!canRecolor} />}
+      swatch={
+        <ColorPicker
+          color={swatch}
+          onColorChange={onColorChange}
+          isDisabled={!canRecolor}
+          label={`${name} color`}
+        />
+      }
       title={
         editing ? (
           <Input

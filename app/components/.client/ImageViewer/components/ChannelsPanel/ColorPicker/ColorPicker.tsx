@@ -29,11 +29,13 @@ interface ColorPickerProps {
   onColorChange?: (color: RGB) => void;
   /** Read-only: render the swatch statically, without the picker popover. */
   isDisabled?: boolean;
+  /** Accessible name for the swatch/trigger (e.g. the class/channel it colors). */
+  label?: string;
 }
 
-export function ColorPicker({ color, onColorChange, isDisabled }: ColorPickerProps) {
+export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPickerProps) {
   if (isDisabled) {
-    return <ColorSwatch color={color} isDisabled aria-label="Color" />;
+    return <ColorSwatch color={color} isDisabled aria-label={label ?? "Color"} />;
   }
 
   return (
@@ -48,7 +50,7 @@ export function ColorPicker({ color, onColorChange, isDisabled }: ColorPickerPro
     >
       <Popover>
         {/* ColorSwatch as PopoverTrigger */}
-        <ColorSwatch color={color} aria-label="Open color picker" />
+        <ColorSwatch color={color} aria-label={label ? `Edit ${label}` : "Open color picker"} />
 
         <PopoverContent placement="bottom start" data-theme="dark">
           <RacColorPicker

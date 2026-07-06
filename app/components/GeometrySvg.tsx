@@ -1,20 +1,12 @@
 import type { Geometry, Position } from "geojson";
 
 interface GeometrySvgProps {
-  /** GeoJSON geometry in screen space (Y grows down, same as SVG — no axis flip). */
   geometry: Geometry | null | undefined;
   size?: number;
-  /** CSS color for fill + stroke; falls back to the `text-secondary` token. */
+  padding?: number;
   color?: string;
-  /** Draw the achromatic white/black/white selection frame, mirroring the
-   *  on-slide selection halo. */
   selected?: boolean;
 }
-
-// Default inset; when selected, the widest frame stroke bleeds ±(width/2)
-// outside the path, so pad more to keep it inside the viewBox.
-const PADDING = 2;
-const SELECTED_PADDING = 4;
 
 /** White/black/white selection frame for paths, widest first (rendered
  *  underneath), so the achromatic frame reads on any background. */
@@ -71,7 +63,13 @@ const toShape = (geometry: Geometry): Shape => {
  * taken as-is (screen space, Y-down) — source parsing (WKT via `wktToGeometry`,
  * …) and any coordinate-space conversion belong in the caller.
  */
-export const GeometrySvg = ({ geometry, size = 48, color, selected }: GeometrySvgProps) => {
+export const GeometrySvg = ({
+  geometry,
+  size = 48,
+  padding = 4,
+  color,
+  selected,
+}: GeometrySvgProps) => {
   const shape = geometry ? toShape(geometry) : EMPTY;
   const coords = [...shape.rings.flat(), ...shape.points];
 
@@ -79,18 +77,21 @@ export const GeometrySvg = ({ geometry, size = 48, color, selected }: GeometrySv
     return <span className="text-muted-foreground italic">invalid</span>;
   }
 
-  const padding = selected ? SELECTED_PADDING : PADDING;
   const xs = coords.map((p) => p[0]);
   const ys = coords.map((p) => p[1]);
   const minX = Math.min(...xs);
   const minY = Math.min(...ys);
-  const width = Math.max(...xs) - minX || 1;
-  const height = Math.max(...ys) - minY || 1;
-  const scale = (size - padding * 2) / Math.max(width, height);
+  // Real spans (may be 0 for a point / axis-aligned line); the scale divisor is
+  // clamped to avoid /0, but centering uses the true span so a degenerate
+  // geometry (single point) lands at the box center, not the padding corner.
+  const spanX = Math.max(...xs) - minX;
+  const spanY = Math.max(...ys) - minY;
+  const drawable = size - padding * 2;
+  const scale = drawable / (Math.max(spanX, spanY) || 1);
 
   const transform = (p: Position) => ({
-    x: (p[0] - minX) * scale + padding + (size - padding * 2 - width * scale) / 2,
-    y: (p[1] - minY) * scale + padding + (size - padding * 2 - height * scale) / 2,
+    x: (p[0] - minX) * scale + padding + (drawable - spanX * scale) / 2,
+    y: (p[1] - minY) * scale + padding + (drawable - spanY * scale) / 2,
   });
 
   const pathData = shape.rings
@@ -112,7 +113,7 @@ export const GeometrySvg = ({ geometry, size = 48, color, selected }: GeometrySv
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      className="inline-block bg-muted"
+      className="inline-block rounded bg-muted"
     >
       {selected &&
         pathData &&

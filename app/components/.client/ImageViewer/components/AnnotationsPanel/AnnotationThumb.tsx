@@ -36,6 +36,10 @@ export const AnnotationThumb = ({
   onClear,
   onDelete,
 }: AnnotationThumbProps) => {
+  // Accessible name: the thumbnail is otherwise a bare geometry with no text.
+  const kind = feature.geometry.type === "Point" ? "point" : "region";
+  const label = `${feature.properties?.classification?.name ?? "Unclassified"} ${kind}`;
+
   const { targetProps, triggerProps, menu } = useContextMenu({
     content: (
       <>
@@ -69,10 +73,16 @@ export const AnnotationThumb = ({
     <div className="group/thumb relative" {...targetProps}>
       <button
         type="button"
+        aria-label={label}
         aria-pressed={selected}
         onClick={onSelect}
         onDoubleClick={onZoom}
-        className="rounded-2xl border border-border text-muted-foreground hover:text-foreground overflow-hidden"
+        className={`
+          rounded-2xl
+          border border-border
+          text-muted-foreground hover:text-foreground
+          overflow-hidden
+        `}
       >
         <GeometrySvg geometry={feature.geometry} color={color} selected={selected} />
       </button>
@@ -80,11 +90,14 @@ export const AnnotationThumb = ({
       <IconButton
         {...triggerProps}
         icon="EllipsisVertical"
-        label="Annotation actions"
+        label={`Actions for ${label}`}
         variant="ghost"
         size="xs"
         // Show on thumb hover or keyboard focus-within, so the actions stay discoverable without cluttering every thumbnail.
-        className="absolute top-0 right-0 opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100"
+        className={`
+          absolute top-0 right-0
+          opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100
+        `}
       />
       {menu}
     </div>
