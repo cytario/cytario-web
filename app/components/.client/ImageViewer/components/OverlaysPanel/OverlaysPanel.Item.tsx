@@ -149,7 +149,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
       {/* Body: one PanelRow per marker — no radio semantics, markers have no
           selected-item concept (yet). */}
       {isOpen && (
-        <div className="flex flex-col gap-1 px-3">
+        <div className="flex flex-col gap-2 px-2">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LavaLoader />
@@ -178,13 +178,16 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
                     </div>
                   }
                   swatch={
+                    // Picker is RGB; the marker color keeps its alpha across a recolor.
                     <ColorPicker
-                      color={color}
-                      onColorChange={(color) => setMarkerColor(resourceId, markerName, color)}
+                      color={[color[0], color[1], color[2]]}
+                      onColorChange={(c) =>
+                        setMarkerColor(resourceId, markerName, [...c, color[3]])
+                      }
                     />
                   }
                   title={name}
-                  value={count > 0 ? count : undefined}
+                  count={count > 0 ? count : undefined}
                   toggle={
                     <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
                       <Switch

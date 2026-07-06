@@ -1,12 +1,11 @@
-import { Badge, IconButton, Input, Switch } from "@cytario/design";
+import { IconButton, Input, Switch } from "@cytario/design";
 import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { UNCLASSIFIED_COLOR } from "../../state/store/slices/viewer.annotations.store";
-import { RGB, RGBA } from "../../state/store/types";
+import { RGB } from "../../state/store/types";
 import { ColorPicker, rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 import { PanelRow } from "../PanelRow";
-import { Swatch } from "../Swatch";
 
 interface AnnotationGroupRowProps {
   name: string;
@@ -48,7 +47,7 @@ export function AnnotationGroupRow({
   onDelete,
   isUnclassified,
 }: AnnotationGroupRowProps) {
-  const swatch: RGBA = [...(color ?? UNCLASSIFIED_COLOR), 255];
+  const swatch: RGB = color ?? UNCLASSIFIED_COLOR;
   const canRecolor = color !== null && onColorChange;
 
   const [editing, setEditing] = useState(false);
@@ -78,17 +77,7 @@ export function AnnotationGroupRow({
     <PanelRow
       selected={isActive}
       titleTruncate={!editing}
-      swatch={
-        canRecolor ? (
-          <ColorPicker color={swatch} onColorChange={([r, g, b]) => onColorChange([r, g, b])} />
-        ) : (
-          // Dashed + unfilled marks the unclassified bucket.
-          <Swatch
-            color={isUnclassified ? undefined : rgb(swatch)}
-            className={isUnclassified ? "border-dashed" : undefined}
-          />
-        )
-      }
+      swatch={<ColorPicker color={swatch} onColorChange={onColorChange} isDisabled={!canRecolor} />}
       title={
         editing ? (
           <Input
@@ -146,7 +135,7 @@ export function AnnotationGroupRow({
           </span>
         )
       }
-      value={count > 0 ? <Badge>{count}</Badge> : undefined}
+      count={count}
       toggle={
         <Switch
           isSelected={isVisible}

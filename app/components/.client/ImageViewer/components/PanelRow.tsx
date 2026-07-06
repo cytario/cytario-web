@@ -1,3 +1,4 @@
+import { Badge } from "@cytario/design";
 import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -9,9 +10,9 @@ interface PanelRowProps {
   titleTruncate?: boolean;
   /** Hover/focus-revealed row actions (e.g. rename, delete). */
   actions?: ReactNode;
-  /** Trailing metric. Numbers/strings render in the muted measurement style
-   *  (pixel intensity); counts should be passed as a `<Badge>` node. */
-  value?: ReactNode;
+  /** Trailing count, rendered as a `<Badge>`. Omit to hide (e.g. a zero the
+   *  caller chooses not to show). */
+  count?: number;
   /** Trailing control, typically a visibility Switch. */
   toggle?: ReactNode;
   /** Absolutely-positioned overlays (intensity bar, loader); the row is `relative`. */
@@ -34,7 +35,7 @@ export function PanelRow({
   title,
   titleTruncate = true,
   actions,
-  value,
+  count,
   toggle,
   accessory,
   selected,
@@ -44,7 +45,7 @@ export function PanelRow({
     `
       group/panelrow
       relative flex items-center
-      gap-0.5 rounded-full
+      gap-1 rounded-full
       px-2 py-1
       font-medium text-sm
       hover:bg-muted
@@ -52,6 +53,7 @@ export function PanelRow({
     selected && "bg-muted",
     className,
   );
+
   return (
     <div className={cx}>
       {accessory}
@@ -60,14 +62,13 @@ export function PanelRow({
       {swatch && (
         <span className="flex h-6 w-6 shrink-0 items-center justify-center">{swatch}</span>
       )}
+
       <span className={twMerge("min-w-0 flex-1", titleTruncate && "truncate")}>{title}</span>
+
       {actions}
-      {value != null &&
-        (typeof value === "number" || typeof value === "string" ? (
-          <span className="text-xs tabular-nums text-muted-foreground">{value}</span>
-        ) : (
-          value
-        ))}
+
+      {count != null && <Badge>{count}</Badge>}
+
       {toggle}
     </div>
   );

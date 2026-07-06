@@ -163,7 +163,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   return (
     // gap-1 between group rows (the shared row rhythm); the larger gap-2 stays
     // between a group header and its thumbnail grid.
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       {annotationsGroups.map(({ name, color, items }) => {
         const cssColor = rgb([...(color ?? UNCLASSIFIED_COLOR), 255]);
         const isUnclassified = isReservedClassName(name);

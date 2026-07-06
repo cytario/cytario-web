@@ -83,21 +83,22 @@ describe("AnnotationGroupRow", () => {
     expect(colorButton).toBeInTheDocument();
   });
 
-  test("does not show a ColorPicker when color is null (Unclassified group)", () => {
+  test("shows a disabled (read-only) swatch for the Unclassified group", () => {
     render(
       <AnnotationGroupRow
         name="Unclassified"
         count={2}
         color={null}
+        isUnclassified
         isVisible={true}
         onToggleVisibility={vi.fn()}
       />,
     );
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  test("does not show a ColorPicker when onColorChange is not provided even if color is set", () => {
+  test("shows a disabled (read-only) swatch when color is set but onColorChange is missing", () => {
     render(
       <AnnotationGroupRow
         name="Tumor"
@@ -109,6 +110,7 @@ describe("AnnotationGroupRow", () => {
       />,
     );
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // Read-only peer class: a static, non-interactive swatch (disabled ColorPicker).
+    expect(screen.getByRole("button")).toBeDisabled();
   });
 });

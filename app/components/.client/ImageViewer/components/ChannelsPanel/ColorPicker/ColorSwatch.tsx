@@ -1,10 +1,10 @@
 import { Button, ButtonProps } from "react-aria-components";
 
 import { rgb } from "./ColorPicker";
-import { RGBA } from "../../../state/store/types";
+import { RGB } from "../../../state/store/types";
 
 interface ColorSwatchProps extends ButtonProps {
-  color: RGBA;
+  color: RGB;
 }
 
 export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
@@ -14,7 +14,13 @@ export function ColorSwatch({ color, ...props }: ColorSwatchProps) {
   `;
 
   return (
-    <Button className="group cursor-pointer flex items-center justify-center" {...props}>
+    <Button
+      className={`
+        group flex items-center justify-center 
+        cursor-pointer disabled:cursor-default
+      `}
+      {...props}
+    >
       <div className={cx} style={{ backgroundColor: rgb(color) }} />
     </Button>
   );

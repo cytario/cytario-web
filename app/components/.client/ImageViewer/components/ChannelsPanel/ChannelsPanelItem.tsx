@@ -80,9 +80,15 @@ export function ChannelsPanelItem({
             {isLoading && <LavaLoader absolute rows={1} cols={6} />}
           </>
         }
-        swatch={<ColorPicker color={color} onColorChange={onColorChange ?? (() => {})} />}
+        swatch={
+          // Picker is RGB; the channel color keeps its alpha across a recolor.
+          <ColorPicker
+            color={[color[0], color[1], color[2]]}
+            onColorChange={onColorChange ? (c) => onColorChange([...c, color[3]]) : undefined}
+          />
+        }
         title={name}
-        value={pixelValue > 0 ? pixelValue : undefined}
+        count={pixelValue > 0 ? pixelValue : undefined}
         toggle={
           <Tooltip content={tooltip}>
             <Switch

@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 import { CATEGORICAL_COLORS } from "../../../categoricalColors";
 import { ColorPicker } from "../ColorPicker/ColorPicker";
 
-const RED_RGBA: [number, number, number, number] = [255, 0, 0, 255];
+const RED_RGB: [number, number, number] = [255, 0, 0];
 
 const openPopover = () => {
   const trigger = screen.getByLabelText("Open color picker");
@@ -13,13 +13,13 @@ const openPopover = () => {
 
 describe("ColorPicker", () => {
   test("renders the trigger swatch with current color", () => {
-    render(<ColorPicker color={RED_RGBA} onColorChange={vi.fn()} />);
+    render(<ColorPicker color={RED_RGB} onColorChange={vi.fn()} />);
     const triggers = screen.getAllByRole("button");
     expect(triggers.length).toBeGreaterThan(0);
   });
 
   test("opens popover with the 9 quick-pick swatches", async () => {
-    render(<ColorPicker color={RED_RGBA} onColorChange={vi.fn()} />);
+    render(<ColorPicker color={RED_RGB} onColorChange={vi.fn()} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
@@ -27,7 +27,7 @@ describe("ColorPicker", () => {
   });
 
   test("popover renders the HSV slider and hex input", async () => {
-    render(<ColorPicker color={RED_RGBA} onColorChange={vi.fn()} />);
+    render(<ColorPicker color={RED_RGB} onColorChange={vi.fn()} />);
     openPopover();
 
     expect(await screen.findByLabelText("Hue")).toBeInTheDocument();
@@ -36,24 +36,24 @@ describe("ColorPicker", () => {
 
   test("clicking a preset swatch calls onColorChange with that color", async () => {
     const onColorChange = vi.fn();
-    render(<ColorPicker color={RED_RGBA} onColorChange={onColorChange} />);
+    render(<ColorPicker color={RED_RGB} onColorChange={onColorChange} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
-    // Click the third preset (index 2 → Yellow [255,255,0,255]).
+    // Click the third preset (index 2 → Yellow [255,255,0]).
     fireEvent.click(presetButtons[2]);
 
-    expect(onColorChange).toHaveBeenCalledWith([255, 255, 0, 255]);
+    expect(onColorChange).toHaveBeenCalledWith([255, 255, 0]);
   });
 
   test("ninth preset is white", async () => {
     const onColorChange = vi.fn();
-    render(<ColorPicker color={RED_RGBA} onColorChange={onColorChange} />);
+    render(<ColorPicker color={RED_RGB} onColorChange={onColorChange} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
     fireEvent.click(presetButtons[8]); // ninth swatch
 
-    expect(onColorChange).toHaveBeenCalledWith([255, 255, 255, 255]);
+    expect(onColorChange).toHaveBeenCalledWith([255, 255, 255]);
   });
 });
