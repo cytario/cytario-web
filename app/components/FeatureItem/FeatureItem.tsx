@@ -1,4 +1,5 @@
 import { Badge, Icon } from "@cytario/design";
+import { twMerge } from "tailwind-merge";
 
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureItem";
 
@@ -29,13 +30,16 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
         >
           <button
             data-expander
-            className={`
+            className={twMerge(
+              `
               cursor-pointer
               flex items-center grow
               h-12 gap-1 px-2
               hover:text-foreground
               transition-colors
-            `}
+            `,
+              isOpen && "text-foreground",
+            )}
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? (
@@ -49,7 +53,7 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
 
           {/* Header Actions */}
           <div className="flex items-center gap-2 px-2">
-            {badge && <Badge size="sm">{badge}</Badge>}
+            {badge && <Badge>{badge}</Badge>}
             {actions}
           </div>
         </div>

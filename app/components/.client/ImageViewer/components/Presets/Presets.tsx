@@ -2,7 +2,7 @@ import { Tab, TabList, Tabs, type Key } from "@cytario/design";
 
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { rgb } from "../ChannelsController/ColorPicker/ColorPicker";
+import { rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 import { SplitViewToggle } from "../SplitViewToggle";
 
 export function Presets({ children }: { children: React.ReactNode }) {

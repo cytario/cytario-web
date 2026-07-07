@@ -26,20 +26,26 @@ describe("AnnotationThumb", () => {
   test("aria-pressed is false when not selected", () => {
     render(<AnnotationThumb {...defaultProps} selected={false} />);
 
-    expect(screen.getByRole("button", { name: "" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Unclassified point" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   test("aria-pressed is true when selected", () => {
     render(<AnnotationThumb {...defaultProps} selected={true} />);
 
-    expect(screen.getByRole("button", { name: "" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Unclassified point" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   test("calls onSelect when the thumbnail button is clicked", () => {
     const onSelect = vi.fn();
     render(<AnnotationThumb {...defaultProps} onSelect={onSelect} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "" }));
+    fireEvent.click(screen.getByRole("button", { name: "Unclassified point" }));
 
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
@@ -48,7 +54,7 @@ describe("AnnotationThumb", () => {
     render(<AnnotationThumb {...defaultProps} editable={false} />);
 
     // Open the actions menu
-    fireEvent.click(screen.getByRole("button", { name: "Annotation actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 
     expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toHaveAttribute(
       "aria-disabled",
@@ -59,7 +65,7 @@ describe("AnnotationThumb", () => {
   test("Delete menu item is enabled when editable is true", () => {
     render(<AnnotationThumb {...defaultProps} editable={true} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Annotation actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 
     expect(screen.getByRole("menuitem", { name: "Delete annotation" })).not.toHaveAttribute(
       "aria-disabled",
@@ -70,7 +76,7 @@ describe("AnnotationThumb", () => {
   test("Zoom menu item is present in the actions menu", () => {
     render(<AnnotationThumb {...defaultProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Annotation actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 
     expect(screen.getByRole("menuitem", { name: "Zoom to annotation" })).toBeInTheDocument();
   });
@@ -79,7 +85,7 @@ describe("AnnotationThumb", () => {
     const onZoom = vi.fn();
     render(<AnnotationThumb {...defaultProps} onZoom={onZoom} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Annotation actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Zoom to annotation" }));
 
     expect(onZoom).toHaveBeenCalledTimes(1);

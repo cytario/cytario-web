@@ -13,7 +13,7 @@ import {
 } from "../../state/store/slices/viewer.annotations.store";
 import { RGB } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { rgb } from "../ChannelsController/ColorPicker/ColorPicker";
+import { rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 interface AnnotationGroup {
@@ -161,12 +161,14 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   };
 
   return (
-    <div className="flex flex-col gap-2 px-3 py-2">
+    // gap-1 between group rows (the shared row rhythm); the larger gap-2 stays
+    // between a group header and its thumbnail grid.
+    <div className="flex flex-col gap-2">
       {annotationsGroups.map(({ name, color, items }) => {
         const cssColor = rgb([...(color ?? UNCLASSIFIED_COLOR), 255]);
         const isUnclassified = isReservedClassName(name);
         return (
-          <div key={name} className="flex flex-col">
+          <div key={name} className="flex flex-col gap-2">
             <AnnotationGroupRow
               name={name}
               count={items.length}
@@ -191,7 +193,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
               isUnclassified={isUnclassified}
             />
 
-            <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="flex flex-wrap gap-2">
               {items.map(({ feature, index }) => {
                 const id = feature.id;
                 return (
@@ -233,7 +235,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
             onCancel={() => setAdding(false)}
           />
         ) : (
-          <Button variant="ghost" size="sm" onPress={() => setAdding(true)} iconLeft="Plus">
+          <Button size="sm" variant="ghost" onPress={() => setAdding(true)} iconLeft="Plus">
             Add class
           </Button>
         ))}

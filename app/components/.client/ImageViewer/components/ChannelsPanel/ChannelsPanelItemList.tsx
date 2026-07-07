@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { RadioGroup } from "react-aria-components";
 
-import { ChannelsControllerBrightfieldItem } from "./ChannelsControllerBrightfieldItem";
-import { ChannelsControllerItem } from "./ChannelsControllerItem";
+import { ChannelsPanelBrightfieldItem } from "./ChannelsPanelBrightfieldItem";
+import { ChannelsPanelItem } from "./ChannelsPanelItem";
 import { select } from "../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 const MAX_VISIBLE_CHANNELS = 6;
 
-export function ChannelsControllerItemList() {
+export function ChannelsPanelItemList() {
   const channelsState = useViewerStore(select.channelsState);
   const channelIds = useViewerStore(select.channelIds);
   const maxChannelDomain = useViewerStore(select.maxChannelDomain);
@@ -60,7 +60,7 @@ export function ChannelsControllerItemList() {
         setSelectedChannelId(name);
         setChannelVisibility(name as keyof ChannelsStateColumns, true);
       }}
-      className="flex flex-col px-3"
+      className="flex flex-col p-2 gap-1"
     >
       {visibleChannelIds.map((id) => {
         const config = channelsState?.[id];
@@ -80,7 +80,7 @@ export function ChannelsControllerItemList() {
         };
 
         return (
-          <ChannelsControllerItem
+          <ChannelsPanelItem
             key={id}
             name={name}
             color={[...color, 255]}
@@ -96,7 +96,7 @@ export function ChannelsControllerItemList() {
       })}
 
       {showBrightfield && (
-        <ChannelsControllerBrightfieldItem
+        <ChannelsPanelBrightfieldItem
           isVisible={isBrightfieldVisible}
           isLoading={
             !!channelsState?.[brightfieldGroup.red]?.isLoading ||

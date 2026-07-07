@@ -267,7 +267,7 @@ describe("AnnotationsList — delete", () => {
     renderList([f1, f2]);
 
     // Open actions menu on the first thumb and delete.
-    const actionButtons = screen.getAllByRole("button", { name: "Annotation actions" });
+    const actionButtons = screen.getAllByRole("button", { name: /^Actions for / });
     fireEvent.click(actionButtons[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete annotation" }));
 
@@ -282,7 +282,7 @@ describe("AnnotationsList — delete", () => {
     clickThumb(0);
     expect(currentStore.getState().annotationSelectedIds).toEqual(["f1"]);
 
-    const actionButtons = screen.getAllByRole("button", { name: "Annotation actions" });
+    const actionButtons = screen.getAllByRole("button", { name: /^Actions for / });
     fireEvent.click(actionButtons[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete annotation" }));
 
@@ -334,7 +334,7 @@ describe("AnnotationsList — classification grouping", () => {
     const features = [makeFeature("f1")];
     renderList(features, { editable: false });
 
-    fireEvent.click(screen.getByRole("button", { name: "Annotation actions" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Actions for / }));
 
     expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toHaveAttribute(
       "aria-disabled",

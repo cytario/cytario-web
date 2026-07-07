@@ -2,7 +2,7 @@ import { Button, EmptyState, IconButton } from "@cytario/design";
 import { useState } from "react";
 
 import { LoadOverlayModal } from "./OverlayPicker.modal";
-import { OverlaysControllerItem } from "./OverlaysController.Item";
+import { OverlaysPanelItem } from "./OverlaysPanel.Item";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
@@ -10,10 +10,10 @@ import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
 /**
- * OverlaysController component manages the display and interaction of overlays in the image viewer.
+ * OverlaysPanel component manages the display and interaction of overlays in the image viewer.
  * It allows users to toggle the visibility of different overlays and provides options to add new overlays.
  */
-export const OverlaysController = () => {
+export const OverlaysPanel = () => {
   const overlaysStates = useViewerStore(select.overlaysStates);
   const fillOpacity = useViewerStore(select.overlaysFillOpacity);
   const setFillOpacity = useViewerStore(select.setOverlaysFillOpacity);
@@ -25,13 +25,28 @@ export const OverlaysController = () => {
   const isInPointMode = isPointMode(currentZoom);
 
   const entries = Object.entries(overlaysStates);
+
+  // visible/total markers across all loaded overlay files — the same badge
+  // semantic as the Channels panel.
+  const markers = entries.flatMap(([, overlayState]) => Object.values(overlayState));
+  const badge = markers.length
+    ? `${markers.filter((m) => m.isVisible).length}/${markers.length}`
+    : undefined;
+
   // Local state (not useModal) because this modal must render inside
   // ViewerStoreProvider, which is outside ModalOutlet's tree.
   const [isOpen, setIsOpen] = useState(false);
 
+  const addOverlayButton = (
+    <Button size="sm" variant="ghost" iconLeft="Plus" onPress={() => setIsOpen(true)}>
+      Add overlay
+    </Button>
+  );
+
   return (
     <FeatureItem
       title="Overlays"
+      badge={badge}
       actions={
         <>
           {!isInPointMode && (
@@ -52,30 +67,20 @@ export const OverlaysController = () => {
       }
     >
       {entries.map(([resourceId, overlayState]) => (
-        <OverlaysControllerItem
-          key={resourceId}
-          resourceId={resourceId}
-          overlayState={overlayState}
-        />
+        <OverlaysPanelItem key={resourceId} resourceId={resourceId} overlayState={overlayState} />
       ))}
 
-      <footer className="px-3 pb-3">
+      <footer className="p-2 flex justify-center">
         {entries.length === 0 ? (
           <EmptyState
             title="Add Overlay"
             description="Add parquet cell detection files"
             icon="Layers2"
             className="py-6"
-            action={
-              <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>
-                Add Overlay
-              </Button>
-            }
+            action={addOverlayButton}
           />
         ) : (
-          <Button variant="secondary" size="sm" onPress={() => setIsOpen(true)}>
-            Add Overlay
-          </Button>
+          addOverlayButton
         )}
       </footer>
 

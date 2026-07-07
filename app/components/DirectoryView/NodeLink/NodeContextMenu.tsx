@@ -1,5 +1,5 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Form } from "react-router";
 
 import { ConfirmDialog } from "~/components/ConfirmDialog";
@@ -16,14 +16,18 @@ import { buildConnectionPath } from "~/utils/resourceId";
 /**
  * Trailing context menu for a `TreeNode` (bucket, directory, file). All node
  * types share Open / Open in new tab / Copy S3 URI / favorite; buckets also
- * expose Edit and Delete when the user may modify the connection.
+ * expose Edit and Delete when the user may modify the connection. Callers can
+ * append caller-specific `MenuItem`s via `extraItems` (e.g. the viewer's
+ * "Remove overlay"), rendered after a trailing separator.
  */
 export const NodeContextMenu = ({
   node,
   isCurrent = false,
+  extraItems,
 }: {
   node: TreeNode;
   isCurrent?: boolean;
+  extraItems?: ReactNode;
 }) => {
   const isBucket = node.type === "bucket";
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -108,6 +112,12 @@ export const NodeContextMenu = ({
                 >
                   Delete
                 </MenuItem>
+              </>
+            )}
+            {extraItems && (
+              <>
+                <MenuSeparator />
+                {extraItems}
               </>
             )}
           </>

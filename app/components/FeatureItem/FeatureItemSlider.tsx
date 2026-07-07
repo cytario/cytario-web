@@ -14,7 +14,7 @@ export function FeatureItemSlider({
       min={0}
       max={100}
       aria-label={ariaLabel}
-      className="w-20 h-4"
+      className="h-4 w-20 cursor-pointer accent-primary"
       value={Math.round(value * 100)}
       onChange={(e) => onChange(Number(e.target.value) / 100)}
     />

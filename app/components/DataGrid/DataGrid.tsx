@@ -10,10 +10,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
-import { WktSvg } from "./WktSvg";
+import { GeometrySvg } from "../GeometrySvg";
 import { LavaLoader } from "../LavaLoader";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { wktToGeometry } from "~/utils/geometry";
 import { parseResourceId } from "~/utils/resourceId";
 
 const isWkt = (value: unknown): value is string => {
@@ -99,7 +100,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
               return <Checkbox isSelected={value} isDisabled />;
             }
             if (isWkt(value)) {
-              return <WktSvg wkt={value} />;
+              return <GeometrySvg geometry={wktToGeometry(value)} />;
             }
             return String(value);
           },

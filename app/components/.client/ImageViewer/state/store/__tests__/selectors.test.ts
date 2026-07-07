@@ -22,6 +22,7 @@ describe("selectors", () => {
     annotationView: {},
     annotationActiveClass: null,
     annotationClasses: [],
+    annotationsOpacity: 1,
     layersStates: [
       {
         channels: {
@@ -106,7 +107,8 @@ describe("selectors", () => {
     setAnnotationActiveClass: vi.fn(),
     createAnnotationClass: vi.fn(),
     deleteAnnotationClass: vi.fn(),
-    setAnnotationOpacity: vi.fn(),
+    setAnnotationsOpacity: vi.fn(),
+    setAnnotationUserHidden: vi.fn(),
     toggleAnnotationClassVisibility: vi.fn(),
     showAnnotationClass: vi.fn(),
     setAnnotationMode: vi.fn(),

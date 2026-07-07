@@ -2,13 +2,13 @@ import type { SupportedDtype } from "@vivjs/types";
 
 import { Channel, Image, Loader } from "./ome.tif.types";
 import { ChannelConfig, ChannelsState, RGB } from "./types";
-import { OVERLAY_COLORS } from "../../components/OverlaysController/getOverlayState";
+import { CATEGORICAL_COLORS } from "../../categoricalColors";
 import { getDtypeMax } from "../../utils/getDtypeMax";
 import { getSelectionStats } from "../../utils/getSelectionStats";
 
-/** Returns the RGB color for a channel, falling back to OVERLAY_COLORS if metadata lacks a Color. */
+/** Returns the RGB color for a channel, falling back to CATEGORICAL_COLORS if metadata lacks a Color. */
 const getInitialColor = (channels: Channel[], index: number): RGB => {
-  const colorRaw = channels[index]?.Color ?? OVERLAY_COLORS[index % OVERLAY_COLORS.length];
+  const colorRaw = channels[index]?.Color ?? CATEGORICAL_COLORS[index % CATEGORICAL_COLORS.length];
   return colorRaw.slice(0, 3) as RGB;
 };
 

@@ -12,6 +12,7 @@ import { type ReactNode, useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
+  classColor as registeredClassColor,
   classNameOf,
   isReservedClassName,
   selectUserFeatures,
@@ -135,27 +136,37 @@ const stampEdit = (
  * level-0 pixel space (CARTESIAN, matching the viewer's `OrthographicView`).
  * Edits flow back through `onEdit` → `updateUserFeatures(ownUserId, …)`, which
  * the sync middleware diffs and autosaves to the user's own sidecar.
+ *
+ * With `interactive: false` (preview/minimap decks) the own set renders as a
+ * plain read-only `GeoJsonLayer` like the peers and picking is disabled
+ * everywhere, so clicks pan the preview instead of drawing or selecting.
  */
-export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetTooltip) => {
+export const useAnnotationsLayer = (
+  imagePanelId: number,
+  setTooltip?: SetTooltip,
+  interactive = true,
+) => {
   const ownUserId = useCurrentUser()?.sub;
   const features = useViewerStore(selectUserFeatures(ownUserId));
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
+  const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
   const mode = useViewerStore((s) => s.annotationMode);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const showAnnotationClass = useViewerStore((s) => s.showAnnotationClass);
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
+  const annotationClasses = useViewerStore((s) => s.annotationClasses);
 
-  // The active class resolved to a stampable classification. Active is always an
-  // existing own group (or none), so its color comes from the current set.
+  // The active class resolved to a stampable classification. The registry is
+  // the source of truth so a freshly created, still-empty class stamps too;
+  // member features are only the fallback for unregistered legacy names.
   const activeClassification = useMemo<AnnotationClassification | null>(() => {
     if (!activeClass || isReservedClassName(activeClass)) return null;
-    const color = features.find((f) => f.properties?.classification?.name === activeClass)
-      ?.properties?.classification?.color;
+    const color = registeredClassColor(annotationClasses, features, activeClass);
     return color ? { name: activeClass, color } : null;
-  }, [activeClass, features]);
+  }, [activeClass, annotationClasses, features]);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
@@ -205,7 +216,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
         );
       return {
         coordinateSystem: "cartesian" as const,
-        pickable: true,
+        pickable: interactive,
         opacity,
         onClick: selectOnClick,
         onHover: (info: PickingInfo) => {
@@ -223,42 +234,55 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
       };
     };
 
-    const editableLayer = new EditableGeoJsonLayer({
-      id: `annotations-${imagePanelId}`,
-      data,
-      mode: MODE_CLASSES[mode],
-      selectedFeatureIndexes,
-      ...paint(ownView?.hiddenClasses, ownView?.opacity ?? 1, 60, 255),
+    // Preview decks render the own set read-only, styled like the editable
+    // layer but without edit modes or picking.
+    const ownLayer = !interactive
+      ? new GeoJsonLayer({
+          id: `annotations-${imagePanelId}`,
+          data,
+          ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
+          stroked: true,
+          filled: true,
+          pointType: "circle",
+          getPointRadius: 4,
+          pointRadiusUnits: "pixels",
+        })
+      : new EditableGeoJsonLayer({
+          id: `annotations-${imagePanelId}`,
+          data,
+          mode: MODE_CLASSES[mode],
+          selectedFeatureIndexes,
+          ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
 
-      onEdit: ({ updatedData, editType, editContext }) => {
-        // Persist only committing edits — anything else (tentative draw events,
-        // cancel/invalid) carries unchanged data; persisting it would rebuild
-        // this layer mid-stroke and drop the active draw.
-        if (!COMMITTING_EDITS.has(editType)) return;
+          onEdit: ({ updatedData, editType, editContext }) => {
+            // Persist only committing edits — anything else (tentative draw events,
+            // cancel/invalid) carries unchanged data; persisting it would rebuild
+            // this layer mid-stroke and drop the active draw.
+            if (!COMMITTING_EDITS.has(editType)) return;
 
-        if (!ownUserId) return; // edits route to the current user's own key
-        const changed: number[] | undefined = editContext?.featureIndexes;
-        const stamped = stampEdit(
-          updatedData.features as AnnotationFeature[],
-          changed,
-          activeClassification,
-        );
-        // Validate before persist: a degenerate/aborted draw (empty ring,
-        // `[[null]]`) is dropped and never written to S3 — the store is valid by
-        // construction.
-        const valid = validAnnotationFeatures(stamped);
-        updateUserFeatures(ownUserId, valid);
-        if (editType === "addFeature") {
-          // Select the new feature only if it survived validation.
-          const newId = stamped[stamped.length - 1]?.id;
-          if (newId && valid.some((f) => f.id === newId)) {
-            setSelectedIds([newId]);
-            // Never draw into a hidden class — reveal the class the region landed in.
-            showAnnotationClass(ownUserId, activeClassification?.name ?? UNCLASSIFIED);
-          }
-        }
-      },
-    });
+            if (!ownUserId) return; // edits route to the current user's own key
+            const changed: number[] | undefined = editContext?.featureIndexes;
+            const stamped = stampEdit(
+              updatedData.features as AnnotationFeature[],
+              changed,
+              activeClassification,
+            );
+            // Validate before persist: a degenerate/aborted draw (empty ring,
+            // `[[null]]`) is dropped and never written to S3 — the store is valid by
+            // construction.
+            const valid = validAnnotationFeatures(stamped);
+            updateUserFeatures(ownUserId, valid);
+            if (editType === "addFeature") {
+              // Select the new feature only if it survived validation.
+              const newId = stamped[stamped.length - 1]?.id;
+              if (newId && valid.some((f) => f.id === newId)) {
+                setSelectedIds([newId]);
+                // Never draw into a hidden class — reveal the class the region landed in.
+                showAnnotationClass(ownUserId, activeClassification?.name ?? UNCLASSIFIED);
+              }
+            }
+          },
+        });
 
     // Other users' sets: one layer each, read-only (selectable + hoverable, not
     // editable), dimmer than own, drawn beneath the editable layer. Hidden
@@ -271,7 +295,7 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
           id: `annotations-${imagePanelId}-peer-${userId}`,
           data: { type: "FeatureCollection", features: peerFeatures },
           // Peers are dimmer than own (40/200 vs 60/255) but otherwise identical.
-          ...paint(peerView?.hiddenClasses, peerView?.opacity ?? 1, 40, 200),
+          ...paint(peerView?.hiddenClasses, annotationsOpacity, 40, 200),
           stroked: true,
           filled: true,
           pointType: "circle",
@@ -323,11 +347,12 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
 
     // Selection frame beneath the color layers so the classification color line
     // stays on top and the achromatic frame reads around it; own above peers.
-    return [...highlightLayers, ...peerLayers, editableLayer];
+    return [...highlightLayers, ...peerLayers, ownLayer];
   }, [
     features,
     annotationsByUser,
     annotationView,
+    annotationsOpacity,
     mode,
     selectedIds,
     imagePanelId,
@@ -337,5 +362,6 @@ export const useAnnotationsLayer = (imagePanelId: number, setTooltip?: SetToolti
     showAnnotationClass,
     setTooltip,
     activeClassification,
+    interactive,
   ]);
 };
