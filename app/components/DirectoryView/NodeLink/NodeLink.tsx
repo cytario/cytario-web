@@ -1,9 +1,9 @@
-import { IconButton, TruncatedText, useContextMenu } from "@cytario/design";
+import { TruncatedText } from "@cytario/design";
 import { MouseEventHandler, ReactNode } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
 
-import { useNodeContextMenu } from "./NodeContextMenu";
+import { NodeContextMenu } from "./NodeContextMenu";
 import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { buildConnectionPath } from "~/utils/resourceId";
@@ -60,18 +60,8 @@ export function NodeLink({
     onClick(node);
   };
 
-  const { content, dialog } = useNodeContextMenu({
-    node,
-    isCurrent,
-    extraItems: contextMenuItems,
-  });
-  const { targetProps, triggerProps, menu } = useContextMenu({ content });
-  // Right-click the whole row (or the kebab, for keyboard) opens the menu at the
-  // cursor. Rows without a menu fall through to the native context menu.
-  const hasMenu = contextMenu && content != null;
-
   return (
-    <div className={twMerge(rowCx, className, "px-0")} {...(hasMenu ? targetProps : {})}>
+    <div className={twMerge(rowCx, className, "px-0")}>
       {clickable ? (
         <NavLink
           to={to}
@@ -89,23 +79,8 @@ export function NodeLink({
         </div>
       )}
 
-      {hasMenu && (
-        <>
-          {/* Capture-phase preventDefault cancels the native <a> navigation when
-              the kebab lives inside a navigable card (GridItem's <Link>), without
-              stopping propagation — so the button's press still opens the menu. */}
-          <span className="flex" onClickCapture={(e) => e.preventDefault()}>
-            <IconButton
-              {...triggerProps}
-              icon="EllipsisVertical"
-              label={`Actions for ${node.name}`}
-              variant="ghost"
-              size="xs"
-            />
-          </span>
-          {menu}
-          {dialog}
-        </>
+      {contextMenu && (
+        <NodeContextMenu node={node} isCurrent={isCurrent} extraItems={contextMenuItems} />
       )}
     </div>
   );
