@@ -91,13 +91,18 @@ export function NodeLink({
 
       {hasMenu && (
         <>
-          <IconButton
-            {...triggerProps}
-            icon="EllipsisVertical"
-            label={`Actions for ${node.name}`}
-            variant="ghost"
-            size="xs"
-          />
+          {/* Capture-phase preventDefault cancels the native <a> navigation when
+              the kebab lives inside a navigable card (GridItem's <Link>), without
+              stopping propagation — so the button's press still opens the menu. */}
+          <span className="flex" onClickCapture={(e) => e.preventDefault()}>
+            <IconButton
+              {...triggerProps}
+              icon="EllipsisVertical"
+              label={`Actions for ${node.name}`}
+              variant="ghost"
+              size="xs"
+            />
+          </span>
           {menu}
           {dialog}
         </>
