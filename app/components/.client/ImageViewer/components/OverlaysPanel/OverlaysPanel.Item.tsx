@@ -146,10 +146,11 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
         )}
       </div>
 
-      {/* Body: one PanelRow per marker — no radio semantics, markers have no
-          selected-item concept (yet). */}
+      {/* Body: one PanelRow per marker. A labeled group (not radio semantics —
+          markers have no selected-item concept) names the marker list for
+          assistive tech and scopes it for tests. */}
       {isOpen && (
-        <div className="flex flex-col gap-2 px-2">
+        <div role="group" aria-label="Overlay markers" className="flex flex-col gap-2 px-2">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LavaLoader />
@@ -194,6 +195,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
                         isSelected={isVisible}
                         onChange={() => setMarkerVisibility(resourceId, markerName, !isVisible)}
                         color={rgb(color)}
+                        aria-label={`Toggle ${name} visibility`}
                       />
                     </Tooltip>
                   }
