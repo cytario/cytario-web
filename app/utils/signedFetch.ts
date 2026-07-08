@@ -121,6 +121,17 @@ function isImageDataPath(pathname: string): boolean {
 }
 
 /**
+ * S3's SigV4 canonicalization encodes characters that `encodeURIComponent`
+ * leaves unreserved per RFC 3986: `! * ' ( )`. The signer runs with
+ * `uriEscapePath: false` (paths are pre-encoded to avoid double-encoding),
+ * so we must manually encode these characters in the pathname to match
+ * what S3 computes server-side. Keeps already-encoded sequences intact.
+ */
+function encodeS3Path(pathname: string): string {
+  return pathname.replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+/**
  * SigV4-signing fetch. Credentials resolve lazily so the signer is rebuilt
  * when `AccessKeyId` rotates. Every GET injects `response-cache-control` so
  * the browser HTTP cache can serve repeat reads without a network round-trip.
@@ -159,6 +170,9 @@ export function createSignedFetch(
 
     const parsed = new URL(url);
 
+    const method = (init?.method as string) ?? "GET";
+    const isRead = method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD";
+
     const cacheControl = isImageDataPath(parsed.pathname)
       ? IMAGE_DATA_CACHE_CONTROL
       : OTHER_DATA_CACHE_CONTROL;
@@ -170,18 +184,25 @@ export function createSignedFetch(
     // Pre-populate the signer's query map so caller-supplied params
     // (e.g. `?versionId=...`) survive — otherwise the wire URL drops them.
     const query: Record<string, string> = Object.fromEntries(parsed.searchParams);
-    query["response-cache-control"] = cacheControl;
+    // `response-cache-control` is a GET/HEAD optimization — skip for PUT/POST.
+    if (isRead) {
+      query["response-cache-control"] = cacheControl;
+    }
 
     const request = {
-      method: (init?.method as string) ?? "GET",
+      method,
       protocol: parsed.protocol,
       hostname: parsed.hostname,
       port: parsed.port ? parseInt(parsed.port) : undefined,
-      path: parsed.pathname,
+      path: encodeS3Path(parsed.pathname),
       query,
       headers: {
         host: parsed.host,
       },
+      // Include the body so the SigV4 signer computes the correct
+      // `x-amz-content-sha256` hash — without it, PUT requests would
+      // sign an empty body and S3 would reject the signature mismatch.
+      ...(init?.body != null ? { body: init.body } : {}),
     };
 
     const signed = await signer.sign(request);
@@ -196,7 +217,9 @@ export function createSignedFetch(
           ).replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`,
       )
       .join("&");
-    const wireUrl = `${parsed.origin}${parsed.pathname}?${wireQuery}`;
+    const wireUrl = wireQuery
+      ? `${parsed.origin}${encodeS3Path(parsed.pathname)}?${wireQuery}`
+      : `${parsed.origin}${encodeS3Path(parsed.pathname)}`;
 
     const browserOrigin =
       typeof window !== "undefined" && typeof window.location?.origin === "string"

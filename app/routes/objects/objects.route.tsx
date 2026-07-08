@@ -21,13 +21,19 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
-import { getFileType, isImageFile } from "~/utils/fileType";
+import { getFileType, isImageFile, isTextFile } from "~/utils/fileType";
 import { getName } from "~/utils/pathUtils";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const Viewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then((module) => ({
     default: module.Viewer,
+  })),
+);
+
+const TextEditor = lazy(() =>
+  import("~/components/TextEditor/TextEditor").then((module) => ({
+    default: module.TextEditor,
   })),
 );
 
@@ -166,7 +172,22 @@ export default function ObjectsRoute() {
 
   if (isSingleFile) {
     const isCsv = fileType === "CSV";
-    const isTabularFile = ["CSV", "Parquet", "JSON"].includes(fileType);
+    const isTabularFile = ["CSV", "Parquet"].includes(fileType);
+
+    if (isTextFile(resourceId)) {
+      const signedFetch = createSignedFetch(
+        liveCredentials(connectionName),
+        connectionConfig,
+        connectionName,
+      );
+      return (
+        <ClientOnly>
+          <Suspense fallback={<div>Loading editor…</div>}>
+            <TextEditor key={resourceId} resourceId={resourceId} signedFetch={signedFetch} />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
 
     if (isTabularFile) {
       return (

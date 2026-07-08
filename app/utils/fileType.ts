@@ -9,6 +9,8 @@ export type FileType =
   | "Parquet"
   | "CSV"
   | "JSON"
+  | "YAML"
+  | "TXT"
   | "PNG"
   | "JPEG"
   | "Directory"
@@ -81,6 +83,20 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "JSON",
     label: "JSON",
     icon: "Braces",
+    isImage: false,
+  },
+  {
+    pattern: /\.(ya?ml)$/i,
+    type: "YAML",
+    label: "YAML",
+    icon: "File",
+    isImage: false,
+  },
+  {
+    pattern: /\.txt$/i,
+    type: "TXT",
+    label: "Text",
+    icon: "File",
     isImage: false,
   },
   {
@@ -192,6 +208,19 @@ export function isImageFile(nameOrKey: string): boolean {
     if (entry.pattern.test(cleaned)) return entry.isImage;
   }
   return false;
+}
+
+/**
+ * Returns true if the name or key matches an editable text-based file type.
+ *
+ * NDJSON (`.ndjson`) is deliberately excluded — it stays on `<DataGrid>`
+ * via `read_json_auto` because each line is a separate record and the
+ * tabular view is the better UX.
+ */
+export function isTextFile(nameOrKey: string): boolean {
+  const cleaned = stripUrlSuffix(nameOrKey);
+  if (/\.ndjson$/i.test(cleaned)) return false;
+  return /\.(json|ya?ml|txt)$/i.test(cleaned);
 }
 
 export type { FileTypeEntry };
