@@ -50,8 +50,6 @@ const temporalEquality = (past: TemporalPartial, current: TemporalPartial): bool
   past.annotationClasses === current.annotationClasses;
 
 export interface TemporalState {
-  /** Whether the gesture cool-off is active (edits suppressed). */
-  inCooldown: boolean;
   /** Clears the cool-off immediately (called before undo/redo). */
   resetCooldown: () => void;
 }
@@ -101,14 +99,21 @@ export function createTemporalOptions(): {
         (pastState as TemporalPartial).annotationClasses !==
           (currentState as TemporalPartial).annotationClasses;
       if (!trackedChanged) return;
-      if (inCooldown) return;
+      if (inCooldown) {
+        // Extend the cool-off window — the gesture is still going.
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          inCooldown = false;
+          timer = null;
+        }, GESTURE_DEBOUNCE_MS);
+        return;
+      }
       inCooldown = true;
       // `record` is the internal `_handleSet` which accepts the full
       // (pastState, replace, currentState, deltaState) tuple, even though
       // zundo types it as `StoreApi['setState']` (2 args). Cast to match
       // the runtime signature from the source.
       (record as (...args: unknown[]) => void)(pastState, replace, currentState, deltaState);
-      if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         inCooldown = false;
         timer = null;
@@ -118,6 +123,6 @@ export function createTemporalOptions(): {
 
   return {
     options,
-    temporalState: { inCooldown: false, resetCooldown },
+    temporalState: { resetCooldown },
   };
 }

@@ -56,8 +56,11 @@ export const useUndoRedo = () => {
     const t = temporalStore.getState();
     if (t.pastStates.length === 0) return;
     t.pause();
-    t.undo();
-    t.resume();
+    try {
+      t.undo();
+    } finally {
+      t.resume();
+    }
   }, [temporalStore, cooldownReset]);
 
   const redo = useCallback(() => {
@@ -66,8 +69,11 @@ export const useUndoRedo = () => {
     const t = temporalStore.getState();
     if (t.futureStates.length === 0) return;
     t.pause();
-    t.redo();
-    t.resume();
+    try {
+      t.redo();
+    } finally {
+      t.resume();
+    }
   }, [temporalStore, cooldownReset]);
 
   return { undo, redo, canUndo, canRedo };

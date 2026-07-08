@@ -23,9 +23,9 @@ import { createTemporalOptions, type TemporalState } from "./viewerTemporal";
  * the undo/redo history. Only `id` lives at the root; it keys persistence +
  * devtools.
  *
- * The `TemporalState` (cool-off controller) is attached as a non-enumerable
- * property on the returned store so the `useUndoRedo` hook can reset the
- * gesture debounce before calling undo/redo.
+ * The `TemporalState` (cool-off controller) is attached as a property on the
+ * returned store so the `useUndoRedo` hook can reset the gesture debounce
+ * before calling undo/redo.
  */
 export const createViewerStore = (id: string) => {
   const { options: temporalOptions, temporalState } = createTemporalOptions();

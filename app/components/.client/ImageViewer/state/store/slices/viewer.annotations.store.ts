@@ -180,21 +180,24 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       }
     ).temporal;
     temporalStore?.getState().pause();
-    set(
-      (state) => {
-        // Merge, not replace: a key the user already touched (drew into) before
-        // this async read resolved wins — installing only absent keys prevents
-        // the seed from clobbering a pre-seed draw.
-        for (const [userId, features] of Object.entries(byUser)) {
-          if (state.annotationsByUser[userId] === undefined) {
-            state.annotationsByUser[userId] = features;
+    try {
+      set(
+        (state) => {
+          // Merge, not replace: a key the user already touched (drew into) before
+          // this async read resolved wins — installing only absent keys prevents
+          // the seed from clobbering a pre-seed draw.
+          for (const [userId, features] of Object.entries(byUser)) {
+            if (state.annotationsByUser[userId] === undefined) {
+              state.annotationsByUser[userId] = features;
+            }
           }
-        }
-      },
-      false,
-      "seedAnnotations",
-    );
-    temporalStore?.getState().resume();
+        },
+        false,
+        "seedAnnotations",
+      );
+    } finally {
+      temporalStore?.getState().resume();
+    }
   },
 
   updateUserFeatures: (userId, features) => {
