@@ -159,7 +159,7 @@ export interface AnnotationsSlice {
 /** Per-image annotation state. Features live on S3 (one sidecar per user); this
  *  slice holds the working copy + view state. Persistence is the sync middleware
  *  (`attachAnnotationSync`), bound to the store — never serialized here. */
-export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
+export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get, store) => ({
   annotationsByUser: {},
   annotationMode: "view",
   annotationSelectedIds: [],
@@ -168,30 +168,47 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set) => ({
   annotationClasses: [],
   annotationsOpacity: 1,
 
-  seedAnnotations: (byUser) =>
-    set(
-      (state) => {
-        // Merge, not replace: a key the user already touched (drew into) before
-        // this async read resolved wins — installing only absent keys prevents
-        // the seed from clobbering a pre-seed draw.
-        for (const [userId, features] of Object.entries(byUser)) {
-          if (state.annotationsByUser[userId] === undefined) {
-            state.annotationsByUser[userId] = features;
+  seedAnnotations: (byUser) => {
+    // Pause temporal tracking around the seed so the one-time S3 read does
+    // not enter the undo history. Without this, the seed would be the first
+    // past state — undoing immediately after load would wipe all annotations.
+    // `store.temporal` is added by the zundo middleware (innermost); the cast
+    // is needed because the slice's StateCreator type doesn't model it.
+    const temporalStore = (
+      store as unknown as {
+        temporal?: { getState: () => { pause: () => void; resume: () => void } };
+      }
+    ).temporal;
+    temporalStore?.getState().pause();
+    try {
+      set(
+        (state) => {
+          // Merge, not replace: a key the user already touched (drew into) before
+          // this async read resolved wins — installing only absent keys prevents
+          // the seed from clobbering a pre-seed draw.
+          for (const [userId, features] of Object.entries(byUser)) {
+            if (state.annotationsByUser[userId] === undefined) {
+              state.annotationsByUser[userId] = features;
+            }
           }
-        }
-      },
-      false,
-      "seedAnnotations",
-    ),
+        },
+        false,
+        "seedAnnotations",
+      );
+    } finally {
+      temporalStore?.getState().resume();
+    }
+  },
 
-  updateUserFeatures: (userId, features) =>
+  updateUserFeatures: (userId, features) => {
     set(
       (state) => {
         state.annotationsByUser[userId] = features;
       },
       false,
       "updateUserFeatures",
-    ),
+    );
+  },
 
   setAnnotationClassColor: (userId, name, color) =>
     set(

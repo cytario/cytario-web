@@ -8,6 +8,7 @@ import { Magnifier } from "./Magnifier";
 import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
 import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
+import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar, SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
@@ -23,6 +24,7 @@ export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" 
 export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
   return (
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
+      <UndoRedoShortcuts />
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
@@ -59,6 +61,12 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
     </ViewerStoreProvider>
   );
 };
+
+// Mounts the keyboard shortcut listener inside the ViewerStoreProvider.
+function UndoRedoShortcuts() {
+  useUndoRedoShortcuts();
+  return null;
+}
 
 // Always-visible toggle (bottom-right) so the panel can be reopened when collapsed.
 function ViewerSidebarToggle() {
