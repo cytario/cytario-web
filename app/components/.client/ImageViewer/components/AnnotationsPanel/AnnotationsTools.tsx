@@ -1,12 +1,13 @@
 import { IconButton } from "@cytario/design";
 
 import { type AnnotationMode } from "../../state/store/types";
+import { useUndoRedo } from "../../state/store/useUndoRedo";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 /**
- * Sidebar control for image annotations: draw-mode toggles (polygon / point)
- * and the current count. Editing happens on the canvas via the
- * `EditableGeoJsonLayer`; this just drives the shared mode.
+ * Sidebar control for image annotations: draw-mode toggles (polygon / point),
+ * undo/redo, and the current count. Editing happens on the canvas via the
+ * `EditableGeoJsonLayer`; this just drives the shared mode and history.
  */
 
 const drawingTools = [
@@ -19,6 +20,7 @@ export const AnnotationsTools = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const { undo, redo, canUndo, canRedo } = useUndoRedo();
 
   const toggle = (target: AnnotationMode) => {
     setSelectedIds([]);
@@ -41,6 +43,24 @@ export const AnnotationsTools = () => {
           />
         );
       })}
+      <div className="ml-auto flex flex-row gap-1">
+        <IconButton
+          icon="RotateCcw"
+          label="Undo"
+          variant="ghost"
+          size="xs"
+          isDisabled={!canUndo}
+          onPress={undo}
+        />
+        <IconButton
+          icon="RotateCw"
+          label="Redo"
+          variant="ghost"
+          size="xs"
+          isDisabled={!canRedo}
+          onPress={redo}
+        />
+      </div>
     </div>
   );
 };

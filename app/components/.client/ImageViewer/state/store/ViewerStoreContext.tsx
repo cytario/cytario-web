@@ -83,6 +83,10 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
 
 const ViewerStoreContext = createContext<ViewerStoreApi | null>(null);
 
+/** Exposed so the undo/redo hook can read the raw store API (to reach
+ *  `store.temporal`) without subscribing to the entire state. */
+export { ViewerStoreContext };
+
 interface ViewerStoreProviderProps {
   /** Stable image identity (`connectionName/pathName`). Keys the store and is
    *  resolved to the S3 URL for loading. */

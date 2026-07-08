@@ -98,9 +98,11 @@ export type ViewerStore = ViewerStoreState &
 
 /**
  * Slice creator typed for the viewer store's
- * `subscribeWithSelector → persist → immer → devtools` middleware stack — `set`
- * carries both the immer mutable draft and the devtools action-label third
- * argument. Shared by every `slices/viewer.*.store`.
+ * `subscribeWithSelector → persist → immer → devtools → temporal` middleware
+ * stack — `set` carries both the immer mutable draft and the devtools
+ * action-label third argument. `temporal` (zundo) is innermost so it wraps the
+ * store creator before any other middleware, giving it the raw state to
+ * snapshot. Shared by every `slices/viewer.*.store`.
  */
 export type ViewerSlice<T> = StateCreator<
   ViewerStore,
@@ -109,6 +111,7 @@ export type ViewerSlice<T> = StateCreator<
     ["zustand/persist", unknown],
     ["zustand/immer", never],
     ["zustand/devtools", never],
+    ["temporal", unknown],
   ],
   [],
   T
