@@ -20,6 +20,10 @@
  * guard the attachment behind `provider === "aws"`.
  */
 
+/** Mirrors `AccessLevel` from providerCatalog.schema — duplicated here to keep
+ * the session-policy and bucket-policy generators import-disjoint (ARCH-1). */
+type AccessLevel = "read-only" | "annotate" | "read-write" | "admin";
+
 /** Fallback AWS region for the `kms:ViaService` condition when none is supplied. */
 const DEFAULT_REGION = "eu-central-1";
 
@@ -52,6 +56,13 @@ export interface SessionPolicyArgs {
   subject: string;
   /** AWS region of the connection's S3 endpoint — scopes the `kms:ViaService` condition. */
   region: string;
+  /**
+   * Access level of the grant picked for the caller. `"read-write"` or `"admin"`
+   * includes the widened `PutObject` for editable text objects (C-311); lower
+   * levels omit it so the STS session itself denies text-object writes —
+   * defense-in-depth, not just a UI gate.
+   */
+  accessLevel: AccessLevel;
 }
 
 const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, "");
@@ -123,6 +134,41 @@ function getPutStatement(bucketArn: string, prefix: string, subject: string) {
 }
 
 /**
+ * `PutObject` on editable text objects (`.json`, `.yaml`, `.yml`, `.txt`)
+ * under the connection prefix — enables the in-app text editor (C-311) to
+ * save changes back to S3. Image data (`.ome.tif`/`.zarr`/`.tif`), parquet
+ * (overlay results), and other binary formats stay read-only by omission —
+ * no `PutObject` Allow matches their keys. Overwrite is `PutObject`
+ * (full-file write) — no `DeleteObject`.
+ *
+ * Included only when the caller's grant `accessLevel` is `"read-write"` or
+ * `"admin"` — defense-in-depth so a `"read-only"` or `"annotate"` user's STS
+ * session itself denies text-object writes, not just the UI.
+ *
+ * NOTE (C-311): The broad `*.json` Allow supersedes the per-user sidecar
+ * isolation from `getPutStatement` — any user with a read-write session can
+ * overwrite any `.json` under the prefix, including another user's annotation
+ * sidecar. IAM cannot distinguish annotation sidecars from regular `.json`
+ * files by key pattern alone. The application-layer write path
+ * (`SidecarRepository.write`) still only writes the caller's own sidecar,
+ * so correct app behavior is preserved; the relaxation is at the IAM
+ * perimeter only.
+ */
+function getEditTextPutStatement(bucketArn: string, prefix: string) {
+  const editableExtensions = ["*.json", "*.yaml", "*.yml", "*.txt"];
+  const resources = editableExtensions.map((ext) =>
+    [bucketArn, prefix, ext].filter(Boolean).join("/"),
+  );
+
+  return {
+    Sid: "PutEditableTextObjects",
+    Effect: "Allow",
+    Action: "s3:PutObject",
+    Resource: resources,
+  };
+}
+
+/**
  * `kms:Decrypt` allowing the role's per-key grants to flow through the STS
  * intersection so `GetObject` against SSE-KMS-encrypted objects succeeds. STS
  * applies the inline policy as a filter, so omitting `kms:Decrypt` would deny
@@ -150,12 +196,17 @@ function getKmsDecryptStatement(region: string) {
   };
 }
 
+/** Whether the access level permits general (text-object) writes. */
+const permitsTextObjectWrite = (accessLevel: AccessLevel): boolean =>
+  accessLevel === "read-write" || accessLevel === "admin";
+
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
 export const buildSessionPolicy = ({
   bucketName,
   prefix: prefixRaw,
   subject,
   region,
+  accessLevel,
 }: SessionPolicyArgs): string => {
   // The subject is interpolated into the PutObject Resource ARN; an empty or
   // wildcard sub would widen the write scope to other users' sidecars.
@@ -176,14 +227,26 @@ export const buildSessionPolicy = ({
 
   const bucketArn = `arn:aws:s3:::${bucketName}`;
 
+  const statements: Array<{
+    Sid: string;
+    Effect: string;
+    Action: string;
+    Resource: string | string[];
+    Condition?: Record<string, Record<string, string | string[]>>;
+  }> = [
+    getListStatement(bucketArn, prefix),
+    getObjectStatement(bucketArn, prefix),
+    getKmsDecryptStatement(region),
+    getPutStatement(bucketArn, prefix, subject),
+  ];
+
+  if (permitsTextObjectWrite(accessLevel)) {
+    statements.push(getEditTextPutStatement(bucketArn, prefix));
+  }
+
   const policy = {
     Version: "2012-10-17",
-    Statement: [
-      getListStatement(bucketArn, prefix),
-      getObjectStatement(bucketArn, prefix),
-      getKmsDecryptStatement(region),
-      getPutStatement(bucketArn, prefix, subject),
-    ],
+    Statement: statements,
   };
 
   // Compact JSON (no insignificant whitespace) — AWS counts the bytes actually

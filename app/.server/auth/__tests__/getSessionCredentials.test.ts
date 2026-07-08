@@ -9,6 +9,7 @@ import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
+import type { AccessLevel } from "~/utils/providerCatalog.schema";
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
@@ -117,6 +118,7 @@ describe("getAllSessionCredentials", () => {
       endpoint?: string | null;
       region?: string;
       roleArn?: string;
+      accessLevel?: AccessLevel;
     } = {},
   ) => {
     const pcId = overrides.providerConnectionId ?? "pc-mock";
@@ -134,6 +136,7 @@ describe("getAllSessionCredentials", () => {
           id: prId,
           providerConnectionId: pcId,
           roleArn: overrides.roleArn ?? "arn:aws:iam::123456789012:role/mock-role",
+          accessLevel: overrides.accessLevel ?? "read-write",
         }),
       ],
     });
@@ -359,6 +362,7 @@ describe("getAllSessionCredentials", () => {
         prefix: "",
         subject: "user-123",
         region: "us-west-2",
+        accessLevel: "read-write",
       }),
     });
   });
@@ -373,6 +377,7 @@ describe("getAllSessionCredentials", () => {
       prefix: "tenant-a",
       subject: "user-123",
       region: "us-east-1",
+      accessLevel: "read-write",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
@@ -390,6 +395,7 @@ describe("getAllSessionCredentials", () => {
       prefix: "",
       subject: "user-123",
       region: "us-east-1",
+      accessLevel: "read-write",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(

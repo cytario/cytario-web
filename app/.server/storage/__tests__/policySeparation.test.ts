@@ -69,6 +69,7 @@ describe("policy-generator architectural separation (positive output properties)
       prefix: "p",
       subject: "sub-123",
       region: "us-east-1",
+      accessLevel: "read-write",
     });
     const policy = JSON.parse(json) as {
       Statement: { Condition?: { StringEquals?: Record<string, string> } }[];

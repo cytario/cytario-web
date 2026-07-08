@@ -4,7 +4,7 @@ interface PolicyStatement {
   Sid: string;
   Effect: "Allow" | "Deny";
   Action: string;
-  Resource: string;
+  Resource: string | string[];
   Condition?: {
     StringLike?: {
       "s3:prefix"?: string[];
@@ -26,6 +26,12 @@ const findStatement = (policy: ParsedPolicy, action: string): PolicyStatement =>
   return stmt;
 };
 
+const findBySid = (policy: ParsedPolicy, sid: string): PolicyStatement => {
+  const stmt = policy.Statement.find((s) => s.Sid === sid);
+  if (!stmt) throw new Error(`No statement with Sid=${sid}`);
+  return stmt;
+};
+
 const SUBJECT = "4cd912ea-5136-4b2d-8959-d5e983cbea05";
 const REGION = "us-east-1";
 const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
@@ -33,6 +39,7 @@ const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {})
   prefix: "",
   subject: SUBJECT,
   region: REGION,
+  accessLevel: "read-write" as const,
   ...overrides,
 });
 
@@ -235,22 +242,78 @@ describe("buildSessionPolicy", () => {
     );
   });
 
-  test("PutObject is scoped to the caller's OWN sidecar (`*.annotations.<sub>.json`)", () => {
+  test("PutOwnAnnotationSidecars is scoped to the caller's own sidecar under the prefix", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
 
-    const put = findStatement(policy, "s3:PutObject");
+    const put = findBySid(policy, "PutOwnAnnotationSidecars");
     expect(put.Effect).toBe("Allow");
     expect(put.Resource).toBe(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
     // The user segment is pinned, not a wildcard — no writing another user's file.
     expect(put.Resource).not.toContain("annotations.*.json");
   });
 
-  test("PutObject scope omits the prefix segment for whole-bucket connections", () => {
+  test("PutEditableTextObjects is scoped to editable text files (.json, .yaml, .yml, .txt) under the prefix", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+
+    const put = findBySid(policy, "PutEditableTextObjects");
+    expect(put.Effect).toBe("Allow");
+    expect(put.Resource).toEqual([
+      "arn:aws:s3:::my-bucket/foo/*.json",
+      "arn:aws:s3:::my-bucket/foo/*.yaml",
+      "arn:aws:s3:::my-bucket/foo/*.yml",
+      "arn:aws:s3:::my-bucket/foo/*.txt",
+    ]);
+  });
+
+  test("PutEditableTextObjects scope omits the prefix segment for whole-bucket connections", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "" })));
 
-    expect(findStatement(policy, "s3:PutObject").Resource).toBe(
-      `arn:aws:s3:::my-bucket/*.annotations.${SUBJECT}.json`,
-    );
+    const put = findBySid(policy, "PutEditableTextObjects");
+    expect(put.Resource).toEqual([
+      "arn:aws:s3:::my-bucket/*.json",
+      "arn:aws:s3:::my-bucket/*.yaml",
+      "arn:aws:s3:::my-bucket/*.yml",
+      "arn:aws:s3:::my-bucket/*.txt",
+    ]);
+  });
+
+  test("PutObject statements do NOT allow writes to image data or parquet", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+
+    const putStatements = policy.Statement.filter((s) => s.Action === "s3:PutObject");
+    expect(putStatements.length).toBeGreaterThan(0);
+    for (const put of putStatements) {
+      const resources = Array.isArray(put.Resource) ? put.Resource : [put.Resource];
+      // Image data and parquet (overlay results) must stay read-only.
+      for (const resource of resources) {
+        expect(resource).not.toMatch(/\.(ome\.)?tiff?$/i);
+        expect(resource).not.toMatch(/\.zarr/i);
+        expect(resource).not.toMatch(/\.parquet$/i);
+      }
+    }
+  });
+
+  test("accessLevel read-write → includes PutEditableTextObjects", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-write" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutEditableTextObjects")).toBe(true);
+  });
+
+  test("accessLevel admin → includes PutEditableTextObjects", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "admin" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutEditableTextObjects")).toBe(true);
+  });
+
+  test("accessLevel read-only → omits PutEditableTextObjects (defense-in-depth at STS level)", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-only" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutEditableTextObjects")).toBe(false);
+    // Sidecar PutObject is still present for all users.
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(true);
+  });
+
+  test("accessLevel annotate → omits PutEditableTextObjects (sidecar only)", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutEditableTextObjects")).toBe(false);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(true);
   });
 
   test("throws when subject is empty (would widen Put scope to all users)", () => {

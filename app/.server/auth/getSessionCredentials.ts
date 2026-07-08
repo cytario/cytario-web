@@ -13,7 +13,7 @@ import {
 } from "~/.server/providers/providerCatalog.server";
 import { canSee } from "~/utils/authorization";
 import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
-import { type ProviderCatalog } from "~/utils/providerCatalog.schema";
+import { type AccessLevel, type ProviderCatalog } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 /** A connection config with its grants eager-loaded (the shape credential minting needs). */
@@ -49,6 +49,7 @@ const fetchTemporaryCredentials = async (
   idToken: string,
   roleSessionName: string,
   subject: string,
+  accessLevel: AccessLevel,
 ): Promise<Credentials> => {
   const { bucketName, prefix } = connectionConfig;
 
@@ -71,7 +72,7 @@ const fetchTemporaryCredentials = async (
   // `Policy` (notably MinIO, signalled by a non-AWS endpoint) omit it — the
   // role's attached policy is then the only bound.
   const Policy = providerConfig.isAwsS3
-    ? buildSessionPolicy({ bucketName, prefix, subject, region })
+    ? buildSessionPolicy({ bucketName, prefix, subject, region, accessLevel })
     : undefined;
 
   console.info(`${label} Policy: ${Policy}`);
@@ -239,6 +240,7 @@ export const getAllSessionCredentials = async (
           sessionData.authTokens.idToken,
           roleSessionName,
           sessionData.user.sub,
+          grant.accessLevel,
         ),
       };
     }),
