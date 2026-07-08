@@ -4,7 +4,7 @@ interface PolicyStatement {
   Sid: string;
   Effect: "Allow" | "Deny";
   Action: string;
-  Resource: string;
+  Resource: string | string[];
   Condition?: {
     StringLike?: {
       "s3:prefix"?: string[];
@@ -222,23 +222,43 @@ describe("buildSessionPolicy", () => {
     );
   });
 
-  test("PutObject is scoped to the caller's OWN sidecar (`*.annotations.<sub>.json`)", () => {
+  test("PutObject is scoped to editable text files (.json, .yaml, .yml, .txt) under the prefix", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
 
     const put = findStatement(policy, "s3:PutObject");
     expect(put.Effect).toBe("Allow");
-    expect(put.Resource).toBe(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
+    expect(put.Resource).toEqual([
+      "arn:aws:s3:::my-bucket/foo/*.json",
+      "arn:aws:s3:::my-bucket/foo/*.yaml",
+      "arn:aws:s3:::my-bucket/foo/*.yml",
+      "arn:aws:s3:::my-bucket/foo/*.txt",
+    ]);
     expect(put.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
-    // The user segment is pinned, not a wildcard — no writing another user's file.
-    expect(put.Resource).not.toContain("annotations.*.json");
   });
 
   test("PutObject scope omits the prefix segment for whole-bucket connections", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "" })));
 
-    expect(findStatement(policy, "s3:PutObject").Resource).toBe(
-      `arn:aws:s3:::my-bucket/*.annotations.${SUBJECT}.json`,
-    );
+    const put = findStatement(policy, "s3:PutObject");
+    expect(put.Resource).toEqual([
+      "arn:aws:s3:::my-bucket/*.json",
+      "arn:aws:s3:::my-bucket/*.yaml",
+      "arn:aws:s3:::my-bucket/*.yml",
+      "arn:aws:s3:::my-bucket/*.txt",
+    ]);
+  });
+
+  test("PutObject does NOT allow writes to image data or parquet", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+
+    const put = findStatement(policy, "s3:PutObject");
+    const resources = Array.isArray(put.Resource) ? put.Resource : [put.Resource];
+    // Image data and parquet (overlay results) must stay read-only.
+    for (const resource of resources) {
+      expect(resource).not.toMatch(/\.(ome\.)?tiff?$/i);
+      expect(resource).not.toMatch(/\.zarr/i);
+      expect(resource).not.toMatch(/\.parquet$/i);
+    }
   });
 
   test("throws when subject is empty (would widen Put scope to all users)", () => {

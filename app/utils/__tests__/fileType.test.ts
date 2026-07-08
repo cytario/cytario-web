@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { getFileType, isImageFile } from "../fileType";
+import { getFileType, isImageFile, isTextFile } from "../fileType";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 describe("getFileType", () => {
@@ -27,6 +27,12 @@ describe("getFileType", () => {
   test("identifies JSON and NDJSON files", () => {
     expect(getFileType("config.json")).toBe("JSON");
     expect(getFileType("stream.ndjson")).toBe("JSON");
+  });
+
+  test("identifies YAML and TXT files", () => {
+    expect(getFileType("config.yaml")).toBe("YAML");
+    expect(getFileType("config.yml")).toBe("YAML");
+    expect(getFileType("notes.txt")).toBe("TXT");
   });
 
   test("identifies image files", () => {
@@ -65,6 +71,37 @@ describe("isImageFile", () => {
     expect(isImageFile("config.json")).toBe(false);
     expect(isImageFile("unknown.xyz")).toBe(false);
     expect(isImageFile("Makefile")).toBe(false);
+  });
+});
+
+describe("isTextFile", () => {
+  test("returns true for editable text types", () => {
+    expect(isTextFile("config.json")).toBe(true);
+    expect(isTextFile("manifest.yaml")).toBe(true);
+    expect(isTextFile("manifest.yml")).toBe(true);
+    expect(isTextFile("notes.txt")).toBe(true);
+  });
+
+  test("returns false for NDJSON — stays on DataGrid", () => {
+    expect(isTextFile("stream.ndjson")).toBe(false);
+  });
+
+  test("returns false for tabular and image types", () => {
+    expect(isTextFile("table.csv")).toBe(false);
+    expect(isTextFile("data.parquet")).toBe(false);
+    expect(isTextFile("photo.png")).toBe(false);
+    expect(isTextFile("image.ome.tif")).toBe(false);
+  });
+
+  test("returns false for unknown extensions", () => {
+    expect(isTextFile("readme.md")).toBe(false);
+    expect(isTextFile("Makefile")).toBe(false);
+    expect(isTextFile("file.xyz")).toBe(false);
+  });
+
+  test("strips query strings before matching", () => {
+    expect(isTextFile("config.json?X-Amz-Signature=abc")).toBe(true);
+    expect(isTextFile("notes.txt#fragment")).toBe(true);
   });
 });
 

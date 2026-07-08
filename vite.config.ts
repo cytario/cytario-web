@@ -11,6 +11,7 @@ export default defineConfig({
   // Local @cytario/design development:
   // Skip pre-bundling so Vite serves the latest dist on every request.
   optimizeDeps: {
+    include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],
     exclude: ["@cytario/design"],
   },
   // Process the design system through Vite's pipeline during SSR

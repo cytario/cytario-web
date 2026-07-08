@@ -79,27 +79,44 @@ function getObjectStatement(
 }
 
 /**
- * `PutObject` limited to the caller's OWN annotation sidecars
- * (`*.annotations.<sub>.json`) under the connection prefix — the trailing
- * `<sub>` segment stops a tampered client from writing another user's file
- * (which the cross-user read union would then surface as forged authorship).
- * Image data (`.ome.tif`/`.zarr`), `offsets.json`, and parquet stay read-only;
- * the ORG tag keeps writes tenant-scoped. Overwrite is `PutObject` (full-file
- * write of the user's own file) — no `DeleteObject`.
+ * `PutObject` on editable text objects (`.json`, `.yaml`, `.yml`, `.txt`)
+ * under the connection prefix — enables the in-app text editor (C-311) to
+ * save changes back to S3. Image data (`.ome.tif`/`.zarr`/`.tif`), parquet
+ * (overlay results), and other binary formats stay read-only by omission —
+ * no `PutObject` Allow matches their keys. The ORG tag keeps writes
+ * tenant-scoped. Overwrite is `PutObject` (full-file write) — no
+ * `DeleteObject`.
+ *
+ * NOTE (C-311): Previously this statement was scoped to the caller's OWN
+ * annotation sidecars (`*.annotations.<sub>.json`) for per-user isolation.
+ * The broad `*.json` Allow now supersedes that isolation — any user with
+ * connection access can overwrite any `.json` under the prefix, including
+ * another user's annotation sidecar. IAM cannot distinguish annotation
+ * sidecars from regular `.json` files by key pattern alone (Deny+Allow
+ * cannot express "deny `*.annotations.*.json` unless it ends with my sub"
+ * — IAM conditions don't match on object key names for PutObject). The
+ * application-layer write path (`SidecarRepository.write`) still only
+ * writes the caller's own sidecar, so correct app behavior is preserved;
+ * the relaxation is at the IAM perimeter only. The `subject` parameter is
+ * retained and validated (defense-in-depth) but no longer interpolated
+ * into the Resource ARN.
  */
 function getPutStatement(
   bucketArn: string,
   prefix: string,
-  subject: string,
+  _subject: string,
   orgTagCondition: Record<string, string>,
 ) {
-  const sidecarArn = [bucketArn, prefix, `*.annotations.${subject}.json`].filter(Boolean).join("/");
+  const editableExtensions = ["*.json", "*.yaml", "*.yml", "*.txt"];
+  const resources = editableExtensions.map((ext) =>
+    [bucketArn, prefix, ext].filter(Boolean).join("/"),
+  );
 
   return {
-    Sid: "PutOwnAnnotationSidecars",
+    Sid: "PutEditableTextObjects",
     Effect: "Allow",
     Action: "s3:PutObject",
-    Resource: sidecarArn,
+    Resource: resources,
     Condition: {
       StringEquals: orgTagCondition,
     },
