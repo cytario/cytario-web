@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useSyncExternalStore } from "react";
 
 import { ViewerStoreContext } from "./ViewerStoreContext";
 
@@ -35,20 +35,16 @@ export const useUndoRedo = () => {
   const cooldownReset = (store as unknown as { __temporalState?: { resetCooldown: () => void } })
     ?.__temporalState?.resetCooldown;
 
-  const [canUndo, setCanUndo] = useState(
+  const canUndo = useSyncExternalStore(
+    temporalStore?.subscribe ?? (() => () => {}),
     () => (temporalStore?.getState().pastStates.length ?? 0) > 0,
+    () => false,
   );
-  const [canRedo, setCanRedo] = useState(
+  const canRedo = useSyncExternalStore(
+    temporalStore?.subscribe ?? (() => () => {}),
     () => (temporalStore?.getState().futureStates.length ?? 0) > 0,
+    () => false,
   );
-
-  useEffect(() => {
-    if (!temporalStore) return;
-    return temporalStore.subscribe((s) => {
-      setCanUndo(s.pastStates.length > 0);
-      setCanRedo(s.futureStates.length > 0);
-    });
-  }, [temporalStore]);
 
   const undo = useCallback(() => {
     if (!temporalStore) return;
