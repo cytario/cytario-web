@@ -14,6 +14,7 @@ const MODAL_REGISTRY = {
   "add-connection": lazy(() => import("~/routes/connections/createConnection.modal")),
   "convert-overlay": lazy(() => import("~/components/DataGrid/ConvertOverlay.modal")),
   "edit-connection": lazy(() => import("~/routes/connections/updateConnection.modal")),
+  "share-folder": lazy(() => import("~/routes/connections/shareFolder.modal")),
   cyberduck: lazy(() => import("~/components/DirectoryView/modals/Cyberduck.modal")),
 } satisfies Record<string, ModalComponent>;
 

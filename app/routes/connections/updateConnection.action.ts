@@ -1,35 +1,33 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
-import { connectionSchema, parseS3Uri } from "./connection.schema";
+import { connectionSchema } from "./connection.schema";
+import {
+  applyBucketGrantSet,
+  applyGrantsAndRecordStatus,
+  validateProviderRefs,
+} from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import {
-  type CorsPreflightWarningReason,
-  describeCorsFailure,
-  describeCorsWarning,
-  probeBucketCors,
-} from "~/.server/corsPreflight";
 import { prisma } from "~/.server/db/prisma";
-import { cytarioConfig } from "~/config";
+import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
-import { constructS3Url } from "~/utils/resourceId";
+
+export interface UpdateConnectionInput {
+  name: string;
+  scope: string;
+  bucketName: string;
+  prefix: string;
+  providerConnectionId: string;
+  providerRoleId: string;
+}
 
 export async function updateConnection(
   user: UserProfile,
   originalName: string,
-  updates: {
-    name: string;
-    ownerScope: string;
-    provider: string;
-    bucketName: string;
-    prefix: string;
-    endpoint: string;
-    roleArn: string | null;
-    region: string | null;
-  },
+  updates: UpdateConnectionInput,
 ) {
   if (!user.organization) {
     throw new Error("Active organization missing from session");
@@ -47,31 +45,37 @@ export async function updateConnection(
     throw new Error("Not authorized to modify this connection");
   }
 
-  if (updates.ownerScope !== config.ownerScope) {
-    if (!canCreate(user, { organization: user.organization, ownerScope: updates.ownerScope })) {
+  if (updates.scope !== config.scope) {
+    if (!canCreate(user, { organization: user.organization, ownerScope: updates.scope })) {
       throw new Error("Not authorized to assign to this scope");
     }
   }
 
   const previousName = config.name;
   const previousBucketName = config.bucketName;
+  const previousProviderConnectionId = config.providerConnectionId;
+  const previousProviderRoleId = config.providerRoleId;
 
   // FKs on recentlyViewed / pinnedPath use ON UPDATE CASCADE.
   const updated = await prisma.connectionConfig.update({
     where: { id: config.id },
     data: {
       name: updates.name,
-      ownerScope: updates.ownerScope,
-      provider: updates.provider,
+      scope: updates.scope,
       bucketName: updates.bucketName,
       prefix: updates.prefix,
-      endpoint: updates.endpoint,
-      roleArn: updates.roleArn,
-      region: updates.region,
+      providerConnectionId: updates.providerConnectionId,
+      providerRoleId: updates.providerRoleId,
     },
   });
 
-  return { ...updated, previousName, previousBucketName };
+  return {
+    ...updated,
+    previousName,
+    previousBucketName,
+    previousProviderConnectionId,
+    previousProviderRoleId,
+  };
 }
 
 export const updateAction = async ({ request, context }: ActionFunctionArgs) => {
@@ -82,81 +86,51 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   const originalName = String(formData.get("_originalName") ?? "");
 
   if (!originalName) {
-    return {
-      errors: { name: ["Original connection name is required"] },
-      status: "error" as const,
-    };
+    return { errors: { name: ["Original connection name is required"] }, status: "error" as const };
   }
 
   if (!user.organization) {
-    return {
-      formError: "Active organization missing from session",
-      status: "error" as const,
-    };
+    return { formError: "Active organization missing from session", status: "error" as const };
   }
 
   const rawData = {
     name: String(formData.get("name") ?? ""),
-    ownerScope: String(formData.get("ownerScope") ?? ""),
-    providerType: String(formData.get("providerType") ?? ""),
-    s3Uri: String(formData.get("s3Uri") ?? ""),
-    bucketRegion: String(formData.get("bucketRegion") ?? ""),
-    roleArn: String(formData.get("roleArn") ?? ""),
-    bucketEndpoint: String(formData.get("bucketEndpoint") ?? ""),
+    scope: String(formData.get("scope") ?? ""),
+    providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
+    providerRoleId: String(formData.get("providerRoleId") ?? ""),
+    bucketName: String(formData.get("bucketName") ?? ""),
+    prefix: String(formData.get("prefix") ?? ""),
   };
 
   const result = connectionSchema.safeParse(rawData);
-
   if (!result.success) {
+    return { errors: result.error.flatten().fieldErrors, status: "error" as const };
+  }
+  const validated = result.data;
+
+  let catalog;
+  try {
+    catalog = await getProviderCatalog(user.organization);
+  } catch (error) {
     return {
-      errors: result.error.flatten().fieldErrors,
+      formError:
+        error instanceof Error ? error.message : "Provider catalog is currently unavailable.",
       status: "error" as const,
     };
   }
-
-  const validated = result.data;
-  const { bucketName, prefix } = parseS3Uri(validated.s3Uri);
-
-  const endpoint =
-    validated.providerType === "aws"
-      ? `https://s3.${validated.bucketRegion}.amazonaws.com`
-      : validated.bucketEndpoint;
-
-  // Only re-probe CORS when the bucket URL actually changes — a transient
-  // bucket-side glitch must not block a pure name / scope / prefix edit.
-  const existingConfig = await prisma.connectionConfig.findFirst({
-    where: { name: originalName, organization: user.organization },
-  });
-  const endpointChanged = !existingConfig || existingConfig.endpoint !== endpoint;
-  const bucketNameChanged = !existingConfig || existingConfig.bucketName !== bucketName;
-  const cytarioOrigin = cytarioConfig.endpoints.webapp;
-  let corsWarnings: CorsPreflightWarningReason[] = [];
-  if (endpointChanged || bucketNameChanged) {
-    const bucketUrl = constructS3Url({
-      bucketName,
-      region: validated.providerType === "aws" ? validated.bucketRegion : null,
-      endpoint,
-    });
-    const corsResult = await probeBucketCors(bucketUrl, cytarioOrigin);
-    if (!corsResult.ok) {
-      return {
-        formError: describeCorsFailure(corsResult, cytarioOrigin),
-        status: "error" as const,
-      };
-    }
-    corsWarnings = corsResult.warnings;
+  const refs = validateProviderRefs(catalog, validated);
+  if (!refs.ok) {
+    return { errors: refs.errors, status: "error" as const };
   }
 
   try {
     const updatedConfig = await updateConnection(user, originalName, {
       name: validated.name,
-      ownerScope: validated.ownerScope,
-      provider: validated.providerType,
-      bucketName,
-      prefix,
-      endpoint,
-      roleArn: validated.providerType === "aws" ? validated.roleArn : null,
-      region: validated.providerType === "aws" ? validated.bucketRegion : null,
+      scope: validated.scope,
+      bucketName: validated.bucketName,
+      prefix: validated.prefix,
+      providerConnectionId: validated.providerConnectionId,
+      providerRoleId: validated.providerRoleId,
     });
 
     // Drop cached credentials so authMiddleware re-mints under the new identity.
@@ -167,24 +141,56 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     }
     session.set("credentials", credentials);
 
-    if (corsWarnings.length > 0) {
-      session.set("notification", {
-        status: "warning",
-        message: `Connection updated. ${corsWarnings
-          .map((w) => describeCorsWarning(w, cytarioOrigin))
-          .join(" ")}`,
-      });
-    } else {
-      session.set("notification", {
-        status: "success",
-        message: "Connection updated successfully.",
-      });
+    const acting = { user, idToken: session.get("authTokens")?.idToken ?? "" };
+
+    // Re-apply the bucket-policy grant set; a scope/role edit may change the grant.
+    const outcome = await applyGrantsAndRecordStatus(updatedConfig, acting);
+
+    // A bucket/provider move strands this connection's managed statement on the
+    // OLD bucket — re-apply that bucket's remaining grant set (under the pre-move
+    // provider role) so the moved connection's grant is revoked there.
+    const bucketMoved =
+      updatedConfig.previousBucketName !== updatedConfig.bucketName ||
+      updatedConfig.previousProviderConnectionId !== updatedConfig.providerConnectionId;
+    let revokeWarning: string | undefined;
+    if (bucketMoved) {
+      const oldBucketOutcome = await applyBucketGrantSet(
+        {
+          organization: user.organization,
+          providerConnectionId: updatedConfig.previousProviderConnectionId,
+          bucketName: updatedConfig.previousBucketName,
+        },
+        {
+          ...updatedConfig,
+          bucketName: updatedConfig.previousBucketName,
+          providerConnectionId: updatedConfig.previousProviderConnectionId,
+          providerRoleId: updatedConfig.previousProviderRoleId,
+        },
+        acting,
+      );
+      if (oldBucketOutcome.status !== "applied") {
+        revokeWarning = `The previous bucket's grant could not be revoked. ${oldBucketOutcome.warning}`;
+      }
     }
+
+    const applied = outcome.status === "applied" && !revokeWarning;
+    session.set("notification", {
+      status: applied ? "success" : "warning",
+      message: applied
+        ? "Connection updated successfully."
+        : `Connection updated. ${[
+            outcome.status === "applied" ? undefined : outcome.warning,
+            revokeWarning,
+          ]
+            .filter(Boolean)
+            .join(" ")}`,
+    });
 
     return redirect(`/connections/${encodeURIComponent(updatedConfig.name)}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
+    if (error instanceof Response) throw error;
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return {
         errors: {
@@ -197,11 +203,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     }
 
     if (error instanceof Error) {
-      // Surface as a form-level banner — the user may have left step 1.
-      return {
-        formError: error.message,
-        status: "error" as const,
-      };
+      return { formError: error.message, status: "error" as const };
     }
 
     throw error;

@@ -204,7 +204,7 @@ describe("SearchRoute", () => {
     const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
 
     expect(listObjectsClient).toHaveBeenCalledWith(
-      alphaConfig,
+      expect.objectContaining({ name: "Alpha Lab", bucketName: "shared-bucket" }),
       expect.anything(),
       expect.objectContaining({
         query: "parquet",
@@ -213,7 +213,7 @@ describe("SearchRoute", () => {
       }),
     );
     expect(listObjectsClient).toHaveBeenCalledWith(
-      betaConfig,
+      expect.objectContaining({ name: "Beta Lab", bucketName: "shared-bucket" }),
       expect.anything(),
       expect.objectContaining({
         query: "parquet",

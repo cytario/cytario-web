@@ -1,49 +1,55 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
-import { connectionSchema, parseS3Uri } from "./connection.schema";
+import { connectionSchema } from "./connection.schema";
+import { applyGrantsAndRecordStatus, validateProviderRefs } from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { describeCorsFailure, describeCorsWarning, probeBucketCors } from "~/.server/corsPreflight";
 import { prisma } from "~/.server/db/prisma";
-import { cytarioConfig } from "~/config";
+import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate } from "~/utils/authorization";
-import { constructS3Url } from "~/utils/resourceId";
 
+export interface CreateConnectionInput {
+  name: string;
+  bucketName: string;
+  providerConnectionId: string;
+  providerRoleId: string;
+  prefix: string;
+}
+
+/**
+ * Strictly creates — never updates an existing row. An existing
+ * (organization, providerConnectionId, bucketName, prefix) tuple must surface
+ * as a conflict: silently repointing the existing connection would let a
+ * non-admin rewrite another scope's connection (and thereby shrink the
+ * bucket's managed grant set) without any canModify check.
+ */
 export async function createConnection(
   organization: string,
-  ownerScope: string,
+  scope: string,
   createdBy: string,
-  config: {
-    name: string;
-    bucketName: string;
-    provider: string;
-    roleArn: string | null;
-    region: string | null;
-    endpoint: string;
-    prefix?: string;
-  },
+  config: CreateConnectionInput,
 ) {
-  const prefix = config.prefix ?? "";
-  return prisma.connectionConfig.upsert({
-    where: {
-      organization_provider_bucketName_prefix: {
-        organization,
-        provider: config.provider,
-        bucketName: config.bucketName,
-        prefix,
-      },
-    },
-    update: { ...config, ownerScope, prefix },
-    create: {
+  return prisma.connectionConfig.create({
+    data: {
       organization,
-      ownerScope,
+      scope,
       createdBy,
       ...config,
-      prefix,
     },
   });
+}
+
+/** Field-level message for a P2002 unique violation on connection create. */
+export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestError) {
+  const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
+  if (target.includes("name")) {
+    return { name: ["This name is already taken. Please choose another."] };
+  }
+  return {
+    prefix: ["A connection for this bucket and prefix already exists. Edit it instead."],
+  };
 }
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
@@ -56,101 +62,82 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
   const rawData = {
     name: String(formData.get("name") ?? ""),
-    ownerScope: String(formData.get("ownerScope") ?? ""),
-    providerType: String(formData.get("providerType") ?? ""),
-    s3Uri: String(formData.get("s3Uri") ?? ""),
-    bucketRegion: String(formData.get("bucketRegion") ?? ""),
-    roleArn: String(formData.get("roleArn") ?? ""),
-    bucketEndpoint: String(formData.get("bucketEndpoint") ?? ""),
+    scope: String(formData.get("scope") ?? ""),
+    providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
+    providerRoleId: String(formData.get("providerRoleId") ?? ""),
+    bucketName: String(formData.get("bucketName") ?? ""),
+    prefix: String(formData.get("prefix") ?? ""),
   };
 
   const result = connectionSchema.safeParse(rawData);
-
   if (!result.success) {
-    return {
-      errors: result.error.flatten().fieldErrors,
-      status: "error" as const,
-    };
+    return { errors: result.error.flatten().fieldErrors, status: "error" as const };
   }
-
   const data = result.data;
 
-  if (!canCreate(user, { organization: user.organization, ownerScope: data.ownerScope })) {
+  if (!canCreate(user, { organization: user.organization, ownerScope: data.scope })) {
     return {
-      errors: { ownerScope: ["Not authorized to create in this scope"] },
+      errors: { scope: ["Not authorized to create in this scope"] },
       status: "error" as const,
     };
   }
 
-  const { bucketName, prefix } = parseS3Uri(data.s3Uri);
+  // Validate the referenced provider connection + role against the catalog and
+  // reject unknown ids — no free-text role/endpoint is accepted. The catalog is
+  // advisory; when it is unavailable the create is refused with a clear error
+  // rather than trusting a bare id.
+  let catalog;
+  try {
+    catalog = await getProviderCatalog(user.organization);
+  } catch (error) {
+    return {
+      formError:
+        error instanceof Error ? error.message : "Provider catalog is currently unavailable.",
+      status: "error" as const,
+    };
+  }
+  const refs = validateProviderRefs(catalog, data);
+  if (!refs.ok) {
+    return { errors: refs.errors, status: "error" as const };
+  }
+
   const session = context.get(sessionContext);
 
   try {
-    const endpoint =
-      data.providerType === "aws"
-        ? `https://s3.${data.bucketRegion}.amazonaws.com`
-        : data.bucketEndpoint;
-
-    // Surface CORS misconfigurations at submit time rather than at first
-    // browser-side fetch (where they read as a generic "Failed to fetch").
-    const cytarioOrigin = cytarioConfig.endpoints.webapp;
-    const bucketUrl = constructS3Url({
-      bucketName,
-      region: data.providerType === "aws" ? data.bucketRegion : null,
-      endpoint,
-    });
-    const corsResult = await probeBucketCors(bucketUrl, cytarioOrigin);
-    if (!corsResult.ok) {
-      // CORS / allowlist failures span multiple fields (and AWS has no
-      // endpoint field) — surface as a form-level banner.
-      return {
-        formError: describeCorsFailure(corsResult, cytarioOrigin),
-        status: "error" as const,
-      };
-    }
-
-    const newConfig = {
+    const created = await createConnection(user.organization, data.scope, user.sub, {
       name: data.name,
-      bucketName,
-      provider: data.providerType,
-      roleArn: data.providerType === "aws" ? data.roleArn : null,
-      region: data.providerType === "aws" ? data.bucketRegion : null,
-      endpoint,
-      prefix,
-    };
+      bucketName: data.bucketName,
+      providerConnectionId: data.providerConnectionId,
+      providerRoleId: data.providerRoleId,
+      prefix: data.prefix,
+    });
 
-    await createConnection(user.organization, data.ownerScope, user.sub, newConfig);
+    // Apply the bucket-policy grant server-side under the acting connection's
+    // provider role. On a denied or failed write this warns and records the
+    // connection as drifted/error rather than claiming enforcement.
+    const outcome = await applyGrantsAndRecordStatus(created, {
+      user,
+      idToken: session.get("authTokens")?.idToken ?? "",
+    });
 
-    if (corsResult.warnings.length > 0) {
-      session.set("notification", {
-        status: "warning",
-        message: `Connection added. ${corsResult.warnings
-          .map((w) => describeCorsWarning(w, cytarioOrigin))
-          .join(" ")}`,
-      });
-    } else {
-      session.set("notification", {
-        status: "success",
-        message: "Connection added successfully.",
-      });
-    }
+    session.set("notification", {
+      status: outcome.status === "applied" ? "success" : "warning",
+      message:
+        outcome.status === "applied"
+          ? "Connection added successfully."
+          : `Connection added. ${outcome.warning}`,
+    });
 
     return redirect(`/connections/${encodeURIComponent(data.name)}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
+    if (error instanceof Response) throw error;
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return {
-        errors: {
-          name: ["This name is already taken. Please choose another."],
-        },
-        status: "error" as const,
-      };
+      return { errors: uniqueViolationErrors(error), status: "error" as const };
     }
 
     console.error("Error creating connection:", error);
-
-    // Keep the wizard mounted so the user's draft survives the error.
     return {
       formError: "Could not add the connection. Try again or check the server logs.",
       status: "error" as const,

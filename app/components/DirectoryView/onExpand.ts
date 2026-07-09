@@ -21,6 +21,7 @@ export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
     connectionConfig: conn.connectionConfig,
     credentials: conn.credentials,
     connectionName: parent.connectionName,
+    provider: conn.provider,
     urlPath: parent.pathName,
   });
 

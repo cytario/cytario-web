@@ -112,22 +112,19 @@ describe("createDatabase", () => {
     expect(mockQuery).toHaveBeenCalledWith("SET s3_use_ssl=true");
   });
 
-  test("uses connection config region when provided", async () => {
-    const connectionConfig = mock.connectionConfig({ region: "us-west-2" });
-
-    await createDatabase("test-resource-region", credentials, connectionConfig);
+  test("uses the resolved provider region when provided", async () => {
+    await createDatabase("test-resource-region", credentials, { region: "us-west-2" });
 
     expect(mockQuery).toHaveBeenCalledWith("SET s3_region='us-west-2'");
   });
 
-  test("configures endpoint from connection config", async () => {
-    const connectionConfig = mock.connectionConfig({
-      endpoint: "https://minio.local:9000",
-    });
+  test("configures endpoint from the resolved provider", async () => {
     vi.mocked(getEndpointHostname).mockReturnValue("minio.local:9000");
     vi.mocked(shouldUseSSL).mockReturnValue(true);
 
-    await createDatabase("test-resource-minio", credentials, connectionConfig);
+    await createDatabase("test-resource-minio", credentials, {
+      endpoint: "https://minio.local:9000",
+    });
 
     expect(getEndpointHostname).toHaveBeenCalledWith("https://minio.local:9000");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_endpoint='minio.local:9000'");

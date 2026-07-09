@@ -13,7 +13,7 @@ import { BulkActions } from "./BulkActions";
 import type { ConnectionConfig } from "~/.generated/client";
 import { type UserWithGroups, type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { Container, Section, SectionHeader } from "~/components/Container";
-import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { SelectionFooter } from "~/components/Table/SelectionFooter";
 import { type CellRenderers, type ColumnConfig, Table } from "~/components/Table/Table";
@@ -265,7 +265,7 @@ export default function AdminUsersRoute() {
                   >
                     <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
                     <span className="font-medium text-secondary hover:underline">{conn.name}</span>
-                    <ProviderPill provider={conn.provider} />
+                    <BucketPolicyStatusPill status={conn.bucketPolicyStatus} />
                   </Link>
                 </li>
               ))}

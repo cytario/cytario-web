@@ -1,5 +1,12 @@
-import mock from "./__mocks__";
-import { buildConnectionPath, constructS3Url, parseResourceId } from "../resourceId";
+import {
+  type BucketAddress,
+  buildConnectionPath,
+  constructS3Url,
+  parseResourceId,
+} from "../resourceId";
+
+/** The non-secret bucket address `constructS3Url` now takes (region/endpoint from the catalog). */
+const bucketAddress = (o: BucketAddress): BucketAddress => o;
 
 describe("parseResourceId", () => {
   test("parses connectionName and pathName", () => {
@@ -60,7 +67,7 @@ describe("buildConnectionPath", () => {
 describe("constructS3Url", () => {
   describe("AWS S3 URLs", () => {
     test("constructs path-style URL with region", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "my-bucket",
         region: "us-west-2",
         endpoint: "",
@@ -72,7 +79,7 @@ describe("constructS3Url", () => {
     });
 
     test("uses eu-central-1 as default region", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "my-bucket",
         region: null,
         endpoint: "",
@@ -84,7 +91,7 @@ describe("constructS3Url", () => {
     });
 
     test("handles path with trailing slash", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "bucket",
         region: "eu-west-1",
         endpoint: "",
@@ -98,7 +105,7 @@ describe("constructS3Url", () => {
 
   describe("Custom endpoint URLs (MinIO, R2)", () => {
     test("constructs URL with custom endpoint", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "my-bucket",
         endpoint: "http://localhost:9000",
         region: null,
@@ -110,7 +117,7 @@ describe("constructS3Url", () => {
     });
 
     test("strips trailing slash from endpoint", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "bucket",
         endpoint: "http://localhost:9000/",
         region: null,
@@ -122,7 +129,7 @@ describe("constructS3Url", () => {
     });
 
     test("handles HTTPS custom endpoint", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "bucket",
         endpoint: "https://minio.example.com",
         region: null,
@@ -134,7 +141,7 @@ describe("constructS3Url", () => {
     });
 
     test("handles R2 endpoint", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "my-r2-bucket",
         endpoint: "https://account-id.r2.cloudflarestorage.com",
         region: null,
@@ -148,7 +155,7 @@ describe("constructS3Url", () => {
     });
 
     test("ignores region when endpoint is provided", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "bucket",
         region: "us-west-2",
         endpoint: "http://localhost:9000",
@@ -163,7 +170,7 @@ describe("constructS3Url", () => {
 
   describe("edge cases", () => {
     test("handles empty path", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "bucket",
         region: "us-east-1",
         endpoint: "",
@@ -180,7 +187,7 @@ describe("constructS3Url", () => {
       // ListObjectsV2 signs and fetches the bucket-level URL — verifying
       // the unified helper covers that call site (was a duplicate
       // `getBucketUrl` in listObjectsClient.ts).
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "b",
         region: "eu-central-1",
         endpoint: "",
@@ -190,7 +197,7 @@ describe("constructS3Url", () => {
     });
 
     test("returns bucket-level URL on custom endpoint when s3Key is omitted", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "minio-bucket",
         endpoint: "http://localhost:9000",
         region: "eu-central-1",
@@ -200,7 +207,7 @@ describe("constructS3Url", () => {
     });
 
     test("handles deeply nested path", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "bucket",
         endpoint: "http://localhost:9000",
         region: null,
@@ -215,7 +222,7 @@ describe("constructS3Url", () => {
       // Dotted buckets must not end up in a vhost URL because the wildcard
       // TLS cert `*.s3.<region>.amazonaws.com` only matches one DNS label.
       // Path-style (the only style constructS3Url emits) sidesteps this.
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "my.bucket.name",
         region: "us-west-2",
         endpoint: "",
@@ -227,7 +234,7 @@ describe("constructS3Url", () => {
     });
 
     test("uses path-style for dotted AWS bucket with explicit amazonaws endpoint", () => {
-      const config = mock.connectionConfig({
+      const config = bucketAddress({
         bucketName: "my.bucket.name",
         region: "us-east-1",
         endpoint: "https://s3.us-east-1.amazonaws.com",

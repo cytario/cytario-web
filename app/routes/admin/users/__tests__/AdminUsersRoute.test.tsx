@@ -65,7 +65,9 @@ const mockGroups: GroupInfo[] = [
 ];
 
 describe("AdminUsersRoute", () => {
-  const mockConnections = [{ name: "Exchange", provider: "aws", ownerScope: "cytario/lab" }];
+  const mockConnections = [
+    { name: "Exchange", scope: "cytario/lab", bucketPolicyStatus: "applied" },
+  ];
 
   function renderRoute(
     users = mockUsers,
@@ -162,7 +164,7 @@ describe("AdminUsersRoute", () => {
     renderRoute(mockUsers, mockGroups, mockConnections);
 
     expect(await screen.findByText("Exchange")).toBeInTheDocument();
-    expect(screen.getByText("AWS S3")).toBeInTheDocument();
+    expect(screen.getByText("Applied")).toBeInTheDocument();
   });
 
   test("renders warning banner when no connections", async () => {

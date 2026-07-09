@@ -6,6 +6,11 @@ import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import { type CytarioSession, SessionData, SessionFlashData } from "~/.server/auth/sessionStorage";
 import { Channel, Image } from "~/components/.client/ImageViewer/state/store/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import type {
+  ProviderCatalog,
+  ProviderConnection,
+  ProviderRole,
+} from "~/utils/providerCatalog.schema";
 
 const mock = {
   connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
@@ -13,13 +18,34 @@ const mock = {
     id: 0,
     name: "aws-mock-bucket",
     organization: "org1",
-    ownerScope: "lab",
+    scope: "lab",
     createdBy: "mock-user-id",
-    provider: "aws",
-    roleArn: "arn:aws:iam::123456789012:role/mock-role",
-    region: "us-east-1",
-    endpoint: "https://s3.amazonaws.com",
+    providerConnectionId: "pc-mock",
+    providerRoleId: "pr-mock",
     prefix: "",
+    bucketPolicyStatus: "none",
+    ...data,
+  }),
+  providerConnection: (data: Partial<ProviderConnection> = {}): ProviderConnection => ({
+    id: "pc-mock",
+    providerType: "aws",
+    endpoint: null,
+    region: "us-east-1",
+    status: "connected",
+    ...data,
+  }),
+  providerRole: (data: Partial<ProviderRole> = {}): ProviderRole => ({
+    id: "pr-mock",
+    providerConnectionId: "pc-mock",
+    roleArn: "arn:aws:iam::123456789012:role/mock-role",
+    name: "mock-role",
+    allowedScopes: ["lab"],
+    allowsSharing: false,
+    ...data,
+  }),
+  providerCatalog: (data: Partial<ProviderCatalog> = {}): ProviderCatalog => ({
+    providerConnections: [mock.providerConnection()],
+    providerRoles: [mock.providerRole()],
     ...data,
   }),
   session: (data: Partial<SessionData & SessionFlashData> = {}): CytarioSession => ({

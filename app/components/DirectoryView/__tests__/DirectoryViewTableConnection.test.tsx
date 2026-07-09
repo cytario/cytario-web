@@ -15,24 +15,18 @@ const connections = {
     connectionConfig: mock.connectionConfig({
       name: "aws-my-aws-bucket",
       bucketName: "my-aws-bucket",
-      provider: "aws",
-      endpoint: "",
-      region: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789:role/S3AccessRole",
-      ownerScope: "cytario",
+      scope: "cytario",
+      bucketPolicyStatus: "applied",
       createdBy: "admin@cytario.com",
     }),
     credentials,
   },
-  "minio-minio-bucket": {
+  "second-bucket": {
     connectionConfig: mock.connectionConfig({
-      name: "minio-minio-bucket",
-      bucketName: "minio-bucket",
-      provider: "minio",
-      endpoint: "https://s3.cytar.io",
-      region: null,
-      roleArn: null,
-      ownerScope: "cytario/lab",
+      name: "second-bucket",
+      bucketName: "other-bucket",
+      scope: "cytario/lab",
+      bucketPolicyStatus: "drifted",
       createdBy: "lab@cytario.com",
     }),
     credentials,
@@ -46,6 +40,8 @@ vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
 vi.mock("~/utils/connectionsStore/selectors", () => ({
   select: {
     connections: (state: { connections: unknown }) => state.connections,
+    connection: (name: string) => (state: { connections: Record<string, unknown> }) =>
+      state.connections[name],
     connectionConfig:
       (name: string) => (state: { connections: Record<string, { connectionConfig: unknown }> }) =>
         state.connections[name]?.connectionConfig,
@@ -69,16 +65,16 @@ describe("DirectoryViewTableConnection", () => {
       children: [],
     },
     {
-      id: "minio-minio-bucket/",
-      connectionName: "minio-minio-bucket",
+      id: "second-bucket/",
+      connectionName: "second-bucket",
       type: "bucket",
-      name: "minio-minio-bucket",
+      name: "second-bucket",
       pathName: "",
       children: [],
     },
   ];
 
-  test("renders bucket columns: Name, Scope, Provider, Region visible; Endpoint, Created By, RoleARN hidden", () => {
+  test("renders bucket columns: Name, Scope, Bucket, Policy visible; Prefix, Created By hidden", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -90,15 +86,16 @@ describe("DirectoryViewTableConnection", () => {
 
     expect(screen.getByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Scope")).toBeInTheDocument();
-    expect(screen.getByText("Provider")).toBeInTheDocument();
-    expect(screen.getByText("Region")).toBeInTheDocument();
-    // Endpoint, Created By, and RoleARN are hidden by default
-    expect(screen.queryByText("Endpoint")).not.toBeInTheDocument();
+    expect(screen.getByText("Bucket")).toBeInTheDocument();
+    expect(screen.getByText("Policy")).toBeInTheDocument();
+    // Prefix and Created By are hidden by default; provider/role/endpoint columns
+    // are gone with the new model.
+    expect(screen.queryByText("Prefix")).not.toBeInTheDocument();
     expect(screen.queryByText("Created By")).not.toBeInTheDocument();
     expect(screen.queryByText("RoleARN")).not.toBeInTheDocument();
   });
 
-  test("renders bucket data with provider and endpoint", () => {
+  test("renders bucket rows with policy-status labels", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -108,14 +105,11 @@ describe("DirectoryViewTableConnection", () => {
 
     render(<RemixStub initialEntries={["/"]} />);
 
-    // Check connection names
     expect(screen.getByText("aws-my-aws-bucket")).toBeInTheDocument();
-    expect(screen.getByText("minio-minio-bucket")).toBeInTheDocument();
+    expect(screen.getByText("second-bucket")).toBeInTheDocument();
 
-    // Provider and region values appear in body cells (inside aria-hidden table)
     const body = document.body.textContent ?? "";
-    expect(body).toContain("aws");
-    expect(body).toContain("minio");
-    expect(body).toContain("eu-central-1");
+    expect(body).toContain("Applied");
+    expect(body).toContain("Drifted");
   });
 });

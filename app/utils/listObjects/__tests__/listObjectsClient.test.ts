@@ -173,11 +173,12 @@ describe("listObjectsClient", () => {
     );
 
     await listObjectsClient(
-      mock.connectionConfig({
+      {
+        name: "b-conn",
+        bucketName: "b",
         endpoint: "https://s3.amazonaws.com",
         region: "eu-central-1",
-        bucketName: "b",
-      }),
+      },
       mock.credentials(),
     );
 
@@ -191,11 +192,12 @@ describe("listObjectsClient", () => {
     );
 
     await listObjectsClient(
-      mock.connectionConfig({
+      {
+        name: "minio-conn",
+        bucketName: "minio-bucket",
         endpoint: "http://localhost:9000",
         region: "eu-central-1",
-        bucketName: "minio-bucket",
-      }),
+      },
       mock.credentials(),
     );
 

@@ -250,3 +250,51 @@ describe("buildSessionPolicy", () => {
     expect(() => buildSessionPolicy(args({ subject: "user?" }))).toThrow(/wildcard/i);
   });
 });
+
+/**
+ * SDS-CY-011108 (ARCH-1(B)): the data-plane inline session policy is a closed
+ * allowlist that grants NO `s3:PutBucketPolicy` for ANY role it is minted against
+ * — including a sharing-capable provider role. `buildSessionPolicy` takes no role
+ * argument (the closed allowlist is identical regardless of the underlying role),
+ * so we assert the property across representative argument variants.
+ */
+describe("buildSessionPolicy — PutBucketPolicy exclusion (closed allowlist)", () => {
+  const collectActions = (json: string): string[] => {
+    const policy = JSON.parse(json) as { Statement: { Action: string | string[] }[] };
+    return policy.Statement.flatMap((s) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
+  };
+
+  // Any action string that would grant PutBucketPolicy directly or by wildcard.
+  const grantsPutBucketPolicy = (action: string): boolean => {
+    if (action === "s3:PutBucketPolicy") return true;
+    if (action === "*" || action === "s3:*") return true;
+    // wildcard forms like "s3:Put*" / "s3:PutBucket*" would also cover it
+    const asRegex = new RegExp(
+      "^" + action.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$",
+    );
+    return asRegex.test("s3:PutBucketPolicy");
+  };
+
+  const variants = [
+    args({ prefix: "" }),
+    args({ prefix: "tenant-a/data" }),
+    args({ organization: "another-org", bucketName: "sharing-capable-bucket", prefix: "shared" }),
+  ];
+
+  test.each(variants)("emits no action granting s3:PutBucketPolicy (%#)", (variantArgs) => {
+    const actions = collectActions(buildSessionPolicy(variantArgs));
+    expect(actions.length).toBeGreaterThan(0);
+    for (const action of actions) {
+      expect(grantsPutBucketPolicy(action)).toBe(false);
+    }
+    // and the exact string is definitively absent
+    expect(actions).not.toContain("s3:PutBucketPolicy");
+  });
+
+  test("the guard itself catches a wildcard that would cover PutBucketPolicy", () => {
+    // sanity-check the detector so the property test can't silently pass
+    expect(grantsPutBucketPolicy("s3:Put*")).toBe(true);
+    expect(grantsPutBucketPolicy("s3:*")).toBe(true);
+    expect(grantsPutBucketPolicy("s3:GetObject")).toBe(false);
+  });
+});

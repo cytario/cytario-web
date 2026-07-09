@@ -19,9 +19,11 @@ function makeConnectionAccessors(
   const config = (node: TreeNode) => connections[node.connectionName]?.connectionConfig;
   return {
     name: (node) => node.name,
-    provider: (node) => config(node)?.provider ?? "",
-    ownerScope: (node) => config(node)?.ownerScope ?? "",
-    region: (node) => config(node)?.region ?? "",
+    scope: (node) => config(node)?.scope ?? "",
+    bucketName: (node) => config(node)?.bucketName ?? "",
+    prefix: (node) => config(node)?.prefix ?? "",
+    bucketPolicyStatus: (node) => config(node)?.bucketPolicyStatus ?? "",
+    createdBy: (node) => config(node)?.createdBy ?? "",
   };
 }
 

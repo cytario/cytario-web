@@ -10,6 +10,10 @@ export interface ResolvedResource {
   pathName: string;
   connectionConfig: ConnectionConfig;
   credentials: Credentials;
+  /** Resolved SigV4 signing region, or `undefined` when the catalog ref is stale. */
+  region: string | undefined;
+  /** Resolved S3-compatible endpoint, or `null`/`undefined` for native AWS S3. */
+  endpoint: string | null | undefined;
   /** S3 URI: `s3://bucketName/<prefix>/<pathName>`. */
   s3Uri: string;
   /** HTTPS URL for the object (virtual-hosted or path-style per bucket shape). */
@@ -94,7 +98,7 @@ function resolveResource(resourceId: string, state: ConnectionsStore): ResolvedR
   const connection = state.connections[connectionName];
   if (!connection) return null;
 
-  const { connectionConfig, credentials } = connection;
+  const { connectionConfig, credentials, provider } = connection;
   // A broken connection (no minted STS credentials) cannot be fetched.
   if (!credentials) return null;
   const bucketPrefix = connectionConfig.prefix?.replace(/\/$/, "");
@@ -107,7 +111,16 @@ function resolveResource(resourceId: string, state: ConnectionsStore): ResolvedR
     connectionConfig,
     pathName: connectionPathName,
     credentials,
+    region: provider?.region,
+    endpoint: provider?.endpoint,
     s3Uri: `s3://${connectionConfig.bucketName}/${bucketPathName}`,
-    httpsUrl: constructS3Url(connectionConfig, bucketPathName),
+    httpsUrl: constructS3Url(
+      {
+        bucketName: connectionConfig.bucketName,
+        region: provider?.region,
+        endpoint: provider?.endpoint,
+      },
+      bucketPathName,
+    ),
   };
 }

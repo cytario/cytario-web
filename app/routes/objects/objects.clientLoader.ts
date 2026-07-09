@@ -1,6 +1,7 @@
 import { type ClientLoaderFunctionArgs } from "react-router";
 
 import type { BucketRouteLoaderResponse, loader } from "./objects.loader";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { formatTruncationMessage } from "~/utils/listingLimits";
 import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 import { CorsLikelyError } from "~/utils/signedFetch";
@@ -29,10 +30,12 @@ export const clientLoader = async ({
   }
 
   try {
+    const provider = useConnectionsStore.getState().connections[resolved.connectionName]?.provider;
     const { nodes, isCapped } = await loadConnectionLevel({
       connectionConfig: resolved.connectionConfig,
       credentials: resolved.credentials,
       connectionName: resolved.connectionName,
+      provider,
       urlPath: resolved.urlPath,
       signal: request.signal,
     });

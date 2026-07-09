@@ -9,6 +9,8 @@ export interface LoadConnectionLevelArgs {
   connectionConfig: ConnectionConfig;
   credentials: Credentials;
   connectionName: string;
+  /** Resolved non-secret provider address (region/endpoint) from the catalog. */
+  provider?: { region?: string | null; endpoint?: string | null };
   /** Connection-relative path. May be empty for the bucket root. */
   urlPath: string;
   signal?: AbortSignal;
@@ -27,13 +29,19 @@ export async function loadConnectionLevel({
   connectionConfig,
   credentials,
   connectionName,
+  provider,
   urlPath: rawUrlPath,
   signal,
 }: LoadConnectionLevelArgs): Promise<LoadConnectionLevelResult> {
   const { urlPath, prefix } = resolveConnectionPrefix(connectionConfig.prefix, rawUrlPath);
 
   const { contents, commonPrefixes, isCapped } = await listObjectsClient(
-    connectionConfig,
+    {
+      name: connectionConfig.name,
+      bucketName: connectionConfig.bucketName,
+      region: provider?.region,
+      endpoint: provider?.endpoint,
+    },
     credentials,
     { prefix, signal },
   );

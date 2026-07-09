@@ -27,7 +27,8 @@ const label = createLabel("dashboard", "cyan");
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const { connectionConfigs, credentials, credentialErrors, user } = context.get(authContext);
+  const { connectionConfigs, credentials, credentialErrors, connectionProviders, user } =
+    context.get(authContext);
   // No shouldRevalidate gate: the credential keep-alive (C-242) drives an
   // explicit revalidation to re-mint STS credentials, and RR runs this loader
   // on every navigation. Recents/favorites are two indexed queries riding
@@ -52,6 +53,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     connectionConfigs,
     credentials,
     credentialErrors,
+    connectionProviders,
     identity: toIdentity(user),
     hostConfig: {
       portalUrl: cytarioConfig.endpoints.portal,
@@ -68,9 +70,15 @@ export const clientLoader = ({ serverLoader }: ClientLoaderFunctionArgs) =>
   serverLoader<typeof loader>();
 
 export default function ProtectedLayout() {
-  const { connectionConfigs, credentials, credentialErrors, identity, hostConfig } =
-    useLoaderData<typeof loader>();
-  useInitConnections(connectionConfigs, credentials, credentialErrors);
+  const {
+    connectionConfigs,
+    credentials,
+    credentialErrors,
+    connectionProviders,
+    identity,
+    hostConfig,
+  } = useLoaderData<typeof loader>();
+  useInitConnections(connectionConfigs, credentials, credentialErrors, connectionProviders);
   useCredentialsKeepAlive();
   useConnectionHealthProbe();
 

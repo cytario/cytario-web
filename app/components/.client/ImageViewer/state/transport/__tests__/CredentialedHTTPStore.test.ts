@@ -15,9 +15,7 @@ describe("CredentialedHTTPStore", () => {
     Expiration: new Date(),
   };
 
-  const mockConnectionConfig = {
-    region: "us-west-2",
-  };
+  const mockConnectionConfig = "us-west-2";
 
   const signedFetch = createSignedFetch(() => mockCredentials, mockConnectionConfig);
 

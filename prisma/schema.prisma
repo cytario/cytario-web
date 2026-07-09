@@ -3,29 +3,35 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client"
-  output   = "../app/.generated/"
+  provider     = "prisma-client"
+  output       = "../app/.generated/"
   moduleFormat = "esm"
 }
 
+enum BucketPolicyStatus {
+  none
+  applied
+  drifted
+  error
+}
+
 model ConnectionConfig {
-  id           Int     @id @default(autoincrement())
-  name         String  @unique
-  organization String  // Keycloak organization alias (tenant)
-  ownerScope   String  // intra-org owner: group path or user sub
-  createdBy    String
-  bucketName   String
-  provider     String  // "aws" for AWS S3, "minio" for MinIO
-  endpoint     String  // Required - AWS endpoint or custom (MinIO)
-  roleArn      String? // Optional - only needed for AWS
-  region       String? // Optional - only needed for AWS
-  prefix       String  @default("")
+  id                   Int                @id @default(autoincrement())
+  name                 String             @unique
+  organization         String // Keycloak organization alias (tenant)
+  scope                String // intra-org owner: group path or user sub
+  createdBy            String
+  bucketName           String
+  providerConnectionId String // reference to the portal-managed / OSS-configured provider connection (carries provider type, endpoint, region)
+  providerRoleId       String // reference to the portal-managed / OSS-configured provider role the connection is bound to
+  prefix               String             @default("")
+  bucketPolicyStatus   BucketPolicyStatus @default(none)
 
   recentlyViewed RecentlyViewed[] @relation("RecentlyViewedConnection")
   pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
 
-  @@unique([organization, provider, bucketName, prefix])
-  @@index([organization, ownerScope])
+  @@unique([organization, providerConnectionId, bucketName, prefix])
+  @@index([organization, scope])
 }
 
 model RecentlyViewed {
@@ -34,7 +40,7 @@ model RecentlyViewed {
   connectionName String
   pathName       String
   name           String
-  type           String   // "file" | "directory"
+  type           String // "file" | "directory"
   viewedAt       DateTime @default(now())
 
   connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionName], references: [name], onDelete: Cascade)

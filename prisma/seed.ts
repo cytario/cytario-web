@@ -19,15 +19,16 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 const TEST_CONNECTION_NAME = process.env.E2E_CONNECTION_NAME || "Exchange";
 const TEST_PREFIX_CONNECTION_NAME = process.env.E2E_PREFIX_CONNECTION_NAME || "Exchange-prefixed";
 
+// A connection references a provider connection + provider role by id (the
+// concrete role ARN / endpoint / region live in the OSS provider catalog or the
+// portal lookup, §4.12) — it no longer stores provider/roleArn/region/endpoint.
 const SHARED_BUCKET = {
   organization: "cytario",
-  ownerScope: "admins",
+  scope: "admins",
   createdBy: "e2e-seed",
   bucketName: "shared-bucket-example",
-  provider: "aws" as const,
-  endpoint: "https://s3.eu-central-1.amazonaws.com",
-  roleArn: "arn:aws:iam::727043715722:role/keycloack-aws-test-iam-role",
-  region: "eu-central-1",
+  providerConnectionId: "aws-eu-central-1",
+  providerRoleId: "sharer-lab",
 };
 
 async function seed() {

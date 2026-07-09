@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { type TreeNode } from "./buildDirectoryTree";
 import { type ConnectionConfig } from "~/.generated/client";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
-import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { select } from "~/utils/connectionsStore/selectors";
@@ -21,7 +21,7 @@ export const connectionColumns: ColumnConfig[] = [
     filterPlaceholder: "Filter by name...",
   },
   {
-    id: "ownerScope",
+    id: "scope",
     header: "Scope",
     size: 160,
     enableSorting: true,
@@ -30,38 +30,30 @@ export const connectionColumns: ColumnConfig[] = [
     filterRender: (option) => <ScopePill scope={option.value} />,
   },
   {
-    id: "provider",
-    header: "Provider",
-    size: 160,
+    id: "bucketName",
+    header: "Bucket",
+    size: 260,
     enableSorting: true,
-    enableColumnFilter: true,
-    filterType: "select",
-    filterRender: (option) => <ProviderPill provider={option.value} />,
+    copyable: true,
   },
   {
-    id: "endpoint",
-    header: "Endpoint",
-    size: 340,
+    id: "prefix",
+    header: "Prefix",
+    size: 260,
     enableSorting: true,
     defaultVisible: false,
     copyable: true,
   },
   {
-    id: "region",
-    header: "Region",
+    id: "bucketPolicyStatus",
+    header: "Policy",
     size: 160,
     enableSorting: true,
     enableColumnFilter: true,
     filterType: "select",
-    copyable: true,
-  },
-  {
-    id: "roleArn",
-    header: "RoleARN",
-    size: 480,
-    enableSorting: true,
-    defaultVisible: false,
-    copyable: true,
+    filterRender: (option) => (
+      <BucketPolicyStatusPill status={option.value as ConnectionConfig["bucketPolicyStatus"]} />
+    ),
   },
   {
     id: "createdBy",
@@ -86,8 +78,8 @@ function buildConnectionCellRenderers(nodes: TreeNode[]): CellRenderers<Connecti
       const node = nodesByName.get(row.name);
       return node ? <NodeLink node={node} /> : row.name;
     },
-    ownerScope: (row) => <ScopePill scope={row.ownerScope} />,
-    provider: (row) => <ProviderPill provider={row.provider} />,
+    scope: (row) => <ScopePill scope={row.scope} />,
+    bucketPolicyStatus: (row) => <BucketPolicyStatusPill status={row.bucketPolicyStatus} />,
   };
 }
 

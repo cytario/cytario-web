@@ -1,5 +1,4 @@
 import { getExtension } from "./fileType";
-import type { ConnectionConfig } from "~/.generated/client";
 
 export interface ResourceIdParts {
   connectionName: string;
@@ -47,18 +46,26 @@ export function buildConnectionPath(connectionName: string, pathName: string): s
 }
 
 /**
+ * The bucket-address inputs `constructS3Url` needs: the bucket name plus the
+ * non-secret region / endpoint resolved from the connection's provider connection
+ * in the catalog, no longer stored on the connection record.
+ */
+export interface BucketAddress {
+  bucketName: string;
+  region?: string | null;
+  endpoint?: string | null;
+}
+
+/**
  * Build the HTTPS URL for an S3 bucket or object. Always path-style (dotted
  * bucket names break the vhost wildcard cert). `s3Key` is the full object
  * key including any connection prefix; pass `""` for the bucket-level URL.
  * Callers pass raw keys — path segments are URI-encoded internally.
  */
-export function constructS3Url(
-  connectionConfig: Pick<ConnectionConfig, "bucketName" | "region" | "endpoint">,
-  s3Key: string = "",
-): string {
-  const bucket = connectionConfig.bucketName;
-  const region = connectionConfig.region || "eu-central-1";
-  const endpoint = connectionConfig.endpoint?.replace(/\/$/, "");
+export function constructS3Url(address: BucketAddress, s3Key: string = ""): string {
+  const bucket = address.bucketName;
+  const region = address.region || "eu-central-1";
+  const endpoint = address.endpoint?.replace(/\/$/, "");
 
   const isAwsEndpoint = !endpoint || /\.amazonaws\.com$/i.test(endpoint);
   const origin = isAwsEndpoint ? `https://s3.${region}.amazonaws.com` : endpoint;

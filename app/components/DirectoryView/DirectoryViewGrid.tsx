@@ -7,7 +7,7 @@ import { type DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { ClientOnly } from "~/components/ClientOnly";
 import { GridItem } from "~/components/DirectoryView/GridItem";
-import { ProviderPill } from "~/components/Pills/ProviderPill";
+import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -26,12 +26,14 @@ const ImagePreview = lazy(() =>
 );
 
 function useSignedFetch(connectionName: string) {
-  const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
+  const connection = useConnectionsStore(select.connection(connectionName));
+  const connectionConfig = connection?.connectionConfig;
+  const region = connection?.provider?.region;
 
   const signedFetch = useMemo(() => {
     if (!connectionConfig) return null;
-    return createSignedFetch(liveCredentials(connectionName), connectionConfig, connectionName);
-  }, [connectionName, connectionConfig]);
+    return createSignedFetch(liveCredentials(connectionName), region, connectionName);
+  }, [connectionName, connectionConfig, region]);
 
   return { connectionConfig, signedFetch };
 }
@@ -83,8 +85,8 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
     >
       {connectionConfig && (
         <>
-          <ScopePill scope={connectionConfig.ownerScope} />
-          <ProviderPill provider={connectionConfig.provider} />
+          <ScopePill scope={connectionConfig.scope} />
+          <BucketPolicyStatusPill status={connectionConfig.bucketPolicyStatus} />
         </>
       )}
     </GridItem>

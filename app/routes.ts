@@ -88,6 +88,10 @@ const apiRoutes = [
     path: "/api/cyberduck-profile/:name",
     file: "routes/api/cyberduck-profile.$name.ts",
   },
+  {
+    path: "/api/provider-catalog",
+    file: "routes/api/provider-catalog.ts",
+  },
 ];
 
 export default [

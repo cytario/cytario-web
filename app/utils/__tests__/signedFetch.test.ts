@@ -18,7 +18,7 @@ const mockCredentials: Credentials = {
   Expiration: new Date(),
 };
 
-const mockConfig = { region: "eu-central-1" };
+const mockConfig = "eu-central-1";
 
 describe("createSignedFetch", () => {
   beforeEach(() => {
@@ -139,7 +139,7 @@ describe("createSignedFetch", () => {
   });
 
   test("defaults to eu-central-1 when region is missing", async () => {
-    const sf = createSignedFetch(() => mockCredentials, { region: "" });
+    const sf = createSignedFetch(() => mockCredentials, "");
     await sf("https://bucket.s3.eu-central-1.amazonaws.com/key");
 
     const [, init] = mockFetch.mock.calls[0];

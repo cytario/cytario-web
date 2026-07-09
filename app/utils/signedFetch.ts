@@ -2,7 +2,6 @@ import { Sha256 } from "@aws-crypto/sha256-browser";
 import type { Credentials } from "@aws-sdk/client-sts";
 import { SignatureV4 } from "@smithy/signature-v4";
 
-import type { ConnectionConfig } from "~/.generated/client";
 import { ExpiredCredentialsError, requestCredentialsRefresh } from "~/utils/credentialsRefresh";
 import { sanitizeHeaders } from "~/utils/sanitizeHeaders";
 
@@ -127,7 +126,13 @@ function isImageDataPath(pathname: string): boolean {
  */
 export function createSignedFetch(
   getCredentials: () => Credentials | null,
-  connectionConfig: Pick<ConnectionConfig, "region">,
+  /**
+   * SigV4 signing region. The region lives on the connection's provider connection
+   * in the catalog, not on the connection record; callers that do not carry
+   * it resolved fall back to the default. Threading the resolved per-connection
+   * region to the browser signer is a follow-up.
+   */
+  region: string | undefined,
   connectionName?: string,
 ): SignedFetch {
   let cachedKeyId: string | undefined;
@@ -148,7 +153,7 @@ export function createSignedFetch(
           secretAccessKey: credentials.SecretAccessKey,
           sessionToken: credentials.SessionToken,
         },
-        region: connectionConfig.region || "eu-central-1",
+        region: region || "eu-central-1",
         service: "s3",
         sha256: Sha256,
         // S3 paths are pre-encoded; the signer must not double-encode.

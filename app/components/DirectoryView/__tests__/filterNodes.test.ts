@@ -23,7 +23,7 @@ const fileColumns: ColumnConfig[] = [
 
 const bucketColumns: ColumnConfig[] = [
   { id: "name", header: "Name", size: 200, enableColumnFilter: true, filterType: "text" },
-  { id: "provider", header: "Provider", size: 100, enableColumnFilter: true, filterType: "select" },
+  { id: "scope", header: "Scope", size: 100, enableColumnFilter: true, filterType: "select" },
 ];
 
 describe("filterHiddenNodes", () => {
@@ -187,22 +187,22 @@ describe("filterNodes", () => {
     expect(filterNodes(nodes, filters, fileColumns)).toHaveLength(1);
   });
 
-  test("filters bucket nodes by provider (select)", () => {
+  test("filters bucket nodes by scope (select)", () => {
     const nodes = [
-      makeNode({ name: "bucket1", type: "bucket", connectionName: "conn-aws" }),
-      makeNode({ name: "bucket2", type: "bucket", connectionName: "conn-minio" }),
+      makeNode({ name: "bucket1", type: "bucket", connectionName: "conn-lab" }),
+      makeNode({ name: "bucket2", type: "bucket", connectionName: "conn-ops" }),
     ];
     const mockConnections = {
-      "conn-aws": { connectionConfig: { provider: "aws" } },
-      "conn-minio": { connectionConfig: { provider: "minio" } },
+      "conn-lab": { connectionConfig: { scope: "lab" } },
+      "conn-ops": { connectionConfig: { scope: "ops" } },
     } as unknown as Record<
       string,
       import("~/utils/connectionsStore/useConnectionsStore").Connection
     >;
-    const filters: ColumnFiltersState = [{ id: "provider", value: "aws" }];
+    const filters: ColumnFiltersState = [{ id: "scope", value: "lab" }];
     const result = filterNodes(nodes, filters, bucketColumns, "connections", mockConnections);
     expect(result).toHaveLength(1);
-    expect(result[0].connectionName).toBe("conn-aws");
+    expect(result[0].connectionName).toBe("conn-lab");
   });
 
   test("filters bucket nodes by name (text)", () => {

@@ -34,7 +34,7 @@ export default function CreateConnectionModal({ onClose }: { onClose: () => void
       <ConnectionForm
         adminScopes={user.adminScopes}
         userId={user.sub}
-        defaultOwnerScope={defaultScope}
+        defaultScope={defaultScope}
       />
     </RouteModal>
   );

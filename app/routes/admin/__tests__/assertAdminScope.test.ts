@@ -1,6 +1,44 @@
 import { describe, expect, test } from "vitest";
 
-import { assertAdminScope } from "../assertAdminScope";
+import { assertAdminScope, assertGrantScope } from "../assertAdminScope";
+
+describe("assertGrantScope", () => {
+  test("passes for an exact admin scope", () => {
+    expect(() => assertGrantScope("cytario/lab", ["cytario/lab"])).not.toThrow();
+  });
+
+  test("passes for a descendant of an admin scope (ancestry)", () => {
+    expect(() => assertGrantScope("cytario/lab/team-x", ["cytario/lab"])).not.toThrow();
+  });
+
+  test("throws 403 for a scope the user does not administer", () => {
+    try {
+      assertGrantScope("cytario/other", ["cytario/lab"]);
+      throw new Error("expected throw");
+    } catch (e) {
+      expect(e).toBeInstanceOf(Response);
+      expect((e as Response).status).toBe(403);
+    }
+  });
+
+  test("does not match partial scope prefixes (cytario/lab does not cover cytario/lab-extra)", () => {
+    expect(() => assertGrantScope("cytario/lab-extra", ["cytario/lab"])).toThrow();
+  });
+
+  test("org-root admin (*) covers any named scope", () => {
+    expect(() => assertGrantScope("cytario/lab/team-x", ["*"])).not.toThrow();
+  });
+
+  test("named-scope admin cannot target the `*` sentinel", () => {
+    try {
+      assertGrantScope("*", ["cytario/lab"]);
+      throw new Error("expected throw");
+    } catch (e) {
+      expect(e).toBeInstanceOf(Response);
+      expect((e as Response).status).toBe(403);
+    }
+  });
+});
 
 describe("assertAdminScope", () => {
   test("returns scope and adminUrl when user has exact scope", () => {
