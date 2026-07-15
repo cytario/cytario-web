@@ -22,7 +22,6 @@ import {
 } from "./connection.schema";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { adminCovers } from "~/utils/authorization";
 
 const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -95,6 +94,12 @@ export const ConnectionForm = ({
 
   useEffect(() => {
     if (!serverErrors) return;
+    const earliestStep = Object.keys(serverErrors).reduce<number>((acc, field) => {
+      const step = FIELD_TO_STEP[field];
+      return step !== undefined && step < acc ? step : acc;
+    }, LAST_STEP);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentStep(earliestStep);
     for (const [field, messages] of Object.entries(serverErrors)) {
       if (messages?.[0]) {
         setError(field as keyof ConnectBucketFormData, { message: messages[0] });
@@ -120,19 +125,13 @@ export const ConnectionForm = ({
     [catalog],
   );
 
-  // Advisory role filtering: offer only roles on the chosen provider
-  // connection whose allowed scopes cover the chosen scope. The authoritative check
-  // is server-side.
-  const roleItems: SelectItem[] = useMemo(() => {
-    const roles = (catalog?.providerRoles ?? []).filter(
-      (r) => r.providerConnectionId === providerConnectionId,
-    );
-    const covering = scope
-      ? roles.filter((r) => r.allowedScopes.some((allowed) => adminCovers(allowed, scope)))
-      : roles;
-    return covering.map((r) => ({ id: r.id, name: r.name }));
-  }, [catalog, providerConnectionId, scope]);
-
+  const roleItems: SelectItem[] = useMemo(
+    () =>
+      (catalog?.providerRoles ?? [])
+        .filter((r) => r.providerConnectionId === providerConnectionId)
+        .map((r) => ({ id: r.id, name: r.name })),
+    [catalog, providerConnectionId],
+  );
   const userEditedName = useRef(isEditMode);
   const isAutoUpdatingName = useRef(false);
 

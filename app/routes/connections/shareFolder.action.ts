@@ -24,6 +24,7 @@ import { assertGrantScope } from "~/routes/admin/assertAdminScope";
  */
 export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
+  const session = context.get(sessionContext);
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
@@ -52,7 +53,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   // role that does not permit sharing, or one not covering the submitted scope.
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization);
+    catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
   } catch (error) {
     return {
       formError:
@@ -64,8 +65,6 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
   }
-
-  const session = context.get(sessionContext);
 
   try {
     const share = await createConnection(user.organization, data.scope, user.sub, {
@@ -79,6 +78,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
     const outcome = await applyGrantsAndRecordStatus(share, {
       user,
       idToken: session.get("authTokens")?.idToken ?? "",
+      accessToken: session.get("authTokens")?.accessToken ?? "",
     });
 
     session.set("notification", {

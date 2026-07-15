@@ -110,7 +110,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization);
+    catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
   } catch (error) {
     return {
       formError:
@@ -118,7 +118,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       status: "error" as const,
     };
   }
-  const refs = validateProviderRefs(catalog, validated);
+  const refs = validateProviderRefs(catalog, validated, { userSub: user.sub });
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
   }
@@ -141,7 +141,11 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     }
     session.set("credentials", credentials);
 
-    const acting = { user, idToken: session.get("authTokens")?.idToken ?? "" };
+    const acting = {
+      user,
+      idToken: session.get("authTokens")?.idToken ?? "",
+      accessToken: session.get("authTokens")?.accessToken ?? "",
+    };
 
     // Re-apply the bucket-policy grant set; a scope/role edit may change the grant.
     const outcome = await applyGrantsAndRecordStatus(updatedConfig, acting);

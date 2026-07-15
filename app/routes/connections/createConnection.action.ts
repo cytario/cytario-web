@@ -53,7 +53,7 @@ export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestErro
 }
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens } = context.get(authContext);
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
@@ -88,7 +88,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   // rather than trusting a bare id.
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization);
+    catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
   } catch (error) {
     return {
       formError:
@@ -96,7 +96,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       status: "error" as const,
     };
   }
-  const refs = validateProviderRefs(catalog, data);
+  const refs = validateProviderRefs(catalog, data, { userSub: user.sub });
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
   }
@@ -111,15 +111,11 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       providerRoleId: data.providerRoleId,
       prefix: data.prefix,
     });
-
-    // Apply the bucket-policy grant server-side under the acting connection's
-    // provider role. On a denied or failed write this warns and records the
-    // connection as drifted/error rather than claiming enforcement.
     const outcome = await applyGrantsAndRecordStatus(created, {
       user,
       idToken: session.get("authTokens")?.idToken ?? "",
+      accessToken: session.get("authTokens")?.accessToken ?? "",
     });
-
     session.set("notification", {
       status: outcome.status === "applied" ? "success" : "warning",
       message:

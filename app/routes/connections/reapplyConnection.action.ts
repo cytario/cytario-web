@@ -45,6 +45,7 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
   const outcome = await applyGrantsAndRecordStatus(config, {
     user,
     idToken: session.get("authTokens")?.idToken ?? "",
+    accessToken: session.get("authTokens")?.accessToken ?? "",
   });
 
   session.set("notification", {

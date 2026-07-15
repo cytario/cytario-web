@@ -47,19 +47,22 @@ export function clearProviderCatalogCache(): void {
  * is consulted on every credential-bearing request, and neither the portal
  * round-trip nor the YAML read should run per request. Failures are never cached.
  */
-export async function getProviderCatalog(organization: string): Promise<ProviderCatalog> {
+export async function getProviderCatalog(
+  organization: string,
+  accessToken?: string,
+): Promise<ProviderCatalog> {
   const fromPortal = cytarioConfig.providers.source === "portal";
   const cacheKey = fromPortal ? `portal:${organization}` : "oss";
 
   const cached = catalogCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.promise;
 
-  const promise = (fromPortal ? fetchPortalCatalog(organization) : loadOssCatalog()).catch(
-    (error: unknown) => {
-      catalogCache.delete(cacheKey);
-      throw error;
-    },
-  );
+  const promise = (
+    fromPortal ? fetchPortalCatalog(organization, accessToken) : loadOssCatalog()
+  ).catch((error: unknown) => {
+    catalogCache.delete(cacheKey);
+    throw error;
+  });
 
   if (catalogCache.size >= CATALOG_CACHE_MAX_ENTRIES) {
     const oldestKey = catalogCache.keys().next().value;
@@ -69,7 +72,10 @@ export async function getProviderCatalog(organization: string): Promise<Provider
   return promise;
 }
 
-async function fetchPortalCatalog(organization: string): Promise<ProviderCatalog> {
+async function fetchPortalCatalog(
+  organization: string,
+  accessToken?: string,
+): Promise<ProviderCatalog> {
   const { portalInternalUrl, lookupSecret } = cytarioConfig.providers;
   if (!portalInternalUrl || !lookupSecret) {
     throw new Error(
@@ -77,16 +83,20 @@ async function fetchPortalCatalog(organization: string): Promise<ProviderCatalog
     );
   }
 
-  // The lookup boundary is the shared secret header plus the org query param;
-  // cytario-web sources the alias from the verified session, never from any
-  // caller-supplied value.
   const url = new URL(PROVIDERS_LOOKUP_PATH, ensureTrailingSlash(portalInternalUrl));
   url.searchParams.set("org", organization);
+
+  const headers: Record<string, string> = {
+    [PROVIDERS_LOOKUP_HEADER]: lookupSecret,
+  };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
 
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { [PROVIDERS_LOOKUP_HEADER]: lookupSecret },
+      headers,
       signal: AbortSignal.timeout(PROVIDERS_LOOKUP_TIMEOUT_MS),
     });
   } catch (error) {
