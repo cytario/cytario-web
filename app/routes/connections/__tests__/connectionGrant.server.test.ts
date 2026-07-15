@@ -174,6 +174,7 @@ describe("applyBucketGrantSet", () => {
     const outcome = await applyBucketGrantSet(bucket, mock.connectionConfig(), {
       user: mock.user(),
       idToken: "tok",
+      accessToken: "acc",
     });
 
     expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({ where: bucket });
@@ -188,6 +189,7 @@ describe("applyConnectionGrants — advisory degradation", () => {
     const outcome = await applyConnectionGrants(config, [], {
       user: mock.user(),
       idToken: "tok",
+      accessToken: "acc",
     });
     expect(outcome.status).toBe("error");
     if (outcome.status === "error") expect(outcome.warning).toMatch(/catalog down/i);
@@ -202,6 +204,7 @@ describe("applyConnectionGrants — advisory degradation", () => {
     const outcome = await applyConnectionGrants(config, [], {
       user: mock.user(),
       idToken: "tok",
+      accessToken: "acc",
     });
     expect(outcome.status).toBe("error");
   });

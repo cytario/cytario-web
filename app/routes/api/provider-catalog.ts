@@ -15,13 +15,13 @@ export const middleware = [requestDurationMiddleware, authMiddleware];
  * ARN, no ExternalId, no management credential.
  */
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens } = context.get(authContext);
   if (!user.organization) {
     return Response.json({ error: "No active organization." }, { status: 200 });
   }
 
   try {
-    const catalog = await getProviderCatalog(user.organization);
+    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
     return Response.json(
       { catalog: toClientCatalog(catalog) },
       { headers: { "Cache-Control": "no-store, private" } },

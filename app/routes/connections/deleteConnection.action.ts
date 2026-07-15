@@ -72,7 +72,11 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
         bucketName: deleted.bucketName,
       },
       deleted,
-      { user, idToken: session.get("authTokens")?.idToken ?? "" },
+      {
+        user,
+        idToken: session.get("authTokens")?.idToken ?? "",
+        accessToken: session.get("authTokens")?.accessToken ?? "",
+      },
     );
     if (outcome.status !== "applied") {
       notification = {

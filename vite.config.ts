@@ -21,6 +21,7 @@ export default defineConfig({
   // Vite ignores node_modules by default — opt-in to watching
   // the design system so file changes trigger a reload.
   server: {
+    port: 3000,
     watch: {
       ignored: ["!**/node_modules/@cytario/design/**"],
     },

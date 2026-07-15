@@ -144,7 +144,7 @@ export const getAllSessionCredentials = async (
   let catalog: ProviderCatalog | undefined;
   let catalogError: string | undefined;
   try {
-    catalog = await getProviderCatalog(organization);
+    catalog = await getProviderCatalog(organization, sessionData.authTokens.accessToken);
   } catch (error) {
     catalogError = error instanceof Error ? error.message : "Provider catalog is unavailable.";
     console.warn(`${label} Provider catalog lookup failed: ${catalogError}`);
