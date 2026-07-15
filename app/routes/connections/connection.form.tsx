@@ -98,6 +98,7 @@ export const ConnectionForm = ({
       const step = FIELD_TO_STEP[field];
       return step !== undefined && step < acc ? step : acc;
     }, LAST_STEP);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentStep(earliestStep);
     for (const [field, messages] of Object.entries(serverErrors)) {
       if (messages?.[0]) {

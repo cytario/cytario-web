@@ -16,7 +16,7 @@ vi.mock("~/.server/providers/providerCatalog.server", async () => {
 
 function buildArgs(user: ReturnType<typeof mock.user>) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user });
+  ctx.set(authContext, { user, authTokens: { accessToken: "test-token", idToken: "test-id" } });
   return {
     request: new Request("http://localhost/api/provider-catalog"),
     params: {},

@@ -242,7 +242,7 @@ export async function applyBucketGrantSet(
   acting: ActingContext,
 ): Promise<ApplyGrantOutcome> {
   if (process.env.BYPASS_GRANT_APPLY === "1") {
-    return { status: "applied" };
+    return { status: "applied", result: { status: "applied" } };
   }
 
   const configs = await prisma.connectionConfig.findMany({ where: bucket });
@@ -263,7 +263,7 @@ export async function applyGrantsAndRecordStatus(
       where: { id: config.id },
       data: { bucketPolicyStatus: "applied" },
     });
-    return { status: "applied" };
+    return { status: "applied", result: { status: "applied" } };
   }
 
   const outcome = await applyBucketGrantSet(

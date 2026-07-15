@@ -63,6 +63,7 @@ describe("reapplyAction", () => {
     expect(applyGrantsAndRecordStatus).toHaveBeenCalledWith(config, {
       user,
       idToken: "tok",
+      accessToken: "",
     });
   });
 
