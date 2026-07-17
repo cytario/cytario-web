@@ -19,6 +19,7 @@ const grant = (overrides: Partial<BucketPolicyGrant> = {}): BucketPolicyGrant =>
   groupPath: "Lab/TeamX",
   prefix: "projects/alpha",
   accessLevel: "read-only",
+  roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw",
   ...overrides,
 });
 

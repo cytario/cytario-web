@@ -39,6 +39,10 @@ export interface BucketPolicyGrant {
   groupPath: string;
   prefix: string | null | undefined;
   accessLevel: AccessLevel;
+  /** The IAM role ARN that should be the Principal in the S3 bucket policy statement.
+   *  Injected by `applyBucketPolicy` from the resolved provider at apply time —
+   *  absent in grants constructed by `grantForConnection` / `assembleBucketGrants`. */
+  roleArn?: string;
 }
 
 /** Read actions granted at every access level. */
@@ -134,6 +138,11 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
   if (!grant.bucketName) {
     throw new Error("Bucket-policy grant is missing a bucket name (fail closed).");
   }
+  if (!grant.roleArn) {
+    throw new Error(
+      "Bucket-policy grant is missing a roleArn — it must be injected by applyBucketPolicy before compilation.",
+    );
+  }
   const prefix = stripSlashes(grant.prefix ?? "");
   if (/[*?]/.test(prefix)) {
     throw new Error("Bucket-policy grant prefix may not contain wildcard characters (`*`, `?`).");
@@ -151,6 +160,7 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
   const listStatement: PolicyStatement = {
     Sid: `${sidStem}List`,
     Effect: "Allow",
+    Principal: { AWS: grant.roleArn },
     Action: LIST_ACTION,
     Resource: bucketArn,
     Condition: listCondition,
@@ -162,6 +172,7 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
   const objectStatement: PolicyStatement = {
     Sid: `${sidStem}Object`,
     Effect: "Allow",
+    Principal: { AWS: grant.roleArn },
     Action: objectActions.length === 1 ? objectActions[0] : objectActions,
     Resource: objectArn,
     Condition: condition,

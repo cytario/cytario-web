@@ -44,9 +44,12 @@ describe("grantForConnection", () => {
       scope: "lab/team-a",
       prefix: "images",
     });
-    // The bucket-policy generator refuses to emit an Allow lacking the ORG tag; if
-    // grantForConnection produced a malformed grant this would throw.
-    const statements = compileGrantStatements(grant);
+    // roleArn is injected at apply-time by applyBucketPolicy; supply a stand-in
+    // so compileGrantStatements (the fail-closed generator) accepts it.
+    const statements = compileGrantStatements({
+      ...grant,
+      roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw",
+    });
     for (const s of statements) {
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/lab/team-a"]).toBe("1");

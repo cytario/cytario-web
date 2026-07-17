@@ -81,7 +81,7 @@ const mintWriteSession = async (
       RoleSessionName: roleSessionName,
       WebIdentityToken: idToken,
       DurationSeconds: 60 * 15,
-      Policy,
+      ...(Policy ? { Policy } : {}),
     }),
   );
 
@@ -107,6 +107,7 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
     const { Policy } = await client.send(new GetBucketPolicyCommand({ Bucket: bucketName }));
     return Policy ?? null;
   } catch (error) {
+    console.log(`${label} getLivePolicy error: ${error}`);
     // A bucket with no policy answers NoSuchBucketPolicy — treat as empty.
     const name = String((error as { name?: string })?.name ?? "");
     if (name === "NoSuchBucketPolicy") return null;
@@ -134,11 +135,15 @@ export const applyBucketPolicy = async (
   idToken: string,
   actingUserName: string,
 ): Promise<ApplyResult> => {
+  // Inject the write-session role ARN into every grant so compileGrantStatements
+  // can set the correct Principal on each bucket-policy statement.
+  const enrichedGrants = grants.map((grant) => ({ ...grant, roleArn: target.roleArn }));
+
   // Generate first (outside the lock) so a generation/size fault fails closed
   // before we mint a write session or touch the live policy. The merged document
   // is regenerated inside the lock against the freshly-read live policy; this
   // pre-check just short-circuits obvious faults.
-  buildMergedPolicy(parseBucketPolicy(null), grants);
+  buildMergedPolicy(parseBucketPolicy(null), enrichedGrants);
 
   const accountId = accountIdFromRoleArn(target.roleArn);
   const roleSessionName = sanitizeRoleSessionName(actingUserName);
@@ -150,7 +155,7 @@ export const applyBucketPolicy = async (
       const liveRaw = await getLivePolicy(client, target.bucketName);
       const live = parseBucketPolicy(liveRaw);
 
-      const merged = buildMergedPolicy(live, grants);
+      const merged = buildMergedPolicy(live, enrichedGrants);
 
       await client.send(
         new PutBucketPolicyCommand({ Bucket: target.bucketName, Policy: merged.serialized }),
