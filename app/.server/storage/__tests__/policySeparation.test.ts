@@ -86,6 +86,7 @@ describe("policy-generator architectural separation (positive output properties)
       groupPath: "Lab/TeamX",
       prefix: "p",
       accessLevel: "read-write",
+      roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw",
     };
     const statements = compileGrantStatements(grant);
     for (const stmt of statements) {
