@@ -9,10 +9,6 @@ interface PolicyStatement {
     StringLike?: {
       "s3:prefix"?: string[];
     };
-    StringEquals?: {
-      "kms:ViaService"?: string;
-      "aws:PrincipalTag/ORG"?: string;
-    };
   };
 }
 
@@ -29,14 +25,10 @@ const findStatement = (policy: ParsedPolicy, action: string): PolicyStatement =>
   return stmt;
 };
 
-const REGION = "eu-central-1";
-const ORG = "vericura";
 const SUBJECT = "4cd912ea-5136-4b2d-8959-d5e983cbea05";
 const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
-  organization: ORG,
   bucketName: "my-bucket",
   prefix: "",
-  region: REGION,
   subject: SUBJECT,
   ...overrides,
 });
@@ -54,12 +46,10 @@ describe("buildSessionPolicy", () => {
     // AWS evaluates an absent `prefix` query parameter as the empty
     // string, which `StringLike "*"` does not match.
     expect(list.Condition?.StringLike).toBeUndefined();
-    expect(list.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
 
     const get = findStatement(policy, "s3:GetObject");
     expect(get.Effect).toBe("Allow");
     expect(get.Resource).toBe("arn:aws:s3:::my-bucket/*");
-    expect(get.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
   });
 
   test("null prefix → whole-bucket scope (no s3:prefix Condition)", () => {
@@ -82,7 +72,6 @@ describe("buildSessionPolicy", () => {
     const list = findStatement(policy, "s3:ListBucket");
     expect(list.Resource).toBe("arn:aws:s3:::my-bucket");
     expect(list.Condition?.StringLike?.["s3:prefix"]).toEqual(["foo/", "foo/*"]);
-    expect(list.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
 
     const get = findStatement(policy, "s3:GetObject");
     expect(get.Resource).toBe("arn:aws:s3:::my-bucket/foo/*");
@@ -182,44 +171,10 @@ describe("buildSessionPolicy", () => {
     );
   });
 
-  test("includes kms:Decrypt statement constrained to S3 via service for the connection region", () => {
+  test("emits no kms:Decrypt statement (Decrypt is granted by the role, not the inline policy)", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
 
-    const kms = findStatement(policy, "kms:Decrypt");
-    expect(kms.Effect).toBe("Allow");
-    // Resource is `*` because cytario does not store the customer's KMS key
-    // ARN — the role's attached policy is the authoritative key allowlist.
-    expect(kms.Resource).toBe("*");
-    expect(kms.Condition?.StringEquals?.["kms:ViaService"]).toBe("s3.eu-central-1.amazonaws.com");
-    expect(kms.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
-  });
-
-  test("kms:ViaService tracks the requested region", () => {
-    const policy = parse(buildSessionPolicy(args({ prefix: "foo", region: "us-east-1" })));
-
-    expect(findStatement(policy, "kms:Decrypt").Condition?.StringEquals?.["kms:ViaService"]).toBe(
-      "s3.us-east-1.amazonaws.com",
-    );
-  });
-
-  test("kms:Decrypt statement is present even for whole-bucket (empty prefix) policies", () => {
-    const policy = parse(buildSessionPolicy(args({ prefix: "" })));
-
-    expect(() => findStatement(policy, "kms:Decrypt")).not.toThrow();
-  });
-
-  test("every statement carries the aws:PrincipalTag/ORG condition", () => {
-    const policy = parse(buildSessionPolicy(args({ prefix: "foo", organization: "acme" })));
-
-    for (const stmt of policy.Statement) {
-      expect(stmt.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
-    }
-  });
-
-  test("throws when organization is empty (defence-in-depth against unscoped policy)", () => {
-    expect(() => buildSessionPolicy(args({ organization: "" }))).toThrow(
-      /Organization is required/,
-    );
+    expect(policy.Statement.some((s) => s.Action === "kms:Decrypt")).toBe(false);
   });
 
   test("PutObject is scoped to the caller's OWN sidecar (`*.annotations.<sub>.json`)", () => {
@@ -228,7 +183,6 @@ describe("buildSessionPolicy", () => {
     const put = findStatement(policy, "s3:PutObject");
     expect(put.Effect).toBe("Allow");
     expect(put.Resource).toBe(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
-    expect(put.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
     // The user segment is pinned, not a wildcard — no writing another user's file.
     expect(put.Resource).not.toContain("annotations.*.json");
   });
@@ -278,7 +232,7 @@ describe("buildSessionPolicy — PutBucketPolicy exclusion (closed allowlist)", 
   const variants = [
     args({ prefix: "" }),
     args({ prefix: "tenant-a/data" }),
-    args({ organization: "another-org", bucketName: "sharing-capable-bucket", prefix: "shared" }),
+    args({ bucketName: "sharing-capable-bucket", prefix: "shared" }),
   ];
 
   test.each(variants)("emits no action granting s3:PutBucketPolicy (%#)", (variantArgs) => {

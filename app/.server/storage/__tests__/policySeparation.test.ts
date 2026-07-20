@@ -63,19 +63,17 @@ describe("policy-generator architectural separation (negative import graph)", ()
 });
 
 describe("policy-generator architectural separation (positive output properties)", () => {
-  test("every statement buildSessionPolicy emits carries aws:PrincipalTag/ORG", () => {
+  test("buildSessionPolicy emits no ORG condition (tenant binding lives in the role trust policy)", () => {
     const json = buildSessionPolicy({
-      organization: "vericura",
       bucketName: "b",
       prefix: "p",
-      region: "eu-central-1",
       subject: "sub-123",
     });
     const policy = JSON.parse(json) as {
       Statement: { Condition?: { StringEquals?: Record<string, string> } }[];
     };
     for (const stmt of policy.Statement) {
-      expect(stmt.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("vericura");
+      expect(stmt.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBeUndefined();
     }
   });
 

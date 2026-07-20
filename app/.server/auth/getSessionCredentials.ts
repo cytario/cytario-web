@@ -42,7 +42,7 @@ const fetchTemporaryCredentials = async (
   roleSessionName: string,
   subject: string,
 ): Promise<Credentials> => {
-  const { organization, bucketName, prefix } = connectionConfig;
+  const { bucketName, prefix } = connectionConfig;
   const { region, endpoint, roleArn } = resolved;
 
   const providerConfig = getS3ProviderConfig(endpoint, region);
@@ -55,14 +55,16 @@ const fetchTemporaryCredentials = async (
   // Inline session policy is an AWS-specific STS feature: STS intersects it
   // with the role's attached policy, so the minted credential cannot exceed
   // the configured prefix scope even if the role itself is broader. It is a
-  // closed allowlist that grants no `s3:PutBucketPolicy`.
+  // closed allowlist that grants no `s3:PutBucketPolicy`. The ORG tenant
+  // binding is enforced by the role's trust policy, not repeated here.
   // S3-compatible providers whose STS ignores/rejects `Policy` (notably MinIO,
   // signalled by a non-AWS endpoint) omit it — the role's attached policy is
   // then the only bound.
   const Policy = providerConfig.isAwsS3
-    ? buildSessionPolicy({ organization, bucketName, prefix, region, subject })
+    ? buildSessionPolicy({ bucketName, prefix, subject })
     : undefined;
 
+  console.info(`${label} Policy: ${Policy}`);
   const command = new AssumeRoleWithWebIdentityCommand({
     RoleArn: roleArn,
     RoleSessionName: roleSessionName,
