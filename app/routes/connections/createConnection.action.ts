@@ -1,7 +1,11 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { connectionSchema } from "./connection.schema";
-import { applyGrantsAndRecordStatus, validateProviderRefs } from "./connectionGrant.server";
+import {
+  applyGrantsAndRecordStatus,
+  validateBucketRef,
+  validateProviderRefs,
+} from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
@@ -99,6 +103,14 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   const refs = validateProviderRefs(catalog, data, { userSub: user.sub });
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
+  }
+
+  const bucketRef = await validateBucketRef(user.organization, authTokens.accessToken, data);
+  if (!bucketRef.ok) {
+    if ("formError" in bucketRef) {
+      return { formError: bucketRef.formError, status: "error" as const };
+    }
+    return { errors: bucketRef.errors, status: "error" as const };
   }
 
   const session = context.get(sessionContext);

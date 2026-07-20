@@ -20,6 +20,7 @@ import {
   defaultFormValues,
   suggestName,
 } from "./connection.schema";
+import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
 
@@ -70,6 +71,12 @@ export const ConnectionForm = ({
   }>();
   const navigation = useNavigation();
   const { catalog, error: catalogError, loading: catalogLoading } = useProviderCatalog();
+  const {
+    source: bucketSource,
+    catalog: bucketCatalog,
+    error: bucketCatalogError,
+    loading: bucketCatalogLoading,
+  } = useBucketCatalog();
 
   const serverErrors = actionData?.status === "error" ? actionData.errors : undefined;
   const formError = actionData?.status === "error" ? actionData.formError : undefined;
@@ -131,6 +138,14 @@ export const ConnectionForm = ({
         .filter((r) => r.providerConnectionId === providerConnectionId)
         .map((r) => ({ id: r.id, name: r.name })),
     [catalog, providerConnectionId],
+  );
+
+  const bucketItems: SelectItem[] = useMemo(
+    () =>
+      (bucketCatalog?.buckets ?? [])
+        .filter((b) => b.providerConnectionId === providerConnectionId)
+        .map((b) => ({ id: b.bucketName, name: b.bucketName })),
+    [bucketCatalog, providerConnectionId],
   );
   const userEditedName = useRef(isEditMode);
   const isAutoUpdatingName = useRef(false);
@@ -227,6 +242,7 @@ export const ConnectionForm = ({
                     onSelectionChange={(key) => {
                       field.onChange(key);
                       setValue("providerRoleId", "");
+                      setValue("bucketName", "");
                     }}
                     errorMessage={fieldState.error?.message}
                   />
@@ -252,19 +268,40 @@ export const ConnectionForm = ({
               <Controller
                 name="bucketName"
                 control={control}
-                render={({ field, fieldState }) => (
-                  <Input
-                    label="Bucket"
-                    description="Name of the S3 bucket."
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    placeholder="my-bucket"
-                    size="lg"
-                    errorMessage={fieldState.error?.message}
-                  />
-                )}
+                render={({ field, fieldState }) =>
+                  bucketSource === "portal" ? (
+                    bucketCatalogError ? (
+                      <Banner variant="danger" title="Bucket catalog unavailable">
+                        {bucketCatalogError} You cannot compose a new connection until the bucket
+                        catalog is reachable.
+                      </Banner>
+                    ) : (
+                      <Select
+                        label="Bucket"
+                        description="Registered buckets under the selected provider connection."
+                        items={bucketItems}
+                        isDisabled={
+                          bucketCatalogLoading || !providerConnectionId || bucketItems.length === 0
+                        }
+                        selectedKey={field.value || null}
+                        onSelectionChange={(key) => field.onChange(key ?? "")}
+                        errorMessage={fieldState.error?.message}
+                      />
+                    )
+                  ) : (
+                    <Input
+                      label="Bucket"
+                      description="Name of the S3 bucket."
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      placeholder="my-bucket"
+                      size="lg"
+                      errorMessage={fieldState.error?.message}
+                    />
+                  )
+                }
               />
 
               <Controller

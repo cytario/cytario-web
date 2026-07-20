@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { prisma } from "~/.server/db/prisma";
+import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { compileGrantStatements } from "~/.server/storage/bucketPolicy";
 import {
@@ -9,6 +10,7 @@ import {
   assembleBucketGrants,
   connectionIsGroupScoped,
   grantForConnection,
+  validateBucketRef,
   validateProviderRefs,
 } from "~/routes/connections/connectionGrant.server";
 import mock from "~/utils/__tests__/__mocks__";
@@ -20,6 +22,17 @@ vi.mock("~/.server/providers/providerCatalog.server", async () => {
   );
   return { ...actual, getProviderCatalog: vi.fn() };
 });
+
+vi.mock("~/.server/providers/bucketCatalog.server", async () => {
+  const actual = await vi.importActual<typeof import("~/.server/providers/bucketCatalog.server")>(
+    "~/.server/providers/bucketCatalog.server",
+  );
+  return { ...actual, getBucketCatalog: vi.fn() };
+});
+
+vi.mock("~/config", () => ({
+  cytarioConfig: { providers: { source: "portal" } },
+}));
 
 vi.mock("~/.server/db/prisma", () => ({
   prisma: { connectionConfig: { findMany: vi.fn(async () => []), update: vi.fn() } },
@@ -151,6 +164,25 @@ describe("validateProviderRefs", () => {
     expect(result.ok).toBe(true);
   });
 
+  test("C-343: an org-wide role (empty allowedScopes) covers any submitted scope", () => {
+    const orgWideCatalog = mock.providerCatalog({
+      providerConnections: [mock.providerConnection({ id: "pc-1" })],
+      providerRoles: [
+        mock.providerRole({
+          id: "pr-org-wide",
+          providerConnectionId: "pc-1",
+          allowedScopes: [],
+        }),
+      ],
+    });
+    const result = validateProviderRefs(orgWideCatalog, {
+      providerConnectionId: "pc-1",
+      providerRoleId: "pr-org-wide",
+      scope: "any/group/scope",
+    });
+    expect(result.ok).toBe(true);
+  });
+
   test("requireSharing rejects a non-sharing role", () => {
     const result = validateProviderRefs(
       catalog,
@@ -210,5 +242,48 @@ describe("applyConnectionGrants — advisory degradation", () => {
       accessToken: "acc",
     });
     expect(outcome.status).toBe("error");
+  });
+});
+
+describe("validateBucketRef (C-343)", () => {
+  test("accepts a registered bucket under the chosen provider connection", async () => {
+    vi.mocked(getBucketCatalog).mockResolvedValue(
+      mock.bucketCatalog({
+        buckets: [mock.bucketLookupRow({ providerConnectionId: "pc-1", bucketName: "my-bucket" })],
+      }),
+    );
+    const result = await validateBucketRef("org1", "tok", {
+      providerConnectionId: "pc-1",
+      bucketName: "my-bucket",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects a bucket not registered under the chosen provider connection", async () => {
+    vi.mocked(getBucketCatalog).mockResolvedValue(
+      mock.bucketCatalog({
+        buckets: [mock.bucketLookupRow({ providerConnectionId: "pc-1", bucketName: "my-bucket" })],
+      }),
+    );
+    const result = await validateBucketRef("org1", "tok", {
+      providerConnectionId: "pc-1",
+      bucketName: "other-bucket",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok && "errors" in result) {
+      expect(result.errors.bucketName).toBeDefined();
+    }
+  });
+
+  test("returns a formError when the bucket lookup is unavailable (no free-text fallback)", async () => {
+    vi.mocked(getBucketCatalog).mockRejectedValue(new Error("portal down"));
+    const result = await validateBucketRef("org1", "tok", {
+      providerConnectionId: "pc-1",
+      bucketName: "my-bucket",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok && "formError" in result) {
+      expect(result.formError).toBe("portal down");
+    }
   });
 });

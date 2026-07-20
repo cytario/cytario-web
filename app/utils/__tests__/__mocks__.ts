@@ -6,6 +6,7 @@ import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import { type CytarioSession, SessionData, SessionFlashData } from "~/.server/auth/sessionStorage";
 import { Channel, Image } from "~/components/.client/ImageViewer/state/store/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import type { BucketCatalog, BucketLookupRow } from "~/utils/bucketCatalog.schema";
 import type {
   ProviderCatalog,
   ProviderConnection,
@@ -46,6 +47,17 @@ const mock = {
   providerCatalog: (data: Partial<ProviderCatalog> = {}): ProviderCatalog => ({
     providerConnections: [mock.providerConnection()],
     providerRoles: [mock.providerRole()],
+    ...data,
+  }),
+  bucketLookupRow: (data: Partial<BucketLookupRow> = {}): BucketLookupRow => ({
+    id: "bucket-mock-id",
+    providerConnectionId: "pc-mock",
+    bucketName: "mock-bucket",
+    region: "us-east-1",
+    ...data,
+  }),
+  bucketCatalog: (data: Partial<BucketCatalog> = {}): BucketCatalog => ({
+    buckets: [mock.bucketLookupRow()],
     ...data,
   }),
   session: (data: Partial<SessionData & SessionFlashData> = {}): CytarioSession => ({

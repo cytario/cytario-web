@@ -92,6 +92,10 @@ const apiRoutes = [
     path: "/api/provider-catalog",
     file: "routes/api/provider-catalog.ts",
   },
+  {
+    path: "/api/bucket-catalog",
+    file: "routes/api/bucket-catalog.ts",
+  },
 ];
 
 export default [
