@@ -1,6 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
-import { buildSessionPolicy } from "./sessionPolicy";
+import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
@@ -42,7 +42,7 @@ const fetchTemporaryCredentials = async (
   roleSessionName: string,
   subject: string,
 ): Promise<Credentials> => {
-  const { organization, bucketName, prefix } = connectionConfig;
+  const { bucketName, prefix } = connectionConfig;
   const { region, endpoint, roleArn } = resolved;
 
   const providerConfig = getS3ProviderConfig(endpoint, region);
@@ -55,14 +55,16 @@ const fetchTemporaryCredentials = async (
   // Inline session policy is an AWS-specific STS feature: STS intersects it
   // with the role's attached policy, so the minted credential cannot exceed
   // the configured prefix scope even if the role itself is broader. It is a
-  // closed allowlist that grants no `s3:PutBucketPolicy`.
+  // closed allowlist that grants no `s3:PutBucketPolicy`. The ORG tenant
+  // binding is enforced by the role's trust policy, not repeated here.
   // S3-compatible providers whose STS ignores/rejects `Policy` (notably MinIO,
   // signalled by a non-AWS endpoint) omit it — the role's attached policy is
   // then the only bound.
   const Policy = providerConfig.isAwsS3
-    ? buildSessionPolicy({ organization, bucketName, prefix, region, subject })
+    ? buildSessionPolicy({ bucketName, prefix, subject })
     : undefined;
 
+  console.info(`${label} Policy: ${Policy}`);
   const command = new AssumeRoleWithWebIdentityCommand({
     RoleArn: roleArn,
     RoleSessionName: roleSessionName,
@@ -81,6 +83,9 @@ const fetchTemporaryCredentials = async (
 
 /** Map an STS error to a single-line human-readable reason. */
 const describeCredentialError = (error: unknown): string => {
+  if (error instanceof InlinePolicySizeError) {
+    return `Inline session policy size ceiling exceeded (${error.actualLength} > ${error.ceiling} chars). Shorten the connection prefix or bucket name.`;
+  }
   if (error && typeof error === "object" && "name" in error) {
     const name = String((error as { name?: string }).name ?? "");
     if (name === "AccessDenied") {

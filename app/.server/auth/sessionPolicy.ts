@@ -5,15 +5,39 @@
  * underlying role permits more, the minted credential cannot escape the
  * configured connection prefix.
  *
+ * The ORG tenant binding is enforced by the role's trust policy (and the
+ * bucket policy) — it is not repeated here. Keeping the inline policy lean
+ * avoids hitting the 2048-character `Policy` limit early.
+ *
  * AWS-specific: non-AWS providers (MinIO) may ignore or reject `Policy`;
  * guard the attachment behind `provider === "aws"`.
  */
 
+/** AWS `AssumeRoleWithWebIdentity` `Policy` parameter ceiling (characters). */
+export const POLICY_SIZE_CEILING = 2048;
+
+/**
+ * Thrown when the serialized inline session policy would exceed the AWS
+ * `AssumeRoleWithWebIdentity` `Policy` parameter ceiling. `fetchTemporaryCredentials`
+ * treats this as a connection-level failure — no STS call, no policy-less fallback.
+ */
+export class InlinePolicySizeError extends Error {
+  readonly actualLength: number;
+  readonly ceiling: number;
+
+  constructor(actualLength: number, ceiling: number) {
+    super(
+      `Inline session policy size ceiling exceeded: serialized policy is ${actualLength} characters, ceiling is ${ceiling}.`,
+    );
+    this.name = "InlinePolicySizeError";
+    this.actualLength = actualLength;
+    this.ceiling = ceiling;
+  }
+}
+
 export interface SessionPolicyArgs {
-  organization: string;
   bucketName: string;
   prefix: string | null | undefined;
-  region: string;
   /** Keycloak `sub` of the caller — pins their writable sidecar to their own file. */
   subject: string;
 }
@@ -28,7 +52,7 @@ const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, ""
  * anchor on `/`, otherwise IAM allows `ListBucket prefix=foo` which S3 expands
  * to siblings like `foobar.txt`.
  */
-function getListStatement(Resource: string, prefix: string, StringEquals: Record<string, string>) {
+function getListStatement(Resource: string, prefix: string) {
   const hasPrefix = prefix.length > 0;
 
   return hasPrefix
@@ -41,7 +65,6 @@ function getListStatement(Resource: string, prefix: string, StringEquals: Record
           StringLike: {
             "s3:prefix": [`${prefix}/`, `${prefix}/*`],
           },
-          StringEquals,
         },
       }
     : {
@@ -49,22 +72,14 @@ function getListStatement(Resource: string, prefix: string, StringEquals: Record
         Effect: "Allow",
         Action: "s3:ListBucket",
         Resource,
-        Condition: {
-          StringEquals,
-        },
       };
 }
 
 /**
  * `GetObject` scoped to the connection prefix via the Resource ARN —
- * `bucket/<prefix>/*`, or the whole bucket when no prefix is set. The ORG tag
- * keeps reads tenant-scoped.
+ * `bucket/<prefix>/*`, or the whole bucket when no prefix is set.
  */
-function getObjectStatement(
-  bucketArn: string,
-  prefix: string,
-  orgTagCondition: Record<string, string>,
-) {
+function getObjectStatement(bucketArn: string, prefix: string) {
   const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
 
   return {
@@ -72,9 +87,6 @@ function getObjectStatement(
     Effect: "Allow",
     Action: "s3:GetObject",
     Resource: objectArn,
-    Condition: {
-      StringEquals: orgTagCondition,
-    },
   };
 }
 
@@ -83,16 +95,11 @@ function getObjectStatement(
  * (`*.annotations.<sub>.json`) under the connection prefix — the trailing
  * `<sub>` segment stops a tampered client from writing another user's file
  * (which the cross-user read union would then surface as forged authorship).
- * Image data (`.ome.tif`/`.zarr`), `offsets.json`, and parquet stay read-only;
- * the ORG tag keeps writes tenant-scoped. Overwrite is `PutObject` (full-file
- * write of the user's own file) — no `DeleteObject`.
+ * Image data (`.ome.tif`/`.zarr`), `offsets.json`, and parquet stay read-only.
+ * Overwrite is `PutObject` (full-file write of the user's own file) — no
+ * `DeleteObject`.
  */
-function getPutStatement(
-  bucketArn: string,
-  prefix: string,
-  subject: string,
-  orgTagCondition: Record<string, string>,
-) {
+function getPutStatement(bucketArn: string, prefix: string, subject: string) {
   const sidecarArn = [bucketArn, prefix, `*.annotations.${subject}.json`].filter(Boolean).join("/");
 
   return {
@@ -100,46 +107,15 @@ function getPutStatement(
     Effect: "Allow",
     Action: "s3:PutObject",
     Resource: sidecarArn,
-    Condition: {
-      StringEquals: orgTagCondition,
-    },
-  };
-}
-
-/**
- * `kms:Decrypt` for SSE-KMS buckets. STS intersects this policy with the role's
- * attached policy; without an explicit `kms:Decrypt` here the role's KMS grant
- * is stripped and `GetObject` against SSE-KMS-encrypted buckets fails.
- * `kms:ViaService` restricts use of the minted credential to the S3 data path;
- * the role's attached policy remains the authoritative key allowlist.
- */
-function getDecryptStatement(region: string, orgTagCondition: Record<string, string>) {
-  return {
-    Sid: "DecryptViaS3",
-    Effect: "Allow",
-    Action: "kms:Decrypt",
-    Resource: "*",
-    Condition: {
-      StringEquals: {
-        "kms:ViaService": `s3.${region}.amazonaws.com`,
-        ...orgTagCondition,
-      },
-    },
   };
 }
 
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
 export const buildSessionPolicy = ({
-  organization,
   bucketName,
   prefix: prefixRaw,
-  region,
   subject,
 }: SessionPolicyArgs): string => {
-  if (!organization) {
-    throw new Error("Organization is required to build a session policy");
-  }
-
   // The subject is interpolated into the PutObject Resource ARN; an empty or
   // wildcard sub would widen the write scope to other users' sidecars.
   if (!subject) {
@@ -159,22 +135,22 @@ export const buildSessionPolicy = ({
 
   const bucketArn = `arn:aws:s3:::${bucketName}`;
 
-  // Pinned to the Keycloak org alias emitted as the `ORG` AWS session tag by
-  // cytario-keycloak's aws-principal-tag-mapper. AWS attaches it at
-  // `AssumeRoleWithWebIdentity` time; this condition is the in-cytario half
-  // of the defence-in-depth (role trust policy and bucket policy carry the
-  // same condition).
-  const orgTagCondition = { "aws:PrincipalTag/ORG": organization };
-
   const policy = {
     Version: "2012-10-17",
     Statement: [
-      getListStatement(bucketArn, prefix, orgTagCondition),
-      getObjectStatement(bucketArn, prefix, orgTagCondition),
-      getPutStatement(bucketArn, prefix, subject, orgTagCondition),
-      getDecryptStatement(region, orgTagCondition),
+      getListStatement(bucketArn, prefix),
+      getObjectStatement(bucketArn, prefix),
+      getPutStatement(bucketArn, prefix, subject),
     ],
   };
 
-  return JSON.stringify(policy);
+  // Compact JSON (no insignificant whitespace) — AWS counts the bytes actually
+  // sent, so the size check must reflect the serialized form.
+  const serialized = JSON.stringify(policy);
+
+  if (serialized.length > POLICY_SIZE_CEILING) {
+    throw new InlinePolicySizeError(serialized.length, POLICY_SIZE_CEILING);
+  }
+
+  return serialized;
 };
