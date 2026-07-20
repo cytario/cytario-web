@@ -415,4 +415,23 @@ describe("getAllSessionCredentials", () => {
     // no catalog lookup when nothing is stale
     expect(getProviderCatalog).not.toHaveBeenCalled();
   });
+
+  test("fail-closed: over-length inline policy surfaces a connection-level error and does not call STS", async () => {
+    // A bucket + prefix long enough to push the serialized inline policy past
+    // the 2048-char AWS `Policy` parameter ceiling.
+    const oversizedConfig = mock.connectionConfig({
+      name: "oversized",
+      bucketName: "b".repeat(800),
+      prefix: "p".repeat(800),
+    });
+
+    const result = await getAllSessionCredentials(mockSessionData, [oversizedConfig]);
+
+    // InlinePolicySizeError is thrown before any STS call.
+    expect(mockSend).not.toHaveBeenCalled();
+    // No credential is minted for the connection.
+    expect(result.credentials["oversized"]).toBeUndefined();
+    // The connection is named in the errors map with the cause.
+    expect(result.errors["oversized"]).toMatch(/inline session policy size ceiling exceeded/i);
+  });
 });

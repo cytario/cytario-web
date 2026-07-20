@@ -1,4 +1,4 @@
-import { buildSessionPolicy } from "../sessionPolicy";
+import { buildSessionPolicy, InlinePolicySizeError, POLICY_SIZE_CEILING } from "../sessionPolicy";
 
 interface PolicyStatement {
   Sid: string;
@@ -169,6 +169,39 @@ describe("buildSessionPolicy", () => {
     expect(() => buildSessionPolicy(args({ bucketName: "shared", prefix: "tenant-?" }))).toThrow(
       /wildcard/i,
     );
+  });
+
+  test("throws InlinePolicySizeError when serialized policy exceeds the 2048-char ceiling", () => {
+    // A bucket name + prefix long enough that the prefix repeats ~5x across
+    // ListBucket / GetObject / PutObject Resource ARNs and pushes the serialized
+    // document past the 2048-char ceiling.
+    expect(() =>
+      buildSessionPolicy(
+        args({
+          bucketName: "bucket-" + "x".repeat(200),
+          prefix: "prefix-" + "y".repeat(400),
+          subject: "subject-" + "z".repeat(100),
+        }),
+      ),
+    ).toThrow(InlinePolicySizeError);
+  });
+
+  test("InlinePolicySizeError carries the actual length and ceiling", () => {
+    try {
+      buildSessionPolicy(
+        args({
+          bucketName: "b".repeat(800),
+          prefix: "p".repeat(800),
+          subject: "s".repeat(200),
+        }),
+      );
+      throw new Error("expected buildSessionPolicy to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(InlinePolicySizeError);
+      const typed = error as InlinePolicySizeError;
+      expect(typed.ceiling).toBe(POLICY_SIZE_CEILING);
+      expect(typed.actualLength).toBeGreaterThan(POLICY_SIZE_CEILING);
+    }
   });
 
   test("emits no kms:Decrypt statement (Decrypt is granted by the role, not the inline policy)", () => {

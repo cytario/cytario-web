@@ -13,6 +13,28 @@
  * guard the attachment behind `provider === "aws"`.
  */
 
+/** AWS `AssumeRoleWithWebIdentity` `Policy` parameter ceiling (characters). */
+export const POLICY_SIZE_CEILING = 2048;
+
+/**
+ * Thrown when the serialized inline session policy would exceed the AWS
+ * `AssumeRoleWithWebIdentity` `Policy` parameter ceiling. `fetchTemporaryCredentials`
+ * treats this as a connection-level failure — no STS call, no policy-less fallback.
+ */
+export class InlinePolicySizeError extends Error {
+  readonly actualLength: number;
+  readonly ceiling: number;
+
+  constructor(actualLength: number, ceiling: number) {
+    super(
+      `Inline session policy size ceiling exceeded: serialized policy is ${actualLength} characters, ceiling is ${ceiling}.`,
+    );
+    this.name = "InlinePolicySizeError";
+    this.actualLength = actualLength;
+    this.ceiling = ceiling;
+  }
+}
+
 export interface SessionPolicyArgs {
   bucketName: string;
   prefix: string | null | undefined;
@@ -122,5 +144,13 @@ export const buildSessionPolicy = ({
     ],
   };
 
-  return JSON.stringify(policy);
+  // Compact JSON (no insignificant whitespace) — AWS counts the bytes actually
+  // sent, so the size check must reflect the serialized form.
+  const serialized = JSON.stringify(policy);
+
+  if (serialized.length > POLICY_SIZE_CEILING) {
+    throw new InlinePolicySizeError(serialized.length, POLICY_SIZE_CEILING);
+  }
+
+  return serialized;
 };

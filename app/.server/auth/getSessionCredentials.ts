@@ -1,6 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
-import { buildSessionPolicy } from "./sessionPolicy";
+import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
 import { ConnectionConfig } from "~/.generated/client";
 import { createLabel } from "~/.server/logging";
@@ -83,6 +83,9 @@ const fetchTemporaryCredentials = async (
 
 /** Map an STS error to a single-line human-readable reason. */
 const describeCredentialError = (error: unknown): string => {
+  if (error instanceof InlinePolicySizeError) {
+    return `Inline session policy size ceiling exceeded (${error.actualLength} > ${error.ceiling} chars). Shorten the connection prefix or bucket name.`;
+  }
   if (error && typeof error === "object" && "name" in error) {
     const name = String((error as { name?: string }).name ?? "");
     if (name === "AccessDenied") {
