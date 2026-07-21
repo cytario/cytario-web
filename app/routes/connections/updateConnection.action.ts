@@ -4,6 +4,7 @@ import { connectionSchema } from "./connection.schema";
 import {
   applyBucketGrantSet,
   applyGrantsAndRecordStatus,
+  validateBucketRef,
   validateProviderRefs,
 } from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
@@ -121,6 +122,18 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   const refs = validateProviderRefs(catalog, validated, { userSub: user.sub });
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
+  }
+
+  const bucketRef = await validateBucketRef(
+    user.organization,
+    session.get("authTokens")?.accessToken ?? "",
+    validated,
+  );
+  if (!bucketRef.ok) {
+    if ("formError" in bucketRef) {
+      return { formError: bucketRef.formError, status: "error" as const };
+    }
+    return { errors: bucketRef.errors, status: "error" as const };
   }
 
   try {

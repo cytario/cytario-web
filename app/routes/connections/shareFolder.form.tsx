@@ -72,7 +72,9 @@ export const ShareFolderForm = ({
       (r) =>
         r.providerConnectionId === providerConnectionId &&
         r.allowsSharing &&
-        (!scope || r.allowedScopes.some((allowed) => adminCovers(allowed, scope))),
+        (r.allowedScopes.length === 0 ||
+          !scope ||
+          r.allowedScopes.some((allowed) => adminCovers(allowed, scope))),
     );
     return roles.map((r) => ({ id: r.id, name: r.name }));
   }, [catalog, providerConnectionId, scope]);

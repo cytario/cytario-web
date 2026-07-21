@@ -1,6 +1,7 @@
 import { ConnectionConfig } from "~/.generated/client";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { prisma } from "~/.server/db/prisma";
+import { findBucketByName, getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import {
   type ResolvedConnectionProvider,
   findProviderConnection,
@@ -14,6 +15,7 @@ import {
   type ApplyTarget,
   applyBucketPolicy,
 } from "~/.server/storage/bucketPolicyApply.server";
+import { cytarioConfig } from "~/config";
 import { ORG_ROOT_SCOPE, adminCovers } from "~/utils/authorization";
 import {
   type ProviderCatalog,
@@ -118,8 +120,10 @@ export function validateProviderRefs(
   }
 
   const isPersonal = options.userSub !== undefined && refs.scope === options.userSub;
+  const isOrgWide = providerRole.allowedScopes.length === 0;
   if (
     !isPersonal &&
+    !isOrgWide &&
     !providerRole.allowedScopes.some((allowed) => adminCovers(allowed, refs.scope))
   ) {
     return {
@@ -129,6 +133,51 @@ export function validateProviderRefs(
   }
 
   return { ok: true, providerConnection, providerRole };
+}
+
+/**
+ * Outcome of validating the submitted bucket against the portal bucket catalog.
+ * In an OSS build there is no portal bucket registry, so the check is skipped
+ * (returns `ok: true` immediately). In an admin-portal build the submitted
+ * `bucketName` must be one of the org's registered buckets under the submitted
+ * `providerConnectionId`; a bucket not in the catalog is rejected with a
+ * field-level error. When the bucket lookup is unavailable, the create/update
+ * is refused with a clear error rather than accepting a free-text bucket.
+ */
+export type BucketRefValidation =
+  | { ok: true }
+  | { ok: false; errors: Record<string, string[]> }
+  | { ok: false; formError: string };
+
+export async function validateBucketRef(
+  organization: string,
+  accessToken: string,
+  refs: { providerConnectionId: string; bucketName: string },
+): Promise<BucketRefValidation> {
+  if (cytarioConfig.providers.source !== "portal") return { ok: true };
+
+  let bucketCatalog;
+  try {
+    bucketCatalog = await getBucketCatalog(organization, accessToken);
+  } catch (error) {
+    return {
+      ok: false,
+      formError:
+        error instanceof Error ? error.message : "Bucket catalog is currently unavailable.",
+    };
+  }
+
+  const bucket = findBucketByName(bucketCatalog, refs.providerConnectionId, refs.bucketName);
+  if (!bucket) {
+    return {
+      ok: false,
+      errors: {
+        bucketName: ["This bucket is not registered under the selected provider connection."],
+      },
+    };
+  }
+
+  return { ok: true };
 }
 
 /** Resolve a connection to its `ApplyTarget` via the org provider catalog. */
