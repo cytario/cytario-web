@@ -20,54 +20,54 @@ CREATE TYPE "BucketPolicyStatus" AS ENUM ('none', 'applied', 'drifted', 'error')
 
 -- CreateTable: ConnectionConfig with UUID id, no scope column.
 CREATE TABLE "ConnectionConfig" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "organization" TEXT NOT NULL,
-    "createdBy" TEXT NOT NULL,
-    "bucketName" TEXT NOT NULL,
-    "providerConnectionId" TEXT NOT NULL,
-    "prefix" TEXT NOT NULL DEFAULT '',
-    "bucketPolicyStatus" "BucketPolicyStatus" NOT NULL DEFAULT 'none',
+"id" TEXT NOT NULL,
+"name" TEXT NOT NULL,
+"organization" TEXT NOT NULL,
+"createdBy" TEXT NOT NULL,
+"bucketName" TEXT NOT NULL,
+"providerConnectionId" TEXT NOT NULL,
+"prefix" TEXT NOT NULL DEFAULT '',
+"bucketPolicyStatus" "BucketPolicyStatus" NOT NULL DEFAULT 'none',
 
-    CONSTRAINT "ConnectionConfig_pkey" PRIMARY KEY ("id")
+CONSTRAINT "ConnectionConfig_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ConnectionGrant" (
-    "id" TEXT NOT NULL,
-    "connectionId" TEXT NOT NULL,
-    "scope" TEXT NOT NULL,
-    "providerRoleId" TEXT NOT NULL,
+"id" TEXT NOT NULL,
+"connectionId" TEXT NOT NULL,
+"scope" TEXT NOT NULL,
+"providerRoleId" TEXT NOT NULL,
 
-    CONSTRAINT "ConnectionGrant_pkey" PRIMARY KEY ("id")
+CONSTRAINT "ConnectionGrant_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable: RecentlyViewed (relates to ConnectionConfig by id).
 CREATE TABLE "RecentlyViewed" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "connectionId" TEXT NOT NULL,
-    "connectionName" TEXT NOT NULL,
-    "pathName" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "viewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+"id" TEXT NOT NULL,
+"userId" TEXT NOT NULL,
+"connectionId" TEXT NOT NULL,
+"connectionName" TEXT NOT NULL,
+"pathName" TEXT NOT NULL,
+"name" TEXT NOT NULL,
+"type" TEXT NOT NULL,
+"viewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "RecentlyViewed_pkey" PRIMARY KEY ("id")
+CONSTRAINT "RecentlyViewed_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable: PinnedPath (relates to ConnectionConfig by id).
 CREATE TABLE "PinnedPath" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "connectionId" TEXT NOT NULL,
-    "connectionName" TEXT NOT NULL,
-    "pathName" TEXT NOT NULL,
-    "displayName" TEXT NOT NULL,
-    "totalSize" BIGINT,
-    "lastModified" TIMESTAMP(3),
+"id" TEXT NOT NULL,
+"userId" TEXT NOT NULL,
+"connectionId" TEXT NOT NULL,
+"connectionName" TEXT NOT NULL,
+"pathName" TEXT NOT NULL,
+"displayName" TEXT NOT NULL,
+"totalSize" BIGINT,
+"lastModified" TIMESTAMP(3),
 
-    CONSTRAINT "PinnedPath_pkey" PRIMARY KEY ("id")
+CONSTRAINT "PinnedPath_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
