@@ -119,14 +119,14 @@ describe("createConnection strictness", () => {
     expect(prisma.connectionConfig.update).not.toHaveBeenCalled();
   });
 
-  test("maps a name violation to a name field error", () => {
+  test("maps an unknown violation to a form error", () => {
     const violation = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
       code: "P2002",
       clientVersion: "test",
       meta: { target: ["name"] },
     });
     expect(uniqueViolationErrors(violation)).toEqual({
-      name: ["This name is already taken. Please choose another."],
+      formError: "A database constraint was violated. Please check your input and try again.",
     });
   });
 

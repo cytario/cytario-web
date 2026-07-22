@@ -17,7 +17,7 @@ enum BucketPolicyStatus {
 
 model ConnectionConfig {
   id                   Int                @id @default(autoincrement())
-  name                 String             @unique
+  name                 String
   organization         String // Keycloak organization alias (tenant)
   createdBy            String
   bucketName           String
@@ -30,6 +30,7 @@ model ConnectionConfig {
   pinnedPaths    PinnedPath[]       @relation("PinnedPathConnection")
 
   @@index([organization, providerConnectionId, bucketName, prefix])
+  @@index([organization, name])
 }
 
 model ConnectionGrant {
@@ -46,29 +47,31 @@ model ConnectionGrant {
 model RecentlyViewed {
   id             Int      @id @default(autoincrement())
   userId         String
+  connectionId   Int
   connectionName String
   pathName       String
   name           String
   type           String // "file" | "directory"
   viewedAt       DateTime @default(now())
 
-  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionName], references: [name], onDelete: Cascade)
+  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, connectionName, pathName])
+  @@unique([userId, connectionId, pathName])
   @@index([userId])
 }
 
 model PinnedPath {
   id             Int       @id @default(autoincrement())
   userId         String
+  connectionId   Int
   connectionName String
   pathName       String
   displayName    String
   totalSize      BigInt?
   lastModified   DateTime?
 
-  connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionName], references: [name], onDelete: Cascade)
+  connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, connectionName, pathName])
+  @@unique([userId, connectionId, pathName])
   @@index([userId])
 }

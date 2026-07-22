@@ -78,7 +78,9 @@ export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestErro
   if (target.includes("scope")) {
     return { grants: ["Each group may appear at most once on a connection."] };
   }
-  return { name: ["This name is already taken. Please choose another."] };
+  return {
+    formError: "A database constraint was violated. Please check your input and try again.",
+  };
 }
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {

@@ -230,7 +230,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       }
       return {
         errors: {
-          name: ["This name is already taken. Please choose another."],
+          grants: ["Each group may appear at most once on a connection."],
         },
         status: "error" as const,
       };

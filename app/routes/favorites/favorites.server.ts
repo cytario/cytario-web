@@ -7,6 +7,7 @@ export type { PinnedPath };
 export async function addFavorite(
   userId: string,
   favorite: {
+    connectionId: number;
     connectionName: string;
     pathName: string;
     displayName: string;
@@ -16,9 +17,9 @@ export async function addFavorite(
 ): Promise<void> {
   await prisma.pinnedPath.upsert({
     where: {
-      userId_connectionName_pathName: {
+      userId_connectionId_pathName: {
         userId,
-        connectionName: favorite.connectionName,
+        connectionId: favorite.connectionId,
         pathName: favorite.pathName,
       },
     },
@@ -29,6 +30,7 @@ export async function addFavorite(
     },
     create: {
       userId,
+      connectionId: favorite.connectionId,
       connectionName: favorite.connectionName,
       pathName: favorite.pathName,
       displayName: favorite.displayName,
@@ -38,13 +40,13 @@ export async function addFavorite(
   });
 }
 
-/** Remove a favorite for a user by connection name and path. */
+/** Remove a favorite for a user by connection id and path. */
 export async function removeFavorite(
   userId: string,
-  connectionName: string,
+  connectionId: number,
   pathName: string,
 ): Promise<void> {
-  await prisma.pinnedPath.deleteMany({ where: { userId, connectionName, pathName } });
+  await prisma.pinnedPath.deleteMany({ where: { userId, connectionId, pathName } });
 }
 
 /** Get all favorites for a user, ordered newest-first. */

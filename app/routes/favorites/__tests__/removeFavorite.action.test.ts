@@ -49,6 +49,7 @@ describe("removeFavorite action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnection.mockResolvedValue({
+      id: 42,
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -67,7 +68,7 @@ describe("removeFavorite action", () => {
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
-    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "my-bucket", "data/images/");
+    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", 42, "data/images/");
   });
 
   test("removes a connection-root favorite with empty pathName", async () => {
@@ -82,7 +83,7 @@ describe("removeFavorite action", () => {
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
-    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "my-bucket", "");
+    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", 42, "");
   });
 
   test("returns 400 with missing connectionName", async () => {

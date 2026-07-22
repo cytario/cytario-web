@@ -107,7 +107,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
         };
       }
       return {
-        errors: { name: ["A share with this name already exists. Choose another."] },
+        formError: "A database constraint was violated. Please check your input and try again.",
         status: "error" as const,
       };
     }

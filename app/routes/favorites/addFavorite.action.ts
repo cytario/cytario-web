@@ -9,5 +9,6 @@ export const addFavoriteAction = (args: ActionFunctionArgs) =>
     args,
     schema: addFavoriteSchema,
     errorLabel: "[favorites] Failed to add favorite:",
-    handler: (data, _connection, user) => addFavorite(user.sub, data),
+    handler: (data, connection, user) =>
+      addFavorite(user.sub, { ...data, connectionId: connection.id }),
   });
