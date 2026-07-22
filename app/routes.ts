@@ -85,8 +85,8 @@ const adminRoutes = [
 /** Data endpoints — authenticated, no layout (JSON responses). */
 const apiRoutes = [
   {
-    path: "/api/cyberduck-profile/:name",
-    file: "routes/api/cyberduck-profile.$name.ts",
+    path: "/api/cyberduck-profile/:id",
+    file: "routes/api/cyberduck-profile.$id.ts",
   },
   {
     path: "/api/provider-catalog",
