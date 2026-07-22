@@ -9,8 +9,8 @@ import { DEFAULT_MAX_TOTAL } from "../listingLimits";
 import { type BucketAddress, constructS3Url } from "../resourceId";
 import { CorsLikelyError } from "../signedFetch";
 
-/** A connection's bucket address plus its store name (for the credential refresh). */
-export type ConnectionAddress = BucketAddress & { name: string };
+/** A connection's bucket address plus its id (for the credential refresh). */
+export type ConnectionAddress = BucketAddress & { id: string };
 
 const DEFAULT_PAGE_SIZE = 1000;
 
@@ -230,7 +230,7 @@ export async function listObjectsClient(
 
   const bucketUrl = constructS3Url(connectionConfig);
   const region = connectionConfig.region || "eu-central-1";
-  const connectionName = connectionConfig.name;
+  const connectionId = connectionConfig.id;
 
   let activeCredentials: Credentials = credentials;
 
@@ -260,12 +260,12 @@ export async function listObjectsClient(
       });
 
       if (await isExpiredTokenResponse(response)) {
-        if (!connectionName) {
+        if (!connectionId) {
           throw new ExpiredCredentialsError(
-            "STS credentials expired and no connection name was provided to listObjectsClient.",
+            "STS credentials expired and no connection id was provided to listObjectsClient.",
           );
         }
-        activeCredentials = await requestCredentialsRefresh(connectionName);
+        activeCredentials = await requestCredentialsRefresh(connectionId);
         response = await signedListBucketRequest({
           credentials: activeCredentials,
           region,
@@ -276,7 +276,7 @@ export async function listObjectsClient(
         if (await isExpiredTokenResponse(response)) {
           throw new ExpiredCredentialsError(
             "STS credentials expired and refresh did not yield a working session.",
-            connectionName,
+            connectionId,
           );
         }
       }

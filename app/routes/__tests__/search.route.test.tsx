@@ -37,7 +37,7 @@ describe("SearchRoute", () => {
     const broken = mock.connectionConfig({ id: "broken", name: "broken", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
-      if (config.name === "broken") throw new Error("AccessDenied");
+      if (config.id === "broken") throw new Error("AccessDenied");
       return { contents: [{ Key: "match.tif" }], commonPrefixes: [], isCapped: false };
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -56,7 +56,7 @@ describe("SearchRoute", () => {
     const broken = mock.connectionConfig({ id: "broken", name: "broken", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
-      if (config.name === "broken") throw new Error("AccessDenied");
+      if (config.id === "broken") throw new Error("AccessDenied");
       return { contents: [{ Key: "match.tif" }], commonPrefixes: [], isCapped: false };
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -74,12 +74,12 @@ describe("SearchRoute", () => {
 
   test("clientLoader combines error + warning when both failures and caps occur", async () => {
     const ok = mock.connectionConfig({ id: "ok", name: "ok", prefix: "" });
-    const huge = mock.connectionConfig({ name: "huge", prefix: "" });
+    const huge = mock.connectionConfig({ id: "huge", name: "huge", prefix: "" });
     const broken = mock.connectionConfig({ id: "broken", name: "broken", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
-      if (config.name === "broken") throw new Error("AccessDenied");
-      if (config.name === "huge") {
+      if (config.id === "broken") throw new Error("AccessDenied");
+      if (config.id === "huge") {
         return { contents: [{ Key: "x.tif" }], commonPrefixes: [], isCapped: true };
       }
       return { contents: [{ Key: "y.tif" }], commonPrefixes: [], isCapped: false };
@@ -138,11 +138,11 @@ describe("SearchRoute", () => {
   });
 
   test("surfaces a CORS-specific notification when a connection throws CorsLikelyError", async () => {
-    const blocked = mock.connectionConfig({ name: "blocked", prefix: "" });
+    const blocked = mock.connectionConfig({ id: "blocked", name: "blocked", prefix: "" });
     const ok = mock.connectionConfig({ id: "ok", name: "ok", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
-      if (config.name === "blocked") {
+      if (config.id === "blocked") {
         throw new CorsLikelyError("blocked.s3.amazonaws.com", "https://app.cytario.com");
       }
       return { contents: [{ Key: "match.tif" }], commonPrefixes: [], isCapped: false };
@@ -206,7 +206,7 @@ describe("SearchRoute", () => {
     const result = await clientLoader({ request, params: {}, serverLoader: vi.fn() } as never);
 
     expect(listObjectsClient).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Alpha Lab", bucketName: "shared-bucket" }),
+      expect.objectContaining({ id: "alpha", bucketName: "shared-bucket" }),
       expect.anything(),
       expect.objectContaining({
         query: "parquet",
@@ -215,7 +215,7 @@ describe("SearchRoute", () => {
       }),
     );
     expect(listObjectsClient).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Beta Lab", bucketName: "shared-bucket" }),
+      expect.objectContaining({ id: "beta", bucketName: "shared-bucket" }),
       expect.anything(),
       expect.objectContaining({
         query: "parquet",
@@ -252,7 +252,7 @@ describe("SearchRoute", () => {
     });
 
     listObjectsClient.mockImplementation(async (config) => {
-      if (config.name === "Huge Bucket") {
+      if (config.id === "huge") {
         return { contents: [{ Key: "Huge Bucket/x.tif" }], commonPrefixes: [], isCapped: true };
       }
       return { contents: [{ Key: "Small Bucket/y.tif" }], commonPrefixes: [], isCapped: false };

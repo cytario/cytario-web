@@ -24,15 +24,15 @@ const ImagePreview = lazy(() =>
   })),
 );
 
-function useSignedFetch(connectionName: string) {
-  const connection = useConnectionsStore(select.connection(connectionName));
+function useSignedFetch(connectionId: string) {
+  const connection = useConnectionsStore(select.connection(connectionId));
   const connectionConfig = connection?.connectionConfig;
   const region = connection?.provider?.region;
 
   const signedFetch = useMemo(() => {
     if (!connectionConfig) return null;
-    return createSignedFetch(liveCredentials(connectionName), region, connectionName);
-  }, [connectionName, connectionConfig, region]);
+    return createSignedFetch(liveCredentials(connectionId), region, connectionId);
+  }, [connectionId, connectionConfig, region]);
 
   return { connectionConfig, signedFetch };
 }
@@ -55,23 +55,9 @@ function ImagePreviewSlot({
   );
 }
 
-function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
-  const { connectionConfig, signedFetch } = useSignedFetch(connectionName);
-
-  // The connection probe attaches the first image in the bucket as `_Object`.
-  // Its Key is the full S3 key; the preview resourceId is prefix-relative
-  // (resolveResourceId re-adds connectionConfig.prefix), so strip the prefix —
-  // `node.id` is the bucket root, which has no image to render.
-  const previewKey = node._Object?.Key ?? null;
-  const previewResourceId = useMemo(() => {
-    if (!previewKey || !connectionConfig || !isImageFile(previewKey)) return null;
-    const prefix = connectionConfig.prefix?.replace(/^\/+|\/+$/g, "") ?? "";
-    const pathName =
-      prefix && previewKey.startsWith(`${prefix}/`)
-        ? previewKey.slice(prefix.length + 1)
-        : previewKey;
-    return `${connectionName}/${pathName}`;
-  }, [previewKey, connectionConfig, connectionName]);
+function BucketCardGridItem({ node, connectionId }: { node: TreeNode; connectionId: string }) {
+  const { connectionConfig, signedFetch } = useSignedFetch(connectionId);
+  const previewResourceId = usePreviewResourceId(node, connectionId);
 
   return (
     <GridItem
@@ -87,13 +73,37 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
   );
 }
 
-function FileCardGridItem({ node, connectionName }: { node: TreeNode; connectionName: string }) {
-  const { signedFetch } = useSignedFetch(connectionName);
-  const explicitKey = node._Object?.Key ?? null;
-  const resolvedHttpsUrl = useConnectionsStore(selectHttpsUrl(node.id));
+/**
+ * Derives a prefix-relative preview resourceId from an S3 key.
+ * `node.id` for directories points to the folder, not an image, so the viewer
+ * would load the directory and render a black tile. When the tree builder
+ * attached the first image as `node._Object`, derive the resourceId from its Key.
+ */
+function usePreviewResourceId(node: TreeNode, connectionId: string) {
+  const { connectionConfig } = useSignedFetch(connectionId);
+  return useMemo(() => {
+    const explicitKey = node._Object?.Key ?? null;
+    const isImage = explicitKey ? isImageFile(explicitKey) : isImageFile(node.name);
+    if (!isImage) return null;
+    if (!explicitKey) return node.id;
+    if (!connectionConfig) return null;
+    const prefix = connectionConfig.prefix?.replace(/^\/+|\/+$/g, "") ?? "";
+    const pathName =
+      prefix && explicitKey.startsWith(`${prefix}/`)
+        ? explicitKey.slice(prefix.length + 1)
+        : explicitKey;
+    return `${connectionId}/${pathName}`;
+  }, [node, connectionId, connectionConfig]);
+}
 
-  const isImage = (explicitKey ? isImageFile(explicitKey) : false) || isImageFile(node.name);
-  const hasPreview = isImage && !!signedFetch && !!resolvedHttpsUrl;
+function FileCardGridItem({ node, connectionId }: { node: TreeNode; connectionId: string }) {
+  const { signedFetch } = useSignedFetch(connectionId);
+  const previewResourceId = usePreviewResourceId(node, connectionId);
+  const resolvedHttpsUrl = useConnectionsStore(
+    previewResourceId ? selectHttpsUrl(previewResourceId) : () => null,
+  );
+
+  const hasPreview = !!previewResourceId && !!signedFetch && !!resolvedHttpsUrl;
 
   const size = node.type === "file" && node._Object?.Size ? filesize(node._Object.Size) : undefined;
 
@@ -102,7 +112,7 @@ function FileCardGridItem({ node, connectionName }: { node: TreeNode; connection
       node={node}
       preview={
         hasPreview && signedFetch ? (
-          <ImagePreviewSlot resourceId={node.id} signedFetch={signedFetch} />
+          <ImagePreviewSlot resourceId={previewResourceId} signedFetch={signedFetch} />
         ) : undefined
       }
     >
@@ -126,9 +136,9 @@ export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: Di
       <div className={cx}>
         {nodes.map((node) =>
           node.type === "bucket" ? (
-            <BucketCardGridItem key={node.id} node={node} connectionName={node.connectionName} />
+            <BucketCardGridItem key={node.id} node={node} connectionId={node.connectionId ?? ""} />
           ) : (
-            <FileCardGridItem key={node.id} node={node} connectionName={node.connectionName} />
+            <FileCardGridItem key={node.id} node={node} connectionId={node.connectionId ?? ""} />
           ),
         )}
       </div>

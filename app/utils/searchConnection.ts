@@ -52,7 +52,7 @@ export async function searchConnection({
   try {
     const { contents, isCapped } = await listObjectsClient(
       {
-        name: config.name,
+        id: config.id,
         bucketName: config.bucketName,
         region: provider?.region,
         endpoint: provider?.endpoint,
