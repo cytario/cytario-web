@@ -11,21 +11,21 @@ export default function UpdateConnectionModal({
   onClose: (extraKeys?: string[]) => void;
 }) {
   const [searchParams] = useSearchParams();
-  const nodeName = searchParams.get("nodeName");
+  const connectionId = searchParams.get("connectionId");
 
   const connectionConfig = useConnectionsStore((state) =>
-    nodeName ? state.connections[nodeName]?.connectionConfig : undefined,
+    connectionId ? state.connections[connectionId]?.connectionConfig : undefined,
   );
 
   const user = useCurrentUser();
 
-  if (!user || !nodeName || !connectionConfig) return null;
+  if (!user || !connectionId || !connectionConfig) return null;
 
-  const { bucketName, prefix, providerConnectionId, grants } = connectionConfig;
+  const { name, bucketName, prefix, providerConnectionId, grants } = connectionConfig;
 
   const initialData = {
-    connectionId: connectionConfig.id,
-    name: nodeName,
+    connectionId,
+    name,
     providerConnectionId,
     bucketName,
     prefix,
@@ -36,7 +36,7 @@ export default function UpdateConnectionModal({
   };
 
   return (
-    <RouteModal title="Edit Connection" onClose={() => onClose(["nodeName"])}>
+    <RouteModal title="Edit Connection" onClose={() => onClose(["connectionId"])}>
       <ConnectionForm adminScopes={user.adminScopes} userId={user.sub} initialData={initialData} />
     </RouteModal>
   );

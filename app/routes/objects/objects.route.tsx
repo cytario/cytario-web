@@ -139,7 +139,7 @@ export default function ObjectsRoute() {
         description={connectionError}
         action={
           <Button
-            onPress={() => openModal("edit-connection", { nodeName: connectionName })}
+            onPress={() => openModal("edit-connection", { connectionId })}
             variant="secondary"
           >
             Edit connection

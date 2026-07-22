@@ -128,7 +128,9 @@ export const NodeContextMenu = ({
                 <MenuItem
                   id="edit"
                   icon="Pencil"
-                  onAction={() => openModal("edit-connection", { nodeName: node.name })}
+                  onAction={() =>
+                    openModal("edit-connection", { connectionId: node.connectionId ?? "" })
+                  }
                 >
                   Edit
                 </MenuItem>
