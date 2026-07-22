@@ -1,6 +1,6 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import { ConnectionConfig } from "~/.generated/client";
+import { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import { type CytarioSession, SessionData, SessionFlashData } from "~/.server/auth/sessionStorage";
@@ -14,18 +14,26 @@ import type {
 } from "~/utils/providerCatalog.schema";
 
 const mock = {
-  connectionConfig: (data: Partial<ConnectionConfig> = {}): ConnectionConfig => ({
+  connectionGrant: (data: Partial<ConnectionGrant> = {}): ConnectionGrant => ({
+    id: 0,
+    connectionId: 0,
+    scope: "org1/lab",
+    providerRoleId: "pr-mock",
+    ...data,
+  }),
+  connectionConfig: (
+    data: Partial<ConnectionConfig> & { grants?: ConnectionGrant[] } = {},
+  ): ConnectionConfig & { grants: ConnectionGrant[] } => ({
     bucketName: "mock-bucket",
     id: 0,
     name: "aws-mock-bucket",
     organization: "org1",
-    scope: "lab",
     createdBy: "mock-user-id",
     providerConnectionId: "pc-mock",
-    providerRoleId: "pr-mock",
     prefix: "",
     bucketPolicyStatus: "none",
-    ...data,
+    grants: data.grants ?? [mock.connectionGrant()],
+    ...(data as Omit<typeof data, "grants">),
   }),
   providerConnection: (data: Partial<ProviderConnection> = {}): ProviderConnection => ({
     id: "pc-mock",

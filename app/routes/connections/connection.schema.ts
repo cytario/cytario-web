@@ -70,31 +70,44 @@ export const bucketNameSchema = z
   );
 
 /**
- * A storage connection is composed by SELECTING a provider connection and a
- * provider role — never a free-text cloud role identifier or
- * endpoint. The concrete cloud role, endpoint, and region are carried by the
- * chosen provider connection + provider role (resolved server-side from the
- * catalog) and are never accepted from the form.
+ * A single grant: a (group scope, provider role) pair. A connection carries one
+ * or more grants; each grant binds a group to a provider role whose IAM role ARN
+ * becomes the Principal of a managed bucket-policy statement.
  */
-export const connectionSchema = z.object({
-  name: connectionNameSchema,
+export const grantSchema = z.object({
   scope: scopeSchema,
-  providerConnectionId: z.string().min(1, "A provider connection is required"),
   providerRoleId: z.string().min(1, "A provider role is required"),
-  bucketName: bucketNameSchema,
-  prefix: prefixSchema.default(""),
 });
+
+/**
+ * A storage connection is composed by SELECTING a provider connection and one or
+ * more grants — each a (group scope, provider role) pair — never a free-text
+ * cloud role identifier or endpoint. The concrete cloud role, endpoint, and
+ * region are carried by the chosen provider connection + provider role (resolved
+ * server-side from the catalog) and are never accepted from the form.
+ */
+export const connectionSchema = z
+  .object({
+    name: connectionNameSchema,
+    providerConnectionId: z.string().min(1, "A provider connection is required"),
+    bucketName: bucketNameSchema,
+    prefix: prefixSchema.default(""),
+    grants: z.array(grantSchema).min(1, "At least one grant is required"),
+  })
+  .refine((data) => new Set(data.grants.map((g) => g.scope)).size === data.grants.length, {
+    message: "Each group may appear at most once",
+    path: ["grants"],
+  });
 
 export type ConnectBucketFormData = z.input<typeof connectionSchema>;
 export type ConnectionFormValues = z.output<typeof connectionSchema>;
 
 export const defaultFormValues: ConnectBucketFormData = {
   name: "",
-  scope: "",
   providerConnectionId: "",
-  providerRoleId: "",
   bucketName: "",
   prefix: "",
+  grants: [{ scope: "", providerRoleId: "" }],
 };
 
 /** Auto-suggest a connection name from a bucket + optional prefix. */

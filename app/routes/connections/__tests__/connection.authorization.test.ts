@@ -24,10 +24,9 @@ vi.mock("~/.server/db/redis", () => ({ redis: {} }));
 
 // Authorization is NOT mocked — real canSee/canModify/canCreate logic runs.
 
-const cytarioConfig = mock.connectionConfig({ scope: "cytario", name: "test-connection" });
-const personalConfig = mock.connectionConfig({
-  scope: "mock-user-id",
-  name: "personal-connection",
+const cytarioConfig = mock.connectionConfig({
+  name: "test-connection",
+  grants: [mock.connectionGrant({ scope: "cytario", providerRoleId: "pr-1" })],
 });
 
 const adminUser = mock.user({
@@ -36,7 +35,6 @@ const adminUser = mock.user({
   adminScopes: ["cytario"],
 });
 const regularUser = mock.user({ sub: "regular-user-id", groups: ["cytario"], adminScopes: [] });
-const personalUser = mock.user({ sub: "mock-user-id", groups: ["cytario"], adminScopes: [] });
 const orgRootAdmin = mock.user({ sub: "org-root-admin-id", groups: [], adminScopes: ["*"] });
 const outsideUser = mock.user({
   sub: "outside-user-id",
@@ -46,11 +44,10 @@ const outsideUser = mock.user({
 
 const validUpdates = {
   name: "updated-connection",
-  scope: "cytario",
   bucketName: "updated-bucket",
   prefix: "",
   providerConnectionId: "pc-1",
-  providerRoleId: "pr-1",
+  grants: [{ scope: "cytario", providerRoleId: "pr-1" }],
 };
 
 beforeEach(() => {
@@ -64,12 +61,6 @@ describe("deleteConnection authorization", () => {
     expect(prisma.connectionConfig.delete).toHaveBeenCalledWith({
       where: { id: cytarioConfig.id },
     });
-  });
-
-  test("owner (personal scope) can delete", async () => {
-    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(personalConfig);
-    await deleteConnection(personalUser, "personal-connection");
-    expect(prisma.connectionConfig.delete).toHaveBeenCalled();
   });
 
   test("org-root admin can delete any connection within the org", async () => {
@@ -113,13 +104,17 @@ describe("createConnection strictness", () => {
     vi.mocked(prisma.connectionConfig.create).mockRejectedValue(violation);
 
     await expect(
-      createConnection("org1", "attacker-personal-scope", "attacker-sub", {
-        name: "hijack",
-        bucketName: "victim-bucket",
-        providerConnectionId: "pc-1",
-        providerRoleId: "pr-1",
-        prefix: "victim-prefix",
-      }),
+      createConnection(
+        "org1",
+        "attacker-sub",
+        {
+          name: "hijack",
+          bucketName: "victim-bucket",
+          providerConnectionId: "pc-1",
+          prefix: "victim-prefix",
+        },
+        [{ scope: "attacker-personal-scope", providerRoleId: "pr-1" }],
+      ),
     ).rejects.toBe(violation);
     expect(prisma.connectionConfig.update).not.toHaveBeenCalled();
   });
@@ -153,24 +148,10 @@ describe("updateConnection authorization", () => {
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...cytarioConfig,
       ...validUpdates,
-    });
+    } as never);
     const result = await updateConnection(adminUser, "test-connection", validUpdates);
     expect(prisma.connectionConfig.update).toHaveBeenCalled();
     expect(result.name).toBe("updated-connection");
-  });
-
-  test("owner (personal scope) can update own connection", async () => {
-    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(personalConfig);
-    vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
-      ...personalConfig,
-      ...validUpdates,
-      scope: "mock-user-id",
-    });
-    await updateConnection(personalUser, "personal-connection", {
-      ...validUpdates,
-      scope: "mock-user-id",
-    });
-    expect(prisma.connectionConfig.update).toHaveBeenCalled();
   });
 
   test("group member without admin cannot update", async () => {
@@ -187,25 +168,33 @@ describe("updateConnection authorization", () => {
     );
   });
 
-  test("scope change requires canCreate on the new scope", async () => {
-    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(personalConfig);
+  test("adding a new grant requires canCreate on the new scope", async () => {
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     await expect(
-      updateConnection(personalUser, "personal-connection", { ...validUpdates, scope: "cytario" }),
-    ).rejects.toThrow("Not authorized to assign to this scope");
+      updateConnection(adminUser, "test-connection", {
+        ...validUpdates,
+        grants: [{ scope: "ops", providerRoleId: "pr-1" }],
+      }),
+    ).rejects.toThrow("Not authorized to create a grant");
   });
 
-  test("admin can change scope to their admin scope", async () => {
-    const adminPersonalConfig = mock.connectionConfig({
-      scope: "admin-user-id",
-      name: "admin-personal",
-    });
-    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(adminPersonalConfig);
+  test("admin can add a grant for a scope they administer", async () => {
+    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
-      ...adminPersonalConfig,
+      ...cytarioConfig,
       ...validUpdates,
-      scope: "cytario",
+      grants: [
+        mock.connectionGrant({ scope: "cytario", providerRoleId: "pr-1" }),
+        mock.connectionGrant({ scope: "cytario/sub", providerRoleId: "pr-1" }),
+      ],
+    } as never);
+    await updateConnection(adminUser, "test-connection", {
+      ...validUpdates,
+      grants: [
+        { scope: "cytario", providerRoleId: "pr-1" },
+        { scope: "cytario/sub", providerRoleId: "pr-1" },
+      ],
     });
-    await updateConnection(adminUser, "admin-personal", { ...validUpdates, scope: "cytario" });
     expect(prisma.connectionConfig.update).toHaveBeenCalled();
   });
 

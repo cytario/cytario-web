@@ -191,3 +191,66 @@ export function resolveConnectionProvider(
     allowsSharing: providerRole.allowsSharing,
   };
 }
+
+/**
+ * A single grant resolved against the catalog: the grant's persisted scope +
+ * the concrete provider-role attributes (roleArn, allowsSharing) it maps to.
+ */
+export interface ResolvedConnectionGrant {
+  scope: string;
+  roleArn: string;
+  allowsSharing: boolean;
+}
+
+/**
+ * The connection-level provider attributes resolved from the catalog: region and
+ * endpoint come from the provider connection (shared by every grant on the
+ * connection); `allowsSharing` is true when ANY of the connection's resolvable
+ * grants' roles permits sharing. The per-grant `roleArn` lives on the
+ * `ResolvedConnectionGrant` entries.
+ */
+export interface ResolvedConnectionProviderWithGrants {
+  providerType: ProviderConnection["providerType"];
+  endpoint: string | null;
+  region: string;
+  allowsSharing: boolean;
+  grants: ResolvedConnectionGrant[];
+}
+
+/**
+ * Resolve a connection's provider connection and ALL of its grants against the
+ * catalog. Returns `undefined` when the provider connection itself is absent
+ * (a stale lookup); grants whose provider role is absent are silently dropped
+ * from the resolved set (they cannot contribute a Principal or a credential).
+ */
+export function resolveConnectionProviderWithGrants(
+  catalog: ProviderCatalog,
+  connection: {
+    providerConnectionId: string;
+    grants: Array<{ scope: string; providerRoleId: string }>;
+  },
+): ResolvedConnectionProviderWithGrants | undefined {
+  const providerConnection = findProviderConnection(catalog, connection.providerConnectionId);
+  if (!providerConnection) return undefined;
+
+  const grants: ResolvedConnectionGrant[] = [];
+  let allowsSharing = false;
+  for (const grant of connection.grants) {
+    const providerRole = findProviderRole(catalog, grant.providerRoleId);
+    if (!providerRole || providerRole.providerConnectionId !== providerConnection.id) continue;
+    grants.push({
+      scope: grant.scope,
+      roleArn: providerRole.roleArn,
+      allowsSharing: providerRole.allowsSharing,
+    });
+    if (providerRole.allowsSharing) allowsSharing = true;
+  }
+
+  return {
+    providerType: providerConnection.providerType,
+    endpoint: providerConnection.endpoint,
+    region: providerConnection.region,
+    allowsSharing,
+    grants,
+  };
+}

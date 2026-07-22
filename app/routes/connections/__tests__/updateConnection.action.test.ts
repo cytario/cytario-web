@@ -71,20 +71,19 @@ const catalog = mock.providerCatalog({
 const existing = mock.connectionConfig({
   id: 7,
   name: "conn",
-  scope: "org1/lab",
   bucketName: "old-bucket",
   providerConnectionId: "pc-old",
-  providerRoleId: "pr-old",
+  grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-old" })],
 });
 
 const form = {
   _originalName: "conn",
   name: "conn",
-  scope: "org1/lab",
   bucketName: "new-bucket",
   prefix: "",
   providerConnectionId: "pc-new",
-  providerRoleId: "pr-new",
+  "grants[0].scope": "org1/lab",
+  "grants[0].providerRoleId": "pr-new",
 };
 
 beforeEach(() => {
@@ -99,8 +98,8 @@ describe("updateAction — old-bucket revoke on move", () => {
       ...existing,
       bucketName: "new-bucket",
       providerConnectionId: "pc-new",
-      providerRoleId: "pr-new",
-    });
+      grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-new" })],
+    } as never);
 
     const user = mock.user({ adminScopes: ["org1/lab"] });
     const result = await updateAction(buildArgs(user, form));
@@ -108,11 +107,8 @@ describe("updateAction — old-bucket revoke on move", () => {
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(302);
 
-    // New bucket applied via the updated connection…
     expect(applyGrantsAndRecordStatus).toHaveBeenCalledTimes(1);
 
-    // …and the old bucket's remaining set re-applied under the pre-move refs so
-    // the moved connection's managed statement is revoked there.
     expect(applyBucketGrantSet).toHaveBeenCalledTimes(1);
     const [bucket, applyVia] = vi.mocked(applyBucketGrantSet).mock.calls[0];
     expect(bucket).toEqual({
@@ -122,14 +118,13 @@ describe("updateAction — old-bucket revoke on move", () => {
     });
     expect(applyVia.bucketName).toBe("old-bucket");
     expect(applyVia.providerConnectionId).toBe("pc-old");
-    expect(applyVia.providerRoleId).toBe("pr-old");
   });
 
-  test("does NOT touch another bucket when only the scope changes", async () => {
+  test("does NOT touch another bucket when only a grant changes (not the bucket)", async () => {
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...existing,
-      scope: "org1/lab/team-a",
-    });
+      grants: [mock.connectionGrant({ scope: "org1/lab/team-a", providerRoleId: "pr-old" })],
+    } as never);
 
     const user = mock.user({ adminScopes: ["org1/lab"] });
     await updateAction(
@@ -137,8 +132,8 @@ describe("updateAction — old-bucket revoke on move", () => {
         ...form,
         bucketName: "old-bucket",
         providerConnectionId: "pc-old",
-        providerRoleId: "pr-old",
-        scope: "org1/lab/team-a",
+        "grants[0].scope": "org1/lab/team-a",
+        "grants[0].providerRoleId": "pr-old",
       }),
     );
 
@@ -151,8 +146,8 @@ describe("updateAction — old-bucket revoke on move", () => {
       ...existing,
       bucketName: "new-bucket",
       providerConnectionId: "pc-new",
-      providerRoleId: "pr-new",
-    });
+      grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-new" })],
+    } as never);
     vi.mocked(applyBucketGrantSet).mockResolvedValue({
       status: "error",
       warning: "catalog gone",

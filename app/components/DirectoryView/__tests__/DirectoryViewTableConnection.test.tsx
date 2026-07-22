@@ -15,7 +15,7 @@ const connections = {
     connectionConfig: mock.connectionConfig({
       name: "aws-my-aws-bucket",
       bucketName: "my-aws-bucket",
-      scope: "cytario",
+      grants: [mock.connectionGrant({ scope: "cytario" })],
       bucketPolicyStatus: "applied",
       createdBy: "admin@cytario.com",
     }),
@@ -25,7 +25,7 @@ const connections = {
     connectionConfig: mock.connectionConfig({
       name: "second-bucket",
       bucketName: "other-bucket",
-      scope: "cytario/lab",
+      grants: [mock.connectionGrant({ scope: "cytario/lab" })],
       bucketPolicyStatus: "drifted",
       createdBy: "lab@cytario.com",
     }),
@@ -74,7 +74,7 @@ describe("DirectoryViewTableConnection", () => {
     },
   ];
 
-  test("renders bucket columns: Name, Scope, Bucket, Policy visible; Prefix, Created By hidden", () => {
+  test("renders bucket columns: Name, Bucket, Policy visible; Prefix, Created By hidden", () => {
     const RemixStub = createRoutesStub([
       {
         path: "/",
@@ -85,7 +85,6 @@ describe("DirectoryViewTableConnection", () => {
     render(<RemixStub initialEntries={["/"]} />);
 
     expect(screen.getByText("Name")).toBeInTheDocument();
-    expect(screen.getByText("Scope")).toBeInTheDocument();
     expect(screen.getByText("Bucket")).toBeInTheDocument();
     expect(screen.getByText("Policy")).toBeInTheDocument();
     // Prefix and Created By are hidden by default; provider/role/endpoint columns

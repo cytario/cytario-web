@@ -1,14 +1,14 @@
 import type { Credentials } from "@aws-sdk/client-sts";
 
 import { ConnectionsStore, useConnectionsStore } from "./useConnectionsStore";
-import type { ConnectionConfig } from "~/.generated/client";
+import type { ConnectionConfigWithGrants } from "./useConnectionsStore";
 import { constructS3Url, parseResourceId } from "~/utils/resourceId";
 
 export interface ResolvedResource {
   connectionName: string;
   /** Path relative to the connection root (no prefix). */
   pathName: string;
-  connectionConfig: ConnectionConfig;
+  connectionConfig: ConnectionConfigWithGrants;
   credentials: Credentials;
   /** Resolved SigV4 signing region, or `undefined` when the catalog ref is stale. */
   region: string | undefined;

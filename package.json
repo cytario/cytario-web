@@ -63,6 +63,7 @@
     "start": "node bin/cytario-web.mjs start",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
+    "clone-dev-db": "node scripts/clone-dev-db.mjs",
     "typecheck": "react-router typegen && tsc",
     "test": "vitest",
     "coverage": "vitest run --coverage"

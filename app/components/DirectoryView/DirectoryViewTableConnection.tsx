@@ -1,12 +1,11 @@
 import { useMemo } from "react";
 
 import { type TreeNode } from "./buildDirectoryTree";
-import { type ConnectionConfig } from "~/.generated/client";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
-import { ScopePill } from "~/components/Pills/ScopePill";
 import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { select } from "~/utils/connectionsStore/selectors";
+import { type ConnectionConfigWithGrants } from "~/utils/connectionsStore/useConnectionsStore";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export const connectionColumns: ColumnConfig[] = [
@@ -19,15 +18,6 @@ export const connectionColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "text",
     filterPlaceholder: "Filter by name...",
-  },
-  {
-    id: "scope",
-    header: "Scope",
-    size: 160,
-    enableSorting: true,
-    enableColumnFilter: true,
-    filterType: "select",
-    filterRender: (option) => <ScopePill scope={option.value} />,
   },
   {
     id: "bucketName",
@@ -52,7 +42,9 @@ export const connectionColumns: ColumnConfig[] = [
     enableColumnFilter: true,
     filterType: "select",
     filterRender: (option) => (
-      <BucketPolicyStatusPill status={option.value as ConnectionConfig["bucketPolicyStatus"]} />
+      <BucketPolicyStatusPill
+        status={option.value as ConnectionConfigWithGrants["bucketPolicyStatus"]}
+      />
     ),
   },
   {
@@ -71,14 +63,15 @@ export const connectionColumns: ColumnConfig[] = [
  * the TreeNode by `connectionName` (NodeLink needs the full node for status
  * + context menu wiring).
  */
-function buildConnectionCellRenderers(nodes: TreeNode[]): CellRenderers<ConnectionConfig> {
+function buildConnectionCellRenderers(
+  nodes: TreeNode[],
+): CellRenderers<ConnectionConfigWithGrants> {
   const nodesByName = new Map(nodes.map((n) => [n.connectionName, n]));
   return {
     name: (row) => {
       const node = nodesByName.get(row.name);
       return node ? <NodeLink node={node} /> : row.name;
     },
-    scope: (row) => <ScopePill scope={row.scope} />,
     bucketPolicyStatus: (row) => <BucketPolicyStatusPill status={row.bucketPolicyStatus} />,
   };
 }

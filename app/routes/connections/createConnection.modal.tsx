@@ -6,18 +6,16 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 
 /**
  * Resolve the best default owner scope from a URL scope param.
- * Prefers exact match in adminScopes, then covering parent, then userId fallback.
+ * Prefers exact match in adminScopes, then covering parent, then the first
+ * admin scope. Returns an empty string when the user has no admin scopes.
  */
-export function resolveDefaultScope(
-  scopeParam: string | null,
-  adminScopes: string[],
-  userId: string,
-): string {
-  if (!scopeParam) return userId;
+export function resolveDefaultScope(scopeParam: string | null, adminScopes: string[]): string {
+  if (!scopeParam) return adminScopes[0] ?? "";
   return (
     adminScopes.find((s) => scopeParam === s) ??
     adminScopes.find((s) => scopeParam.startsWith(s + "/")) ??
-    userId
+    adminScopes[0] ??
+    ""
   );
 }
 
@@ -27,7 +25,7 @@ export default function CreateConnectionModal({ onClose }: { onClose: () => void
 
   if (!user) return null;
 
-  const defaultScope = resolveDefaultScope(searchParams.get("scope"), user.adminScopes, user.sub);
+  const defaultScope = resolveDefaultScope(searchParams.get("scope"), user.adminScopes);
 
   return (
     <RouteModal title="Add Connection" onClose={onClose}>

@@ -216,12 +216,12 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({
         name: "internal",
         bucketName: "shared-bucket",
-        providerRoleId: "pr-internal",
+        grants: [mock.connectionGrant({ providerRoleId: "pr-internal" })],
       }),
       mock.connectionConfig({
         name: "external",
         bucketName: "shared-bucket",
-        providerRoleId: "pr-external",
+        grants: [mock.connectionGrant({ providerRoleId: "pr-external" })],
       }),
     ];
 

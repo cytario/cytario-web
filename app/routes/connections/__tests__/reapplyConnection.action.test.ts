@@ -52,7 +52,9 @@ beforeEach(() => {
 
 describe("reapplyAction", () => {
   test("re-applies a group-scoped connection the user administers", async () => {
-    const config = mock.connectionConfig({ scope: "org1/lab" });
+    const config = mock.connectionConfig({
+      grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-mock" })],
+    });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
     const user = mock.user({ adminScopes: ["org1/lab"], groups: ["org1/lab"] });
@@ -68,7 +70,9 @@ describe("reapplyAction", () => {
   });
 
   test("403s when the user cannot modify the connection", async () => {
-    const config = mock.connectionConfig({ scope: "org1/ops" });
+    const config = mock.connectionConfig({
+      grants: [mock.connectionGrant({ scope: "org1/ops", providerRoleId: "pr-mock" })],
+    });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
     const user = mock.user({ adminScopes: [], groups: ["org1/ops"] });
@@ -81,23 +85,10 @@ describe("reapplyAction", () => {
     expect(applyGrantsAndRecordStatus).not.toHaveBeenCalled();
   });
 
-  test("a personal-scope connection re-applies under canModify alone (no grant-scope 403)", async () => {
-    const user = mock.user({ adminScopes: [] });
-    const config = mock.connectionConfig({ scope: user.sub });
-    vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
-
-    const result = await reapplyAction(buildArgs(user, { connectionName: config.name }));
-
-    expect(result).toBeInstanceOf(Response);
-    expect((result as Response).status).toBe(302);
-    expect(applyGrantsAndRecordStatus).toHaveBeenCalled();
-  });
-
   test("403s on a group-scoped connection whose scope the admin does not cover", async () => {
-    // canModify passes via an ancestor admin scope, but assertGrantScope re-checks
-    // the connection's own scope — keep both aligned by giving the user modify
-    // rights on a scope outside their grant authority.
-    const config = mock.connectionConfig({ scope: "org1/ops" });
+    const config = mock.connectionConfig({
+      grants: [mock.connectionGrant({ scope: "org1/ops", providerRoleId: "pr-mock" })],
+    });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
     const user = mock.user({ adminScopes: ["org1/lab"], groups: [] });

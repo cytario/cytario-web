@@ -11,11 +11,10 @@ import {
 
 const validBase = {
   name: "my-bucket-data",
-  scope: "user-123",
   providerConnectionId: "pc-1",
-  providerRoleId: "pr-1",
   bucketName: "my-bucket",
   prefix: "data",
+  grants: [{ scope: "lab", providerRoleId: "pr-1" }],
 };
 
 describe("connectionNameSchema", () => {
@@ -141,14 +140,39 @@ describe("connectionSchema (SRS-CY-32118 — FK selectors, no free text)", () =>
     expect(result.success).toBe(false);
   });
 
-  test("rejects a missing provider role id", () => {
-    const result = connectionSchema.safeParse({ ...validBase, providerRoleId: "" });
+  test("rejects a missing provider role id in a grant", () => {
+    const result = connectionSchema.safeParse({
+      ...validBase,
+      grants: [{ scope: "lab", providerRoleId: "" }],
+    });
     expect(result.success).toBe(false);
   });
 
-  test("rejects a missing scope", () => {
-    const result = connectionSchema.safeParse({ ...validBase, scope: "" });
+  test("rejects an empty grants array", () => {
+    const result = connectionSchema.safeParse({ ...validBase, grants: [] });
     expect(result.success).toBe(false);
+  });
+
+  test("C-347: rejects duplicate group scopes across grants", () => {
+    const result = connectionSchema.safeParse({
+      ...validBase,
+      grants: [
+        { scope: "lab", providerRoleId: "pr-1" },
+        { scope: "lab", providerRoleId: "pr-2" },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("C-347: accepts multiple grants with distinct scopes", () => {
+    const result = connectionSchema.safeParse({
+      ...validBase,
+      grants: [
+        { scope: "lab", providerRoleId: "pr-1" },
+        { scope: "ops", providerRoleId: "pr-2" },
+      ],
+    });
+    expect(result.success).toBe(true);
   });
 
   test("rejects a wildcard prefix", () => {
@@ -164,8 +188,6 @@ describe("connectionSchema (SRS-CY-32118 — FK selectors, no free text)", () =>
   });
 
   test("does not accept free-text role or endpoint fields", () => {
-    // A submission carrying a free-text roleArn/endpoint still validates only the
-    // FK fields — the extra keys are ignored, never used to compose the connection.
     const result = connectionSchema.safeParse({
       ...validBase,
       roleArn: "arn:aws:iam::123456789012:role/Evil",

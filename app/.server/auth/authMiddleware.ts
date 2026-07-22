@@ -7,14 +7,17 @@ import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import { type CytarioSession, type SessionData, sessionStorage } from "./sessionStorage";
 import { verifyIdToken } from "./verifyIdToken";
-import { ConnectionConfig } from "~/.generated/client";
+import { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
 import type { ClientConnectionProvider } from "~/.server/auth/getSessionCredentials";
 import { createLabel } from "~/.server/logging";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
 
+/** A connection config with its grants eager-loaded (the shape the app consumes). */
+export type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
+
 export interface AuthContextData extends SessionData {
-  connectionConfigs: ConnectionConfig[];
+  connectionConfigs: ConnectionConfigWithGrants[];
   /** Per-connection reason for connections whose STS mint failed this request. */
   credentialErrors: Record<string, string>;
   /** Per-connection resolved non-secret provider attributes (region/endpoint). */
@@ -45,7 +48,7 @@ const fetchAllCredentials = async (
   sessionData: SessionData,
 ): Promise<{
   sessionData: SessionData;
-  connectionConfigs: ConnectionConfig[];
+  connectionConfigs: ConnectionConfigWithGrants[];
   credentialErrors: Record<string, string>;
   connectionProviders: Record<string, ClientConnectionProvider>;
 }> => {

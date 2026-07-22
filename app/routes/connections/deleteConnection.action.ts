@@ -1,7 +1,7 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { applyBucketGrantSet } from "./connectionGrant.server";
-import { ConnectionConfig } from "~/.generated/client";
+import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
@@ -9,13 +9,17 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
 
-export async function deleteConnection(user: UserProfile, name: string): Promise<ConnectionConfig> {
+export async function deleteConnection(
+  user: UserProfile,
+  name: string,
+): Promise<ConnectionConfigWithGrants> {
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
 
   const config = await prisma.connectionConfig.findFirst({
     where: { name, organization: user.organization },
+    include: { grants: true },
   });
 
   if (!config || !canSee(user, config)) {
@@ -40,7 +44,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
     return { error: "Connection name is required" };
   }
 
-  let deleted: ConnectionConfig;
+  let deleted: ConnectionConfigWithGrants;
   try {
     deleted = await deleteConnection(user, connectionName);
   } catch (error) {

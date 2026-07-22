@@ -21,16 +21,18 @@ export default function UpdateConnectionModal({
 
   if (!user || !nodeName || !connectionConfig) return null;
 
-  const { bucketName, prefix, scope, providerConnectionId, providerRoleId } = connectionConfig;
+  const { bucketName, prefix, providerConnectionId, grants } = connectionConfig;
 
   const initialData = {
     originalName: nodeName,
     name: nodeName,
-    scope,
     providerConnectionId,
-    providerRoleId,
     bucketName,
     prefix,
+    grants: (grants ?? []).map((g) => ({
+      scope: g.scope,
+      providerRoleId: g.providerRoleId,
+    })),
   };
 
   return (

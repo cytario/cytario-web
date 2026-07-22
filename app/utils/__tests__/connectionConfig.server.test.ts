@@ -40,6 +40,7 @@ describe("connectionConfig.server", () => {
 
       expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
         where: { organization: "org1" },
+        include: { grants: true },
       });
       expect(filterVisible).toHaveBeenCalledWith(user, configs);
       expect(result).toEqual([config]);
@@ -64,6 +65,7 @@ describe("connectionConfig.server", () => {
 
       expect(prisma.connectionConfig.findFirst).toHaveBeenCalledWith({
         where: { name: "aws-mock-bucket", organization: "org1" },
+        include: { grants: true },
       });
       expect(canSee).toHaveBeenCalledWith(user, config);
       expect(result).toEqual(config);
@@ -93,23 +95,28 @@ describe("connectionConfig.server", () => {
         name: "new-conn",
         bucketName: "my-bucket",
         providerConnectionId: "pc-1",
-        providerRoleId: "pr-1",
         prefix: "data/",
       };
+      const grants = [{ scope: "lab", providerRoleId: "pr-1" }];
 
       vi.mocked(prisma.connectionConfig.create).mockResolvedValue(
         mock.connectionConfig({ ...newConfig }),
       );
 
-      await createConnection("org1", "lab", "user-123", newConfig);
+      await createConnection("org1", "user-123", newConfig, grants);
 
       expect(prisma.connectionConfig.create).toHaveBeenCalledWith({
         data: {
           organization: "org1",
-          scope: "lab",
           createdBy: "user-123",
           ...newConfig,
+          grants: {
+            createMany: {
+              data: [{ scope: "lab", providerRoleId: "pr-1" }],
+            },
+          },
         },
+        include: { grants: true },
       });
     });
   });

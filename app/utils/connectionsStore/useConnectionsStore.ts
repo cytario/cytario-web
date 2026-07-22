@@ -3,7 +3,10 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import type { ConnectionConfig } from "~/.generated/client";
+import type { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
+
+/** A connection config with its grants eager-loaded. */
+export type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
 
 /** Live health of a connection — the single source for the status dot. */
 export type ConnectionStatus = "connected" | "error" | "loading";
@@ -29,7 +32,7 @@ export interface ResolvedConnectionProviderClient {
 
 /** Static config + STS credentials + live health for one connection. */
 export interface Connection {
-  connectionConfig: ConnectionConfig;
+  connectionConfig: ConnectionConfigWithGrants;
   /** `null` when STS credentials could not be minted (broken connection). */
   credentials: Credentials | null;
   /** Resolved non-secret provider attributes (region/endpoint) for the data-plane. */
@@ -55,7 +58,7 @@ export interface ConnectionsStore {
    * green→yellow flicker on revalidation.
    */
   setConnections: (
-    configs: ConnectionConfig[],
+    configs: ConnectionConfigWithGrants[],
     credentials: Record<string, Credentials>,
     errors?: Record<string, string>,
     providers?: Record<string, ResolvedConnectionProviderClient>,

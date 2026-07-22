@@ -8,7 +8,6 @@ import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { ClientOnly } from "~/components/ClientOnly";
 import { GridItem } from "~/components/DirectoryView/GridItem";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
-import { ScopePill } from "~/components/Pills/ScopePill";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { isImageFile } from "~/utils/fileType";
@@ -83,12 +82,7 @@ function BucketCardGridItem({ node, connectionName }: { node: TreeNode; connecti
         ) : undefined
       }
     >
-      {connectionConfig && (
-        <>
-          <ScopePill scope={connectionConfig.scope} />
-          <BucketPolicyStatusPill status={connectionConfig.bucketPolicyStatus} />
-        </>
-      )}
+      {connectionConfig && <BucketPolicyStatusPill status={connectionConfig.bucketPolicyStatus} />}
     </GridItem>
   );
 }

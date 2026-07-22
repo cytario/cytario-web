@@ -2,11 +2,16 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 
 import { createGroupAction } from "../createGroup.action";
 import { authContext } from "~/.server/auth/authMiddleware";
+import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 
 vi.mock("~/.server/auth/keycloakAdmin", () => ({
   createGroup: vi.fn(),
   addUserToOrganizationGroup: vi.fn(),
+}));
+
+vi.mock("~/.server/auth/getUserInfo", () => ({
+  getUserInfo: vi.fn(),
 }));
 
 vi.mock("~/.server/auth/getSession", () => ({
@@ -37,6 +42,7 @@ function makeContext(adminScopes: string[] = ["cytario"], organization = "cytari
   const ctx = new Map();
   ctx.set(authContext, {
     user: { sub: "user-123", adminScopes, organization },
+    authTokens: { accessToken: "access-token", idToken: "id-token", refreshToken: "refresh-token" },
   });
   return ctx;
 }
@@ -54,6 +60,12 @@ describe("createGroupAction", () => {
     vi.clearAllMocks();
     mockSession = { set: vi.fn(), get: vi.fn() };
     vi.mocked(getSession).mockResolvedValue(mockSession as never);
+    vi.mocked(getUserInfo).mockResolvedValue({
+      sub: "user-123",
+      adminScopes: ["cytario"],
+      organization: "cytario",
+      groups: [],
+    } as never);
   });
 
   test("redirects with success notification on valid input", async () => {
@@ -68,6 +80,11 @@ describe("createGroupAction", () => {
 
     expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue", "cytario");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
+    expect(getUserInfo).toHaveBeenCalledWith("access-token");
+    expect(mockSession.set).toHaveBeenCalledWith(
+      "user",
+      expect.objectContaining({ sub: "user-123" }),
+    );
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get("location")).toBe(

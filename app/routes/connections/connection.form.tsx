@@ -1,5 +1,6 @@
 import {
   Banner,
+  Button,
   Fieldset,
   FormWizard,
   FormWizardNav,
@@ -11,7 +12,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useActionData, useNavigation, useSubmit } from "react-router";
 
 import {
@@ -23,17 +24,23 @@ import {
 import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { adminCovers } from "~/utils/authorization";
 
 const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
 
 const FIELD_TO_STEP: Record<string, number> = {
   providerConnectionId: 0,
-  providerRoleId: 0,
   bucketName: 0,
   prefix: 0,
   name: 0,
-  scope: 1,
+  grants: 1,
+};
+
+const stepForField = (field: string): number | undefined => {
+  if (FIELD_TO_STEP[field] !== undefined) return FIELD_TO_STEP[field];
+  if (field.startsWith("grants.")) return 1;
+  return undefined;
 };
 
 const dtClass = "text-muted-foreground";
@@ -56,12 +63,7 @@ interface ConnectionFormProps {
   defaultScope?: string;
 }
 
-export const ConnectionForm = ({
-  adminScopes,
-  userId,
-  initialData,
-  defaultScope,
-}: ConnectionFormProps) => {
+export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: ConnectionFormProps) => {
   const isEditMode = !!initialData;
   const submit = useSubmit();
   const actionData = useActionData<{
@@ -84,7 +86,7 @@ export const ConnectionForm = ({
 
   const initialStep = serverErrors
     ? Object.keys(serverErrors).reduce<number>((acc, field) => {
-        const step = FIELD_TO_STEP[field];
+        const step = stepForField(field);
         return step !== undefined && step < acc ? step : acc;
       }, LAST_STEP)
     : 0;
@@ -94,15 +96,25 @@ export const ConnectionForm = ({
   const { control, handleSubmit, setError, setValue, trigger } = useForm<ConnectBucketFormData>({
     resolver: zodResolver(connectionSchema),
     defaultValues: initialData
-      ? { ...defaultFormValues, ...initialData, scope: initialData.scope || defaultScope || userId }
-      : { ...defaultFormValues, scope: defaultScope || userId },
+      ? { ...defaultFormValues, ...initialData }
+      : {
+          ...defaultFormValues,
+          grants: [
+            {
+              scope: defaultScope ?? "",
+              providerRoleId: "",
+            },
+          ],
+        },
     mode: "onTouched",
   });
+
+  const { fields, append, remove } = useFieldArray({ control, name: "grants" });
 
   useEffect(() => {
     if (!serverErrors) return;
     const earliestStep = Object.keys(serverErrors).reduce<number>((acc, field) => {
-      const step = FIELD_TO_STEP[field];
+      const step = stepForField(field);
       return step !== undefined && step < acc ? step : acc;
     }, LAST_STEP);
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -115,11 +127,10 @@ export const ConnectionForm = ({
   }, [serverErrors, setError]);
 
   const providerConnectionId = useWatch({ control, name: "providerConnectionId" });
-  const providerRoleId = useWatch({ control, name: "providerRoleId" });
   const bucketName = useWatch({ control, name: "bucketName" });
   const prefix = useWatch({ control, name: "prefix" });
   const nameValue = useWatch({ control, name: "name" });
-  const scope = useWatch({ control, name: "scope" });
+  const grantsValue = useWatch({ control, name: "grants" });
 
   const connectionItems: SelectItem[] = useMemo(
     () =>
@@ -130,14 +141,6 @@ export const ConnectionForm = ({
           : `${c.providerType.toUpperCase()} ${c.region}`,
       })),
     [catalog],
-  );
-
-  const roleItems: SelectItem[] = useMemo(
-    () =>
-      (catalog?.providerRoles ?? [])
-        .filter((r) => r.providerConnectionId === providerConnectionId)
-        .map((r) => ({ id: r.id, name: r.name })),
-    [catalog, providerConnectionId],
   );
 
   const bucketItems: SelectItem[] = useMemo(
@@ -158,17 +161,20 @@ export const ConnectionForm = ({
     }
   }, [bucketName, prefix, setValue]);
 
-  const fieldsPerStep: Record<number, (keyof ConnectBucketFormData)[]> = {
-    0: ["providerConnectionId", "providerRoleId", "bucketName", "prefix", "name"],
-    1: ["scope"],
+  const fieldsPerStep: Record<number, Array<keyof ConnectBucketFormData>> = {
+    0: ["providerConnectionId", "bucketName", "prefix", "name"],
+    1: ["grants"],
   };
 
   const onSubmit = (data: ConnectBucketFormData) => {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, String(value));
-      }
+    formData.append("name", data.name);
+    formData.append("providerConnectionId", data.providerConnectionId);
+    formData.append("bucketName", data.bucketName);
+    formData.append("prefix", data.prefix ?? "");
+    data.grants.forEach((grant, index) => {
+      formData.append(`grants[${index}].scope`, grant.scope);
+      formData.append(`grants[${index}].providerRoleId`, grant.providerRoleId);
     });
     if (isEditMode) {
       formData.append("_originalName", initialData.originalName);
@@ -196,8 +202,21 @@ export const ConnectionForm = ({
     }
   };
 
-  const selectedRoleName =
-    catalog?.providerRoles.find((r) => r.id === providerRoleId)?.name ?? providerRoleId;
+  const scopeItems: SelectItem[] = useMemo(
+    () => adminScopes.map((str) => ({ id: str, name: str })),
+    [adminScopes],
+  );
+
+  const roleItemsForGrant = (grantScope: string): SelectItem[] => {
+    const roles = (catalog?.providerRoles ?? []).filter(
+      (r) =>
+        r.providerConnectionId === providerConnectionId &&
+        (r.allowedScopes.length === 0 ||
+          !grantScope ||
+          r.allowedScopes.some((allowed) => adminCovers(allowed, grantScope))),
+    );
+    return roles.map((r) => ({ id: r.id, name: r.name }));
+  };
 
   return (
     <FormWizard
@@ -241,25 +260,8 @@ export const ConnectionForm = ({
                     selectedKey={field.value || null}
                     onSelectionChange={(key) => {
                       field.onChange(key);
-                      setValue("providerRoleId", "");
                       setValue("bucketName", "");
                     }}
-                    errorMessage={fieldState.error?.message}
-                  />
-                )}
-              />
-
-              <Controller
-                name="providerRoleId"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <Select
-                    label="Provider role"
-                    description="The role Cytario assumes to access your data."
-                    items={roleItems}
-                    isDisabled={!providerConnectionId || roleItems.length === 0}
-                    selectedKey={field.value || null}
-                    onSelectionChange={(key) => field.onChange(key)}
                     errorMessage={fieldState.error?.message}
                   />
                 )}
@@ -347,30 +349,81 @@ export const ConnectionForm = ({
 
           {currentStep === 1 && (
             <Fieldset>
-              {adminScopes.length > 0 ? (
-                <Controller
-                  name="scope"
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Select
-                      label="Visibility"
-                      description="Who can access this connection."
-                      items={[
-                        { id: userId, name: "Personal" },
-                        ...adminScopes.map((str) => ({ id: str, name: str })),
-                      ]}
-                      selectedKey={field.value}
-                      onSelectionChange={(key) => field.onChange(key)}
-                      renderItem={(item) => <ScopePill scope={item.id} />}
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
-              ) : (
-                <p className="text-(length:--font-size-sm) text-muted-foreground">
-                  This connection is personal to you.
-                </p>
-              )}
+              <div className="flex flex-col gap-(--spacing-4)">
+                {fields.map((field, index) => {
+                  const grant = grantsValue?.[index];
+                  const grantScope = grant?.scope ?? "";
+                  const grantRoleId = grant?.providerRoleId ?? "";
+                  const roleItems = roleItemsForGrant(grantScope);
+                  const grantError = serverErrors?.[`grants.${index}.providerRoleId`]?.[0];
+                  return (
+                    <div
+                      key={field.id}
+                      className="flex flex-col gap-(--spacing-2) rounded-[var(--border-radius-md)] border border-border p-[var(--spacing-3)]"
+                    >
+                      <Controller
+                        name={`grants.${index}.scope` as const}
+                        control={control}
+                        render={({ field: scopeField, fieldState: scopeFieldState }) => (
+                          <Select
+                            label={index === 0 ? "Share with group" : undefined}
+                            description={
+                              index === 0 ? "Who can access this connection." : undefined
+                            }
+                            items={scopeItems}
+                            selectedKey={scopeField.value || null}
+                            onSelectionChange={(key) => scopeField.onChange(key)}
+                            renderItem={(item) => <ScopePill scope={item.id} />}
+                            errorMessage={scopeFieldState.error?.message}
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        name={`grants.${index}.providerRoleId` as const}
+                        control={control}
+                        render={({ field: roleField, fieldState: roleFieldState }) => (
+                          <Select
+                            label="Provider role"
+                            description="The role Cytario assumes to access your data."
+                            items={roleItems}
+                            isDisabled={!providerConnectionId || roleItems.length === 0}
+                            selectedKey={grantRoleId || null}
+                            onSelectionChange={(key) => roleField.onChange(key)}
+                            errorMessage={roleFieldState.error?.message ?? grantError}
+                          />
+                        )}
+                      />
+
+                      {fields.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onPress={() => remove(index)}
+                          className="self-start"
+                        >
+                          Remove grant
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onPress={() => append({ scope: "", providerRoleId: "" })}
+                  className="self-start"
+                >
+                  Add grant
+                </Button>
+
+                {adminScopes.length === 0 && (
+                  <p className="text-(length:--font-size-sm) text-muted-foreground">
+                    You have no admin scopes — ask an administrator to grant you group access.
+                  </p>
+                )}
+              </div>
             </Fieldset>
           )}
 
@@ -388,11 +441,23 @@ export const ConnectionForm = ({
                 ].join(" ")}
               >
                 <dl className="flex flex-col gap-[var(--spacing-2)] text-[length:var(--font-size-sm)]">
-                  <SummaryRow label="Name" value={nameValue} />
-                  <SummaryRow label="Bucket" value={bucketName} />
+                  <SummaryRow label="Name" value={nameValue ?? ""} />
+                  <SummaryRow label="Bucket" value={bucketName ?? ""} />
                   {prefix && <SummaryRow label="Prefix" value={prefix} />}
-                  <SummaryRow label="Role" value={selectedRoleName ?? ""} />
-                  <SummaryRow label="Scope" value={scope === userId ? "Personal" : scope} />
+                  <div className="flex flex-col gap-[var(--spacing-1)]">
+                    <dt className={dtClass}>Grants</dt>
+                    {(grantsValue ?? []).map((grant, i) => (
+                      <dd key={i} className={ddClass}>
+                        {grant.scope}
+                        {grant.providerRoleId
+                          ? ` — ${
+                              catalog?.providerRoles.find((r) => r.id === grant.providerRoleId)
+                                ?.name ?? grant.providerRoleId
+                            }`
+                          : ""}
+                      </dd>
+                    ))}
+                  </div>
                 </dl>
               </div>
             </div>

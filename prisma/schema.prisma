@@ -19,19 +19,28 @@ model ConnectionConfig {
   id                   Int                @id @default(autoincrement())
   name                 String             @unique
   organization         String // Keycloak organization alias (tenant)
-  scope                String // intra-org owner: group path or user sub
   createdBy            String
   bucketName           String
   providerConnectionId String // reference to the portal-managed / OSS-configured provider connection (carries provider type, endpoint, region)
-  providerRoleId       String // reference to the portal-managed / OSS-configured provider role the connection is bound to
   prefix               String             @default("")
   bucketPolicyStatus   BucketPolicyStatus @default(none)
 
-  recentlyViewed RecentlyViewed[] @relation("RecentlyViewedConnection")
-  pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
+  grants         ConnectionGrant[] @relation("ConnectionGrants")
+  recentlyViewed RecentlyViewed[]   @relation("RecentlyViewedConnection")
+  pinnedPaths    PinnedPath[]       @relation("PinnedPathConnection")
 
   @@unique([organization, providerConnectionId, bucketName, prefix])
-  @@index([organization, scope])
+}
+
+model ConnectionGrant {
+  id             Int              @id @default(autoincrement())
+  connectionId   Int
+  scope          String // intra-org group path
+  providerRoleId String // reference to the portal-managed / OSS-configured provider role this grant is bound to
+  connection     ConnectionConfig @relation("ConnectionGrants", fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, scope])
+  @@index([scope])
 }
 
 model RecentlyViewed {

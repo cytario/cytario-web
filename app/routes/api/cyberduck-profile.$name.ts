@@ -3,7 +3,7 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   getProviderCatalog,
-  resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
@@ -33,7 +33,14 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   let resolved;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
-    resolved = resolveConnectionProvider(catalog, connectionConfig);
+    const resolvedWithGrants = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+    if (resolvedWithGrants && resolvedWithGrants.grants.length > 0) {
+      resolved = {
+        region: resolvedWithGrants.region,
+        endpoint: resolvedWithGrants.endpoint,
+        roleArn: resolvedWithGrants.grants[0].roleArn,
+      };
+    }
   } catch {
     resolved = undefined;
   }

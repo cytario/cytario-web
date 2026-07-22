@@ -31,7 +31,7 @@ export const usersLoader: LoaderFunction = async ({ request, context }) => {
   ]);
 
   // Connections owned at this scope are not inherited from parents.
-  const connections = allConnections.filter((c) => c.scope === scope);
+  const connections = allConnections.filter((c) => c.grants.some((g) => g.scope === scope));
   const headingLabel = resolveScopeLabel(scope, org.name || org.alias);
 
   if (!group) {
