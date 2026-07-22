@@ -75,12 +75,10 @@ export async function createConnection(
 /** Field-level message for a P2002 unique violation on connection create. */
 export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestError) {
   const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
-  if (target.includes("name")) {
-    return { name: ["This name is already taken. Please choose another."] };
+  if (target.includes("scope")) {
+    return { grants: ["Each group may appear at most once on a connection."] };
   }
-  return {
-    prefix: ["A connection for this bucket and prefix already exists. Edit it instead."],
-  };
+  return { name: ["This name is already taken. Please choose another."] };
 }
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {

@@ -29,7 +29,7 @@ model ConnectionConfig {
   recentlyViewed RecentlyViewed[]   @relation("RecentlyViewedConnection")
   pinnedPaths    PinnedPath[]       @relation("PinnedPathConnection")
 
-  @@unique([organization, providerConnectionId, bucketName, prefix])
+  @@index([organization, providerConnectionId, bucketName, prefix])
 }
 
 model ConnectionGrant {

@@ -130,14 +130,14 @@ describe("createConnection strictness", () => {
     });
   });
 
-  test("maps a tuple violation to a conflict error", () => {
+  test("maps a grant scope violation to a grants error", () => {
     const violation = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
       code: "P2002",
       clientVersion: "test",
-      meta: { target: ["organization", "providerConnectionId", "bucketName", "prefix"] },
+      meta: { target: ["scope"] },
     });
     expect(uniqueViolationErrors(violation)).toEqual({
-      prefix: ["A connection for this bucket and prefix already exists. Edit it instead."],
+      grants: ["Each group may appear at most once on a connection."],
     });
   });
 });

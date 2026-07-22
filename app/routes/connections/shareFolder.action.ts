@@ -7,7 +7,6 @@ import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { assertGrantScope } from "~/routes/admin/assertAdminScope";
 
@@ -22,12 +21,9 @@ import { assertGrantScope } from "~/routes/admin/assertAdminScope";
  *      the bucket-policy write picks a sharing-capable grant's role via
  *      resolveApplyTarget);
  *   4. create the share connection;
- *   5. apply the desired managed grant set under the acting connection's provider
- *      role, warning (never claiming enforced) when the write is denied.
- *
- * SRS-CY-32609: when the folder is already shared (the unique
- * (organization, providerConnectionId, bucketName, prefix) tuple exists), redirect
- * to the existing connection instead of erroring.
+ *   5. apply the desired managed grant set under a sharing-capable role borrowed
+ *      from any connection on the same bucket, warning (never claiming enforced)
+ *      when the write is denied.
  */
 export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
@@ -104,32 +100,14 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
     if (error instanceof Response) throw error;
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
-      if (target.includes("name")) {
+      if (target.includes("scope")) {
         return {
-          errors: { name: ["A share with this name already exists. Choose another."] },
+          errors: { grants: ["Each group may appear at most once on a connection."] },
           status: "error" as const,
         };
       }
-      const existing = await prisma.connectionConfig.findFirst({
-        where: {
-          organization: user.organization,
-          providerConnectionId: data.providerConnectionId,
-          bucketName: data.bucketName,
-          prefix: data.prefix,
-        },
-        select: { name: true },
-      });
-      if (existing) {
-        session.set("notification", {
-          status: "info",
-          message: "This folder is already shared. Opening the existing connection.",
-        });
-        return redirect(`/connections/${encodeURIComponent(existing.name)}`, {
-          headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
-        });
-      }
       return {
-        formError: "This folder already has a connection. Edit that connection instead.",
+        errors: { name: ["A share with this name already exists. Choose another."] },
         status: "error" as const,
       };
     }

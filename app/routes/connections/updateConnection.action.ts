@@ -230,7 +230,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       }
       return {
         errors: {
-          name: ["This name is already taken, or a connection to this bucket already exists."],
+          name: ["This name is already taken. Please choose another."],
         },
         status: "error" as const,
       };
