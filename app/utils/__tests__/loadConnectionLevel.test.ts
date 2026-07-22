@@ -23,6 +23,7 @@ describe("loadConnectionLevel", () => {
     await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ name: "conn", prefix: "scope" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "sub/",
     });
@@ -41,6 +42,7 @@ describe("loadConnectionLevel", () => {
     const { nodes, isCapped } = await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ name: "conn", prefix: "scope" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "sub",
     });
@@ -59,6 +61,7 @@ describe("loadConnectionLevel", () => {
     const { isCapped } = await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ prefix: "" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "",
     });
@@ -77,6 +80,7 @@ describe("loadConnectionLevel", () => {
     await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ prefix: "" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "",
       signal: controller.signal,

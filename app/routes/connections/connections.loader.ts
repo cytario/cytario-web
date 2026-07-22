@@ -9,7 +9,8 @@ import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnect
 /** Bucket-level connection nodes that seed the connections grid. */
 function buildConnectionNodes(configs: ConnectionConfigWithGrants[]): TreeNode[] {
   return configs.map((config) => ({
-    id: `${config.name}/`,
+    id: `${config.id}/`,
+    connectionId: config.id,
     connectionName: config.name,
     name: config.name,
     type: "bucket" as const,

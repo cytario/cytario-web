@@ -37,6 +37,7 @@ const staticNode = (name: string): TreeNode => ({
 
 const connectionNode = (connectionName: string, pathName: string, name: string): TreeNode => ({
   id: `${connectionName}/${pathName}`,
+  connectionId: connectionName,
   connectionName,
   pathName,
   name,

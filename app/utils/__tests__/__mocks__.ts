@@ -15,8 +15,8 @@ import type {
 
 const mock = {
   connectionGrant: (data: Partial<ConnectionGrant> = {}): ConnectionGrant => ({
-    id: 0,
-    connectionId: 0,
+    id: "grant-uuid-1",
+    connectionId: "conn-uuid-1",
     scope: "org1/lab",
     providerRoleId: "pr-mock",
     ...data,
@@ -25,7 +25,7 @@ const mock = {
     data: Partial<ConnectionConfig> & { grants?: ConnectionGrant[] } = {},
   ): ConnectionConfig & { grants: ConnectionGrant[] } => ({
     bucketName: "mock-bucket",
-    id: 1,
+    id: "conn-uuid-1",
     name: "aws-mock-bucket",
     organization: "org1",
     createdBy: "mock-user-id",

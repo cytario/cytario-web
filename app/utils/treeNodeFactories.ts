@@ -3,11 +3,6 @@ import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { SerializedFavorite } from "~/routes/favorites/favorites.loader";
 import type { SerializedRecentlyViewed } from "~/routes/recent/recent.loader";
 
-/**
- * A synthetic root over a flat list of nodes (connections, favorites, recents).
- * Carries no `connectionName`, so its header `NodeContextMenu` has no per-node
- * actions and renders nothing — these pages favorite per-row, not per-page.
- */
 export function buildVirtualNode(name: string, children: TreeNode[]): TreeNode {
   return {
     id: `aggregate-root/${name}`,
@@ -19,10 +14,10 @@ export function buildVirtualNode(name: string, children: TreeNode[]): TreeNode {
   };
 }
 
-/** A recently viewed item as a navigable tree node. */
 export function recentToNode(item: SerializedRecentlyViewed): TreeNode {
   return {
-    id: `${item.connectionName}/${item.pathName}`,
+    id: `${item.connectionId}/${item.pathName}`,
+    connectionId: item.connectionId,
     connectionName: item.connectionName,
     pathName: item.pathName,
     name: item.name,
@@ -31,10 +26,10 @@ export function recentToNode(item: SerializedRecentlyViewed): TreeNode {
   };
 }
 
-/** A favorite as a navigable directory tree node, carrying any cached metadata. */
 export function favoriteToNode(favorite: SerializedFavorite): TreeNode {
   return {
-    id: `${favorite.connectionName}/${favorite.pathName}`,
+    id: `${favorite.connectionId}/${favorite.pathName}`,
+    connectionId: favorite.connectionId,
     connectionName: favorite.connectionName,
     pathName: favorite.pathName,
     name: favorite.displayName,
@@ -50,11 +45,10 @@ export function favoriteToNode(favorite: SerializedFavorite): TreeNode {
   };
 }
 
-/** Keep only items whose connection is still visible to the user. */
-export function filterByKnownConnection<T extends { connectionName: string }>(
+export function filterByKnownConnection<T extends { connectionId: string }>(
   items: T[],
   configs: ConnectionConfig[],
 ): T[] {
-  const known = new Set(configs.map((c) => c.name));
-  return items.filter((item) => known.has(item.connectionName));
+  const known = new Set(configs.map((c) => c.id));
+  return items.filter((item) => known.has(item.connectionId));
 }

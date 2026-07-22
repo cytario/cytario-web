@@ -6,7 +6,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 
 interface ConnectionSwitcherChipProps {
   selectedConnection: string;
-  onSelect: (connectionName: string) => void;
+  onSelect: (connectionId: string) => void;
 }
 
 export function ConnectionSwitcherChip({

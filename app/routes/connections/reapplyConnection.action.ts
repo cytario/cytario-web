@@ -23,8 +23,8 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
   }
 
   const formData = await request.formData();
-  const connectionId = Number(formData.get("connectionId") ?? 0);
-  if (!connectionId || Number.isNaN(connectionId)) {
+  const connectionId = String(formData.get("connectionId") ?? "");
+  if (!connectionId) {
     return { error: "Connection id is required" };
   }
 

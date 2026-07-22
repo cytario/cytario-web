@@ -19,19 +19,19 @@ const KEEP_ALIVE_INTERVAL_MS = STS_STALENESS_BUFFER_MS - 60 * 1000;
 const STORE_UPDATE_TIMEOUT_MS = 5_000;
 
 /**
- * Resolves once the store holds credentials for `connectionName` with a
+ * Resolves once the store holds credentials for `connectionId` with a
  * different `AccessKeyId` than `previousKeyId`; `null` on timeout. The store
  * is written by `useInitConnections` in an effect, so the update can land
  * after the revalidation promise settles.
  */
 const waitForRotatedCredentials = (
-  connectionName: string,
+  connectionId: string,
   previousKeyId: string | undefined,
   timeoutMs: number,
 ): Promise<Credentials | null> =>
   new Promise((resolve) => {
     const read = () => {
-      const credentials = liveCredentials(connectionName)();
+      const credentials = liveCredentials(connectionId)();
       return credentials && credentials.AccessKeyId !== previousKeyId ? credentials : null;
     };
 
@@ -98,13 +98,13 @@ export function useCredentialsKeepAlive() {
       return inFlightRef.current;
     };
 
-    const uninstall = setCredentialsRefresher(async (connectionName) => {
-      const previousKeyId = liveCredentials(connectionName)()?.AccessKeyId;
+    const uninstall = setCredentialsRefresher(async (connectionId) => {
+      const previousKeyId = liveCredentials(connectionId)()?.AccessKeyId;
 
       await revalidateOnce();
 
       const rotated = await waitForRotatedCredentials(
-        connectionName,
+        connectionId,
         previousKeyId,
         STORE_UPDATE_TIMEOUT_MS,
       );
@@ -112,9 +112,9 @@ export function useCredentialsKeepAlive() {
 
       // No rotation observed — return what the store holds; the caller's
       // retry surfaces ExpiredCredentialsError if it is still stale.
-      const current = liveCredentials(connectionName)();
+      const current = liveCredentials(connectionId)();
       if (!current) {
-        throw new Error(`No credentials for connection "${connectionName}" after refresh.`);
+        throw new Error(`No credentials for connection "${connectionId}" after refresh.`);
       }
       return current;
     });

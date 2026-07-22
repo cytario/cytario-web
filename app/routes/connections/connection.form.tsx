@@ -58,7 +58,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 interface ConnectionFormProps {
   adminScopes: string[];
   userId: string;
-  initialData?: ConnectBucketFormData & { connectionId: number };
+  initialData?: ConnectBucketFormData & { connectionId: string };
   /** Pre-select scope (e.g. from admin page ?scope= param). Falls back to userId. */
   defaultScope?: string;
 }

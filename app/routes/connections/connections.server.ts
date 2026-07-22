@@ -28,14 +28,14 @@ export async function listConnections(user: UserProfile): Promise<ConnectionConf
   return filterVisible(user, allConfigs);
 }
 
-/** Get a connection config by its unique name, scoped to the active org. */
+/** Get a connection config by its id, scoped to the active org. */
 export async function getConnection(
   user: UserProfile,
-  name: string,
+  id: string,
 ): Promise<ConnectionConfigWithGrants | null> {
   const organization = requireOrganization(user);
   const config = await prisma.connectionConfig.findFirst({
-    where: { name, organization },
+    where: { id, organization },
     include: { grants: true },
   });
   if (!config || !canSee(user, config)) return null;

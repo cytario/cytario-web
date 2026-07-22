@@ -37,23 +37,22 @@ export type { BucketRouteLoaderResponse };
 
 export const middleware = [requestDurationMiddleware];
 
-// Response carries STS credentials — keep it out of every cache between origin
-// and browser.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export const meta: MetaFunction<typeof clientLoader> = ({ loaderData }) => [
   { title: loaderData?.name ?? "Cytario" },
 ];
 
-/** The bucket/directory at the current URL as a single TreeNode. */
 export function buildCurrentNode(
+  connectionId: string,
   connectionName: string,
   urlPath: string,
   children: TreeNode[] = [],
 ): TreeNode {
   const displayName = urlPath ? getName(urlPath, connectionName) : connectionName;
   return {
-    id: `${connectionName}/${urlPath}`,
+    id: `${connectionId}/${urlPath}`,
+    connectionId,
     connectionName,
     pathName: urlPath,
     name: displayName,
@@ -68,17 +67,13 @@ export const handle = {
     data?: BucketRouteLoaderResponse;
   }): TreeNode => {
     const { params, data } = match;
-    const connectionName = data?.connectionName ?? params.name ?? "";
+    const connectionId = data?.connectionId ?? params.id ?? "";
+    const connectionName = data?.connectionName ?? params.id ?? "";
     const urlPath = params["*"] ?? "";
-    return buildCurrentNode(connectionName, urlPath);
+    return buildCurrentNode(connectionId, connectionName, urlPath);
   },
 };
 
-// `formAction` fires for fetcher submissions too, so a blanket `if (formAction)`
-// is unsafe here: the record-viewed fetcher posts to /recent on every nav and
-// must NOT retrigger the S3 listing. Favorite state now lives on the
-// `protected.layout` loader (consumed via `useFavorite`), which revalidates on
-// its own after a /favorites toggle, so the listing only re-runs on URL change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl }) => {
   if (currentUrl.pathname !== nextUrl.pathname) return true;
   if (currentUrl.search !== nextUrl.search) return true;
@@ -87,6 +82,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl
 
 export default function ObjectsRoute() {
   const {
+    connectionId,
     connectionName,
     name,
     nodes,
@@ -100,7 +96,7 @@ export default function ObjectsRoute() {
   const navigate = useNavigate();
   const { openModal } = useModal();
   const signingRegion = useConnectionsStore(
-    (state) => state.connections[connectionName]?.provider?.region,
+    (state) => state.connections[connectionId]?.provider?.region,
   );
 
   useEffect(() => {
@@ -112,11 +108,9 @@ export default function ObjectsRoute() {
     }
   }, [notification]);
 
-  const resourceId = `${connectionName}/${urlPath}`;
+  const resourceId = `${connectionId}/${urlPath}`;
   const fileType = getFileType(resourceId);
 
-  // Defer the submit until navigation goes idle — submitting during hydration
-  // races RR's bulk-fetch single-fetch and trips RR issue #13873.
   const recentFetcher = useFetcher();
   const navigation = useNavigation();
   const lastRecentSubmit = useRef<string | null>(null);
@@ -127,14 +121,13 @@ export default function ObjectsRoute() {
     lastRecentSubmit.current = resourceId;
     recentFetcher.submit(
       {
-        connectionName,
+        connectionId,
         pathName: urlPath,
         name,
         type: isSingleFile ? "file" : "directory",
       },
       { method: "post", action: "/recent" },
     );
-    // Other deps are stable within the same resourceId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, navigation.state]);
 
@@ -157,7 +150,7 @@ export default function ObjectsRoute() {
   }
 
   if (nodes.length > 0) {
-    const currentNode = buildCurrentNode(connectionName, urlPath, nodes);
+    const currentNode = buildCurrentNode(connectionId, connectionName, urlPath, nodes);
 
     return (
       <DirectoryView kind="entries" node={currentNode}>
@@ -189,13 +182,11 @@ export default function ObjectsRoute() {
       );
     }
 
-    // Gate on `isImageFile` so plugin-contributed formats reach `<Viewer>`
-    // without per-format branching here.
     if (isImageFile(resourceId)) {
       const signedFetch = createSignedFetch(
-        liveCredentials(connectionName),
+        liveCredentials(connectionId),
         signingRegion,
-        connectionName,
+        connectionId,
       );
       return (
         <ClientOnly>
@@ -224,8 +215,6 @@ export default function ObjectsRoute() {
     );
   }
 
-  // Distinguish "still loading" from "loaded but empty" to avoid flashing the
-  // empty state during the SSR → hydration handoff.
   if (pendingClientLoad) {
     return (
       <div

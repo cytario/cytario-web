@@ -7,7 +7,7 @@ export type { RecentlyViewed };
 export async function upsertRecentlyViewed(
   userId: string,
   item: {
-    connectionId: number;
+    connectionId: string;
     connectionName: string;
     pathName: string;
     name: string;
@@ -51,7 +51,7 @@ export async function clearAllRecentlyViewed(userId: string): Promise<void> {
 /** Delete a specific recently viewed item by user, connection id, and path. */
 export async function removeRecentlyViewed(
   userId: string,
-  connectionId: number,
+  connectionId: string,
   pathName: string,
 ): Promise<void> {
   await prisma.recentlyViewed.deleteMany({ where: { userId, connectionId, pathName } });

@@ -11,6 +11,7 @@ export type TreeNodeType = "bucket" | "directory" | "file";
  */
 export interface TreeNode {
   id: string;
+  connectionId?: string;
   connectionName: string;
   pathName: string;
   name: string;
@@ -30,6 +31,7 @@ function buildDirectoryTreeRecursive(
   currentDir: TreeNode[],
   keyParts: string[],
   obj: _Object,
+  connectionId: string,
   connectionName: string,
   parentPath: string = "",
 ) {
@@ -38,11 +40,11 @@ function buildDirectoryTreeRecursive(
   if (keyParts.length > 1) pathName += "/";
 
   if (keyParts.length === 1) {
-    // Skip empty-name leaves from S3 folder marker keys (ending in "/").
     if (name === "") return;
 
     currentDir.push({
-      id: `${connectionName}/${pathName}`,
+      id: `${connectionId}/${pathName}`,
+      connectionId,
       connectionName,
       type: "file",
       name,
@@ -51,11 +53,11 @@ function buildDirectoryTreeRecursive(
       _Object: obj,
     });
   } else {
-    // Zarr directories are images — treat as leaf, skip the thousands of chunks.
     if (isZarrPath(name)) {
       if (!currentDir.find((child) => child.name === name)) {
         currentDir.push({
-          id: `${connectionName}/${pathName}`,
+          id: `${connectionId}/${pathName}`,
+          connectionId,
           connectionName,
           type: "file",
           name,
@@ -70,7 +72,8 @@ function buildDirectoryTreeRecursive(
     let existingDir = currentDir.find((child) => child.name === name);
     if (!existingDir) {
       existingDir = {
-        id: `${connectionName}/${pathName}`,
+        id: `${connectionId}/${pathName}`,
+        connectionId,
         connectionName,
         type: "directory",
         name,
@@ -88,6 +91,7 @@ function buildDirectoryTreeRecursive(
       existingDir.children,
       keyParts.slice(1),
       obj,
+      connectionId,
       connectionName,
       pathName,
     );
@@ -148,20 +152,16 @@ export function computeDirectoryLastModified(node: TreeNode): number {
 interface BuildLevelTreeArgs {
   contents: _Object[];
   commonPrefixes: string[];
+  connectionId: string;
   connectionName: string;
-  /** Listing prefix to strip from keys to derive node names. Empty at bucket root. */
   prefix?: string;
-  /** Path relative to connection root, prepended to `pathName`. */
   urlPath?: string;
 }
 
-/**
- * Build a single-level tree from a paginated S3 listing with `Delimiter: "/"`.
- * Zarr `CommonPrefixes` collapse into a single leaf node.
- */
 export function buildLevelTree({
   contents,
   commonPrefixes,
+  connectionId,
   connectionName,
   prefix,
   urlPath,
@@ -178,12 +178,12 @@ export function buildLevelTree({
     const isZarr = isZarrPath(name);
 
     nodes.push({
-      id: `${connectionName}/${pathName}`,
+      id: `${connectionId}/${pathName}`,
+      connectionId,
       connectionName,
       type: isZarr ? "file" : "directory",
       name,
       pathName,
-      // Empty array → chevron + lazy expansion; `undefined` → no chevron.
       children: isZarr ? undefined : [],
       hasChildren: !isZarr,
       isLeaf: isZarr,
@@ -200,7 +200,8 @@ export function buildLevelTree({
     const pathName = `${basePath}${relative}`;
 
     nodes.push({
-      id: `${connectionName}/${pathName}`,
+      id: `${connectionId}/${pathName}`,
+      connectionId,
       connectionName,
       type: "file",
       name,
@@ -213,9 +214,9 @@ export function buildLevelTree({
   return nodes;
 }
 
-/** Build a recursive directory tree from a flat S3 object listing. */
 export function buildDirectoryTree(
   objects: _Object[],
+  connectionId: string,
   connectionName: string,
   prefix?: string,
   urlPath?: string,
@@ -229,7 +230,7 @@ export function buildDirectoryTree(
     const pathName = obj.Key.replace(prefix || "", "");
     const pathSegments = pathName.split("/");
 
-    buildDirectoryTreeRecursive(root, pathSegments, obj, connectionName, basePath);
+    buildDirectoryTreeRecursive(root, pathSegments, obj, connectionId, connectionName, basePath);
   });
 
   return root;

@@ -13,5 +13,6 @@ export const recordRecentlyViewed = (args: ActionFunctionArgs) =>
       upsertRecentlyViewed(user.sub, {
         ...data,
         connectionId: connection.id,
+        connectionName: connection.name,
       }),
   });

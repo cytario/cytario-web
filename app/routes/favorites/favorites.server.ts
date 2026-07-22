@@ -7,7 +7,7 @@ export type { PinnedPath };
 export async function addFavorite(
   userId: string,
   favorite: {
-    connectionId: number;
+    connectionId: string;
     connectionName: string;
     pathName: string;
     displayName: string;
@@ -43,7 +43,7 @@ export async function addFavorite(
 /** Remove a favorite for a user by connection id and path. */
 export async function removeFavorite(
   userId: string,
-  connectionId: number,
+  connectionId: string,
   pathName: string,
 ): Promise<void> {
   await prisma.pinnedPath.deleteMany({ where: { userId, connectionId, pathName } });

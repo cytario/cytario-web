@@ -2,9 +2,10 @@ import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { parseResourceId } from "~/utils/resourceId";
 
 /** The connection-root (bucket-level) node for a connection. */
-function buildConnectionNode(connectionName: string): TreeNode {
+function buildConnectionNode(connectionId: string, connectionName: string): TreeNode {
   return {
-    id: `${connectionName}/`,
+    id: `${connectionId}/`,
+    connectionId,
     connectionName,
     name: connectionName,
     type: "bucket",
@@ -14,9 +15,15 @@ function buildConnectionNode(connectionName: string): TreeNode {
 }
 
 /** A directory node at an arbitrary path within a connection. */
-function buildDirectoryNode(connectionName: string, pathName: string, name: string): TreeNode {
+function buildDirectoryNode(
+  connectionId: string,
+  connectionName: string,
+  pathName: string,
+  name: string,
+): TreeNode {
   return {
-    id: `${connectionName}/${pathName}`,
+    id: `${connectionId}/${pathName}`,
+    connectionId,
     connectionName,
     name,
     type: "directory",
@@ -25,26 +32,21 @@ function buildDirectoryNode(connectionName: string, pathName: string, name: stri
   };
 }
 
-/**
- * Expand a route's current node into its breadcrumb trail. Static nodes (no
- * `connectionName`) are a single crumb; connection nodes split into
- * bucket → directory ancestors → leaf, the passed node reused as the leaf.
- */
 export function nodeToTrail(node: TreeNode): TreeNode[] {
-  if (!node.connectionName) return [node];
+  if (!node.connectionId) return [node];
 
-  const { connectionName, pathName } = parseResourceId(node.id);
+  const { connectionId, pathName } = parseResourceId(node.id);
   const segments = pathName.split("/").filter(Boolean);
 
   if (segments.length === 0) return [node];
 
-  const trail: TreeNode[] = [buildConnectionNode(connectionName)];
+  const trail: TreeNode[] = [buildConnectionNode(connectionId, node.connectionName)];
 
   let acc = "";
   segments.forEach((segment, index) => {
     acc = acc ? `${acc}/${segment}` : segment;
     const isLeaf = index === segments.length - 1;
-    trail.push(isLeaf ? node : buildDirectoryNode(connectionName, acc, segment));
+    trail.push(isLeaf ? node : buildDirectoryNode(connectionId, node.connectionName, acc, segment));
   });
 
   return trail;

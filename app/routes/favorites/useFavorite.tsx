@@ -10,20 +10,12 @@ import {
 
 const FAVORITES_ACTION = "/favorites";
 
-/**
- * Strip a single trailing slash so a directory node's `pathName` (e.g. `foo/`)
- * reconciles with the route's prefix-relative `urlPath` (`foo`) and the DB
- * unique key does not split into two rows for the same path.
- */
 function favoriteKey(pathName: string): string {
   return (pathName ?? "").replace(/\/$/, "");
 }
 
-// The node's resourceId (`connectionName/pathName`) with the directory trailing
-// slash stripped. Unambiguous because a connectionName never contains `/` — the
-// invariant parseResourceId relies on.
-function nodeKey(connectionName: string, pathName: string): string {
-  return `${connectionName}/${favoriteKey(pathName)}`;
+function nodeKey(connectionId: string, pathName: string): string {
+  return `${connectionId}/${favoriteKey(pathName)}`;
 }
 
 interface FavoritesController {
@@ -34,12 +26,6 @@ interface FavoritesController {
 
 const FavoritesContext = createContext<FavoritesController | null>(null);
 
-/**
- * Single owner of favorite state for the authenticated app: one `useFetcher`
- * and one favorites `Set`, shared by every `NodeContextMenu` (rows, headers,
- * sidebar). Rows read `isFavorite` as an O(1) lookup rather than each mounting
- * their own fetcher and scanning the favorites list.
- */
 export function FavoritesProvider({
   favorites,
   children,
@@ -51,16 +37,14 @@ export function FavoritesProvider({
   const { submit } = fetcher;
 
   const favSet = useMemo(
-    () => new Set(favorites.map((f) => nodeKey(f.connectionName, f.pathName))),
+    () => new Set(favorites.map((f) => nodeKey(f.connectionId, f.pathName))),
     [favorites],
   );
 
-  // The single in-flight toggle, so the affected node reflects its target state
-  // optimistically while every other row stays put.
   const pendingKey =
     fetcher.state !== "idle" && fetcher.formData
       ? nodeKey(
-          String(fetcher.formData.get("connectionName") ?? ""),
+          String(fetcher.formData.get("connectionId") ?? ""),
           String(fetcher.formData.get("pathName") ?? ""),
         )
       : null;
@@ -68,26 +52,26 @@ export function FavoritesProvider({
 
   const controller = useMemo<FavoritesController>(() => {
     const isFavorite = (node: TreeNode) => {
-      const key = nodeKey(node.connectionName, node.pathName);
+      const key = nodeKey(node.connectionId ?? node.connectionName, node.pathName);
       if (pendingKey === key) return pendingAdding;
       return favSet.has(key);
     };
 
     const isPending = (node: TreeNode) =>
-      pendingKey === nodeKey(node.connectionName, node.pathName);
+      pendingKey === nodeKey(node.connectionId ?? node.connectionName, node.pathName);
 
     const toggle = (node: TreeNode) => {
       const key = favoriteKey(node.pathName);
       if (isFavorite(node)) {
         submit(
-          { connectionName: node.connectionName, pathName: key },
+          { connectionId: node.connectionId ?? node.connectionName, pathName: key },
           { method: "delete", action: FAVORITES_ACTION },
         );
         return;
       }
 
       const payload: Record<string, string> = {
-        connectionName: node.connectionName,
+        connectionId: node.connectionId ?? node.connectionName,
         pathName: key,
         displayName: node.name,
       };
@@ -121,11 +105,6 @@ export interface UseFavorite {
   toggle: () => void;
 }
 
-/**
- * Favorite state + toggle for a single `TreeNode`, backed by the shared
- * `FavoritesProvider`. `isFavorite` is an O(1) lookup and optimistic while a
- * toggle is in flight.
- */
 export function useFavorite(node: TreeNode): UseFavorite {
   const controller = useContext(FavoritesContext);
   if (!controller) {

@@ -5,6 +5,7 @@ import mock from "~/utils/__tests__/__mocks__";
 describe("useConnectionsStore", () => {
   const credentials = mock.credentials();
   const connectionConfig = mock.connectionConfig({
+    id: "test-conn",
     name: "test-conn",
     bucketName: "test-bucket",
   });
@@ -22,9 +23,9 @@ describe("useConnectionsStore", () => {
       .getState()
       .setConnections(
         [config],
-        { [config.name]: creds },
+        { [config.id]: creds },
         {},
-        provider ? { [config.name]: { allowsSharing: false, ...provider } } : {},
+        provider ? { [config.id]: { allowsSharing: false, ...provider } } : {},
       );
   };
 
@@ -35,8 +36,8 @@ describe("useConnectionsStore", () => {
   describe("setConnections", () => {
     test("joins configs[] with name-keyed credentials", () => {
       const configs = [
-        mock.connectionConfig({ name: "conn-a" }),
-        mock.connectionConfig({ name: "conn-b" }),
+        mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
+        mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
       ];
       const credsByName = {
         "conn-a": mock.credentials({ AccessKeyId: "key-a" }),
@@ -58,8 +59,8 @@ describe("useConnectionsStore", () => {
 
     test("keeps configs without matching credentials, flagged as errored", () => {
       const configs = [
-        mock.connectionConfig({ name: "conn-a" }),
-        mock.connectionConfig({ name: "conn-b" }),
+        mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
+        mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
       ];
       const partial = {
         "conn-a": mock.credentials(),
@@ -81,10 +82,12 @@ describe("useConnectionsStore", () => {
 
     test("sibling connections sharing a bucket each get their own entry", () => {
       const configA = mock.connectionConfig({
+        id: "conn-a",
         name: "conn-a",
         bucketName: "shared-bucket",
       });
       const configB = mock.connectionConfig({
+        id: "conn-b",
         name: "conn-b",
         bucketName: "shared-bucket",
       });
@@ -119,6 +122,7 @@ describe("useConnectionsStore", () => {
     test("selectHttpsUrl rejoins configured prefix before the pathName (C-161)", () => {
       seed(
         mock.connectionConfig({
+          id: "prefixed-conn",
           name: "prefixed-conn",
           bucketName: "my-bucket",
           prefix: "tenant-a",
@@ -139,6 +143,7 @@ describe("useConnectionsStore", () => {
     test("selectHttpsUrl omits prefix join when prefix is empty", () => {
       seed(
         mock.connectionConfig({
+          id: "no-prefix",
           name: "no-prefix",
           bucketName: "my-bucket",
           prefix: "",
@@ -155,6 +160,7 @@ describe("useConnectionsStore", () => {
     test("resolveResourceId exposes httpsUrl matching selectHttpsUrl", () => {
       seed(
         mock.connectionConfig({
+          id: "prefixed-conn",
           name: "prefixed-conn",
           bucketName: "my-bucket",
           prefix: "data",

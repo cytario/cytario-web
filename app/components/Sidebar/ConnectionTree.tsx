@@ -25,8 +25,9 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
     () => [
       {
         id: rootId,
+        connectionId: selectedConnection,
         connectionName: selectedConnection,
-        type: "bucket", // NodeIndicator only shows the status dot for buckets
+        type: "bucket",
         name: selectedConnection,
         pathName: "",
         children: [],

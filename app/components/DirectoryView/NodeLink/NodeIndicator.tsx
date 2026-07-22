@@ -7,8 +7,10 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 export const NodeIndicator = ({ node }: { node: TreeNode }) => {
   // Connection health is owned by the store, so every surface that renders a
   // bucket node (list, header search, sidebar) shows the same live status.
-  const status = useConnectionsStore(select.connectionStatus(node.connectionName));
-  const statusMessage = useConnectionsStore(select.connectionStatusMessage(node.connectionName));
+  const status = useConnectionsStore(select.connectionStatus(node.connectionId ?? ""));
+  const statusMessage = useConnectionsStore(
+    select.connectionStatusMessage(node.connectionId ?? ""),
+  );
 
   return (
     <div className="flex items-center justify-center w-6 h-6">

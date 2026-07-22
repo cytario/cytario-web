@@ -43,7 +43,7 @@ export interface Connection {
 }
 
 /**
- * Connections store. Single map keyed by `config.name`.
+ * Connections store. Single map keyed by `config.id`.
  *
  * Deliberately not persisted: STS credentials never leave in-memory state —
  * any script in the realm can read `sessionStorage` / `localStorage`.
@@ -81,32 +81,26 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           (state) => {
             const next: Record<string, Connection> = {};
             for (const connectionConfig of configs) {
-              const cname = connectionConfig.name;
-              const creds = credentials[cname] ?? null;
-              const prev = state.connections[cname];
+              const cid = connectionConfig.id;
+              const creds = credentials[cid] ?? null;
+              const prev = state.connections[cid];
 
               let status: ConnectionStatus;
               let statusMessage: string | undefined;
               if (!creds) {
                 status = "error";
-                statusMessage = errors[cname] ?? NO_CREDENTIALS_MESSAGE;
+                statusMessage = errors[cid] ?? NO_CREDENTIALS_MESSAGE;
               } else if (prev?.credentials) {
-                // Keep the last probe verdict; the next probe refreshes it.
                 status = prev.status;
                 statusMessage = prev.statusMessage;
               } else {
-                // Server minted STS credentials, so the connection is usable.
-                // Seed "connected" rather than "loading": the dot renders on
-                // surfaces with no client probe (sidebar, search, objects), and
-                // only the `/connections` probe would ever clear "loading". The
-                // probe still downgrades to "error" on a CORS/reachability fail.
                 status = "connected";
               }
 
-              next[cname] = {
+              next[cid] = {
                 connectionConfig,
                 credentials: creds,
-                provider: providers[cname] ?? prev?.provider,
+                provider: providers[cid] ?? prev?.provider,
                 status,
                 statusMessage,
               };
@@ -121,8 +115,8 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       setConnectionStatuses: (updates) => {
         set(
           (state) => {
-            for (const [cname, update] of Object.entries(updates)) {
-              const connection = state.connections[cname];
+            for (const [cid, update] of Object.entries(updates)) {
+              const connection = state.connections[cid];
               if (!connection) continue;
               connection.status = update.status;
               connection.statusMessage = update.statusMessage;

@@ -36,8 +36,8 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const { connectionName } = parseResourceId(resourceId);
-  const connectionConfig = useConnectionsStore(select.connectionConfig(connectionName));
+  const { connectionId } = parseResourceId(resourceId);
+  const connectionConfig = useConnectionsStore(select.connectionConfig(connectionId));
 
   // Initial data fetch
   useEffect(() => {

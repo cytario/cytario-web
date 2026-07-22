@@ -21,7 +21,7 @@ const seedConnectionsStore = (
   credentialsByName: Record<string, ReturnType<typeof mock.credentials>> = {},
 ) => {
   const credentials = Object.fromEntries(
-    configs.map((c) => [c.name, credentialsByName[c.name] ?? mock.credentials()]),
+    configs.map((c) => [c.id, credentialsByName[c.name] ?? mock.credentials()]),
   );
   useConnectionsStore.getState().setConnections(configs, credentials);
 };
@@ -33,8 +33,8 @@ describe("SearchRoute", () => {
   });
 
   test("clientLoader propagates errors-per-connection and continues with the rest", async () => {
-    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
-    const broken = mock.connectionConfig({ name: "broken", prefix: "" });
+    const ok = mock.connectionConfig({ id: "ok", name: "ok", prefix: "" });
+    const broken = mock.connectionConfig({ id: "broken", name: "broken", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
       if (config.name === "broken") throw new Error("AccessDenied");
@@ -52,8 +52,8 @@ describe("SearchRoute", () => {
   });
 
   test("clientLoader emits an error notification when a connection fails", async () => {
-    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
-    const broken = mock.connectionConfig({ name: "broken", prefix: "" });
+    const ok = mock.connectionConfig({ id: "ok", name: "ok", prefix: "" });
+    const broken = mock.connectionConfig({ id: "broken", name: "broken", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
       if (config.name === "broken") throw new Error("AccessDenied");
@@ -73,9 +73,9 @@ describe("SearchRoute", () => {
   });
 
   test("clientLoader combines error + warning when both failures and caps occur", async () => {
-    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
+    const ok = mock.connectionConfig({ id: "ok", name: "ok", prefix: "" });
     const huge = mock.connectionConfig({ name: "huge", prefix: "" });
-    const broken = mock.connectionConfig({ name: "broken", prefix: "" });
+    const broken = mock.connectionConfig({ id: "broken", name: "broken", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
       if (config.name === "broken") throw new Error("AccessDenied");
@@ -98,7 +98,7 @@ describe("SearchRoute", () => {
 
   test("clientLoader bounds concurrent listings to a small limit", async () => {
     const configs = Array.from({ length: 20 }, (_, i) =>
-      mock.connectionConfig({ name: `conn-${i}`, prefix: "" }),
+      mock.connectionConfig({ id: `conn-${i}`, name: `conn-${i}`, prefix: "" }),
     );
 
     const inFlight = { current: 0, peak: 0 };
@@ -122,7 +122,7 @@ describe("SearchRoute", () => {
   });
 
   test("clientLoader forwards request.signal into each listObjectsClient call", async () => {
-    const config = mock.connectionConfig({ name: "a", prefix: "" });
+    const config = mock.connectionConfig({ id: "a", name: "a", prefix: "" });
     listObjectsClient.mockResolvedValue({ contents: [], commonPrefixes: [], isCapped: false });
 
     seedConnectionsStore([config]);
@@ -139,7 +139,7 @@ describe("SearchRoute", () => {
 
   test("surfaces a CORS-specific notification when a connection throws CorsLikelyError", async () => {
     const blocked = mock.connectionConfig({ name: "blocked", prefix: "" });
-    const ok = mock.connectionConfig({ name: "ok", prefix: "" });
+    const ok = mock.connectionConfig({ id: "ok", name: "ok", prefix: "" });
 
     listObjectsClient.mockImplementation(async (config) => {
       if (config.name === "blocked") {
@@ -165,11 +165,13 @@ describe("SearchRoute", () => {
 
   test("clientLoader fans out one listing per connection scoped to its own prefix", async () => {
     const alphaConfig = mock.connectionConfig({
+      id: "alpha",
       name: "Alpha Lab",
       bucketName: "shared-bucket",
       prefix: "Alpha Lab/",
     });
     const betaConfig = mock.connectionConfig({
+      id: "beta",
       name: "Beta Lab",
       bucketName: "shared-bucket",
       prefix: "Beta Lab/",
@@ -237,11 +239,13 @@ describe("SearchRoute", () => {
 
   test("clientLoader surfaces a warning notification when any connection is capped", async () => {
     const huge = mock.connectionConfig({
+      id: "huge",
       name: "Huge Bucket",
       bucketName: "huge",
       prefix: "Huge Bucket/",
     });
     const small = mock.connectionConfig({
+      id: "small",
       name: "Small Bucket",
       bucketName: "small",
       prefix: "Small Bucket/",

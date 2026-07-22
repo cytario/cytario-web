@@ -69,7 +69,7 @@ const catalog = mock.providerCatalog({
 });
 
 const existing = mock.connectionConfig({
-  id: 7,
+  id: "conn-uuid-7",
   name: "conn",
   bucketName: "old-bucket",
   providerConnectionId: "pc-old",
@@ -77,7 +77,7 @@ const existing = mock.connectionConfig({
 });
 
 const form = {
-  connectionId: "7",
+  connectionId: "conn-uuid-7",
   name: "conn",
   bucketName: "new-bucket",
   prefix: "",

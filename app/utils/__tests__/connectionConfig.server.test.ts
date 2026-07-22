@@ -61,10 +61,10 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
 
-      const result = await getConnection(user, "aws-mock-bucket");
+      const result = await getConnection(user, "conn-uuid-1");
 
       expect(prisma.connectionConfig.findFirst).toHaveBeenCalledWith({
-        where: { name: "aws-mock-bucket", organization: "org1" },
+        where: { id: "conn-uuid-1", organization: "org1" },
         include: { grants: true },
       });
       expect(canSee).toHaveBeenCalledWith(user, config);
@@ -83,7 +83,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      const result = await getConnection(user, "aws-mock-bucket");
+      const result = await getConnection(user, "conn-uuid-1");
 
       expect(result).toBeNull();
     });
@@ -127,7 +127,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(true);
 
-      await deleteConnection(user, 0);
+      await deleteConnection(user, "conn-uuid-1");
 
       expect(prisma.connectionConfig.delete).toHaveBeenCalledWith({
         where: { id: config.id },
@@ -137,14 +137,18 @@ describe("connectionConfig.server", () => {
     test("throws when config not found", async () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
-      await expect(deleteConnection(user, 999)).rejects.toThrow("Connection config not found");
+      await expect(deleteConnection(user, "conn-uuid-999")).rejects.toThrow(
+        "Connection config not found",
+      );
     });
 
     test("throws when user cannot see config", async () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      await expect(deleteConnection(user, 0)).rejects.toThrow("Connection config not found");
+      await expect(deleteConnection(user, "conn-uuid-1")).rejects.toThrow(
+        "Connection config not found",
+      );
     });
 
     test("throws when user cannot modify config", async () => {
@@ -152,7 +156,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(false);
 
-      await expect(deleteConnection(user, 0)).rejects.toThrow(
+      await expect(deleteConnection(user, "conn-uuid-1")).rejects.toThrow(
         "Not authorized to delete this connection config",
       );
     });

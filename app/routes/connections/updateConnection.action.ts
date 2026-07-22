@@ -28,7 +28,7 @@ export interface UpdateConnectionInput {
 
 export async function updateConnection(
   user: UserProfile,
-  connectionId: number,
+  connectionId: string,
   updates: UpdateConnectionInput,
 ) {
   if (!user.organization) {
@@ -66,7 +66,6 @@ export async function updateConnection(
     }
   }
 
-  const previousName = config.name;
   const previousBucketName = config.bucketName;
   const previousProviderConnectionId = config.providerConnectionId;
 
@@ -93,7 +92,6 @@ export async function updateConnection(
   return {
     ...updated,
     grants: updated.grants,
-    previousName,
     previousBucketName,
     previousProviderConnectionId,
   };
@@ -104,9 +102,9 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   const session = context.get(sessionContext);
   const formData = await request.formData();
 
-  const connectionId = Number(formData.get("connectionId") ?? 0);
+  const connectionId = String(formData.get("connectionId") ?? "");
 
-  if (!connectionId || Number.isNaN(connectionId)) {
+  if (!connectionId) {
     return { errors: { name: ["Connection id is required"] }, status: "error" as const };
   }
 
@@ -165,10 +163,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     });
 
     const credentials = session.get("credentials") ?? {};
-    delete credentials[updatedConfig.previousName];
-    if (updatedConfig.name !== updatedConfig.previousName) {
-      delete credentials[updatedConfig.name];
-    }
+    delete credentials[updatedConfig.id];
     session.set("credentials", credentials);
 
     const acting = {

@@ -58,10 +58,11 @@ describe("Bucket Route", () => {
   test("handle.node builds the current TreeNode from params + data", () => {
     const mockArgs = {
       params: {
-        name: "aws-test-bucket",
+        id: "aws-test-bucket",
         "*": "bucket/folder/file.ome.tiff",
       },
       data: {
+        connectionId: "aws-test-bucket",
         connectionName: "aws-test-bucket",
         bucketName: "test-bucket",
         connectionConfig: mock.connectionConfig({ prefix: "" }),
@@ -70,6 +71,7 @@ describe("Bucket Route", () => {
 
     expect(handle.node(mockArgs)).toEqual({
       id: "aws-test-bucket/bucket/folder/file.ome.tiff",
+      connectionId: "aws-test-bucket",
       connectionName: "aws-test-bucket",
       pathName: "bucket/folder/file.ome.tiff",
       name: "file.ome.tiff",
@@ -81,11 +83,12 @@ describe("Bucket Route", () => {
   test("renders `DirectoryView`, if there are multiple nodes", async () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/connections/:name",
+        path: "/connections/:id",
         Component: ObjectsRoute,
         handle,
         loader: () => {
           return {
+            connectionId: "aws-test-bucket",
             connectionName: "aws-test-bucket",
             credentials: mock.credentials(),
             connectionConfig: mock.connectionConfig(),
@@ -110,11 +113,12 @@ describe("Bucket Route", () => {
   test("renders `Viewer` for given `pathName`", async () => {
     const RemixStub = createRoutesStub([
       {
-        path: "/connections/:name/*",
+        path: "/connections/:id/*",
         Component: ObjectsRoute,
         handle,
         loader: () => {
           return {
+            connectionId: "aws-test-bucket",
             connectionName: "aws-test-bucket",
             credentials: mock.credentials(),
             connectionConfig: mock.connectionConfig(),

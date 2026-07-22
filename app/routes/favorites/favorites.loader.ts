@@ -1,7 +1,8 @@
 import { getFavorites } from "./favorites.server";
 
 export type SerializedFavorite = {
-  id: number;
+  id: string;
+  connectionId: string;
   connectionName: string;
   pathName: string;
   displayName: string;
@@ -14,6 +15,7 @@ export async function loadFavorites(userId: string): Promise<SerializedFavorite[
   const raw = await getFavorites(userId);
   return raw.map((favorite) => ({
     id: favorite.id,
+    connectionId: favorite.connectionId,
     connectionName: favorite.connectionName,
     pathName: favorite.pathName,
     displayName: favorite.displayName,

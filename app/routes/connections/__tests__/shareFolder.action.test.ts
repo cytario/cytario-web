@@ -102,7 +102,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
       }),
     );
     const created = mock.connectionConfig({
-      id: 5,
+      id: "conn-uuid-5",
       name: "team-a-share",
       grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" })],
     });
@@ -124,7 +124,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
   test("creates the share and applies when authorized", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(catalog);
     const created = mock.connectionConfig({
-      id: 5,
+      id: "conn-uuid-5",
       name: "team-a-share",
       grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-share" })],
     });

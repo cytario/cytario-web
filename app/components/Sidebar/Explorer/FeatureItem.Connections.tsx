@@ -11,7 +11,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 
 export function FeatureItemConnections() {
   const connections = useConnectionsStore(select.connections);
-  const connectionNames = useMemo(() => Object.keys(connections), [connections]);
+  const connectionIds = useMemo(() => Object.keys(connections), [connections]);
   const routeName = useParams().name;
 
   const [override, setOverride] = useState<string | null>(null);
@@ -26,12 +26,12 @@ export function FeatureItemConnections() {
   }
 
   const selectedConnection =
-    override ?? (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
+    override ?? (routeName && connectionIds.includes(routeName) ? routeName : connectionIds[0]);
 
   return (
     <FeatureItem
       title="Connections"
-      badge={String(connectionNames.length)}
+      badge={String(connectionIds.length)}
       actions={
         <IconButtonLink
           href="/connections"

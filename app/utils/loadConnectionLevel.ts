@@ -8,6 +8,7 @@ import { buildLevelTree, TreeNode } from "~/components/DirectoryView/buildDirect
 export interface LoadConnectionLevelArgs {
   connectionConfig: ConnectionConfig;
   credentials: Credentials;
+  connectionId: string;
   connectionName: string;
   /** Resolved non-secret provider address (region/endpoint) from the catalog. */
   provider?: { region?: string | null; endpoint?: string | null };
@@ -21,13 +22,10 @@ export interface LoadConnectionLevelResult {
   isCapped: boolean;
 }
 
-/**
- * One-level browser-side listing for a connection. Shared by the object-
- * browser client loader and the lazy-tree expansion hook.
- */
 export async function loadConnectionLevel({
   connectionConfig,
   credentials,
+  connectionId,
   connectionName,
   provider,
   urlPath: rawUrlPath,
@@ -49,6 +47,7 @@ export async function loadConnectionLevel({
   const nodes = buildLevelTree({
     contents,
     commonPrefixes,
+    connectionId,
     connectionName,
     prefix,
     urlPath,

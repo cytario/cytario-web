@@ -166,7 +166,7 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "conn-a" }),
+      mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
     ]);
 
     expect(result.credentials).toBe(validCredentials);
@@ -176,7 +176,7 @@ describe("getAllSessionCredentials", () => {
 
   test("fetches credentials for connections with missing credentials", async () => {
     const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ name: "new-conn" }),
+      mock.connectionConfig({ id: "new-conn", name: "new-conn" }),
     ]);
 
     expect(result.credentials).toEqual({ "new-conn": mockCredentials });
@@ -194,7 +194,7 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "expired-conn" }),
+      mock.connectionConfig({ id: "expired-conn", name: "expired-conn" }),
     ]);
 
     expect(result.credentials).toEqual({ "expired-conn": mockCredentials });
@@ -215,11 +215,13 @@ describe("getAllSessionCredentials", () => {
     const configs = [
       mock.connectionConfig({
         name: "internal",
+        id: "internal",
         bucketName: "shared-bucket",
         grants: [mock.connectionGrant({ providerRoleId: "pr-internal" })],
       }),
       mock.connectionConfig({
         name: "external",
+        id: "external",
         bucketName: "shared-bucket",
         grants: [mock.connectionGrant({ providerRoleId: "pr-external" })],
       }),
@@ -235,8 +237,8 @@ describe("getAllSessionCredentials", () => {
 
   test("fetches multiple connections in parallel", async () => {
     const configs = [
-      mock.connectionConfig({ name: "conn-a" }),
-      mock.connectionConfig({ name: "conn-b" }),
+      mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
+      mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
     ];
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
@@ -257,8 +259,8 @@ describe("getAllSessionCredentials", () => {
     };
 
     const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ name: "existing-conn" }),
-      mock.connectionConfig({ name: "new-conn" }),
+      mock.connectionConfig({ id: "existing-conn", name: "existing-conn" }),
+      mock.connectionConfig({ id: "new-conn", name: "new-conn" }),
     ]);
 
     expect(result.credentials["existing-conn"]).toBe(existingCredentials);
@@ -273,8 +275,8 @@ describe("getAllSessionCredentials", () => {
       .mockRejectedValueOnce(new Error("STS service unavailable"));
 
     const configs = [
-      mock.connectionConfig({ name: "conn-a" }),
-      mock.connectionConfig({ name: "conn-b" }),
+      mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
+      mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
     ];
 
     const result = await getAllSessionCredentials(mockSessionData, configs);
@@ -295,7 +297,7 @@ describe("getAllSessionCredentials", () => {
     mockSend.mockRejectedValueOnce(denied);
 
     const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ name: "blocked" }),
+      mock.connectionConfig({ id: "blocked", name: "blocked" }),
     ]);
 
     expect(result.credentials["blocked"]).toBeUndefined();
@@ -309,7 +311,7 @@ describe("getAllSessionCredentials", () => {
     );
 
     const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ name: "orphaned" }),
+      mock.connectionConfig({ id: "orphaned", name: "orphaned" }),
     ]);
 
     expect(result.credentials["orphaned"]).toBeUndefined();
@@ -321,8 +323,8 @@ describe("getAllSessionCredentials", () => {
     vi.mocked(getProviderCatalog).mockRejectedValue(new Error("Provider lookup is unavailable."));
 
     const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ name: "conn-a" }),
-      mock.connectionConfig({ name: "conn-b" }),
+      mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
+      mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
     ]);
 
     expect(result.errors["conn-a"]).toMatch(/unavailable/i);
@@ -421,6 +423,7 @@ describe("getAllSessionCredentials", () => {
     // the 2048-char AWS `Policy` parameter ceiling.
     const oversizedConfig = mock.connectionConfig({
       name: "oversized",
+      id: "oversized",
       bucketName: "b".repeat(800),
       prefix: "p".repeat(800),
     });

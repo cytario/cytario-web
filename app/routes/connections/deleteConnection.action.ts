@@ -11,7 +11,7 @@ import { canModify, canSee } from "~/utils/authorization";
 
 export async function deleteConnection(
   user: UserProfile,
-  connectionId: number,
+  connectionId: string,
 ): Promise<ConnectionConfigWithGrants> {
   if (!user.organization) {
     throw new Error("Active organization missing from session");
@@ -38,9 +38,9 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   const { user } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();
-  const connectionId = Number(formData.get("connectionId") ?? 0);
+  const connectionId = String(formData.get("connectionId") ?? "");
 
-  if (!connectionId || Number.isNaN(connectionId)) {
+  if (!connectionId) {
     return { error: "Connection id is required" };
   }
 
@@ -57,9 +57,8 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
     throw error;
   }
 
-  // Drop cached STS credentials keyed by the removed name.
   const credentials = session.get("credentials") ?? {};
-  delete credentials[deleted.name];
+  delete credentials[deleted.id];
   session.set("credentials", credentials);
 
   // Revoke the grant this share added: re-apply the bucket's remaining managed

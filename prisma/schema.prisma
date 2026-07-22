@@ -16,7 +16,7 @@ enum BucketPolicyStatus {
 }
 
 model ConnectionConfig {
-  id                   Int                @id @default(autoincrement())
+  id                   String             @id @default(uuid())
   name                 String
   organization         String // Keycloak organization alias (tenant)
   createdBy            String
@@ -34,8 +34,8 @@ model ConnectionConfig {
 }
 
 model ConnectionGrant {
-  id             Int              @id @default(autoincrement())
-  connectionId   Int
+  id             String            @id @default(uuid())
+  connectionId   String
   scope          String // intra-org group path
   providerRoleId String // reference to the portal-managed / OSS-configured provider role this grant is bound to
   connection     ConnectionConfig @relation("ConnectionGrants", fields: [connectionId], references: [id], onDelete: Cascade)
@@ -45,9 +45,9 @@ model ConnectionGrant {
 }
 
 model RecentlyViewed {
-  id             Int      @id @default(autoincrement())
+  id             String   @id @default(uuid())
   userId         String
-  connectionId   Int
+  connectionId   String
   connectionName String
   pathName       String
   name           String
@@ -61,9 +61,9 @@ model RecentlyViewed {
 }
 
 model PinnedPath {
-  id             Int       @id @default(autoincrement())
+  id             String    @id @default(uuid())
   userId         String
-  connectionId   Int
+  connectionId   String
   connectionName String
   pathName       String
   displayName    String

@@ -20,7 +20,7 @@ export function FeatureItemFavorites() {
   const nodes = useMemo(
     () =>
       (layoutData?.favorites ?? [])
-        .filter((favorite) => connections[favorite.connectionName])
+        .filter((favorite) => connections[favorite.connectionId])
         .slice(0, MAX_SIDEBAR_ITEMS)
         .map(favoriteToNode),
     [layoutData, connections],

@@ -191,7 +191,7 @@ export const getAllSessionCredentials = async (
     for (const config of connectionConfigs) {
       const resolved = resolveConnectionProviderWithGrants(catalog, config);
       if (resolved) {
-        providers[config.name] = {
+        providers[config.id] = {
           region: resolved.region,
           endpoint: resolved.endpoint,
           allowsSharing: resolved.allowsSharing,
@@ -201,7 +201,7 @@ export const getAllSessionCredentials = async (
   }
 
   const stale = connectionConfigs.filter(
-    (config) => !isValidCredentials(sessionData.credentials[config.name]),
+    (config) => !isValidCredentials(sessionData.credentials[config.id]),
   );
 
   if (stale.length === 0) {
@@ -210,7 +210,6 @@ export const getAllSessionCredentials = async (
 
   console.info(`${label} Fetching credentials for ${stale.length} connection(s)`);
 
-  // Fetch all in parallel — one failure doesn't block others
   const results = await Promise.allSettled(
     stale.map(async (config) => {
       if (!catalog) {
@@ -227,6 +226,7 @@ export const getAllSessionCredentials = async (
         throw new Error("You are not a member of any group granted access to this connection.");
       }
       return {
+        id: config.id,
         name: config.name,
         credentials: await fetchTemporaryCredentials(
           config,
@@ -245,12 +245,12 @@ export const getAllSessionCredentials = async (
   const errors: Record<string, string> = {};
   results.forEach((result, i) => {
     if (result.status === "fulfilled") {
-      newCredentials[result.value.name] = result.value.credentials;
+      newCredentials[result.value.id] = result.value.credentials;
     } else {
-      const name = stale[i].name;
+      const config = stale[i];
       const reason = describeCredentialError(result.reason);
-      errors[name] = reason;
-      console.warn(`${label} Failed to fetch credentials for ${name}: ${reason}`);
+      errors[config.id] = reason;
+      console.warn(`${label} Failed to fetch credentials for ${config.name}: ${reason}`);
     }
   });
 

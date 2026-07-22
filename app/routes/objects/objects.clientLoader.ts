@@ -30,10 +30,11 @@ export const clientLoader = async ({
   }
 
   try {
-    const provider = useConnectionsStore.getState().connections[resolved.connectionName]?.provider;
+    const provider = useConnectionsStore.getState().connections[resolved.connectionId]?.provider;
     const { nodes, isCapped } = await loadConnectionLevel({
       connectionConfig: resolved.connectionConfig,
       credentials: resolved.credentials,
+      connectionId: resolved.connectionId,
       connectionName: resolved.connectionName,
       provider,
       urlPath: resolved.urlPath,

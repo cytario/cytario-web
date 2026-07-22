@@ -35,7 +35,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
   const [isLoading, setIsLoading] = useState(false);
   const [cellCount, setCellCount] = useState<number | null>(null);
 
-  const { connectionName, pathName, fileName } = parseResourceId(resourceId);
+  const { connectionId, pathName, fileName } = parseResourceId(resourceId);
   const markerEntries = Object.entries(overlayState);
   const hasMarkers = markerEntries.length > 0;
   const anyMarkerVisible = markerEntries.some(([, m]) => m.isVisible);
@@ -52,13 +52,14 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
   const node = useMemo<TreeNode>(
     () => ({
       id: resourceId,
-      connectionName,
+      connectionId,
+      connectionName: "",
       pathName,
       name: fileName,
       type: "file",
       isLeaf: true,
     }),
-    [resourceId, connectionName, pathName, fileName],
+    [resourceId, connectionId, pathName, fileName],
   );
 
   // Calculate maxDomain from actual marker counts (for progress bar scaling)
@@ -67,7 +68,7 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
     1, // Prevent division by zero
   );
 
-  const connectionConfig = useConnectionsStore(connectionsSelect.connectionConfig(connectionName));
+  const connectionConfig = useConnectionsStore(connectionsSelect.connectionConfig(connectionId));
 
   // Fetch markers on mount if not already loaded
   useEffect(() => {
