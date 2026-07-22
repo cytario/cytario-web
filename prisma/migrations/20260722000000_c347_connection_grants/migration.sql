@@ -1,10 +1,24 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
+-- C-347: per-group roles on storage connections.
+-- ConnectionConfig.id migrates from SERIAL to TEXT (UUID), `scope` is replaced
+-- by the ConnectionGrant table, and child tables (RecentlyViewed, PinnedPath)
+-- switch from connectionName FK to connectionId FK.
+-- Per the DEV-reset policy there is no production data to preserve, so the
+-- affected tables are dropped and recreated rather than backfilled.
+
+-- DropTable: children first (FKs), then the parent.
+DROP TABLE IF EXISTS "RecentlyViewed";
+DROP TABLE IF EXISTS "PinnedPath";
+DROP TABLE IF EXISTS "ConnectionConfig";
+
+-- DropEnum: recreated below (already exists from prior migration, but DROP
+-- IF EXISTS makes this migration idempotent when run forward on a fresh DB
+-- that already applied the prior migration which created it).
+DROP TYPE IF EXISTS "BucketPolicyStatus";
 
 -- CreateEnum
 CREATE TYPE "BucketPolicyStatus" AS ENUM ('none', 'applied', 'drifted', 'error');
 
--- CreateTable
+-- CreateTable: ConnectionConfig with UUID id, no scope column.
 CREATE TABLE "ConnectionConfig" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -28,7 +42,7 @@ CREATE TABLE "ConnectionGrant" (
     CONSTRAINT "ConnectionGrant_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- CreateTable: RecentlyViewed (relates to ConnectionConfig by id).
 CREATE TABLE "RecentlyViewed" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -42,7 +56,7 @@ CREATE TABLE "RecentlyViewed" (
     CONSTRAINT "RecentlyViewed_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- CreateTable: PinnedPath (relates to ConnectionConfig by id).
 CREATE TABLE "PinnedPath" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -58,34 +72,15 @@ CREATE TABLE "PinnedPath" (
 
 -- CreateIndex
 CREATE INDEX "ConnectionConfig_organization_providerConnectionId_bucketNa_idx" ON "ConnectionConfig"("organization", "providerConnectionId", "bucketName", "prefix");
-
--- CreateIndex
 CREATE INDEX "ConnectionConfig_organization_name_idx" ON "ConnectionConfig"("organization", "name");
-
--- CreateIndex
 CREATE INDEX "ConnectionGrant_scope_idx" ON "ConnectionGrant"("scope");
-
--- CreateIndex
 CREATE UNIQUE INDEX "ConnectionGrant_connectionId_scope_key" ON "ConnectionGrant"("connectionId", "scope");
-
--- CreateIndex
 CREATE INDEX "RecentlyViewed_userId_idx" ON "RecentlyViewed"("userId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "RecentlyViewed_userId_connectionId_pathName_key" ON "RecentlyViewed"("userId", "connectionId", "pathName");
-
--- CreateIndex
 CREATE INDEX "PinnedPath_userId_idx" ON "PinnedPath"("userId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "PinnedPath_userId_connectionId_pathName_key" ON "PinnedPath"("userId", "connectionId", "pathName");
 
 -- AddForeignKey
 ALTER TABLE "ConnectionGrant" ADD CONSTRAINT "ConnectionGrant_connectionId_fkey" FOREIGN KEY ("connectionId") REFERENCES "ConnectionConfig"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "RecentlyViewed" ADD CONSTRAINT "RecentlyViewed_connectionId_fkey" FOREIGN KEY ("connectionId") REFERENCES "ConnectionConfig"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "PinnedPath" ADD CONSTRAINT "PinnedPath_connectionId_fkey" FOREIGN KEY ("connectionId") REFERENCES "ConnectionConfig"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
