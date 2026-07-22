@@ -37,11 +37,7 @@ const FIELD_TO_STEP: Record<string, number> = {
   grants: 1,
 };
 
-const stepForField = (field: string): number | undefined => {
-  if (FIELD_TO_STEP[field] !== undefined) return FIELD_TO_STEP[field];
-  if (field.startsWith("grants.")) return 1;
-  return undefined;
-};
+const stepForField = (field: string): number | undefined => FIELD_TO_STEP[field.split(".")[0]];
 
 const dtClass = "text-muted-foreground";
 const ddClass = "font-[number:var(--font-weight-medium)] text-foreground";
@@ -51,6 +47,19 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between">
       <dt className={dtClass}>{label}</dt>
       <dd className={ddClass}>{value}</dd>
+    </div>
+  );
+}
+
+function SummaryList({ label, values }: { label: string; values: string[] }) {
+  return (
+    <div className="flex flex-col gap-(--spacing-1)">
+      <dt className={dtClass}>{label}</dt>
+      {values.map((value, i) => (
+        <dd key={i} className={ddClass}>
+          {value}
+        </dd>
+      ))}
     </div>
   );
 }
@@ -207,16 +216,31 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     [adminScopes],
   );
 
+  /**
+   * Provider roles available for a given grant scope, filtered by:
+   * 1. matching the selected provider connection, and
+   * 2. the role's allowed-scopes — a role with no allowed scopes is unrestricted;
+   *    otherwise the scope must be covered by at least one allowed scope.
+   */
   const roleItemsForGrant = (grantScope: string): SelectItem[] => {
-    const roles = (catalog?.providerRoles ?? []).filter(
-      (r) =>
-        r.providerConnectionId === providerConnectionId &&
-        (r.allowedScopes.length === 0 ||
-          !grantScope ||
-          r.allowedScopes.some((allowed) => adminCovers(allowed, grantScope))),
-    );
-    return roles.map((r) => ({ id: r.id, name: r.name }));
+    const roles = (catalog?.providerRoles ?? []).filter((role) => {
+      if (role.providerConnectionId !== providerConnectionId) return false;
+      if (role.allowedScopes.length === 0 || !grantScope) return true;
+      return role.allowedScopes.some((allowed) => adminCovers(allowed, grantScope));
+    });
+    return roles.map((role) => ({ id: role.id, name: role.name }));
   };
+
+  const grantSummary = useMemo(
+    () =>
+      (grantsValue ?? []).map((grant) => {
+        const roleName =
+          catalog?.providerRoles.find((r) => r.id === grant.providerRoleId)?.name ??
+          grant.providerRoleId;
+        return grant.providerRoleId ? `${grant.scope} — ${roleName}` : grant.scope;
+      }),
+    [grantsValue, catalog],
+  );
 
   return (
     <FormWizard
@@ -356,10 +380,11 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                   const grantRoleId = grant?.providerRoleId ?? "";
                   const roleItems = roleItemsForGrant(grantScope);
                   const grantError = serverErrors?.[`grants.${index}.providerRoleId`]?.[0];
+
                   return (
                     <div
                       key={field.id}
-                      className="flex flex-col gap-(--spacing-2) rounded-[var(--border-radius-md)] border border-border p-[var(--spacing-3)]"
+                      className="flex flex-col gap-(--spacing-2) rounded-(--border-radius-md) border border-border p-(--spacing-3)"
                     >
                       <Controller
                         name={`grants.${index}.scope` as const}
@@ -434,30 +459,17 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
               </p>
               <div
                 className={[
-                  "rounded-[var(--border-radius-md)]",
+                  "rounded-(--border-radius-md)",
                   "border border-border",
                   "bg-card",
-                  "p-[var(--spacing-4)]",
+                  "p-(--spacing-4)",
                 ].join(" ")}
               >
-                <dl className="flex flex-col gap-[var(--spacing-2)] text-[length:var(--font-size-sm)]">
+                <dl className="flex flex-col gap-(--spacing-2) text-(length:--font-size-sm)">
                   <SummaryRow label="Name" value={nameValue ?? ""} />
                   <SummaryRow label="Bucket" value={bucketName ?? ""} />
                   {prefix && <SummaryRow label="Prefix" value={prefix} />}
-                  <div className="flex flex-col gap-[var(--spacing-1)]">
-                    <dt className={dtClass}>Grants</dt>
-                    {(grantsValue ?? []).map((grant, i) => (
-                      <dd key={i} className={ddClass}>
-                        {grant.scope}
-                        {grant.providerRoleId
-                          ? ` — ${
-                              catalog?.providerRoles.find((r) => r.id === grant.providerRoleId)
-                                ?.name ?? grant.providerRoleId
-                            }`
-                          : ""}
-                      </dd>
-                    ))}
-                  </div>
+                  <SummaryList label="Grants" values={grantSummary} />
                 </dl>
               </div>
             </div>
