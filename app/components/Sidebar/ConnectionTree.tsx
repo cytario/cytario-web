@@ -6,6 +6,7 @@ import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/bu
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { onExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 interface ConnectionTreeProps {
   selectedConnection: string;
@@ -14,6 +15,9 @@ interface ConnectionTreeProps {
 
 export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
+  const connectionName =
+    useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
+    selectedConnection;
   const {
     nodes: searchNodes,
     isSearching,
@@ -26,9 +30,9 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
       {
         id: rootId,
         connectionId: selectedConnection,
-        connectionName: selectedConnection,
+        connectionName,
         type: "bucket",
-        name: selectedConnection,
+        name: connectionName,
         pathName: "",
         children: [],
         hasChildren: true,

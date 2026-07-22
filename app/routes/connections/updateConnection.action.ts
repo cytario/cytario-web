@@ -210,7 +210,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
             .join(" ")}`,
     });
 
-    return redirect(`/connections/${encodeURIComponent(updatedConfig.name)}`, {
+    return redirect(`/connections/${updatedConfig.id}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

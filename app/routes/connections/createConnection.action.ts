@@ -164,7 +164,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
           : `Connection added. ${outcome.warning}`,
     });
 
-    return redirect(`/connections/${encodeURIComponent(data.name)}`, {
+    return redirect(`/connections/${created.id}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
