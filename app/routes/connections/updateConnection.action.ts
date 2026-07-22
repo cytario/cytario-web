@@ -28,7 +28,7 @@ export interface UpdateConnectionInput {
 
 export async function updateConnection(
   user: UserProfile,
-  originalName: string,
+  connectionId: number,
   updates: UpdateConnectionInput,
 ) {
   if (!user.organization) {
@@ -36,7 +36,7 @@ export async function updateConnection(
   }
 
   const config = await prisma.connectionConfig.findFirst({
-    where: { name: originalName, organization: user.organization },
+    where: { id: connectionId, organization: user.organization },
     include: { grants: true },
   });
 
@@ -104,10 +104,10 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   const session = context.get(sessionContext);
   const formData = await request.formData();
 
-  const originalName = String(formData.get("_originalName") ?? "");
+  const connectionId = Number(formData.get("connectionId") ?? 0);
 
-  if (!originalName) {
-    return { errors: { name: ["Original connection name is required"] }, status: "error" as const };
+  if (!connectionId || Number.isNaN(connectionId)) {
+    return { errors: { name: ["Connection id is required"] }, status: "error" as const };
   }
 
   if (!user.organization) {
@@ -156,7 +156,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   }
 
   try {
-    const updatedConfig = await updateConnection(user, originalName, {
+    const updatedConfig = await updateConnection(user, connectionId, {
       name: validated.name,
       bucketName: validated.bucketName,
       prefix: validated.prefix,

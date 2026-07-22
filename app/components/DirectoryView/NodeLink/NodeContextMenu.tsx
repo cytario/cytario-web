@@ -166,12 +166,12 @@ export const NodeContextMenu = ({
       {isBucket && (
         <>
           <Form method="delete" action="/connections" ref={formRef} className="hidden">
-            <input type="hidden" name="connectionName" value={node.name} />
+            <input type="hidden" name="connectionId" value={connectionConfig.id} />
           </Form>
 
           <Form method="post" action="/connections" ref={reapplyFormRef} className="hidden">
             <input type="hidden" name="_intent" value="reapply" />
-            <input type="hidden" name="connectionName" value={node.name} />
+            <input type="hidden" name="connectionId" value={connectionConfig.id} />
           </Form>
 
           <ConfirmDialog

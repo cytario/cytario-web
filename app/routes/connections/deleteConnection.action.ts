@@ -11,14 +11,14 @@ import { canModify, canSee } from "~/utils/authorization";
 
 export async function deleteConnection(
   user: UserProfile,
-  name: string,
+  connectionId: number,
 ): Promise<ConnectionConfigWithGrants> {
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
 
   const config = await prisma.connectionConfig.findFirst({
-    where: { name, organization: user.organization },
+    where: { id: connectionId, organization: user.organization },
     include: { grants: true },
   });
 
@@ -38,15 +38,15 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   const { user } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();
-  const connectionName = String(formData.get("connectionName") ?? "");
+  const connectionId = Number(formData.get("connectionId") ?? 0);
 
-  if (!connectionName) {
-    return { error: "Connection name is required" };
+  if (!connectionId || Number.isNaN(connectionId)) {
+    return { error: "Connection id is required" };
   }
 
   let deleted: ConnectionConfigWithGrants;
   try {
-    deleted = await deleteConnection(user, connectionName);
+    deleted = await deleteConnection(user, connectionId);
   } catch (error) {
     if (error instanceof Error) {
       session.set("notification", { status: "error", message: error.message });
@@ -59,7 +59,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   // Drop cached STS credentials keyed by the removed name.
   const credentials = session.get("credentials") ?? {};
-  delete credentials[connectionName];
+  delete credentials[deleted.name];
   session.set("credentials", credentials);
 
   // Revoke the grant this share added: re-apply the bucket's remaining managed

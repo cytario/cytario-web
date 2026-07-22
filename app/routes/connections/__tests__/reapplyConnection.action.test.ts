@@ -58,7 +58,7 @@ describe("reapplyAction", () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
     const user = mock.user({ adminScopes: ["org1/lab"], groups: ["org1/lab"] });
-    const result = await reapplyAction(buildArgs(user, { connectionName: config.name }));
+    const result = await reapplyAction(buildArgs(user, { connectionId: String(config.id) }));
 
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(302);
@@ -76,9 +76,9 @@ describe("reapplyAction", () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
     const user = mock.user({ adminScopes: [], groups: ["org1/ops"] });
-    const response = await reapplyAction(buildArgs(user, { connectionName: config.name })).catch(
-      (e: unknown) => e,
-    );
+    const response = await reapplyAction(
+      buildArgs(user, { connectionId: String(config.id) }),
+    ).catch((e: unknown) => e);
 
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(403);
@@ -92,16 +92,16 @@ describe("reapplyAction", () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
     const user = mock.user({ adminScopes: ["org1/lab"], groups: [] });
-    const response = await reapplyAction(buildArgs(user, { connectionName: config.name })).catch(
-      (e: unknown) => e,
-    );
+    const response = await reapplyAction(
+      buildArgs(user, { connectionId: String(config.id) }),
+    ).catch((e: unknown) => e);
 
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(403);
   });
 
-  test("requires a connection name", async () => {
+  test("requires a connection id", async () => {
     const result = await reapplyAction(buildArgs(mock.user(), {}));
-    expect(result).toEqual({ error: "Connection name is required" });
+    expect(result).toEqual({ error: "Connection id is required" });
   });
 });

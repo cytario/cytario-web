@@ -77,7 +77,7 @@ const existing = mock.connectionConfig({
 });
 
 const form = {
-  _originalName: "conn",
+  connectionId: "7",
   name: "conn",
   bucketName: "new-bucket",
   prefix: "",

@@ -57,7 +57,7 @@ beforeEach(() => {
 describe("deleteConnection authorization", () => {
   test("admin of scope can delete", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
-    await deleteConnection(adminUser, "test-connection");
+    await deleteConnection(adminUser, 1);
     expect(prisma.connectionConfig.delete).toHaveBeenCalledWith({
       where: { id: cytarioConfig.id },
     });
@@ -65,29 +65,25 @@ describe("deleteConnection authorization", () => {
 
   test("org-root admin can delete any connection within the org", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
-    await deleteConnection(orgRootAdmin, "test-connection");
+    await deleteConnection(orgRootAdmin, 1);
     expect(prisma.connectionConfig.delete).toHaveBeenCalled();
   });
 
   test("group member without admin cannot delete", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
-    await expect(deleteConnection(regularUser, "test-connection")).rejects.toThrow(
+    await expect(deleteConnection(regularUser, 1)).rejects.toThrow(
       "Not authorized to delete this connection config",
     );
   });
 
   test("user from a different org cannot see or delete", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
-    await expect(deleteConnection(outsideUser, "test-connection")).rejects.toThrow(
-      "Connection config not found",
-    );
+    await expect(deleteConnection(outsideUser, 1)).rejects.toThrow("Connection config not found");
   });
 
   test("throws 'not found' when connection doesn't exist", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
-    await expect(deleteConnection(adminUser, "nonexistent")).rejects.toThrow(
-      "Connection config not found",
-    );
+    await expect(deleteConnection(adminUser, 999)).rejects.toThrow("Connection config not found");
   });
 });
 
@@ -149,21 +145,21 @@ describe("updateConnection authorization", () => {
       ...cytarioConfig,
       ...validUpdates,
     } as never);
-    const result = await updateConnection(adminUser, "test-connection", validUpdates);
+    const result = await updateConnection(adminUser, 1, validUpdates);
     expect(prisma.connectionConfig.update).toHaveBeenCalled();
     expect(result.name).toBe("updated-connection");
   });
 
   test("group member without admin cannot update", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
-    await expect(updateConnection(regularUser, "test-connection", validUpdates)).rejects.toThrow(
+    await expect(updateConnection(regularUser, 1, validUpdates)).rejects.toThrow(
       "Not authorized to modify this connection",
     );
   });
 
   test("user from a different org cannot see or update", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
-    await expect(updateConnection(outsideUser, "test-connection", validUpdates)).rejects.toThrow(
+    await expect(updateConnection(outsideUser, 1, validUpdates)).rejects.toThrow(
       "Connection not found",
     );
   });
@@ -171,7 +167,7 @@ describe("updateConnection authorization", () => {
   test("adding a new grant requires canCreate on the new scope", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(cytarioConfig);
     await expect(
-      updateConnection(adminUser, "test-connection", {
+      updateConnection(adminUser, 1, {
         ...validUpdates,
         grants: [{ scope: "ops", providerRoleId: "pr-1" }],
       }),
@@ -188,7 +184,7 @@ describe("updateConnection authorization", () => {
         mock.connectionGrant({ scope: "cytario/sub", providerRoleId: "pr-1" }),
       ],
     } as never);
-    await updateConnection(adminUser, "test-connection", {
+    await updateConnection(adminUser, 1, {
       ...validUpdates,
       grants: [
         { scope: "cytario", providerRoleId: "pr-1" },
@@ -200,7 +196,7 @@ describe("updateConnection authorization", () => {
 
   test("throws 'not found' when connection doesn't exist", async () => {
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
-    await expect(updateConnection(adminUser, "nonexistent", validUpdates)).rejects.toThrow(
+    await expect(updateConnection(adminUser, 999, validUpdates)).rejects.toThrow(
       "Connection not found",
     );
   });

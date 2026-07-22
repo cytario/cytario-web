@@ -23,13 +23,13 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
   }
 
   const formData = await request.formData();
-  const connectionName = String(formData.get("connectionName") ?? "");
-  if (!connectionName) {
-    return { error: "Connection name is required" };
+  const connectionId = Number(formData.get("connectionId") ?? 0);
+  if (!connectionId || Number.isNaN(connectionId)) {
+    return { error: "Connection id is required" };
   }
 
   const config = await prisma.connectionConfig.findFirst({
-    where: { name: connectionName, organization: user.organization },
+    where: { id: connectionId, organization: user.organization },
     include: { grants: true },
   });
   if (!config || !canModify(user, config)) {

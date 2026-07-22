@@ -24,7 +24,7 @@ export default function UpdateConnectionModal({
   const { bucketName, prefix, providerConnectionId, grants } = connectionConfig;
 
   const initialData = {
-    originalName: nodeName,
+    connectionId: connectionConfig.id,
     name: nodeName,
     providerConnectionId,
     bucketName,

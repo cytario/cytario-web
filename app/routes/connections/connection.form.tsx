@@ -58,7 +58,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 interface ConnectionFormProps {
   adminScopes: string[];
   userId: string;
-  initialData?: ConnectBucketFormData & { originalName: string };
+  initialData?: ConnectBucketFormData & { connectionId: number };
   /** Pre-select scope (e.g. from admin page ?scope= param). Falls back to userId. */
   defaultScope?: string;
 }
@@ -177,7 +177,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
       formData.append(`grants[${index}].providerRoleId`, grant.providerRoleId);
     });
     if (isEditMode) {
-      formData.append("_originalName", initialData.originalName);
+      formData.append("connectionId", String(initialData.connectionId));
       submit(formData, { method: "PATCH", action: "/connections" });
     } else {
       submit(formData, { method: "post", action: "/connections" });
