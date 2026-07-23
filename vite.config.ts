@@ -13,15 +13,13 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["@cytario/design"],
   },
-  // Process the design system through Vite's pipeline during SSR
-  // instead of letting Node resolve it (avoids dual-React issues).
-  ssr: {
-    noExternal: ["@cytario/design"],
-  },
   // Vite ignores node_modules by default — opt-in to watching
   // the design system so file changes trigger a reload.
   server: {
     port: 3000,
+    fs: {
+      allow: [".", "../cytario-design"],
+    },
     watch: {
       ignored: ["!**/node_modules/@cytario/design/**"],
     },
