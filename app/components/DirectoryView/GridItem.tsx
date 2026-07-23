@@ -22,7 +22,7 @@ interface GridItemProps {
  * round-tripping through the design-system package.
  */
 export function GridItem({ node, preview, children, className }: GridItemProps) {
-  const to = buildConnectionPath(node.connectionId ?? node.connectionName, node.pathName);
+  const to = buildConnectionPath(node.connectionId, node.pathName);
 
   const cx = `
     group flex flex-col overflow-hidden rounded-2xl

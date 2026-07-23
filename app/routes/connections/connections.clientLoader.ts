@@ -40,7 +40,7 @@ export async function enrichConnectionsWithPreviews({
   const connectionStatuses: Record<string, ConnectionStatusUpdate> = {};
   const nodes: TreeNode[] = server.nodes.map((node, i) => {
     const probe = probes[i];
-    connectionStatuses[node.connectionId ?? node.connectionName] = {
+    connectionStatuses[node.connectionId] = {
       status: probe.status,
       statusMessage: probe.errorMessage,
     };

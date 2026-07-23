@@ -11,7 +11,7 @@ export type TreeNodeType = "bucket" | "directory" | "file";
  */
 export interface TreeNode {
   id: string;
-  connectionId?: string;
+  connectionId: string;
   connectionName: string;
   pathName: string;
   name: string;

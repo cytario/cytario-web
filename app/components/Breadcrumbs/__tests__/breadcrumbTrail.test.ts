@@ -5,6 +5,7 @@ import { nodeToTrail } from "../breadcrumbTrail";
 
 const node = (over: Partial<TreeNode>): TreeNode => ({
   id: "",
+  connectionId: "",
   connectionName: "",
   pathName: "",
   name: "",

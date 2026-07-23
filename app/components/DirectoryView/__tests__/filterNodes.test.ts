@@ -7,6 +7,7 @@ import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
   id: "file.csv",
+  connectionId: "",
   connectionName: "aws-bucket",
   name: "file.csv",
   type: "file",

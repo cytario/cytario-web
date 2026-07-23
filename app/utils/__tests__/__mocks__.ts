@@ -114,6 +114,7 @@ const mock = {
     const name = overrides?.name ?? "mockName";
     return {
       id: `${connectionName}/${name}`,
+      connectionId: connectionName,
       connectionName,
       name,
       type: "directory",

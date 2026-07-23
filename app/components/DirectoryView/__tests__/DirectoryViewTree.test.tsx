@@ -11,6 +11,7 @@ vi.mock("~/routes/favorites/useFavorite", () => ({
 const mockNodes: TreeNode[] = [
   {
     id: "results/",
+    connectionId: "aws-test-bucket",
     connectionName: "aws-test-bucket",
     type: "directory",
     name: "results",
@@ -18,6 +19,7 @@ const mockNodes: TreeNode[] = [
     children: [
       {
         id: "results/output.ome.tif",
+        connectionId: "aws-test-bucket",
         connectionName: "aws-test-bucket",
         type: "file",
         name: "output.ome.tif",
@@ -28,6 +30,7 @@ const mockNodes: TreeNode[] = [
   },
   {
     id: "analysis.csv",
+    connectionId: "aws-test-bucket",
     connectionName: "aws-test-bucket",
     type: "file",
     name: "analysis.csv",

@@ -52,26 +52,25 @@ export function FavoritesProvider({
 
   const controller = useMemo<FavoritesController>(() => {
     const isFavorite = (node: TreeNode) => {
-      const key = nodeKey(node.connectionId ?? node.connectionName, node.pathName);
+      const key = nodeKey(node.connectionId, node.pathName);
       if (pendingKey === key) return pendingAdding;
       return favSet.has(key);
     };
 
-    const isPending = (node: TreeNode) =>
-      pendingKey === nodeKey(node.connectionId ?? node.connectionName, node.pathName);
+    const isPending = (node: TreeNode) => pendingKey === nodeKey(node.connectionId, node.pathName);
 
     const toggle = (node: TreeNode) => {
       const key = favoriteKey(node.pathName);
       if (isFavorite(node)) {
         submit(
-          { connectionId: node.connectionId ?? node.connectionName, pathName: key },
+          { connectionId: node.connectionId, pathName: key },
           { method: "delete", action: FAVORITES_ACTION },
         );
         return;
       }
 
       const payload: Record<string, string> = {
-        connectionId: node.connectionId ?? node.connectionName,
+        connectionId: node.connectionId,
         pathName: key,
         displayName: node.name,
       };

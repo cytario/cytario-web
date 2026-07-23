@@ -58,6 +58,7 @@ describe("DirectoryViewTableConnection", () => {
   const mockBucketNodes: TreeNode[] = [
     {
       id: "aws-my-aws-bucket/",
+      connectionId: "aws-my-aws-bucket",
       connectionName: "aws-my-aws-bucket",
       type: "bucket",
       name: "aws-my-aws-bucket",
@@ -66,6 +67,7 @@ describe("DirectoryViewTableConnection", () => {
     },
     {
       id: "second-bucket/",
+      connectionId: "second-bucket",
       connectionName: "second-bucket",
       type: "bucket",
       name: "second-bucket",

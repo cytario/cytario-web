@@ -136,9 +136,9 @@ export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: Di
       <div className={cx}>
         {nodes.map((node) =>
           node.type === "bucket" ? (
-            <BucketCardGridItem key={node.id} node={node} connectionId={node.connectionId ?? ""} />
+            <BucketCardGridItem key={node.id} node={node} connectionId={node.connectionId} />
           ) : (
-            <FileCardGridItem key={node.id} node={node} connectionId={node.connectionId ?? ""} />
+            <FileCardGridItem key={node.id} node={node} connectionId={node.connectionId} />
           ),
         )}
       </div>

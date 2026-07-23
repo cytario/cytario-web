@@ -6,6 +6,7 @@ import type { SerializedRecentlyViewed } from "~/routes/recent/recent.loader";
 export function buildVirtualNode(name: string, children: TreeNode[]): TreeNode {
   return {
     id: `aggregate-root/${name}`,
+    connectionId: "",
     connectionName: "",
     pathName: "",
     name,

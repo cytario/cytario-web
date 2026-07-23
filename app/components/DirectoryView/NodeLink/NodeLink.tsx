@@ -35,7 +35,7 @@ export function NodeLink({
   isClickable = () => true,
   className,
 }: NodeLinkProps) {
-  const to = buildConnectionPath(node.connectionId ?? node.connectionName, node.pathName);
+  const to = buildConnectionPath(node.connectionId, node.pathName);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
   const clickable = isClickable(node) && !isCurrent;
 

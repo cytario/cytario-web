@@ -13,13 +13,13 @@ import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
   if (parent.isLeaf || parent.type === "file") return [];
 
-  const conn = select.connection(parent.connectionId ?? "")(useConnectionsStore.getState());
+  const conn = select.connection(parent.connectionId)(useConnectionsStore.getState());
   if (!conn?.credentials) return [];
 
   const { nodes, isCapped } = await loadConnectionLevel({
     connectionConfig: conn.connectionConfig,
     credentials: conn.credentials,
-    connectionId: parent.connectionId ?? "",
+    connectionId: parent.connectionId,
     connectionName: parent.connectionName,
     provider: conn.provider,
     urlPath: parent.pathName,

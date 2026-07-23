@@ -38,12 +38,12 @@ export const NodeContextMenu = ({
 
   const { isFavorite, isPending: favoritePending, toggle: toggleFavorite } = useFavorite(node);
 
-  const connection = useConnectionsStore(select.connection(node.connectionId ?? ""));
+  const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
 
   const user = useCurrentUser();
 
-  const to = buildConnectionPath(node.connectionId ?? "", node.pathName);
+  const to = buildConnectionPath(node.connectionId, node.pathName);
 
   if (!connectionConfig) return null;
 
@@ -86,7 +86,7 @@ export const NodeContextMenu = ({
             <MenuItem
               id="cyberduck"
               icon="Download"
-              onAction={() => openModal("cyberduck", { connectionId: node.connectionId ?? "" })}
+              onAction={() => openModal("cyberduck", { connectionId: node.connectionId })}
             >
               Access with Cyberduck
             </MenuItem>
@@ -104,7 +104,7 @@ export const NodeContextMenu = ({
                 icon="Send"
                 onAction={() =>
                   openModal("share-folder", {
-                    connectionId: node.connectionId ?? "",
+                    connectionId: node.connectionId,
                     nodePath: node.pathName,
                   })
                 }
@@ -128,9 +128,7 @@ export const NodeContextMenu = ({
                 <MenuItem
                   id="edit"
                   icon="Pencil"
-                  onAction={() =>
-                    openModal("edit-connection", { connectionId: node.connectionId ?? "" })
-                  }
+                  onAction={() => openModal("edit-connection", { connectionId: node.connectionId })}
                 >
                   Edit
                 </MenuItem>
