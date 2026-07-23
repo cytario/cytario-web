@@ -40,7 +40,7 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
         loadState: "idle",
       },
     ],
-    [rootId, selectedConnection],
+    [rootId, selectedConnection, connectionName],
   );
 
   const searchExpanded = useMemo(() => collectInteriorIds(searchNodes), [searchNodes]);
