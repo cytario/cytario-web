@@ -1,5 +1,6 @@
+@reference "@cytario/design/styles/tokens.css";
+@import "@cytario/design/styles.css";
 @import "tailwindcss";
-@import "@cytario/design/styles/theme.css";
 /**
  * Scan the compiled design library so Tailwind discovers utility classes
  * embedded in design components (e.g. {@code bg-badge-purple-bg},
