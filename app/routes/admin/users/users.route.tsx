@@ -1,4 +1,4 @@
-import { Badge, Banner, Button, ButtonLink, EmptyState, Pill } from "@cytario/design";
+import { Badge, Banner, Button, ButtonLink, EmptyState } from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import {
@@ -73,12 +73,12 @@ function buildGroupColumn(
       const pill = option.value ? (
         <ScopePill scope={option.value} visibleCount={pillVisibleCount} />
       ) : (
-        <Pill color="slate">All</Pill>
+        <Badge color="slate">All</Badge>
       );
       return (
         <span className="flex w-full items-center justify-between gap-2">
           {pill}
-          <Badge variant="slate" className="ml-auto shrink-0 tabular-nums">
+          <Badge color="slate" className="ml-auto shrink-0 tabular-nums">
             {count}
           </Badge>
         </span>
@@ -141,7 +141,7 @@ function buildColumns(
       filterRender: (option) => {
         const label =
           option.value === "true" ? "Active" : option.value === "false" ? "Disabled" : option.label;
-        return <Pill color={option.value === "true" ? "green" : "slate"}>{label}</Pill>;
+        return <Badge color={option.value === "true" ? "green" : "slate"}>{label}</Badge>;
       },
     },
     buildGroupColumn("groups", "Groups", groups, groupCounts, totalCount),
@@ -160,7 +160,7 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
     ),
     enabled: (row) => {
       const label = row.enabled === "true" ? "Active" : "Disabled";
-      return <Pill color={row.enabled === "true" ? "green" : "slate"}>{label}</Pill>;
+      return <Badge color={row.enabled === "true" ? "green" : "slate"}>{label}</Badge>;
     },
     groups: (row) => (
       <div className="flex flex-wrap gap-1">
