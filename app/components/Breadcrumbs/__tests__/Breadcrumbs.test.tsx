@@ -28,6 +28,7 @@ vi.mock("../../DirectoryView/NodeLink/NodeLink", () => ({
 
 const staticNode = (name: string): TreeNode => ({
   id: `virtual/${name}`,
+  connectionId: "",
   connectionName: "",
   pathName: "",
   name,
@@ -37,6 +38,7 @@ const staticNode = (name: string): TreeNode => ({
 
 const connectionNode = (connectionName: string, pathName: string, name: string): TreeNode => ({
   id: `${connectionName}/${pathName}`,
+  connectionId: connectionName,
   connectionName,
   pathName,
   name,

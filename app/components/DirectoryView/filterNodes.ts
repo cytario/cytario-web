@@ -19,7 +19,6 @@ function makeConnectionAccessors(
   const config = (node: TreeNode) => connections[node.connectionName]?.connectionConfig;
   return {
     name: (node) => node.name,
-    scope: (node) => config(node)?.scope ?? "",
     bucketName: (node) => config(node)?.bucketName ?? "",
     prefix: (node) => config(node)?.prefix ?? "",
     bucketPolicyStatus: (node) => config(node)?.bucketPolicyStatus ?? "",

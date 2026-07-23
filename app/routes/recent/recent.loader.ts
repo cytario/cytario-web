@@ -1,7 +1,8 @@
 import { getRecentlyViewed } from "./recent.server";
 
 export type SerializedRecentlyViewed = {
-  id: number;
+  id: string;
+  connectionId: string;
   connectionName: string;
   pathName: string;
   name: string;
@@ -17,6 +18,7 @@ export async function loadRecentlyViewed(
   const raw = await getRecentlyViewed(userId, limit);
   return raw.map((item) => ({
     id: item.id,
+    connectionId: item.connectionId,
     connectionName: item.connectionName,
     pathName: item.pathName,
     name: item.name,

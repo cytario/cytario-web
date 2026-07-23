@@ -40,6 +40,7 @@ describe("connectionConfig.server", () => {
 
       expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
         where: { organization: "org1" },
+        include: { grants: true },
       });
       expect(filterVisible).toHaveBeenCalledWith(user, configs);
       expect(result).toEqual([config]);
@@ -60,10 +61,11 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
 
-      const result = await getConnection(user, "aws-mock-bucket");
+      const result = await getConnection(user, "conn-uuid-1");
 
       expect(prisma.connectionConfig.findFirst).toHaveBeenCalledWith({
-        where: { name: "aws-mock-bucket", organization: "org1" },
+        where: { id: "conn-uuid-1", organization: "org1" },
+        include: { grants: true },
       });
       expect(canSee).toHaveBeenCalledWith(user, config);
       expect(result).toEqual(config);
@@ -81,7 +83,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      const result = await getConnection(user, "aws-mock-bucket");
+      const result = await getConnection(user, "conn-uuid-1");
 
       expect(result).toBeNull();
     });
@@ -93,23 +95,28 @@ describe("connectionConfig.server", () => {
         name: "new-conn",
         bucketName: "my-bucket",
         providerConnectionId: "pc-1",
-        providerRoleId: "pr-1",
         prefix: "data/",
       };
+      const grants = [{ scope: "lab", providerRoleId: "pr-1" }];
 
       vi.mocked(prisma.connectionConfig.create).mockResolvedValue(
         mock.connectionConfig({ ...newConfig }),
       );
 
-      await createConnection("org1", "lab", "user-123", newConfig);
+      await createConnection("org1", "user-123", newConfig, grants);
 
       expect(prisma.connectionConfig.create).toHaveBeenCalledWith({
         data: {
           organization: "org1",
-          scope: "lab",
           createdBy: "user-123",
           ...newConfig,
+          grants: {
+            createMany: {
+              data: [{ scope: "lab", providerRoleId: "pr-1" }],
+            },
+          },
         },
+        include: { grants: true },
       });
     });
   });
@@ -120,7 +127,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(true);
 
-      await deleteConnection(user, "aws-mock-bucket");
+      await deleteConnection(user, "conn-uuid-1");
 
       expect(prisma.connectionConfig.delete).toHaveBeenCalledWith({
         where: { id: config.id },
@@ -130,7 +137,7 @@ describe("connectionConfig.server", () => {
     test("throws when config not found", async () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
-      await expect(deleteConnection(user, "nonexistent")).rejects.toThrow(
+      await expect(deleteConnection(user, "conn-uuid-999")).rejects.toThrow(
         "Connection config not found",
       );
     });
@@ -139,7 +146,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      await expect(deleteConnection(user, "aws-mock-bucket")).rejects.toThrow(
+      await expect(deleteConnection(user, "conn-uuid-1")).rejects.toThrow(
         "Connection config not found",
       );
     });
@@ -149,7 +156,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(false);
 
-      await expect(deleteConnection(user, "aws-mock-bucket")).rejects.toThrow(
+      await expect(deleteConnection(user, "conn-uuid-1")).rejects.toThrow(
         "Not authorized to delete this connection config",
       );
     });

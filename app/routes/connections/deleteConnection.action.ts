@@ -1,7 +1,7 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { applyBucketGrantSet } from "./connectionGrant.server";
-import { ConnectionConfig } from "~/.generated/client";
+import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
@@ -9,13 +9,17 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
 
-export async function deleteConnection(user: UserProfile, name: string): Promise<ConnectionConfig> {
+export async function deleteConnection(
+  user: UserProfile,
+  connectionId: string,
+): Promise<ConnectionConfigWithGrants> {
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
 
   const config = await prisma.connectionConfig.findFirst({
-    where: { name, organization: user.organization },
+    where: { id: connectionId, organization: user.organization },
+    include: { grants: true },
   });
 
   if (!config || !canSee(user, config)) {
@@ -34,15 +38,15 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   const { user } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();
-  const connectionName = String(formData.get("connectionName") ?? "");
+  const connectionId = String(formData.get("connectionId") ?? "");
 
-  if (!connectionName) {
-    return { error: "Connection name is required" };
+  if (!connectionId) {
+    return { error: "Connection id is required" };
   }
 
-  let deleted: ConnectionConfig;
+  let deleted: ConnectionConfigWithGrants;
   try {
-    deleted = await deleteConnection(user, connectionName);
+    deleted = await deleteConnection(user, connectionId);
   } catch (error) {
     if (error instanceof Error) {
       session.set("notification", { status: "error", message: error.message });
@@ -53,9 +57,8 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
     throw error;
   }
 
-  // Drop cached STS credentials keyed by the removed name.
   const credentials = session.get("credentials") ?? {};
-  delete credentials[connectionName];
+  delete credentials[deleted.id];
   session.set("credentials", credentials);
 
   // Revoke the grant this share added: re-apply the bucket's remaining managed

@@ -1,9 +1,9 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { useEffect } from "react";
 
-import { ConnectionConfig } from "~/.generated/client";
 import { select } from "~/utils/connectionsStore/selectors";
 import {
+  type ConnectionConfigWithGrants,
   type ResolvedConnectionProviderClient,
   useConnectionsStore,
 } from "~/utils/connectionsStore/useConnectionsStore";
@@ -14,7 +14,7 @@ import {
  * otherwise trip React's "cannot update during render" warning.
  */
 export function useInitConnections(
-  connectionConfigs: ConnectionConfig[],
+  connectionConfigs: ConnectionConfigWithGrants[],
   credentials: Record<string, Credentials>,
   credentialErrors: Record<string, string> = {},
   connectionProviders: Record<string, ResolvedConnectionProviderClient> = {},

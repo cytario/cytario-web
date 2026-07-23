@@ -3,7 +3,7 @@ import { ActionFunctionArgs } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   getProviderCatalog,
-  resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
@@ -14,18 +14,18 @@ export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
-  const { name: connectionName } = params;
+  const { id: connectionId } = params;
 
-  if (!connectionName) {
-    return new Response("Connection name is required", { status: 400 });
+  if (!connectionId) {
+    return new Response("Connection id is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnection(user, connectionName);
+  const connectionConfig = await getConnection(user, connectionId);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }
 
-  const { bucketName, prefix } = connectionConfig;
+  const { bucketName, prefix, name: connectionName } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
   // The concrete role/endpoint/region live on the referenced provider connection +
@@ -33,7 +33,14 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   let resolved;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
-    resolved = resolveConnectionProvider(catalog, connectionConfig);
+    const resolvedWithGrants = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+    if (resolvedWithGrants && resolvedWithGrants.grants.length > 0) {
+      resolved = {
+        region: resolvedWithGrants.region,
+        endpoint: resolvedWithGrants.endpoint,
+        roleArn: resolvedWithGrants.grants[0].roleArn,
+      };
+    }
   } catch {
     resolved = undefined;
   }

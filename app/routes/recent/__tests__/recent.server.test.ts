@@ -29,6 +29,7 @@ describe("recent.server", () => {
       mockPrisma.recentlyViewed.upsert.mockResolvedValue({});
 
       await upsertRecentlyViewed("user-1", {
+        connectionId: "conn-uuid-1",
         connectionName: "my-bucket",
         pathName: "data/image.ome.tiff",
         name: "image.ome.tiff",
@@ -37,9 +38,9 @@ describe("recent.server", () => {
 
       expect(mockPrisma.recentlyViewed.upsert).toHaveBeenCalledOnce();
       const call = mockPrisma.recentlyViewed.upsert.mock.calls[0][0];
-      expect(call.where.userId_connectionName_pathName).toEqual({
+      expect(call.where.userId_connectionId_pathName).toEqual({
         userId: "user-1",
-        connectionName: "my-bucket",
+        connectionId: "conn-uuid-1",
         pathName: "data/image.ome.tiff",
       });
       expect(call.update.name).toBe("image.ome.tiff");
@@ -102,13 +103,13 @@ describe("recent.server", () => {
   });
 
   describe("removeRecentlyViewed", () => {
-    test("deletes a specific item by userId, connectionName, and pathName", async () => {
+    test("deletes a specific item by userId, connectionId, and pathName", async () => {
       mockPrisma.recentlyViewed.deleteMany.mockResolvedValue({ count: 1 });
 
-      await removeRecentlyViewed("user-1", "my-bucket", "data/file.csv");
+      await removeRecentlyViewed("user-1", "conn-uuid-1", "data/file.csv");
 
       expect(mockPrisma.recentlyViewed.deleteMany).toHaveBeenCalledWith({
-        where: { userId: "user-1", connectionName: "my-bucket", pathName: "data/file.csv" },
+        where: { userId: "user-1", connectionId: "conn-uuid-1", pathName: "data/file.csv" },
       });
     });
   });

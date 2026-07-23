@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cytario-db-pod
+spec:
+  containers:
+    - name: postgres
+      image: docker.io/postgres:17
+      env:
+        - name: POSTGRES_DB
+          value: "cytario"
+        - name: POSTGRES_USER
+          value: "cytario"
+        - name: POSTGRES_PASSWORD
+          value: "cytario"
+      ports:
+        - containerPort: 5432
+          hostPort: 5433
+      volumeMounts:
+        - name: cytario-db-data
+          mountPath: /var/lib/postgresql/data
+  volumes:
+    - name: cytario-db-data
+      hostPath:
+        path: ./cytario-db-data
+        type: DirectoryOrCreate
+  network: cytario
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valkey-pod
+spec:
+  containers:
+    - name: valkey
+      image: docker.io/valkey/valkey:9
+      ports:
+        - containerPort: 6379
+          hostPort: 6379
+      volumeMounts:
+        - name: valkey-data
+          mountPath: /data
+  volumes:
+    - name: valkey-data
+      hostPath:
+        path: ./valkey-data
+        type: DirectoryOrCreate
+  network: cytario
+
+---
+apiVersion: v1
+kind: Network
+metadata:
+  name: cytario

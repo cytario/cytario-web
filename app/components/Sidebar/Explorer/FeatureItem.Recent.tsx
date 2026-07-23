@@ -20,7 +20,7 @@ export function FeatureItemRecent() {
   const nodes = useMemo(
     () =>
       (layoutData?.recentlyViewed ?? [])
-        .filter((item) => connections[item.connectionName])
+        .filter((item) => connections[item.connectionId])
         .slice(0, MAX_SIDEBAR_ITEMS)
         .map(recentToNode),
     [layoutData, connections],

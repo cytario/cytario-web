@@ -50,6 +50,7 @@ describe("addFavorite action", () => {
     vi.clearAllMocks();
     mockGetConnection.mockResolvedValue({
       name: "my-bucket",
+      id: "conn-uuid-42",
       bucketName: "my-bucket",
       provider: "minio",
     });
@@ -59,7 +60,7 @@ describe("addFavorite action", () => {
     mockAddFavorite.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "data/images/",
       displayName: "images",
       totalSize: "1024000",
@@ -71,6 +72,7 @@ describe("addFavorite action", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockAddFavorite).toHaveBeenCalledWith("user-1", {
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/images/",
       displayName: "images",
@@ -83,7 +85,7 @@ describe("addFavorite action", () => {
     mockAddFavorite.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "data/",
       displayName: "data",
     });
@@ -93,6 +95,7 @@ describe("addFavorite action", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockAddFavorite).toHaveBeenCalledWith("user-1", {
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/",
       displayName: "data",
@@ -103,7 +106,7 @@ describe("addFavorite action", () => {
     mockAddFavorite.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "",
       displayName: "my-bucket",
     });
@@ -113,6 +116,7 @@ describe("addFavorite action", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockAddFavorite).toHaveBeenCalledWith("user-1", {
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "",
       displayName: "my-bucket",
@@ -121,7 +125,7 @@ describe("addFavorite action", () => {
 
   test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
-      connectionName: "",
+      connectionId: "",
       pathName: "data/",
       displayName: "data",
     });
@@ -134,7 +138,7 @@ describe("addFavorite action", () => {
 
   test("returns 400 with missing displayName", async () => {
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "data/",
       displayName: "",
     });
@@ -149,7 +153,7 @@ describe("addFavorite action", () => {
     mockGetConnection.mockResolvedValue(null);
 
     const formData = createFormData({
-      connectionName: "hidden-bucket",
+      connectionId: "hidden-bucket",
       pathName: "data/images/",
       displayName: "images",
     });
@@ -164,7 +168,7 @@ describe("addFavorite action", () => {
     mockAddFavorite.mockRejectedValue(new Error("DB connection lost"));
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "data/images/",
       displayName: "images",
     });

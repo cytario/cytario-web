@@ -2,16 +2,22 @@ import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-s
 
 import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
-import { ConnectionConfig } from "~/.generated/client";
+import type { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
+import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { createLabel } from "~/.server/logging";
 import {
-  type ResolvedConnectionProvider,
+  type ResolvedConnectionGrant,
+  type ResolvedConnectionProviderWithGrants,
   getProviderCatalog,
-  resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
+import { canSee } from "~/utils/authorization";
 import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
 import { type ProviderCatalog } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
+
+/** A connection config with its grants eager-loaded (the shape credential minting needs). */
+type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
 
 const label = createLabel("credentials", "cyan");
 
@@ -37,13 +43,14 @@ export const sanitizeRoleSessionName = (name: string): string => {
 
 const fetchTemporaryCredentials = async (
   connectionConfig: ConnectionConfig,
-  resolved: ResolvedConnectionProvider,
+  roleArn: string,
+  region: string,
+  endpoint: string | null,
   idToken: string,
   roleSessionName: string,
   subject: string,
 ): Promise<Credentials> => {
   const { bucketName, prefix } = connectionConfig;
-  const { region, endpoint, roleArn } = resolved;
 
   const providerConfig = getS3ProviderConfig(endpoint, region);
 
@@ -79,6 +86,27 @@ const fetchTemporaryCredentials = async (
     throw new Error("No credentials returned from STS");
   }
   return Credentials;
+};
+
+/**
+ * Pick the most permissive grant whose scope the authenticated user can see
+ * (group membership or admin ancestry). A user who is a member of several
+ * granted groups receives the most permissive applicable grant's role — sharing-
+ * capable roles are preferred (a proxy for write access) as the tiebreaker.
+ * Returns `undefined` when no grant is applicable to the user (the connection is
+ * visible only through an ancestor the user does not directly hold).
+ */
+const pickGrantForUser = (
+  resolved: ResolvedConnectionProviderWithGrants,
+  user: UserProfile,
+  organization: string,
+): ResolvedConnectionGrant | undefined => {
+  const applicable = resolved.grants.filter((grant) =>
+    canSee(user, { organization, ownerScope: grant.scope }),
+  );
+  if (applicable.length === 0) return undefined;
+  applicable.sort((a, b) => Number(b.allowsSharing) - Number(a.allowsSharing));
+  return applicable[0];
 };
 
 /** Map an STS error to a single-line human-readable reason. */
@@ -135,7 +163,7 @@ export interface SessionCredentialsResult {
  */
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
-  connectionConfigs: ConnectionConfig[],
+  connectionConfigs: ConnectionConfigWithGrants[],
 ): Promise<SessionCredentialsResult> => {
   // Nothing to resolve or mint when the org has no connections — avoid a needless
   // provider lookup.
@@ -161,9 +189,9 @@ export const getAllSessionCredentials = async (
   const providers: Record<string, ClientConnectionProvider> = {};
   if (catalog) {
     for (const config of connectionConfigs) {
-      const resolved = resolveConnectionProvider(catalog, config);
+      const resolved = resolveConnectionProviderWithGrants(catalog, config);
       if (resolved) {
-        providers[config.name] = {
+        providers[config.id] = {
           region: resolved.region,
           endpoint: resolved.endpoint,
           allowsSharing: resolved.allowsSharing,
@@ -173,7 +201,7 @@ export const getAllSessionCredentials = async (
   }
 
   const stale = connectionConfigs.filter(
-    (config) => !isValidCredentials(sessionData.credentials[config.name]),
+    (config) => !isValidCredentials(sessionData.credentials[config.id]),
   );
 
   if (stale.length === 0) {
@@ -182,23 +210,29 @@ export const getAllSessionCredentials = async (
 
   console.info(`${label} Fetching credentials for ${stale.length} connection(s)`);
 
-  // Fetch all in parallel — one failure doesn't block others
   const results = await Promise.allSettled(
     stale.map(async (config) => {
       if (!catalog) {
         throw new Error(catalogError ?? "Provider catalog is unavailable.");
       }
-      const resolved = resolveConnectionProvider(catalog, config);
+      const resolved = resolveConnectionProviderWithGrants(catalog, config);
       if (!resolved) {
         throw new Error(
           "This connection references a provider connection or role that is no longer available. Ask an administrator to check the storage onboarding.",
         );
       }
+      const grant = pickGrantForUser(resolved, sessionData.user, organization);
+      if (!grant) {
+        throw new Error("You are not a member of any group granted access to this connection.");
+      }
       return {
+        id: config.id,
         name: config.name,
         credentials: await fetchTemporaryCredentials(
           config,
-          resolved,
+          grant.roleArn,
+          resolved.region,
+          resolved.endpoint,
           sessionData.authTokens.idToken,
           roleSessionName,
           sessionData.user.sub,
@@ -211,12 +245,12 @@ export const getAllSessionCredentials = async (
   const errors: Record<string, string> = {};
   results.forEach((result, i) => {
     if (result.status === "fulfilled") {
-      newCredentials[result.value.name] = result.value.credentials;
+      newCredentials[result.value.id] = result.value.credentials;
     } else {
-      const name = stale[i].name;
+      const config = stale[i];
       const reason = describeCredentialError(result.reason);
-      errors[name] = reason;
-      console.warn(`${label} Failed to fetch credentials for ${name}: ${reason}`);
+      errors[config.id] = reason;
+      console.warn(`${label} Failed to fetch credentials for ${config.name}: ${reason}`);
     }
   });
 

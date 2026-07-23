@@ -71,30 +71,28 @@ const catalog = mock.providerCatalog({
 const validForm = {
   _intent: "share",
   name: "team-a-share",
-  scope: "lab",
-  providerRoleId: "pr-share",
   bucketName: "shared-bucket",
   providerConnectionId: "pc-1",
   prefix: "images",
+  "grants[0].scope": "lab",
+  "grants[0].providerRoleId": "pr-share",
 };
 
 describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109)", () => {
   test("rejects an unauthorized target scope with HTTP 403 before any mint or write", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(catalog);
-    // Admin of `lab` only; submits a scope they do NOT administer.
     const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
-    const args = buildArgs(user, { ...validForm, scope: "ops" });
+    const args = buildArgs(user, { ...validForm, "grants[0].scope": "ops" });
 
     const response = await shareAction(args).catch((e: unknown) => e);
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(403);
 
-    // No bucket-policy mint and no share record write occurred.
     expect(applyGrantsAndRecordStatus).not.toHaveBeenCalled();
     expect(prisma.connectionConfig.create).not.toHaveBeenCalled();
   });
 
-  test("rejects a role that does not permit sharing", async () => {
+  test("accepts a read-only (non-sharing) grant role — the bucket-policy write picks a sharing-capable grant's role via resolveApplyTarget", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
         providerConnections: [mock.providerConnection({ id: "pc-1" })],
@@ -103,21 +101,33 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
         ],
       }),
     );
-    const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
-    const args = buildArgs(user, { ...validForm, providerRoleId: "pr-ro" });
+    const created = mock.connectionConfig({
+      id: "conn-uuid-5",
+      name: "team-a-share",
+      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" })],
+    });
+    vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
+    vi.mocked(applyGrantsAndRecordStatus).mockResolvedValue({
+      status: "applied",
+      result: { status: "applied" },
+    });
 
-    const result = (await shareAction(args)) as {
-      status?: string;
-      errors?: Record<string, string[]>;
-    };
-    expect(result.status).toBe("error");
-    expect(result.errors?.providerRoleId?.[0]).toMatch(/share/i);
-    expect(applyGrantsAndRecordStatus).not.toHaveBeenCalled();
+    const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
+    const args = buildArgs(user, { ...validForm, "grants[0].providerRoleId": "pr-ro" });
+
+    await shareAction(args);
+
+    expect(prisma.connectionConfig.create).toHaveBeenCalled();
+    expect(applyGrantsAndRecordStatus).toHaveBeenCalled();
   });
 
   test("creates the share and applies when authorized", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(catalog);
-    const created = mock.connectionConfig({ id: 5, name: "team-a-share", scope: "lab" });
+    const created = mock.connectionConfig({
+      id: "conn-uuid-5",
+      name: "team-a-share",
+      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-share" })],
+    });
     vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
 
     const user = mock.user({ adminScopes: ["lab"], organization: "org1" });

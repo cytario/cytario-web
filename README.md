@@ -268,6 +268,28 @@ npx prisma studio                                 # Database GUI
 npx prisma generate                               # Regenerate client
 ```
 
+#### Cloning the DEV database
+
+`scripts/clone-dev-db.mjs` copies the DEV PostgreSQL (schema + data) into the local Podman cluster's Postgres. It uses the `pg` driver rather than `pg_dump`/`psql`, so it works through pgbouncer (transaction-pooling mode) — `pg_dump` fails on session-level operations there.
+
+```sh
+# 1. Make sure the local cluster is up and Postgres is reachable on :5433.
+cd devenv && podman kube play local-deployment.yaml && cd ..
+
+# 2. Clone. Pass the DEV DATABASE_URL as the source and the local URL
+#    (from .env.template) as the target. The script refuses to write to
+#    any host that doesn't resolve to loopback.
+npm run clone-dev-db -- \
+  "$DEV_DATABASE_URL" \
+  "postgresql://cytario:cytario@localhost:5433/cytario"
+
+# 3. Apply any migrations the local checkout has that DEV doesn't yet.
+DATABASE_URL="postgresql://cytario:cytario@localhost:5433/cytario" \
+  npx prisma migrate deploy
+```
+
+The clone copies every public-schema table, including `_prisma_migrations`, so Prisma recognises which migrations are already applied. If the target database already has tables, the script lists them and asks for confirmation before dropping them.
+
 ### Testing
 
 ```sh

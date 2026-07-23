@@ -133,7 +133,7 @@ export function createSignedFetch(
    * region to the browser signer is a follow-up.
    */
   region: string | undefined,
-  connectionName?: string,
+  connectionId?: string,
 ): SignedFetch {
   let cachedKeyId: string | undefined;
   let signer: SignatureV4;
@@ -235,12 +235,12 @@ export function createSignedFetch(
     );
 
     if (await isExpiredTokenResponse(response)) {
-      if (!connectionName) {
+      if (!connectionId) {
         throw new ExpiredCredentialsError(
           "STS credentials expired and no connection name was provided to signedFetch.",
         );
       }
-      await requestCredentialsRefresh(connectionName);
+      await requestCredentialsRefresh(connectionId);
       const retried = await buildSignedRequest(url, init);
       const retryResponse = await fetchWithCorsDetection(
         retried.wireUrl,
@@ -251,7 +251,7 @@ export function createSignedFetch(
       if (await isExpiredTokenResponse(retryResponse)) {
         throw new ExpiredCredentialsError(
           "STS credentials expired and refresh did not yield a working session.",
-          connectionName,
+          connectionId,
         );
       }
       return retryResponse;

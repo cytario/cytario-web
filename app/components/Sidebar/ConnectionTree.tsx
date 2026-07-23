@@ -6,6 +6,7 @@ import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/bu
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { onExpand } from "~/components/DirectoryView/onExpand";
 import { LavaLoader } from "~/components/LavaLoader";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 interface ConnectionTreeProps {
   selectedConnection: string;
@@ -14,6 +15,9 @@ interface ConnectionTreeProps {
 
 export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
+  const connectionName =
+    useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
+    selectedConnection;
   const {
     nodes: searchNodes,
     isSearching,
@@ -25,9 +29,10 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
     () => [
       {
         id: rootId,
-        connectionName: selectedConnection,
-        type: "bucket", // NodeIndicator only shows the status dot for buckets
-        name: selectedConnection,
+        connectionId: selectedConnection,
+        connectionName,
+        type: "bucket",
+        name: connectionName,
         pathName: "",
         children: [],
         hasChildren: true,
@@ -35,7 +40,7 @@ export function ConnectionTree({ selectedConnection, query }: ConnectionTreeProp
         loadState: "idle",
       },
     ],
-    [rootId, selectedConnection],
+    [rootId, selectedConnection, connectionName],
   );
 
   const searchExpanded = useMemo(() => collectInteriorIds(searchNodes), [searchNodes]);

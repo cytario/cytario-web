@@ -41,7 +41,7 @@ describe("objects loader (C-193)", () => {
     vi.clearAllMocks();
     listObjectsClient.mockReset();
     vi.mocked(getConnection).mockResolvedValue(
-      mock.connectionConfig({ name: "test-conn", prefix: "" }),
+      mock.connectionConfig({ id: "test-conn", name: "test-conn", prefix: "" }),
     );
   });
 
@@ -49,7 +49,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn/image.zarr");
     const response = await loader({
       request,
-      params: { name: "test-conn", "*": "image.zarr" },
+      params: { id: "test-conn", "*": "image.zarr" },
       context: buildContext() as never,
       pattern: "",
       url: new URL(request.url),
@@ -69,14 +69,14 @@ describe("objects loader (C-193)", () => {
 
   test("throws 400 Response when urlPath contains '..' segments", async () => {
     vi.mocked(getConnection).mockResolvedValue(
-      mock.connectionConfig({ name: "test-conn", prefix: "scope" }),
+      mock.connectionConfig({ id: "test-conn", name: "test-conn", prefix: "scope" }),
     );
 
     const request = new Request("http://localhost/connections/test-conn/../etc");
     await expect(
       loader({
         request,
-        params: { name: "test-conn", "*": "../etc" },
+        params: { id: "test-conn", "*": "../etc" },
         context: buildContext() as never,
         pattern: "",
         url: new URL(request.url),
@@ -86,6 +86,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader passes zarr server flag straight through as single-file", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "image.zarr",
@@ -100,7 +101,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn/image.zarr");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "image.zarr" },
+      params: { id: "test-conn", "*": "image.zarr" },
       serverLoader,
     } as never);
 
@@ -110,6 +111,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader builds a level tree from a non-empty listing", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "",
@@ -130,7 +132,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "" },
+      params: { id: "test-conn", "*": "" },
       serverLoader,
     } as never);
 
@@ -141,6 +143,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader surfaces a warning notification when the listing is capped", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "",
@@ -161,7 +164,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "" },
+      params: { id: "test-conn", "*": "" },
       serverLoader,
     } as never);
 
@@ -171,6 +174,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader falls back to isSingleFile when the listing is empty", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "some/file.tif",
@@ -191,7 +195,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn/some/file.tif");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "some/file.tif" },
+      params: { id: "test-conn", "*": "some/file.tif" },
       serverLoader,
     } as never);
 
@@ -201,6 +205,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader flips pendingClientLoad to false once it resolves", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "",
@@ -221,7 +226,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "" },
+      params: { id: "test-conn", "*": "" },
       serverLoader,
     } as never);
 
@@ -230,6 +235,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader surfaces a CORS-specific notification on CorsLikelyError", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "",
@@ -249,7 +255,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "" },
+      params: { id: "test-conn", "*": "" },
       serverLoader,
     } as never);
 
@@ -260,6 +266,7 @@ describe("objects loader (C-193)", () => {
 
   test("clientLoader surfaces an error notification when listObjectsClient throws", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
       connectionName: "test-conn",
       bucketName: "b",
       urlPath: "",
@@ -277,7 +284,7 @@ describe("objects loader (C-193)", () => {
     const request = new Request("http://localhost/connections/test-conn");
     const result = await clientLoader({
       request,
-      params: { name: "test-conn", "*": "" },
+      params: { id: "test-conn", "*": "" },
       serverLoader,
     } as never);
 

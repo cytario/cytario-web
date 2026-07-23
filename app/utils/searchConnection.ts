@@ -30,7 +30,8 @@ export async function searchConnection({
   const { connectionConfig: config, credentials, provider } = connection;
   const prefix = getPrefix(config.prefix);
   const bucketBase = {
-    id: `${config.name}/`,
+    id: `${config.id}/`,
+    connectionId: config.id,
     connectionName: config.name,
     name: config.name,
     type: "bucket" as const,
@@ -51,7 +52,7 @@ export async function searchConnection({
   try {
     const { contents, isCapped } = await listObjectsClient(
       {
-        name: config.name,
+        id: config.id,
         bucketName: config.bucketName,
         region: provider?.region,
         endpoint: provider?.endpoint,
@@ -67,7 +68,7 @@ export async function searchConnection({
     return {
       node: {
         ...bucketBase,
-        children: buildDirectoryTree(contents, config.name, prefix ?? ""),
+        children: buildDirectoryTree(contents, config.id, config.name, prefix ?? ""),
       },
       isCapped,
       error: false,

@@ -1,7 +1,6 @@
 import { renderHook } from "@testing-library/react";
 
 import { useInitConnections } from "../useInitConnections";
-import { ConnectionConfig } from "~/.generated/client";
 import mock from "~/utils/__tests__/__mocks__";
 
 const mockSetConnections = vi.fn();
@@ -22,7 +21,7 @@ describe("useInitConnections", () => {
   });
 
   test("calls setConnections with configs and credentials on mount", () => {
-    const configs: ConnectionConfig[] = [
+    const configs = [
       mock.connectionConfig({ name: "conn-1" }),
       mock.connectionConfig({ name: "conn-2" }),
     ];

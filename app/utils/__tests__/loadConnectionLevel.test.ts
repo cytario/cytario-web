@@ -23,6 +23,7 @@ describe("loadConnectionLevel", () => {
     await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ name: "conn", prefix: "scope" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "sub/",
     });
@@ -41,6 +42,7 @@ describe("loadConnectionLevel", () => {
     const { nodes, isCapped } = await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ name: "conn", prefix: "scope" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "sub",
     });
@@ -59,6 +61,7 @@ describe("loadConnectionLevel", () => {
     const { isCapped } = await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ prefix: "" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "",
     });
@@ -77,6 +80,7 @@ describe("loadConnectionLevel", () => {
     await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ prefix: "" }),
       credentials: mock.credentials(),
+      connectionId: "conn-id",
       connectionName: "conn",
       urlPath: "",
       signal: controller.signal,
@@ -84,5 +88,23 @@ describe("loadConnectionLevel", () => {
 
     const opts = listObjectsClient.mock.calls[0][2] as { signal?: AbortSignal };
     expect(opts.signal).toBe(controller.signal);
+  });
+
+  test("does not probe directories for preview images", async () => {
+    listObjectsClient.mockResolvedValue({
+      contents: [],
+      commonPrefixes: ["scope/sub/dir-a/", "scope/sub/dir-b/"],
+      isCapped: false,
+    });
+
+    await loadConnectionLevel({
+      connectionConfig: mock.connectionConfig({ prefix: "scope" }),
+      credentials: mock.credentials(),
+      connectionId: "conn-id",
+      connectionName: "conn",
+      urlPath: "sub",
+    });
+
+    expect(listObjectsClient).toHaveBeenCalledTimes(1);
   });
 });

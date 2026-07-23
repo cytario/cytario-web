@@ -35,7 +35,7 @@ describe("getTileDataWasm", () => {
     vi.mocked(ensureSpatialLoaded).mockResolvedValue(undefined);
     vi.mocked(getGeomQuery).mockReturnValue("SELECT * FROM test");
     vi.mocked(resolveResourceId).mockReturnValue({
-      connectionName: "my-conn",
+      connectionId: "my-conn-id",
       pathName: "data/file.parquet",
       credentials: mock.credentials(),
       connectionConfig,

@@ -1,7 +1,7 @@
 import { getExtension } from "./fileType";
 
 export interface ResourceIdParts {
-  connectionName: string;
+  connectionId: string;
   pathName: string;
   /** Last path segment, with extension — e.g. `"USL-2024-58461-31.ome.tif"`. Empty for bucket-level ids. */
   fileName: string;
@@ -12,21 +12,19 @@ export interface ResourceIdParts {
 }
 
 /**
- * Parses a resourceId (`connectionName/pathName`) into its parts, including the
+ * Parses a resourceId (`connectionId/pathName`) into its parts, including the
  * file name, base name, and (compound-aware) extension of the last segment.
  * @throws Error if resourceId is malformed
  */
 export function parseResourceId(resourceId: string): ResourceIdParts {
   const slashIndex = resourceId.indexOf("/");
   if (slashIndex === -1) {
-    throw new Error(
-      `Invalid resourceId: "${resourceId}" — expected format connectionName/pathName`,
-    );
+    throw new Error(`Invalid resourceId: "${resourceId}" — expected format connectionId/pathName`);
   }
 
-  const connectionName = resourceId.slice(0, slashIndex);
-  if (!connectionName) {
-    throw new Error(`Invalid resourceId: "${resourceId}" — empty connectionName`);
+  const connectionId = resourceId.slice(0, slashIndex);
+  if (!connectionId) {
+    throw new Error(`Invalid resourceId: "${resourceId}" — empty connectionId`);
   }
 
   const pathName = resourceId.slice(slashIndex + 1).replace(/^\/+/, "");
@@ -34,14 +32,14 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
   const extension = getExtension(fileName);
   const name = extension ? fileName.slice(0, -(extension.length + 1)) : fileName;
 
-  return { connectionName, pathName, fileName, name, extension };
+  return { connectionId, pathName, fileName, name, extension };
 }
 
-/** Builds a routable URL path from a connection name and an object path. */
-export function buildConnectionPath(connectionName: string, pathName: string): string {
+/** Builds a routable URL path from a connection id and an object path. */
+export function buildConnectionPath(connectionId: string, pathName: string): string {
   const path = pathName
-    ? `/connections/${connectionName}/${pathName}`
-    : `/connections/${connectionName}`;
+    ? `/connections/${connectionId}/${pathName}`
+    : `/connections/${connectionId}`;
   return path.replace(/\/$/, "");
 }
 

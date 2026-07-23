@@ -68,7 +68,6 @@ describe("ConnectionForm — FK selectors (SRS-CY-32118)", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Provider connection/ })).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: /Provider role/ })).toBeInTheDocument();
     // The composition step never exposes a free-text role ARN or endpoint.
     expect(document.querySelector('input[name="roleArn"]')).toBeNull();
     expect(document.querySelector('input[name="bucketEndpoint"]')).toBeNull();
@@ -77,7 +76,10 @@ describe("ConnectionForm — FK selectors (SRS-CY-32118)", () => {
   });
 
   test("surfaces a server field error", async () => {
-    mockActionData = { status: "error", errors: { providerRoleId: ["Unknown provider role"] } };
+    mockActionData = {
+      status: "error",
+      errors: { "grants.0.providerRoleId": ["Unknown provider role"] },
+    };
     renderForm();
     await waitFor(() => {
       expect(screen.getByText("Unknown provider role")).toBeInTheDocument();

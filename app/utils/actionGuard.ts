@@ -6,7 +6,7 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { getConnection } from "~/routes/connections/connections.server";
 
-interface GuardedActionArgs<Schema extends z.ZodType<{ connectionName: string }>> {
+interface GuardedActionArgs<Schema extends z.ZodType<{ connectionId: string }>> {
   args: ActionFunctionArgs;
   schema: Schema;
   /** Label prefix for the 500 log line, e.g. "[favorites] Failed to add favorite:". */
@@ -24,7 +24,7 @@ interface GuardedActionArgs<Schema extends z.ZodType<{ connectionName: string }>
  * same status codes. Empty strings collapse to undefined so optional fields
  * stay absent.
  */
-export async function guardConnectionAction<Schema extends z.ZodType<{ connectionName: string }>>({
+export async function guardConnectionAction<Schema extends z.ZodType<{ connectionId: string }>>({
   args: { request, context },
   schema,
   errorLabel,
@@ -41,7 +41,7 @@ export async function guardConnectionAction<Schema extends z.ZodType<{ connectio
     return new Response("Invalid input", { status: 400 });
   }
 
-  const connection = await getConnection(user, parsed.data.connectionName);
+  const connection = await getConnection(user, parsed.data.connectionId);
   if (!connection) {
     return new Response("Connection not found", { status: 404 });
   }

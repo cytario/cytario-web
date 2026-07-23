@@ -12,7 +12,8 @@ const testCases: [_Object[], TreeNode[]][] = [
     ],
     [
       {
-        id: "test-connection/folder1/",
+        id: "test-conn-id/folder1/",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "directory",
         name: "folder1",
@@ -21,7 +22,8 @@ const testCases: [_Object[], TreeNode[]][] = [
 
         children: [
           {
-            id: "test-connection/folder1/file1.txt",
+            id: "test-conn-id/folder1/file1.txt",
+            connectionId: "test-conn-id",
             connectionName: "test-connection",
             type: "file",
             name: "file1.txt",
@@ -31,7 +33,8 @@ const testCases: [_Object[], TreeNode[]][] = [
             _Object: { Key: "folder1/file1.txt" },
           },
           {
-            id: "test-connection/folder1/file2.txt",
+            id: "test-conn-id/folder1/file2.txt",
+            connectionId: "test-conn-id",
             connectionName: "test-connection",
             type: "file",
             name: "file2.txt",
@@ -45,7 +48,8 @@ const testCases: [_Object[], TreeNode[]][] = [
         _Object: { Key: "folder1/file1.txt" },
       },
       {
-        id: "test-connection/folder2/",
+        id: "test-conn-id/folder2/",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "directory",
         name: "folder2",
@@ -54,7 +58,8 @@ const testCases: [_Object[], TreeNode[]][] = [
 
         children: [
           {
-            id: "test-connection/folder2/file3.txt",
+            id: "test-conn-id/folder2/file3.txt",
+            connectionId: "test-conn-id",
             connectionName: "test-connection",
             type: "file",
             name: "file3.txt",
@@ -65,7 +70,8 @@ const testCases: [_Object[], TreeNode[]][] = [
             _Object: { Key: "folder2/file3.txt" },
           },
           {
-            id: "test-connection/folder2/subfolder1/",
+            id: "test-conn-id/folder2/subfolder1/",
+            connectionId: "test-conn-id",
             connectionName: "test-connection",
             type: "directory",
             name: "subfolder1",
@@ -73,7 +79,8 @@ const testCases: [_Object[], TreeNode[]][] = [
 
             children: [
               {
-                id: "test-connection/folder2/subfolder1/file4.txt",
+                id: "test-conn-id/folder2/subfolder1/file4.txt",
+                connectionId: "test-conn-id",
                 connectionName: "test-connection",
                 type: "file",
                 name: "file4.txt",
@@ -97,7 +104,7 @@ describe("buildDirectoryTree", () => {
   test.each(testCases)(
     "should correctly build a directory tree from a flat list of objects",
     (objects, expectedTree) => {
-      const tree = buildDirectoryTree(objects, "test-connection");
+      const tree = buildDirectoryTree(objects, "test-conn-id", "test-connection");
       expect(tree).toEqual(expectedTree);
     },
   );
@@ -105,11 +112,12 @@ describe("buildDirectoryTree", () => {
   test("should prepend urlPath to node pathNames when navigating into a subdirectory", () => {
     const objects: _Object[] = [{ Key: "subdir/file.tif" }];
 
-    const tree = buildDirectoryTree(objects, "my-connection", "subdir/", "subdir");
+    const tree = buildDirectoryTree(objects, "my-conn-id", "my-connection", "subdir/", "subdir");
 
     expect(tree).toEqual([
       {
-        id: "my-connection/subdir/file.tif",
+        id: "my-conn-id/subdir/file.tif",
+        connectionId: "my-conn-id",
         connectionName: "my-connection",
         type: "file",
         name: "file.tif",
@@ -123,7 +131,7 @@ describe("buildDirectoryTree", () => {
   test("should skip S3 folder marker objects (keys ending with /)", () => {
     const objects: _Object[] = [{ Key: "czi/" }, { Key: "czi/ULT-2022-16901-457_V1.czi" }];
 
-    const tree = buildDirectoryTree(objects, "my-connection");
+    const tree = buildDirectoryTree(objects, "my-conn-id", "my-connection");
 
     expect(tree).toHaveLength(1);
     expect(tree[0].type).toBe("directory");
@@ -136,7 +144,7 @@ describe("buildDirectoryTree", () => {
   test("should handle nested folder markers without creating phantom nodes", () => {
     const objects: _Object[] = [{ Key: "a/" }, { Key: "a/b/" }, { Key: "a/b/file.txt" }];
 
-    const tree = buildDirectoryTree(objects, "my-connection");
+    const tree = buildDirectoryTree(objects, "my-conn-id", "my-connection");
 
     expect(tree).toHaveLength(1);
     expect(tree[0].name).toBe("a");
@@ -149,7 +157,7 @@ describe("buildDirectoryTree", () => {
   test("should produce paths relative to connection root without urlPath", () => {
     const objects: _Object[] = [{ Key: "subdir/file.tif" }];
 
-    const tree = buildDirectoryTree(objects, "my-connection");
+    const tree = buildDirectoryTree(objects, "my-conn-id", "my-connection");
 
     expect(tree[0].pathName).toBe("subdir/");
     expect(tree[0].children![0].pathName).toBe("subdir/file.tif");
@@ -161,12 +169,14 @@ describe("buildLevelTree", () => {
     const nodes = buildLevelTree({
       contents: [{ Key: "file1.tif" }, { Key: "file2.tif" }],
       commonPrefixes: ["subdir/", "czi/"],
+      connectionId: "test-conn-id",
       connectionName: "test-connection",
     });
 
     expect(nodes).toEqual([
       {
-        id: "test-connection/subdir/",
+        id: "test-conn-id/subdir/",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "directory",
         name: "subdir",
@@ -177,7 +187,8 @@ describe("buildLevelTree", () => {
         loadState: "idle",
       },
       {
-        id: "test-connection/czi/",
+        id: "test-conn-id/czi/",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "directory",
         name: "czi",
@@ -188,7 +199,8 @@ describe("buildLevelTree", () => {
         loadState: "idle",
       },
       {
-        id: "test-connection/file1.tif",
+        id: "test-conn-id/file1.tif",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "file",
         name: "file1.tif",
@@ -197,7 +209,8 @@ describe("buildLevelTree", () => {
         _Object: { Key: "file1.tif" },
       },
       {
-        id: "test-connection/file2.tif",
+        id: "test-conn-id/file2.tif",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "file",
         name: "file2.tif",
@@ -212,6 +225,7 @@ describe("buildLevelTree", () => {
     const nodes = buildLevelTree({
       contents: [{ Key: "file.tif" }],
       commonPrefixes: [],
+      connectionId: "test-conn-id",
       connectionName: "test-connection",
     });
 
@@ -223,6 +237,7 @@ describe("buildLevelTree", () => {
     const nodes = buildLevelTree({
       contents: [],
       commonPrefixes: ["data.zarr/"],
+      connectionId: "test-conn-id",
       connectionName: "test-connection",
     });
 
@@ -241,6 +256,7 @@ describe("buildLevelTree", () => {
     const nodes = buildLevelTree({
       contents: [{ Key: "outer/inner/leaf.tif" }],
       commonPrefixes: ["outer/inner/sub/"],
+      connectionId: "test-conn-id",
       connectionName: "test-connection",
       prefix: "outer/inner/",
       urlPath: "outer/inner",
@@ -248,7 +264,8 @@ describe("buildLevelTree", () => {
 
     expect(nodes).toEqual([
       {
-        id: "test-connection/outer/inner/sub/",
+        id: "test-conn-id/outer/inner/sub/",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "directory",
         name: "sub",
@@ -259,7 +276,8 @@ describe("buildLevelTree", () => {
         loadState: "idle",
       },
       {
-        id: "test-connection/outer/inner/leaf.tif",
+        id: "test-conn-id/outer/inner/leaf.tif",
+        connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "file",
         name: "leaf.tif",
@@ -274,6 +292,7 @@ describe("buildLevelTree", () => {
     const nodes = buildLevelTree({
       contents: [{ Key: "marker/" }, { Key: "actual.tif" }],
       commonPrefixes: [],
+      connectionId: "test-conn-id",
       connectionName: "test-connection",
     });
 

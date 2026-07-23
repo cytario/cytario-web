@@ -200,13 +200,17 @@ const assertOrgConditioned = (statements: PolicyStatement[]): void => {
 
 /**
  * Coalesce managed statements to stay under the size ceiling: merge statements
- * that are identical except for their `Resource` into one statement with a
- * multi-value `Resource` list, and fold a read-only object statement into a
- * read-write object statement for the same (group, prefix). Foreign statements
- * are never coalesced.
+ * that are identical except for their `Resource` and/or `Principal` into one
+ * statement with multi-value `Resource` and `Principal.AWS` arrays, and fold a
+ * read-only object statement into a read-write object statement for the same
+ * (group, prefix). Foreign statements are never coalesced.
  *
  * Two managed statements are coalescible when their `Effect`, `Action` set, and
- * `Condition` are identical; their `Resource` values are then unioned. Coalescing
+ * `Condition` are identical; their `Resource` values are then unioned and their
+ * `Principal.AWS` values are unioned. Grants that share the same group, prefix,
+ * and action-set but carry different role ARNs thus converge into one statement
+ * whose `Principal` lists all applicable provider-role ARNs. Grants to different
+ * groups are never merged (the per-group tag condition differs). Coalescing
  * changes the `Sid` to a stable digest of the merged content so re-applying stays
  * idempotent.
  */
@@ -215,17 +219,31 @@ const coalesceManaged = (statements: PolicyStatement[]): PolicyStatement[] => {
   const order: string[] = [];
 
   for (const statement of statements) {
-    const key = canonicalize({ ...statement, Sid: undefined, Resource: undefined });
+    const key = canonicalize({
+      ...statement,
+      Sid: undefined,
+      Resource: undefined,
+      Principal: undefined,
+    });
     const existing = groups.get(key);
     if (!existing) {
-      groups.set(key, { ...statement, Resource: toResourceArray(statement.Resource) });
+      groups.set(key, {
+        ...statement,
+        Resource: toResourceArray(statement.Resource),
+        Principal: { AWS: toPrincipalArray(statement.Principal) },
+      });
       order.push(key);
     } else {
-      const merged = new Set([
+      const mergedResources = new Set([
         ...toResourceArray(existing.Resource),
         ...toResourceArray(statement.Resource),
       ]);
-      existing.Resource = [...merged];
+      existing.Resource = [...mergedResources];
+      const mergedPrincipals = new Set([
+        ...toPrincipalArray(existing.Principal),
+        ...toPrincipalArray(statement.Principal),
+      ]);
+      existing.Principal = { AWS: [...mergedPrincipals] };
     }
   }
 
@@ -233,14 +251,32 @@ const coalesceManaged = (statements: PolicyStatement[]): PolicyStatement[] => {
     const statement = groups.get(key)!;
     const resources = toResourceArray(statement.Resource);
     const normalizedResource = resources.length === 1 ? resources[0] : resources.sort();
-    const withResource = { ...statement, Resource: normalizedResource };
-    const sidStem = `${MANAGED_SID_PREFIX}Share${fnv1aHex(canonicalize({ ...withResource, Sid: undefined }))}`;
-    return { ...withResource, Sid: sidStem };
+    const principals = toPrincipalArray(statement.Principal);
+    const normalizedPrincipal = principals.length === 1 ? principals[0] : principals.sort();
+    const withNormalized = {
+      ...statement,
+      Resource: normalizedResource,
+      Principal: { AWS: normalizedPrincipal },
+    };
+    const sidStem = `${MANAGED_SID_PREFIX}Share${fnv1aHex(canonicalize({ ...withNormalized, Sid: undefined }))}`;
+    return { ...withNormalized, Sid: sidStem };
   });
 };
 
 const toResourceArray = (resource: PolicyStatement["Resource"] | undefined): string[] =>
   resource === undefined ? [] : Array.isArray(resource) ? resource : [resource];
+
+/**
+ * Extract the `Principal.AWS` value(s) as a string array. A managed statement's
+ * Principal is always `{ AWS: string | string[] }`; unknown shapes yield an empty
+ * array so they contribute nothing to the union (and fail to coalesce).
+ */
+const toPrincipalArray = (principal: PolicyStatement["Principal"] | undefined): string[] => {
+  if (!principal || typeof principal !== "object") return [];
+  const aws = (principal as { AWS?: string | string[] }).AWS;
+  if (!aws) return [];
+  return Array.isArray(aws) ? aws : [aws];
+};
 
 /**
  * Canonicalize a JSON value: sort object keys and sort every string array so two

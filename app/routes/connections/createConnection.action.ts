@@ -18,8 +18,30 @@ export interface CreateConnectionInput {
   name: string;
   bucketName: string;
   providerConnectionId: string;
-  providerRoleId: string;
   prefix: string;
+}
+
+export interface GrantInput {
+  scope: string;
+  providerRoleId: string;
+}
+
+/**
+ * Parse the repeating grants group from the submitted formData. The form emits
+ * `grants[<index>].scope` / `grants[<index>].providerRoleId` pairs.
+ */
+export function parseGrants(formData: FormData): GrantInput[] {
+  const indexSet = new Set<number>();
+  for (const key of formData.keys()) {
+    const match = key.match(/^grants\[(\d+)\]\.scope$/);
+    if (match) indexSet.add(Number(match[1]));
+  }
+  return [...indexSet]
+    .sort((a, b) => a - b)
+    .map((index) => ({
+      scope: String(formData.get(`grants[${index}].scope`) ?? ""),
+      providerRoleId: String(formData.get(`grants[${index}].providerRoleId`) ?? ""),
+    }));
 }
 
 /**
@@ -31,28 +53,33 @@ export interface CreateConnectionInput {
  */
 export async function createConnection(
   organization: string,
-  scope: string,
   createdBy: string,
   config: CreateConnectionInput,
+  grants: GrantInput[],
 ) {
   return prisma.connectionConfig.create({
     data: {
       organization,
-      scope,
       createdBy,
       ...config,
+      grants: {
+        createMany: {
+          data: grants.map((g) => ({ scope: g.scope, providerRoleId: g.providerRoleId })),
+        },
+      },
     },
+    include: { grants: true },
   });
 }
 
 /** Field-level message for a P2002 unique violation on connection create. */
 export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestError) {
   const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
-  if (target.includes("name")) {
-    return { name: ["This name is already taken. Please choose another."] };
+  if (target.includes("scope")) {
+    return { grants: ["Each group may appear at most once on a connection."] };
   }
   return {
-    prefix: ["A connection for this bucket and prefix already exists. Edit it instead."],
+    formError: "A database constraint was violated. Please check your input and try again.",
   };
 }
 
@@ -66,11 +93,10 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
   const rawData = {
     name: String(formData.get("name") ?? ""),
-    scope: String(formData.get("scope") ?? ""),
     providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
-    providerRoleId: String(formData.get("providerRoleId") ?? ""),
     bucketName: String(formData.get("bucketName") ?? ""),
     prefix: String(formData.get("prefix") ?? ""),
+    grants: parseGrants(formData),
   };
 
   const result = connectionSchema.safeParse(rawData);
@@ -79,17 +105,15 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   }
   const data = result.data;
 
-  if (!canCreate(user, { organization: user.organization, ownerScope: data.scope })) {
-    return {
-      errors: { scope: ["Not authorized to create in this scope"] },
-      status: "error" as const,
-    };
+  for (const grant of data.grants) {
+    if (!canCreate(user, { organization: user.organization, ownerScope: grant.scope })) {
+      return {
+        errors: { grants: [`Not authorized to create a grant for scope "${grant.scope}"`] },
+        status: "error" as const,
+      };
+    }
   }
 
-  // Validate the referenced provider connection + role against the catalog and
-  // reject unknown ids — no free-text role/endpoint is accepted. The catalog is
-  // advisory; when it is unavailable the create is refused with a clear error
-  // rather than trusting a bare id.
   let catalog;
   try {
     catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
@@ -100,7 +124,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       status: "error" as const,
     };
   }
-  const refs = validateProviderRefs(catalog, data, { userSub: user.sub });
+  const refs = validateProviderRefs(catalog, data);
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
   }
@@ -116,13 +140,17 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   const session = context.get(sessionContext);
 
   try {
-    const created = await createConnection(user.organization, data.scope, user.sub, {
-      name: data.name,
-      bucketName: data.bucketName,
-      providerConnectionId: data.providerConnectionId,
-      providerRoleId: data.providerRoleId,
-      prefix: data.prefix,
-    });
+    const created = await createConnection(
+      user.organization,
+      user.sub,
+      {
+        name: data.name,
+        bucketName: data.bucketName,
+        providerConnectionId: data.providerConnectionId,
+        prefix: data.prefix,
+      },
+      data.grants,
+    );
     const outcome = await applyGrantsAndRecordStatus(created, {
       user,
       idToken: session.get("authTokens")?.idToken ?? "",
@@ -136,12 +164,19 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
           : `Connection added. ${outcome.warning}`,
     });
 
-    return redirect(`/connections/${encodeURIComponent(data.name)}`, {
+    return redirect(`/connections/${created.id}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
     if (error instanceof Response) throw error;
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
+      if (target.includes("scope")) {
+        return {
+          errors: { grants: ["Each group may appear at most once on a connection."] },
+          status: "error" as const,
+        };
+      }
       return { errors: uniqueViolationErrors(error), status: "error" as const };
     }
 

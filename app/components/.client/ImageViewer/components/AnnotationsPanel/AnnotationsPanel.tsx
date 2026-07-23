@@ -42,11 +42,12 @@ const AnnotationFileBlock = ({
 
   // The user's sidecar as a TreeNode — a real, co-located S3 object.
   const node = useMemo<TreeNode>(() => {
-    const { connectionName, pathName } = parseResourceId(imageResourceId);
+    const { connectionId, pathName } = parseResourceId(imageResourceId);
     const sidecarPath = getSidecarKey(pathName, "annotations", userId);
     return {
-      id: `${connectionName}/${sidecarPath}`,
-      connectionName,
+      id: `${connectionId}/${sidecarPath}`,
+      connectionId,
+      connectionName: "",
       pathName: sidecarPath,
       name: label,
       type: "file",

@@ -1,15 +1,16 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { type LoaderFunctionArgs } from "react-router";
 
-import { ConnectionConfig } from "~/.generated/client";
+import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
 
 /** Bucket-level connection nodes that seed the connections grid. */
-function buildConnectionNodes(configs: ConnectionConfig[]): TreeNode[] {
+function buildConnectionNodes(configs: ConnectionConfigWithGrants[]): TreeNode[] {
   return configs.map((config) => ({
-    id: `${config.name}/`,
+    id: `${config.id}/`,
+    connectionId: config.id,
     connectionName: config.name,
     name: config.name,
     type: "bucket" as const,
@@ -22,7 +23,7 @@ function buildConnectionNodes(configs: ConnectionConfig[]): TreeNode[] {
 export interface ServerLoaderData {
   nodes: TreeNode[];
   credentials: Record<string, Credentials>;
-  connectionConfigs: ConnectionConfig[];
+  connectionConfigs: ConnectionConfigWithGrants[];
 }
 
 export interface LoaderData extends ServerLoaderData {

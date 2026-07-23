@@ -11,27 +11,27 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 
 export function FeatureItemConnections() {
   const connections = useConnectionsStore(select.connections);
-  const connectionNames = useMemo(() => Object.keys(connections), [connections]);
-  const routeName = useParams().name;
+  const routeId = useParams().id;
+  const connectionIds = useMemo(() => Object.keys(connections), [connections]);
 
   const [override, setOverride] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   // Reset the manual pick when the route's connection changes, so the tree
   // follows navigation into a different connection (adjust-state-during-render).
-  const [prevRouteName, setPrevRouteName] = useState(routeName);
-  if (routeName !== prevRouteName) {
-    setPrevRouteName(routeName);
+  const [prevRouteId, setPrevRouteId] = useState(routeId);
+  if (routeId !== prevRouteId) {
+    setPrevRouteId(routeId);
     setOverride(null);
   }
 
   const selectedConnection =
-    override ?? (routeName && connectionNames.includes(routeName) ? routeName : connectionNames[0]);
+    override ?? (routeId && connectionIds.includes(routeId) ? routeId : connectionIds[0]);
 
   return (
     <FeatureItem
       title="Connections"
-      badge={String(connectionNames.length)}
+      badge={String(connectionIds.length)}
       actions={
         <IconButtonLink
           href="/connections"

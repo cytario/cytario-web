@@ -49,6 +49,7 @@ describe("recordRecentlyViewed action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnection.mockResolvedValue({
+      id: "conn-uuid-42",
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -59,6 +60,7 @@ describe("recordRecentlyViewed action", () => {
     mockUpsertRecentlyViewed.mockResolvedValue(undefined);
 
     const formData = createFormData({
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
@@ -70,6 +72,7 @@ describe("recordRecentlyViewed action", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockUpsertRecentlyViewed).toHaveBeenCalledWith("user-1", {
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
@@ -81,6 +84,7 @@ describe("recordRecentlyViewed action", () => {
     mockUpsertRecentlyViewed.mockResolvedValue(undefined);
 
     const formData = createFormData({
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "",
       name: "my-bucket",
@@ -92,6 +96,7 @@ describe("recordRecentlyViewed action", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockUpsertRecentlyViewed).toHaveBeenCalledWith("user-1", {
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "",
       name: "my-bucket",
@@ -101,6 +106,7 @@ describe("recordRecentlyViewed action", () => {
 
   test("returns 400 with invalid type", async () => {
     const formData = createFormData({
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
@@ -115,7 +121,7 @@ describe("recordRecentlyViewed action", () => {
 
   test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
-      connectionName: "",
+      connectionId: "",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -129,6 +135,7 @@ describe("recordRecentlyViewed action", () => {
 
   test("returns 400 with missing name", async () => {
     const formData = createFormData({
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "",
@@ -145,6 +152,7 @@ describe("recordRecentlyViewed action", () => {
     mockUpsertRecentlyViewed.mockResolvedValue(undefined);
 
     const formData = createFormData({
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/images/",
       name: "images",
@@ -156,6 +164,7 @@ describe("recordRecentlyViewed action", () => {
 
     expect(json).toEqual({ ok: true });
     expect(mockUpsertRecentlyViewed).toHaveBeenCalledWith("user-1", {
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/images/",
       name: "images",
@@ -167,7 +176,7 @@ describe("recordRecentlyViewed action", () => {
     mockGetConnection.mockResolvedValue(null);
 
     const formData = createFormData({
-      connectionName: "hidden-bucket",
+      connectionId: "hidden-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",
       type: "file",
@@ -183,6 +192,7 @@ describe("recordRecentlyViewed action", () => {
     mockUpsertRecentlyViewed.mockRejectedValue(new Error("DB connection lost"));
 
     const formData = createFormData({
+      connectionId: "conn-uuid-42",
       connectionName: "my-bucket",
       pathName: "data/image.ome.tiff",
       name: "image.ome.tiff",

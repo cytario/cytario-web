@@ -7,6 +7,8 @@ import {
   validateBucketRef,
   validateProviderRefs,
 } from "./connectionGrant.server";
+import type { GrantInput } from "./createConnection.action";
+import { parseGrants } from "./createConnection.action";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
@@ -18,16 +20,15 @@ import { canCreate, canModify, canSee } from "~/utils/authorization";
 
 export interface UpdateConnectionInput {
   name: string;
-  scope: string;
   bucketName: string;
   prefix: string;
   providerConnectionId: string;
-  providerRoleId: string;
+  grants: GrantInput[];
 }
 
 export async function updateConnection(
   user: UserProfile,
-  originalName: string,
+  connectionId: string,
   updates: UpdateConnectionInput,
 ) {
   if (!user.organization) {
@@ -35,7 +36,8 @@ export async function updateConnection(
   }
 
   const config = await prisma.connectionConfig.findFirst({
-    where: { name: originalName, organization: user.organization },
+    where: { id: connectionId, organization: user.organization },
+    include: { grants: true },
   });
 
   if (!config || !canSee(user, config)) {
@@ -46,36 +48,52 @@ export async function updateConnection(
     throw new Error("Not authorized to modify this connection");
   }
 
-  if (updates.scope !== config.scope) {
-    if (!canCreate(user, { organization: user.organization, ownerScope: updates.scope })) {
-      throw new Error("Not authorized to assign to this scope");
+  const existingScopes = new Set(config.grants.map((g) => g.scope));
+  const submittedScopes = new Set(updates.grants.map((g) => g.scope));
+
+  for (const grant of updates.grants) {
+    if (!existingScopes.has(grant.scope)) {
+      if (!canCreate(user, { organization: user.organization, ownerScope: grant.scope })) {
+        throw new Error(`Not authorized to create a grant for scope "${grant.scope}"`);
+      }
+    }
+  }
+  for (const grant of config.grants) {
+    if (!submittedScopes.has(grant.scope)) {
+      if (!canModify(user, { organization: user.organization, ownerScope: grant.scope })) {
+        throw new Error(`Not authorized to remove the grant for scope "${grant.scope}"`);
+      }
     }
   }
 
-  const previousName = config.name;
   const previousBucketName = config.bucketName;
   const previousProviderConnectionId = config.providerConnectionId;
-  const previousProviderRoleId = config.providerRoleId;
 
-  // FKs on recentlyViewed / pinnedPath use ON UPDATE CASCADE.
   const updated = await prisma.connectionConfig.update({
     where: { id: config.id },
     data: {
       name: updates.name,
-      scope: updates.scope,
       bucketName: updates.bucketName,
       prefix: updates.prefix,
       providerConnectionId: updates.providerConnectionId,
-      providerRoleId: updates.providerRoleId,
+      grants: {
+        deleteMany: {},
+        createMany: {
+          data: updates.grants.map((g) => ({
+            scope: g.scope,
+            providerRoleId: g.providerRoleId,
+          })),
+        },
+      },
     },
+    include: { grants: true },
   });
 
   return {
     ...updated,
-    previousName,
+    grants: updated.grants,
     previousBucketName,
     previousProviderConnectionId,
-    previousProviderRoleId,
   };
 }
 
@@ -84,10 +102,10 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   const session = context.get(sessionContext);
   const formData = await request.formData();
 
-  const originalName = String(formData.get("_originalName") ?? "");
+  const connectionId = String(formData.get("connectionId") ?? "");
 
-  if (!originalName) {
-    return { errors: { name: ["Original connection name is required"] }, status: "error" as const };
+  if (!connectionId) {
+    return { errors: { name: ["Connection id is required"] }, status: "error" as const };
   }
 
   if (!user.organization) {
@@ -96,11 +114,10 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
   const rawData = {
     name: String(formData.get("name") ?? ""),
-    scope: String(formData.get("scope") ?? ""),
     providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
-    providerRoleId: String(formData.get("providerRoleId") ?? ""),
     bucketName: String(formData.get("bucketName") ?? ""),
     prefix: String(formData.get("prefix") ?? ""),
+    grants: parseGrants(formData),
   };
 
   const result = connectionSchema.safeParse(rawData);
@@ -119,7 +136,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       status: "error" as const,
     };
   }
-  const refs = validateProviderRefs(catalog, validated, { userSub: user.sub });
+  const refs = validateProviderRefs(catalog, validated);
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
   }
@@ -137,21 +154,16 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   }
 
   try {
-    const updatedConfig = await updateConnection(user, originalName, {
+    const updatedConfig = await updateConnection(user, connectionId, {
       name: validated.name,
-      scope: validated.scope,
       bucketName: validated.bucketName,
       prefix: validated.prefix,
       providerConnectionId: validated.providerConnectionId,
-      providerRoleId: validated.providerRoleId,
+      grants: validated.grants,
     });
 
-    // Drop cached credentials so authMiddleware re-mints under the new identity.
     const credentials = session.get("credentials") ?? {};
-    delete credentials[updatedConfig.previousName];
-    if (updatedConfig.name !== updatedConfig.previousName) {
-      delete credentials[updatedConfig.name];
-    }
+    delete credentials[updatedConfig.id];
     session.set("credentials", credentials);
 
     const acting = {
@@ -160,12 +172,8 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       accessToken: session.get("authTokens")?.accessToken ?? "",
     };
 
-    // Re-apply the bucket-policy grant set; a scope/role edit may change the grant.
     const outcome = await applyGrantsAndRecordStatus(updatedConfig, acting);
 
-    // A bucket/provider move strands this connection's managed statement on the
-    // OLD bucket — re-apply that bucket's remaining grant set (under the pre-move
-    // provider role) so the moved connection's grant is revoked there.
     const bucketMoved =
       updatedConfig.previousBucketName !== updatedConfig.bucketName ||
       updatedConfig.previousProviderConnectionId !== updatedConfig.providerConnectionId;
@@ -181,7 +189,6 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
           ...updatedConfig,
           bucketName: updatedConfig.previousBucketName,
           providerConnectionId: updatedConfig.previousProviderConnectionId,
-          providerRoleId: updatedConfig.previousProviderRoleId,
         },
         acting,
       );
@@ -203,17 +210,22 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
             .join(" ")}`,
     });
 
-    return redirect(`/connections/${encodeURIComponent(updatedConfig.name)}`, {
+    return redirect(`/connections/${updatedConfig.id}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
     if (error instanceof Response) throw error;
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
+      if (target.includes("scope")) {
+        return {
+          errors: { grants: ["Each group may appear at most once on a connection."] },
+          status: "error" as const,
+        };
+      }
       return {
         errors: {
-          name: [
-            "This name is already taken, or a connection to this bucket already exists under that scope.",
-          ],
+          grants: ["Each group may appear at most once on a connection."],
         },
         status: "error" as const,
       };

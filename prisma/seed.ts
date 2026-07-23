@@ -24,33 +24,43 @@ const TEST_PREFIX_CONNECTION_NAME = process.env.E2E_PREFIX_CONNECTION_NAME || "E
 // portal lookup, §4.12) — it no longer stores provider/roleArn/region/endpoint.
 const SHARED_BUCKET = {
   organization: "cytario",
-  scope: "admins",
   createdBy: "e2e-seed",
   bucketName: "shared-bucket-example",
   providerConnectionId: "aws-eu-central-1",
-  providerRoleId: "sharer-lab",
 };
 
 async function seed() {
-  await prisma.connectionConfig.upsert({
+  const existing = await prisma.connectionConfig.findFirst({
     where: { name: TEST_CONNECTION_NAME },
-    update: {},
-    create: {
-      ...SHARED_BUCKET,
-      name: TEST_CONNECTION_NAME,
-      prefix: "",
-    },
   });
+  if (!existing) {
+    await prisma.connectionConfig.create({
+      data: {
+        ...SHARED_BUCKET,
+        name: TEST_CONNECTION_NAME,
+        prefix: "",
+        grants: {
+          create: [{ scope: "admins", providerRoleId: "sharer-lab" }],
+        },
+      },
+    });
+  }
 
-  await prisma.connectionConfig.upsert({
+  const existingPrefixed = await prisma.connectionConfig.findFirst({
     where: { name: TEST_PREFIX_CONNECTION_NAME },
-    update: {},
-    create: {
-      ...SHARED_BUCKET,
-      name: TEST_PREFIX_CONNECTION_NAME,
-      prefix: "Alpha Lab",
-    },
   });
+  if (!existingPrefixed) {
+    await prisma.connectionConfig.create({
+      data: {
+        ...SHARED_BUCKET,
+        name: TEST_PREFIX_CONNECTION_NAME,
+        prefix: "Alpha Lab",
+        grants: {
+          create: [{ scope: "admins", providerRoleId: "sharer-lab" }],
+        },
+      },
+    });
+  }
 
   console.log(
     `Seeded ConnectionConfig: "${TEST_CONNECTION_NAME}", "${TEST_PREFIX_CONNECTION_NAME}"`,

@@ -9,6 +9,5 @@ export const removeFavoriteAction = (args: ActionFunctionArgs) =>
     args,
     schema: removeFavoriteSchema,
     errorLabel: "[favorites] Failed to remove favorite:",
-    handler: (data, _connection, user) =>
-      removeFavorite(user.sub, data.connectionName, data.pathName),
+    handler: (data, connection, user) => removeFavorite(user.sub, connection.id, data.pathName),
   });

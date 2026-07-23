@@ -7,6 +7,7 @@ import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
   id: "file.csv",
+  connectionId: "",
   connectionName: "aws-bucket",
   name: "file.csv",
   type: "file",
@@ -23,7 +24,7 @@ const fileColumns: ColumnConfig[] = [
 
 const bucketColumns: ColumnConfig[] = [
   { id: "name", header: "Name", size: 200, enableColumnFilter: true, filterType: "text" },
-  { id: "scope", header: "Scope", size: 100, enableColumnFilter: true, filterType: "select" },
+  { id: "bucketName", header: "Bucket", size: 200, enableColumnFilter: true, filterType: "text" },
 ];
 
 describe("filterHiddenNodes", () => {
@@ -185,24 +186,6 @@ describe("filterNodes", () => {
     const nodes = [makeNode({ name: "test.csv" })];
     const filters: ColumnFiltersState = [{ id: "name", value: "" }];
     expect(filterNodes(nodes, filters, fileColumns)).toHaveLength(1);
-  });
-
-  test("filters bucket nodes by scope (select)", () => {
-    const nodes = [
-      makeNode({ name: "bucket1", type: "bucket", connectionName: "conn-lab" }),
-      makeNode({ name: "bucket2", type: "bucket", connectionName: "conn-ops" }),
-    ];
-    const mockConnections = {
-      "conn-lab": { connectionConfig: { scope: "lab" } },
-      "conn-ops": { connectionConfig: { scope: "ops" } },
-    } as unknown as Record<
-      string,
-      import("~/utils/connectionsStore/useConnectionsStore").Connection
-    >;
-    const filters: ColumnFiltersState = [{ id: "scope", value: "lab" }];
-    const result = filterNodes(nodes, filters, bucketColumns, "connections", mockConnections);
-    expect(result).toHaveLength(1);
-    expect(result[0].connectionName).toBe("conn-lab");
   });
 
   test("filters bucket nodes by name (text)", () => {

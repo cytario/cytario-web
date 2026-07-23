@@ -25,6 +25,7 @@ describe("favorites.server", () => {
       mockPrisma.pinnedPath.upsert.mockResolvedValue({});
 
       await addFavorite("user-1", {
+        connectionId: "conn-uuid-1",
         connectionName: "bucket-a",
         pathName: "data/images/",
         displayName: "images",
@@ -34,9 +35,9 @@ describe("favorites.server", () => {
 
       expect(mockPrisma.pinnedPath.upsert).toHaveBeenCalledOnce();
       const call = mockPrisma.pinnedPath.upsert.mock.calls[0][0];
-      expect(call.where.userId_connectionName_pathName).toEqual({
+      expect(call.where.userId_connectionId_pathName).toEqual({
         userId: "user-1",
-        connectionName: "bucket-a",
+        connectionId: "conn-uuid-1",
         pathName: "data/images/",
       });
       expect(call.create.connectionName).toBe("bucket-a");
@@ -49,6 +50,7 @@ describe("favorites.server", () => {
       mockPrisma.pinnedPath.upsert.mockResolvedValue({});
 
       await addFavorite("user-1", {
+        connectionId: "conn-uuid-1",
         connectionName: "bucket-a",
         pathName: "data/",
         displayName: "data",
@@ -63,13 +65,13 @@ describe("favorites.server", () => {
   });
 
   describe("removeFavorite", () => {
-    test("deletes a favorite by userId, connectionName, and pathName", async () => {
+    test("deletes a favorite by userId, connectionId, and pathName", async () => {
       mockPrisma.pinnedPath.deleteMany.mockResolvedValue({ count: 1 });
 
-      await removeFavorite("user-1", "bucket-a", "data/images/");
+      await removeFavorite("user-1", "conn-uuid-1", "data/images/");
 
       expect(mockPrisma.pinnedPath.deleteMany).toHaveBeenCalledWith({
-        where: { userId: "user-1", connectionName: "bucket-a", pathName: "data/images/" },
+        where: { userId: "user-1", connectionId: "conn-uuid-1", pathName: "data/images/" },
       });
     });
   });

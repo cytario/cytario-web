@@ -14,56 +14,43 @@ import {
 } from "~/utils/pathUtils";
 import { isZarrPath } from "~/utils/zarrUtils";
 
-/**
- * Server-side metadata for an object-browser route. The directory listing
- * itself runs in the browser — see `objects.clientLoader.ts`.
- */
 export interface BucketRouteServerLoaderResponse {
+  connectionId: string;
   connectionName: string;
   bucketName: string;
-  /** URL path segment after /connections/:name/ (relative to connection root). */
   urlPath: string;
-  /** Full S3 key (connection prefix + urlPath). */
   pathName: string;
   name: string;
   credentials: Credentials | null;
   connectionConfig: ConnectionConfig;
-  /** Set when the URL points at a Zarr directory; the chunk listing is skipped. */
   serverDeterminedSingleFile: boolean;
-  /** `true` during SSR; `clientLoader` flips it once the listing resolves. */
   pendingClientLoad: boolean;
-  /**
-   * Populated when the STS mint for this connection failed (e.g. the role's
-   * trust policy denied AssumeRoleWithWebIdentity). The route renders an
-   * error banner instead of the directory listing / viewer.
-   */
   connectionError: string | null;
 }
 
 export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderResponse {
   nodes: TreeNode[];
-  /** True when the route should render the viewer rather than a directory listing. */
   isSingleFile?: boolean;
   notification?: NotificationInput;
 }
 
 export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   const { user, credentials: connectionsCredentials, credentialErrors } = context.get(authContext);
-  const { name: connectionName } = params;
+  const { id: connectionId } = params;
 
-  if (!connectionName) throw new Error("Connection name is required");
+  if (!connectionId) throw new Error("Connection id is required");
 
-  const connectionConfig = await getConnection(user, connectionName);
+  const connectionConfig = await getConnection(user, connectionId);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }
 
-  const { bucketName } = connectionConfig;
+  const { bucketName, name: connectionName } = connectionConfig;
 
-  const credentials = connectionsCredentials[connectionName] ?? null;
+  const credentials = connectionsCredentials[connectionId] ?? null;
   const connectionError = credentials
     ? null
-    : (credentialErrors[connectionName] ??
+    : (credentialErrors[connectionId] ??
       "No credentials available for this connection. Verify the connection's role configuration.");
 
   const rawUrlPath = params["*"] ?? "";
@@ -87,8 +74,8 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
 
   const serverDeterminedSingleFile = isZarrPath(pathName);
 
-  // SSR-safe defaults; `clientLoader` overwrites the listing fields after hydration.
   const payload: BucketRouteLoaderResponse = {
+    connectionId,
     connectionName,
     bucketName,
     urlPath,

@@ -49,6 +49,7 @@ describe("removeFavorite action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConnection.mockResolvedValue({
+      id: "conn-uuid-42",
       name: "my-bucket",
       bucketName: "my-bucket",
       provider: "minio",
@@ -59,7 +60,7 @@ describe("removeFavorite action", () => {
     mockRemoveFavorite.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "data/images/",
     });
 
@@ -67,14 +68,14 @@ describe("removeFavorite action", () => {
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
-    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "my-bucket", "data/images/");
+    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "conn-uuid-42", "data/images/");
   });
 
   test("removes a connection-root favorite with empty pathName", async () => {
     mockRemoveFavorite.mockResolvedValue(undefined);
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "",
     });
 
@@ -82,12 +83,12 @@ describe("removeFavorite action", () => {
     const json = await (response as Response).json();
 
     expect(json).toEqual({ ok: true });
-    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "my-bucket", "");
+    expect(mockRemoveFavorite).toHaveBeenCalledWith("user-1", "conn-uuid-42", "");
   });
 
   test("returns 400 with missing connectionName", async () => {
     const formData = createFormData({
-      connectionName: "",
+      connectionId: "",
       pathName: "data/images/",
     });
 
@@ -101,7 +102,7 @@ describe("removeFavorite action", () => {
     mockGetConnection.mockResolvedValue(null);
 
     const formData = createFormData({
-      connectionName: "hidden-bucket",
+      connectionId: "hidden-bucket",
       pathName: "data/images/",
     });
 
@@ -115,7 +116,7 @@ describe("removeFavorite action", () => {
     mockRemoveFavorite.mockRejectedValue(new Error("DB connection lost"));
 
     const formData = createFormData({
-      connectionName: "my-bucket",
+      connectionId: "conn-uuid-42",
       pathName: "data/images/",
     });
 

@@ -13,14 +13,17 @@ import { assertGrantScope } from "~/routes/admin/assertAdminScope";
 /**
  * Create a folder share and apply its bucket-policy grant. Order of enforcement is
  * load-bearing:
- *   1. parse + validate the submitted grant (bucket/prefix validated by the schema);
- *   2. authorize the SUBMITTED target scope server-side — HTTP 403 with no mint and
+ *   1. parse + validate the submitted grants (bucket/prefix validated by the schema);
+ *   2. authorize every SUBMITTED target scope server-side — HTTP 403 with no mint and
  *      no bucket-policy write on failure;
- *   3. resolve the chosen provider role from the catalog and reject unknown or
- *      non-covering roles;
+ *   3. resolve every grant's provider role from the catalog and reject unknown or
+ *      non-covering roles (any role is accepted — read-only or sharing-capable;
+ *      the bucket-policy write picks a sharing-capable grant's role via
+ *      resolveApplyTarget);
  *   4. create the share connection;
- *   5. apply the desired managed grant set under the acting connection's provider
- *      role, warning (never claiming enforced) when the write is denied.
+ *   5. apply the desired managed grant set under a sharing-capable role borrowed
+ *      from any connection on the same bucket, warning (never claiming enforced)
+ *      when the write is denied.
  */
 export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
@@ -32,11 +35,10 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const rawData = {
     name: String(formData.get("name") ?? ""),
-    scope: String(formData.get("scope") ?? ""),
-    providerRoleId: String(formData.get("providerRoleId") ?? ""),
     bucketName: String(formData.get("bucketName") ?? ""),
     providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
     prefix: String(formData.get("prefix") ?? ""),
+    grants: parseShareGrants(formData),
   };
 
   const result = shareFolderSchema.safeParse(rawData);
@@ -45,12 +47,10 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   }
   const data = result.data;
 
-  // Authoritative intra-org grant boundary: authorize the submitted scope before
-  // any provider-role resolution or write session. Throws a 403 Response.
-  assertGrantScope(data.scope, user.adminScopes);
+  for (const grant of data.grants) {
+    assertGrantScope(grant.scope, user.adminScopes);
+  }
 
-  // Validate the referenced provider connection + role and reject unknown ids, a
-  // role that does not permit sharing, or one not covering the submitted scope.
   let catalog;
   try {
     catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
@@ -61,19 +61,23 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
       status: "error" as const,
     };
   }
-  const refs = validateProviderRefs(catalog, data, { requireSharing: true });
+  const refs = validateProviderRefs(catalog, data);
   if (!refs.ok) {
     return { errors: refs.errors, status: "error" as const };
   }
 
   try {
-    const share = await createConnection(user.organization, data.scope, user.sub, {
-      name: data.name,
-      bucketName: data.bucketName,
-      providerConnectionId: data.providerConnectionId,
-      providerRoleId: data.providerRoleId,
-      prefix: data.prefix,
-    });
+    const share = await createConnection(
+      user.organization,
+      user.sub,
+      {
+        name: data.name,
+        bucketName: data.bucketName,
+        providerConnectionId: data.providerConnectionId,
+        prefix: data.prefix,
+      },
+      data.grants,
+    );
 
     const outcome = await applyGrantsAndRecordStatus(share, {
       user,
@@ -89,21 +93,21 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
           : `Share created. ${outcome.warning}`,
     });
 
-    return redirect(`/connections/${encodeURIComponent(data.name)}`, {
+    return redirect(`/connections/${share.id}`, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
     if (error instanceof Response) throw error;
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
-      if (target.includes("name")) {
+      if (target.includes("scope")) {
         return {
-          errors: { name: ["A share with this name already exists. Choose another."] },
+          errors: { grants: ["Each group may appear at most once on a connection."] },
           status: "error" as const,
         };
       }
       return {
-        formError: "This folder already has a connection. Edit that connection instead.",
+        formError: "A database constraint was violated. Please check your input and try again.",
         status: "error" as const,
       };
     }
@@ -114,3 +118,17 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
     };
   }
 };
+
+function parseShareGrants(formData: FormData) {
+  const indexSet = new Set<number>();
+  for (const key of formData.keys()) {
+    const match = key.match(/^grants\[(\d+)\]\.scope$/);
+    if (match) indexSet.add(Number(match[1]));
+  }
+  return [...indexSet]
+    .sort((a, b) => a - b)
+    .map((index) => ({
+      scope: String(formData.get(`grants[${index}].scope`) ?? ""),
+      providerRoleId: String(formData.get(`grants[${index}].providerRoleId`) ?? ""),
+    }));
+}

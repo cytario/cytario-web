@@ -201,6 +201,33 @@ describe("buildMergedPolicy — read-merge-write", () => {
     expect(objectStatements.length).toBe(2);
   });
 
+  test("C-347: grants to the SAME group+prefix with DIFFERENT roles coalesce into one statement with a multi-value Principal", () => {
+    const result = buildMergedPolicy(parseBucketPolicy(null), [
+      grant({
+        groupPath: "Lab/TeamX",
+        prefix: "shared",
+        accessLevel: "read-only",
+        roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/role-a",
+      }),
+      grant({
+        groupPath: "Lab/TeamX",
+        prefix: "shared",
+        accessLevel: "read-only",
+        roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/role-b",
+      }),
+    ]);
+    const objectStatements = result.document.Statement.filter((s) => {
+      const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
+      return actions.includes("s3:GetObject");
+    });
+    expect(objectStatements.length).toBe(1);
+    const principal = objectStatements[0].Principal as { AWS: string | string[] };
+    const aws = Array.isArray(principal.AWS) ? principal.AWS : [principal.AWS];
+    expect(aws).toHaveLength(2);
+    expect(aws).toContain("arn:aws:iam::123456789012:role/cytario/provider-roles/role-a");
+    expect(aws).toContain("arn:aws:iam::123456789012:role/cytario/provider-roles/role-b");
+  });
+
   test("FAIL CLOSED: over-20KB coalesced document throws and yields no policy", () => {
     // Each grant to a distinct group produces distinct (non-coalescible)
     // statements; enough of them push the serialized document past 20 KB.

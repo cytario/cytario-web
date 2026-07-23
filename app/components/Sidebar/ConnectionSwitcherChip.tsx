@@ -6,7 +6,7 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 
 interface ConnectionSwitcherChipProps {
   selectedConnection: string;
-  onSelect: (connectionName: string) => void;
+  onSelect: (connectionId: string) => void;
 }
 
 export function ConnectionSwitcherChip({
@@ -16,7 +16,11 @@ export function ConnectionSwitcherChip({
   const connections = useConnectionsStore(select.connections);
 
   const items = useMemo<SelectItem[]>(
-    () => Object.keys(connections).map((name) => ({ id: name, name })),
+    () =>
+      Object.entries(connections).map(([id, connection]) => ({
+        id,
+        name: connection.connectionConfig.name,
+      })),
     [connections],
   );
 

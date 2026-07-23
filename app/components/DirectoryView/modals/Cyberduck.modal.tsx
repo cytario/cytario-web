@@ -3,20 +3,22 @@ import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
 import { RouteModal } from "~/components/RouteModal";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
-/**
- * Provides information and a download link for a Cyberduck connection profile.
- * Opens via `?modal=cyberduck&connectionName=my-connection`.
- */
 export default function CyberduckModal({ onClose }: { onClose: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const connectionName = searchParams.get("connectionName");
+  const connectionId = searchParams.get("connectionId");
+
+  const connectionConfig = useConnectionsStore(
+    connectionId ? select.connectionConfig(connectionId) : () => undefined,
+  );
 
   const handleClose = useCallback(() => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        next.delete("connectionName");
+        next.delete("connectionId");
         return next;
       },
       { replace: true },
@@ -24,7 +26,7 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
     onClose();
   }, [onClose, setSearchParams]);
 
-  if (!connectionName) return null;
+  if (!connectionId || !connectionConfig) return null;
 
   return (
     <RouteModal title="Access with Cyberduck" onClose={handleClose}>
@@ -34,8 +36,8 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
       </p>
 
       <p className="text-muted-foreground">
-        Download a pre-configured connection profile for <strong>{connectionName}</strong> that will
-        automatically set up your authentication and bucket access in Cyberduck.
+        Download a pre-configured connection profile for <strong>{connectionConfig.name}</strong>{" "}
+        that will automatically set up your authentication and bucket access in Cyberduck.
       </p>
 
       <div className="bg-card border border-border rounded-sm px-4 py-2 flex flex-col gap-2">
@@ -55,7 +57,7 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
       </div>
 
       <ButtonLink
-        href={`/api/cyberduck-profile/${connectionName}`}
+        href={`/api/cyberduck-profile/${connectionId}`}
         variant="primary"
         size="lg"
         iconLeft="Download"

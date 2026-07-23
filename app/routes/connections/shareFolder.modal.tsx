@@ -13,17 +13,17 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
  */
 export default function ShareFolderModal({ onClose }: { onClose: (extraKeys?: string[]) => void }) {
   const [searchParams] = useSearchParams();
-  const connectionName = searchParams.get("connectionName");
+  const connectionId = searchParams.get("connectionId");
   const nodePath = searchParams.get("nodePath") ?? "";
 
   const user = useCurrentUser();
   const connectionConfig = useConnectionsStore(
-    connectionName ? select.connectionConfig(connectionName) : () => undefined,
+    connectionId ? select.connectionConfig(connectionId) : () => undefined,
   );
 
-  const close = () => onClose(["connectionName", "nodePath"]);
+  const close = () => onClose(["connectionId", "nodePath"]);
 
-  if (!user || !connectionName || !connectionConfig) return null;
+  if (!user || !connectionId || !connectionConfig) return null;
 
   // The shared prefix is the connection's own prefix joined with the folder's
   // connection-relative path.

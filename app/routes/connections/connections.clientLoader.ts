@@ -28,11 +28,11 @@ export async function enrichConnectionsWithPreviews({
     PREVIEW_CONCURRENCY,
     async (config): Promise<ConnectionProbeResult> => {
       if (signal.aborted) return { status: "connected" };
-      const creds = server.credentials[config.name];
+      const creds = server.credentials[config.id];
       if (!creds) {
         return { status: "error", errorMessage: "No credentials available for this connection." };
       }
-      const provider = useConnectionsStore.getState().connections[config.name]?.provider;
+      const provider = useConnectionsStore.getState().connections[config.id]?.provider;
       return probeConnection(config, creds, provider, signal);
     },
   );
@@ -40,7 +40,7 @@ export async function enrichConnectionsWithPreviews({
   const connectionStatuses: Record<string, ConnectionStatusUpdate> = {};
   const nodes: TreeNode[] = server.nodes.map((node, i) => {
     const probe = probes[i];
-    connectionStatuses[node.connectionName] = {
+    connectionStatuses[node.connectionId] = {
       status: probe.status,
       statusMessage: probe.errorMessage,
     };

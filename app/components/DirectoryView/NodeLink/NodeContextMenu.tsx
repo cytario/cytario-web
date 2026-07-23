@@ -38,12 +38,12 @@ export const NodeContextMenu = ({
 
   const { isFavorite, isPending: favoritePending, toggle: toggleFavorite } = useFavorite(node);
 
-  const connection = useConnectionsStore(select.connection(node.connectionName));
+  const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
 
   const user = useCurrentUser();
 
-  const to = buildConnectionPath(node.connectionName, node.pathName);
+  const to = buildConnectionPath(node.connectionId, node.pathName);
 
   if (!connectionConfig) return null;
 
@@ -86,7 +86,7 @@ export const NodeContextMenu = ({
             <MenuItem
               id="cyberduck"
               icon="Download"
-              onAction={() => openModal("cyberduck", { connectionName: node.connectionName })}
+              onAction={() => openModal("cyberduck", { connectionId: node.connectionId })}
             >
               Access with Cyberduck
             </MenuItem>
@@ -104,7 +104,7 @@ export const NodeContextMenu = ({
                 icon="Send"
                 onAction={() =>
                   openModal("share-folder", {
-                    connectionName: node.connectionName,
+                    connectionId: node.connectionId,
                     nodePath: node.pathName,
                   })
                 }
@@ -128,7 +128,7 @@ export const NodeContextMenu = ({
                 <MenuItem
                   id="edit"
                   icon="Pencil"
-                  onAction={() => openModal("edit-connection", { nodeName: node.name })}
+                  onAction={() => openModal("edit-connection", { connectionId: node.connectionId })}
                 >
                   Edit
                 </MenuItem>
@@ -166,12 +166,12 @@ export const NodeContextMenu = ({
       {isBucket && (
         <>
           <Form method="delete" action="/connections" ref={formRef} className="hidden">
-            <input type="hidden" name="connectionName" value={node.name} />
+            <input type="hidden" name="connectionId" value={connectionConfig.id} />
           </Form>
 
           <Form method="post" action="/connections" ref={reapplyFormRef} className="hidden">
             <input type="hidden" name="_intent" value="reapply" />
-            <input type="hidden" name="connectionName" value={node.name} />
+            <input type="hidden" name="connectionId" value={connectionConfig.id} />
           </Form>
 
           <ConfirmDialog

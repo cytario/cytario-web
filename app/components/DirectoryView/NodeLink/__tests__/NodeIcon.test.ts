@@ -6,6 +6,7 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 function makeNode(overrides: Partial<TreeNode> = {}): TreeNode {
   return {
     id: "test",
+    connectionId: "",
     connectionName: "aws-bucket",
     name: "test",
     type: "file",

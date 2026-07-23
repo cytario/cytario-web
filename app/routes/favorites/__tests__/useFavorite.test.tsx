@@ -34,11 +34,12 @@ beforeEach(() => {
   favorites = [];
 });
 
-const fav = (connectionName: string, pathName: string): SerializedFavorite => ({
-  id: 1,
-  connectionName,
+const fav = (connectionId: string, pathName: string): SerializedFavorite => ({
+  id: "fav-uuid-1",
+  connectionId,
+  connectionName: connectionId,
   pathName,
-  displayName: pathName || connectionName,
+  displayName: pathName || connectionId,
   totalSize: null,
   lastModified: null,
 });
@@ -47,6 +48,7 @@ const lastModified = new Date("2024-01-02T03:04:05Z");
 
 const fileNode: TreeNode = {
   id: "conn/dir/img.tif",
+  connectionId: "conn",
   connectionName: "conn",
   pathName: "dir/img.tif",
   name: "img.tif",
@@ -56,6 +58,7 @@ const fileNode: TreeNode = {
 
 const loadedDir: TreeNode = {
   id: "conn/dir/",
+  connectionId: "conn",
   connectionName: "conn",
   pathName: "dir/",
   name: "dir",
@@ -65,6 +68,7 @@ const loadedDir: TreeNode = {
 
 const dirStub: TreeNode = {
   id: "conn/empty/",
+  connectionId: "conn",
   connectionName: "conn",
   pathName: "empty/",
   name: "empty",
@@ -89,7 +93,7 @@ describe("useFavorite", () => {
     fetcherState = "submitting";
     fetcherFormMethod = "PUT";
     fetcherFormData = new FormData();
-    fetcherFormData.append("connectionName", "conn");
+    fetcherFormData.append("connectionId", "conn");
     fetcherFormData.append("pathName", "dir");
 
     const { result } = renderHook(() => useFavorite(loadedDir), { wrapper });
@@ -101,7 +105,7 @@ describe("useFavorite", () => {
     fetcherState = "submitting";
     fetcherFormMethod = "PUT";
     fetcherFormData = new FormData();
-    fetcherFormData.append("connectionName", "conn");
+    fetcherFormData.append("connectionId", "conn");
     fetcherFormData.append("pathName", "other");
 
     const { result } = renderHook(() => useFavorite(loadedDir), { wrapper });
@@ -113,7 +117,7 @@ describe("useFavorite", () => {
     act(() => result.current.toggle());
     expect(submit).toHaveBeenCalledWith(
       {
-        connectionName: "conn",
+        connectionId: "conn",
         pathName: "dir/img.tif",
         displayName: "img.tif",
         totalSize: "1234",
@@ -128,7 +132,7 @@ describe("useFavorite", () => {
     act(() => result.current.toggle());
     expect(submit).toHaveBeenCalledWith(
       {
-        connectionName: "conn",
+        connectionId: "conn",
         pathName: "dir",
         displayName: "dir",
         totalSize: "1234",
@@ -142,7 +146,7 @@ describe("useFavorite", () => {
     const { result } = renderHook(() => useFavorite(dirStub), { wrapper });
     act(() => result.current.toggle());
     expect(submit).toHaveBeenCalledWith(
-      { connectionName: "conn", pathName: "empty", displayName: "empty" },
+      { connectionId: "conn", pathName: "empty", displayName: "empty" },
       { method: "put", action: "/favorites" },
     );
   });
@@ -152,7 +156,7 @@ describe("useFavorite", () => {
     const { result } = renderHook(() => useFavorite(loadedDir), { wrapper });
     act(() => result.current.toggle());
     expect(submit).toHaveBeenCalledWith(
-      { connectionName: "conn", pathName: "dir" },
+      { connectionId: "conn", pathName: "dir" },
       { method: "delete", action: "/favorites" },
     );
   });

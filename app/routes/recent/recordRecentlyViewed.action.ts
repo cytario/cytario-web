@@ -9,5 +9,10 @@ export const recordRecentlyViewed = (args: ActionFunctionArgs) =>
     args,
     schema: recordViewedSchema,
     errorLabel: "[recent] Failed to upsert:",
-    handler: (data, _connection, user) => upsertRecentlyViewed(user.sub, data),
+    handler: (data, connection, user) =>
+      upsertRecentlyViewed(user.sub, {
+        ...data,
+        connectionId: connection.id,
+        connectionName: connection.name,
+      }),
   });

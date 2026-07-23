@@ -9,9 +9,9 @@ import {
 const bucketAddress = (o: BucketAddress): BucketAddress => o;
 
 describe("parseResourceId", () => {
-  test("parses connectionName and pathName", () => {
+  test("parses connectionId and pathName", () => {
     expect(parseResourceId("my-conn/folder/file.txt")).toEqual({
-      connectionName: "my-conn",
+      connectionId: "my-conn",
       pathName: "folder/file.txt",
       fileName: "file.txt",
       name: "file",
@@ -21,7 +21,7 @@ describe("parseResourceId", () => {
 
   test("handles empty pathName", () => {
     expect(parseResourceId("my-conn/")).toEqual({
-      connectionName: "my-conn",
+      connectionId: "my-conn",
       pathName: "",
       fileName: "",
       name: "",
@@ -31,7 +31,7 @@ describe("parseResourceId", () => {
 
   test("handles pathName with multiple slashes", () => {
     expect(parseResourceId("my-conn/a/b/c.parquet")).toEqual({
-      connectionName: "my-conn",
+      connectionId: "my-conn",
       pathName: "a/b/c.parquet",
       fileName: "c.parquet",
       name: "c",
@@ -43,8 +43,8 @@ describe("parseResourceId", () => {
     expect(() => parseResourceId("no-slash")).toThrow("Invalid resourceId");
   });
 
-  test("throws on empty connectionName", () => {
-    expect(() => parseResourceId("/path")).toThrow("empty connectionName");
+  test("throws on empty connectionId", () => {
+    expect(() => parseResourceId("/path")).toThrow("empty connectionId");
   });
 });
 

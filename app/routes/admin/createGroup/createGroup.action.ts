@@ -4,12 +4,13 @@ import { createGroupSchema } from "./createGroup.schema";
 import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
+import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { addUserToOrganizationGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 
 export const createGroupAction: ActionFunction = async ({ request, context }) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens } = context.get(authContext);
   const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
 
   const formData = await request.formData();
@@ -29,6 +30,9 @@ export const createGroupAction: ActionFunction = async ({ request, context }) =>
     );
 
     await addUserToOrganizationGroup(orgId, adminsGroupId, user.sub);
+
+    const refreshedUser = await getUserInfo(authTokens.accessToken);
+    session.set("user", refreshedUser);
 
     const newScopeUrl = `/admin/users?scope=${encodeURIComponent(path)}`;
 

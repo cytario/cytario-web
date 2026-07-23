@@ -16,50 +16,62 @@ enum BucketPolicyStatus {
 }
 
 model ConnectionConfig {
-  id                   Int                @id @default(autoincrement())
-  name                 String             @unique
+  id                   String             @id @default(uuid())
+  name                 String
   organization         String // Keycloak organization alias (tenant)
-  scope                String // intra-org owner: group path or user sub
   createdBy            String
   bucketName           String
   providerConnectionId String // reference to the portal-managed / OSS-configured provider connection (carries provider type, endpoint, region)
-  providerRoleId       String // reference to the portal-managed / OSS-configured provider role the connection is bound to
   prefix               String             @default("")
   bucketPolicyStatus   BucketPolicyStatus @default(none)
 
-  recentlyViewed RecentlyViewed[] @relation("RecentlyViewedConnection")
-  pinnedPaths    PinnedPath[]     @relation("PinnedPathConnection")
+  grants         ConnectionGrant[] @relation("ConnectionGrants")
+  recentlyViewed RecentlyViewed[]   @relation("RecentlyViewedConnection")
+  pinnedPaths    PinnedPath[]       @relation("PinnedPathConnection")
 
-  @@unique([organization, providerConnectionId, bucketName, prefix])
-  @@index([organization, scope])
+  @@index([organization, providerConnectionId, bucketName, prefix])
+  @@index([organization, name])
+}
+
+model ConnectionGrant {
+  id             String            @id @default(uuid())
+  connectionId   String
+  scope          String // intra-org group path
+  providerRoleId String // reference to the portal-managed / OSS-configured provider role this grant is bound to
+  connection     ConnectionConfig @relation("ConnectionGrants", fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, scope])
+  @@index([scope])
 }
 
 model RecentlyViewed {
-  id             Int      @id @default(autoincrement())
+  id             String   @id @default(uuid())
   userId         String
+  connectionId   String
   connectionName String
   pathName       String
   name           String
   type           String // "file" | "directory"
   viewedAt       DateTime @default(now())
 
-  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionName], references: [name], onDelete: Cascade)
+  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, connectionName, pathName])
+  @@unique([userId, connectionId, pathName])
   @@index([userId])
 }
 
 model PinnedPath {
-  id             Int       @id @default(autoincrement())
+  id             String    @id @default(uuid())
   userId         String
+  connectionId   String
   connectionName String
   pathName       String
   displayName    String
   totalSize      BigInt?
   lastModified   DateTime?
 
-  connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionName], references: [name], onDelete: Cascade)
+  connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, connectionName, pathName])
+  @@unique([userId, connectionId, pathName])
   @@index([userId])
 }

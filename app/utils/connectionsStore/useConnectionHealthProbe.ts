@@ -25,7 +25,7 @@ export function useConnectionHealthProbe() {
   const probeKey = useConnectionsStore((s) =>
     Object.values(s.connections)
       .filter((c) => c.credentials)
-      .map((c) => c.connectionConfig.name)
+      .map((c) => c.connectionConfig.id)
       .sort()
       .join("|"),
   );
@@ -48,7 +48,7 @@ export function useConnectionHealthProbe() {
       );
       if (cancelled) return;
       setConnectionStatuses({
-        [connection.connectionConfig.name]: {
+        [connection.connectionConfig.id]: {
           status: result.status,
           statusMessage: result.errorMessage,
         },

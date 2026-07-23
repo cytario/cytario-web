@@ -21,19 +21,19 @@ interface SearchResult {
 // Recursive search of the selected connection. `query` is already debounced by
 // SidebarSearchInput. Results are keyed by connection+query so isSearching/nodes
 // derive cleanly without resetting state in the effect.
-export function useSidebarSearch(connectionName: string, query: string): SidebarSearch {
-  const hasCreds = useConnectionsStore((s) => !!s.connections[connectionName]?.credentials);
+export function useSidebarSearch(connectionId: string, query: string): SidebarSearch {
+  const hasCreds = useConnectionsStore((s) => !!s.connections[connectionId]?.credentials);
   const [result, setResult] = useState<SearchResult>({
     key: "",
     nodes: [],
     error: false,
     corsBlocked: false,
   });
-  const key = `${connectionName} ${query}`;
+  const key = `${connectionId} ${query}`;
 
   useEffect(() => {
     if (!query || !hasCreds) return;
-    const connection = useConnectionsStore.getState().connections[connectionName];
+    const connection = useConnectionsStore.getState().connections[connectionId];
     if (!connection) return;
 
     const controller = new AbortController();
@@ -43,7 +43,7 @@ export function useSidebarSearch(connectionName: string, query: string): Sidebar
     });
 
     return () => controller.abort();
-  }, [key, query, connectionName, hasCreds]);
+  }, [key, query, connectionId, hasCreds]);
 
   const matched = !!query && result.key === key;
   return {

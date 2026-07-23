@@ -59,6 +59,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
     () =>
       Object.values(connections).map(({ connectionConfig }) => ({
         id: `${connectionConfig.name}/`,
+        connectionId: connectionConfig.id,
         connectionName: connectionConfig.name,
         name: connectionConfig.name,
         type: "bucket" as const,
