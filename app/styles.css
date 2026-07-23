@@ -1,0 +1,11 @@
+@reference "@cytario/design/styles/tokens.css";
+@import "@cytario/design/styles.css";
+@import "tailwindcss";
+/**
+ * Scan the compiled design library so Tailwind discovers utility classes
+ * embedded in design components (e.g. {@code bg-badge-purple-bg},
+ * {@code text-delta-negative}). Without this {@code @source} directive those
+ * classes are invisible to the scanner because they live exclusively in
+ * {@code node_modules}.
+ */
+@source "../node_modules/@cytario/design/dist/";
