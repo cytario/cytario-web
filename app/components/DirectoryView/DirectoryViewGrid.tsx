@@ -1,6 +1,7 @@
+import type { _Object } from "@aws-sdk/client-s3";
 import { Pill } from "@cytario/design";
 import { filesize } from "filesize";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { type DirectoryKind } from "./DirectoryView";
@@ -10,6 +11,7 @@ import { GridItem } from "~/components/DirectoryView/GridItem";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { enrichDirectoryPreviews } from "~/utils/enrichDirectoryPreviews";
 import { isImageFile } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
 
@@ -121,8 +123,61 @@ function FileCardGridItem({ node, connectionId }: { node: TreeNode; connectionId
   );
 }
 
+/**
+ * Fetches a preview image for each directory node (only in `"entries"` mode)
+ * lazily when the grid is visible. Bucket-level previews come from the
+ * connection health probe, so this only targets sub-directory cards.
+ *
+ * Returns a new nodes array with `_Object` merged in immutably so downstream
+ * `useMemo` hooks (e.g. `usePreviewResourceId`) see fresh references.
+ */
+function useDirectoryPreviews(nodes: TreeNode[], kind: DirectoryKind): TreeNode[] {
+  const [previews, setPreviews] = useState<Record<string, _Object>>({});
+
+  const pendingDirs = useMemo(
+    () => (kind === "entries" ? nodes.filter((n) => n.type === "directory" && !n._Object) : []),
+    [nodes, kind],
+  );
+  const pendingKey = pendingDirs.map((n) => n.id).join(",");
+
+  useEffect(() => {
+    if (pendingDirs.length === 0) return;
+    const connectionId = pendingDirs[0].connectionId;
+    const conn = useConnectionsStore.getState().connections[connectionId];
+    if (!conn?.credentials) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    enrichDirectoryPreviews(pendingDirs, {
+      connectionConfig: conn.connectionConfig,
+      credentials: conn.credentials,
+      connectionId,
+      provider: conn.provider,
+      signal: controller.signal,
+    }).then((map) => {
+      if (!cancelled && Object.keys(map).length > 0) setPreviews((prev) => ({ ...prev, ...map }));
+    });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+    // pendingKey captures the set of directories needing previews; pendingDirs
+    // is derived from the same render and is safe to close over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingKey]);
+
+  return useMemo(() => {
+    if (Object.keys(previews).length === 0) return nodes;
+    return nodes.map((n) => (previews[n.id] ? { ...n, _Object: previews[n.id] } : n));
+  }, [nodes, previews]);
+}
+
 export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: DirectoryKind }) {
-  if (nodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
+  const enrichedNodes = useDirectoryPreviews(nodes, kind);
+
+  if (enrichedNodes.length === 0) return <DirectoryViewEmptyState kind={kind} />;
 
   const cx = `
     grid gap-6
@@ -134,7 +189,7 @@ export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: Di
     // — which shrinks when a sidebar pushes it — instead of the window width.
     <div className="@container">
       <div className={cx}>
-        {nodes.map((node) =>
+        {enrichedNodes.map((node) =>
           node.type === "bucket" ? (
             <BucketCardGridItem key={node.id} node={node} connectionId={node.connectionId} />
           ) : (

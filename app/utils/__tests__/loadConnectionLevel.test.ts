@@ -90,24 +90,14 @@ describe("loadConnectionLevel", () => {
     expect(opts.signal).toBe(controller.signal);
   });
 
-  test("probes directories for a preview image and attaches it as _Object", async () => {
-    listObjectsClient.mockResolvedValueOnce({
+  test("does not probe directories for preview images", async () => {
+    listObjectsClient.mockResolvedValue({
       contents: [],
       commonPrefixes: ["scope/sub/dir-a/", "scope/sub/dir-b/"],
       isCapped: false,
     });
-    listObjectsClient.mockResolvedValueOnce({
-      contents: [{ Key: "scope/sub/dir-a/image.tif" }],
-      commonPrefixes: [],
-      isCapped: false,
-    });
-    listObjectsClient.mockResolvedValueOnce({
-      contents: [],
-      commonPrefixes: [],
-      isCapped: false,
-    });
 
-    const { nodes } = await loadConnectionLevel({
+    await loadConnectionLevel({
       connectionConfig: mock.connectionConfig({ prefix: "scope" }),
       credentials: mock.credentials(),
       connectionId: "conn-id",
@@ -115,9 +105,6 @@ describe("loadConnectionLevel", () => {
       urlPath: "sub",
     });
 
-    const dirA = nodes.find((n) => n.name === "dir-a");
-    const dirB = nodes.find((n) => n.name === "dir-b");
-    expect(dirA?._Object?.Key).toBe("scope/sub/dir-a/image.tif");
-    expect(dirB?._Object).toBeUndefined();
+    expect(listObjectsClient).toHaveBeenCalledTimes(1);
   });
 });
