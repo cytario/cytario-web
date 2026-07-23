@@ -1,10 +1,9 @@
-import { Icon } from "@cytario/design";
+import { Icon, Logo } from "@cytario/design";
 import { Link, UIMatch, useMatches } from "react-router";
 
 import { nodeToTrail } from "./breadcrumbTrail";
 import { type TreeNode } from "../DirectoryView/buildDirectoryTree";
 import { NodeLink } from "../DirectoryView/NodeLink/NodeLink";
-import { Logo } from "../Logo";
 
 type NodeMatch = UIMatch<unknown, { node?: (match: NodeMatch) => TreeNode | null }>;
 
