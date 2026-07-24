@@ -1,4 +1,4 @@
-import { Checkbox, Fieldset, H3, Input } from "@cytario/design";
+import { Checkbox, Description, Fieldset, H3, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -231,9 +231,9 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
         confirmLabel="Save Changes"
         confirmVariant="primary"
       >
-        <p className="text-sm text-muted-foreground">
+        <Description size="sm" className="mb-0">
           You are about to make the following changes:
-        </p>
+        </Description>
         <ul className="list-disc list-inside text-sm text-foreground space-y-1">
           {warnings.map((w) => (
             <li key={w}>{w}</li>

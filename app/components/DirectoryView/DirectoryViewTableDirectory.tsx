@@ -1,4 +1,4 @@
-import { Pill } from "@cytario/design";
+import { Badge } from "@cytario/design";
 import { filesize } from "filesize";
 import { useMemo } from "react";
 
@@ -45,7 +45,7 @@ export const fileColumns: ColumnConfig[] = [
       { label: "TIFF", value: "TIFF" },
       { label: "Unknown", value: "Unknown" },
     ],
-    filterRender: (option) => <Pill>{option.value}</Pill>,
+    filterRender: (option) => <Badge>{option.value}</Badge>,
   },
   {
     id: "last_modified",
@@ -77,7 +77,7 @@ function buildFileCellRenderers(nodes: TreeNode[]): CellRenderers<FileRow> {
       const node = nodesById.get(row.id);
       return node ? <NodeLink node={node} /> : row.name;
     },
-    file_type: (row) => <Pill>{row.file_type}</Pill>,
+    file_type: (row) => <Badge>{row.file_type}</Badge>,
     last_modified: (row) => (row.last_modified ? formatHumanReadableDate(row.last_modified) : null),
     size: (row) => (row.size ? filesize(row.size).toString() : null),
   };

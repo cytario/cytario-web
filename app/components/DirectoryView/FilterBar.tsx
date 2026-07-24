@@ -1,4 +1,4 @@
-import { Button, IconButton, Input, Pill, Select, type SelectItem } from "@cytario/design";
+import { Badge, Button, IconButton, Input, Select, type SelectItem } from "@cytario/design";
 import { type ReactNode, useMemo } from "react";
 
 import type { ColumnConfig } from "~/components/Table/types";
@@ -6,7 +6,7 @@ import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
 const ALL_KEY = "__all__";
 const ALL_OPTION: SelectItem = { id: ALL_KEY, name: "All" };
-const AllPill = () => <Pill color="slate">All</Pill>;
+const AllPill = () => <Badge color="slate">All</Badge>;
 
 interface FilterBarProps {
   /** Column configs — bar renders a control per column with `enableColumnFilter: true`. */

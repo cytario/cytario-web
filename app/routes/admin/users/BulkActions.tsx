@@ -1,4 +1,4 @@
-import { Button, Select } from "@cytario/design";
+import { Button, Description, Select } from "@cytario/design";
 import { useMemo, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
@@ -189,10 +189,10 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
           confirmLabel={config.confirmLabel}
           confirmVariant={config.confirmVariant}
         >
-          <p className="text-sm text-muted-foreground">
+          <Description size="sm" className="mb-0">
             This will affect <span className="font-medium text-foreground">{count}</span> user
             {count !== 1 ? "s" : ""}.
-          </p>
+          </Description>
           {config.needsGroup && (
             <GroupSelector
               options={getGroupOptions(intent)}
