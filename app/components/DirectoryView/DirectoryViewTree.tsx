@@ -1,7 +1,7 @@
 import { IconButton } from "@cytario/design";
 import { asyncDataLoaderFeature, hotkeysCoreFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { type TreeNode } from "./buildDirectoryTree";
@@ -15,7 +15,15 @@ interface DirectoryViewTreeProps {
   nodeLinkProps?: Omit<React.ComponentProps<typeof NodeLink>, "node">;
   /** Called when a lazy stub (`loadState === "idle"`) is expanded. Omit for static trees. */
   onExpand?: (parent: TreeNode) => Promise<TreeNode[]>;
+  /** Items expanded when the tree first mounts. */
   defaultExpandedItems?: string[];
+  /**
+   * Ancestor ids to reveal reactively. Whenever this changes, the ids are
+   * unioned into the expanded set (never removing manual expansions), and the
+   * async loader cascade-loads each newly-expanded level. Use to follow the
+   * active route on client-side navigation. Omit for static trees.
+   */
+  revealItems?: string[];
 }
 
 const ROOT_ID = "__directory_tree_root__";
@@ -26,13 +34,34 @@ export function DirectoryViewTree({
   kind,
   onExpand = noopOnExpand,
   defaultExpandedItems,
+  revealItems,
   nodeLinkProps,
 }: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
+  const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems ?? []);
+
+  // Reveal a deep-linked path on navigation: when `revealItems` changes, union
+  // the requested ancestor ids into the expanded set without disturbing manual
+  // expansions. The async loader then cascade-loads each newly-expanded level.
+  // Adjust-state-during-render (not an effect) so the reveal lands in the same
+  // commit as the route change.
+  const [prevReveal, setPrevReveal] = useState(revealItems);
+  if (revealItems !== prevReveal) {
+    setPrevReveal(revealItems);
+    if (revealItems?.length) {
+      setExpandedItems((prev) => {
+        const next = new Set(prev);
+        const before = next.size;
+        for (const id of revealItems) next.add(id);
+        return next.size === before ? prev : Array.from(next);
+      });
+    }
+  }
 
   const tree = useTree<TreeNode>({
     rootItemId: ROOT_ID,
-    initialState: defaultExpandedItems ? { expandedItems: defaultExpandedItems } : undefined,
+    state: { expandedItems },
+    setExpandedItems,
     getItemName: (item) => item.getItemData()?.name ?? "",
     isItemFolder: (item) => {
       const data = item.getItemData();
