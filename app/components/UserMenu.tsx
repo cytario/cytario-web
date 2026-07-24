@@ -9,13 +9,15 @@ import {
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 interface UserMenuProps {
   user: UserProfile;
   accountSettingsUrl: string;
+  portalUrl?: string;
 }
 
-export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
+export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps) {
   return (
     <Menu
       content={
@@ -63,6 +65,12 @@ export function UserMenu({ user, accountSettingsUrl }: UserMenuProps) {
               </MenuSection>
               <MenuSeparator />
             </>
+          )}
+
+          {portalUrl && user.adminScopes.includes(ORG_ROOT_SCOPE) && (
+            <MenuItem id="admin-portal" icon="ExternalLink" href={portalUrl} target="_blank">
+              Admin Portal
+            </MenuItem>
           )}
 
           <MenuItem id="account-settings" icon="Settings" href={accountSettingsUrl} target="_blank">

@@ -66,6 +66,7 @@ export interface RootLoaderResponse {
   user?: UserProfile;
   notification?: NotificationInput;
   accountSettingsUrl?: string;
+  portalUrl?: string;
 }
 
 export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
@@ -82,7 +83,9 @@ export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoade
     ? `${cytarioConfig.auth.baseUrl}/account?referrer=${cytarioConfig.auth.clientId}&referrer_uri=${cytarioConfig.endpoints.webapp}`
     : undefined;
 
-  return { user, notification, accountSettingsUrl };
+  const portalUrl = user ? cytarioConfig.endpoints.portal : undefined;
+
+  return { user, notification, accountSettingsUrl, portalUrl };
 };
 
 // Identity clientLoader. Forces this route off RR's bulk-fetch single-fetch
