@@ -1,6 +1,7 @@
 import {
   Banner,
   Button,
+  Description,
   Fieldset,
   FormWizard,
   FormWizardNav,
@@ -444,9 +445,9 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                 </Button>
 
                 {adminScopes.length === 0 && (
-                  <p className="text-(length:--font-size-sm) text-muted-foreground">
+                  <Description size="sm">
                     You have no admin scopes — ask an administrator to grant you group access.
-                  </p>
+                  </Description>
                 )}
               </div>
             </Fieldset>

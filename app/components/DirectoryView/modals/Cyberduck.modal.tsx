@@ -1,4 +1,4 @@
-import { ButtonLink, H3, Link } from "@cytario/design";
+import { ButtonLink, Description, H3, Link } from "@cytario/design";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
@@ -30,15 +30,15 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
 
   return (
     <RouteModal title="Access with Cyberduck" onClose={handleClose}>
-      <p className="text-muted-foreground">
+      <Description>
         Cyberduck is a free desktop application that allows you to browse and manage your cloud
         storage files with a familiar file manager interface.
-      </p>
+      </Description>
 
-      <p className="text-muted-foreground">
+      <Description>
         Download a pre-configured connection profile for <strong>{connectionConfig.name}</strong>{" "}
         that will automatically set up your authentication and bucket access in Cyberduck.
-      </p>
+      </Description>
 
       <div className="bg-card border border-border rounded-sm px-4 py-2 flex flex-col gap-2">
         <H3 className="text-lg font-normal">Quick Start</H3>
