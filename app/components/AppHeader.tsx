@@ -11,6 +11,7 @@ interface RootLoaderResponse {
   user?: UserProfile;
   notification?: NotificationInput;
   accountSettingsUrl?: string;
+  portalUrl?: string;
 }
 
 export function AppHeader() {
@@ -38,7 +39,11 @@ export function AppHeader() {
 
       <div className="h-full flex-none flex gap-2 p-2 items-center">
         {data?.accountSettingsUrl && data.user && (
-          <UserMenu user={data.user} accountSettingsUrl={data.accountSettingsUrl} />
+          <UserMenu
+            user={data.user}
+            accountSettingsUrl={data.accountSettingsUrl}
+            portalUrl={data?.portalUrl}
+          />
         )}
       </div>
     </header>
