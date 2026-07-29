@@ -21,6 +21,7 @@ export type ProviderConnectionStatus = (typeof PROVIDER_CONNECTION_STATUSES)[num
 
 export const providerConnectionSchema = z.object({
   id: z.string().min(1),
+  name: z.string().min(1),
   providerType: z.enum(PROVIDER_TYPES),
   endpoint: z.string().nullable(),
   region: z.string().min(1),
