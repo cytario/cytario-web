@@ -21,6 +21,7 @@ const catalog = {
   providerConnections: [
     {
       id: "pc-1",
+      name: "Prod",
       providerType: "aws",
       endpoint: null,
       region: "eu-central-1",

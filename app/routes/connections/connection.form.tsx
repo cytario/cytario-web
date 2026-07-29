@@ -143,12 +143,12 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
 
   const connectionItems: SelectItem[] = useMemo(
     () =>
-      (catalog?.providerConnections ?? []).map((c) => ({
-        id: c.id,
-        name: c.endpoint
+      (catalog?.providerConnections ?? []).map((c) => {
+        const detail = c.endpoint
           ? `${c.region} (${c.endpoint})`
-          : `${c.providerType.toUpperCase()} ${c.region}`,
-      })),
+          : `${c.providerType.toUpperCase()} ${c.region}`;
+        return { id: c.id, name: `${c.name} — ${detail}` };
+      }),
     [catalog],
   );
 

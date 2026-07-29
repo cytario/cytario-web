@@ -37,6 +37,7 @@ const mock = {
   }),
   providerConnection: (data: Partial<ProviderConnection> = {}): ProviderConnection => ({
     id: "pc-mock",
+    name: "mock-connection",
     providerType: "aws",
     endpoint: null,
     region: "us-east-1",

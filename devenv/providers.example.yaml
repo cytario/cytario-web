@@ -12,6 +12,7 @@
 
 providerConnections:
   - id: aws-eu-central-1
+    name: AWS eu-central-1 # customer-supplied display name shown in the connection selector
     providerType: aws
     endpoint: null # null => AWS default (https://s3.<region>.amazonaws.com)
     region: eu-central-1

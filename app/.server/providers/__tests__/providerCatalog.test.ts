@@ -38,6 +38,7 @@ const CATALOG = {
   providerConnections: [
     {
       id: "pc-1",
+      name: "Prod",
       providerType: "aws" as const,
       endpoint: null,
       region: "eu-central-1",
@@ -102,6 +103,7 @@ describe("getProviderCatalog (OSS build)", () => {
       [
         "providerConnections:",
         "  - id: pc-1",
+        "    name: Prod",
         "    providerType: aws",
         "    endpoint: null",
         "    region: eu-central-1",
