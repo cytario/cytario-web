@@ -59,16 +59,19 @@ const fetchTemporaryCredentials = async (
     region,
   });
 
-  // Inline session policy is an AWS-specific STS feature: STS intersects it
-  // with the role's attached policy, so the minted credential cannot exceed
-  // the configured prefix scope even if the role itself is broader. It is a
-  // closed allowlist that grants no `s3:PutBucketPolicy`. The ORG tenant
-  // binding is enforced by the role's trust policy, not repeated here.
-  // S3-compatible providers whose STS ignores/rejects `Policy` (notably MinIO,
-  // signalled by a non-AWS endpoint) omit it — the role's attached policy is
-  // then the only bound.
+  // Inline session policy is an AWS-specific STS feature: STS applies it as a
+  // filter over the role's attached policy, so the minted credential cannot
+  // exceed the configured prefix scope even if the role itself is broader. It
+  // is a closed allowlist that grants no `s3:PutBucketPolicy`. It must
+  // enumerate `kms:Decrypt` so the role's per-key grants survive the STS
+  // intersection and `GetObject` works against SSE-KMS-encrypted objects
+  // (omitting `kms:Decrypt` denies it for the session regardless of the role
+  // policy). The ORG tenant binding is enforced by the role's trust policy,
+  // not repeated here. S3-compatible providers whose STS ignores/rejects
+  // `Policy` (notably MinIO, signalled by a non-AWS endpoint) omit it — the
+  // role's attached policy is then the only bound.
   const Policy = providerConfig.isAwsS3
-    ? buildSessionPolicy({ bucketName, prefix, subject })
+    ? buildSessionPolicy({ bucketName, prefix, subject, region })
     : undefined;
 
   console.info(`${label} Policy: ${Policy}`);

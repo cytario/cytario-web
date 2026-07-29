@@ -68,6 +68,7 @@ describe("policy-generator architectural separation (positive output properties)
       bucketName: "b",
       prefix: "p",
       subject: "sub-123",
+      region: "us-east-1",
     });
     const policy = JSON.parse(json) as {
       Statement: { Condition?: { StringEquals?: Record<string, string> } }[];

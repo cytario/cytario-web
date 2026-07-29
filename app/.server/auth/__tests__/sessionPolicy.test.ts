@@ -9,6 +9,7 @@ interface PolicyStatement {
     StringLike?: {
       "s3:prefix"?: string[];
     };
+    StringEquals?: Record<string, string>;
   };
 }
 
@@ -26,10 +27,12 @@ const findStatement = (policy: ParsedPolicy, action: string): PolicyStatement =>
 };
 
 const SUBJECT = "4cd912ea-5136-4b2d-8959-d5e983cbea05";
+const REGION = "us-east-1";
 const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
   bucketName: "my-bucket",
   prefix: "",
   subject: SUBJECT,
+  region: REGION,
   ...overrides,
 });
 
@@ -204,10 +207,32 @@ describe("buildSessionPolicy", () => {
     }
   });
 
-  test("emits no kms:Decrypt statement (Decrypt is granted by the role, not the inline policy)", () => {
-    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+  test("emits a kms:Decrypt statement scoped via kms:ViaService to the connection's S3 region", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", region: "eu-central-1" })));
 
-    expect(policy.Statement.some((s) => s.Action === "kms:Decrypt")).toBe(false);
+    const kms = findStatement(policy, "kms:Decrypt");
+    expect(kms.Effect).toBe("Allow");
+    expect(kms.Resource).toBe("*");
+    expect(kms.Condition?.StringEquals?.["kms:ViaService"]).toBe("s3.eu-central-1.amazonaws.com");
+  });
+
+  test("kms:Decrypt is required because STS applies the inline policy as a filter (regression for C-375)", () => {
+    // Omitting kms:Decrypt from the inline allowance denies it for the session
+    // regardless of the role's attached policy, breaking GetObject on SSE-KMS
+    // buckets. Assert the statement is present for every variant.
+    const variants = [args({ prefix: "" }), args({ prefix: "tenant-a/data" })];
+    for (const variant of variants) {
+      const policy = parse(buildSessionPolicy(variant));
+      expect(policy.Statement.some((s) => s.Action === "kms:Decrypt")).toBe(true);
+    }
+  });
+
+  test("kms:Decrypt falls back to the default region when the region arg is empty", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", region: "" })));
+
+    expect(findStatement(policy, "kms:Decrypt").Condition?.StringEquals?.["kms:ViaService"]).toBe(
+      "s3.eu-central-1.amazonaws.com",
+    );
   });
 
   test("PutObject is scoped to the caller's OWN sidecar (`*.annotations.<sub>.json`)", () => {

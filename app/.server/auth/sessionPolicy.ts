@@ -1,9 +1,16 @@
 /**
  * Builds an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`.
  *
- * STS intersects this policy with the role's attached policy, so even if the
- * underlying role permits more, the minted credential cannot escape the
- * configured connection prefix.
+ * STS applies this policy as a **filter**: the effective session permissions are
+ * the intersection of the role's attached policy and this inline policy, and an
+ * action the inline policy does **not** allow is denied for the session
+ * regardless of the role's attached policy. The inline policy must therefore
+ * enumerate every action the browser data plane needs — including `kms:Decrypt`
+ * for SSE-KMS-encrypted objects (omitting it silently strips the role's grant
+ * and breaks `GetObject`). The role's attached policy (and the bucket's KMS key
+ * policy) remain the authoritative allowlist of **which** KMS keys the credential
+ * may decrypt; the inline `kms:Decrypt` `Resource: "*"` only lets the role's
+ * per-key grants flow through the STS intersection — it widens nothing.
  *
  * The ORG tenant binding is enforced by the role's trust policy (and the
  * bucket policy) — it is not repeated here. Keeping the inline policy lean
@@ -12,6 +19,9 @@
  * AWS-specific: non-AWS providers (MinIO) may ignore or reject `Policy`;
  * guard the attachment behind `provider === "aws"`.
  */
+
+/** Fallback AWS region for the `kms:ViaService` condition when none is supplied. */
+const DEFAULT_REGION = "eu-central-1";
 
 /** AWS `AssumeRoleWithWebIdentity` `Policy` parameter ceiling (characters). */
 export const POLICY_SIZE_CEILING = 2048;
@@ -40,6 +50,8 @@ export interface SessionPolicyArgs {
   prefix: string | null | undefined;
   /** Keycloak `sub` of the caller — pins their writable sidecar to their own file. */
   subject: string;
+  /** AWS region of the connection's S3 endpoint — scopes the `kms:ViaService` condition. */
+  region: string;
 }
 
 const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, "");
@@ -110,11 +122,40 @@ function getPutStatement(bucketArn: string, prefix: string, subject: string) {
   };
 }
 
+/**
+ * `kms:Decrypt` allowing the role's per-key grants to flow through the STS
+ * intersection so `GetObject` against SSE-KMS-encrypted objects succeeds. STS
+ * applies the inline policy as a filter, so omitting `kms:Decrypt` would deny
+ * it for the session even when the role's attached policy permits it. The
+ * `kms:ViaService` condition confines the credential to the S3 data path
+ * (it cannot call KMS directly); the role's attached policy + KMS key policy
+ * remain the authority on which keys — `Resource: "*"` widens nothing.
+ */
+function getKmsDecryptStatement(region: string) {
+  const viaServiceRegion = region || DEFAULT_REGION;
+  if (/[*?]/.test(viaServiceRegion)) {
+    throw new Error("Region may not contain IAM wildcard characters (`*`, `?`).");
+  }
+
+  return {
+    Sid: "KmsDecryptViaS3",
+    Effect: "Allow",
+    Action: "kms:Decrypt",
+    Resource: "*",
+    Condition: {
+      StringEquals: {
+        "kms:ViaService": `s3.${viaServiceRegion}.amazonaws.com`,
+      },
+    },
+  };
+}
+
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
 export const buildSessionPolicy = ({
   bucketName,
   prefix: prefixRaw,
   subject,
+  region,
 }: SessionPolicyArgs): string => {
   // The subject is interpolated into the PutObject Resource ARN; an empty or
   // wildcard sub would widen the write scope to other users' sidecars.
@@ -140,6 +181,7 @@ export const buildSessionPolicy = ({
     Statement: [
       getListStatement(bucketArn, prefix),
       getObjectStatement(bucketArn, prefix),
+      getKmsDecryptStatement(region),
       getPutStatement(bucketArn, prefix, subject),
     ],
   };
