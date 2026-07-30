@@ -55,8 +55,7 @@ describe("provider-catalog loader", () => {
       providerConnectionId: "pc-mock",
       name: "mock-role",
       allowedScopes: ["lab"],
-      allowsSharing: false,
-      writeLevel: "none",
+      accessLevel: "read-only",
       bucketIds: [],
     });
   });

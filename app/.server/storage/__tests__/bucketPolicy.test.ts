@@ -53,15 +53,39 @@ describe("compileGrantStatements", () => {
     expect(get.Condition?.StringEquals?.["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
   });
 
+  test("C-378: emits a bucket-metadata statement with GetBucketLocation, ListMultipartUploads, GetBucketOwnershipControls for read-only", () => {
+    const statements = compileGrantStatements(grant({ accessLevel: "read-only" }));
+    const meta = statements.find((s) => {
+      const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
+      return actions.includes("s3:GetBucketLocation");
+    })!;
+    expect(meta).toBeDefined();
+    const actions = Array.isArray(meta.Action) ? meta.Action : [meta.Action];
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        "s3:GetBucketLocation",
+        "s3:ListMultipartUploads",
+        "s3:GetBucketOwnershipControls",
+      ]),
+    );
+    // bucket-level: Resource is the bucket ARN, no s3:prefix condition
+    expect(meta.Resource).toBe(`arn:aws:s3:::${BUCKET}`);
+    expect(meta.Condition?.StringLike?.["s3:prefix"]).toBeUndefined();
+    // still ORG + per-group conditioned (fail-closed invariant)
+    expect(meta.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
+    expect(meta.Condition?.StringEquals?.["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
+  });
+
   test("read-only grant grants NO write actions", () => {
     const statements = compileGrantStatements(grant({ accessLevel: "read-only" }));
     const allActions = statements.flatMap((s) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
     expect(allActions).not.toContain("s3:PutObject");
     expect(allActions).not.toContain("s3:DeleteObject");
+    expect(allActions).not.toContain("s3:AbortMultipartUpload");
     expect(allActions).not.toContain("s3:PutBucketPolicy");
   });
 
-  test("read-write grant adds PutObject + DeleteObject on the object statement", () => {
+  test("read-write grant adds PutObject, DeleteObject, and multipart actions on the object statement", () => {
     const statements = compileGrantStatements(grant({ accessLevel: "read-write" }));
     const objectStmt = statements.find(
       (s) => s.Resource === `arn:aws:s3:::${BUCKET}/projects/alpha/*`,
@@ -70,6 +94,9 @@ describe("compileGrantStatements", () => {
     expect(actions).toContain("s3:GetObject");
     expect(actions).toContain("s3:PutObject");
     expect(actions).toContain("s3:DeleteObject");
+    expect(actions).toContain("s3:AbortMultipartUpload");
+    expect(actions).toContain("s3:ListMultipartUploadParts");
+    expect(actions).toContain("s3:CompleteMultipartUpload");
     // even a sharing-capable read-write grant never grants PutBucketPolicy
     expect(actions).not.toContain("s3:PutBucketPolicy");
   });
@@ -118,7 +145,7 @@ describe("compileGrantStatements", () => {
 describe("buildMergedPolicy — read-merge-write", () => {
   test("adds managed statements to an empty policy", () => {
     const result = buildMergedPolicy(parseBucketPolicy(null), [grant()]);
-    expect(result.document.Statement.length).toBe(2);
+    expect(result.document.Statement.length).toBe(3);
     expect(result.document.Statement.every(isManagedStatement)).toBe(true);
   });
 
@@ -139,7 +166,7 @@ describe("buildMergedPolicy — read-merge-write", () => {
     );
     expect(stillThere).toEqual(foreign);
     // managed statements were added alongside, not replacing the foreign one
-    expect(result.document.Statement.filter(isManagedStatement).length).toBe(2);
+    expect(result.document.Statement.filter(isManagedStatement).length).toBe(3);
   });
 
   test("re-applying the same grant set is idempotent (no duplicate statements)", () => {
@@ -199,6 +226,19 @@ describe("buildMergedPolicy — read-merge-write", () => {
       return actions.includes("s3:GetObject");
     });
     expect(objectStatements.length).toBe(2);
+  });
+
+  test("C-378: bucket-metadata statements for the SAME group coalesce across prefixes into one statement", () => {
+    const result = buildMergedPolicy(parseBucketPolicy(null), [
+      grant({ groupPath: "Lab/TeamX", prefix: "a", accessLevel: "read-only" }),
+      grant({ groupPath: "Lab/TeamX", prefix: "b", accessLevel: "read-only" }),
+    ]);
+    const metaStatements = result.document.Statement.filter((s) => {
+      const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
+      return actions.includes("s3:GetBucketLocation");
+    });
+    expect(metaStatements.length).toBe(1);
+    expect(metaStatements[0].Resource).toBe(`arn:aws:s3:::${BUCKET}`);
   });
 
   test("C-347: grants to the SAME group+prefix with DIFFERENT roles coalesce into one statement with a multi-value Principal", () => {

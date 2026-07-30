@@ -15,7 +15,7 @@ import {
 import type { ObjectStore, StorageEntry } from "@cytario/plugin-api";
 import { listConnections } from "~/routes/connections/connections.server";
 import { canSee } from "~/utils/authorization";
-import type { WriteLevel } from "~/utils/providerCatalog.schema";
+import type { AccessLevel } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 function requireRequestData() {
@@ -29,13 +29,14 @@ function requireRequestData() {
 }
 
 /**
- * The maximum write level a connection's grant permits. `general` allows
- * arbitrary object writes; `annotations-only` allows only annotation
- * sidecars; `none` allows no writes at all. The `objectStore` capability
- * requires `general` for `put` and `delete` (SRS-CY-37302).
+ * Whether a connection's grant permits general (arbitrary) object writes.
+ * Read Write and Admin both allow PutObject + DeleteObject at the connection
+ * prefix; Annotate allows only annotation sidecars; Read Only allows no
+ * writes at all. The `objectStore` capability requires Read Write or Admin
+ * for `put` and `delete` (SRS-CY-37302).
  */
-function permitsGeneralWrite(grants: { writeLevel: WriteLevel }[]): boolean {
-  return grants.some((g) => g.writeLevel === "general");
+function permitsGeneralWrite(grants: { accessLevel: AccessLevel }[]): boolean {
+  return grants.some((g) => g.accessLevel === "read-write" || g.accessLevel === "admin");
 }
 
 /**
@@ -71,12 +72,13 @@ async function resolveWritableConnection(
 
   if (requireWrite && !permitsGeneralWrite(resolved.grants)) {
     throw new Error(
-      `Connection "${connectionId}" does not permit general write at its prefix (write level must be "general")`,
+      `Connection "${connectionId}" does not permit general write at its prefix (access level must be "read-write" or "admin")`,
     );
   }
 
   const roleArn =
-    resolved.grants.find((g) => g.writeLevel === "general")?.roleArn ?? resolved.grants[0]?.roleArn;
+    resolved.grants.find((g) => g.accessLevel === "read-write" || g.accessLevel === "admin")
+      ?.roleArn ?? resolved.grants[0]?.roleArn;
   if (!roleArn) {
     throw new Error(`Connection "${connectionId}" has no resolvable grant with a role ARN`);
   }

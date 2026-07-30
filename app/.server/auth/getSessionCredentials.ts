@@ -108,7 +108,7 @@ const pickGrantForUser = (
     canSee(user, { organization, ownerScope: grant.scope }),
   );
   if (applicable.length === 0) return undefined;
-  applicable.sort((a, b) => Number(b.allowsSharing) - Number(a.allowsSharing));
+  applicable.sort((a, b) => Number(b.accessLevel === "admin") - Number(a.accessLevel === "admin"));
   return applicable[0];
 };
 

@@ -53,8 +53,7 @@ const CATALOG = {
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
       name: "Reader",
       allowedScopes: ["lab/team-a"],
-      allowsSharing: false,
-      writeLevel: "none" as const,
+      accessLevel: "read-only",
       bucketIds: ["bucket-1"],
     },
     {
@@ -63,8 +62,7 @@ const CATALOG = {
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/orphan",
       name: "Orphan",
       allowedScopes: [],
-      allowsSharing: true,
-      writeLevel: "general" as const,
+      accessLevel: "admin",
       bucketIds: [],
     },
   ],
@@ -187,7 +185,7 @@ describe("getProviderCatalog (OSS build)", () => {
         "    name: Reader",
         "    allowedScopes:",
         "      - lab/team-a",
-        "    allowsSharing: false",
+        "    accessLevel: read-only",
       ].join("\n"),
     );
 
@@ -349,9 +347,11 @@ describe("getProviderCatalog (portal build)", () => {
   });
 });
 
+const PARSED_CATALOG = providerCatalogSchema.parse(CATALOG);
+
 describe("resolveConnectionProvider", () => {
   test("resolves references to concrete AWS attributes", () => {
-    const resolved = resolveConnectionProvider(CATALOG, {
+    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-1",
       providerRoleId: "pr-1",
     });
@@ -361,13 +361,16 @@ describe("resolveConnectionProvider", () => {
       region: "eu-central-1",
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
       allowedScopes: ["lab/team-a"],
-      allowsSharing: false,
-      writeLevel: "none",
+      accessLevel: "read-only",
     });
   });
 
+  test("C-378: defaults accessLevel to read-only when the catalog payload omits it", () => {
+    expect(PARSED_CATALOG.providerRoles[0].accessLevel).toBe("read-only");
+  });
+
   test("returns undefined when the provider connection is missing", () => {
-    const resolved = resolveConnectionProvider(CATALOG, {
+    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-missing",
       providerRoleId: "pr-1",
     });
@@ -375,7 +378,7 @@ describe("resolveConnectionProvider", () => {
   });
 
   test("returns undefined when the provider role is missing", () => {
-    const resolved = resolveConnectionProvider(CATALOG, {
+    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-1",
       providerRoleId: "pr-missing",
     });
@@ -383,7 +386,7 @@ describe("resolveConnectionProvider", () => {
   });
 
   test("rejects a role whose providerConnectionId does not match the connection", () => {
-    const resolved = resolveConnectionProvider(CATALOG, {
+    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-1",
       providerRoleId: "pr-orphan",
     });
@@ -393,9 +396,9 @@ describe("resolveConnectionProvider", () => {
 
 describe("catalog lookup helpers", () => {
   test("findProviderConnection / findProviderRole locate by id", () => {
-    expect(findProviderConnection(CATALOG, "pc-1")?.region).toBe("eu-central-1");
-    expect(findProviderConnection(CATALOG, "nope")).toBeUndefined();
-    expect(findProviderRole(CATALOG, "pr-1")?.name).toBe("Reader");
-    expect(findProviderRole(CATALOG, "nope")).toBeUndefined();
+    expect(findProviderConnection(PARSED_CATALOG, "pc-1")?.region).toBe("eu-central-1");
+    expect(findProviderConnection(PARSED_CATALOG, "nope")).toBeUndefined();
+    expect(findProviderRole(PARSED_CATALOG, "pr-1")?.name).toBe("Reader");
+    expect(findProviderRole(PARSED_CATALOG, "nope")).toBeUndefined();
   });
 });

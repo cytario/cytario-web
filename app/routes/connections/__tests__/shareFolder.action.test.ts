@@ -61,7 +61,7 @@ const sharerRole = mock.providerRole({
   id: "pr-share",
   providerConnectionId: "pc-1",
   allowedScopes: ["lab"],
-  allowsSharing: true,
+  accessLevel: "admin",
 });
 const catalog = mock.providerCatalog({
   providerConnections: [mock.providerConnection({ id: "pc-1" })],
@@ -97,7 +97,11 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
       mock.providerCatalog({
         providerConnections: [mock.providerConnection({ id: "pc-1" })],
         providerRoles: [
-          mock.providerRole({ id: "pr-ro", providerConnectionId: "pc-1", allowsSharing: false }),
+          mock.providerRole({
+            id: "pr-ro",
+            providerConnectionId: "pc-1",
+            accessLevel: "read-only",
+          }),
         ],
       }),
     );

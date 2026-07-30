@@ -57,13 +57,13 @@ const shareableCatalog = mock.providerCatalog({
       id: "pr-ro",
       providerConnectionId: "pc-mock",
       roleArn: "arn:aws:iam::123456789012:role/read-only",
-      allowsSharing: false,
+      accessLevel: "read-only",
     }),
     mock.providerRole({
       id: "pr-rw",
       providerConnectionId: "pc-mock",
-      roleArn: "arn:aws:iam::123456789012:role/read-write",
-      allowsSharing: true,
+      roleArn: "arn:aws:iam::123456789012:role/admin",
+      accessLevel: "admin",
     }),
   ],
 });
@@ -74,6 +74,7 @@ describe("grantForConnection", () => {
       { organization: "acme", bucketName: "shared", prefix: "images" },
       { scope: "lab/team-a" },
       roleArn,
+      "read-only",
     );
     const statements = compileGrantStatements(grant);
     for (const s of statements) {
@@ -83,6 +84,21 @@ describe("grantForConnection", () => {
     const actions = statements.flatMap((s) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
     expect(actions).not.toContain("s3:PutObject");
     expect(actions).not.toContain("s3:PutBucketPolicy");
+  });
+
+  test("C-378: threads the resolved role's accessLevel into the grant (read-write emits write actions)", () => {
+    const grant = grantForConnection(
+      { organization: "acme", bucketName: "shared", prefix: "images" },
+      { scope: "lab/team-a" },
+      roleArn,
+      "read-write",
+    );
+    expect(grant.accessLevel).toBe("read-write");
+    const statements = compileGrantStatements(grant);
+    const objectStmt = statements.find((s) => s.Resource === "arn:aws:s3:::shared/images/*")!;
+    const actions = Array.isArray(objectStmt.Action) ? objectStmt.Action : [objectStmt.Action];
+    expect(actions).toContain("s3:PutObject");
+    expect(actions).toContain("s3:AbortMultipartUpload");
   });
 });
 
@@ -107,6 +123,7 @@ describe("assembleBucketGrants", () => {
     expect(grants.map((g) => g.groupPath).sort()).toEqual(["lab", "lab/team-b", "lab/team-c"]);
     for (const g of grants) {
       expect(g.roleArn).toBe(roleArn);
+      expect(g.accessLevel).toBe("read-only");
     }
   });
 
@@ -134,13 +151,13 @@ describe("validateProviderRefs", () => {
         id: "pr-lab",
         providerConnectionId: "pc-1",
         allowedScopes: ["lab"],
-        allowsSharing: true,
+        accessLevel: "admin",
       }),
       mock.providerRole({
         id: "pr-ro",
         providerConnectionId: "pc-1",
         allowedScopes: ["*"],
-        allowsSharing: false,
+        accessLevel: "read-only",
       }),
     ],
   });
@@ -312,7 +329,7 @@ describe("applyBucketGrantSet", () => {
 
     expect(outcome.status).toBe("applied");
     expect(vi.mocked(applyBucketPolicy).mock.calls[0][0].roleArn).toBe(
-      "arn:aws:iam::123456789012:role/read-write",
+      "arn:aws:iam::123456789012:role/admin",
     );
   });
 });
@@ -368,7 +385,7 @@ describe("resolveApplyTarget", () => {
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.target.roleArn).toBe("arn:aws:iam::123456789012:role/read-write");
+      expect(result.target.roleArn).toBe("arn:aws:iam::123456789012:role/admin");
     }
   });
 

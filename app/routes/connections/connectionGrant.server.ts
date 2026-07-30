@@ -34,31 +34,23 @@ export interface ActingContext {
 }
 
 /**
- * The default access level for a generated grant. The provider-role catalog does
- * not yet carry an explicit grantee access level (it exposes only `allowsSharing`,
- * the `s3:PutBucketPolicy` capability), so grants are generated read-only — the
- * fail-safe floor (never grant more than intended). When the catalog gains an
- * explicit access-level field, thread it here.
- */
-const DEFAULT_ACCESS_LEVEL = "read-only" as const;
-
-/**
  * Build the managed bucket-policy grant a single grant row intends. The grant's
- * `providerRoleId` is resolved to a concrete role ARN by the caller (via the
- * provider catalog) and injected onto the `BucketPolicyGrant` so the fail-closed
- * policy generator accepts it.
+ * `providerRoleId` is resolved to a concrete role ARN (and access level) by the
+ * caller (via the provider catalog) and injected onto the `BucketPolicyGrant` so
+ * the fail-closed policy generator accepts it.
  */
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
   grant: { scope: string },
   roleArn: string,
+  accessLevel: ResolvedConnectionProvider["accessLevel"],
 ): BucketPolicyGrant {
   return {
     organization: config.organization,
     bucketName: config.bucketName,
     groupPath: grant.scope,
     prefix: config.prefix,
-    accessLevel: DEFAULT_ACCESS_LEVEL,
+    accessLevel,
     roleArn,
   };
 }
@@ -90,7 +82,7 @@ export function assembleBucketGrants(
         providerRoleId: grant.providerRoleId,
       });
       if (!resolved) continue;
-      grants.push(grantForConnection(config, grant, resolved.roleArn));
+      grants.push(grantForConnection(config, grant, resolved.roleArn, resolved.accessLevel));
     }
   }
   return grants;
@@ -103,7 +95,7 @@ export type ValidatedProviderRefs =
 /**
  * Validate submitted provider connection + grant references against the catalog:
  * the provider connection must exist, every grant's provider role must exist and
- * belong to that connection, a share must use sharing-capable roles, and each
+ * belong to that connection, a share must use Admin-level roles, and each
  * grant's role's allowed scopes must cover the grant's scope (an org-wide role
  * with empty `allowedScopes` covers any scope). The client-side selector filtering
  * is advisory only — this is the authoritative check on the submitted values.
@@ -127,7 +119,7 @@ export function validateProviderRefs(
       continue;
     }
 
-    if (options.requireSharing && !providerRole.allowsSharing) {
+    if (options.requireSharing && providerRole.accessLevel !== "admin") {
       errors[`grants.${index}.providerRoleId`] = ["This role cannot be used to share"];
       continue;
     }
@@ -197,10 +189,11 @@ export async function validateBucketRef(
 
 /**
  * Resolve a connection to its `ApplyTarget` via the org provider catalog. The
- * write session runs under a grant whose provider role allows sharing (write
- * access); when none of the grants' roles allows sharing, the first resolvable
- * grant's role is used as a best-effort fallback. The acting user must
- * administer the connection (canModify) before this is called.
+ * write session runs under a grant whose provider role is an Admin-level role
+ * (`accessLevel === "admin"` — the only level that permits `s3:PutBucketPolicy`);
+ * when none of the grants' roles is Admin, the first resolvable grant's role is
+ * used as a best-effort fallback. The acting user must administer the connection
+ * (canModify) before this is called.
  */
 export async function resolveApplyTarget(
   config: ConnectionConfigWithGrants,
@@ -224,11 +217,11 @@ export async function resolveApplyTarget(
 
 /**
  * Resolve the best `ApplyTarget` across ALL connections on a bucket: prefer a
- * connection that has a sharing-capable grant (so the `PutBucketPolicy` write
- * succeeds); fall back to the supplied `fallback` connection when no
- * sharing-capable role is found on any connection. This lets a read-only share
- * succeed — the write session borrows a sharing-capable role from another
- * connection the acting user has on the same bucket.
+ * connection that has an Admin-level grant (so the `PutBucketPolicy` write
+ * succeeds); fall back to the supplied `fallback` connection when no Admin-level
+ * role is found on any connection. This lets a read-only share succeed — the
+ * write session borrows an Admin-level role from another connection the acting
+ * user has on the same bucket.
  */
 function resolveApplyTargetFromSet(
   configs: ConnectionConfigWithGrants[],
@@ -246,7 +239,7 @@ function resolveApplyTargetFromSet(
         providerConnectionId: config.providerConnectionId,
         providerRoleId: grant.providerRoleId,
       });
-      if (resolved?.allowsSharing) {
+      if (resolved?.accessLevel === "admin") {
         return {
           ok: true,
           resolved,
@@ -294,7 +287,8 @@ function resolveApplyTargetFromCatalog(
     };
   }
 
-  const chosen = resolvedGrants.find((g) => g.resolved.allowsSharing) ?? resolvedGrants[0];
+  const chosen =
+    resolvedGrants.find((g) => g.resolved.accessLevel === "admin") ?? resolvedGrants[0];
 
   const { resolved } = chosen;
   return {
