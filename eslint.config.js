@@ -17,6 +17,7 @@ export default [
     ignores: [
       "**/node_modules/**",
       "**/build/**",
+      "**/dist/**",
       "**/.cache/**",
       "**/.claude/**",
       "**/.react-router/**",
