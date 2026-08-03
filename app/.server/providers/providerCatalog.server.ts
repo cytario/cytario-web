@@ -33,6 +33,34 @@ export function clearProviderCatalogCache(): void {
 }
 
 /**
+ * Invalidate the provider-catalog cache for an organization's catalog
+ * connection (SRS-CY-414106). The cache key is `(organization, catalog
+ * connection)`: the entry holding the connection's `allowedGroups` access
+ * scope (SRS-CY-39806) is evicted so the next `getProviderCatalog` re-fetches
+ * fresh data from the portal. Call this when the access scope changes on a
+ * catalog connection or when the connection is removed — a stale
+ * `allowedGroups` set must never be served across an access-scope change.
+ *
+ * The cache is keyed per organization (the portal `GET /org/providers`
+ * response is whole-org), so the `catalogConnectionId` is accepted for
+ * caller intent and observability and scopes the eviction to the org whose
+ * catalog holds that connection.
+ */
+export function invalidateProviderCatalogCache(
+  organization: string,
+  catalogConnectionId?: string,
+): void {
+  const fromPortal = cytarioConfig.providers.source === "portal";
+  const cacheKey = fromPortal ? `portal:${organization}` : "oss";
+  const evicted = catalogCache.delete(cacheKey);
+  if (evicted && catalogConnectionId) {
+    console.info(
+      `${label} Provider catalog cache invalidated for org "${organization}" on catalog connection "${catalogConnectionId}" (access-scope change or removal).`,
+    );
+  }
+}
+
+/**
  * Resolves the active organization's provider catalog — the provider connections
  * and provider roles a storage connection may be composed from.
  *
@@ -165,6 +193,7 @@ export interface ResolvedConnectionProvider {
   roleArn: string;
   allowedScopes: string[];
   allowsSharing: boolean;
+  writeLevel: import("~/utils/providerCatalog.schema").WriteLevel;
 }
 
 /**
@@ -189,6 +218,7 @@ export function resolveConnectionProvider(
     roleArn: providerRole.roleArn,
     allowedScopes: providerRole.allowedScopes,
     allowsSharing: providerRole.allowsSharing,
+    writeLevel: providerRole.writeLevel,
   };
 }
 
@@ -200,6 +230,7 @@ export interface ResolvedConnectionGrant {
   scope: string;
   roleArn: string;
   allowsSharing: boolean;
+  writeLevel: import("~/utils/providerCatalog.schema").WriteLevel;
 }
 
 /**
@@ -242,6 +273,7 @@ export function resolveConnectionProviderWithGrants(
       scope: grant.scope,
       roleArn: providerRole.roleArn,
       allowsSharing: providerRole.allowsSharing,
+      writeLevel: providerRole.writeLevel,
     });
     if (providerRole.allowsSharing) allowsSharing = true;
   }

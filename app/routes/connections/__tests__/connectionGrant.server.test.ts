@@ -337,6 +337,9 @@ describe("applyConnectionGrants — advisory degradation", () => {
     vi.mocked(getProviderCatalog).mockResolvedValueOnce({
       providerConnections: [],
       providerRoles: [],
+      computeProviders: [],
+      computeRoles: [],
+      appCatalogs: [],
     });
     const config = mock.connectionConfig({
       bucketName: "b",

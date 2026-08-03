@@ -51,11 +51,16 @@ const mock = {
     name: "mock-role",
     allowedScopes: ["lab"],
     allowsSharing: false,
+    writeLevel: "none",
+    bucketIds: [],
     ...data,
   }),
   providerCatalog: (data: Partial<ProviderCatalog> = {}): ProviderCatalog => ({
     providerConnections: [mock.providerConnection()],
     providerRoles: [mock.providerRole()],
+    computeProviders: [],
+    computeRoles: [],
+    appCatalogs: [],
     ...data,
   }),
   bucketLookupRow: (data: Partial<BucketLookupRow> = {}): BucketLookupRow => ({

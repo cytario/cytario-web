@@ -5,6 +5,7 @@ import {
   findProviderConnection,
   findProviderRole,
   getProviderCatalog,
+  invalidateProviderCatalogCache,
   resolveConnectionProvider,
 } from "../providerCatalog.server";
 import { cytarioConfig } from "~/config";
@@ -53,6 +54,8 @@ const CATALOG = {
       name: "Reader",
       allowedScopes: ["lab/team-a"],
       allowsSharing: false,
+      writeLevel: "none" as const,
+      bucketIds: ["bucket-1"],
     },
     {
       id: "pr-orphan",
@@ -61,6 +64,50 @@ const CATALOG = {
       name: "Orphan",
       allowedScopes: [],
       allowsSharing: true,
+      writeLevel: "general" as const,
+      bucketIds: [],
+    },
+  ],
+  computeProviders: [
+    {
+      id: "cp-1",
+      providerConnectionId: "pc-1",
+      displayName: "GPU Cluster",
+      region: "eu-central-1",
+      type: "AWS_BATCH" as const,
+      typeSpecific: {
+        jobQueueArn: "arn:aws:batch:eu-central-1:123456789012:job-queue/gpu-queue",
+        jobRoleArn: "arn:aws:iam::123456789012:role/cytario/compute/job-role",
+        executionRoleArn: "arn:aws:iam::123456789012:role/cytario/compute/exec-role",
+        imagePullSecretRef:
+          "arn:aws:secretsmanager:eu-central-1:123456789012:secret:registry-pull-abc",
+        logGroupName: "/aws/batch/cytario-compute/cp-1",
+        defaultResources: { vcpus: 4, memory: 16384 },
+      },
+      status: "connected" as const,
+    },
+  ],
+  computeRoles: [
+    {
+      id: "cr-1",
+      computeProviderId: "cp-1",
+      roleArn: "arn:aws:iam::123456789012:role/cytario/compute/submit-role",
+      name: "Submitter",
+      description: "Batch submit role",
+      allowedScopes: ["lab/team-a"],
+    },
+  ],
+  appCatalogs: [
+    {
+      id: "ac-1",
+      displayName: "Harbor Catalog",
+      registryEndpoint: "https://harbor.example.com",
+      namespace: "cytario",
+      accessAccountId: "robot$harbor+cytario",
+      accessAccountSecret: "secret-token",
+      enabled: true,
+      status: "connected" as const,
+      allowedGroups: ["lab/team-a", "lab/team-b"],
     },
   ],
 };
@@ -94,6 +141,31 @@ describe("providerCatalogSchema", () => {
       providerConnections: [{ ...CATALOG.providerConnections[0], status: "banana" }],
     };
     expect(() => providerCatalogSchema.parse(bad)).toThrow();
+  });
+
+  test("parses allowedGroups on an app catalog (SRS-CY-45107/39806)", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    expect(catalog.appCatalogs[0].allowedGroups).toEqual(["lab/team-a", "lab/team-b"]);
+  });
+
+  test("a missing allowedGroups field degrades to org-wide (empty set), never deny-all", () => {
+    const withoutAllowedGroups = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          id: "ac-1",
+          displayName: "Harbor Catalog",
+          registryEndpoint: "https://harbor.example.com",
+          namespace: "cytario",
+          accessAccountId: "robot$harbor+cytario",
+          accessAccountSecret: "secret-token",
+          enabled: true,
+          status: "connected" as const,
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withoutAllowedGroups);
+    expect(catalog.appCatalogs[0].allowedGroups).toEqual([]);
   });
 });
 
@@ -218,6 +290,63 @@ describe("getProviderCatalog (portal build)", () => {
     expect(catalog.providerConnections).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  test("serves a fresh allowedGroups set after cache invalidation on access-scope change", async () => {
+    const scopeRestricted = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          ...CATALOG.appCatalogs[0],
+          allowedGroups: ["lab/team-a", "lab/team-b"],
+        },
+      ],
+    };
+    const scopeWidened = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          ...CATALOG.appCatalogs[0],
+          allowedGroups: [],
+        },
+      ],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(scopeRestricted) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(scopeWidened) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await getProviderCatalog("acme");
+    expect(first.appCatalogs[0].allowedGroups).toEqual(["lab/team-a", "lab/team-b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    invalidateProviderCatalogCache("acme", "ac-1");
+
+    const second = await getProviderCatalog("acme");
+    expect(second.appCatalogs[0].allowedGroups).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("invalidateProviderCatalogCache is a no-op when the cache is already empty", () => {
+    expect(() => invalidateProviderCatalogCache("acme", "ac-1")).not.toThrow();
+  });
+
+  test("invalidateProviderCatalogCache does not evict another organization's cache", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(CATALOG),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getProviderCatalog("acme");
+    await getProviderCatalog("globex");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    invalidateProviderCatalogCache("acme", "ac-1");
+
+    await getProviderCatalog("globex");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("resolveConnectionProvider", () => {
@@ -233,6 +362,7 @@ describe("resolveConnectionProvider", () => {
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
       allowedScopes: ["lab/team-a"],
       allowsSharing: false,
+      writeLevel: "none",
     });
   });
 

@@ -56,6 +56,8 @@ describe("provider-catalog loader", () => {
       name: "mock-role",
       allowedScopes: ["lab"],
       allowsSharing: false,
+      writeLevel: "none",
+      bucketIds: [],
     });
   });
 
