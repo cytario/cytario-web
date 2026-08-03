@@ -1,3 +1,4 @@
+import { Description } from "@cytario/design";
 import { LoaderFunctionArgs, redirect, MetaFunction } from "react-router";
 
 import { getSession } from "~/.server/auth/getSession";
@@ -81,9 +82,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function LoginRoute() {
   return (
     <div className="flex items-center justify-center h-screen">
-      <p role="status" className="text-muted-foreground">
+      <Description role="status" className="mb-0">
         Redirecting to login...
-      </p>
+      </Description>
     </div>
   );
 }

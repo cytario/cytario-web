@@ -1,4 +1,4 @@
-import { Button, H2, Switch } from "@cytario/design";
+import { Button, Description, H2, Switch } from "@cytario/design";
 import { LoaderFunction, useLoaderData } from "react-router";
 
 import { Section } from "~/components/Container";
@@ -27,9 +27,9 @@ function PreferencesSection() {
       <Switch isSelected={showHiddenFiles} onChange={toggleShowHiddenFiles} className="text-sm">
         Show hidden files
       </Switch>
-      <p className="text-xs text-muted-foreground">
+      <Description size="sm" className="text-xs">
         Reveal dot-prefixed files and directories in browse views.
-      </p>
+      </Description>
     </div>
   );
 }

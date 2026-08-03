@@ -1,4 +1,4 @@
-import { Fieldset, Input } from "@cytario/design";
+import { Description, Fieldset, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useSubmit } from "react-router";
@@ -52,9 +52,9 @@ export function CreateGroupForm({ scope }: CreateGroupFormProps) {
         </div>
       )}
 
-      <p className="text-sm text-muted-foreground">
+      <Description size="sm">
         You will be added as an admin of this group automatically.
-      </p>
+      </Description>
     </form>
   );
 }

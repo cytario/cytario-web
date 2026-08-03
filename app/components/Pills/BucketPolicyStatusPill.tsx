@@ -1,10 +1,10 @@
-import { Pill, type PillColor } from "@cytario/design";
+import { Badge, type BadgeColor } from "@cytario/design";
 
 import type { BucketPolicyStatus } from "~/.generated/client";
 
 interface StatusConfig {
   label: string;
-  color: PillColor;
+  color: BadgeColor;
 }
 
 const statuses: Record<BucketPolicyStatus, StatusConfig> = {
@@ -21,5 +21,5 @@ const statuses: Record<BucketPolicyStatus, StatusConfig> = {
  */
 export function BucketPolicyStatusPill({ status }: { status: BucketPolicyStatus }) {
   const config = statuses[status] ?? statuses.none;
-  return <Pill color={config.color}>{config.label}</Pill>;
+  return <Badge color={config.color}>{config.label}</Badge>;
 }

@@ -17,7 +17,10 @@ vi.mock("react-router", async (importOriginal) => {
   return { ...actual, useMatches: vi.fn(() => []) };
 });
 
-vi.mock("../../Logo", () => ({ Logo: () => <span>Logo</span> }));
+vi.mock("@cytario/design", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@cytario/design")>();
+  return { ...actual, Logo: () => <span>Logo</span> };
+});
 
 // Stand-in so the test exercises trail-building, not NodeLink's router/store deps.
 vi.mock("../../DirectoryView/NodeLink/NodeLink", () => ({

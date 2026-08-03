@@ -1,4 +1,4 @@
-import { Fieldset, Input } from "@cytario/design";
+import { Description, Fieldset, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -93,10 +93,10 @@ export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserF
             />
           )}
         />
-        <p className="text-sm text-muted-foreground">
+        <Description size="sm">
           Keycloak emails the invite to the address above. Group membership can be assigned after
           the user accepts.
-        </p>
+        </Description>
       </Fieldset>
     </form>
   );

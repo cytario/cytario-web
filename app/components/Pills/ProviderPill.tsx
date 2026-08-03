@@ -1,8 +1,8 @@
-import { Pill, type PillColor } from "@cytario/design";
+import { Badge, type BadgeColor } from "@cytario/design";
 
 interface ProviderConfig {
   label: string;
-  color: PillColor;
+  color: BadgeColor;
 }
 
 const providers: Record<string, ProviderConfig> = {
@@ -16,5 +16,5 @@ interface ProviderPillProps {
 
 export function ProviderPill({ provider }: ProviderPillProps) {
   const config = providers[provider.toLowerCase()];
-  return <Pill color={config.color}>{config.label}</Pill>;
+  return <Badge color={config.color}>{config.label}</Badge>;
 }
