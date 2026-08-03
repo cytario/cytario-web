@@ -4,6 +4,8 @@
 
 /** Read-only identity view derived from the verified token. */
 export interface Identity {
+  /** Opaque user subject (`sub` claim). Not PII — a UUID the browser already holds in the JWT. */
+  sub: string;
   /** Active Keycloak organization alias. Undefined ⇒ zero-org session. */
   organization?: string;
   /**

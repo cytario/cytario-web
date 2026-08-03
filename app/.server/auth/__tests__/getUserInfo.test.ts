@@ -488,6 +488,7 @@ describe("getUserInfo", () => {
 
     test("projects the tenant-relevant subset", () => {
       expect(toIdentity(fullProfile)).toEqual({
+        sub: "user-uuid-123",
         organization: "testcorp",
         organizationAttributes: { subscription_status: ["active"] },
         groups: ["lab"],
@@ -501,7 +502,6 @@ describe("getUserInfo", () => {
       expect(identity).not.toHaveProperty("email");
       expect(identity).not.toHaveProperty("preferred_username");
       expect(identity).not.toHaveProperty("policy");
-      expect(identity).not.toHaveProperty("sub");
     });
   });
 

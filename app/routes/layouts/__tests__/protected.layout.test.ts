@@ -56,6 +56,7 @@ describe("protected layout loader", () => {
   test("returns the Identity projection", async () => {
     const data = await runLoader(
       mock.user({
+        sub: "user-123",
         organization: "testcorp",
         organizationAttributes: { subscription_status: ["active"] },
         groups: ["testcorp/lab"],
@@ -64,6 +65,7 @@ describe("protected layout loader", () => {
     );
 
     expect(data.identity).toEqual({
+      sub: "user-123",
       organization: "testcorp",
       organizationAttributes: { subscription_status: ["active"] },
       groups: ["testcorp/lab"],
@@ -76,6 +78,7 @@ describe("protected layout loader", () => {
       "groups",
       "organization",
       "organizationAttributes",
+      "sub",
     ]);
   });
 
@@ -86,7 +89,6 @@ describe("protected layout loader", () => {
     expect(data.identity).not.toHaveProperty("email");
     expect(data.identity).not.toHaveProperty("preferred_username");
     expect(data.identity).not.toHaveProperty("policy");
-    expect(data.identity).not.toHaveProperty("sub");
     expect(data).not.toHaveProperty("user");
     expect(data).not.toHaveProperty("authTokens");
   });

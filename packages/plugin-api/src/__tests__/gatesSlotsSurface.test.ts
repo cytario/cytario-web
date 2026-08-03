@@ -14,11 +14,13 @@ import type {
 describe("auth / gates / slots surface", () => {
   test("Identity carries org alias, opaque attrs, groups and admin scopes", () => {
     const identity: Identity = {
+      sub: "test-user",
       organization: "testcorp",
       organizationAttributes: { subscription_status: ["active"] },
       groups: ["lab/team-a"],
       adminScopes: ["*"],
     };
+    expect(identity.sub).toBe("test-user");
     expect(identity.organization).toBe("testcorp");
     expect(identity.organizationAttributes["subscription_status"]).toEqual(["active"]);
     expect(identity.groups).toEqual(["lab/team-a"]);
@@ -27,6 +29,7 @@ describe("auth / gates / slots surface", () => {
 
   test("Identity organization is optional for zero-org sessions", () => {
     const identity: Identity = {
+      sub: "test-user",
       organizationAttributes: {},
       groups: [],
       adminScopes: [],
@@ -38,7 +41,7 @@ describe("auth / gates / slots surface", () => {
     const req: GateRequest = {
       url: "https://app.cytario.com/images/1",
       method: "POST",
-      identity: { organizationAttributes: {}, groups: [], adminScopes: [] },
+      identity: { sub: "test-user", organizationAttributes: {}, groups: [], adminScopes: [] },
     };
     expect(req.method).toBe("POST");
   });
@@ -49,7 +52,7 @@ describe("auth / gates / slots surface", () => {
     const req: GateRequest = {
       url: "/",
       method: "GET",
-      identity: { organizationAttributes: {}, groups: [], adminScopes: [] },
+      identity: { sub: "test-user", organizationAttributes: {}, groups: [], adminScopes: [] },
     };
     expect(sync(req)).toEqual({ kind: "continue" });
     await expect(async(req)).resolves.toEqual({ kind: "redirect", url: "/onboarding" });
@@ -103,7 +106,7 @@ describe("auth / gates / slots surface", () => {
 
   test("SlotProps carries the Identity projection and host runtime URLs", () => {
     const props: SlotProps = {
-      identity: { organizationAttributes: {}, groups: [], adminScopes: [] },
+      identity: { sub: "test-user", organizationAttributes: {}, groups: [], adminScopes: [] },
       hostConfig: {
         portalUrl: "https://admin.cytario.com",
         webappUrl: "https://app.cytario.com",
@@ -116,7 +119,7 @@ describe("auth / gates / slots surface", () => {
 
   test("hostConfig.portalUrl is optional for portal-less hosts", () => {
     const props: SlotProps = {
-      identity: { organizationAttributes: {}, groups: [], adminScopes: [] },
+      identity: { sub: "test-user", organizationAttributes: {}, groups: [], adminScopes: [] },
       hostConfig: { webappUrl: "https://app.cytario.com" },
     };
     expect(props.hostConfig.portalUrl).toBeUndefined();

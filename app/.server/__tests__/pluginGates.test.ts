@@ -2,6 +2,7 @@ import { gateRegistry, runGates } from "../pluginGates";
 import type { GateRequest, Identity } from "@cytario/plugin-api";
 
 const identity: Identity = {
+  sub: "test-user",
   organization: "testcorp",
   organizationAttributes: {},
   groups: [],
