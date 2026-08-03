@@ -1,22 +1,30 @@
 import type {
   CytarioPlugin,
+  ContextMenuRegistry,
   GateRegistry,
+  HostCapabilities,
   Logger,
   PluginContext,
+  RouteRegistry,
+  ServerEndpointRegistry,
+  SidebarNavRegistry,
   SlotRegistry,
 } from "@cytario/plugin-api";
 import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { HOST_API_VERSION } from "~/lib/hostApiVersion";
+import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 
 /**
- * Registries each entry can inject. Gates are live server-side, slots are live
- * client-side; the entry that does not own a registry leaves it undefined and
- * the bootstrap supplies a no-op sink so a plugin's single `register(ctx)` can
- * call both without the wrong-env one taking effect. `env` is set by the entry
- * (`"server"` from entry.server, `"client"` from entry.client) and surfaced on
- * `ctx.env` so a plugin can branch its register() without import-time env
- * sniffing; it defaults to `"client"` for backward compatibility.
+ * Registries each entry can inject. Gates, routes, server-endpoints, and host
+ * capabilities are live server-side; slots, context-menus, and sidebar-nav are
+ * live client-side; the entry that does not own a registry leaves it undefined
+ * and the bootstrap supplies a no-op sink so a plugin's single `register(ctx)`
+ * can call both without the wrong-env one taking effect. `env` is set by the
+ * entry (`"server"` from entry.server, `"client"` from entry.client) and
+ * surfaced on `ctx.env` so a plugin can branch its register() without
+ * import-time env sniffing; it defaults to `"client"` for backward
+ * compatibility.
  */
 /** A registry the bootstrap binds to a plugin name before handing it to `ctx`. */
 interface Scoped<R> {
@@ -26,6 +34,12 @@ interface Scoped<R> {
 export interface BootstrapRegistries {
   gates?: Scoped<GateRegistry>;
   slots?: Scoped<SlotRegistry>;
+  contextMenus?: Scoped<ContextMenuRegistry>;
+  sidebarNav?: Scoped<SidebarNavRegistry>;
+  routes?: Scoped<RouteRegistry>;
+  serverEndpoints?: Scoped<ServerEndpointRegistry>;
+  /** Server-only capability object — not scoped to a plugin name. */
+  host?: HostCapabilities;
   env?: PluginContext["env"];
 }
 
@@ -34,6 +48,22 @@ const noopGateRegistry: Scoped<GateRegistry> = {
 };
 
 const noopSlotRegistry: Scoped<SlotRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
+};
+
+const noopContextMenuRegistry: Scoped<ContextMenuRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
+};
+
+const noopSidebarNavRegistry: Scoped<SidebarNavRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
+};
+
+const noopRouteRegistry: Scoped<RouteRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
+};
+
+const noopServerEndpointRegistry: Scoped<ServerEndpointRegistry> = {
   scopedFor: () => ({ register: () => {} }),
 };
 
@@ -61,6 +91,11 @@ export async function bootstrapPluginsCore(
 ): Promise<void> {
   const gates = registries?.gates ?? noopGateRegistry;
   const slots = registries?.slots ?? noopSlotRegistry;
+  const contextMenus = registries?.contextMenus ?? noopContextMenuRegistry;
+  const sidebarNav = registries?.sidebarNav ?? noopSidebarNavRegistry;
+  const routes = registries?.routes ?? noopRouteRegistry;
+  const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
+  const host = registries?.host ?? noopHostCapabilities;
   // Both entries set `env` explicitly; the default only covers tests that call
   // this helper without registries.
   const env: PluginContext["env"] = registries?.env ?? "client";
@@ -85,6 +120,11 @@ export async function bootstrapPluginsCore(
       formats: formatRegistry.scopedFor(plugin.name),
       gates: gates.scopedFor(plugin.name),
       slots: slots.scopedFor(plugin.name),
+      contextMenus: contextMenus.scopedFor(plugin.name),
+      sidebarNav: sidebarNav.scopedFor(plugin.name),
+      routes: routes.scopedFor(plugin.name),
+      serverEndpoints: serverEndpoints.scopedFor(plugin.name),
+      host,
       env,
     };
 

@@ -18,6 +18,39 @@ describe("noop-plugin integration", () => {
       formats: formatRegistry.scopedFor(noopPlugin.name),
       gates: { register: () => {} },
       slots: { register: () => {} },
+      contextMenus: { register: () => {} },
+      sidebarNav: { register: () => {} },
+      routes: { register: () => {} },
+      serverEndpoints: { register: () => {} },
+      host: {
+        connections: () => Promise.resolve([]),
+        computeConnections: () => Promise.resolve([]),
+        catalogConnections: () => Promise.resolve([]),
+        connectionFetch: () => Promise.resolve(new Response()),
+        objectStore: () => ({
+          put: () => Promise.resolve(),
+          get: () => Promise.resolve(new Response()),
+          delete: () => Promise.resolve(),
+        }),
+        assumeComputeRole: () =>
+          Promise.resolve({
+            signedFetch: () => Promise.resolve(new Response()),
+            jobQueueArn: "arn:aws:batch:eu-central-1:1:job-queue/q",
+            jobRoleArn: "arn:aws:iam::1:role/job",
+            executionRoleArn: "arn:aws:iam::1:role/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+          }),
+        revokeGrant: () => Promise.resolve(),
+        exchangeToken: () =>
+          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        jobLedger: () => ({
+          record: () => Promise.resolve(),
+          lookup: () => Promise.resolve(null),
+          list: () => Promise.resolve([]),
+          remove: () => Promise.resolve(),
+        }),
+      },
       env: "server" as const,
       logger: {
         debug: () => {},
@@ -45,6 +78,39 @@ describe("noop-plugin integration", () => {
       formats: formatRegistry.scopedFor(noopPlugin.name),
       gates: { register: () => {} },
       slots: { register: () => {} },
+      contextMenus: { register: () => {} },
+      sidebarNav: { register: () => {} },
+      routes: { register: () => {} },
+      serverEndpoints: { register: () => {} },
+      host: {
+        connections: () => Promise.resolve([]),
+        computeConnections: () => Promise.resolve([]),
+        catalogConnections: () => Promise.resolve([]),
+        connectionFetch: () => Promise.resolve(new Response()),
+        objectStore: () => ({
+          put: () => Promise.resolve(),
+          get: () => Promise.resolve(new Response()),
+          delete: () => Promise.resolve(),
+        }),
+        assumeComputeRole: () =>
+          Promise.resolve({
+            signedFetch: () => Promise.resolve(new Response()),
+            jobQueueArn: "arn:aws:batch:eu-central-1:1:job-queue/q",
+            jobRoleArn: "arn:aws:iam::1:role/job",
+            executionRoleArn: "arn:aws:iam::1:role/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+          }),
+        revokeGrant: () => Promise.resolve(),
+        exchangeToken: () =>
+          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        jobLedger: () => ({
+          record: () => Promise.resolve(),
+          lookup: () => Promise.resolve(null),
+          list: () => Promise.resolve([]),
+          remove: () => Promise.resolve(),
+        }),
+      },
       env: "server",
       logger: {
         debug: () => {},

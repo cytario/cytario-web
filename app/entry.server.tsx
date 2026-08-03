@@ -6,7 +6,10 @@ import type { AppLoadContext, EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 
 import { buildContentSecurityPolicy } from "./.server/csp";
+import { hostCapabilities } from "./.server/hostCapabilities";
 import { gateRegistry } from "./.server/pluginGates";
+import { routeRegistry } from "./.server/routeRegistry";
+import { serverEndpointRegistry } from "./.server/serverEndpointRegistry";
 import { bootstrapPlugins } from "./plugins.generated";
 
 const ABORT_DELAY = 5_000;
@@ -20,7 +23,13 @@ const bootstrapPromise: Promise<void> = bootstrapPlugins(
     warn: (msg, fields) => console.warn("[plugin-bootstrap]", msg, fields ?? {}),
     error: (msg, fields) => console.error("[plugin-bootstrap]", msg, fields ?? {}),
   },
-  { gates: gateRegistry, env: "server" },
+  {
+    gates: gateRegistry,
+    routes: routeRegistry,
+    serverEndpoints: serverEndpointRegistry,
+    host: hostCapabilities,
+    env: "server",
+  },
 ).catch((err: unknown) => {
   console.error("[plugin-bootstrap] unexpected bootstrap failure:", err);
 });

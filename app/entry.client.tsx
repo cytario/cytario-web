@@ -2,7 +2,10 @@ import { startTransition } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { HydratedRouter } from "react-router/dom";
 
+import { contextMenuRegistry } from "./components/contextMenuRegistry";
+import { sidebarNavRegistry } from "./components/sidebarNavRegistry";
 import { slotRegistry } from "./components/slotRegistry";
+import { clientRouteRegistry } from "./lib/clientRouteRegistry";
 import { bootstrapPlugins } from "./plugins.generated";
 
 // Await bootstrap before hydrating so registry-derived gates (e.g. the
@@ -18,7 +21,13 @@ await bootstrapPlugins(
     warn: (msg, fields) => console.warn("[plugin-bootstrap]", msg, fields ?? {}),
     error: (msg, fields) => console.error("[plugin-bootstrap]", msg, fields ?? {}),
   },
-  { slots: slotRegistry, env: "client" },
+  {
+    slots: slotRegistry,
+    contextMenus: contextMenuRegistry,
+    sidebarNav: sidebarNavRegistry,
+    routes: clientRouteRegistry,
+    env: "client",
+  },
 ).catch((err) => {
   console.error("[plugin-bootstrap] unexpected bootstrap failure:", err);
 });
