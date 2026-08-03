@@ -4,11 +4,23 @@ vi.mock("~/config", () => ({
       baseUrl: "http://localhost:8080/realms/master",
       adminClientId: "cytario-web-admin",
       adminClientSecret: "test-secret",
+      jobBrokerClientId: "job-broker",
+      jobBrokerClientSecret: "broker-secret",
     },
   },
 }));
 
 const TOKEN_URL = "http://localhost:8080/realms/master/protocol/openid-connect/token";
+
+async function importGetAdminToken() {
+  const mod = await import("../keycloakAdmin/serviceAccountToken");
+  return mod.getAdminToken;
+}
+
+async function importGetJobBrokerToken() {
+  const mod = await import("../keycloakAdmin/serviceAccountToken");
+  return mod.getJobBrokerToken;
+}
 
 describe("getAdminToken", () => {
   beforeEach(async () => {
@@ -21,11 +33,6 @@ describe("getAdminToken", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
-
-  async function importGetAdminToken() {
-    const mod = await import("../keycloakAdmin/serviceAccountToken");
-    return mod.getAdminToken;
-  }
 
   test("fetches token via client_credentials grant", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
@@ -131,5 +138,76 @@ describe("getAdminToken", () => {
     const token = await getAdminToken();
     expect(token).toBe("token-retry");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("getJobBrokerToken", () => {
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    vi.useFakeTimers();
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test("fetches token via client_credentials grant as job-broker", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ access_token: "broker-token", expires_in: 300 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const getJobBrokerToken = await importGetJobBrokerToken();
+    const token = await getJobBrokerToken();
+
+    expect(token).toBe("broker-token");
+    const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
+    expect(body.get("grant_type")).toBe("client_credentials");
+    expect(body.get("client_id")).toBe("job-broker");
+    expect(body.get("client_secret")).toBe("broker-secret");
+  });
+
+  test("maintains an independent cache from the admin token", async () => {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+      const body = init.body as URLSearchParams;
+      const token = body.get("client_id") === "job-broker" ? "broker-token" : "admin-token";
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ access_token: token, expires_in: 300 }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const getAdminToken = await importGetAdminToken();
+    const getJobBrokerToken = await importGetJobBrokerToken();
+
+    const admin = await getAdminToken();
+    const broker = await getJobBrokerToken();
+
+    expect(admin).toBe("admin-token");
+    expect(broker).toBe("broker-token");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("throws when job-broker creds are not configured", async () => {
+    vi.doMock("~/config", () => ({
+      cytarioConfig: {
+        auth: {
+          baseUrl: "http://localhost:8080/realms/master",
+          adminClientId: "cytario-web-admin",
+          adminClientSecret: "test-secret",
+          jobBrokerClientId: undefined,
+          jobBrokerClientSecret: undefined,
+        },
+      },
+    }));
+    vi.resetModules();
+
+    const getJobBrokerToken = await importGetJobBrokerToken();
+    await expect(getJobBrokerToken()).rejects.toThrow("Job broker client is not configured");
+
+    vi.doUnmock("~/config");
   });
 });

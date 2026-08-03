@@ -3,6 +3,7 @@ import { createContext, redirect, type MiddlewareFunction } from "react-router";
 import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
 import { toIdentity } from "./getUserInfo";
+import { withHostRequestContext } from "../hostRequestContext";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import { type CytarioSession, type SessionData, sessionStorage } from "./sessionStorage";
@@ -26,6 +27,14 @@ export interface AuthContextData extends SessionData {
 
 export const authContext = createContext<AuthContextData>();
 
+/**
+ * A token with less than this much remaining lifetime is treated as expired and
+ * routed to the refresh path. Buffers beyond the id token's 30s verification
+ * tolerance so a token is never forwarded to the portal token exchange or AWS STS
+ * (both of which validate `exp` strictly) once it is near its end of life.
+ */
+const ACCESS_TOKEN_FRESHNESS_BUFFER_SECONDS = 60;
+
 const isRefreshTokenValid = (token?: string): boolean => {
   if (!token) return false;
 
@@ -37,6 +46,32 @@ const isRefreshTokenValid = (token?: string): boolean => {
     return false;
   }
 };
+
+/** Seconds of remaining lifetime on an OIDC token, or 0 when unreadable. */
+const tokenTtlSeconds = (token?: string): number => {
+  if (!token) return 0;
+
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    if (typeof decoded.exp !== "number") return 0;
+    return decoded.exp - Math.floor(Date.now() / 1000);
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * True when the token still has at least `bufferSeconds` of lifetime left.
+ * The middleware must not forward a token that is valid-but-about-to-expire:
+ * the access token is exchanged by the portal and the id token by AWS STS, both
+ * of which validate `exp` strictly (no clock tolerance). Deciding on a small
+ * buffer rather than "already expired" closes the window where the id token still
+ * verifies locally (see `verifyIdToken`'s 30s clock tolerance) but the
+ * access/id token is rejected downstream.
+ */
+const isTokenFresherThan = (token: string | undefined, bufferSeconds: number): boolean =>
+  tokenTtlSeconds(token) >= bufferSeconds;
 
 const isComplete = (data: Partial<SessionData>): boolean => {
   return !!(data.user && data.authTokens);
@@ -115,7 +150,12 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
       return redirect("/onboarding");
     }
 
-    const idTokenPayload = await verifyIdToken(authTokens.idToken);
+    const idTokenPayload = isTokenFresherThan(
+      authTokens.accessToken,
+      ACCESS_TOKEN_FRESHNESS_BUFFER_SECONDS,
+    )
+      ? await verifyIdToken(authTokens.idToken)
+      : null;
 
     if (idTokenPayload) {
       const {
@@ -137,7 +177,15 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
         credentialErrors,
         connectionProviders,
       });
-      return next();
+      return withHostRequestContext(
+        {
+          user: updatedSessionData.user,
+          identity: toIdentity(user),
+          authTokens: updatedSessionData.authTokens,
+          sessionId: session.id,
+        },
+        () => next(),
+      );
     }
 
     if (isRefreshTokenValid(authTokens.refreshToken)) {
@@ -173,7 +221,15 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
           credentialErrors,
           connectionProviders,
         });
-        return next();
+        return withHostRequestContext(
+          {
+            user: updatedSessionData.user,
+            identity: toIdentity(updatedSessionData.user),
+            authTokens: updatedSessionData.authTokens,
+            sessionId: session.id,
+          },
+          () => next(),
+        );
       }
     }
   }

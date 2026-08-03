@@ -84,7 +84,7 @@ describe("authMiddleware", () => {
   const mockSessionData = {
     user: mock.user(),
     authTokens: {
-      accessToken: "access-token",
+      accessToken: mock.idToken(),
       idToken: "valid-id-token",
       refreshToken: validRefreshToken,
     },
@@ -245,6 +245,38 @@ describe("authMiddleware", () => {
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(mockSession.id, validRefreshToken);
+    });
+
+    test("refreshes tokens when the access token is expiring even though the id token still verifies", async () => {
+      // The access token has < the freshness buffer left (but is not yet dead),
+      // while the id token still verifies. This is the exact window that produced
+      // the intermittent portal 401: the stale access token must NOT be forwarded.
+      const expiringAccessToken = mock.idToken({
+        exp: Math.floor(Date.now() / 1000) + 30,
+      });
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        authTokens: {
+          ...mockSessionData.authTokens,
+          accessToken: expiringAccessToken,
+        },
+      });
+
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(mockSession.id, validRefreshToken);
+      expect(verifyIdToken).not.toHaveBeenCalled();
+    });
+
+    test("does not refresh when the access token is fresh", async () => {
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(verifyIdToken).toHaveBeenCalledWith("valid-id-token");
+      expect(refreshAccessTokenWithLock).not.toHaveBeenCalled();
     });
 
     test("updates session with new tokens after refresh", async () => {
