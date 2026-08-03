@@ -54,6 +54,10 @@ const appRoutes = [
       { path: ":id/*", file: "routes/objects/objects.route.tsx" },
     ],
   },
+  {
+    path: "/plugin/*",
+    file: "routes/plugin/plugin.$.tsx",
+  },
 ];
 
 /** Admin routes — scope-gated, wrapped in protected layout alongside appRoutes. */
@@ -95,6 +99,10 @@ const apiRoutes = [
   {
     path: "/api/bucket-catalog",
     file: "routes/api/bucket-catalog.ts",
+  },
+  {
+    path: "/api/plugin/*",
+    file: "routes/api/plugin.$.ts",
   },
 ];
 
