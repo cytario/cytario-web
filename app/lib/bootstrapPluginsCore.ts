@@ -9,6 +9,7 @@ import type {
   ServerEndpointRegistry,
   SidebarNavRegistry,
   SlotRegistry,
+  StoragePickerRegistry,
 } from "@cytario/plugin-api";
 import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
@@ -36,6 +37,7 @@ export interface BootstrapRegistries {
   slots?: Scoped<SlotRegistry>;
   contextMenus?: Scoped<ContextMenuRegistry>;
   sidebarNav?: Scoped<SidebarNavRegistry>;
+  storagePicker?: Scoped<StoragePickerRegistry>;
   routes?: Scoped<RouteRegistry>;
   serverEndpoints?: Scoped<ServerEndpointRegistry>;
   /** Server-only capability object — not scoped to a plugin name. */
@@ -57,6 +59,10 @@ const noopContextMenuRegistry: Scoped<ContextMenuRegistry> = {
 
 const noopSidebarNavRegistry: Scoped<SidebarNavRegistry> = {
   scopedFor: () => ({ register: () => {} }),
+};
+
+const noopStoragePickerRegistry: Scoped<StoragePickerRegistry> = {
+  scopedFor: () => ({ get: () => null }),
 };
 
 const noopRouteRegistry: Scoped<RouteRegistry> = {
@@ -93,6 +99,7 @@ export async function bootstrapPluginsCore(
   const slots = registries?.slots ?? noopSlotRegistry;
   const contextMenus = registries?.contextMenus ?? noopContextMenuRegistry;
   const sidebarNav = registries?.sidebarNav ?? noopSidebarNavRegistry;
+  const storagePicker = registries?.storagePicker ?? noopStoragePickerRegistry;
   const routes = registries?.routes ?? noopRouteRegistry;
   const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
   const host = registries?.host ?? noopHostCapabilities;
@@ -122,6 +129,7 @@ export async function bootstrapPluginsCore(
       slots: slots.scopedFor(plugin.name),
       contextMenus: contextMenus.scopedFor(plugin.name),
       sidebarNav: sidebarNav.scopedFor(plugin.name),
+      storagePicker: storagePicker.scopedFor(plugin.name),
       routes: routes.scopedFor(plugin.name),
       serverEndpoints: serverEndpoints.scopedFor(plugin.name),
       host,

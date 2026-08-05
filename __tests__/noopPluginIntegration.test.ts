@@ -20,6 +20,7 @@ describe("noop-plugin integration", () => {
       slots: { register: () => {} },
       contextMenus: { register: () => {} },
       sidebarNav: { register: () => {} },
+      storagePicker: { get: () => null },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
       host: {
@@ -81,6 +82,7 @@ describe("noop-plugin integration", () => {
       slots: { register: () => {} },
       contextMenus: { register: () => {} },
       sidebarNav: { register: () => {} },
+      storagePicker: { get: () => null },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
       host: {

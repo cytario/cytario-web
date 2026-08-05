@@ -6,6 +6,7 @@ import type { RouteRegistry } from "./routes";
 import type { ServerEndpointRegistry } from "./serverEndpoints";
 import type { SidebarNavRegistry } from "./sidebarNav";
 import type { SlotRegistry } from "./slots";
+import type { StoragePickerRegistry } from "./storagePicker";
 
 export interface Logger {
   debug(msg: string, fields?: Record<string, unknown>): void;
@@ -52,6 +53,13 @@ export interface PluginContext {
    * during `register(ctx)` and calls its methods from loaders/actions,
    * where the per-request context (session, organization) is available.   */
   host: HostCapabilities;
+  /**
+   * Client-side storage picker. Live client-side; no-op sink server-side.
+   * Added additively at hostApiVersion 4.3.0; a plugin that consumes only the
+   * pre-existing surface continues to satisfy the CytarioPlugin contract
+   * unchanged.
+   */
+  storagePicker: StoragePickerRegistry;
   logger: Logger;
   /** Lets a plugin branch its register() without import-time env sniffing. */
   env: "server" | "client";

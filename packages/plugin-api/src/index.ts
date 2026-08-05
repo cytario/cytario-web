@@ -67,6 +67,13 @@ export type {
   JobLedger,
   HostCapabilities,
 } from "./host";
+export type {
+  StoragePicker,
+  StoragePickerOptions,
+  StoragePickerResult,
+  StoragePickerSelection,
+  StoragePickerRegistry,
+} from "./storagePicker";
 
 export { assertApiCompatible, IncompatiblePluginError } from "./apiVersion";
 export { sanitizeHeaders } from "./headers";

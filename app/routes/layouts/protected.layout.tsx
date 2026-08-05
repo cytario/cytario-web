@@ -11,6 +11,7 @@ import { toIdentity } from "~/.server/auth/getUserInfo";
 import { createLabel } from "~/.server/logging";
 import { PluginSlots } from "~/components/PluginSlots";
 import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
+import { StoragePickerOutlet } from "~/components/StoragePickerOutlet";
 import { cytarioConfig } from "~/config";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
 import { useInitConnections } from "~/hooks/useInitConnections";
@@ -92,6 +93,7 @@ export default function ProtectedLayout() {
           <Outlet />
         </div>
         <ModalOutlet />
+        <StoragePickerOutlet />
       </div>
       <PluginSlots name="app-overlay" identity={identity} hostConfig={hostConfig} />
     </div>
