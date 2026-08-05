@@ -162,9 +162,7 @@ export function validateProviderRefs(
  * is refused with a clear error rather than accepting a free-text bucket.
  */
 export type BucketRefValidation =
-  | { ok: true }
-  | { ok: false; errors: Record<string, string[]> }
-  | { ok: false; formError: string };
+  { ok: true } | { ok: false; errors: Record<string, string[]> } | { ok: false; formError: string };
 
 export async function validateBucketRef(
   organization: string,
