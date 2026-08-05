@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -11,7 +12,7 @@ import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
 } from "./providers/providerCatalog.server";
-import type { ObjectStore } from "@cytario/plugin-api";
+import type { ObjectStore, StorageEntry } from "@cytario/plugin-api";
 import { listConnections } from "~/routes/connections/connections.server";
 import { canSee } from "~/utils/authorization";
 import type { WriteLevel } from "~/utils/providerCatalog.schema";
@@ -262,6 +263,80 @@ class ObjectStoreImpl implements ObjectStore {
 
     const s3Key = buildS3Key(config.prefix, key);
     await s3Client.send(new DeleteObjectCommand({ Bucket: config.bucketName, Key: s3Key }));
+  }
+
+  async list(connectionId: string, prefix: string): Promise<readonly StorageEntry[]> {
+    const { config, roleArn, region, endpoint } = await resolveWritableConnection(
+      connectionId,
+      false,
+    );
+    const { user, authTokens } = requireRequestData();
+
+    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
+    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
+
+    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
+    const Policy = providerConfig.isAwsS3
+      ? buildSessionPolicy({
+          bucketName: config.bucketName,
+          prefix: config.prefix,
+          subject: user.sub,
+          region,
+        })
+      : undefined;
+
+    const { Credentials } = await stsClient.send(
+      new AssumeRoleWithWebIdentityCommand({
+        RoleArn: roleArn,
+        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
+        WebIdentityToken: authTokens.idToken,
+        DurationSeconds: 900,
+        ...(Policy ? { Policy } : {}),
+      }),
+    );
+
+    if (!Credentials) throw new Error("STS returned no credentials for object store");
+
+    const s3Client = new S3Client({
+      endpoint: providerConfig.s3Endpoint,
+      region,
+      forcePathStyle: !providerConfig.isAwsS3,
+      credentials: {
+        accessKeyId: Credentials.AccessKeyId!,
+        secretAccessKey: Credentials.SecretAccessKey!,
+        sessionToken: Credentials.SessionToken,
+      },
+    });
+
+    const listPrefix = buildS3Key(config.prefix, prefix);
+    const connPrefixS3Key = buildS3Key(config.prefix, "");
+    const stripLen = connPrefixS3Key.length > 0 ? connPrefixS3Key.length + 1 : 0;
+    const entries: StorageEntry[] = [];
+    let continuationToken: string | undefined;
+    do {
+      const response = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: config.bucketName,
+          Prefix: listPrefix
+            ? `${listPrefix}/`
+            : connPrefixS3Key
+              ? `${connPrefixS3Key}/`
+              : undefined,
+          ContinuationToken: continuationToken,
+          MaxKeys: 1000,
+        }),
+      );
+      for (const obj of response.Contents ?? []) {
+        if (!obj.Key) continue;
+        entries.push({
+          key: obj.Key.slice(stripLen),
+          size: obj.Size ?? 0,
+        });
+      }
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+    return entries;
   }
 }
 

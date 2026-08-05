@@ -79,6 +79,18 @@ export type ConnectionFetch = (
 ) => Promise<Response>;
 
 /**
+ * A single object listed from a connection's prefix (SDS-CY-010098). The
+ * `key` is relative to the connection's prefix — the host strips the
+ * prefix before returning, so the plugin never sees the full S3 key.
+ */
+export interface StorageEntry {
+  /** Object key relative to the connection's prefix (no leading slash). */
+  key: string;
+  /** Object size in bytes. */
+  size: number;
+}
+
+/**
  * Persists plugin-supplied bytes to a user-specified connection + prefix
  * within the active organization's connected storage via the host signed-
  * write path (SDS-CY-010098). The `connectionId` selects a connection the
@@ -93,6 +105,14 @@ export interface ObjectStore {
   put(connectionId: string, key: string, body: BodyInit): Promise<void>;
   get(connectionId: string, key: string): Promise<Response>;
   delete(connectionId: string, key: string): Promise<void>;
+  /**
+   * Lists objects under a connection's prefix (SDS-CY-010098). The
+   * `prefix` is relative to the connection's own prefix — the host
+   * prepends the connection prefix so the plugin cannot list outside the
+   * connection's scope. Returns entries with keys relative to the
+   * connection's prefix. Requires read access (no write-level check).
+   */
+  list(connectionId: string, prefix: string): Promise<readonly StorageEntry[]>;
 }
 
 /**

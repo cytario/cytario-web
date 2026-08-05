@@ -160,6 +160,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     expect(typeof store.put).toBe("function");
     expect(typeof store.get).toBe("function");
     expect(typeof store.delete).toBe("function");
+    expect(typeof store.list).toBe("function");
   });
 
   test("assumeComputeRole threads jobQueueArn and the job/execution role ARNs + pull-secret ref from the provider record (SRS-CY-45107/49110)", async () => {

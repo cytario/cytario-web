@@ -60,6 +60,7 @@ export type {
   CatalogConnectionProjection,
   ConnectionFetch,
   ObjectStore,
+  StorageEntry,
   ComputeRoleSession,
   TokenGrant,
   JobRecord,

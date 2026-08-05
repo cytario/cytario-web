@@ -73,6 +73,7 @@ describe("public surface", () => {
           put: () => Promise.resolve(),
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
+          list: () => Promise.resolve([]),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -138,6 +139,7 @@ describe("public surface", () => {
           put: () => Promise.resolve(),
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
+          list: () => Promise.resolve([]),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -196,6 +198,7 @@ describe("public surface", () => {
           put: () => Promise.resolve(),
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
+          list: () => Promise.resolve([]),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -254,6 +257,7 @@ describe("public surface", () => {
           put: () => Promise.resolve(),
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
+          list: () => Promise.resolve([]),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
