@@ -29,8 +29,8 @@ export function ConnectionSwitcherChip({
       size="sm"
       aria-label="Select connection"
       items={items}
-      value={selectedConnection}
-      onChange={(key) => onSelect(String(key))}
+      value={selectedConnection || undefined}
+      onChange={(key) => onSelect(key == null ? "" : String(key))}
     />
   );
 }

@@ -24,6 +24,10 @@ interface DirectoryViewTreeProps {
    * active route on client-side navigation. Omit for static trees.
    */
   revealItems?: string[];
+  /** Filter visible nodes at render time. Directories always pass; files are
+   * tested against the predicate. Changes to this prop re-filter without
+   * remounting. */
+  nodeFilter?: (node: TreeNode) => boolean;
 }
 
 const ROOT_ID = "__directory_tree_root__";
@@ -36,6 +40,7 @@ export function DirectoryViewTree({
   defaultExpandedItems,
   revealItems,
   nodeLinkProps,
+  nodeFilter,
 }: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems ?? []);
@@ -98,46 +103,53 @@ export function DirectoryViewTree({
 
   return (
     <div {...tree.getContainerProps("Directory tree")} className="flex flex-col py-2">
-      {tree.getItems().map((item) => {
-        const node = item.getItemData();
-        if (!node) return null;
-        const isFolder = item.isFolder();
-        const isExpanded = item.isExpanded();
-        const level = item.getItemMeta().level;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- discard onClick so row clicks don't double-fire with the inner Link's navigation; chevron IconButton owns expand
-        const { onClick: _, ...itemProps } = item.getProps();
+      {tree
+        .getItems()
+        .filter((item) => {
+          if (!nodeFilter) return true;
+          const node = item.getItemData();
+          return !node || nodeFilter(node);
+        })
+        .map((item) => {
+          const node = item.getItemData();
+          if (!node) return null;
+          const isFolder = item.isFolder();
+          const isExpanded = item.isExpanded();
+          const level = item.getItemMeta().level;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars -- discard onClick so row clicks don't double-fire with the inner Link's navigation; chevron IconButton owns expand
+          const { onClick: _, ...itemProps } = item.getProps();
 
-        return (
-          <div
-            key={item.getKey()}
-            {...itemProps}
-            style={{ paddingLeft: `${level * 28}px` }}
-            className="flex items-center mx-2"
-          >
-            {isFolder ? (
-              <IconButton
-                icon="ChevronRight"
-                label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
-                variant="ghost"
-                size="xs"
-                onPress={() => (isExpanded ? item.collapse() : item.expand())}
-                className={twMerge(
-                  "shrink-0 transition-transform text-muted-foreground",
-                  isExpanded && "rotate-90",
-                  isExpanded && "text-foreground",
-                )}
+          return (
+            <div
+              key={item.getKey()}
+              {...itemProps}
+              style={{ paddingLeft: `${level * 28}px` }}
+              className="flex items-center mx-2"
+            >
+              {isFolder ? (
+                <IconButton
+                  icon="ChevronRight"
+                  label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                  variant="ghost"
+                  size="xs"
+                  onPress={() => (isExpanded ? item.collapse() : item.expand())}
+                  className={twMerge(
+                    "shrink-0 transition-transform text-muted-foreground",
+                    isExpanded && "rotate-90",
+                    isExpanded && "text-foreground",
+                  )}
+                />
+              ) : (
+                <span className="inline-block w-7 shrink-0" aria-hidden />
+              )}
+              <NodeLink
+                node={node}
+                {...nodeLinkProps}
+                className={twMerge(isExpanded && "text-foreground")}
               />
-            ) : (
-              <span className="inline-block w-7 shrink-0" aria-hidden />
-            )}
-            <NodeLink
-              node={node}
-              {...nodeLinkProps}
-              className={twMerge(isExpanded && "text-foreground")}
-            />
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
     </div>
   );
 }

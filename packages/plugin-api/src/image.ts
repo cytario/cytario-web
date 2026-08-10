@@ -8,14 +8,7 @@
  * canonical casing before yielding metadata.
  */
 export type PixelType =
-  | "Uint8"
-  | "Uint16"
-  | "Uint32"
-  | "Int8"
-  | "Int16"
-  | "Int32"
-  | "Float32"
-  | "Float64";
+  "Uint8" | "Uint16" | "Uint32" | "Int8" | "Int16" | "Int32" | "Float32" | "Float64";
 
 /**
  * Lower-case → canonical mapping. Exported so plugin authors and the

@@ -6,6 +6,7 @@ import { PluginSlots } from "~/components/PluginSlots";
 import { slotRegistry } from "~/components/slotRegistry";
 
 const identity: Identity = {
+  sub: "test-user",
   organization: "testcorp",
   organizationAttributes: { subscription_status: ["active"] },
   groups: ["lab/team-a"],

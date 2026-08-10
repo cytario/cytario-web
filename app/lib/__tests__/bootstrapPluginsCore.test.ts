@@ -1,9 +1,14 @@
 import { bootstrapPluginsCore } from "../bootstrapPluginsCore";
 import type {
   CytarioPlugin,
+  ContextMenuRegistry,
   GateRegistry,
+  HostCapabilities,
   Logger,
   PluginContext,
+  RouteRegistry,
+  ServerEndpointRegistry,
+  SidebarNavRegistry,
   SlotRegistry,
 } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
@@ -194,6 +199,89 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
       expect(sink.ctx?.env).toBe("client");
     });
 
+    test("injects the context-menu registry scoped to the plugin name; env is client", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const scoped: ContextMenuRegistry = { register: vi.fn() };
+      const contextMenus = { scopedFor: vi.fn(() => scoped) };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        contextMenus,
+        env: "client",
+      });
+
+      expect(contextMenus.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.contextMenus).toBe(scoped);
+      expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("injects the sidebar-nav registry scoped to the plugin name; env is client", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const scoped: SidebarNavRegistry = { register: vi.fn() };
+      const sidebarNav = { scopedFor: vi.fn(() => scoped) };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        sidebarNav,
+        env: "client",
+      });
+
+      expect(sidebarNav.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.sidebarNav).toBe(scoped);
+      expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("injects the route registry scoped to the plugin name; env is server", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const scoped: RouteRegistry = { register: vi.fn() };
+      const routes = { scopedFor: vi.fn(() => scoped) };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        routes,
+        env: "server",
+      });
+
+      expect(routes.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.routes).toBe(scoped);
+      expect(sink.ctx?.env).toBe("server");
+    });
+
+    test("injects the server-endpoint registry scoped to the plugin name; env is server", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const scoped: ServerEndpointRegistry = { register: vi.fn() };
+      const serverEndpoints = { scopedFor: vi.fn(() => scoped) };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        serverEndpoints,
+        env: "server",
+      });
+
+      expect(serverEndpoints.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.serverEndpoints).toBe(scoped);
+      expect(sink.ctx?.env).toBe("server");
+    });
+
+    test("injects the host capabilities object as-is (not scoped); env is server", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const host: HostCapabilities = {
+        connections: vi.fn(),
+        computeConnections: vi.fn(),
+        catalogConnections: vi.fn(),
+        connectionFetch: vi.fn(),
+        objectStore: vi.fn(),
+        assumeComputeRole: vi.fn(),
+        exchangeToken: vi.fn(),
+        revokeGrant: vi.fn(),
+        jobLedger: vi.fn(),
+      };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        host,
+        env: "server",
+      });
+
+      expect(sink.ctx?.host).toBe(host);
+      expect(sink.ctx?.env).toBe("server");
+    });
+
     test("no-op sinks are supplied when registries are not injected", async () => {
       const sink: { ctx?: PluginContext } = {};
 
@@ -202,6 +290,32 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
       // No-op sinks: registering against them is inert and does not throw.
       expect(() => sink.ctx?.gates.register(() => ({ kind: "continue" }))).not.toThrow();
       expect(() => sink.ctx?.slots.register("app-overlay", () => null)).not.toThrow();
+      expect(() =>
+        sink.ctx?.contextMenus.register("s3-node", {
+          id: "x",
+          label: "x",
+          onActivate: () => {},
+        }),
+      ).not.toThrow();
+      expect(() =>
+        sink.ctx?.sidebarNav.register("nav", {
+          id: "x",
+          label: "x",
+          to: "/x",
+        }),
+      ).not.toThrow();
+      expect(() => sink.ctx?.routes.register({ path: "/x" })).not.toThrow();
+      expect(() =>
+        sink.ctx?.serverEndpoints.register({
+          path: "/x",
+          auth: "session",
+          loader: async () => new Response(),
+        }),
+      ).not.toThrow();
+      // Host no-op sink rejects on call (server-only capabilities).
+      await expect(sink.ctx?.host.connections()).rejects.toThrow("server-only");
+      await expect(sink.ctx?.host.computeConnections()).rejects.toThrow("server-only");
+      await expect(sink.ctx?.host.catalogConnections()).rejects.toThrow("server-only");
       // env defaults to client for backward compatibility.
       expect(sink.ctx?.env).toBe("client");
     });

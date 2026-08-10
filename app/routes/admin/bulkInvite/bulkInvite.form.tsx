@@ -1,4 +1,4 @@
-import { Button, Icon, IconButton, Input } from "@cytario/design";
+import { Button, Description, Icon, IconButton, Input } from "@cytario/design";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -124,10 +124,10 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
         handleSubmit();
       }}
     >
-      <p className="text-sm text-muted-foreground mb-4">
+      <Description size="sm">
         Keycloak emails the invite to each address below. Group membership can be assigned after
         each user accepts.
-      </p>
+      </Description>
 
       {formError && (
         <p role="alert" className="text-sm text-rose-600 mb-4">

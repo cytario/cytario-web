@@ -125,6 +125,7 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
 export function toIdentity(user: UserProfile): Identity {
   // Frozen — gates share this object; none may mutate it.
   return Object.freeze({
+    sub: user.sub,
     organization: user.organization,
     organizationAttributes: user.organizationAttributes,
     groups: user.groups,

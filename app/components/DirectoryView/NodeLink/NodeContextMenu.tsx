@@ -4,6 +4,7 @@ import { Form } from "react-router";
 
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { PluginContextMenuItems } from "~/components/DirectoryView/NodeLink/PluginContextMenuItems";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useModal } from "~/hooks/useModal";
 import { useFavorite } from "~/routes/favorites/useFavorite";
@@ -152,6 +153,7 @@ export const NodeContextMenu = ({
                 {extraItems}
               </>
             )}
+            <PluginContextMenuItems node={node} />
           </>
         }
       >

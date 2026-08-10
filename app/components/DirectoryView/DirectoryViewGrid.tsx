@@ -1,5 +1,5 @@
 import type { _Object } from "@aws-sdk/client-s3";
-import { Pill } from "@cytario/design";
+import { Badge } from "@cytario/design";
 import { filesize } from "filesize";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
@@ -118,7 +118,7 @@ function FileCardGridItem({ node, connectionId }: { node: TreeNode; connectionId
         ) : undefined
       }
     >
-      {typeof size === "string" && <Pill color="slate">{size}</Pill>}
+      {typeof size === "string" && <Badge color="slate">{size}</Badge>}
     </GridItem>
   );
 }

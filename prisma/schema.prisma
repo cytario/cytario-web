@@ -1,77 +1,95 @@
 datasource db {
-  provider = "postgresql"
+provider = "postgresql"
 }
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../app/.generated/"
-  moduleFormat = "esm"
+provider     = "prisma-client"
+output       = "../app/.generated/"
+moduleFormat = "esm"
 }
 
 enum BucketPolicyStatus {
-  none
-  applied
-  drifted
-  error
+none
+applied
+drifted
+error
 }
 
 model ConnectionConfig {
-  id                   String             @id @default(uuid())
-  name                 String
-  organization         String // Keycloak organization alias (tenant)
-  createdBy            String
-  bucketName           String
-  providerConnectionId String // reference to the portal-managed / OSS-configured provider connection (carries provider type, endpoint, region)
-  prefix               String             @default("")
-  bucketPolicyStatus   BucketPolicyStatus @default(none)
+id                   String             @id @default(uuid())
+name                 String
+organization         String // Keycloak organization alias (tenant)
+createdBy            String
+bucketName           String
+providerConnectionId String // reference to the portal-managed / OSS-configured provider connection (carries provider type, endpoint, region)
+prefix               String             @default("")
+bucketPolicyStatus   BucketPolicyStatus @default(none)
 
-  grants         ConnectionGrant[] @relation("ConnectionGrants")
-  recentlyViewed RecentlyViewed[]   @relation("RecentlyViewedConnection")
-  pinnedPaths    PinnedPath[]       @relation("PinnedPathConnection")
+grants         ConnectionGrant[] @relation("ConnectionGrants")
+recentlyViewed RecentlyViewed[]   @relation("RecentlyViewedConnection")
+pinnedPaths    PinnedPath[]       @relation("PinnedPathConnection")
 
-  @@index([organization, providerConnectionId, bucketName, prefix])
-  @@index([organization, name])
+@@index([organization, providerConnectionId, bucketName, prefix])
+@@index([organization, name])
 }
 
 model ConnectionGrant {
-  id             String            @id @default(uuid())
-  connectionId   String
-  scope          String // intra-org group path
-  providerRoleId String // reference to the portal-managed / OSS-configured provider role this grant is bound to
-  connection     ConnectionConfig @relation("ConnectionGrants", fields: [connectionId], references: [id], onDelete: Cascade)
+id             String            @id @default(uuid())
+connectionId   String
+scope          String // intra-org group path
+providerRoleId String // reference to the portal-managed / OSS-configured provider role this grant is bound to
+connection     ConnectionConfig @relation("ConnectionGrants", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([connectionId, scope])
-  @@index([scope])
+@@unique([connectionId, scope])
+@@index([scope])
 }
 
 model RecentlyViewed {
-  id             String   @id @default(uuid())
-  userId         String
-  connectionId   String
-  connectionName String
-  pathName       String
-  name           String
-  type           String // "file" | "directory"
-  viewedAt       DateTime @default(now())
+id             String   @id @default(uuid())
+userId         String
+connectionId   String
+connectionName String
+pathName       String
+name           String
+type           String // "file" | "directory"
+viewedAt       DateTime @default(now())
 
-  connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionId], references: [id], onDelete: Cascade)
+connection ConnectionConfig @relation("RecentlyViewedConnection", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, connectionId, pathName])
-  @@index([userId])
+@@unique([userId, connectionId, pathName])
+@@index([userId])
 }
 
 model PinnedPath {
-  id             String    @id @default(uuid())
-  userId         String
-  connectionId   String
-  connectionName String
-  pathName       String
-  displayName    String
-  totalSize      BigInt?
-  lastModified   DateTime?
+id             String    @id @default(uuid())
+userId         String
+connectionId   String
+connectionName String
+pathName       String
+displayName    String
+totalSize      BigInt?
+lastModified   DateTime?
 
-  connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionId], references: [id], onDelete: Cascade)
+connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectionId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, connectionId, pathName])
-  @@index([userId])
+@@unique([userId, connectionId, pathName])
+@@index([userId])
+}
+
+// Host-owned running-jobs ledger (SDS-CY-080900). Carries identifiers only —
+// the provider job identifier, the grant's offline-session identifier, the
+// organization, and the submitting user — never token or credential material.
+// Rows are organization-scoped under the same tenancy invariants as the
+// connection store. A row is created at submission and removed only after its
+// grant's revocation is confirmed.
+model JobLedgerEntry {
+id               String   @id @default(uuid())
+jobId            String
+offlineSessionId String
+organization     String
+owner            String
+createdAt        DateTime @default(now())
+
+@@unique([organization, jobId])
+@@index([organization, owner])
 }

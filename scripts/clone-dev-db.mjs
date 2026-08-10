@@ -124,8 +124,17 @@ async function listPrimaryKeys(client, table) {
 }
 
 async function listUniqueConstraints(client, table) {
-  const { rows } = await client.query(
-    `SELECT con.conname, array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)) AS columns
+  // Unique constraints declared via `CONSTRAINT ... UNIQUE` live in
+  // pg_constraint. Unique indexes created via `CREATE UNIQUE INDEX` (as
+  // the migration files do) do NOT get a pg_constraint row — they only
+  // appear in pg_index with indisunique=true. The clone must copy both or
+  // the recreated table silently drops the `CREATE UNIQUE INDEX`-style
+  // uniqueness, which `prisma migrate status` will not detect because the
+  // `_prisma_migrations` table is also copied (so every migration is
+  // considered applied). Returns { name, columns, style } where style is
+  // "constraint" or "index".
+  const { rows: constraintRows } = await client.query(
+    `SELECT con.conname AS name, array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)) AS columns
     FROM pg_constraint con
     JOIN pg_class c ON con.conrelid = c.oid
     JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -135,7 +144,24 @@ async function listUniqueConstraints(client, table) {
     GROUP BY con.conname`,
     [table],
   );
-  return rows;
+
+  const { rows: indexRows } = await client.query(
+    `SELECT i.relname AS name, array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS columns
+    FROM pg_index ix
+    JOIN pg_class i ON i.oid = ix.indexrelid
+    JOIN pg_class t ON t.oid = ix.indrelid
+    JOIN pg_namespace n ON t.relnamespace = n.oid
+    JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
+    WHERE n.nspname = 'public' AND t.relname = $1 AND ix.indisunique AND NOT ix.indisprimary
+    AND NOT EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = i.oid)
+    GROUP BY i.relname`,
+    [table],
+  );
+
+  return [
+    ...constraintRows.map((r) => ({ name: r.name, columns: r.columns, style: "constraint" })),
+    ...indexRows.map((r) => ({ name: r.name, columns: r.columns, style: "index" })),
+  ];
 }
 
 async function countRows(client, table) {
@@ -243,10 +269,22 @@ async function copyTable(source, target, table) {
   const uniques = await listUniqueConstraints(source, table);
   for (const u of uniques) {
     const cols = u.columns.join(", ");
-    constraints += `, CONSTRAINT "${u.conname}" UNIQUE (${cols})`;
+    if (u.style !== "index") {
+      constraints += `, CONSTRAINT "${u.conname}" UNIQUE (${cols})`;
+    }
   }
 
   await target.query(`CREATE TABLE "${table}" (${colDefs}${constraints})`);
+
+  // Recreate `CREATE UNIQUE INDEX`-style unique indexes after the table
+  // (they don't belong in pg_constraint, so they can't be table
+  // constraints and must be issued after the CREATE TABLE).
+  for (const u of uniques) {
+    if (u.style === "index") {
+      const cols = u.columns.join(", ");
+      await target.query(`CREATE UNIQUE INDEX "${u.name}" ON "${table}" (${cols})`);
+    }
+  }
 
   const colNames = columns.map((c) => `"${c.name}"`).join(", ");
   const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");

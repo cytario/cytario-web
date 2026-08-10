@@ -1,4 +1,4 @@
-import { TruncatedText } from "@cytario/design";
+import { Checkbox, TruncatedText } from "@cytario/design";
 import { MouseEventHandler, ReactNode } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
@@ -16,6 +16,10 @@ export interface NodeLinkProps {
   contextMenuItems?: ReactNode;
   isClickable?: (node: TreeNode) => boolean;
   className?: string;
+  /** When provided, renders a checkbox before the node. Used by the storage picker. */
+  isSelected?: (node: TreeNode) => boolean;
+  /** Called when the checkbox is toggled. Only rendered when `isSelected` is also provided. */
+  onToggleSelect?: (node: TreeNode) => void;
 }
 
 /**
@@ -34,6 +38,8 @@ export function NodeLink({
   contextMenuItems,
   isClickable = () => true,
   className,
+  isSelected,
+  onToggleSelect,
 }: NodeLinkProps) {
   const to = buildConnectionPath(node.connectionId, node.pathName);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
@@ -62,6 +68,9 @@ export function NodeLink({
 
   return (
     <div className={twMerge(rowCx, className, "px-0")}>
+      {onToggleSelect && isSelected && node.type === "file" && (
+        <Checkbox isSelected={isSelected(node)} onChange={() => onToggleSelect(node)} />
+      )}
       {clickable ? (
         <NavLink
           to={to}

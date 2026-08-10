@@ -15,6 +15,14 @@ interface CytarioConfig {
     /** Dedicated service account client for KC Admin API calls (client_credentials grant) */
     adminClientId: string;
     adminClientSecret: string;
+    /**
+     * Confidential client for the offline-capable job token grant (RFC 8693
+     * token exchange). The compute plugin calls `ctx.host.exchangeToken()` which
+     * exchanges the user's session token for an offline-capable grant with this
+     * client as the audience (SDS-CY-020105, SRS-CY-41901).
+     */
+    jobBrokerClientId: string;
+    jobBrokerClientSecret: string;
     scopes: string[];
   };
   redis: {
@@ -62,6 +70,8 @@ const {
   CYBERDUCK_CLIENT_ID,
   KC_ADMIN_CLIENT_ID,
   KC_ADMIN_CLIENT_SECRET,
+  KC_JOB_BROKER_CLIENT_ID,
+  KC_JOB_BROKER_CLIENT_SECRET,
   REDIS_PORT,
   REDIS_HOST,
   REDIS_USERNAME,
@@ -92,6 +102,8 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     cyberduckClientId: CYBERDUCK_CLIENT_ID!,
     adminClientId: KC_ADMIN_CLIENT_ID!,
     adminClientSecret: KC_ADMIN_CLIENT_SECRET!,
+    jobBrokerClientId: KC_JOB_BROKER_CLIENT_ID!,
+    jobBrokerClientSecret: KC_JOB_BROKER_CLIENT_SECRET!,
     scopes: ["openid", "profile", "organization"],
   },
   redis: {

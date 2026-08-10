@@ -12,10 +12,7 @@ import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
 import { SIGNED_REQUEST_HEADERS } from "~/utils/signedFetch";
 
 export type CorsPreflightFailureReason =
-  | "network"
-  | "missing_origin_header"
-  | "preflight_status"
-  | "host_not_allowed";
+  "network" | "missing_origin_header" | "preflight_status" | "host_not_allowed";
 
 export type CorsPreflightWarningReason = "wildcard_origin";
 

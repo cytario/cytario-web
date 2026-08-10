@@ -4,6 +4,7 @@ import { useNavSidebarStore } from "../sidebarStores";
 import { FeatureItemConnections } from "./FeatureItem.Connections";
 import { FeatureItemFavorites } from "./FeatureItem.Favorites";
 import { FeatureItemRecent } from "./FeatureItem.Recent";
+import { PluginNavSection } from "./PluginNavSection";
 
 export function ExplorerSidebar() {
   return (
@@ -15,6 +16,7 @@ export function ExplorerSidebar() {
       onOpen={() => document.getElementById(SIDEBAR_SEARCH_INPUT_ID)?.focus()}
     >
       <FeatureItemConnections />
+      <PluginNavSection />
       <FeatureItemFavorites />
       <FeatureItemRecent />
     </Sidebar>

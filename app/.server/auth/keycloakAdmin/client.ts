@@ -57,6 +57,34 @@ async function adminRequest(
   return response;
 }
 
+/**
+ * Issues an admin API request with a caller-supplied access token, reusing
+ * the shared `adminApiBaseUrl` and `KeycloakAdminError` handling. Lets a
+ * caller that holds its own narrow-permission service-account token (e.g.
+ * the job-broker SA for offline-session revocation, SDS-CY-080901) hit the
+ * admin endpoint without going through the broader cytario-web-admin
+ * token that `adminRequest`/`adminMutate` mint.
+ */
+export async function adminRequestWithToken(
+  accessToken: string,
+  method: "GET" | "POST" | "PUT" | "DELETE",
+  path: string,
+): Promise<Response> {
+  const response = await fetch(`${adminApiBaseUrl}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    throw new KeycloakAdminError(
+      response.status,
+      `Keycloak Admin API ${method} ${path} failed: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return response;
+}
+
 export async function adminFetch<T>(path: string): Promise<T> {
   const response = await adminRequest("GET", path);
   return response.json();
