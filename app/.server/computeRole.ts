@@ -101,9 +101,15 @@ function createBatchSignedFetch(
  * is the only actor that reads them, preserving the outbound-credential-
  * surface invariant (§6.8).
  */
-export async function assumeComputeRole(): Promise<ComputeRoleSession> {
+export async function assumeComputeRole(
+  organizationOverride?: string,
+): Promise<ComputeRoleSession> {
   const { user, authTokens } = requireRequestData();
-  const catalog = await getProviderCatalog(user.organization!, authTokens.accessToken);
+  const organization = organizationOverride ?? user.organization;
+  if (!organization) {
+    throw new Error("Active organization missing from request context");
+  }
+  const catalog = await getProviderCatalog(organization, authTokens.accessToken);
   const { computeProvider, computeRole } = resolveComputeRole(catalog);
 
   const providerConfig = getS3ProviderConfig(null, computeProvider.region);

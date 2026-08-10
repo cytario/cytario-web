@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { hostRequestStorage } from "~/.server/hostRequestContext";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
 import { action, loader } from "~/routes/api/plugin.$";
 
@@ -33,15 +34,31 @@ vi.mock("~/.server/auth/sessionMiddleware", () => ({
   sessionMiddleware: vi.fn(),
 }));
 
+// `verifyJobToken` is mocked so the dispatch test never hits the network.
+// Each test sets `verifyJobToken` to return a verified payload or null.
+const verifyJobTokenMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/verifyJobToken", () => ({
+  verifyJobToken: verifyJobTokenMock,
+}));
+
+const VALID_JOB_TOKEN_PAYLOAD = {
+  sub: "submitting-user-42",
+  organization: { testcorp: { id: "org-1", groups: [] } },
+};
+
 beforeEach(() => {
   serverEndpointRegistry.__reset();
   vi.clearAllMocks();
+  verifyJobTokenMock.mockReset();
 });
 
-function buildArgs(method: string, pathname: string) {
+function buildArgs(method: string, pathname: string, init?: { headers?: Record<string, string> }) {
   const ctx = new Map<unknown, unknown>();
   return {
-    request: new Request(`http://localhost${pathname}`, { method }),
+    request: new Request(`http://localhost${pathname}`, {
+      method,
+      headers: init?.headers,
+    }),
     params: {},
     context: {
       get: (k: unknown) => ctx.get(k),
@@ -122,7 +139,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     expect(loaderFn).not.toHaveBeenCalled();
   });
 
-  test("job-token carve-out: does NOT run authMiddleware; passes identity: undefined", async () => {
+  test("job-token carve-out: verifies the bearer token and derives identity from its claims (no session) (SRS-CY-416102(b))", async () => {
     const { authMiddleware } = await import("~/.server/auth/authMiddleware");
     const actionFn = vi.fn(async () => Response.json({ brokered: true }));
 
@@ -132,19 +149,95 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
       action: actionFn,
     });
 
-    const args = buildArgs("POST", "/api/plugin/credential-broker");
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_JOB_TOKEN_PAYLOAD);
+
+    const args = buildArgs("POST", "/api/plugin/credential-broker", {
+      headers: { Authorization: "Bearer job-token-value" },
+    });
     const response = (await action(args)) as Response;
 
     expect(authMiddleware).not.toHaveBeenCalled();
+    expect(verifyJobTokenMock).toHaveBeenCalledWith("job-token-value");
+    expect(actionFn).toHaveBeenCalledOnce();
     expect(actionFn).toHaveBeenCalledWith({
       request: args.request,
       params: {},
-      identity: undefined,
+      identity: {
+        sub: "submitting-user-42",
+        organization: "testcorp",
+        organizationAttributes: {},
+        groups: [],
+        adminScopes: [],
+      },
     });
     expect(await response.json()).toEqual({ brokered: true });
   });
 
-  test("webhook-secret carve-out: loader runs outside the session gate", async () => {
+  test("job-token carve-out: populates hostRequestStorage so a host capability call succeeds with no session (C-384 criterion 5)", async () => {
+    let observedOrg: string | undefined;
+    let observedSub: string | undefined;
+    const actionFn = vi.fn(async () => {
+      const data = hostRequestStorage.getStore();
+      observedOrg = data?.user.organization;
+      observedSub = data?.user.sub;
+      return Response.json({ ok: true });
+    });
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/credential-broker",
+      auth: "job-token",
+      action: actionFn,
+    });
+
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_JOB_TOKEN_PAYLOAD);
+
+    const args = buildArgs("POST", "/api/plugin/credential-broker", {
+      headers: { Authorization: "Bearer job-token-value" },
+    });
+    await action(args);
+
+    expect(actionFn).toHaveBeenCalledOnce();
+    expect(observedOrg).toBe("testcorp");
+    expect(observedSub).toBe("submitting-user-42");
+  });
+
+  test("job-token carve-out: returns 401 when no bearer token is present", async () => {
+    const actionFn = vi.fn(async () => Response.json({ brokered: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/credential-broker",
+      auth: "job-token",
+      action: actionFn,
+    });
+
+    const response = (await action(buildArgs("POST", "/api/plugin/credential-broker"))) as Response;
+
+    expect(response.status).toBe(401);
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("job-token carve-out: returns 401 when the token fails verification (bad/expired/wrong-audience)", async () => {
+    const actionFn = vi.fn(async () => Response.json({ brokered: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/credential-broker",
+      auth: "job-token",
+      action: actionFn,
+    });
+
+    verifyJobTokenMock.mockResolvedValueOnce(null);
+
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/credential-broker", {
+        headers: { Authorization: "Bearer bad-token" },
+      }),
+    )) as Response;
+
+    expect(response.status).toBe(401);
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("webhook-secret carve-out: loader runs outside the session gate with an org-agnostic context", async () => {
     const { authMiddleware } = await import("~/.server/auth/authMiddleware");
     const loaderFn = vi.fn(async () => Response.json({ cached: true }));
 
@@ -160,9 +253,14 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     expect(loaderFn).toHaveBeenCalledWith(expect.objectContaining({ identity: undefined }));
   });
 
-  test("deployment-secret carve-out: action runs outside the session gate", async () => {
+  test("deployment-secret carve-out: action runs with an org-agnostic context so listAll succeeds (SRS-CY-416106)", async () => {
     const { authMiddleware } = await import("~/.server/auth/authMiddleware");
-    const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
+    let observedOrg: string | undefined;
+    const actionFn = vi.fn(async () => {
+      const data = hostRequestStorage.getStore();
+      observedOrg = data?.user.organization;
+      return Response.json({ reconciled: true });
+    });
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
       path: "/api/plugin/job-reconciliation",
@@ -174,6 +272,8 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
 
     expect(authMiddleware).not.toHaveBeenCalled();
     expect(actionFn).toHaveBeenCalledOnce();
+    // Org-agnostic context — no organization pre-filter for the cross-org scan.
+    expect(observedOrg).toBeUndefined();
   });
 
   test("GET on an endpoint with only an action returns 404 (no loader)", async () => {

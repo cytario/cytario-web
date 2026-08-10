@@ -119,8 +119,8 @@ class HostCapabilitiesImpl implements HostCapabilities {
     return createObjectStore();
   }
 
-  assumeComputeRole(): Promise<ComputeRoleSession> {
-    return assumeComputeRoleImpl();
+  assumeComputeRole(organizationOverride?: string): Promise<ComputeRoleSession> {
+    return assumeComputeRoleImpl(organizationOverride);
   }
 
   exchangeToken(): Promise<TokenGrant> {
@@ -168,13 +168,7 @@ class JobLedgerImpl implements JobLedger {
     const entry = await prisma.jobLedgerEntry.findFirst({
       where: { organization: user.organization, jobId },
     });
-    if (!entry) return null;
-    return {
-      jobId: entry.jobId,
-      offlineSessionId: entry.offlineSessionId,
-      organization: entry.organization,
-      owner: entry.owner,
-    };
+    return entry ? toJobRecord(entry) : null;
   }
 
   async remove(jobId: string): Promise<void> {
@@ -192,17 +186,46 @@ class JobLedgerImpl implements JobLedger {
     if (!user.organization) {
       throw new Error("Active organization missing from session");
     }
+    return listLedgerEntries(user.organization);
+  }
+
+  /**
+   * Cross-organization scan for the scheduled reconciler (SRS-CY-416106,
+   * SDS-CY-080901). Reaches across every tenant's rows — must only be
+   * reachable from the deployment-secret carve-out, never a session path.
+   * The host's carve-out dispatch sets up an org-agnostic request context
+   * for the deployment-secret path so {@link requireRequestData} still
+   * resolves, but no organization pre-filter is applied here.
+   */
+  async listAll(): Promise<readonly JobRecord[]> {
+    requireRequestData();
     const entries = await prisma.jobLedgerEntry.findMany({
-      where: { organization: user.organization },
       orderBy: { createdAt: "asc" },
     });
-    return entries.map((entry) => ({
-      jobId: entry.jobId,
-      offlineSessionId: entry.offlineSessionId,
-      organization: entry.organization,
-      owner: entry.owner,
-    }));
+    return entries.map(toJobRecord);
   }
+}
+
+function toJobRecord(entry: {
+  jobId: string;
+  offlineSessionId: string;
+  organization: string;
+  owner: string;
+}): JobRecord {
+  return {
+    jobId: entry.jobId,
+    offlineSessionId: entry.offlineSessionId,
+    organization: entry.organization,
+    owner: entry.owner,
+  };
+}
+
+async function listLedgerEntries(organization: string): Promise<readonly JobRecord[]> {
+  const entries = await prisma.jobLedgerEntry.findMany({
+    where: { organization },
+    orderBy: { createdAt: "asc" },
+  });
+  return entries.map(toJobRecord);
 }
 
 export const hostCapabilities = new HostCapabilitiesImpl();

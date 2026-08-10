@@ -16,7 +16,13 @@ import type { Identity } from "@cytario/plugin-api";
  */
 export interface HostRequestData {
   user: UserProfile;
-  identity: Identity;
+  /**
+   * Identity projection for the plugin handler. Set on the session path and
+   * the `job-token` carve-out (derived from the token's claims); `undefined`
+   * for org-agnostic carve-outs (`deployment-secret`, `webhook-secret`) that
+   * have no caller identity to project (SDS-CY-010095).
+   */
+  identity?: Identity;
   authTokens: AuthTokens;
   sessionId: string;
 }
