@@ -30,28 +30,28 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
 
   // The concrete role/endpoint/region live on the referenced provider connection +
   // provider role, resolved from the org catalog, not on the connection.
-  let resolved;
+  let connectionProvider;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
     const resolvedWithGrants = resolveConnectionProviderWithGrants(catalog, connectionConfig);
     if (resolvedWithGrants && resolvedWithGrants.grants.length > 0) {
-      resolved = {
+      connectionProvider = {
         region: resolvedWithGrants.region,
         endpoint: resolvedWithGrants.endpoint,
         roleArn: resolvedWithGrants.grants[0].roleArn,
       };
     }
   } catch {
-    resolved = undefined;
+    connectionProvider = undefined;
   }
-  if (!resolved) {
+  if (!connectionProvider) {
     return new Response("Provider connection or role is unavailable for this connection", {
       status: 502,
     });
   }
 
-  const actualRegion = resolved.region;
-  const providerConfig = getS3ProviderConfig(resolved.endpoint, actualRegion);
+  const actualRegion = connectionProvider.region;
+  const providerConfig = getS3ProviderConfig(connectionProvider.endpoint, actualRegion);
 
   // Derive a unique vendor ID from the webapp hostname (e.g. "cytario.com" -> "cytario-com")
   const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
@@ -62,7 +62,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     connectionName,
     bucketName,
     prefix: prefix?.replace(/\/$/, "") || "",
-    roleArn: resolved.roleArn,
+    roleArn: connectionProvider.roleArn,
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
     stsEndpoint: providerConfig.stsEndpoint,

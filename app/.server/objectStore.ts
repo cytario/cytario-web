@@ -65,20 +65,21 @@ async function resolveWritableConnection(
   }
 
   const catalog = await getProviderCatalog(user.organization!, authTokens.accessToken);
-  const resolved = resolveConnectionProviderWithGrants(catalog, config);
-  if (!resolved) {
+  const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
+  if (!connectionProvider) {
     throw new Error(`Connection "${connectionId}" has a stale provider reference`);
   }
 
-  if (requireWrite && !permitsGeneralWrite(resolved.grants)) {
+  if (requireWrite && !permitsGeneralWrite(connectionProvider.grants)) {
     throw new Error(
       `Connection "${connectionId}" does not permit general write at its prefix (access level must be "read-write" or "admin")`,
     );
   }
 
   const roleArn =
-    resolved.grants.find((g) => g.accessLevel === "read-write" || g.accessLevel === "admin")
-      ?.roleArn ?? resolved.grants[0]?.roleArn;
+    connectionProvider.grants.find(
+      (g) => g.accessLevel === "read-write" || g.accessLevel === "admin",
+    )?.roleArn ?? connectionProvider.grants[0]?.roleArn;
   if (!roleArn) {
     throw new Error(`Connection "${connectionId}" has no resolvable grant with a role ARN`);
   }
@@ -86,8 +87,8 @@ async function resolveWritableConnection(
   return {
     config,
     roleArn,
-    region: resolved.region,
-    endpoint: resolved.endpoint,
+    region: connectionProvider.region,
+    endpoint: connectionProvider.endpoint,
   };
 }
 

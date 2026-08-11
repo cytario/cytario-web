@@ -45,18 +45,18 @@ async function toConnectionProjection(
   accessToken: string,
 ): Promise<ConnectionProjection> {
   const catalog = await getProviderCatalog(config.organization, accessToken);
-  const resolved = resolveConnectionProvider(catalog, {
+  const connectionProvider = resolveConnectionProvider(catalog, {
     providerConnectionId: config.providerConnectionId,
     providerRoleId: config.grants[0]?.providerRoleId ?? "",
   });
   return {
     id: config.id,
     name: config.name,
-    provider: resolved?.providerType ?? "unknown",
+    provider: connectionProvider?.providerType ?? "unknown",
     bucketName: config.bucketName,
     prefix: config.prefix,
-    endpoint: resolved?.endpoint ?? undefined,
-    region: resolved?.region,
+    endpoint: connectionProvider?.endpoint ?? undefined,
+    region: connectionProvider?.region,
   };
 }
 

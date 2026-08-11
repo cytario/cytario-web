@@ -187,7 +187,7 @@ export function findProviderRole(
  * itself. Resolved by joining the connection's `providerConnectionId` /
  * `providerRoleId` against the catalog.
  */
-export interface ResolvedConnectionProvider {
+export interface ConnectionProvider {
   providerType: ProviderConnection["providerType"];
   endpoint: string | null;
   region: string;
@@ -205,7 +205,7 @@ export interface ResolvedConnectionProvider {
 export function resolveConnectionProvider(
   catalog: ProviderCatalog,
   connection: { providerConnectionId: string; providerRoleId: string },
-): ResolvedConnectionProvider | undefined {
+): ConnectionProvider | undefined {
   const providerConnection = findProviderConnection(catalog, connection.providerConnectionId);
   const providerRole = findProviderRole(catalog, connection.providerRoleId);
   if (!providerConnection || !providerRole) return undefined;

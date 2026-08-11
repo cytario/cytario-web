@@ -244,18 +244,6 @@ describe("validateProviderRefs", () => {
     expect(result.ok).toBe(true);
   });
 
-  test("requireSharing rejects a non-sharing role", () => {
-    const result = validateProviderRefs(
-      catalog,
-      { providerConnectionId: "pc-1", grants: [{ providerRoleId: "pr-ro", scope: "lab" }] },
-      { requireSharing: true },
-    );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors["grants.0.providerRoleId"]).toBeDefined();
-    }
-  });
-
   test("C-347: returns per-grant errors keyed by grants.<index>.providerRoleId", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-1",

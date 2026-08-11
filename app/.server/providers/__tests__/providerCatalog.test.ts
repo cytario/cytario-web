@@ -351,11 +351,11 @@ const PARSED_CATALOG = providerCatalogSchema.parse(CATALOG);
 
 describe("resolveConnectionProvider", () => {
   test("resolves references to concrete AWS attributes", () => {
-    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
+    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-1",
       providerRoleId: "pr-1",
     });
-    expect(resolved).toEqual({
+    expect(connectionProvider).toEqual({
       providerType: "aws",
       endpoint: null,
       region: "eu-central-1",
@@ -370,27 +370,27 @@ describe("resolveConnectionProvider", () => {
   });
 
   test("returns undefined when the provider connection is missing", () => {
-    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
+    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-missing",
       providerRoleId: "pr-1",
     });
-    expect(resolved).toBeUndefined();
+    expect(connectionProvider).toBeUndefined();
   });
 
   test("returns undefined when the provider role is missing", () => {
-    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
+    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-1",
       providerRoleId: "pr-missing",
     });
-    expect(resolved).toBeUndefined();
+    expect(connectionProvider).toBeUndefined();
   });
 
   test("rejects a role whose providerConnectionId does not match the connection", () => {
-    const resolved = resolveConnectionProvider(PARSED_CATALOG, {
+    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
       providerConnectionId: "pc-1",
       providerRoleId: "pr-orphan",
     });
-    expect(resolved).toBeUndefined();
+    expect(connectionProvider).toBeUndefined();
   });
 });
 
