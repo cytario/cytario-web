@@ -257,3 +257,72 @@ export const buildSessionPolicy = ({
 
   return serialized;
 };
+
+/**
+ * Arguments for {@link buildBrokerSessionPolicy} — the broker variant of
+ * the inline session policy. Unlike the browser-path {@link SessionPolicyArgs},
+ * the broker does not scope `PutObject` to the caller's annotation sidecars;
+ * it scopes `PutObject` to the analysis's output prefix (SRS-CY-416103).
+ */
+export interface BrokerSessionPolicyArgs {
+  bucketName: string;
+  /** Key prefix within the bucket to scope list/get/put. Stripped of slashes. */
+  prefix: string | null | undefined;
+  /** AWS region of the connection's S3 endpoint — scopes `kms:ViaService`. */
+  region: string;
+}
+
+/**
+ * `PutObject` scoped to the analysis's output prefix — the full prefix,
+ * not just annotation sidecars (SRS-CY-416103: "write statements bounded to
+ * the analysis's validated output prefix"). No `DeleteObject`, no
+ * `PutBucketPolicy`.
+ */
+function getPutPrefixStatement(bucketArn: string, prefix: string) {
+  const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
+
+  return {
+    Sid: "PutObjectScopedToOutputPrefix",
+    Effect: "Allow",
+    Action: "s3:PutObject",
+    Resource: objectArn,
+  };
+}
+
+/**
+ * Build an inline IAM session policy for the broker's
+ * `AssumeRoleWithWebIdentityCommand` (SRS-CY-416103). Reuses the list/get/kms
+ * statements from the browser path; scopes `PutObject` to the output prefix
+ * instead of annotation sidecars.
+ */
+export const buildBrokerSessionPolicy = ({
+  bucketName,
+  prefix: prefixRaw,
+  region,
+}: BrokerSessionPolicyArgs): string => {
+  const prefix = stripSlashes(prefixRaw ?? "");
+
+  if (/[*?]/.test(prefix)) {
+    throw new Error("Prefix may not contain IAM wildcard characters (`*`, `?`)");
+  }
+
+  const bucketArn = `arn:aws:s3:::${bucketName}`;
+
+  const policy = {
+    Version: "2012-10-17",
+    Statement: [
+      getListStatement(bucketArn, prefix),
+      getObjectStatement(bucketArn, prefix),
+      getKmsDecryptStatement(region),
+      getPutPrefixStatement(bucketArn, prefix),
+    ],
+  };
+
+  const serialized = JSON.stringify(policy);
+
+  if (serialized.length > POLICY_SIZE_CEILING) {
+    throw new InlinePolicySizeError(serialized.length, POLICY_SIZE_CEILING);
+  }
+
+  return serialized;
+};

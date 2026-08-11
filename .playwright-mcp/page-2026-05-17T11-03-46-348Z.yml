@@ -1,0 +1,159 @@
+- generic [active] [ref=e1]:
+    - link "Skip to content" [ref=e2] [cursor=pointer]:
+        - /url: "#main-content"
+    - banner [ref=e3]:
+        - link "Cytario Logo" [ref=e6] [cursor=pointer]:
+            - /url: /
+            - img "Cytario Logo" [ref=e7]
+        - generic [ref=e16]:
+            - textbox "Search..." [ref=e20]
+            - button "User menu" [ref=e21]:
+                - img [ref=e22]
+    - main [ref=e25]:
+        - generic [ref=e28]:
+            - generic [ref=e29]:
+                - generic [ref=e31]:
+                    - heading "Recently Viewed" [level=2] [ref=e32]
+                    - link "View all" [ref=e34] [cursor=pointer]:
+                        - /url: /recent
+                        - text: View all
+                        - img [ref=e35]
+                - generic [ref=e39]:
+                    - button "USL-2022-42307-42.ome.tif" [ref=e40] [cursor=pointer]:
+                        - generic [ref=e42]:
+                            - img [ref=e43]
+                            - generic [ref=e50]: USL-2022-42307-42.ome.tif
+                            - button "Show info for USL-2022-42307-42.ome.tif" [ref=e51]:
+                                - img [ref=e52]
+                    - button "USL-2022-42307-42.ome.tif" [ref=e56] [cursor=pointer]:
+                        - generic [ref=e58]:
+                            - img [ref=e59]
+                            - generic [ref=e66]: USL-2022-42307-42.ome.tif
+                            - button "Show info for USL-2022-42307-42.ome.tif" [ref=e67]:
+                                - img [ref=e68]
+            - generic [ref=e72]:
+                - generic [ref=e74]:
+                    - heading "Recently Browsed" [level=2] [ref=e75]
+                    - link "View all" [ref=e77] [cursor=pointer]:
+                        - /url: /recent
+                        - text: View all
+                        - img [ref=e78]
+                - generic [ref=e81]:
+                    - table "Files and folders" [ref=e84]:
+                        - rowgroup [ref=e85]:
+                            - row "Column settings Name Resize Name column Type Resize Type column Last Modified Resize Last Modified column Size Resize Size column" [ref=e86]:
+                                - columnheader "Column settings" [ref=e87]:
+                                    - button "Column settings" [ref=e90]:
+                                        - img [ref=e91]
+                                - columnheader "Name Resize Name column" [ref=e95]:
+                                    - button "Name" [ref=e97] [cursor=pointer]:
+                                        - generic [ref=e100]: Name
+                                        - img [ref=e101]
+                                    - button "Resize Name column" [ref=e103]
+                                - columnheader "Type Resize Type column" [ref=e105]:
+                                    - button "Type" [ref=e107] [cursor=pointer]:
+                                        - generic [ref=e110]: Type
+                                        - img [ref=e111]
+                                    - button "Resize Type column" [ref=e113]
+                                - columnheader "Last Modified Resize Last Modified column" [ref=e115]:
+                                    - button "Last Modified" [ref=e117] [cursor=pointer]:
+                                        - generic [ref=e120]: Last Modified
+                                        - img [ref=e121]
+                                    - button "Resize Last Modified column" [ref=e123]
+                                - columnheader "Size Resize Size column" [ref=e125]:
+                                    - button "Size" [ref=e127] [cursor=pointer]:
+                                        - generic [ref=e130]: Size
+                                        - img [ref=e131]
+                                    - button "Resize Size column" [ref=e133]
+                    - table [ref=e136]:
+                        - rowgroup [ref=e137]:
+                            - row [ref=e138]:
+                                - rowheader [ref=e139]:
+                                    - generic [ref=e141]: "1"
+                                - cell [ref=e142]:
+                                    - link [ref=e145] [cursor=pointer]:
+                                        - /url: /connections/Repository Slash-m Exchange/All
+                                        - text: All
+                                - cell [ref=e146]:
+                                    - generic [ref=e149]: Directory
+                                - cell [ref=e150]
+                                - cell [ref=e151]
+                            - row [ref=e152]:
+                                - rowheader [ref=e153]:
+                                    - generic [ref=e155]: "2"
+                                - cell [ref=e156]:
+                                    - link [ref=e159] [cursor=pointer]:
+                                        - /url: /connections/Repository Demo Deliverables/Batch NSCLC 12-plex/Batch Images
+                                        - text: Batch Images
+                                - cell [ref=e160]:
+                                    - generic [ref=e163]: Directory
+                                - cell [ref=e164]
+                                - cell [ref=e165]
+                            - row [ref=e166]:
+                                - rowheader [ref=e167]:
+                                    - generic [ref=e169]: "3"
+                                - cell [ref=e170]:
+                                    - link [ref=e173] [cursor=pointer]:
+                                        - /url: /connections/Repository Demo Deliverables/Batch NSCLC 12-plex
+                                        - text: Batch NSCLC 12-plex
+                                - cell [ref=e174]:
+                                    - generic [ref=e177]: Directory
+                                - cell [ref=e178]
+                                - cell [ref=e179]
+            - generic [ref=e180]:
+                - generic [ref=e182]:
+                    - heading "Storage Connections" [level=2] [ref=e183]
+                    - link "View all" [ref=e185] [cursor=pointer]:
+                        - /url: /connections
+                        - text: View all
+                        - img [ref=e186]
+                - generic [ref=e190]:
+                    - 'button "Status: connected Repository Demo Deliverables Actions for Repository Demo Deliverables Path: Vizgen AWS S3" [ref=e191] [cursor=pointer]':
+                        - generic [ref=e192]:
+                            - generic [ref=e193]:
+                                - 'generic "Status: connected" [ref=e194]'
+                                - generic [ref=e195]: Repository Demo Deliverables
+                                - button "Actions for Repository Demo Deliverables" [ref=e196]:
+                                    - img [ref=e197]
+                            - generic [ref=e201]:
+                                - 'generic "Path: Vizgen" [ref=e203]':
+                                    - generic [ref=e204]: Vizgen
+                                - generic [ref=e205]: AWS S3
+                    - 'button "Status: connected Repository Slash-m Exchange Actions for Repository Slash-m Exchange Path: Vizgen AWS S3" [ref=e206] [cursor=pointer]':
+                        - generic [ref=e207]:
+                            - generic [ref=e208]:
+                                - 'generic "Status: connected" [ref=e209]'
+                                - generic [ref=e210]: Repository Slash-m Exchange
+                                - button "Actions for Repository Slash-m Exchange" [ref=e211]:
+                                    - img [ref=e212]
+                            - generic [ref=e216]:
+                                - 'generic "Path: Vizgen" [ref=e218]':
+                                    - generic [ref=e219]: Vizgen
+                                - generic [ref=e220]: AWS S3
+                    - 'button "Status: connected vericura cytario Actions for vericura cytario Path: vericura AWS S3" [ref=e221] [cursor=pointer]':
+                        - generic [ref=e222]:
+                            - generic [ref=e223]:
+                                - 'generic "Status: connected" [ref=e224]'
+                                - generic [ref=e225]: vericura cytario
+                                - button "Actions for vericura cytario" [ref=e226]:
+                                    - img [ref=e227]
+                            - generic [ref=e231]:
+                                - 'generic "Path: vericura" [ref=e233]':
+                                    - generic [ref=e234]: vericura
+                                - generic [ref=e235]: AWS S3
+                    - 'button "Status: connected slashm-ultivue-exchange Actions for slashm-ultivue-exchange Path: cytario AWS S3" [ref=e236] [cursor=pointer]':
+                        - generic [ref=e237]:
+                            - generic [ref=e238]:
+                                - 'generic "Status: connected" [ref=e239]'
+                                - generic [ref=e240]: slashm-ultivue-exchange
+                                - button "Actions for slashm-ultivue-exchange" [ref=e241]:
+                                    - img [ref=e242]
+                            - generic [ref=e246]:
+                                - 'generic "Path: cytario" [ref=e248]':
+                                    - generic [ref=e249]: cytario
+                                - generic [ref=e250]: AWS S3
+    - status [ref=e252]:
+        - img [ref=e253]
+        - paragraph [ref=e256]: Welcome, martin+claude@cytario.com!
+        - button "Dismiss" [ref=e257]:
+            - img [ref=e258]

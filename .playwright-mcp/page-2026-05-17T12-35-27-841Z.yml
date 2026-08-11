@@ -1,0 +1,65 @@
+- generic [active] [ref=e1]:
+    - link "Skip to content" [ref=e2] [cursor=pointer]:
+        - /url: "#main-content"
+    - banner [ref=e3]:
+        - generic [ref=e5]:
+            - link "Cytario Logo" [ref=e6] [cursor=pointer]:
+                - /url: /
+                - img "Cytario Logo" [ref=e7]
+            - navigation "Breadcrumb" [ref=e16]:
+                - list "Breadcrumbs" [ref=e17]:
+                    - listitem [ref=e18]:
+                        - generic [ref=e19]: vericura cytario
+        - generic [ref=e20]:
+            - textbox "Search..." [ref=e24]
+            - button "User menu" [ref=e25]:
+                - img [ref=e26]
+    - main [ref=e29]:
+        - generic [ref=e32]:
+            - generic [ref=e34]:
+                - generic [ref=e35]:
+                    - heading "vericura cytario" [level=2] [ref=e36]
+                    - button "Pin directory" [ref=e37]:
+                        - img [ref=e38]
+                        - text: Pin
+                    - button "Access with Cyberduck" [ref=e40]:
+                        - img [ref=e41]
+                        - text: Access with Cyberduck
+                - generic [ref=e45]:
+                    - button "Show filters" [ref=e46]:
+                        - img [ref=e47]
+                    - radiogroup "View mode" [ref=e51]:
+                        - radio "List view" [ref=e52] [cursor=pointer]:
+                            - img [ref=e53]
+                        - radio "Grid view" [checked] [ref=e60] [cursor=pointer]:
+                            - img [ref=e61]
+                        - radio "Compact grid" [ref=e66] [cursor=pointer]:
+                            - img [ref=e67]
+                        - radio "Tree view" [ref=e73] [cursor=pointer]:
+                            - img [ref=e74]
+            - generic [ref=e80]:
+                - button "upload test" [ref=e81] [cursor=pointer]:
+                    - img [ref=e84]
+                    - generic [ref=e87]:
+                        - img [ref=e88]
+                        - generic [ref=e90]: upload test
+                        - button "Show info for upload test" [ref=e91]:
+                            - img [ref=e92]
+                - button "USL-2022-42307-42_results.parquet" [ref=e96] [cursor=pointer]:
+                    - img [ref=e99]
+                    - generic [ref=e104]:
+                        - generic [ref=e105]:
+                            - img [ref=e106]
+                            - generic [ref=e111]: USL-2022-42307-42_results.parquet
+                            - button "Show info for USL-2022-42307-42_results.parquet" [ref=e112]:
+                                - img [ref=e113]
+                        - generic [ref=e117]: 101.68 MB
+                - button "USL-2022-42307-42.ome.tif" [ref=e118] [cursor=pointer]:
+                    - img [ref=e121]
+                    - generic [ref=e128]:
+                        - generic [ref=e129]:
+                            - img [ref=e130]
+                            - generic [ref=e137]: USL-2022-42307-42.ome.tif
+                            - button "Show info for USL-2022-42307-42.ome.tif" [ref=e138]:
+                                - img [ref=e139]
+                        - generic [ref=e143]: 81.93 GB

@@ -1,0 +1,32 @@
+[   23522ms] [INFO] [plugin-bootstrap] czi-loader registering JSHandle@object @ https://app.cytar.io/assets/entry.client-B1-XKh2d.js:12
+[   24407ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
+[   24450ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
+[   24488ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
+[   25368ms] [INFO] [getTileDataWasm] Initializing DuckDB WASM with S3 support... @ https://app.cytar.io/assets/version-BuwRqLeW.js:0
+[   25456ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
+[   25456ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
+[   26266ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
+[   26451ms] [WARNING] [JavaScript Warning: "The WebAssembly exception handling 'try' instruction is deprecated and should no longer be used. Please recompile to use the 'try_table' instruction instead."] @ :0
+[   26451ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   26455ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   26529ms] [WARNING] [JavaScript Warning: "The WebAssembly exception handling 'try' instruction is deprecated and should no longer be used. Please recompile to use the 'try_table' instruction instead." {file: "blob:https://app.cytar.io/a34d9729-fb19-4c50-8957-67f103cf5a12" line: 1}] @ blob:https://app.cytar.io/a34d9729-fb19-4c50-8957-67f103cf5a12:1
+[   28179ms] [WARNING] [JavaScript Warning: "The WebAssembly exception handling 'try' instruction is deprecated and should no longer be used. Please recompile to use the 'try_table' instruction instead." {file: "blob:https://app.cytar.io/a34d9729-fb19-4c50-8957-67f103cf5a12" line: 1}] @ blob:https://app.cytar.io/a34d9729-fb19-4c50-8957-67f103cf5a12:1
+[   28234ms] [INFO] [createDatabase] DuckDB initialized (endpoint: s3.eu-central-1.amazonaws.com, style: path) @ https://app.cytar.io/assets/version-BuwRqLeW.js:0
+[   28481ms] [WARNING] [JavaScript Warning: "The WebAssembly exception handling 'try' instruction is deprecated and should no longer be used. Please recompile to use the 'try_table' instruction instead." {file: "blob:https://app.cytar.io/a34d9729-fb19-4c50-8957-67f103cf5a12" line: 1}] @ blob:https://app.cytar.io/a34d9729-fb19-4c50-8957-67f103cf5a12:1
+[   28684ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   28684ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   28684ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   28684ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   33491ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[   33491ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0
+[  387890ms] TypeError: (intermediate value).slice is not a function
+    at _promiseAwareJsonValueNoThrow/< (debugger eval code:328:30)
+    at async*_promiseAwareJsonValueNoThrow (debugger eval code:330:9)
+    at evaluate (debugger eval code:311:33)
+    at  (debugger eval code:1:44)
+    at  (debugger eval code:1:62)
+    at evaluateFunction (chrome://juggler/content/content/Runtime.js:417:57)
+    at callFunction (chrome://juggler/content/content/Runtime.js:103:41)
+    at _onMessageInternal (chrome://juggler/content/SimpleChannel.js:237:37)
+    at _onMessage (chrome://juggler/content/SimpleChannel.js:194:12)
+    at bindToActor/actor.receiveMessage (chrome://juggler/content/SimpleChannel.js:39:44)

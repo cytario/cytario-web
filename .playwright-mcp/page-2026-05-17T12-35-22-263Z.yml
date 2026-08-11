@@ -1,0 +1,65 @@
+- generic [active] [ref=e1]:
+    - link "Skip to content" [ref=e2] [cursor=pointer]:
+        - /url: "#main-content"
+    - banner [ref=e3]:
+        - generic [ref=e5]:
+            - link "Cytario Logo" [ref=e6] [cursor=pointer]:
+                - /url: /
+                - img "Cytario Logo" [ref=e7]
+            - navigation "Breadcrumb" [ref=e16]:
+                - list "Breadcrumbs" [ref=e17]:
+                    - listitem [ref=e18]:
+                        - generic [ref=e19]: Connections
+        - generic [ref=e20]:
+            - textbox "Search..." [ref=e24]
+            - button "User menu" [ref=e25]:
+                - img [ref=e26]
+    - main [ref=e29]:
+        - generic [ref=e32]:
+            - generic [ref=e34]:
+                - generic [ref=e35]:
+                    - heading "Storage Connections" [level=2] [ref=e36]
+                    - button "Connect Storage" [ref=e37]:
+                        - img [ref=e38]
+                        - text: Connect Storage
+                - generic [ref=e43]:
+                    - button "Show filters" [ref=e44]:
+                        - img [ref=e45]
+                    - radiogroup "View mode" [ref=e49]:
+                        - radio "List view" [ref=e50] [cursor=pointer]:
+                            - img [ref=e51]
+                        - radio "Grid view" [checked] [ref=e58] [cursor=pointer]:
+                            - img [ref=e59]
+                        - radio "Compact grid" [ref=e64] [cursor=pointer]:
+                            - img [ref=e65]
+                        - radio "Tree view" [ref=e71] [cursor=pointer]:
+                            - img [ref=e72]
+            - generic [ref=e78]:
+                - 'button "Status: connected Repository Demo Deliverables Actions for Repository Demo Deliverables" [ref=e79] [cursor=pointer]':
+                    - img [ref=e82]
+                    - generic [ref=e87]:
+                        - 'generic "Status: connected" [ref=e88]'
+                        - generic [ref=e89]: Repository Demo Deliverables
+                        - button "Actions for Repository Demo Deliverables" [ref=e90]:
+                            - img [ref=e91]
+                - 'button "Status: connected Repository Slash-m Exchange Actions for Repository Slash-m Exchange" [ref=e95] [cursor=pointer]':
+                    - img [ref=e98]
+                    - generic [ref=e103]:
+                        - 'generic "Status: connected" [ref=e104]'
+                        - generic [ref=e105]: Repository Slash-m Exchange
+                        - button "Actions for Repository Slash-m Exchange" [ref=e106]:
+                            - img [ref=e107]
+                - 'button "Status: connected vericura cytario Actions for vericura cytario" [ref=e111] [cursor=pointer]':
+                    - img [ref=e114]
+                    - generic [ref=e119]:
+                        - 'generic "Status: connected" [ref=e120]'
+                        - generic [ref=e121]: vericura cytario
+                        - button "Actions for vericura cytario" [ref=e122]:
+                            - img [ref=e123]
+                - 'button "Status: connected slashm-ultivue-exchange Actions for slashm-ultivue-exchange" [ref=e127] [cursor=pointer]':
+                    - img [ref=e130]
+                    - generic [ref=e135]:
+                        - 'generic "Status: connected" [ref=e136]'
+                        - generic [ref=e137]: slashm-ultivue-exchange
+                        - button "Actions for slashm-ultivue-exchange" [ref=e138]:
+                            - img [ref=e139]

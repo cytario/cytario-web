@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+    - link "Skip to content" [ref=e2] [cursor=pointer]:
+        - /url: "#main-content"
+    - banner [ref=e3]:
+        - generic [ref=e5]:
+            - link "Cytario Logo" [ref=e6] [cursor=pointer]:
+                - /url: /
+                - img "Cytario Logo" [ref=e7]
+            - navigation "Breadcrumb" [ref=e16]:
+                - list "Breadcrumbs" [ref=e17]:
+                    - listitem [ref=e45]:
+                        - link "Repository Demo Deliverables" [ref=e46] [cursor=pointer]:
+                            - /url: /connections/Repository Demo Deliverables
+                        - img [ref=e47]
+                    - listitem [ref=e49]:
+                        - link "Batch NSCLC 12-plex" [ref=e50] [cursor=pointer]:
+                            - /url: /connections/Repository Demo Deliverables/Batch NSCLC 12-plex
+                        - img [ref=e51]
+                    - listitem [ref=e53]:
+                        - link "Batch Images" [ref=e54] [cursor=pointer]:
+                            - /url: /connections/Repository Demo Deliverables/Batch NSCLC 12-plex/Batch Images
+                        - img [ref=e55]
+                    - listitem [ref=e57]:
+                        - generic [ref=e58]: ULT-2020-111-014-1_jp2k.ome.tif
+        - generic [ref=e32]:
+            - textbox "Search..." [ref=e36]
+            - button "User menu" [ref=e37]:
+                - img [ref=e38]
+    - main [ref=e41]:
+        - generic [ref=e59]:
+            - img [ref=e60]
+            - heading "No objects found in this bucket." [level=3] [ref=e63]
+            - paragraph [ref=e64]: Try uploading some files or check your permissions.
+            - button "Go Back" [ref=e66]
+    - status [ref=e68]:
+        - img [ref=e69]
+        - paragraph [ref=e73]: Browser was blocked from reading "ULT-2020-111-014-1_jp2k.ome.tif" — likely a CORS misconfiguration on the bucket. Re-check the bucket's CORS policy or contact your administrator.
+        - button "Dismiss" [ref=e74]:
+            - img [ref=e75]
