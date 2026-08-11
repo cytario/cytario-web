@@ -21,8 +21,18 @@ export type ProviderType = (typeof PROVIDER_TYPES)[number];
 export const PROVIDER_CONNECTION_STATUSES = ["pending", "connected", "drifted", "error"] as const;
 export type ProviderConnectionStatus = (typeof PROVIDER_CONNECTION_STATUSES)[number];
 
-export const WRITE_LEVELS = ["none", "annotations-only", "general"] as const;
-export type WriteLevel = (typeof WRITE_LEVELS)[number];
+/**
+ * The access level a provider role grants on a share — a single total-order
+ * enum (not a (writeLevel, allowsSharing) pair, because a role that can author
+ * the bucket policy can grant itself any data access the bucket policy can
+ * express, so a non-Admin level's data-access boundary is only meaningful if
+ * the role cannot rewrite it). Drives the bucket-policy generator's
+ * object-statement action set. Defaults to `read-only` so existing catalog
+ * payloads (OSS YAML, portal lookup) that predate the field keep producing
+ * read-only grants until they explicitly declare a higher level.
+ */
+export const ACCESS_LEVELS = ["read-only", "annotate", "read-write", "admin"] as const;
+export type AccessLevel = (typeof ACCESS_LEVELS)[number];
 
 export const providerConnectionSchema = z.object({
   id: z.string().min(1),
@@ -39,8 +49,7 @@ export const providerRoleSchema = z.object({
   roleArn: z.string().min(1),
   name: z.string().min(1),
   allowedScopes: z.array(z.string()),
-  allowsSharing: z.boolean(),
-  writeLevel: z.enum(WRITE_LEVELS).default("none"),
+  accessLevel: z.enum(ACCESS_LEVELS).default("read-only"),
   bucketIds: z.array(z.string()).default([]),
 });
 
@@ -130,7 +139,7 @@ export const clientProviderRoleSchema = providerRoleSchema.omit({ roleArn: true 
 
 /**
  * The catalog projection the browser receives. Role ARNs stay server-side — the
- * selectors need only ids, names, scope coverage, and the sharing capability.
+ * selectors need only ids, names, scope coverage, and the access level.
  */
 export const clientProviderCatalogSchema = z.object({
   providerConnections: z.array(providerConnectionSchema),
@@ -149,8 +158,7 @@ export function toClientCatalog(catalog: ProviderCatalog): ClientProviderCatalog
       providerConnectionId: role.providerConnectionId,
       name: role.name,
       allowedScopes: role.allowedScopes,
-      allowsSharing: role.allowsSharing,
-      writeLevel: role.writeLevel,
+      accessLevel: role.accessLevel,
       bucketIds: role.bucketIds,
     })),
   };

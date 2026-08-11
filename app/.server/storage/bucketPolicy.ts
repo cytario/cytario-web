@@ -19,13 +19,15 @@
  * ORG condition (the CI architectural-separation test asserts this).
  */
 
+import { type AccessLevel } from "~/utils/providerCatalog.schema";
+
 /** Hard S3 limit on a bucket policy document. Fail closed above it. */
 export const BUCKET_POLICY_MAX_BYTES = 20480;
 
 /** Every managed statement's `Sid` starts with this so foreign statements are distinguishable. */
 export const MANAGED_SID_PREFIX = "Cytario";
 
-export type AccessLevel = "read-only" | "read-write";
+export type { AccessLevel };
 
 /**
  * A single share grant to realize on the bucket policy. `groupPath` is the
@@ -49,8 +51,29 @@ export interface BucketPolicyGrant {
 const READ_ACTIONS = ["s3:GetObject"] as const;
 /** Bucket-level list action (scoped by the `s3:prefix` Condition, not by Resource ARN). */
 const LIST_ACTION = "s3:ListBucket";
-/** Additional write actions granted only for read-write access. */
-const WRITE_ACTIONS = ["s3:PutObject", "s3:DeleteObject"] as const;
+/**
+ * Bucket-level metadata reads every S3 client issues on connect (Cyberduck among
+ * them) to resolve region, enumerate in-progress multipart uploads, and read
+ * ownership controls. Granted at every access level — they reveal bucket
+ * metadata, not object data.
+ */
+const BUCKET_METADATA_ACTIONS = [
+  "s3:GetBucketLocation",
+  "s3:ListMultipartUploads",
+  "s3:GetBucketOwnershipControls",
+] as const;
+/**
+ * Additional write + multipart actions granted for read-write / admin access.
+ * The multipart actions are required for any client (Cyberduck) that chunks
+ * uploads above its part threshold.
+ */
+const WRITE_ACTIONS = [
+  "s3:PutObject",
+  "s3:DeleteObject",
+  "s3:AbortMultipartUpload",
+  "s3:ListMultipartUploadParts",
+  "s3:CompleteMultipartUpload",
+] as const;
 
 export interface PolicyCondition {
   StringEquals?: Record<string, string>;
@@ -166,19 +189,54 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
     Condition: listCondition,
   };
 
-  const objectActions =
-    grant.accessLevel === "read-write" ? [...READ_ACTIONS, ...WRITE_ACTIONS] : [...READ_ACTIONS];
-
-  const objectStatement: PolicyStatement = {
-    Sid: `${sidStem}Object`,
+  const bucketMetadataStatement: PolicyStatement = {
+    Sid: `${sidStem}BucketMeta`,
     Effect: "Allow",
     Principal: { AWS: grant.roleArn },
-    Action: objectActions.length === 1 ? objectActions[0] : objectActions,
-    Resource: objectArn,
+    Action: [...BUCKET_METADATA_ACTIONS],
+    Resource: bucketArn,
     Condition: condition,
   };
 
-  return [listStatement, objectStatement];
+  const statements: PolicyStatement[] = [listStatement, bucketMetadataStatement];
+
+  // Object-level actions depend on the access level. Read Only → GetObject
+  // only. Annotate → GetObject + PutObject scoped to *.annotations.*.json (a
+  // separate statement with a narrower Resource). Read Write / Admin → GetObject
+  // + the full write + multipart action set on the whole prefix.
+  if (grant.accessLevel === "annotate") {
+    statements.push({
+      Sid: `${sidStem}Object`,
+      Effect: "Allow",
+      Principal: { AWS: grant.roleArn },
+      Action: READ_ACTIONS[0],
+      Resource: objectArn,
+      Condition: condition,
+    });
+    statements.push({
+      Sid: `${sidStem}Annotate`,
+      Effect: "Allow",
+      Principal: { AWS: grant.roleArn },
+      Action: "s3:PutObject",
+      Resource: prefix
+        ? `${bucketArn}/${prefix}/*.annotations.*.json`
+        : `${bucketArn}/*.annotations.*.json`,
+      Condition: condition,
+    });
+  } else {
+    const isWriteLevel = grant.accessLevel === "read-write" || grant.accessLevel === "admin";
+    const objectActions = isWriteLevel ? [...READ_ACTIONS, ...WRITE_ACTIONS] : [...READ_ACTIONS];
+    statements.push({
+      Sid: `${sidStem}Object`,
+      Effect: "Allow",
+      Principal: { AWS: grant.roleArn },
+      Action: objectActions.length === 1 ? objectActions[0] : objectActions,
+      Resource: objectArn,
+      Condition: condition,
+    });
+  }
+
+  return statements;
 };
 
 /**

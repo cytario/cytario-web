@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createLabel } from "~/.server/logging";
 import { cytarioConfig } from "~/config";
 import {
+  type AccessLevel,
   type ProviderCatalog,
   type ProviderConnection,
   type ProviderRole,
@@ -186,14 +187,13 @@ export function findProviderRole(
  * itself. Resolved by joining the connection's `providerConnectionId` /
  * `providerRoleId` against the catalog.
  */
-export interface ResolvedConnectionProvider {
+export interface ConnectionProvider {
   providerType: ProviderConnection["providerType"];
   endpoint: string | null;
   region: string;
   roleArn: string;
   allowedScopes: string[];
-  allowsSharing: boolean;
-  writeLevel: import("~/utils/providerCatalog.schema").WriteLevel;
+  accessLevel: AccessLevel;
 }
 
 /**
@@ -205,7 +205,7 @@ export interface ResolvedConnectionProvider {
 export function resolveConnectionProvider(
   catalog: ProviderCatalog,
   connection: { providerConnectionId: string; providerRoleId: string },
-): ResolvedConnectionProvider | undefined {
+): ConnectionProvider | undefined {
   const providerConnection = findProviderConnection(catalog, connection.providerConnectionId);
   const providerRole = findProviderRole(catalog, connection.providerRoleId);
   if (!providerConnection || !providerRole) return undefined;
@@ -217,28 +217,26 @@ export function resolveConnectionProvider(
     region: providerConnection.region,
     roleArn: providerRole.roleArn,
     allowedScopes: providerRole.allowedScopes,
-    allowsSharing: providerRole.allowsSharing,
-    writeLevel: providerRole.writeLevel,
+    accessLevel: providerRole.accessLevel,
   };
 }
 
 /**
  * A single grant resolved against the catalog: the grant's persisted scope +
- * the concrete provider-role attributes (roleArn, allowsSharing) it maps to.
+ * the concrete provider-role attributes (roleArn, accessLevel) it maps to.
  */
 export interface ResolvedConnectionGrant {
   scope: string;
   roleArn: string;
-  allowsSharing: boolean;
-  writeLevel: import("~/utils/providerCatalog.schema").WriteLevel;
+  accessLevel: AccessLevel;
 }
 
 /**
  * The connection-level provider attributes resolved from the catalog: region and
  * endpoint come from the provider connection (shared by every grant on the
  * connection); `allowsSharing` is true when ANY of the connection's resolvable
- * grants' roles permits sharing. The per-grant `roleArn` lives on the
- * `ResolvedConnectionGrant` entries.
+ * grants' roles is an Admin-level role (`accessLevel === "admin"`). The per-grant
+ * `roleArn` lives on the `ResolvedConnectionGrant` entries.
  */
 export interface ResolvedConnectionProviderWithGrants {
   providerType: ProviderConnection["providerType"];
@@ -272,10 +270,9 @@ export function resolveConnectionProviderWithGrants(
     grants.push({
       scope: grant.scope,
       roleArn: providerRole.roleArn,
-      allowsSharing: providerRole.allowsSharing,
-      writeLevel: providerRole.writeLevel,
+      accessLevel: providerRole.accessLevel,
     });
-    if (providerRole.allowsSharing) allowsSharing = true;
+    if (providerRole.accessLevel === "admin") allowsSharing = true;
   }
 
   return {

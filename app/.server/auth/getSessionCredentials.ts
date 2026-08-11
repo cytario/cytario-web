@@ -100,15 +100,15 @@ const fetchTemporaryCredentials = async (
  * visible only through an ancestor the user does not directly hold).
  */
 const pickGrantForUser = (
-  resolved: ResolvedConnectionProviderWithGrants,
+  connectionProvider: ResolvedConnectionProviderWithGrants,
   user: UserProfile,
   organization: string,
 ): ResolvedConnectionGrant | undefined => {
-  const applicable = resolved.grants.filter((grant) =>
+  const applicable = connectionProvider.grants.filter((grant) =>
     canSee(user, { organization, ownerScope: grant.scope }),
   );
   if (applicable.length === 0) return undefined;
-  applicable.sort((a, b) => Number(b.allowsSharing) - Number(a.allowsSharing));
+  applicable.sort((a, b) => Number(b.accessLevel === "admin") - Number(a.accessLevel === "admin"));
   return applicable[0];
 };
 
@@ -192,12 +192,12 @@ export const getAllSessionCredentials = async (
   const providers: Record<string, ClientConnectionProvider> = {};
   if (catalog) {
     for (const config of connectionConfigs) {
-      const resolved = resolveConnectionProviderWithGrants(catalog, config);
-      if (resolved) {
+      const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
+      if (connectionProvider) {
         providers[config.id] = {
-          region: resolved.region,
-          endpoint: resolved.endpoint,
-          allowsSharing: resolved.allowsSharing,
+          region: connectionProvider.region,
+          endpoint: connectionProvider.endpoint,
+          allowsSharing: connectionProvider.allowsSharing,
         };
       }
     }
@@ -218,13 +218,13 @@ export const getAllSessionCredentials = async (
       if (!catalog) {
         throw new Error(catalogError ?? "Provider catalog is unavailable.");
       }
-      const resolved = resolveConnectionProviderWithGrants(catalog, config);
-      if (!resolved) {
+      const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
+      if (!connectionProvider) {
         throw new Error(
           "This connection references a provider connection or role that is no longer available. Ask an administrator to check the storage onboarding.",
         );
       }
-      const grant = pickGrantForUser(resolved, sessionData.user, organization);
+      const grant = pickGrantForUser(connectionProvider, sessionData.user, organization);
       if (!grant) {
         throw new Error("You are not a member of any group granted access to this connection.");
       }
@@ -234,8 +234,8 @@ export const getAllSessionCredentials = async (
         credentials: await fetchTemporaryCredentials(
           config,
           grant.roleArn,
-          resolved.region,
-          resolved.endpoint,
+          connectionProvider.region,
+          connectionProvider.endpoint,
           sessionData.authTokens.idToken,
           roleSessionName,
           sessionData.user.sub,

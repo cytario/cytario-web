@@ -25,12 +25,12 @@ providerRoles:
     name: Reader (lab/team-a)
     allowedScopes:
       - lab/team-a
-    allowsSharing: false # false => the role does not permit s3:PutBucketPolicy
+    accessLevel: read-only # read-only | annotate | read-write | admin
 
-  - id: sharer-lab
+  - id: admin-lab
     providerConnectionId: aws-eu-central-1
-    roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/sharer
-    name: Sharer (lab)
+    roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/admin
+    name: Admin (lab)
     allowedScopes:
       - lab
-    allowsSharing: true
+    accessLevel: admin # the only level that permits s3:PutBucketPolicy

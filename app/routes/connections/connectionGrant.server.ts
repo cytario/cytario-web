@@ -3,7 +3,7 @@ import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { prisma } from "~/.server/db/prisma";
 import { findBucketByName, getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import {
-  type ResolvedConnectionProvider,
+  type ConnectionProvider,
   findProviderConnection,
   findProviderRole,
   getProviderCatalog,
@@ -34,31 +34,23 @@ export interface ActingContext {
 }
 
 /**
- * The default access level for a generated grant. The provider-role catalog does
- * not yet carry an explicit grantee access level (it exposes only `allowsSharing`,
- * the `s3:PutBucketPolicy` capability), so grants are generated read-only — the
- * fail-safe floor (never grant more than intended). When the catalog gains an
- * explicit access-level field, thread it here.
- */
-const DEFAULT_ACCESS_LEVEL = "read-only" as const;
-
-/**
  * Build the managed bucket-policy grant a single grant row intends. The grant's
- * `providerRoleId` is resolved to a concrete role ARN by the caller (via the
- * provider catalog) and injected onto the `BucketPolicyGrant` so the fail-closed
- * policy generator accepts it.
+ * `providerRoleId` is resolved to a concrete role ARN (and access level) by the
+ * caller (via the provider catalog) and injected onto the `BucketPolicyGrant` so
+ * the fail-closed policy generator accepts it.
  */
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
   grant: { scope: string },
   roleArn: string,
+  accessLevel: ConnectionProvider["accessLevel"],
 ): BucketPolicyGrant {
   return {
     organization: config.organization,
     bucketName: config.bucketName,
     groupPath: grant.scope,
     prefix: config.prefix,
-    accessLevel: DEFAULT_ACCESS_LEVEL,
+    accessLevel,
     roleArn,
   };
 }
@@ -85,12 +77,19 @@ export function assembleBucketGrants(
   const grants: BucketPolicyGrant[] = [];
   for (const config of configs) {
     for (const grant of config.grants) {
-      const resolved = resolveConnectionProvider(catalog, {
+      const connectionProvider = resolveConnectionProvider(catalog, {
         providerConnectionId: config.providerConnectionId,
         providerRoleId: grant.providerRoleId,
       });
-      if (!resolved) continue;
-      grants.push(grantForConnection(config, grant, resolved.roleArn));
+      if (!connectionProvider) continue;
+      grants.push(
+        grantForConnection(
+          config,
+          grant,
+          connectionProvider.roleArn,
+          connectionProvider.accessLevel,
+        ),
+      );
     }
   }
   return grants;
@@ -103,7 +102,7 @@ export type ValidatedProviderRefs =
 /**
  * Validate submitted provider connection + grant references against the catalog:
  * the provider connection must exist, every grant's provider role must exist and
- * belong to that connection, a share must use sharing-capable roles, and each
+ * belong to that connection, a share must use Admin-level roles, and each
  * grant's role's allowed scopes must cover the grant's scope (an org-wide role
  * with empty `allowedScopes` covers any scope). The client-side selector filtering
  * is advisory only — this is the authoritative check on the submitted values.
@@ -111,7 +110,6 @@ export type ValidatedProviderRefs =
 export function validateProviderRefs(
   catalog: ProviderCatalog,
   refs: { providerConnectionId: string; grants: Array<{ providerRoleId: string; scope: string }> },
-  options: { requireSharing?: boolean } = {},
 ): ValidatedProviderRefs {
   const providerConnection = findProviderConnection(catalog, refs.providerConnectionId);
   if (!providerConnection) {
@@ -124,11 +122,6 @@ export function validateProviderRefs(
     const providerRole = findProviderRole(catalog, grant.providerRoleId);
     if (!providerRole || providerRole.providerConnectionId !== providerConnection.id) {
       errors[`grants.${index}.providerRoleId`] = ["Unknown provider role for this connection"];
-      continue;
-    }
-
-    if (options.requireSharing && !providerRole.allowsSharing) {
-      errors[`grants.${index}.providerRoleId`] = ["This role cannot be used to share"];
       continue;
     }
 
@@ -197,16 +190,17 @@ export async function validateBucketRef(
 
 /**
  * Resolve a connection to its `ApplyTarget` via the org provider catalog. The
- * write session runs under a grant whose provider role allows sharing (write
- * access); when none of the grants' roles allows sharing, the first resolvable
- * grant's role is used as a best-effort fallback. The acting user must
- * administer the connection (canModify) before this is called.
+ * write session runs under a grant whose provider role is an Admin-level role
+ * (`accessLevel === "admin"` — the only level that permits `s3:PutBucketPolicy`);
+ * when none of the grants' roles is Admin, the first resolvable grant's role is
+ * used as a best-effort fallback. The acting user must administer the connection
+ * (canModify) before this is called.
  */
 export async function resolveApplyTarget(
   config: ConnectionConfigWithGrants,
   accessToken: string,
 ): Promise<
-  | { ok: true; target: ApplyTarget; resolved: ResolvedConnectionProvider }
+  | { ok: true; target: ApplyTarget; connectionProvider: ConnectionProvider }
   | { ok: false; error: string }
 > {
   let catalog;
@@ -224,38 +218,38 @@ export async function resolveApplyTarget(
 
 /**
  * Resolve the best `ApplyTarget` across ALL connections on a bucket: prefer a
- * connection that has a sharing-capable grant (so the `PutBucketPolicy` write
- * succeeds); fall back to the supplied `fallback` connection when no
- * sharing-capable role is found on any connection. This lets a read-only share
- * succeed — the write session borrows a sharing-capable role from another
- * connection the acting user has on the same bucket.
+ * connection that has an Admin-level grant (so the `PutBucketPolicy` write
+ * succeeds); fall back to the supplied `fallback` connection when no Admin-level
+ * role is found on any connection. This lets a read-only share succeed — the
+ * write session borrows an Admin-level role from another connection the acting
+ * user has on the same bucket.
  */
 function resolveApplyTargetFromSet(
   configs: ConnectionConfigWithGrants[],
   fallback: ConnectionConfigWithGrants,
   catalog: ProviderCatalog,
 ):
-  | { ok: true; target: ApplyTarget; resolved: ResolvedConnectionProvider }
+  | { ok: true; target: ApplyTarget; connectionProvider: ConnectionProvider }
   | {
       ok: false;
       error: string;
     } {
   for (const config of configs) {
     for (const grant of config.grants) {
-      const resolved = resolveConnectionProvider(catalog, {
+      const connectionProvider = resolveConnectionProvider(catalog, {
         providerConnectionId: config.providerConnectionId,
         providerRoleId: grant.providerRoleId,
       });
-      if (resolved?.allowsSharing) {
+      if (connectionProvider?.accessLevel === "admin") {
         return {
           ok: true,
-          resolved,
+          connectionProvider,
           target: {
             organization: config.organization,
             bucketName: config.bucketName,
-            region: resolved.region,
-            endpoint: resolved.endpoint,
-            roleArn: resolved.roleArn,
+            region: connectionProvider.region,
+            endpoint: connectionProvider.endpoint,
+            roleArn: connectionProvider.roleArn,
           },
         };
       }
@@ -269,7 +263,7 @@ function resolveApplyTargetFromCatalog(
   config: ConnectionConfigWithGrants,
   catalog: ProviderCatalog,
 ):
-  | { ok: true; target: ApplyTarget; resolved: ResolvedConnectionProvider }
+  | { ok: true; target: ApplyTarget; connectionProvider: ConnectionProvider }
   | {
       ok: false;
       error: string;
@@ -277,13 +271,13 @@ function resolveApplyTargetFromCatalog(
   const resolvedGrants = config.grants
     .map((grant) => ({
       grant,
-      resolved: resolveConnectionProvider(catalog, {
+      connectionProvider: resolveConnectionProvider(catalog, {
         providerConnectionId: config.providerConnectionId,
         providerRoleId: grant.providerRoleId,
       }),
     }))
-    .filter((g): g is { grant: ConnectionGrant; resolved: ResolvedConnectionProvider } =>
-      Boolean(g.resolved),
+    .filter((g): g is { grant: ConnectionGrant; connectionProvider: ConnectionProvider } =>
+      Boolean(g.connectionProvider),
     );
 
   if (resolvedGrants.length === 0) {
@@ -294,18 +288,19 @@ function resolveApplyTargetFromCatalog(
     };
   }
 
-  const chosen = resolvedGrants.find((g) => g.resolved.allowsSharing) ?? resolvedGrants[0];
+  const chosen =
+    resolvedGrants.find((g) => g.connectionProvider.accessLevel === "admin") ?? resolvedGrants[0];
 
-  const { resolved } = chosen;
+  const { connectionProvider } = chosen;
   return {
     ok: true,
-    resolved,
+    connectionProvider,
     target: {
       organization: config.organization,
       bucketName: config.bucketName,
-      region: resolved.region,
-      endpoint: resolved.endpoint,
-      roleArn: resolved.roleArn,
+      region: connectionProvider.region,
+      endpoint: connectionProvider.endpoint,
+      roleArn: connectionProvider.roleArn,
     },
   };
 }

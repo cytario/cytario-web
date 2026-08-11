@@ -35,7 +35,7 @@ const catalog = {
       roleArn: "arn:aws:iam::123456789012:role/reader",
       name: "Reader",
       allowedScopes: ["lab"],
-      allowsSharing: false,
+      accessLevel: "read-only",
     },
   ],
 };

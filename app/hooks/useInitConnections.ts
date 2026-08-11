@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { select } from "~/utils/connectionsStore/selectors";
 import {
   type ConnectionConfigWithGrants,
-  type ResolvedConnectionProviderClient,
+  type ConnectionProviderClient,
   useConnectionsStore,
 } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -17,7 +17,7 @@ export function useInitConnections(
   connectionConfigs: ConnectionConfigWithGrants[],
   credentials: Record<string, Credentials>,
   credentialErrors: Record<string, string> = {},
-  connectionProviders: Record<string, ResolvedConnectionProviderClient> = {},
+  connectionProviders: Record<string, ConnectionProviderClient> = {},
 ) {
   const setConnections = useConnectionsStore(select.setConnections);
 
