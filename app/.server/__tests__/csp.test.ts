@@ -30,6 +30,24 @@ describe("buildContentSecurityPolicy", () => {
     expect(hosts).toEqual(["https://minio.example.com"]);
   });
 
+  test("dev-only carve-out admits local http hosts when configured in a non-production env", () => {
+    const policy = buildContentSecurityPolicy({
+      CYTARIO_DEV_CONNECT_HOSTS: "http://localhost:9000,http://localhost:8081",
+    });
+    expect(policy).toContain(
+      "connect-src 'self' https://*.amazonaws.com https://*.cytario.com http://localhost:9000 http://localhost:8081",
+    );
+  });
+
+  test("dev carve-out is suppressed in production", () => {
+    const policy = buildContentSecurityPolicy({
+      NODE_ENV: "production",
+      CYTARIO_DEV_CONNECT_HOSTS: "http://localhost:9000",
+    });
+    expect(policy).not.toContain("http://localhost:9000");
+    expect(policy).toContain("connect-src 'self' https://*.amazonaws.com https://*.cytario.com");
+  });
+
   test("includes the documented carve-outs and clickjacking guard", () => {
     const policy = buildContentSecurityPolicy({});
     expect(policy).toContain("default-src 'self'");

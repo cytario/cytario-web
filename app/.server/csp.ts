@@ -6,7 +6,17 @@ export { getAllowedS3Hosts };
 export function buildContentSecurityPolicy(
   env: Record<string, string | undefined> = process.env,
 ): string {
-  const connectSrc = ["'self'", ...getAllowedS3Hosts(env)].join(" ");
+  const connectSrc = [
+    "'self'",
+    ...getAllowedS3Hosts(env),
+    // Dev-only carve-out so a local object store / OCI registry is reachable
+    // during development; never applied in production.
+    ...(env.NODE_ENV === "production"
+      ? []
+      : (env.CYTARIO_DEV_CONNECT_HOSTS?.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean) ?? [])),
+  ].join(" ");
 
   const directives: Record<string, string> = {
     "default-src": "'self'",
