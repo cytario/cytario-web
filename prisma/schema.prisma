@@ -83,13 +83,15 @@ connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectio
 // connection store. A row is created at submission and removed only after its
 // grant's revocation is confirmed.
 model JobLedgerEntry {
-id               String   @id @default(uuid())
-jobId            String
-offlineSessionId String
-organization     String
-owner            String
-createdAt        DateTime @default(now())
+  id               String   @id @default(uuid())
+  jobId            String
+  offlineSessionId String
+  organization     String
+  owner            String
+  inputS3Uris      String[]
+  outputS3Uri      String
+  createdAt        DateTime @default(now())
 
-@@unique([organization, jobId])
-@@index([organization, owner])
+  @@unique([organization, jobId])
+  @@index([organization, owner])
 }

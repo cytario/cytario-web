@@ -37,15 +37,43 @@ const VALID_TOKEN_PAYLOAD = {
   organization: { testcorp: { id: "org-1", groups: [] } },
 };
 
-function buildRequest(body: unknown, headers?: Record<string, string>): Request {
+function buildRequest(body: unknown): Request {
   return new Request("http://localhost/api/broker", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
 const args = (request: Request) => ({ request, params: {}, context: new Map() }) as never;
+
+const LEDGER_ROW = {
+  jobId: "job-1",
+  offlineSessionId: "sess-1",
+  organization: "testcorp",
+  owner: "user-1",
+  inputS3Uris: ["s3://data-bucket/cases/case1/"],
+  outputS3Uri: "s3://data-bucket/results/run42/",
+};
+
+const CONNECTIONS = [
+  {
+    id: "c1",
+    bucketName: "data-bucket",
+    prefix: "",
+    providerConnectionId: "pc-1",
+    grants: [{ providerRoleId: "pr-1" }],
+  },
+];
+
+const RESOLVED_PROVIDER = {
+  providerType: "aws",
+  endpoint: null,
+  region: "eu-central-1",
+  roleArn: "arn:aws:iam::123:role/storage",
+  allowedScopes: [],
+  accessLevel: "read-write",
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -72,10 +100,9 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     });
   });
 
-  test("returns 403 when no ledger row exists (revoked or unknown job)", async () => {
+  test("returns 403 when no ledger row exists", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([]);
     const response = (await action(
       args(buildRequest({ token: "tok", jobId: "job-1" })),
     )) as Response;
@@ -85,50 +112,12 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     });
   });
 
-  test("returns 403 when the org has no connected storage", async () => {
+  test("mints non-empty creds when the ledger row has input+output targets", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      jobId: "job-1",
-      offlineSessionId: "sess-1",
-      organization: "testcorp",
-      owner: "user-1",
-    } as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([]);
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /no connected storage/i,
-    });
-  });
-
-  test("mints non-empty creds when the ledger row exists and a connection is available", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      jobId: "job-1",
-      offlineSessionId: "sess-1",
-      organization: "testcorp",
-      owner: "user-1",
-    } as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
-      {
-        id: "c1",
-        bucketName: "data-bucket",
-        prefix: "in/",
-        providerConnectionId: "pc-1",
-        grants: [{ providerRoleId: "pr-1" }],
-      } as never,
-    ] as never);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce({
-      providerType: "aws",
-      endpoint: null,
-      region: "eu-central-1",
-      roleArn: "arn:aws:iam::123:role/storage",
-      allowedScopes: [],
-      accessLevel: "read-write",
-    });
+    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
     stsSendMock.mockResolvedValueOnce({
       Credentials: {
         AccessKeyId: "AKIA",
@@ -149,32 +138,12 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(body.expiration).toBeDefined();
   });
 
-  test("validates the s3Uri against the org's connected storage", async () => {
+  test("session policy is scoped to the ledger-recorded targets, not the request", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      jobId: "job-1",
-      offlineSessionId: "sess-1",
-      organization: "testcorp",
-      owner: "user-1",
-    } as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
-      {
-        id: "c1",
-        bucketName: "data-bucket",
-        prefix: "in/",
-        providerConnectionId: "pc-1",
-        grants: [{ providerRoleId: "pr-1" }],
-      } as never,
-    ] as never);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce({
-      providerType: "aws",
-      endpoint: null,
-      region: "eu-central-1",
-      roleArn: "arn:aws:iam::123:role/storage",
-      allowedScopes: [],
-      accessLevel: "read-write",
-    });
+    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
     stsSendMock.mockResolvedValueOnce({
       Credentials: {
         AccessKeyId: "AKIA",
@@ -184,99 +153,51 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       },
     });
 
-    // s3Uri on a different bucket → rejected
-    const response = (await action(
-      args(
-        buildRequest({
-          token: "tok",
-          jobId: "job-1",
-          s3Uri: "s3://other-bucket/out/",
-        }),
-      ),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /outside this organization's connected storage/i,
-    });
-  });
+    await action(args(buildRequest({ token: "tok", jobId: "job-1" })));
 
-  test("includes a session policy when s3Uri is present", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      jobId: "job-1",
-      offlineSessionId: "sess-1",
-      organization: "testcorp",
-      owner: "user-1",
-    } as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
-      {
-        id: "c1",
-        bucketName: "data-bucket",
-        prefix: "",
-        providerConnectionId: "pc-1",
-        grants: [{ providerRoleId: "pr-1" }],
-      } as never,
-    ] as never);
-    getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce({
-      providerType: "aws",
-      endpoint: null,
-      region: "eu-central-1",
-      roleArn: "arn:aws:iam::123:role/storage",
-      allowedScopes: [],
-      accessLevel: "read-write",
-    });
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    const response = (await action(
-      args(
-        buildRequest({
-          token: "tok",
-          jobId: "job-1",
-          s3Uri: "s3://data-bucket/out/",
-        }),
-      ),
-    )) as Response;
-    expect(response.status).toBe(200);
-    // The STS command should have a Policy field
     const sentCommand = stsSendMock.mock.calls[0]?.[0];
     expect(sentCommand.input.Policy).toBeDefined();
-    expect(sentCommand.input.Policy).toContain("PutObjectScopedToPrefix");
+    // PutObject scoped to the output prefix from the ledger, not the request
+    expect(sentCommand.input.Policy).toContain("PutObjectScopedToOutput");
+    expect(sentCommand.input.Policy).toContain("results/run42/*");
+    // GetObject covers both input and output prefixes
+    expect(sentCommand.input.Policy).toContain("GetObjectScopedToTargets");
+    expect(sentCommand.input.Policy).toContain("cases/case1/*");
   });
 
-  test("logs the underlying error on a denial (C-384)", async () => {
+  test("mints without session policy when outputS3Uri is empty (legacy row)", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      jobId: "job-1",
-      offlineSessionId: "sess-1",
-      organization: "testcorp",
-      owner: "user-1",
+      ...LEDGER_ROW,
+      inputS3Uris: [],
+      outputS3Uri: "",
     } as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
-      {
-        id: "c1",
-        bucketName: "data-bucket",
-        prefix: "",
-        providerConnectionId: "pc-1",
-        grants: [{ providerRoleId: "pr-1" }],
-      } as never,
-    ] as never);
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce({
-      providerType: "aws",
-      endpoint: null,
-      region: "eu-central-1",
-      roleArn: "arn:aws:iam::123:role/storage",
-      allowedScopes: [],
-      accessLevel: "read-write",
+    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
     });
+
+    const response = (await action(
+      args(buildRequest({ token: "tok", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(200);
+    const sentCommand = stsSendMock.mock.calls[0]?.[0];
+    expect(sentCommand.input.Policy).toBeUndefined();
+  });
+
+  test("logs the underlying error on a denial", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
+    getProviderCatalogMock.mockResolvedValueOnce({});
+    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
     stsSendMock.mockRejectedValueOnce(new Error("STS is down"));
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

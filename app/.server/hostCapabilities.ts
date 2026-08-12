@@ -156,6 +156,8 @@ class JobLedgerImpl implements JobLedger {
         offlineSessionId: job.offlineSessionId,
         organization: user.organization,
         owner: job.owner,
+        inputS3Uris: job.inputS3Uris,
+        outputS3Uri: job.outputS3Uri,
       },
     });
   }
@@ -211,12 +213,16 @@ function toJobRecord(entry: {
   offlineSessionId: string;
   organization: string;
   owner: string;
+  inputS3Uris: string[];
+  outputS3Uri: string;
 }): JobRecord {
   return {
     jobId: entry.jobId,
     offlineSessionId: entry.offlineSessionId,
     organization: entry.organization,
     owner: entry.owner,
+    inputS3Uris: entry.inputS3Uris ?? [],
+    outputS3Uri: entry.outputS3Uri ?? "",
   };
 }
 

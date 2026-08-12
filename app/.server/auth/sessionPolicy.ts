@@ -262,33 +262,45 @@ export const buildSessionPolicy = ({
 
   return serialized;
 };
-
 /**
- * Arguments for {@link buildBrokerSessionPolicy} — the broker variant of
- * the inline session policy. Unlike the browser-path {@link SessionPolicyArgs},
- * the broker does not scope `PutObject` to the caller's annotation sidecars;
- * it scopes `PutObject` to the analysis's output prefix (SRS-CY-416103).
+ * A parsed `s3://bucket/prefix` URI — the shape the broker session-policy
+ * builder works with after parsing the ledger-recorded targets.
  */
-export interface BrokerSessionPolicyArgs {
+export interface S3Target {
   bucketName: string;
-  /** Key prefix within the bucket to scope list/get/put. Stripped of slashes. */
-  prefix: string | null | undefined;
-  /** AWS region of the connection's S3 endpoint — scopes `kms:ViaService`. */
-  region: string;
+  prefix: string;
 }
 
 /**
- * `kms:GenerateDataKey` allowing the role's per-key grants to flow through
- * the STS intersection so `PutObject` against an SSE-KMS-encrypted output
- * bucket succeeds (SRS-CY-416103). Same scoping as `kms:Decrypt`: the
- * `kms:ViaService` condition confines the credential to the S3 data path;
- * the role's attached policy + KMS key policy remain the authority on which
- * keys — `Resource: "*"` widens nothing.
+ * Parse an `s3://bucket/prefix` URI into {@link S3Target}. Returns `null`
+ * on an unparseable URI.
  */
+export function parseS3Uri(uri: string): S3Target | null {
+  try {
+    const url = new URL(uri);
+    if (url.protocol !== "s3:") return null;
+    const bucketName = url.host;
+    if (!bucketName) return null;
+    return { bucketName, prefix: stripSlashes(url.pathname) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Arguments for {@link buildBrokerSessionPolicy} — scoped to the analysis's
+ * validated input and output targets from the running-jobs ledger.
+ */
+export interface BrokerSessionPolicyArgs {
+  inputs: S3Target[];
+  output: S3Target;
+  region: string;
+}
+
 function getKmsGenerateDataKeyStatement(region: string) {
   const viaServiceRegion = region || DEFAULT_REGION;
   if (/[*?]/.test(viaServiceRegion)) {
-    throw new Error("Region may not contain IAM wildcard characters (`*`, `?`).");
+    throw new Error("Region may not contain IAM wildcard characters (`*`, `?`)");
   }
 
   return {
@@ -304,37 +316,93 @@ function getKmsGenerateDataKeyStatement(region: string) {
   };
 }
 
-/**
- * Build an inline IAM session policy for the broker's
- * `AssumeRoleWithWebIdentityCommand` (SRS-CY-416103). Reuses the list/get/kms
- * statements and the prefix-scoped `PutObject` from the browser path
- * (C-311's `getPutObjectStatement`); adds `kms:GenerateDataKey` so writes
- * to an SSE-KMS-encrypted output bucket succeed.
- */
-export const buildBrokerSessionPolicy = ({
-  bucketName,
-  prefix: prefixRaw,
-  region,
-}: BrokerSessionPolicyArgs): string => {
-  const prefix = stripSlashes(prefixRaw ?? "");
-
-  if (/[*?]/.test(prefix)) {
+function validateS3Target(target: S3Target): void {
+  if (/[*?]/.test(target.bucketName)) {
+    throw new Error("Bucket name may not contain IAM wildcard characters (`*`, `?`)");
+  }
+  if (/[*?]/.test(target.prefix)) {
     throw new Error("Prefix may not contain IAM wildcard characters (`*`, `?`)");
   }
+}
 
-  const bucketArn = `arn:aws:s3:::${bucketName}`;
+/**
+ * Build an inline IAM session policy for the broker's
+ * `AssumeRoleWithWebIdentityCommand` (SRS-CY-416103). Scoped to the
+ * analysis's validated input and output targets recorded in the ledger
+ * at submission — never from any caller-supplied body field. Groups
+ * targets by bucket; `GetObject` covers inputs + output; `PutObject`
+ * covers the output prefix only.
+ */
+export const buildBrokerSessionPolicy = ({
+  inputs,
+  output,
+  region,
+}: BrokerSessionPolicyArgs): string => {
+  for (const target of inputs) validateS3Target(target);
+  validateS3Target(output);
 
-  const policy = {
-    Version: "2012-10-17",
-    Statement: [
-      getListStatement(bucketArn, prefix),
-      getObjectStatement(bucketArn, prefix),
-      getKmsDecryptStatement(region),
-      getPutObjectStatement(bucketArn, prefix),
-      getKmsGenerateDataKeyStatement(region),
-    ],
-  };
+  const allTargets = [...inputs, output];
 
+  const bucketPrefixes = new Map<string, Set<string>>();
+  for (const target of allTargets) {
+    const prefixes = bucketPrefixes.get(target.bucketName) ?? new Set<string>();
+    if (target.prefix) prefixes.add(target.prefix);
+    bucketPrefixes.set(target.bucketName, prefixes);
+  }
+
+  const statements: Array<{
+    Sid: string;
+    Effect: string;
+    Action: string;
+    Resource: string | string[];
+    Condition?: Record<string, Record<string, string | string[]>>;
+  }> = [];
+
+  for (const [bucketName, prefixes] of bucketPrefixes) {
+    const bucketArn = `arn:aws:s3:::${bucketName}`;
+    const sid = `ListBucket${bucketName.replace(/[^A-Za-z0-9]/g, "")}`;
+    const sortedPrefixes = [...prefixes].sort();
+    if (sortedPrefixes.length === 0) {
+      statements.push({ Sid: sid, Effect: "Allow", Action: "s3:ListBucket", Resource: bucketArn });
+    } else {
+      statements.push({
+        Sid: sid,
+        Effect: "Allow",
+        Action: "s3:ListBucket",
+        Resource: bucketArn,
+        Condition: {
+          StringLike: {
+            "s3:prefix": sortedPrefixes.flatMap((p) => [`${p}/`, `${p}/*`]),
+          },
+        },
+      });
+    }
+  }
+
+  const getObjectResources: string[] = [];
+  for (const target of allTargets) {
+    const bucketArn = `arn:aws:s3:::${target.bucketName}`;
+    getObjectResources.push(target.prefix ? `${bucketArn}/${target.prefix}/*` : `${bucketArn}/*`);
+  }
+  statements.push({
+    Sid: "GetObjectScopedToTargets",
+    Effect: "Allow",
+    Action: "s3:GetObject",
+    Resource: [...new Set(getObjectResources)].sort(),
+  });
+
+  const outputBucketArn = `arn:aws:s3:::${output.bucketName}`;
+  statements.push({
+    Sid: "PutObjectScopedToOutput",
+    Effect: "Allow",
+    Action: "s3:PutObject",
+    Resource: output.prefix ? `${outputBucketArn}/${output.prefix}/*` : `${outputBucketArn}/*`,
+  });
+
+  statements.push(getKmsDecryptStatement(region));
+  statements.push(getKmsGenerateDataKeyStatement(region));
+
+  const policy = { Version: "2012-10-17", Statement: statements };
   const serialized = JSON.stringify(policy);
 
   if (serialized.length > POLICY_SIZE_CEILING) {

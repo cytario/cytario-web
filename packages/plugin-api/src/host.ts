@@ -188,6 +188,19 @@ export interface JobRecord {
    */
   organization: string;
   owner: string;
+  /**
+   * The validated input S3 URIs the analysis reads (`s3://bucket/prefix`).
+   * Server-constructed from the org's connected storage at submission;
+   * the broker uses them to scope the session policy's read access.
+   * Empty for output-only jobs.
+   */
+  inputS3Uris: string[];
+  /**
+   * The validated output S3 URI the analysis writes to (`s3://bucket/prefix`).
+   * Server-constructed from the org's connected storage at submission;
+   * the broker uses it to scope the session policy's write access.
+   */
+  outputS3Uri: string;
 }
 
 /**

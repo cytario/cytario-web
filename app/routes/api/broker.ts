@@ -1,7 +1,12 @@
 import type { ActionFunctionArgs } from "react-router";
 
 import { hostRequestDataFromJobToken } from "~/.server/auth/carveOutRequestContext";
-import { buildBrokerSessionPolicy, InlinePolicySizeError } from "~/.server/auth/sessionPolicy";
+import {
+  buildBrokerSessionPolicy,
+  InlinePolicySizeError,
+  parseS3Uri,
+  type S3Target,
+} from "~/.server/auth/sessionPolicy";
 import { verifyJobToken } from "~/.server/auth/verifyJobToken";
 import { prisma } from "~/.server/db/prisma";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
@@ -20,10 +25,9 @@ import { getS3ProviderConfig } from "~/utils/s3Provider";
  * and mints ≤ 1-hour credentials via `AssumeRoleWithWebIdentity`
  * (SRS-CY-416103).
  *
- * Request body: `{ token: string, jobId: string, s3Uri?: string }`. The
- * `s3Uri` is validated against the org's connected storage and scopes the
- * session policy; when absent, mints against the org's first connection
- * with no session policy (the role + bucket policy are the boundary).
+ * Request body: `{ token: string, jobId: string }`. The session policy is
+ * scoped from the input and output targets recorded in the ledger at
+ * submission — never from any caller-supplied body field.
  */
 
 const label = createLabel("broker", "cyan");
@@ -31,7 +35,6 @@ const label = createLabel("broker", "cyan");
 interface BrokerRequestBody {
   token: string;
   jobId: string;
-  s3Uri?: string;
 }
 
 interface BrokerResponse {
@@ -43,19 +46,6 @@ interface BrokerResponse {
 
 function deny(status: number, message: string): Response {
   return Response.json({ error: message }, { status });
-}
-
-function parseS3Uri(uri: string): { bucketName: string; prefix: string } | null {
-  try {
-    const url = new URL(uri);
-    if (url.protocol !== "s3:") return null;
-    const bucketName = url.host;
-    if (!bucketName) return null;
-    const prefix = url.pathname.replace(/^\/+/, "");
-    return { bucketName, prefix };
-  } catch {
-    return null;
-  }
 }
 
 export async function action(args: ActionFunctionArgs): Promise<Response> {
@@ -90,11 +80,6 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         return deny(403, "No active job binding for this token.");
       }
 
-      // Query connections directly by org — the broker's authority is the
-      // token's org claim, not the submitting user's group membership.
-      // The session path (listConnections) applies a group-visibility filter;
-      // the broker must not, or a token whose user has no groups would see
-      // no connections and always 403.
       const connections = await prisma.connectionConfig.findMany({
         where: { organization: requestData.user.organization },
         include: { grants: true },
@@ -103,16 +88,21 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         return deny(403, "No connected storage for this organization.");
       }
 
-      const targetUri = body.s3Uri ? parseS3Uri(body.s3Uri) : null;
-      const targetConnection = targetUri
-        ? connections.find((c) => c.bucketName === targetUri.bucketName)
+      // Parse the input and output targets from the ledger row — these were
+      // server-validated at submission and are the authoritative scope.
+      const inputTargets: S3Target[] = (ledgerEntry.inputS3Uris ?? [])
+        .map(parseS3Uri)
+        .filter((t): t is S3Target => t !== null);
+      const outputTarget = ledgerEntry.outputS3Uri ? parseS3Uri(ledgerEntry.outputS3Uri) : null;
+
+      // Resolve the output connection for the role ARN. If the output target
+      // is absent (legacy row), fall back to the first connection.
+      const targetConnection = outputTarget
+        ? connections.find((c) => c.bucketName === outputTarget.bucketName)
         : connections[0];
 
       if (!targetConnection) {
-        return deny(
-          403,
-          "The target storage URI is outside this organization's connected storage.",
-        );
+        return deny(403, "The output target is outside this organization's connected storage.");
       }
 
       const grant = targetConnection.grants[0];
@@ -133,12 +123,16 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
       }
 
       const providerConfig = getS3ProviderConfig(resolved.endpoint, resolved.region);
+
+      // Build the session policy from the ledger-recorded targets. If the
+      // output target is absent (legacy row), mint without a session policy —
+      // the role + bucket policy are the boundary.
       let Policy: string | undefined;
-      if (targetUri) {
+      if (outputTarget) {
         try {
           Policy = buildBrokerSessionPolicy({
-            bucketName: targetConnection.bucketName,
-            prefix: targetUri.prefix,
+            inputs: inputTargets,
+            output: outputTarget,
             region: resolved.region,
           });
         } catch (err) {

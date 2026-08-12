@@ -292,7 +292,14 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
   test("jobLedger methods throw outside a request context", async () => {
     const ledger = hostCapabilities.jobLedger();
     await expect(
-      ledger.record({ jobId: "j1", offlineSessionId: "s1", organization: "o", owner: "u" }),
+      ledger.record({
+        jobId: "j1",
+        offlineSessionId: "s1",
+        organization: "o",
+        owner: "u",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      }),
     ).rejects.toThrow("outside a request context");
     await expect(ledger.lookup("j1")).rejects.toThrow("outside a request context");
     await expect(ledger.list()).rejects.toThrow("outside a request context");
@@ -314,6 +321,8 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         offlineSessionId: "sess-1",
         organization: "WRONG_ORG",
         owner: "user-123",
+        inputS3Uris: ["s3://bucket/input/"],
+        outputS3Uri: "s3://bucket/output/",
       });
     });
     expect(create).toHaveBeenCalledTimes(1);
@@ -323,6 +332,8 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
+        inputS3Uris: ["s3://bucket/input/"],
+        outputS3Uri: "s3://bucket/output/",
       },
     });
   });
@@ -345,6 +356,8 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       offlineSessionId: "sess-1",
       organization: "testcorp",
       owner: "user-123",
+      inputS3Uris: ["s3://bucket/input/"],
+      outputS3Uri: "s3://bucket/output/",
     } as never);
     await withHostRequestContext(mockRequestData, async () => {
       const result = await hostCapabilities.jobLedger().lookup("job-1");
@@ -353,6 +366,8 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
+        inputS3Uris: ["s3://bucket/input/"],
+        outputS3Uri: "s3://bucket/output/",
       });
     });
   });
@@ -372,8 +387,22 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
 
   test("list filters by the session org and returns rows in insertion order", async () => {
     const findMany = vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
-      { jobId: "job-1", offlineSessionId: "sess-1", organization: "testcorp", owner: "u1" },
-      { jobId: "job-2", offlineSessionId: "sess-2", organization: "testcorp", owner: "u2" },
+      {
+        jobId: "job-1",
+        offlineSessionId: "sess-1",
+        organization: "testcorp",
+        owner: "u1",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      } as never,
+      {
+        jobId: "job-2",
+        offlineSessionId: "sess-2",
+        organization: "testcorp",
+        owner: "u2",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      } as never,
     ] as never);
     const result = await withHostRequestContext(mockRequestData, async () =>
       hostCapabilities.jobLedger().list(),
@@ -389,13 +418,29 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       offlineSessionId: "sess-1",
       organization: "testcorp",
       owner: "u1",
+      inputS3Uris: [],
+      outputS3Uri: "",
     });
   });
 
   test("listAll is org-agnostic — no organization pre-filter (reconciler cross-org scan, SRS-CY-416106)", async () => {
     const findMany = vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
-      { jobId: "job-1", offlineSessionId: "sess-1", organization: "testcorp", owner: "u1" },
-      { jobId: "job-2", offlineSessionId: "sess-2", organization: "othercorp", owner: "u2" },
+      {
+        jobId: "job-1",
+        offlineSessionId: "sess-1",
+        organization: "testcorp",
+        owner: "u1",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      } as never,
+      {
+        jobId: "job-2",
+        offlineSessionId: "sess-2",
+        organization: "othercorp",
+        owner: "u2",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      } as never,
     ] as never);
     const result = await withHostRequestContext(mockRequestData, async () =>
       hostCapabilities.jobLedger().listAll(),
@@ -516,9 +561,14 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     };
     await expect(
       withHostRequestContext(noOrgData, async () =>
-        hostCapabilities
-          .jobLedger()
-          .record({ jobId: "j1", offlineSessionId: "s1", organization: "x", owner: "u" }),
+        hostCapabilities.jobLedger().record({
+          jobId: "j1",
+          offlineSessionId: "s1",
+          organization: "x",
+          owner: "u",
+          inputS3Uris: [],
+          outputS3Uri: "",
+        }),
       ),
     ).rejects.toThrow("Active organization missing");
   });
