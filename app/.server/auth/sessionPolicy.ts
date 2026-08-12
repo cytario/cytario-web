@@ -290,10 +290,38 @@ function getPutPrefixStatement(bucketArn: string, prefix: string) {
 }
 
 /**
+ * `kms:GenerateDataKey` allowing the role's per-key grants to flow through
+ * the STS intersection so `PutObject` against an SSE-KMS-encrypted output
+ * bucket succeeds (SRS-CY-416103). Same scoping as `kms:Decrypt`: the
+ * `kms:ViaService` condition confines the credential to the S3 data path;
+ * the role's attached policy + KMS key policy remain the authority on which
+ * keys — `Resource: "*"` widens nothing.
+ */
+function getKmsGenerateDataKeyStatement(region: string) {
+  const viaServiceRegion = region || DEFAULT_REGION;
+  if (/[*?]/.test(viaServiceRegion)) {
+    throw new Error("Region may not contain IAM wildcard characters (`*`, `?`).");
+  }
+
+  return {
+    Sid: "KmsGenerateDataKeyViaS3",
+    Effect: "Allow",
+    Action: "kms:GenerateDataKey",
+    Resource: "*",
+    Condition: {
+      StringEquals: {
+        "kms:ViaService": `s3.${viaServiceRegion}.amazonaws.com`,
+      },
+    },
+  };
+}
+
+/**
  * Build an inline IAM session policy for the broker's
  * `AssumeRoleWithWebIdentityCommand` (SRS-CY-416103). Reuses the list/get/kms
  * statements from the browser path; scopes `PutObject` to the output prefix
- * instead of annotation sidecars.
+ * instead of annotation sidecars. Includes `kms:GenerateDataKey` so writes
+ * to an SSE-KMS-encrypted output bucket succeed.
  */
 export const buildBrokerSessionPolicy = ({
   bucketName,
@@ -315,6 +343,7 @@ export const buildBrokerSessionPolicy = ({
       getObjectStatement(bucketArn, prefix),
       getKmsDecryptStatement(region),
       getPutPrefixStatement(bucketArn, prefix),
+      getKmsGenerateDataKeyStatement(region),
     ],
   };
 

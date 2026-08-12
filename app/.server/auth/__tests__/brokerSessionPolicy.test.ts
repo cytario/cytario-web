@@ -26,6 +26,18 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     expect(sids).toContain("GetObjectScopedToPrefix");
     expect(sids).toContain("KmsDecryptViaS3");
     expect(sids).toContain("PutObjectScopedToOutputPrefix");
+    expect(sids).toContain("KmsGenerateDataKeyViaS3");
+  });
+
+  test("includes kms:GenerateDataKey for writing to SSE-KMS-encrypted output (SRS-CY-416103)", () => {
+    const policy = JSON.parse(buildBrokerSessionPolicy(VALID_ARGS));
+    const genStmt = policy.Statement.find(
+      (s: { Sid: string }) => s.Sid === "KmsGenerateDataKeyViaS3",
+    );
+    expect(genStmt).toBeDefined();
+    expect(genStmt.Action).toBe("kms:GenerateDataKey");
+    expect(genStmt.Resource).toBe("*");
+    expect(genStmt.Condition.StringEquals["kms:ViaService"]).toBe("s3.eu-central-1.amazonaws.com");
   });
 
   test("PutObject is not scoped to annotation sidecars", () => {
