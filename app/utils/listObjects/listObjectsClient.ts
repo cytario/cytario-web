@@ -208,15 +208,68 @@ async function isExpiredTokenResponse(response: Response): Promise<boolean> {
   }
 }
 
+async function presignedListBucketRequest({
+  connectionId,
+  bucketUrl,
+  query,
+  signal,
+}: {
+  connectionId: string;
+  bucketUrl: string;
+  query: Record<string, string>;
+  signal?: AbortSignal;
+}): Promise<Response> {
+  const url = new URL(bucketUrl);
+  for (const [key, value] of Object.entries(query)) {
+    url.searchParams.set(key, value);
+  }
+
+  const presignResponse = await fetch("/api/presign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ connectionId, url: url.toString(), method: "GET" }),
+    signal,
+  });
+
+  if (!presignResponse.ok) {
+    const error = await presignResponse.json().catch(() => ({}));
+    throw new Error(error.error ?? `Presign failed: ${presignResponse.status}`);
+  }
+
+  const { url: presignedUrl } = (await presignResponse.json()) as { url: string };
+
+  try {
+    return await fetch(presignedUrl, {
+      method: "GET",
+      signal,
+      redirect: "error",
+    });
+  } catch (error) {
+    const browserOrigin =
+      typeof window !== "undefined" && typeof window.location?.origin === "string"
+        ? window.location.origin
+        : "";
+    if (isLikelyCorsFailure(error)) {
+      throw new CorsLikelyError(new URL(bucketUrl).host, browserOrigin, error);
+    }
+    throw error;
+  }
+}
+
 /**
  * Browser-side paginated `ListObjectsV2`. On `ExpiredToken` triggers one
  * refresh through `requestCredentialsRefresh` and retries the page; a second
  * failure surfaces as `ExpiredCredentialsError` for the UI to prompt re-auth.
+ *
+ * In `presigned` mode the static credentials never reach the browser; each
+ * page request is routed through the `/api/presign` endpoint which signs
+ * server-side.
  */
 export async function listObjectsClient(
   connectionConfig: ConnectionAddress,
-  credentials: Credentials,
+  credentials: Credentials | null,
   options: ListObjectsClientOptions = {},
+  credentialMode: "sts" | "presigned" = "sts",
 ): Promise<ListObjectsClientResult> {
   const {
     query,
@@ -232,7 +285,11 @@ export async function listObjectsClient(
   const region = connectionConfig.region || "eu-central-1";
   const connectionId = connectionConfig.id;
 
-  let activeCredentials: Credentials = credentials;
+  if (credentialMode === "sts" && !credentials) {
+    throw new Error("STS credentials are required for listObjectsClient in STS mode");
+  }
+
+  let activeCredentials: Credentials | null = credentials;
 
   const contents: _Object[] = [];
   const commonPrefixes: string[] = [];
@@ -251,33 +308,43 @@ export async function listObjectsClient(
 
     let parsed: ReturnType<typeof parseListResponse>;
     try {
-      let response = await signedListBucketRequest({
-        credentials: activeCredentials,
-        region,
-        bucketUrl,
-        query: queryParams,
-        signal,
-      });
-
-      if (await isExpiredTokenResponse(response)) {
-        if (!connectionId) {
-          throw new ExpiredCredentialsError(
-            "STS credentials expired and no connection id was provided to listObjectsClient.",
-          );
-        }
-        activeCredentials = await requestCredentialsRefresh(connectionId);
+      let response: Response;
+      if (credentialMode === "presigned") {
+        response = await presignedListBucketRequest({
+          connectionId,
+          bucketUrl,
+          query: queryParams,
+          signal,
+        });
+      } else {
         response = await signedListBucketRequest({
-          credentials: activeCredentials,
+          credentials: activeCredentials!,
           region,
           bucketUrl,
           query: queryParams,
           signal,
         });
+
         if (await isExpiredTokenResponse(response)) {
-          throw new ExpiredCredentialsError(
-            "STS credentials expired and refresh did not yield a working session.",
-            connectionId,
-          );
+          if (!connectionId) {
+            throw new ExpiredCredentialsError(
+              "STS credentials expired and no connection id was provided to listObjectsClient.",
+            );
+          }
+          activeCredentials = await requestCredentialsRefresh(connectionId);
+          response = await signedListBucketRequest({
+            credentials: activeCredentials!,
+            region,
+            bucketUrl,
+            query: queryParams,
+            signal,
+          });
+          if (await isExpiredTokenResponse(response)) {
+            throw new ExpiredCredentialsError(
+              "STS credentials expired and refresh did not yield a working session.",
+              connectionId,
+            );
+          }
         }
       }
 

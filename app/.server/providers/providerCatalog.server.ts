@@ -13,6 +13,15 @@ import {
 
 const label = createLabel("providers", "cyan");
 
+/** How a connection's data-plane credentials are obtained. */
+export type CredentialMode = "sts" | "presigned";
+
+/** Static credentials carried for `presigned` provider connections. */
+export interface StaticCredentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+}
+
 const PROVIDERS_LOOKUP_PATH = "/org/providers";
 const PROVIDERS_LOOKUP_HEADER = "X-Providers-Lookup-Secret";
 const PROVIDERS_LOOKUP_TIMEOUT_MS = 10_000;
@@ -191,9 +200,11 @@ export interface ConnectionProvider {
   providerType: ProviderConnection["providerType"];
   endpoint: string | null;
   region: string;
-  roleArn: string;
+  roleArn: string | null;
   allowedScopes: string[];
   accessLevel: AccessLevel;
+  credentialMode: CredentialMode;
+  staticCredentials: StaticCredentials | null;
 }
 
 /**
@@ -218,6 +229,8 @@ export function resolveConnectionProvider(
     roleArn: providerRole.roleArn,
     allowedScopes: providerRole.allowedScopes,
     accessLevel: providerRole.accessLevel,
+    credentialMode: providerConnection.providerType === "presigned" ? "presigned" : "sts",
+    staticCredentials: providerRole.staticCredentials,
   };
 }
 
@@ -227,7 +240,7 @@ export function resolveConnectionProvider(
  */
 export interface ResolvedConnectionGrant {
   scope: string;
-  roleArn: string;
+  roleArn: string | null;
   accessLevel: AccessLevel;
 }
 
@@ -244,6 +257,8 @@ export interface ResolvedConnectionProviderWithGrants {
   region: string;
   allowsSharing: boolean;
   grants: ResolvedConnectionGrant[];
+  credentialMode: CredentialMode;
+  staticCredentials: StaticCredentials | null;
 }
 
 /**
@@ -264,6 +279,7 @@ export function resolveConnectionProviderWithGrants(
 
   const grants: ResolvedConnectionGrant[] = [];
   let allowsSharing = false;
+  let staticCredentials: StaticCredentials | null = null;
   for (const grant of connection.grants) {
     const providerRole = findProviderRole(catalog, grant.providerRoleId);
     if (!providerRole || providerRole.providerConnectionId !== providerConnection.id) continue;
@@ -273,6 +289,7 @@ export function resolveConnectionProviderWithGrants(
       accessLevel: providerRole.accessLevel,
     });
     if (providerRole.accessLevel === "admin") allowsSharing = true;
+    if (providerRole.staticCredentials) staticCredentials = providerRole.staticCredentials;
   }
 
   return {
@@ -281,5 +298,7 @@ export function resolveConnectionProviderWithGrants(
     region: providerConnection.region,
     allowsSharing,
     grants,
+    credentialMode: providerConnection.providerType === "presigned" ? "presigned" : "sts",
+    staticCredentials,
   };
 }

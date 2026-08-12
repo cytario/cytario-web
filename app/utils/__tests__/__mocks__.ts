@@ -52,6 +52,7 @@ const mock = {
     allowedScopes: ["lab"],
     accessLevel: "read-only",
     bucketIds: [],
+    staticCredentials: null,
     ...data,
   }),
   providerCatalog: (data: Partial<ProviderCatalog> = {}): ProviderCatalog => ({

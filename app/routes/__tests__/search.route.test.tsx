@@ -134,6 +134,7 @@ describe("SearchRoute", () => {
       expect.anything(),
       expect.anything(),
       expect.objectContaining({ signal: request.signal }),
+      expect.anything(),
     );
   });
 
@@ -213,6 +214,7 @@ describe("SearchRoute", () => {
         prefix: "Alpha Lab/",
         recursive: true,
       }),
+      expect.anything(),
     );
     expect(listObjectsClient).toHaveBeenCalledWith(
       expect.objectContaining({ id: "beta", bucketName: "shared-bucket" }),
@@ -222,6 +224,7 @@ describe("SearchRoute", () => {
         prefix: "Beta Lab/",
         recursive: true,
       }),
+      expect.anything(),
     );
 
     expect(result.nodes).toHaveLength(2);

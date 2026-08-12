@@ -144,7 +144,7 @@ function useDirectoryPreviews(nodes: TreeNode[], kind: DirectoryKind): TreeNode[
     if (pendingDirs.length === 0) return;
     const connectionId = pendingDirs[0].connectionId;
     const conn = useConnectionsStore.getState().connections[connectionId];
-    if (!conn?.credentials) return;
+    if (!conn?.credentials && conn?.provider?.credentialMode !== "presigned") return;
 
     const controller = new AbortController();
     let cancelled = false;
@@ -154,6 +154,7 @@ function useDirectoryPreviews(nodes: TreeNode[], kind: DirectoryKind): TreeNode[
       credentials: conn.credentials,
       connectionId,
       provider: conn.provider,
+      credentialMode: conn.provider?.credentialMode ?? "sts",
       signal: controller.signal,
     }).then((map) => {
       if (!cancelled && Object.keys(map).length > 0) setPreviews((prev) => ({ ...prev, ...map }));

@@ -362,6 +362,8 @@ describe("resolveConnectionProvider", () => {
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
       allowedScopes: ["lab/team-a"],
       accessLevel: "read-only",
+      credentialMode: "sts",
+      staticCredentials: null,
     });
   });
 

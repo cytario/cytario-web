@@ -9,7 +9,10 @@ export interface ResolvedResource {
   /** Path relative to the connection root (no prefix). */
   pathName: string;
   connectionConfig: ConnectionConfigWithGrants;
-  credentials: Credentials;
+  /** STS credentials, or `null` for presigned connections (no browser-side creds). */
+  credentials: Credentials | null;
+  /** How the browser reaches data-plane objects: STS credentials or presigned URLs. */
+  credentialMode: "sts" | "presigned";
   /** Resolved SigV4 signing region, or `undefined` when the catalog ref is stale. */
   region: string | undefined;
   /** Resolved S3-compatible endpoint, or `null`/`undefined` for native AWS S3. */
@@ -68,7 +71,8 @@ function resolveResource(resourceId: string, state: ConnectionsStore): ResolvedR
   if (!connection) return null;
 
   const { connectionConfig, credentials, provider } = connection;
-  if (!credentials) return null;
+  const credentialMode = provider?.credentialMode ?? "sts";
+  if (!credentials && credentialMode !== "presigned") return null;
   const bucketPrefix = connectionConfig.prefix?.replace(/\/$/, "");
   const bucketPathName = bucketPrefix
     ? `${bucketPrefix}/${connectionPathName}`
@@ -79,6 +83,7 @@ function resolveResource(resourceId: string, state: ConnectionsStore): ResolvedR
     connectionConfig,
     pathName: connectionPathName,
     credentials,
+    credentialMode,
     region: provider?.region,
     endpoint: provider?.endpoint,
     s3Uri: `s3://${connectionConfig.bucketName}/${bucketPathName}`,

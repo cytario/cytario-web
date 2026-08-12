@@ -8,6 +8,7 @@ import { createLabel } from "~/.server/logging";
 import {
   type ResolvedConnectionGrant,
   type ResolvedConnectionProviderWithGrants,
+  type CredentialMode,
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
@@ -133,6 +134,8 @@ export interface ClientConnectionProvider {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** How the browser reaches data-plane objects: STS credentials or presigned URLs. */
+  credentialMode: CredentialMode;
 }
 
 export interface SessionCredentialsResult {
@@ -195,14 +198,16 @@ export const getAllSessionCredentials = async (
           region: connectionProvider.region,
           endpoint: connectionProvider.endpoint,
           allowsSharing: connectionProvider.allowsSharing,
+          credentialMode: connectionProvider.credentialMode,
         };
       }
     }
   }
 
-  const stale = connectionConfigs.filter(
-    (config) => !isValidCredentials(sessionData.credentials[config.id]),
-  );
+  const stale = connectionConfigs.filter((config) => {
+    if (providers[config.id]?.credentialMode === "presigned") return false;
+    return !isValidCredentials(sessionData.credentials[config.id]);
+  });
 
   if (stale.length === 0) {
     return { credentials: sessionData.credentials, errors: {}, providers };
@@ -224,6 +229,9 @@ export const getAllSessionCredentials = async (
       const grant = pickGrantForUser(connectionProvider, sessionData.user, organization);
       if (!grant) {
         throw new Error("You are not a member of any group granted access to this connection.");
+      }
+      if (!grant.roleArn) {
+        throw new Error("This connection does not have an assumable role ARN.");
       }
       return {
         id: config.id,

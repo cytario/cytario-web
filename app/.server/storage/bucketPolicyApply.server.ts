@@ -22,7 +22,7 @@ export interface ApplyTarget {
   region: string;
   endpoint: string | null;
   /** The acting user's connection provider role — the write session is minted against it. */
-  roleArn: string;
+  roleArn: string | null;
   /** ARN of the bucket's SSE-KMS CMK, when SSE-KMS is in use. */
   kmsKeyArn?: string | null;
 }
@@ -77,7 +77,7 @@ const mintWriteSession = async (
 
   const { Credentials } = await stsClient.send(
     new AssumeRoleWithWebIdentityCommand({
-      RoleArn: roleArn,
+      RoleArn: roleArn ?? undefined,
       RoleSessionName: roleSessionName,
       WebIdentityToken: idToken,
       DurationSeconds: 60 * 15,
@@ -135,9 +135,15 @@ export const applyBucketPolicy = async (
   idToken: string,
   actingUserName: string,
 ): Promise<ApplyResult> => {
+  const roleArn = target.roleArn;
+  if (!roleArn) {
+    throw new Error(
+      "Bucket policy apply requires a role ARN — presigned connections are not supported.",
+    );
+  }
   // Inject the write-session role ARN into every grant so compileGrantStatements
   // can set the correct Principal on each bucket-policy statement.
-  const enrichedGrants = grants.map((grant) => ({ ...grant, roleArn: target.roleArn }));
+  const enrichedGrants = grants.map((grant) => ({ ...grant, roleArn }));
 
   // Generate first (outside the lock) so a generation/size fault fails closed
   // before we mint a write session or touch the live policy. The merged document
@@ -145,7 +151,7 @@ export const applyBucketPolicy = async (
   // pre-check just short-circuits obvious faults.
   buildMergedPolicy(parseBucketPolicy(null), enrichedGrants);
 
-  const accountId = accountIdFromRoleArn(target.roleArn);
+  const accountId = accountIdFromRoleArn(roleArn);
   const roleSessionName = sanitizeRoleSessionName(actingUserName);
 
   try {

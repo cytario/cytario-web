@@ -104,6 +104,9 @@ export default function ObjectsRoute() {
   const signingRegion = useConnectionsStore(
     (state) => state.connections[connectionId]?.provider?.region,
   );
+  const credentialMode =
+    useConnectionsStore((state) => state.connections[connectionId]?.provider?.credentialMode) ??
+    "sts";
 
   useEffect(() => {
     if (notification) {
@@ -175,6 +178,7 @@ export default function ObjectsRoute() {
         liveCredentials(connectionId),
         signingRegion,
         connectionId,
+        credentialMode,
       );
       return (
         <ClientOnly>
@@ -208,6 +212,7 @@ export default function ObjectsRoute() {
         liveCredentials(connectionId),
         signingRegion,
         connectionId,
+        credentialMode,
       );
       return (
         <ClientOnly>

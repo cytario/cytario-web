@@ -18,10 +18,13 @@ export const clientLoader = async ({
 
   const resolved = { ...serverData, pendingClientLoad: false };
 
+  const provider = useConnectionsStore.getState().connections[resolved.connectionId]?.provider;
+  const isPresigned = provider?.credentialMode === "presigned";
+
   // Server already flagged this connection as unreachable (e.g. STS denied
   // AssumeRoleWithWebIdentity). Skip the S3 listing — the route renders the
   // connectionError banner instead.
-  if (resolved.connectionError || !resolved.credentials) {
+  if (resolved.connectionError || (!resolved.credentials && !isPresigned)) {
     return { ...resolved, nodes: [] };
   }
 
@@ -30,13 +33,13 @@ export const clientLoader = async ({
   }
 
   try {
-    const provider = useConnectionsStore.getState().connections[resolved.connectionId]?.provider;
     const { nodes, isCapped } = await loadConnectionLevel({
       connectionConfig: resolved.connectionConfig,
       credentials: resolved.credentials,
       connectionId: resolved.connectionId,
       connectionName: resolved.connectionName,
       provider,
+      credentialMode: isPresigned ? "presigned" : "sts",
       urlPath: resolved.urlPath,
       signal: request.signal,
     });

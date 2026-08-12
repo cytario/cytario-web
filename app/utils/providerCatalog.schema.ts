@@ -15,7 +15,7 @@ import { z } from "zod";
  * Cytario Admin Role ARN, an ExternalId, or any management credential.
  */
 
-export const PROVIDER_TYPES = ["aws"] as const;
+export const PROVIDER_TYPES = ["aws", "presigned"] as const;
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
 
 export const PROVIDER_CONNECTION_STATUSES = ["pending", "connected", "drifted", "error"] as const;
@@ -46,11 +46,23 @@ export const providerConnectionSchema = z.object({
 export const providerRoleSchema = z.object({
   id: z.string().min(1),
   providerConnectionId: z.string().min(1),
-  roleArn: z.string().min(1),
+  roleArn: z.string().min(1).nullable(),
   name: z.string().min(1),
   allowedScopes: z.array(z.string()),
   accessLevel: z.enum(ACCESS_LEVELS).default("read-only"),
   bucketIds: z.array(z.string()).default([]),
+  /**
+   * Static credentials for `presigned` provider type — long-lived access key
+   * pair stored server-side and used to mint presigned URLs.  Absent for the
+   * `aws` (STS) provider type.  Never projected to the browser.
+   */
+  staticCredentials: z
+    .object({
+      accessKeyId: z.string().min(1),
+      secretAccessKey: z.string().min(1),
+    })
+    .nullable()
+    .default(null),
 });
 
 export const COMPUTE_PROVIDER_TYPES = ["AWS_BATCH"] as const;
@@ -134,8 +146,11 @@ export type ComputeRole = z.infer<typeof computeRoleSchema>;
 export type AppCatalog = z.infer<typeof appCatalogSchema>;
 export type ProviderCatalog = z.infer<typeof providerCatalogSchema>;
 
-/** A provider role as exposed to the browser: no cloud role identifier. */
-export const clientProviderRoleSchema = providerRoleSchema.omit({ roleArn: true });
+/** A provider role as exposed to the browser: no cloud role identifier, no static credentials. */
+export const clientProviderRoleSchema = providerRoleSchema.omit({
+  roleArn: true,
+  staticCredentials: true,
+});
 
 /**
  * The catalog projection the browser receives. Role ARNs stay server-side — the

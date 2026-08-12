@@ -69,8 +69,13 @@ type DuckDbConnection = Awaited<ReturnType<typeof createDatabaseInternal>>;
 // Shared with `convertCsvToParquet`, which bootstraps its own WASM instance.
 export const applyS3Credentials = async (
   connection: Pick<DuckDbConnection, "query">,
-  credentials: Credentials,
+  credentials: Credentials | null,
 ) => {
+  if (!credentials) {
+    throw new Error(
+      "DuckDB S3 operations require STS credentials and are not supported for presigned connections.",
+    );
+  }
   const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
   await connection.query(`SET s3_access_key_id='${escapeSqlString(AccessKeyId ?? "")}'`);
   await connection.query(`SET s3_secret_access_key='${escapeSqlString(SecretAccessKey ?? "")}'`);
@@ -95,9 +100,14 @@ const pendingApplications = new Map<string, Promise<void>>();
  */
 export const createDatabase = async (
   resourceId: string,
-  credentials: Credentials,
+  credentials: Credentials | null,
   provider?: DatabaseProvider | null,
 ) => {
+  if (!credentials) {
+    throw new Error(
+      "DuckDB S3 operations require STS credentials and are not supported for presigned connections.",
+    );
+  }
   const connection = await getConnection(resourceId, provider);
 
   const previous = pendingApplications.get(resourceId) ?? Promise.resolve();

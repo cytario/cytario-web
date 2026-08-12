@@ -35,7 +35,12 @@ export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderRespon
 }
 
 export const loader = async ({ params, context }: LoaderFunctionArgs) => {
-  const { user, credentials: connectionsCredentials, credentialErrors } = context.get(authContext);
+  const {
+    user,
+    credentials: connectionsCredentials,
+    credentialErrors,
+    connectionProviders,
+  } = context.get(authContext);
   const { id: connectionId } = params;
 
   if (!connectionId) throw new Error("Connection id is required");
@@ -48,10 +53,12 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   const { bucketName, name: connectionName } = connectionConfig;
 
   const credentials = connectionsCredentials[connectionId] ?? null;
-  const connectionError = credentials
-    ? null
-    : (credentialErrors[connectionId] ??
-      "No credentials available for this connection. Verify the connection's role configuration.");
+  const isPresigned = connectionProviders[connectionId]?.credentialMode === "presigned";
+  const connectionError =
+    credentials || isPresigned
+      ? null
+      : (credentialErrors[connectionId] ??
+        "No credentials available for this connection. Verify the connection's role configuration.");
 
   const rawUrlPath = params["*"] ?? "";
 

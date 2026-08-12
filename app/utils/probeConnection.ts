@@ -31,8 +31,9 @@ export interface ConnectionProbeResult {
  */
 export async function probeConnection(
   config: ConnectionConfig,
-  credentials: Credentials,
+  credentials: Credentials | null,
   provider?: ProbeProvider,
+  credentialMode: "sts" | "presigned" = "sts",
   signal?: AbortSignal,
 ): Promise<ConnectionProbeResult> {
   try {
@@ -54,6 +55,7 @@ export async function probeConnection(
         findFirst: isImagePreview,
         signal,
       },
+      credentialMode,
     );
     return { previewObj: contents.find(isImagePreview), status: "connected" };
   } catch (error) {

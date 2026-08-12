@@ -30,6 +30,7 @@ const buildContext = () => ({
       return {
         user: mock.user(),
         credentials: { "test-conn": mock.credentials() },
+        connectionProviders: {},
       };
     }
     return undefined;

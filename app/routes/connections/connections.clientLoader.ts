@@ -29,11 +29,12 @@ export async function enrichConnectionsWithPreviews({
     async (config): Promise<ConnectionProbeResult> => {
       if (signal.aborted) return { status: "connected" };
       const creds = server.credentials[config.id];
-      if (!creds) {
+      const provider = useConnectionsStore.getState().connections[config.id]?.provider;
+      const credentialMode = provider?.credentialMode ?? "sts";
+      if (!creds && credentialMode !== "presigned") {
         return { status: "error", errorMessage: "No credentials available for this connection." };
       }
-      const provider = useConnectionsStore.getState().connections[config.id]?.provider;
-      return probeConnection(config, creds, provider, signal);
+      return probeConnection(config, creds, provider, credentialMode, signal);
     },
   );
 

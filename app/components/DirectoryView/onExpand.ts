@@ -14,7 +14,7 @@ export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
   if (parent.isLeaf || parent.type === "file") return [];
 
   const conn = select.connection(parent.connectionId)(useConnectionsStore.getState());
-  if (!conn?.credentials) return [];
+  if (!conn?.credentials && conn?.provider?.credentialMode !== "presigned") return [];
 
   const { nodes, isCapped } = await loadConnectionLevel({
     connectionConfig: conn.connectionConfig,
@@ -22,6 +22,7 @@ export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
     connectionId: parent.connectionId,
     connectionName: parent.connectionName,
     provider: conn.provider,
+    credentialMode: conn.provider?.credentialMode ?? "sts",
     urlPath: parent.pathName,
   });
 

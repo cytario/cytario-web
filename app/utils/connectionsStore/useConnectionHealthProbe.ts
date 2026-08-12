@@ -36,14 +36,16 @@ export function useConnectionHealthProbe() {
     let cancelled = false;
 
     const targets = Object.values(useConnectionsStore.getState().connections).filter(
-      (c) => c.credentials,
+      (c) => c.credentials || c.provider?.credentialMode === "presigned",
     );
 
     void mapWithConcurrency(targets, PROBE_CONCURRENCY, async (connection) => {
+      const credentialMode = connection.provider?.credentialMode ?? "sts";
       const result = await probeConnection(
         connection.connectionConfig,
-        connection.credentials!,
+        connection.credentials,
         connection.provider,
+        credentialMode,
         controller.signal,
       );
       if (cancelled) return;

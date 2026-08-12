@@ -41,6 +41,7 @@ describe("getTileDataWasm", () => {
       connectionConfig,
       region: "eu-central-1",
       endpoint: null,
+      credentialMode: "sts",
       s3Uri: `s3://${connectionConfig.bucketName}/data/file.parquet`,
       httpsUrl: `https://${connectionConfig.bucketName}.s3.eu-central-1.amazonaws.com/data/file.parquet`,
     });

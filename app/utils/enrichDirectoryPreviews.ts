@@ -16,9 +16,10 @@ const isImagePreview = (obj: _Object) => isImageFile(obj.Key ?? "");
 
 export interface EnrichDirectoryPreviewsArgs {
   connectionConfig: ConnectionConfig;
-  credentials: Credentials;
+  credentials: Credentials | null;
   connectionId: string;
   provider?: { region?: string | null; endpoint?: string | null };
+  credentialMode?: "sts" | "presigned";
   signal?: AbortSignal;
 }
 
@@ -32,7 +33,14 @@ export type DirectoryPreviewMap = Record<string, _Object>;
  */
 export async function enrichDirectoryPreviews(
   nodes: TreeNode[],
-  { connectionConfig, credentials, connectionId, provider, signal }: EnrichDirectoryPreviewsArgs,
+  {
+    connectionConfig,
+    credentials,
+    connectionId,
+    provider,
+    credentialMode = "sts",
+    signal,
+  }: EnrichDirectoryPreviewsArgs,
 ): Promise<DirectoryPreviewMap> {
   const directories = nodes.filter((n) => n.type === "directory" && !n._Object);
   if (directories.length === 0) return {};
@@ -57,6 +65,7 @@ export async function enrichDirectoryPreviews(
           findFirst: isImagePreview,
           signal,
         },
+        credentialMode,
       );
       return contents.find(isImagePreview) ?? null;
     } catch {

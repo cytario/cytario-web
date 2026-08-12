@@ -17,7 +17,12 @@ describe("useConnectionsStore", () => {
   const seed = (
     config = connectionConfig,
     creds = credentials,
-    provider?: { region: string; endpoint: string | null; allowsSharing?: boolean },
+    provider?: {
+      region: string;
+      endpoint: string | null;
+      allowsSharing?: boolean;
+      credentialMode: "sts" | "presigned";
+    },
   ) => {
     useConnectionsStore
       .getState()
@@ -128,7 +133,7 @@ describe("useConnectionsStore", () => {
           prefix: "tenant-a",
         }),
         credentials,
-        { region: "eu-central-1", endpoint: null },
+        { region: "eu-central-1", endpoint: null, credentialMode: "sts" },
       );
 
       const url = selectHttpsUrl("prefixed-conn/sample-001.ome.tif")(
@@ -149,7 +154,7 @@ describe("useConnectionsStore", () => {
           prefix: "",
         }),
         credentials,
-        { region: "eu-central-1", endpoint: null },
+        { region: "eu-central-1", endpoint: null, credentialMode: "sts" },
       );
 
       const url = selectHttpsUrl("no-prefix/file.ome.tif")(useConnectionsStore.getState());
@@ -166,7 +171,7 @@ describe("useConnectionsStore", () => {
           prefix: "data",
         }),
         credentials,
-        { region: "eu-central-1", endpoint: null },
+        { region: "eu-central-1", endpoint: null, credentialMode: "sts" },
       );
 
       const resourceId = "prefixed-conn/image.ome.tif";

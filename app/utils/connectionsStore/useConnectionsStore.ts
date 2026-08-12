@@ -28,6 +28,8 @@ export interface ConnectionProviderClient {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** How the browser reaches data-plane objects: STS credentials or presigned URLs. */
+  credentialMode: "sts" | "presigned";
 }
 
 /** Static config + STS credentials + live health for one connection. */
@@ -84,15 +86,17 @@ export const useConnectionsStore = create<ConnectionsStore>()(
               const cid = connectionConfig.id;
               const creds = credentials[cid] ?? null;
               const prev = state.connections[cid];
+              const provider = providers[cid] ?? prev?.provider;
+              const isPresigned = provider?.credentialMode === "presigned";
 
               let status: ConnectionStatus;
               let statusMessage: string | undefined;
-              if (!creds) {
+              if (!creds && !isPresigned) {
                 status = "error";
                 statusMessage = errors[cid] ?? NO_CREDENTIALS_MESSAGE;
-              } else if (prev?.credentials) {
-                status = prev.status;
-                statusMessage = prev.statusMessage;
+              } else if (prev?.credentials || isPresigned) {
+                status = prev?.status ?? "connected";
+                statusMessage = prev?.statusMessage;
               } else {
                 status = "connected";
               }
@@ -100,7 +104,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
               next[cid] = {
                 connectionConfig,
                 credentials: creds,
-                provider: providers[cid] ?? prev?.provider,
+                provider,
                 status,
                 statusMessage,
               };

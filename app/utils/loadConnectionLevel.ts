@@ -7,11 +7,13 @@ import { buildLevelTree, TreeNode } from "~/components/DirectoryView/buildDirect
 
 export interface LoadConnectionLevelArgs {
   connectionConfig: ConnectionConfig;
-  credentials: Credentials;
+  credentials: Credentials | null;
   connectionId: string;
   connectionName: string;
   /** Resolved non-secret provider address (region/endpoint) from the catalog. */
   provider?: { region?: string | null; endpoint?: string | null };
+  /** Credential mode: "sts" (browser-side SigV4) or "presigned" (server-side signing). */
+  credentialMode?: "sts" | "presigned";
   /** Connection-relative path. May be empty for the bucket root. */
   urlPath: string;
   signal?: AbortSignal;
@@ -28,6 +30,7 @@ export async function loadConnectionLevel({
   connectionId,
   connectionName,
   provider,
+  credentialMode = "sts",
   urlPath: rawUrlPath,
   signal,
 }: LoadConnectionLevelArgs): Promise<LoadConnectionLevelResult> {
@@ -42,6 +45,7 @@ export async function loadConnectionLevel({
     },
     credentials,
     { prefix, signal },
+    credentialMode,
   );
 
   const nodes = buildLevelTree({

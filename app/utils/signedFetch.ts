@@ -145,6 +145,7 @@ export function createSignedFetch(
    */
   region: string | undefined,
   connectionId?: string,
+  credentialMode: "sts" | "presigned" = "sts",
 ): SignedFetch {
   let cachedKeyId: string | undefined;
   let signer: SignatureV4;
@@ -247,6 +248,42 @@ export function createSignedFetch(
 
     return { wireUrl, fetchInit, host: parsed.host, browserOrigin };
   };
+
+  if (credentialMode === "presigned") {
+    return async (url: string, init?: RequestInit): Promise<Response> => {
+      const method = (init?.method as string) ?? "GET";
+      const presignResponse = await fetch("/api/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, url, method }),
+      });
+
+      if (!presignResponse.ok) {
+        const error = await presignResponse.json().catch(() => ({}));
+        throw new Error(error.error ?? `Presign failed: ${presignResponse.status}`);
+      }
+
+      const { url: presignedUrl } = (await presignResponse.json()) as { url: string };
+
+      const parsed = new URL(url);
+      const browserOrigin =
+        typeof window !== "undefined" && typeof window.location?.origin === "string"
+          ? window.location.origin
+          : "";
+
+      const callerHeaders = sanitizeHeaders(init?.headers as Record<string, string> | undefined);
+
+      const fetchInit: RequestInit = {
+        ...init,
+        method,
+        headers: callerHeaders,
+        signal: init?.signal,
+        redirect: "error",
+      };
+
+      return fetchWithCorsDetection(presignedUrl, fetchInit, parsed.host, browserOrigin);
+    };
+  }
 
   return async (url: string, init?: RequestInit): Promise<Response> => {
     const first = await buildSignedRequest(url, init);

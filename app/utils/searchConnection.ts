@@ -28,6 +28,7 @@ export async function searchConnection({
   signal?: AbortSignal;
 }): Promise<SearchConnectionResult> {
   const { connectionConfig: config, credentials, provider } = connection;
+  const credentialMode = provider?.credentialMode ?? "sts";
   const prefix = getPrefix(config.prefix);
   const bucketBase = {
     id: `${config.id}/`,
@@ -38,9 +39,11 @@ export async function searchConnection({
     pathName: "",
   };
 
-  // A broken connection (no minted STS credentials) can't be searched; surface
+  // A broken STS connection (no minted credentials) can't be searched; surface
   // it as an errored result so the status dot stays red rather than spinning.
-  if (!credentials) {
+  // Presigned connections have null credentials by design — they route through
+  // the presign endpoint instead.
+  if (!credentials && credentialMode !== "presigned") {
     return {
       node: { ...bucketBase, children: [] },
       isCapped: false,
@@ -64,6 +67,7 @@ export async function searchConnection({
         recursive: true,
         signal,
       },
+      credentialMode,
     );
     return {
       node: {

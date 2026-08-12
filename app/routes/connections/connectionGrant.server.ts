@@ -42,7 +42,7 @@ export interface ActingContext {
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
   grant: { scope: string },
-  roleArn: string,
+  roleArn: string | null,
   accessLevel: ConnectionProvider["accessLevel"],
 ): BucketPolicyGrant {
   return {
@@ -51,7 +51,7 @@ export function grantForConnection(
     groupPath: grant.scope,
     prefix: config.prefix,
     accessLevel,
-    roleArn,
+    roleArn: roleArn ?? undefined,
   };
 }
 
