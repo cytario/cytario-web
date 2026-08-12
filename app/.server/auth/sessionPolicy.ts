@@ -20,6 +20,10 @@
  * guard the attachment behind `provider === "aws"`.
  */
 
+/** Mirrors `AccessLevel` from providerCatalog.schema — duplicated here to keep
+ * the session-policy and bucket-policy generators import-disjoint (ARCH-1). */
+type AccessLevel = "read-only" | "annotate" | "read-write" | "admin";
+
 /** Fallback AWS region for the `kms:ViaService` condition when none is supplied. */
 const DEFAULT_REGION = "eu-central-1";
 
@@ -52,6 +56,13 @@ export interface SessionPolicyArgs {
   subject: string;
   /** AWS region of the connection's S3 endpoint — scopes the `kms:ViaService` condition. */
   region: string;
+  /**
+   * Access level of the grant picked for the caller. `"read-write"` or `"admin"`
+   * includes the prefix-wide `PutObject`; lower levels omit it so the STS
+   * session itself denies writes to the connection data plane —
+   * defense-in-depth, not just a UI gate.
+   */
+  accessLevel: AccessLevel;
 }
 
 const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, "");
@@ -107,11 +118,15 @@ function getObjectStatement(bucketArn: string, prefix: string) {
  * (`*.annotations.<sub>.json`) under the connection prefix — the trailing
  * `<sub>` segment stops a tampered client from writing another user's file
  * (which the cross-user read union would then surface as forged authorship).
- * Image data (`.ome.tif`/`.zarr`), `offsets.json`, and parquet stay read-only.
  * Overwrite is `PutObject` (full-file write of the user's own file) — no
  * `DeleteObject`.
+ *
+ * Emitted only for the `annotate` level: `read-only` gets no write at all, and
+ * `read-write`/`admin` get the broader prefix grant (see `getPutObjectStatement`)
+ * which subsumes this scope — so image data, `offsets.json`, and parquet stay
+ * read-only at the `annotate` level, and the inline policy stays lean.
  */
-function getPutStatement(bucketArn: string, prefix: string, subject: string) {
+function getPutOwnSidecarStatement(bucketArn: string, prefix: string, subject: string) {
   const sidecarArn = [bucketArn, prefix, `*.annotations.${subject}.json`].filter(Boolean).join("/");
 
   return {
@@ -119,6 +134,27 @@ function getPutStatement(bucketArn: string, prefix: string, subject: string) {
     Effect: "Allow",
     Action: "s3:PutObject",
     Resource: sidecarArn,
+  };
+}
+
+/**
+ * `PutObject` scoped to the connection prefix via the Resource ARN —
+ * `bucket/<prefix>/*`, or the whole bucket when no prefix is set. Mirrors the
+ * `GetObject` scope from `getObjectStatement`.
+ *
+ * Included only when the caller's grant `accessLevel` is `"read-write"` or
+ * `"admin"` — defense-in-depth so a `"read-only"` or `"annotate"` user's STS
+ * session itself denies writes to the connection data plane, not just the UI.
+ * Overwrite is `PutObject` (full-file write) — no `DeleteObject`.
+ */
+function getPutObjectStatement(bucketArn: string, prefix: string) {
+  const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
+
+  return {
+    Sid: "PutObjectScopedToPrefix",
+    Effect: "Allow",
+    Action: "s3:PutObject",
+    Resource: objectArn,
   };
 }
 
@@ -150,12 +186,20 @@ function getKmsDecryptStatement(region: string) {
   };
 }
 
+/** Whether the access level permits writes to the connection data plane. */
+const permitsPrefixWrite = (accessLevel: AccessLevel): boolean =>
+  accessLevel === "read-write" || accessLevel === "admin";
+
+/** Whether the access level permits writing annotation sidecars. */
+const permitsAnnotationWrite = (accessLevel: AccessLevel): boolean => accessLevel !== "read-only";
+
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
 export const buildSessionPolicy = ({
   bucketName,
   prefix: prefixRaw,
   subject,
   region,
+  accessLevel,
 }: SessionPolicyArgs): string => {
   // The subject is interpolated into the PutObject Resource ARN; an empty or
   // wildcard sub would widen the write scope to other users' sidecars.
@@ -176,14 +220,31 @@ export const buildSessionPolicy = ({
 
   const bucketArn = `arn:aws:s3:::${bucketName}`;
 
+  const statements: Array<{
+    Sid: string;
+    Effect: string;
+    Action: string;
+    Resource: string | string[];
+    Condition?: Record<string, Record<string, string | string[]>>;
+  }> = [
+    getListStatement(bucketArn, prefix),
+    getObjectStatement(bucketArn, prefix),
+    getKmsDecryptStatement(region),
+  ];
+
+  // The prefix grant (read-write/admin) subsumes the sidecar scope, so emit the
+  // narrower sidecar statement only when the session cannot write the prefix.
+  if (permitsAnnotationWrite(accessLevel) && !permitsPrefixWrite(accessLevel)) {
+    statements.push(getPutOwnSidecarStatement(bucketArn, prefix, subject));
+  }
+
+  if (permitsPrefixWrite(accessLevel)) {
+    statements.push(getPutObjectStatement(bucketArn, prefix));
+  }
+
   const policy = {
     Version: "2012-10-17",
-    Statement: [
-      getListStatement(bucketArn, prefix),
-      getObjectStatement(bucketArn, prefix),
-      getKmsDecryptStatement(region),
-      getPutStatement(bucketArn, prefix, subject),
-    ],
+    Statement: statements,
   };
 
   // Compact JSON (no insignificant whitespace) — AWS counts the bytes actually

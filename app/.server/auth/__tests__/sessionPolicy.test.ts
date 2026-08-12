@@ -4,7 +4,7 @@ interface PolicyStatement {
   Sid: string;
   Effect: "Allow" | "Deny";
   Action: string;
-  Resource: string;
+  Resource: string | string[];
   Condition?: {
     StringLike?: {
       "s3:prefix"?: string[];
@@ -26,6 +26,12 @@ const findStatement = (policy: ParsedPolicy, action: string): PolicyStatement =>
   return stmt;
 };
 
+const findBySid = (policy: ParsedPolicy, sid: string): PolicyStatement => {
+  const stmt = policy.Statement.find((s) => s.Sid === sid);
+  if (!stmt) throw new Error(`No statement with Sid=${sid}`);
+  return stmt;
+};
+
 const SUBJECT = "4cd912ea-5136-4b2d-8959-d5e983cbea05";
 const REGION = "us-east-1";
 const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
@@ -33,6 +39,7 @@ const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {})
   prefix: "",
   subject: SUBJECT,
   region: REGION,
+  accessLevel: "read-write" as const,
   ...overrides,
 });
 
@@ -235,22 +242,55 @@ describe("buildSessionPolicy", () => {
     );
   });
 
-  test("PutObject is scoped to the caller's OWN sidecar (`*.annotations.<sub>.json`)", () => {
-    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+  test("PutOwnAnnotationSidecars is scoped to the caller's own sidecar under the prefix", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
 
-    const put = findStatement(policy, "s3:PutObject");
+    const put = findBySid(policy, "PutOwnAnnotationSidecars");
     expect(put.Effect).toBe("Allow");
     expect(put.Resource).toBe(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
     // The user segment is pinned, not a wildcard — no writing another user's file.
     expect(put.Resource).not.toContain("annotations.*.json");
   });
 
-  test("PutObject scope omits the prefix segment for whole-bucket connections", () => {
+  test("PutObjectScopedToPrefix is scoped to the whole connection prefix", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo" })));
+
+    const put = findBySid(policy, "PutObjectScopedToPrefix");
+    expect(put.Effect).toBe("Allow");
+    expect(put.Resource).toBe("arn:aws:s3:::my-bucket/foo/*");
+  });
+
+  test("PutObjectScopedToPrefix scope omits the prefix segment for whole-bucket connections", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "" })));
 
-    expect(findStatement(policy, "s3:PutObject").Resource).toBe(
-      `arn:aws:s3:::my-bucket/*.annotations.${SUBJECT}.json`,
-    );
+    const put = findBySid(policy, "PutObjectScopedToPrefix");
+    expect(put.Resource).toBe("arn:aws:s3:::my-bucket/*");
+  });
+
+  test("accessLevel read-write → includes PutObjectScopedToPrefix, omits redundant sidecar", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-write" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
+    // The prefix grant subsumes the sidecar scope — don't emit a redundant statement.
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+  });
+
+  test("accessLevel admin → includes PutObjectScopedToPrefix, omits redundant sidecar", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "admin" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+  });
+
+  test("accessLevel read-only → omits all PutObject statements (defense-in-depth at STS level)", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-only" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
+    // A read-only session may not write annotation sidecars either.
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+  });
+
+  test("accessLevel annotate → includes PutOwnAnnotationSidecars, omits PutObjectScopedToPrefix", () => {
+    const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
+    expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(true);
   });
 
   test("throws when subject is empty (would widen Put scope to all users)", () => {

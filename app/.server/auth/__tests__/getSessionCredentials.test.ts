@@ -9,6 +9,7 @@ import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
+import type { AccessLevel } from "~/utils/providerCatalog.schema";
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
@@ -117,6 +118,7 @@ describe("getAllSessionCredentials", () => {
       endpoint?: string | null;
       region?: string;
       roleArn?: string;
+      accessLevel?: AccessLevel;
     } = {},
   ) => {
     const pcId = overrides.providerConnectionId ?? "pc-mock";
@@ -134,6 +136,7 @@ describe("getAllSessionCredentials", () => {
           id: prId,
           providerConnectionId: pcId,
           roleArn: overrides.roleArn ?? "arn:aws:iam::123456789012:role/mock-role",
+          accessLevel: overrides.accessLevel ?? "read-write",
         }),
       ],
     });
@@ -359,6 +362,7 @@ describe("getAllSessionCredentials", () => {
         prefix: "",
         subject: "user-123",
         region: "us-west-2",
+        accessLevel: "read-write",
       }),
     });
   });
@@ -373,6 +377,7 @@ describe("getAllSessionCredentials", () => {
       prefix: "tenant-a",
       subject: "user-123",
       region: "us-east-1",
+      accessLevel: "read-write",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
@@ -390,11 +395,68 @@ describe("getAllSessionCredentials", () => {
       prefix: "",
       subject: "user-123",
       region: "us-east-1",
+      accessLevel: "read-write",
     });
 
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
       expect.objectContaining({ Policy: expectedPolicy }),
     );
+  });
+
+  test("picks the grant with the highest access level across all visible grants", async () => {
+    const providerId = "pc-multi";
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: providerId })],
+        providerRoles: [
+          mock.providerRole({
+            id: "pr-ro",
+            providerConnectionId: providerId,
+            roleArn: "arn:aws:iam::123:role/read-only",
+            accessLevel: "read-only",
+          }),
+          mock.providerRole({
+            id: "pr-ann",
+            providerConnectionId: providerId,
+            roleArn: "arn:aws:iam::123:role/annotate",
+            accessLevel: "annotate",
+          }),
+          mock.providerRole({
+            id: "pr-rw",
+            providerConnectionId: providerId,
+            roleArn: "arn:aws:iam::123:role/read-write",
+            accessLevel: "read-write",
+          }),
+        ],
+      }),
+    );
+
+    const config = mock.connectionConfig({
+      id: "multi-grant",
+      name: "multi-grant",
+      providerConnectionId: providerId,
+      grants: [
+        // Grants are ordered least-permissive-first; the selector must rank by
+        // access level rather than rely on insertion order.
+        mock.connectionGrant({ providerRoleId: "pr-ro", scope: "org1/lab" }),
+        mock.connectionGrant({ providerRoleId: "pr-ann", scope: "org1/lab" }),
+        mock.connectionGrant({ providerRoleId: "pr-rw", scope: "org1/lab" }),
+      ],
+    });
+
+    await getAllSessionCredentials(mockSessionData, [config]);
+
+    const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
+    expect(call).toBeDefined();
+    const policyJson = call?.Policy;
+    expect(policyJson).toBeDefined();
+    const policy = JSON.parse(policyJson as string) as {
+      Statement: Array<{ Sid: string }>;
+    };
+    // read-write was selected → prefix write present; the sidecar statement is
+    // omitted because the prefix grant subsumes it.
+    expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
   });
 
   test("non-AWS (MinIO) connection: Policy field is absent", async () => {

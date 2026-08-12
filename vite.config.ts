@@ -7,6 +7,18 @@ import { cytarioPlugins } from "./vite-plugins/cytario-plugins";
 
 export default defineConfig({
   plugins: [cytarioPlugins(), tailwindcss(), reactRouter(), tsconfigPaths()],
+
+  // Local @cytario/design development:
+  // Skip pre-bundling so Vite serves the latest dist on every request.
+  optimizeDeps: {
+    include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],
+    exclude: ["@cytario/design"],
+  },
+  // Process the design system through Vite's pipeline during SSR
+  // instead of letting Node resolve it (avoids dual-React issues).
+  ssr: {
+    noExternal: ["@cytario/design"],
+  },
   // Vite ignores node_modules by default — opt-in to watching
   // the design system so file changes trigger a reload.
   server: {

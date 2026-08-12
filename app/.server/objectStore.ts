@@ -53,6 +53,7 @@ async function resolveWritableConnection(
   roleArn: string;
   region: string;
   endpoint: string | null;
+  accessLevel: AccessLevel;
 }> {
   const { user, authTokens } = requireRequestData();
   const configs = await listConnections(user);
@@ -76,10 +77,11 @@ async function resolveWritableConnection(
     );
   }
 
-  const roleArn =
+  const writeGrant =
     connectionProvider.grants.find(
       (g) => g.accessLevel === "read-write" || g.accessLevel === "admin",
-    )?.roleArn ?? connectionProvider.grants[0]?.roleArn;
+    ) ?? connectionProvider.grants[0];
+  const roleArn = writeGrant?.roleArn;
   if (!roleArn) {
     throw new Error(`Connection "${connectionId}" has no resolvable grant with a role ARN`);
   }
@@ -89,6 +91,7 @@ async function resolveWritableConnection(
     roleArn,
     region: connectionProvider.region,
     endpoint: connectionProvider.endpoint,
+    accessLevel: writeGrant.accessLevel,
   };
 }
 
@@ -112,7 +115,7 @@ function buildS3Key(prefix: string, key: string): string {
  */
 class ObjectStoreImpl implements ObjectStore {
   async put(connectionId: string, key: string, body: BodyInit): Promise<void> {
-    const { config, roleArn, region, endpoint } = await resolveWritableConnection(
+    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
       connectionId,
       true,
     );
@@ -129,6 +132,7 @@ class ObjectStoreImpl implements ObjectStore {
           prefix: config.prefix,
           subject: user.sub,
           region,
+          accessLevel,
         })
       : undefined;
 
@@ -166,7 +170,7 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async get(connectionId: string, key: string): Promise<Response> {
-    const { config, roleArn, region, endpoint } = await resolveWritableConnection(
+    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
       connectionId,
       false,
     );
@@ -183,6 +187,7 @@ class ObjectStoreImpl implements ObjectStore {
           prefix: config.prefix,
           subject: user.sub,
           region,
+          accessLevel,
         })
       : undefined;
 
@@ -221,7 +226,7 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async delete(connectionId: string, key: string): Promise<void> {
-    const { config, roleArn, region, endpoint } = await resolveWritableConnection(
+    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
       connectionId,
       true,
     );
@@ -238,6 +243,7 @@ class ObjectStoreImpl implements ObjectStore {
           prefix: config.prefix,
           subject: user.sub,
           region,
+          accessLevel,
         })
       : undefined;
 
@@ -269,7 +275,7 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async list(connectionId: string, prefix: string): Promise<readonly StorageEntry[]> {
-    const { config, roleArn, region, endpoint } = await resolveWritableConnection(
+    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
       connectionId,
       false,
     );
@@ -286,6 +292,7 @@ class ObjectStoreImpl implements ObjectStore {
           prefix: config.prefix,
           subject: user.sub,
           region,
+          accessLevel,
         })
       : undefined;
 
