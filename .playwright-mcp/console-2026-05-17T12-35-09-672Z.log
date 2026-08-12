@@ -1,4 +1,0 @@
-[     585ms] [INFO] [plugin-bootstrap] czi-loader registering JSHandle@object @ https://app.cytar.io/assets/entry.client-B1-XKh2d.js:12
-[    1381ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
-[    2193ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js" line: 1418}] @ https://app.cytar.io/assets/ViewerStoreContext-D2n16RTX.js:1418
-[    3476ms] [WARNING] [JavaScript Warning: "WebGL warning: validateProgram: Implemented as a no-op on Mac to work around crashes."] @ :0

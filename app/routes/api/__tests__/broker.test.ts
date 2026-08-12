@@ -19,11 +19,6 @@ vi.mock("~/.server/providers/providerCatalog.server", () => ({
   findProviderRole: vi.fn(),
 }));
 
-const listConnectionsMock = vi.hoisted(() => vi.fn());
-vi.mock("~/routes/connections/connections.server", () => ({
-  listConnections: listConnectionsMock,
-}));
-
 const stsSendMock = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: class {
@@ -57,7 +52,6 @@ beforeEach(() => {
   verifyJobTokenMock.mockReset();
   getProviderCatalogMock.mockReset();
   resolveConnectionProviderMock.mockReset();
-  listConnectionsMock.mockReset();
   stsSendMock.mockReset();
 });
 
@@ -81,7 +75,7 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
   test("returns 403 when no ledger row exists (revoked or unknown job)", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
-    listConnectionsMock.mockResolvedValueOnce([]);
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([]);
     const response = (await action(
       args(buildRequest({ token: "tok", jobId: "job-1" })),
     )) as Response;
@@ -99,7 +93,7 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       organization: "testcorp",
       owner: "user-1",
     } as never);
-    listConnectionsMock.mockResolvedValueOnce([]);
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([]);
     const response = (await action(
       args(buildRequest({ token: "tok", jobId: "job-1" })),
     )) as Response;
@@ -117,15 +111,15 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       organization: "testcorp",
       owner: "user-1",
     } as never);
-    listConnectionsMock.mockResolvedValueOnce([
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
       {
         id: "c1",
         bucketName: "data-bucket",
         prefix: "in/",
         providerConnectionId: "pc-1",
         grants: [{ providerRoleId: "pr-1" }],
-      },
-    ]);
+      } as never,
+    ] as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
     resolveConnectionProviderMock.mockReturnValueOnce({
       providerType: "aws",
@@ -163,15 +157,15 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       organization: "testcorp",
       owner: "user-1",
     } as never);
-    listConnectionsMock.mockResolvedValueOnce([
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
       {
         id: "c1",
         bucketName: "data-bucket",
         prefix: "in/",
         providerConnectionId: "pc-1",
         grants: [{ providerRoleId: "pr-1" }],
-      },
-    ]);
+      } as never,
+    ] as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
     resolveConnectionProviderMock.mockReturnValueOnce({
       providerType: "aws",
@@ -214,15 +208,15 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       organization: "testcorp",
       owner: "user-1",
     } as never);
-    listConnectionsMock.mockResolvedValueOnce([
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
       {
         id: "c1",
         bucketName: "data-bucket",
         prefix: "",
         providerConnectionId: "pc-1",
         grants: [{ providerRoleId: "pr-1" }],
-      },
-    ]);
+      } as never,
+    ] as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
     resolveConnectionProviderMock.mockReturnValueOnce({
       providerType: "aws",
@@ -265,15 +259,15 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       organization: "testcorp",
       owner: "user-1",
     } as never);
-    listConnectionsMock.mockResolvedValueOnce([
+    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce([
       {
         id: "c1",
         bucketName: "data-bucket",
         prefix: "",
         providerConnectionId: "pc-1",
         grants: [{ providerRoleId: "pr-1" }],
-      },
-    ]);
+      } as never,
+    ] as never);
     getProviderCatalogMock.mockResolvedValueOnce({});
     resolveConnectionProviderMock.mockReturnValueOnce({
       providerType: "aws",

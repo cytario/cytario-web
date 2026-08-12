@@ -10,29 +10,20 @@ import {
   getProviderCatalog,
   resolveConnectionProvider,
 } from "~/.server/providers/providerCatalog.server";
-import { listConnections } from "~/routes/connections/connections.server";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 /**
- * Credential-broker endpoint (SRS-CY-416102, SDS-CY-080400).
+ * Credential-broker endpoint (SRS-CY-416102, SDS-CY-080400). A running
+ * container calls this host-owned route with its job-scoped token to obtain
+ * short-lived S3 storage credentials. Verifies the token, checks the
+ * running-jobs ledger, resolves a storage role from the org's connections,
+ * and mints ≤ 1-hour credentials via `AssumeRoleWithWebIdentity`
+ * (SRS-CY-416103).
  *
- * A running analysis container calls this host-owned route with its
- * job-scoped token to obtain short-lived S3 storage credentials. The
- * broker verifies the token, checks the running-jobs ledger for an
- * active row, resolves a storage role from the org's connections, and
- * mints ≤ 1-hour credentials via `AssumeRoleWithWebIdentity` (SRS-CY-416103).
- *
- * This is a first-class host route, not a plugin-contributed endpoint —
- * credential minting is host infrastructure, not image-processing domain
- * logic. The compute-plugin's job adapter tells the container the broker
- * endpoint URL; the container (via the SDK) calls it directly.
- *
- * Request body: `{ token: string, jobId: string, s3Uri?: string }`.
- * The `s3Uri` is optional — when present, the broker validates it against
- * the org's connected storage and scopes the session policy to it; when
- * absent, the broker mints against the org's first storage connection with
- * no session policy (the role's attached policy + bucket policy are the
- * boundary). A future SDK change sends the s3Uri to tighten the scope.
+ * Request body: `{ token: string, jobId: string, s3Uri?: string }`. The
+ * `s3Uri` is validated against the org's connected storage and scopes the
+ * session policy; when absent, mints against the org's first connection
+ * with no session policy (the role + bucket policy are the boundary).
  */
 
 const label = createLabel("broker", "cyan");
@@ -54,7 +45,6 @@ function deny(status: number, message: string): Response {
   return Response.json({ error: message }, { status });
 }
 
-/** Parse an `s3://bucket/prefix` URI into its bucket and key prefix. */
 function parseS3Uri(uri: string): { bucketName: string; prefix: string } | null {
   try {
     const url = new URL(uri);
@@ -89,8 +79,6 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
 
   return withHostRequestContext(requestData, async () => {
     try {
-      // (c) Ledger-gated revocation signal: a broker call whose job has no
-      // active ledger row mints nothing (SRS-CY-416102(c)).
       if (!requestData.user.organization) {
         return deny(403, "Organization missing from token claims.");
       }
@@ -102,11 +90,15 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         return deny(403, "No active job binding for this token.");
       }
 
-      // Resolve a storage connection + role from the org's connected storage.
-      // The token's org claim authorizes; the s3Uri (when present) selects
-      // the target within the permitted scope but does not widen it
-      // (SRS-CY-416102(b)).
-      const connections = await listConnections(requestData.user);
+      // Query connections directly by org — the broker's authority is the
+      // token's org claim, not the submitting user's group membership.
+      // The session path (listConnections) applies a group-visibility filter;
+      // the broker must not, or a token whose user has no groups would see
+      // no connections and always 403.
+      const connections = await prisma.connectionConfig.findMany({
+        where: { organization: requestData.user.organization },
+        include: { grants: true },
+      });
       if (connections.length === 0) {
         return deny(403, "No connected storage for this organization.");
       }
@@ -140,10 +132,6 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         return deny(503, "The connection's provider role could not be resolved.");
       }
 
-      // Build the session policy scoped to the target prefix (SRS-CY-416103).
-      // When s3Uri is absent, mint without a session policy — the role's
-      // attached policy + bucket policy are the boundary (SRS-CY-43106
-      // gates (a) and (c)).
       const providerConfig = getS3ProviderConfig(resolved.endpoint, resolved.region);
       let Policy: string | undefined;
       if (targetUri) {
