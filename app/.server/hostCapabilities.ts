@@ -16,9 +16,11 @@ import type {
   ObjectStore,
   TokenGrant,
 } from "@cytario/plugin-api";
+import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
 import {
   getProviderCatalog,
   resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
 import { listConnections } from "~/routes/connections/connections.server";
 import type { ConnectionConfigWithGrants } from "~/routes/connections/connections.server";
@@ -151,10 +153,12 @@ class JobLedgerImpl implements JobLedger {
       throw new Error("Active organization missing from session");
     }
 
-    // Resolve the storage role from the output connection, host-side, using
-    // the submitting user's session token. The broker reads the resolved
+    // Resolve the storage role for the submitting user, host-side, from the
+    // output connection and the session token. The broker reads the resolved
     // roleArn/region/s3Endpoint from the ledger row at mint time without
-    // re-resolving the provider catalog.
+    // re-resolving the provider catalog. Pinning the most permissive grant the
+    // user can see (not arbitrary first grant) keeps the job's credentials
+    // within the user's entitlement and ensures the output role can write.
     const connection = await prisma.connectionConfig.findFirst({
       where: { id: job.connectionId, organization: user.organization },
       include: { grants: true },
@@ -164,17 +168,16 @@ class JobLedgerImpl implements JobLedger {
         `Connection ${job.connectionId} not found in organization ${user.organization}`,
       );
     }
-    const grant = connection.grants[0];
-    if (!grant) {
-      throw new Error(`Connection ${job.connectionId} has no configured grant`);
-    }
     const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
-    const resolved = resolveConnectionProvider(catalog, {
-      providerConnectionId: connection.providerConnectionId,
-      providerRoleId: grant.providerRoleId,
-    });
-    if (!resolved) {
-      throw new Error(`Provider role could not be resolved for connection ${job.connectionId}`);
+    const provider = resolveConnectionProviderWithGrants(catalog, connection);
+    if (!provider) {
+      throw new Error(
+        `Provider connection could not be resolved for connection ${job.connectionId}`,
+      );
+    }
+    const grant = pickGrantForUser(provider, user, user.organization);
+    if (!grant) {
+      throw new Error(`No grant the submitting user can see for connection ${job.connectionId}`);
     }
 
     await prisma.jobLedgerEntry.create({
@@ -186,9 +189,9 @@ class JobLedgerImpl implements JobLedger {
         inputS3Uris: job.inputS3Uris,
         outputS3Uri: job.outputS3Uri,
         connectionId: job.connectionId,
-        roleArn: resolved.roleArn,
-        region: resolved.region,
-        s3Endpoint: resolved.endpoint,
+        roleArn: grant.roleArn,
+        region: provider.region,
+        s3Endpoint: provider.endpoint,
       },
     });
   }

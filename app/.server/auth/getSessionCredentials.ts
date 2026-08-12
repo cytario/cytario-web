@@ -94,7 +94,7 @@ const fetchTemporaryCredentials = async (
  * applicable to the user (the connection is visible only through an ancestor
  * the user does not directly hold).
  */
-const pickGrantForUser = (
+export const pickGrantForUser = (
   connectionProvider: ResolvedConnectionProviderWithGrants,
   user: UserProfile,
   organization: string,

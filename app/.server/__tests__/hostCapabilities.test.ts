@@ -6,19 +6,32 @@ import type { Identity } from "@cytario/plugin-api";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 import type { ProviderCatalog } from "~/utils/providerCatalog.schema";
 
-const { getProviderCatalogMock, resolveConnectionProviderMock, stsSendMock } = vi.hoisted(() => ({
+const {
+  getProviderCatalogMock,
+  resolveConnectionProviderMock,
+  resolveConnectionProviderWithGrantsMock,
+  pickGrantForUserMock,
+  stsSendMock,
+} = vi.hoisted(() => ({
   getProviderCatalogMock: vi.fn(),
   resolveConnectionProviderMock: vi.fn(),
+  resolveConnectionProviderWithGrantsMock: vi.fn(),
+  pickGrantForUserMock: vi.fn(),
   stsSendMock: vi.fn(),
 }));
 
 vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
   resolveConnectionProvider: resolveConnectionProviderMock,
+  resolveConnectionProviderWithGrants: resolveConnectionProviderWithGrantsMock,
   invalidateProviderCatalogCache: vi.fn(),
   clearProviderCatalogCache: vi.fn(),
   findProviderConnection: vi.fn(),
   findProviderRole: vi.fn(),
+}));
+
+vi.mock("~/.server/auth/getSessionCredentials", () => ({
+  pickGrantForUser: pickGrantForUserMock,
 }));
 
 vi.mock("@aws-sdk/client-sts", () => ({
@@ -326,12 +339,22 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       grants: [{ providerRoleId: "pr-1" }],
     } as never);
     getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
-    resolveConnectionProviderMock.mockReturnValueOnce({
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
       providerType: "aws",
       endpoint: null,
       region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "*",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
       roleArn: "arn:aws:iam::123:role/storage",
-      allowedScopes: [],
       accessLevel: "read-write",
     });
     await withHostRequestContext(mockRequestData, async () => {
@@ -363,6 +386,48 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         s3Endpoint: null,
       },
     });
+  });
+
+  test("record rejects when the submitting user can see no grant on the connection", async () => {
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ providerRoleId: "pr-1" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "lab/team-a",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce(undefined);
+    const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+
+    await withHostRequestContext(mockRequestData, async () => {
+      await expect(
+        hostCapabilities.jobLedger().record({
+          jobId: "job-1",
+          offlineSessionId: "sess-1",
+          organization: "WRONG_ORG",
+          owner: "user-123",
+          inputS3Uris: [],
+          outputS3Uri: "s3://bucket/output/",
+          connectionId: "c1",
+          roleArn: "",
+          region: "",
+          s3Endpoint: null,
+        }),
+      ).rejects.toThrow(/no grant/i);
+    });
+    expect(create).not.toHaveBeenCalled();
   });
 
   test("lookup filters by the session org (tenant pre-filter)", async () => {
