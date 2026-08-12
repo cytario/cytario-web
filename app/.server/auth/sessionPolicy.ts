@@ -67,49 +67,51 @@ export interface SessionPolicyArgs {
 
 const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, "");
 
+/** Builds the object ARN `bucket/<prefix>/*` (or the whole bucket when no prefix). */
+const objectArn = (bucketArn: string, prefix: string): string =>
+  [bucketArn, prefix, "*"].filter(Boolean).join("/");
+
 /**
- * `ListBucket` scoped to the connection prefix via the `s3:prefix` condition
- * (a bucket-level action can't be scoped by Resource ARN). Empty-prefix listing
+ * `ListBucket` scoped to one or more prefixes via the `s3:prefix` condition
+ * (a bucket-level action can't be scoped by Resource ARN). No-prefix listing
  * must omit the `s3:prefix` condition: AWS evaluates an absent `prefix` query
- * parameter as `""`, and `StringLike "*"` does not match it. Allowed values
+ * parameter as `""`, which `StringLike "*"` does not match. Allowed values
  * anchor on `/`, otherwise IAM allows `ListBucket prefix=foo` which S3 expands
  * to siblings like `foobar.txt`.
  */
-function getListStatement(Resource: string, prefix: string) {
-  const hasPrefix = prefix.length > 0;
+function listBucketStatement(bucketArn: string, prefixes: string[], sid: string) {
+  const hasPrefix = prefixes.length > 0;
 
   return hasPrefix
     ? {
-        Sid: "ListBucketScopedToPrefix",
+        Sid: sid,
         Effect: "Allow",
         Action: "s3:ListBucket",
-        Resource,
+        Resource: bucketArn,
         Condition: {
           StringLike: {
-            "s3:prefix": [`${prefix}/`, `${prefix}/*`],
+            "s3:prefix": prefixes.flatMap((p) => [`${p}/`, `${p}/*`]),
           },
         },
       }
     : {
-        Sid: "ListBucketWholeBucket",
+        Sid: sid,
         Effect: "Allow",
         Action: "s3:ListBucket",
-        Resource,
+        Resource: bucketArn,
       };
 }
 
 /**
- * `GetObject` scoped to the connection prefix via the Resource ARN —
+ * `GetObject` scoped to a prefix via the Resource ARN —
  * `bucket/<prefix>/*`, or the whole bucket when no prefix is set.
  */
 function getObjectStatement(bucketArn: string, prefix: string) {
-  const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
-
   return {
     Sid: "GetObjectScopedToPrefix",
     Effect: "Allow",
     Action: "s3:GetObject",
-    Resource: objectArn,
+    Resource: objectArn(bucketArn, prefix),
   };
 }
 
@@ -138,9 +140,8 @@ function getPutOwnSidecarStatement(bucketArn: string, prefix: string, subject: s
 }
 
 /**
- * `PutObject` scoped to the connection prefix via the Resource ARN —
- * `bucket/<prefix>/*`, or the whole bucket when no prefix is set. Mirrors the
- * `GetObject` scope from `getObjectStatement`.
+ * `PutObject` scoped to a prefix via the Resource ARN —
+ * `bucket/<prefix>/*`, or the whole bucket when no prefix is set.
  *
  * Included only when the caller's grant `accessLevel` is `"read-write"` or
  * `"admin"` — defense-in-depth so a `"read-only"` or `"annotate"` user's STS
@@ -148,35 +149,31 @@ function getPutOwnSidecarStatement(bucketArn: string, prefix: string, subject: s
  * Overwrite is `PutObject` (full-file write) — no `DeleteObject`.
  */
 function getPutObjectStatement(bucketArn: string, prefix: string) {
-  const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
-
   return {
     Sid: "PutObjectScopedToPrefix",
     Effect: "Allow",
     Action: "s3:PutObject",
-    Resource: objectArn,
+    Resource: objectArn(bucketArn, prefix),
   };
 }
 
 /**
- * `kms:Decrypt` allowing the role's per-key grants to flow through the STS
- * intersection so `GetObject` against SSE-KMS-encrypted objects succeeds. STS
- * applies the inline policy as a filter, so omitting `kms:Decrypt` would deny
- * it for the session even when the role's attached policy permits it. The
- * `kms:ViaService` condition confines the credential to the S3 data path
- * (it cannot call KMS directly); the role's attached policy + KMS key policy
- * remain the authority on which keys — `Resource: "*"` widens nothing.
+ * A KMS data-plane statement scoped via `kms:ViaService` so the credential
+ * can only reach KMS through the S3 data path (it cannot call KMS directly).
+ * The role's attached policy + KMS key policy remain the authority on which
+ * keys — `Resource: "*"` widens nothing. The inline policy is a filter, so
+ * omitting these would deny them for the session regardless of the role.
  */
-function getKmsDecryptStatement(region: string) {
+function getKmsStatement(action: "kms:Decrypt" | "kms:GenerateDataKey", region: string) {
   const viaServiceRegion = region || DEFAULT_REGION;
   if (/[*?]/.test(viaServiceRegion)) {
     throw new Error("Region may not contain IAM wildcard characters (`*`, `?`).");
   }
 
   return {
-    Sid: "KmsDecryptViaS3",
+    Sid: action === "kms:Decrypt" ? "KmsDecryptViaS3" : "KmsGenerateDataKeyViaS3",
     Effect: "Allow",
-    Action: "kms:Decrypt",
+    Action: action,
     Resource: "*",
     Condition: {
       StringEquals: {
@@ -227,9 +224,13 @@ export const buildSessionPolicy = ({
     Resource: string | string[];
     Condition?: Record<string, Record<string, string | string[]>>;
   }> = [
-    getListStatement(bucketArn, prefix),
+    listBucketStatement(
+      bucketArn,
+      prefix ? [prefix] : [],
+      prefix ? "ListBucketScopedToPrefix" : "ListBucketWholeBucket",
+    ),
     getObjectStatement(bucketArn, prefix),
-    getKmsDecryptStatement(region),
+    getKmsStatement("kms:Decrypt", region),
   ];
 
   // The prefix grant (read-write/admin) subsumes the sidecar scope, so emit the
@@ -240,6 +241,8 @@ export const buildSessionPolicy = ({
 
   if (permitsPrefixWrite(accessLevel)) {
     statements.push(getPutObjectStatement(bucketArn, prefix));
+    // Writing to an SSE-KMS-encrypted bucket requires kms:GenerateDataKey.
+    statements.push(getKmsStatement("kms:GenerateDataKey", region));
   }
 
   const policy = {
@@ -249,6 +252,117 @@ export const buildSessionPolicy = ({
 
   // Compact JSON (no insignificant whitespace) — AWS counts the bytes actually
   // sent, so the size check must reflect the serialized form.
+  const serialized = JSON.stringify(policy);
+
+  if (serialized.length > POLICY_SIZE_CEILING) {
+    throw new InlinePolicySizeError(serialized.length, POLICY_SIZE_CEILING);
+  }
+
+  return serialized;
+};
+/**
+ * A parsed `s3://bucket/prefix` URI — the shape the broker session-policy
+ * builder works with after parsing the ledger-recorded targets.
+ */
+export interface S3Target {
+  bucketName: string;
+  prefix: string;
+}
+
+/**
+ * Parse an `s3://bucket/prefix` URI into {@link S3Target}. Returns `null`
+ * on an unparseable URI.
+ */
+export function parseS3Uri(uri: string): S3Target | null {
+  try {
+    const url = new URL(uri);
+    if (url.protocol !== "s3:") return null;
+    const bucketName = url.host;
+    if (!bucketName) return null;
+    return { bucketName, prefix: stripSlashes(url.pathname) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Arguments for {@link buildBrokerSessionPolicy} — scoped to the analysis's
+ * validated input and output targets from the running-jobs ledger.
+ */
+export interface BrokerSessionPolicyArgs {
+  inputs: S3Target[];
+  output: S3Target;
+  region: string;
+}
+
+function validateS3Target(target: S3Target): void {
+  if (/[*?]/.test(target.bucketName)) {
+    throw new Error("Bucket name may not contain IAM wildcard characters (`*`, `?`)");
+  }
+  if (/[*?]/.test(target.prefix)) {
+    throw new Error("Prefix may not contain IAM wildcard characters (`*`, `?`)");
+  }
+}
+
+/**
+ * Build an inline IAM session policy for the broker's
+ * `AssumeRoleWithWebIdentityCommand`. Scoped to the analysis's validated input
+ * and output targets recorded in the ledger at submission — never from any
+ * caller-supplied body field. Groups targets by bucket; `GetObject` covers
+ * inputs + output; `PutObject` covers the output prefix only.
+ */
+export const buildBrokerSessionPolicy = ({
+  inputs,
+  output,
+  region,
+}: BrokerSessionPolicyArgs): string => {
+  for (const target of inputs) validateS3Target(target);
+  validateS3Target(output);
+
+  const allTargets = [...inputs, output];
+
+  const bucketPrefixes = new Map<string, Set<string>>();
+  for (const target of allTargets) {
+    const prefixes = bucketPrefixes.get(target.bucketName) ?? new Set<string>();
+    if (target.prefix) prefixes.add(target.prefix);
+    bucketPrefixes.set(target.bucketName, prefixes);
+  }
+
+  const statements: Array<{
+    Sid: string;
+    Effect: string;
+    Action: string;
+    Resource: string | string[];
+    Condition?: Record<string, Record<string, string | string[]>>;
+  }> = [];
+
+  for (const [bucketName, prefixes] of bucketPrefixes) {
+    const bucketArn = `arn:aws:s3:::${bucketName}`;
+    const sid = `ListBucket${bucketName.replace(/[^A-Za-z0-9]/g, "")}`;
+    statements.push(listBucketStatement(bucketArn, [...prefixes].sort(), sid));
+  }
+
+  const getObjectResources = allTargets.map((target) =>
+    objectArn(`arn:aws:s3:::${target.bucketName}`, target.prefix),
+  );
+  statements.push({
+    Sid: "GetObjectScopedToTargets",
+    Effect: "Allow",
+    Action: "s3:GetObject",
+    Resource: [...new Set(getObjectResources)].sort(),
+  });
+
+  statements.push({
+    Sid: "PutObjectScopedToOutput",
+    Effect: "Allow",
+    Action: "s3:PutObject",
+    Resource: objectArn(`arn:aws:s3:::${output.bucketName}`, output.prefix),
+  });
+
+  statements.push(getKmsStatement("kms:Decrypt", region));
+  statements.push(getKmsStatement("kms:GenerateDataKey", region));
+
+  const policy = { Version: "2012-10-17", Statement: statements };
   const serialized = JSON.stringify(policy);
 
   if (serialized.length > POLICY_SIZE_CEILING) {

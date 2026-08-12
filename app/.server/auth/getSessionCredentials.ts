@@ -11,6 +11,7 @@ import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
+import { sanitizeRoleSessionName } from "~/.server/stsSession";
 import { canSee } from "~/utils/authorization";
 import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
 import {
@@ -31,19 +32,7 @@ export const isValidCredentials = (credentials?: { Expiration?: Date }): boolean
   return Date.now() < new Date(credentials.Expiration).getTime() - STS_STALENESS_BUFFER_MS;
 };
 
-/**
- * Sanitizes a string for use as an AWS STS RoleSessionName.
- * Allowed characters: [\w+=,.@-]. Collapses consecutive hyphens.
- * Truncates to 64 chars. Falls back to "cytario-session" if result < 2 chars.
- */
-export const sanitizeRoleSessionName = (name: string): string => {
-  const sanitized = name
-    .replace(/[^\w+=,.@-]/g, "-")
-    .replace(/-{2,}/g, "-")
-    .slice(0, 64);
-
-  return sanitized.length >= 2 ? sanitized : "cytario-session";
-};
+export { sanitizeRoleSessionName };
 
 const fetchTemporaryCredentials = async (
   connectionConfig: ConnectionConfig,
@@ -105,7 +94,7 @@ const fetchTemporaryCredentials = async (
  * applicable to the user (the connection is visible only through an ancestor
  * the user does not directly hold).
  */
-const pickGrantForUser = (
+export const pickGrantForUser = (
   connectionProvider: ResolvedConnectionProviderWithGrants,
   user: UserProfile,
   organization: string,

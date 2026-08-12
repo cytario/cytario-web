@@ -188,6 +188,41 @@ export interface JobRecord {
    */
   organization: string;
   owner: string;
+  /**
+   * The validated input S3 URIs the analysis reads (`s3://bucket/prefix`).
+   * Server-constructed from the org's connected storage at submission;
+   * the broker uses them to scope the session policy's read access.
+   * Empty for output-only jobs.
+   */
+  inputS3Uris: string[];
+  /**
+   * The validated output S3 URI the analysis writes to (`s3://bucket/prefix`).
+   * Server-constructed from the org's connected storage at submission;
+   * the broker uses it to scope the session policy's write access.
+   */
+  outputS3Uri: string;
+  /**
+   * The storage connection the output target was resolved from. Plugin-supplied;
+   * the host uses it at `record` time to resolve the storage role.
+   */
+  connectionId: string;
+  /**
+   * The resolved storage role ARN for the output connection. Host-injected at
+   * `record` time from the submitting user's session and the connection's
+   * provider role; the broker uses it for `AssumeRoleWithWebIdentity` without
+   * re-resolving the provider catalog.
+   */
+  roleArn: string;
+  /**
+   * The AWS region of the storage role. Host-injected at `record` time; the
+   * broker uses it for the STS endpoint and the KMS `ViaService` condition.
+   */
+  region: string;
+  /**
+   * The S3 endpoint of the storage connection (null for AWS S3). Host-injected
+   * at `record` time; the broker uses it for the STS endpoint derivation.
+   */
+  s3Endpoint: string | null;
 }
 
 /**
@@ -199,12 +234,19 @@ export interface JobLedger {
   record(job: JobRecord): Promise<void>;
   lookup(jobId: string): Promise<JobRecord | null>;
   /**
-   * Lists all ledger rows for the active organization (tenant pre-filter,
-   * SRS-CY-416105). Returned in insertion order (oldest first). A plugin
-   * uses this to render the running-jobs view and to drive the reconciler's
-   * pending-revocation scan.
+   * Lists all ledger rows for the active organization (tenant pre-filter).
+   * Returned in insertion order (oldest first). A plugin uses this to render
+   * the running-jobs view.
    */
   list(): Promise<readonly JobRecord[]>;
+  /**
+   * Lists all ledger rows across every organization — the cross-tenant
+   * scan the scheduled reconciler needs. Returned in insertion order
+   * (oldest first). Only the deployment-secret carve-out (reconciler) reaches
+   * this path; a session-authenticated caller must use {@link list} so the
+   * tenant pre-filter holds.
+   */
+  listAll(): Promise<readonly JobRecord[]>;
   remove(jobId: string): Promise<void>;
 }
 
@@ -257,9 +299,15 @@ export interface HostCapabilities {
   objectStore(): ObjectStore;
   /**
    * Returns a credential-bearing signed request surface for the compute
-   * submit role (SDS-CY-010098). Never raw keys.
+   * submit role. Never raw keys.
+   *
+   * @param organization - when omitted, the active organization is resolved
+   *   from the request context (the session path, or the job-token carve-out
+   *   whose context carries the token's org claim). When provided, the host
+   *   mints for that organization — used by the cross-org reconciler, which
+   *   groups ledger rows by organization and mints per org.
    */
-  assumeComputeRole(): Promise<ComputeRoleSession>;
+  assumeComputeRole(organization?: string): Promise<ComputeRoleSession>;
   /**
    * Performs the offline-capable job token grant (SDS-CY-010098,
    * SRS-CY-41901).

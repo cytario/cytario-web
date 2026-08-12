@@ -6,18 +6,32 @@ import type { Identity } from "@cytario/plugin-api";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 import type { ProviderCatalog } from "~/utils/providerCatalog.schema";
 
-const { getProviderCatalogMock, stsSendMock } = vi.hoisted(() => ({
+const {
+  getProviderCatalogMock,
+  resolveConnectionProviderMock,
+  resolveConnectionProviderWithGrantsMock,
+  pickGrantForUserMock,
+  stsSendMock,
+} = vi.hoisted(() => ({
   getProviderCatalogMock: vi.fn(),
+  resolveConnectionProviderMock: vi.fn(),
+  resolveConnectionProviderWithGrantsMock: vi.fn(),
+  pickGrantForUserMock: vi.fn(),
   stsSendMock: vi.fn(),
 }));
 
 vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
-  resolveConnectionProvider: vi.fn(),
+  resolveConnectionProvider: resolveConnectionProviderMock,
+  resolveConnectionProviderWithGrants: resolveConnectionProviderWithGrantsMock,
   invalidateProviderCatalogCache: vi.fn(),
   clearProviderCatalogCache: vi.fn(),
   findProviderConnection: vi.fn(),
   findProviderRole: vi.fn(),
+}));
+
+vi.mock("~/.server/auth/getSessionCredentials", () => ({
+  pickGrantForUser: pickGrantForUserMock,
 }));
 
 vi.mock("@aws-sdk/client-sts", () => ({
@@ -285,16 +299,29 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     expect(typeof ledger.record).toBe("function");
     expect(typeof ledger.lookup).toBe("function");
     expect(typeof ledger.list).toBe("function");
+    expect(typeof ledger.listAll).toBe("function");
     expect(typeof ledger.remove).toBe("function");
   });
 
   test("jobLedger methods throw outside a request context", async () => {
     const ledger = hostCapabilities.jobLedger();
     await expect(
-      ledger.record({ jobId: "j1", offlineSessionId: "s1", organization: "o", owner: "u" }),
+      ledger.record({
+        jobId: "j1",
+        offlineSessionId: "s1",
+        organization: "o",
+        owner: "u",
+        inputS3Uris: [],
+        outputS3Uri: "",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
+      }),
     ).rejects.toThrow("outside a request context");
     await expect(ledger.lookup("j1")).rejects.toThrow("outside a request context");
     await expect(ledger.list()).rejects.toThrow("outside a request context");
+    await expect(ledger.listAll()).rejects.toThrow("outside a request context");
     await expect(ledger.remove("j1")).rejects.toThrow("outside a request context");
   });
 });
@@ -304,14 +331,44 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     vi.restoreAllMocks();
   });
 
-  test("record injects the session org and ignores the caller-supplied organization", async () => {
+  test("record injects the session org, resolves the role, and ignores the caller-supplied organization", async () => {
     const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ providerRoleId: "pr-1" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "*",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
+      roleArn: "arn:aws:iam::123:role/storage",
+      accessLevel: "read-write",
+    });
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().record({
         jobId: "job-1",
         offlineSessionId: "sess-1",
         organization: "WRONG_ORG",
         owner: "user-123",
+        inputS3Uris: ["s3://bucket/input/"],
+        outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
       });
     });
     expect(create).toHaveBeenCalledTimes(1);
@@ -321,8 +378,56 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
+        inputS3Uris: ["s3://bucket/input/"],
+        outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "arn:aws:iam::123:role/storage",
+        region: "eu-central-1",
+        s3Endpoint: null,
       },
     });
+  });
+
+  test("record rejects when the submitting user can see no grant on the connection", async () => {
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ providerRoleId: "pr-1" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "lab/team-a",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce(undefined);
+    const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+
+    await withHostRequestContext(mockRequestData, async () => {
+      await expect(
+        hostCapabilities.jobLedger().record({
+          jobId: "job-1",
+          offlineSessionId: "sess-1",
+          organization: "WRONG_ORG",
+          owner: "user-123",
+          inputS3Uris: [],
+          outputS3Uri: "s3://bucket/output/",
+          connectionId: "c1",
+          roleArn: "",
+          region: "",
+          s3Endpoint: null,
+        }),
+      ).rejects.toThrow(/no grant/i);
+    });
+    expect(create).not.toHaveBeenCalled();
   });
 
   test("lookup filters by the session org (tenant pre-filter)", async () => {
@@ -343,6 +448,12 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       offlineSessionId: "sess-1",
       organization: "testcorp",
       owner: "user-123",
+      inputS3Uris: ["s3://bucket/input/"],
+      outputS3Uri: "s3://bucket/output/",
+      connectionId: "c1",
+      roleArn: "arn:aws:iam::123:role/storage",
+      region: "eu-central-1",
+      s3Endpoint: null,
     } as never);
     await withHostRequestContext(mockRequestData, async () => {
       const result = await hostCapabilities.jobLedger().lookup("job-1");
@@ -351,6 +462,12 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
+        inputS3Uris: ["s3://bucket/input/"],
+        outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "arn:aws:iam::123:role/storage",
+        region: "eu-central-1",
+        s3Endpoint: null,
       });
     });
   });
@@ -370,8 +487,30 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
 
   test("list filters by the session org and returns rows in insertion order", async () => {
     const findMany = vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
-      { jobId: "job-1", offlineSessionId: "sess-1", organization: "testcorp", owner: "u1" },
-      { jobId: "job-2", offlineSessionId: "sess-2", organization: "testcorp", owner: "u2" },
+      {
+        jobId: "job-1",
+        offlineSessionId: "sess-1",
+        organization: "testcorp",
+        owner: "u1",
+        inputS3Uris: [],
+        outputS3Uri: "",
+        connectionId: "",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
+      } as never,
+      {
+        jobId: "job-2",
+        offlineSessionId: "sess-2",
+        organization: "testcorp",
+        owner: "u2",
+        inputS3Uris: [],
+        outputS3Uri: "",
+        connectionId: "",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
+      } as never,
     ] as never);
     const result = await withHostRequestContext(mockRequestData, async () =>
       hostCapabilities.jobLedger().list(),
@@ -387,7 +526,144 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       offlineSessionId: "sess-1",
       organization: "testcorp",
       owner: "u1",
+      inputS3Uris: [],
+      outputS3Uri: "",
+      connectionId: "",
+      roleArn: "",
+      region: "",
+      s3Endpoint: null,
     });
+  });
+
+  test("listAll is org-agnostic — no organization pre-filter (reconciler cross-org scan, SRS-CY-416106)", async () => {
+    const findMany = vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
+      {
+        jobId: "job-1",
+        offlineSessionId: "sess-1",
+        organization: "testcorp",
+        owner: "u1",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      } as never,
+      {
+        jobId: "job-2",
+        offlineSessionId: "sess-2",
+        organization: "othercorp",
+        owner: "u2",
+        inputS3Uris: [],
+        outputS3Uri: "",
+      } as never,
+    ] as never);
+    const result = await withHostRequestContext(mockRequestData, async () =>
+      hostCapabilities.jobLedger().listAll(),
+    );
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany.mock.calls[0]?.[0]).toMatchObject({
+      orderBy: { createdAt: "asc" },
+    });
+    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty("where");
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.organization)).toEqual(["testcorp", "othercorp"]);
+  });
+
+  test("listAll still requires a request context (throws outside one)", async () => {
+    await expect(hostCapabilities.jobLedger().listAll()).rejects.toThrow(
+      "outside a request context",
+    );
+  });
+
+  test("assumeComputeRole(org) mints for the passed org, overriding the context org", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: { AccessKeyId: "AKIA", SecretAccessKey: "secret", SessionToken: "token" },
+    });
+
+    await withHostRequestContext(mockRequestData, async () => {
+      await hostCapabilities.assumeComputeRole("othercorp");
+    });
+
+    expect(getProviderCatalogMock).toHaveBeenCalledWith("othercorp", "access");
+  });
+
+  test("assumeComputeRole() with no arg uses the context org (session path)", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: { AccessKeyId: "AKIA", SecretAccessKey: "secret", SessionToken: "token" },
+    });
+    await withHostRequestContext(mockRequestData, async () => {
+      await hostCapabilities.assumeComputeRole();
+    });
+    expect(getProviderCatalogMock).toHaveBeenCalledWith("testcorp", "access");
+  });
+
+  test("assumeComputeRole throws when neither an override nor a context org is present (deployment-secret path)", async () => {
+    const noOrgData: HostRequestData = {
+      ...mockRequestData,
+      user: { ...mockRequestData.user, organization: undefined } as never,
+    };
+    await expect(
+      withHostRequestContext(noOrgData, async () => hostCapabilities.assumeComputeRole()),
+    ).rejects.toThrow("Active organization missing from request context");
   });
 
   test("record throws when the session has no active organization", async () => {
@@ -397,9 +673,18 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     };
     await expect(
       withHostRequestContext(noOrgData, async () =>
-        hostCapabilities
-          .jobLedger()
-          .record({ jobId: "j1", offlineSessionId: "s1", organization: "x", owner: "u" }),
+        hostCapabilities.jobLedger().record({
+          jobId: "j1",
+          offlineSessionId: "s1",
+          organization: "x",
+          owner: "u",
+          inputS3Uris: [],
+          outputS3Uri: "",
+          connectionId: "c1",
+          roleArn: "",
+          region: "",
+          s3Endpoint: null,
+        }),
       ),
     ).rejects.toThrow("Active organization missing");
   });

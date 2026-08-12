@@ -16,9 +16,11 @@ import type {
   ObjectStore,
   TokenGrant,
 } from "@cytario/plugin-api";
+import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
 import {
   getProviderCatalog,
   resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
 import { listConnections } from "~/routes/connections/connections.server";
 import type { ConnectionConfigWithGrants } from "~/routes/connections/connections.server";
@@ -119,8 +121,8 @@ class HostCapabilitiesImpl implements HostCapabilities {
     return createObjectStore();
   }
 
-  assumeComputeRole(): Promise<ComputeRoleSession> {
-    return assumeComputeRoleImpl();
+  assumeComputeRole(organizationOverride?: string): Promise<ComputeRoleSession> {
+    return assumeComputeRoleImpl(organizationOverride);
   }
 
   exchangeToken(): Promise<TokenGrant> {
@@ -146,16 +148,50 @@ class HostCapabilitiesImpl implements HostCapabilities {
  */
 class JobLedgerImpl implements JobLedger {
   async record(job: JobRecord): Promise<void> {
-    const { user } = requireRequestData();
+    const { user, authTokens } = requireRequestData();
     if (!user.organization) {
       throw new Error("Active organization missing from session");
     }
+
+    // Resolve the storage role for the submitting user, host-side, from the
+    // output connection and the session token. The broker reads the resolved
+    // roleArn/region/s3Endpoint from the ledger row at mint time without
+    // re-resolving the provider catalog. Pinning the most permissive grant the
+    // user can see (not arbitrary first grant) keeps the job's credentials
+    // within the user's entitlement and ensures the output role can write.
+    const connection = await prisma.connectionConfig.findFirst({
+      where: { id: job.connectionId, organization: user.organization },
+      include: { grants: true },
+    });
+    if (!connection) {
+      throw new Error(
+        `Connection ${job.connectionId} not found in organization ${user.organization}`,
+      );
+    }
+    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const provider = resolveConnectionProviderWithGrants(catalog, connection);
+    if (!provider) {
+      throw new Error(
+        `Provider connection could not be resolved for connection ${job.connectionId}`,
+      );
+    }
+    const grant = pickGrantForUser(provider, user, user.organization);
+    if (!grant) {
+      throw new Error(`No grant the submitting user can see for connection ${job.connectionId}`);
+    }
+
     await prisma.jobLedgerEntry.create({
       data: {
         jobId: job.jobId,
         offlineSessionId: job.offlineSessionId,
         organization: user.organization,
         owner: job.owner,
+        inputS3Uris: job.inputS3Uris,
+        outputS3Uri: job.outputS3Uri,
+        connectionId: job.connectionId,
+        roleArn: grant.roleArn,
+        region: provider.region,
+        s3Endpoint: provider.endpoint,
       },
     });
   }
@@ -168,13 +204,7 @@ class JobLedgerImpl implements JobLedger {
     const entry = await prisma.jobLedgerEntry.findFirst({
       where: { organization: user.organization, jobId },
     });
-    if (!entry) return null;
-    return {
-      jobId: entry.jobId,
-      offlineSessionId: entry.offlineSessionId,
-      organization: entry.organization,
-      owner: entry.owner,
-    };
+    return entry ? toJobRecord(entry) : null;
   }
 
   async remove(jobId: string): Promise<void> {
@@ -192,17 +222,57 @@ class JobLedgerImpl implements JobLedger {
     if (!user.organization) {
       throw new Error("Active organization missing from session");
     }
+    return listLedgerEntries(user.organization);
+  }
+
+  /**
+   * Cross-organization scan for the scheduled reconciler. Reaches across every
+   * tenant's rows — must only be reachable from the deployment-secret
+   * carve-out, never a session path. The carve-out dispatch sets up an
+   * org-agnostic request context so {@link requireRequestData} still resolves,
+   * but no organization pre-filter is applied here.
+   */
+  async listAll(): Promise<readonly JobRecord[]> {
+    requireRequestData();
     const entries = await prisma.jobLedgerEntry.findMany({
-      where: { organization: user.organization },
       orderBy: { createdAt: "asc" },
     });
-    return entries.map((entry) => ({
-      jobId: entry.jobId,
-      offlineSessionId: entry.offlineSessionId,
-      organization: entry.organization,
-      owner: entry.owner,
-    }));
+    return entries.map(toJobRecord);
   }
+}
+
+function toJobRecord(entry: {
+  jobId: string;
+  offlineSessionId: string;
+  organization: string;
+  owner: string;
+  inputS3Uris: string[];
+  outputS3Uri: string;
+  connectionId: string;
+  roleArn: string;
+  region: string;
+  s3Endpoint: string | null;
+}): JobRecord {
+  return {
+    jobId: entry.jobId,
+    offlineSessionId: entry.offlineSessionId,
+    organization: entry.organization,
+    owner: entry.owner,
+    inputS3Uris: entry.inputS3Uris ?? [],
+    outputS3Uri: entry.outputS3Uri ?? "",
+    connectionId: entry.connectionId ?? "",
+    roleArn: entry.roleArn ?? "",
+    region: entry.region ?? "",
+    s3Endpoint: entry.s3Endpoint ?? null,
+  };
+}
+
+async function listLedgerEntries(organization: string): Promise<readonly JobRecord[]> {
+  const entries = await prisma.jobLedgerEntry.findMany({
+    where: { organization },
+    orderBy: { createdAt: "asc" },
+  });
+  return entries.map(toJobRecord);
 }
 
 export const hostCapabilities = new HostCapabilitiesImpl();

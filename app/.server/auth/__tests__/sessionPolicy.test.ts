@@ -272,25 +272,32 @@ describe("buildSessionPolicy", () => {
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
     // The prefix grant subsumes the sidecar scope — don't emit a redundant statement.
     expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+    // Writing to an SSE-KMS-encrypted bucket requires kms:GenerateDataKey.
+    expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(true);
   });
 
   test("accessLevel admin → includes PutObjectScopedToPrefix, omits redundant sidecar", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "admin" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
     expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+    expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(true);
   });
 
-  test("accessLevel read-only → omits all PutObject statements (defense-in-depth at STS level)", () => {
+  test("accessLevel read-only → omits all PutObject and kms:GenerateDataKey statements", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-only" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
     // A read-only session may not write annotation sidecars either.
     expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+    // No writes → no key generation needed.
+    expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
   });
 
-  test("accessLevel annotate → includes PutOwnAnnotationSidecars, omits PutObjectScopedToPrefix", () => {
+  test("accessLevel annotate → includes PutOwnAnnotationSidecars, omits PutObjectScopedToPrefix and kms:GenerateDataKey", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
     expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(true);
+    // Annotation sidecars are small JSON files, not SSE-KMS-encrypted.
+    expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
   });
 
   test("throws when subject is empty (would widen Put scope to all users)", () => {
