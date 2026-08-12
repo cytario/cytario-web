@@ -6,14 +6,15 @@ import type { Identity } from "@cytario/plugin-api";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 import type { ProviderCatalog } from "~/utils/providerCatalog.schema";
 
-const { getProviderCatalogMock, stsSendMock } = vi.hoisted(() => ({
+const { getProviderCatalogMock, resolveConnectionProviderMock, stsSendMock } = vi.hoisted(() => ({
   getProviderCatalogMock: vi.fn(),
+  resolveConnectionProviderMock: vi.fn(),
   stsSendMock: vi.fn(),
 }));
 
 vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
-  resolveConnectionProvider: vi.fn(),
+  resolveConnectionProvider: resolveConnectionProviderMock,
   invalidateProviderCatalogCache: vi.fn(),
   clearProviderCatalogCache: vi.fn(),
   findProviderConnection: vi.fn(),
@@ -299,6 +300,10 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
         owner: "u",
         inputS3Uris: [],
         outputS3Uri: "",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
       }),
     ).rejects.toThrow("outside a request context");
     await expect(ledger.lookup("j1")).rejects.toThrow("outside a request context");
@@ -313,8 +318,22 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     vi.restoreAllMocks();
   });
 
-  test("record injects the session org and ignores the caller-supplied organization", async () => {
+  test("record injects the session org, resolves the role, and ignores the caller-supplied organization", async () => {
     const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ providerRoleId: "pr-1" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      roleArn: "arn:aws:iam::123:role/storage",
+      allowedScopes: [],
+      accessLevel: "read-write",
+    });
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().record({
         jobId: "job-1",
@@ -323,6 +342,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         owner: "user-123",
         inputS3Uris: ["s3://bucket/input/"],
         outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
       });
     });
     expect(create).toHaveBeenCalledTimes(1);
@@ -334,6 +357,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         owner: "user-123",
         inputS3Uris: ["s3://bucket/input/"],
         outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "arn:aws:iam::123:role/storage",
+        region: "eu-central-1",
+        s3Endpoint: null,
       },
     });
   });
@@ -358,6 +385,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       owner: "user-123",
       inputS3Uris: ["s3://bucket/input/"],
       outputS3Uri: "s3://bucket/output/",
+      connectionId: "c1",
+      roleArn: "arn:aws:iam::123:role/storage",
+      region: "eu-central-1",
+      s3Endpoint: null,
     } as never);
     await withHostRequestContext(mockRequestData, async () => {
       const result = await hostCapabilities.jobLedger().lookup("job-1");
@@ -368,6 +399,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         owner: "user-123",
         inputS3Uris: ["s3://bucket/input/"],
         outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "arn:aws:iam::123:role/storage",
+        region: "eu-central-1",
+        s3Endpoint: null,
       });
     });
   });
@@ -394,6 +429,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         owner: "u1",
         inputS3Uris: [],
         outputS3Uri: "",
+        connectionId: "",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
       } as never,
       {
         jobId: "job-2",
@@ -402,6 +441,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         owner: "u2",
         inputS3Uris: [],
         outputS3Uri: "",
+        connectionId: "",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
       } as never,
     ] as never);
     const result = await withHostRequestContext(mockRequestData, async () =>
@@ -420,6 +463,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       owner: "u1",
       inputS3Uris: [],
       outputS3Uri: "",
+      connectionId: "",
+      roleArn: "",
+      region: "",
+      s3Endpoint: null,
     });
   });
 
@@ -568,6 +615,10 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
           owner: "u",
           inputS3Uris: [],
           outputS3Uri: "",
+          connectionId: "c1",
+          roleArn: "",
+          region: "",
+          s3Endpoint: null,
         }),
       ),
     ).rejects.toThrow("Active organization missing");

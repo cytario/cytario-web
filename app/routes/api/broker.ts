@@ -11,23 +11,19 @@ import { verifyJobToken } from "~/.server/auth/verifyJobToken";
 import { prisma } from "~/.server/db/prisma";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
 import { createLabel } from "~/.server/logging";
-import {
-  getProviderCatalog,
-  resolveConnectionProvider,
-} from "~/.server/providers/providerCatalog.server";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 /**
  * Credential-broker endpoint (SRS-CY-416102, SDS-CY-080400). A running
  * container calls this host-owned route with its job-scoped token to obtain
- * short-lived S3 storage credentials. Verifies the token, checks the
- * running-jobs ledger, resolves a storage role from the org's connections,
- * and mints ≤ 1-hour credentials via `AssumeRoleWithWebIdentity`
- * (SRS-CY-416103).
+ * short-lived S3 storage credentials. The broker is purely ledger-driven:
+ * it reads the storage role ARN, region, S3 endpoint, and the analysis's
+ * input/output targets from the ledger row recorded at submission — no
+ * provider catalog call, no connection query, no admin-portal dependency
+ * at mint time (SRS-CY-416103, SRS-CY-416105).
  *
- * Request body: `{ token: string, jobId: string }`. The session policy is
- * scoped from the input and output targets recorded in the ledger at
- * submission — never from any caller-supplied body field.
+ * Request body: `{ token: string, jobId: string }` — exactly what the SDK
+ * sends. No caller-supplied field influences the credential scope.
  */
 
 const label = createLabel("broker", "cyan");
@@ -73,67 +69,28 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         return deny(403, "Organization missing from token claims.");
       }
 
-      const ledgerEntry = await prisma.jobLedgerEntry.findFirst({
+      const entry = await prisma.jobLedgerEntry.findFirst({
         where: { organization: requestData.user.organization, jobId: body.jobId },
       });
-      if (!ledgerEntry) {
+      if (!entry) {
         return deny(403, "No active job binding for this token.");
       }
-
-      const connections = await prisma.connectionConfig.findMany({
-        where: { organization: requestData.user.organization },
-        include: { grants: true },
-      });
-      if (connections.length === 0) {
-        return deny(403, "No connected storage for this organization.");
+      if (!entry.roleArn) {
+        return deny(403, "Job predates role recording; re-submit the job.");
       }
 
-      // Parse the input and output targets from the ledger row — these were
-      // server-validated at submission and are the authoritative scope.
-      const inputTargets: S3Target[] = (ledgerEntry.inputS3Uris ?? [])
+      const inputTargets: S3Target[] = (entry.inputS3Uris ?? [])
         .map(parseS3Uri)
         .filter((t): t is S3Target => t !== null);
-      const outputTarget = ledgerEntry.outputS3Uri ? parseS3Uri(ledgerEntry.outputS3Uri) : null;
+      const outputTarget = entry.outputS3Uri ? parseS3Uri(entry.outputS3Uri) : null;
 
-      // Resolve the output connection for the role ARN. If the output target
-      // is absent (legacy row), fall back to the first connection.
-      const targetConnection = outputTarget
-        ? connections.find((c) => c.bucketName === outputTarget.bucketName)
-        : connections[0];
-
-      if (!targetConnection) {
-        return deny(403, "The output target is outside this organization's connected storage.");
-      }
-
-      const grant = targetConnection.grants[0];
-      if (!grant) {
-        return deny(403, "The target connection has no configured role.");
-      }
-
-      const catalog = await getProviderCatalog(
-        requestData.user.organization,
-        requestData.authTokens.accessToken,
-      );
-      const resolved = resolveConnectionProvider(catalog, {
-        providerConnectionId: targetConnection.providerConnectionId,
-        providerRoleId: grant.providerRoleId,
-      });
-      if (!resolved) {
-        return deny(503, "The connection's provider role could not be resolved.");
-      }
-
-      const providerConfig = getS3ProviderConfig(resolved.endpoint, resolved.region);
-
-      // Build the session policy from the ledger-recorded targets. If the
-      // output target is absent (legacy row), mint without a session policy —
-      // the role + bucket policy are the boundary.
       let Policy: string | undefined;
       if (outputTarget) {
         try {
           Policy = buildBrokerSessionPolicy({
             inputs: inputTargets,
             output: outputTarget,
-            region: resolved.region,
+            region: entry.region,
           });
         } catch (err) {
           if (err instanceof InlinePolicySizeError) {
@@ -143,17 +100,18 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         }
       }
 
+      const providerConfig = getS3ProviderConfig(entry.s3Endpoint, entry.region);
       const { STSClient, AssumeRoleWithWebIdentityCommand } = await import("@aws-sdk/client-sts");
       const stsClient = new STSClient({
         endpoint: providerConfig.stsEndpoint,
-        region: resolved.region,
+        region: entry.region,
       });
 
       const roleSessionName = `broker-${verified.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64);
 
       const { Credentials } = await stsClient.send(
         new AssumeRoleWithWebIdentityCommand({
-          RoleArn: resolved.roleArn,
+          RoleArn: entry.roleArn,
           RoleSessionName: roleSessionName,
           WebIdentityToken: body.token,
           DurationSeconds: 3600,

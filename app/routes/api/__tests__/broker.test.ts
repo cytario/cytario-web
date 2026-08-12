@@ -8,17 +8,6 @@ vi.mock("~/.server/auth/verifyJobToken", () => ({
   verifyJobToken: verifyJobTokenMock,
 }));
 
-const getProviderCatalogMock = vi.hoisted(() => vi.fn());
-const resolveConnectionProviderMock = vi.hoisted(() => vi.fn());
-vi.mock("~/.server/providers/providerCatalog.server", () => ({
-  getProviderCatalog: getProviderCatalogMock,
-  resolveConnectionProvider: resolveConnectionProviderMock,
-  invalidateProviderCatalogCache: vi.fn(),
-  clearProviderCatalogCache: vi.fn(),
-  findProviderConnection: vi.fn(),
-  findProviderRole: vi.fn(),
-}));
-
 const stsSendMock = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: class {
@@ -54,32 +43,15 @@ const LEDGER_ROW = {
   owner: "user-1",
   inputS3Uris: ["s3://data-bucket/cases/case1/"],
   outputS3Uri: "s3://data-bucket/results/run42/",
-};
-
-const CONNECTIONS = [
-  {
-    id: "c1",
-    bucketName: "data-bucket",
-    prefix: "",
-    providerConnectionId: "pc-1",
-    grants: [{ providerRoleId: "pr-1" }],
-  },
-];
-
-const RESOLVED_PROVIDER = {
-  providerType: "aws",
-  endpoint: null,
-  region: "eu-central-1",
+  connectionId: "c1",
   roleArn: "arn:aws:iam::123:role/storage",
-  allowedScopes: [],
-  accessLevel: "read-write",
+  region: "eu-central-1",
+  s3Endpoint: null,
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   verifyJobTokenMock.mockReset();
-  getProviderCatalogMock.mockReset();
-  resolveConnectionProviderMock.mockReset();
   stsSendMock.mockReset();
 });
 
@@ -112,12 +84,9 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     });
   });
 
-  test("mints non-empty creds when the ledger row has input+output targets", async () => {
+  test("mints non-empty creds from the ledger row — no catalog call, no connection query", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
-    getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
     stsSendMock.mockResolvedValueOnce({
       Credentials: {
         AccessKeyId: "AKIA",
@@ -138,12 +107,27 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(body.expiration).toBeDefined();
   });
 
-  test("session policy is scoped to the ledger-recorded targets, not the request", async () => {
+  test("STS call uses roleArn and region from the ledger row", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
-    getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
+    });
+
+    await action(args(buildRequest({ token: "tok", jobId: "job-1" })));
+
+    const sentCommand = stsSendMock.mock.calls[0]?.[0];
+    expect(sentCommand.input.RoleArn).toBe("arn:aws:iam::123:role/storage");
+  });
+
+  test("session policy is scoped to the ledger-recorded targets", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
     stsSendMock.mockResolvedValueOnce({
       Credentials: {
         AccessKeyId: "AKIA",
@@ -157,10 +141,8 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
 
     const sentCommand = stsSendMock.mock.calls[0]?.[0];
     expect(sentCommand.input.Policy).toBeDefined();
-    // PutObject scoped to the output prefix from the ledger, not the request
     expect(sentCommand.input.Policy).toContain("PutObjectScopedToOutput");
     expect(sentCommand.input.Policy).toContain("results/run42/*");
-    // GetObject covers both input and output prefixes
     expect(sentCommand.input.Policy).toContain("GetObjectScopedToTargets");
     expect(sentCommand.input.Policy).toContain("cases/case1/*");
   });
@@ -172,9 +154,6 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
       inputS3Uris: [],
       outputS3Uri: "",
     } as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
-    getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
     stsSendMock.mockResolvedValueOnce({
       Credentials: {
         AccessKeyId: "AKIA",
@@ -192,12 +171,25 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(sentCommand.input.Policy).toBeUndefined();
   });
 
+  test("returns 403 when roleArn is empty (job predates role recording)", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
+      ...LEDGER_ROW,
+      roleArn: "",
+    } as never);
+
+    const response = (await action(
+      args(buildRequest({ token: "tok", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /predates role recording/i,
+    });
+  });
+
   test("logs the underlying error on a denial", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    vi.spyOn(prisma.connectionConfig, "findMany").mockResolvedValueOnce(CONNECTIONS as never);
-    getProviderCatalogMock.mockResolvedValueOnce({});
-    resolveConnectionProviderMock.mockReturnValueOnce(RESOLVED_PROVIDER);
     stsSendMock.mockRejectedValueOnce(new Error("STS is down"));
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

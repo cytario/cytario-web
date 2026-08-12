@@ -146,10 +146,37 @@ class HostCapabilitiesImpl implements HostCapabilities {
  */
 class JobLedgerImpl implements JobLedger {
   async record(job: JobRecord): Promise<void> {
-    const { user } = requireRequestData();
+    const { user, authTokens } = requireRequestData();
     if (!user.organization) {
       throw new Error("Active organization missing from session");
     }
+
+    // Resolve the storage role from the output connection — host-side, using
+    // the submitting user's session token (SRS-CY-416105). The broker reads
+    // the resolved roleArn/region/s3Endpoint from the ledger row at mint time
+    // without re-resolving the provider catalog.
+    const connection = await prisma.connectionConfig.findFirst({
+      where: { id: job.connectionId, organization: user.organization },
+      include: { grants: true },
+    });
+    if (!connection) {
+      throw new Error(
+        `Connection ${job.connectionId} not found in organization ${user.organization}`,
+      );
+    }
+    const grant = connection.grants[0];
+    if (!grant) {
+      throw new Error(`Connection ${job.connectionId} has no configured grant`);
+    }
+    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const resolved = resolveConnectionProvider(catalog, {
+      providerConnectionId: connection.providerConnectionId,
+      providerRoleId: grant.providerRoleId,
+    });
+    if (!resolved) {
+      throw new Error(`Provider role could not be resolved for connection ${job.connectionId}`);
+    }
+
     await prisma.jobLedgerEntry.create({
       data: {
         jobId: job.jobId,
@@ -158,6 +185,10 @@ class JobLedgerImpl implements JobLedger {
         owner: job.owner,
         inputS3Uris: job.inputS3Uris,
         outputS3Uri: job.outputS3Uri,
+        connectionId: job.connectionId,
+        roleArn: resolved.roleArn,
+        region: resolved.region,
+        s3Endpoint: resolved.endpoint,
       },
     });
   }
@@ -215,6 +246,10 @@ function toJobRecord(entry: {
   owner: string;
   inputS3Uris: string[];
   outputS3Uri: string;
+  connectionId: string;
+  roleArn: string;
+  region: string;
+  s3Endpoint: string | null;
 }): JobRecord {
   return {
     jobId: entry.jobId,
@@ -223,6 +258,10 @@ function toJobRecord(entry: {
     owner: entry.owner,
     inputS3Uris: entry.inputS3Uris ?? [],
     outputS3Uri: entry.outputS3Uri ?? "",
+    connectionId: entry.connectionId ?? "",
+    roleArn: entry.roleArn ?? "",
+    region: entry.region ?? "",
+    s3Endpoint: entry.s3Endpoint ?? null,
   };
 }
 

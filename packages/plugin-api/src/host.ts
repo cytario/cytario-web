@@ -201,6 +201,28 @@ export interface JobRecord {
    * the broker uses it to scope the session policy's write access.
    */
   outputS3Uri: string;
+  /**
+   * The storage connection the output target was resolved from. Plugin-supplied;
+   * the host uses it at `record` time to resolve the storage role.
+   */
+  connectionId: string;
+  /**
+   * The resolved storage role ARN for the output connection. Host-injected at
+   * `record` time from the submitting user's session and the connection's
+   * provider role; the broker uses it for `AssumeRoleWithWebIdentity` without
+   * re-resolving the provider catalog.
+   */
+  roleArn: string;
+  /**
+   * The AWS region of the storage role. Host-injected at `record` time; the
+   * broker uses it for the STS endpoint and the KMS `ViaService` condition.
+   */
+  region: string;
+  /**
+   * The S3 endpoint of the storage connection (null for AWS S3). Host-injected
+   * at `record` time; the broker uses it for the STS endpoint derivation.
+   */
+  s3Endpoint: string | null;
 }
 
 /**

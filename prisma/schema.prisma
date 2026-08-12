@@ -90,6 +90,10 @@ model JobLedgerEntry {
   owner            String
   inputS3Uris      String[]
   outputS3Uri      String
+  connectionId     String
+  roleArn          String
+  region           String
+  s3Endpoint       String?
   createdAt        DateTime @default(now())
 
   @@unique([organization, jobId])
