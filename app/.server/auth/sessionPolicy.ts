@@ -240,6 +240,11 @@ export const buildSessionPolicy = ({
 
   if (permitsPrefixWrite(accessLevel)) {
     statements.push(getPutObjectStatement(bucketArn, prefix));
+    // Writing to an SSE-KMS-encrypted bucket requires kms:GenerateDataKey
+    // (S3 calls KMS to generate the data encryption key). The inline policy
+    // is a filter, so omitting it denies the call for the session regardless
+    // of the role's attached policy — same gap the broker policy fixes.
+    statements.push(getKmsGenerateDataKeyStatement(region));
   }
 
   const policy = {
