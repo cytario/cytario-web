@@ -12,7 +12,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
   test("scopes PutObject to the output prefix, not annotation sidecars", () => {
     const policy = JSON.parse(buildBrokerSessionPolicy(VALID_ARGS));
     const putStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "PutObjectScopedToOutputPrefix",
+      (s: { Sid: string }) => s.Sid === "PutObjectScopedToPrefix",
     );
     expect(putStmt).toBeDefined();
     expect(putStmt.Action).toBe("s3:PutObject");
@@ -25,7 +25,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     expect(sids).toContain("ListBucketScopedToPrefix");
     expect(sids).toContain("GetObjectScopedToPrefix");
     expect(sids).toContain("KmsDecryptViaS3");
-    expect(sids).toContain("PutObjectScopedToOutputPrefix");
+    expect(sids).toContain("PutObjectScopedToPrefix");
     expect(sids).toContain("KmsGenerateDataKeyViaS3");
   });
 
@@ -43,7 +43,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
   test("PutObject is not scoped to annotation sidecars", () => {
     const policy = JSON.parse(buildBrokerSessionPolicy(VALID_ARGS));
     const putStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "PutObjectScopedToOutputPrefix",
+      (s: { Sid: string }) => s.Sid === "PutObjectScopedToPrefix",
     );
     expect(putStmt.Resource).not.toContain("annotations");
   });
@@ -51,7 +51,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
   test("empty prefix scopes PutObject to whole bucket", () => {
     const policy = JSON.parse(buildBrokerSessionPolicy({ ...VALID_ARGS, prefix: "" }));
     const putStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "PutObjectScopedToOutputPrefix",
+      (s: { Sid: string }) => s.Sid === "PutObjectScopedToPrefix",
     );
     expect(putStmt.Resource).toBe("arn:aws:s3:::my-bucket/*");
   });
@@ -63,7 +63,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
   test("strips leading/trailing slashes from prefix", () => {
     const policy = JSON.parse(buildBrokerSessionPolicy({ ...VALID_ARGS, prefix: "/data/output/" }));
     const putStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "PutObjectScopedToOutputPrefix",
+      (s: { Sid: string }) => s.Sid === "PutObjectScopedToPrefix",
     );
     expect(putStmt.Resource).toBe("arn:aws:s3:::my-bucket/data/output/*");
   });

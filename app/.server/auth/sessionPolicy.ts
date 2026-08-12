@@ -273,23 +273,6 @@ export interface BrokerSessionPolicyArgs {
 }
 
 /**
- * `PutObject` scoped to the analysis's output prefix — the full prefix,
- * not just annotation sidecars (SRS-CY-416103: "write statements bounded to
- * the analysis's validated output prefix"). No `DeleteObject`, no
- * `PutBucketPolicy`.
- */
-function getPutPrefixStatement(bucketArn: string, prefix: string) {
-  const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
-
-  return {
-    Sid: "PutObjectScopedToOutputPrefix",
-    Effect: "Allow",
-    Action: "s3:PutObject",
-    Resource: objectArn,
-  };
-}
-
-/**
  * `kms:GenerateDataKey` allowing the role's per-key grants to flow through
  * the STS intersection so `PutObject` against an SSE-KMS-encrypted output
  * bucket succeeds (SRS-CY-416103). Same scoping as `kms:Decrypt`: the
@@ -319,8 +302,8 @@ function getKmsGenerateDataKeyStatement(region: string) {
 /**
  * Build an inline IAM session policy for the broker's
  * `AssumeRoleWithWebIdentityCommand` (SRS-CY-416103). Reuses the list/get/kms
- * statements from the browser path; scopes `PutObject` to the output prefix
- * instead of annotation sidecars. Includes `kms:GenerateDataKey` so writes
+ * statements and the prefix-scoped `PutObject` from the browser path
+ * (C-311's `getPutObjectStatement`); adds `kms:GenerateDataKey` so writes
  * to an SSE-KMS-encrypted output bucket succeed.
  */
 export const buildBrokerSessionPolicy = ({
@@ -342,7 +325,7 @@ export const buildBrokerSessionPolicy = ({
       getListStatement(bucketArn, prefix),
       getObjectStatement(bucketArn, prefix),
       getKmsDecryptStatement(region),
-      getPutPrefixStatement(bucketArn, prefix),
+      getPutObjectStatement(bucketArn, prefix),
       getKmsGenerateDataKeyStatement(region),
     ],
   };

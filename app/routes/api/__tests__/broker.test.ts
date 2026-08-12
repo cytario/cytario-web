@@ -248,7 +248,7 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     // The STS command should have a Policy field
     const sentCommand = stsSendMock.mock.calls[0]?.[0];
     expect(sentCommand.input.Policy).toBeDefined();
-    expect(sentCommand.input.Policy).toContain("PutObjectScopedToOutputPrefix");
+    expect(sentCommand.input.Policy).toContain("PutObjectScopedToPrefix");
   });
 
   test("logs the underlying error on a denial (C-384)", async () => {
