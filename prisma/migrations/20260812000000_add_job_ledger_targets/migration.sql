@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "JobLedgerEntry" ADD COLUMN "inputS3Uris" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "outputS3Uri" TEXT NOT NULL DEFAULT '';
