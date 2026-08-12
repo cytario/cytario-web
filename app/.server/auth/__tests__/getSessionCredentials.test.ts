@@ -403,6 +403,62 @@ describe("getAllSessionCredentials", () => {
     );
   });
 
+  test("picks the grant with the highest access level across all visible grants", async () => {
+    const providerId = "pc-multi";
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: providerId })],
+        providerRoles: [
+          mock.providerRole({
+            id: "pr-ro",
+            providerConnectionId: providerId,
+            roleArn: "arn:aws:iam::123:role/read-only",
+            accessLevel: "read-only",
+          }),
+          mock.providerRole({
+            id: "pr-ann",
+            providerConnectionId: providerId,
+            roleArn: "arn:aws:iam::123:role/annotate",
+            accessLevel: "annotate",
+          }),
+          mock.providerRole({
+            id: "pr-rw",
+            providerConnectionId: providerId,
+            roleArn: "arn:aws:iam::123:role/read-write",
+            accessLevel: "read-write",
+          }),
+        ],
+      }),
+    );
+
+    const config = mock.connectionConfig({
+      id: "multi-grant",
+      name: "multi-grant",
+      providerConnectionId: providerId,
+      grants: [
+        // Grants are ordered least-permissive-first; the selector must rank by
+        // access level rather than rely on insertion order.
+        mock.connectionGrant({ providerRoleId: "pr-ro", scope: "org1/lab" }),
+        mock.connectionGrant({ providerRoleId: "pr-ann", scope: "org1/lab" }),
+        mock.connectionGrant({ providerRoleId: "pr-rw", scope: "org1/lab" }),
+      ],
+    });
+
+    await getAllSessionCredentials(mockSessionData, [config]);
+
+    const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
+    expect(call).toBeDefined();
+    const policyJson = call?.Policy;
+    expect(policyJson).toBeDefined();
+    const policy = JSON.parse(policyJson as string) as {
+      Statement: Array<{ Sid: string }>;
+    };
+    // read-write was selected → prefix write present; the sidecar statement is
+    // omitted because the prefix grant subsumes it.
+    expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+  });
+
   test("non-AWS (MinIO) connection: Policy field is absent", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
       catalogFor({ endpoint: "https://minio.internal:9000" }),

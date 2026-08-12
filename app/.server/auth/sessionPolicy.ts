@@ -58,8 +58,8 @@ export interface SessionPolicyArgs {
   region: string;
   /**
    * Access level of the grant picked for the caller. `"read-write"` or `"admin"`
-   * includes the widened `PutObject` for editable text objects (C-311); lower
-   * levels omit it so the STS session itself denies text-object writes —
+   * includes the prefix-wide `PutObject`; lower levels omit it so the STS
+   * session itself denies writes to the connection data plane —
    * defense-in-depth, not just a UI gate.
    */
   accessLevel: AccessLevel;
@@ -118,11 +118,15 @@ function getObjectStatement(bucketArn: string, prefix: string) {
  * (`*.annotations.<sub>.json`) under the connection prefix — the trailing
  * `<sub>` segment stops a tampered client from writing another user's file
  * (which the cross-user read union would then surface as forged authorship).
- * Image data (`.ome.tif`/`.zarr`), `offsets.json`, and parquet stay read-only.
  * Overwrite is `PutObject` (full-file write of the user's own file) — no
  * `DeleteObject`.
+ *
+ * Emitted only for the `annotate` level: `read-only` gets no write at all, and
+ * `read-write`/`admin` get the broader prefix grant (see `getPutObjectStatement`)
+ * which subsumes this scope — so image data, `offsets.json`, and parquet stay
+ * read-only at the `annotate` level, and the inline policy stays lean.
  */
-function getPutStatement(bucketArn: string, prefix: string, subject: string) {
+function getPutOwnSidecarStatement(bucketArn: string, prefix: string, subject: string) {
   const sidecarArn = [bucketArn, prefix, `*.annotations.${subject}.json`].filter(Boolean).join("/");
 
   return {
@@ -134,37 +138,23 @@ function getPutStatement(bucketArn: string, prefix: string, subject: string) {
 }
 
 /**
- * `PutObject` on editable text objects (`.json`, `.yaml`, `.yml`, `.txt`)
- * under the connection prefix — enables the in-app text editor (C-311) to
- * save changes back to S3. Image data (`.ome.tif`/`.zarr`/`.tif`), parquet
- * (overlay results), and other binary formats stay read-only by omission —
- * no `PutObject` Allow matches their keys. Overwrite is `PutObject`
- * (full-file write) — no `DeleteObject`.
+ * `PutObject` scoped to the connection prefix via the Resource ARN —
+ * `bucket/<prefix>/*`, or the whole bucket when no prefix is set. Mirrors the
+ * `GetObject` scope from `getObjectStatement`.
  *
  * Included only when the caller's grant `accessLevel` is `"read-write"` or
  * `"admin"` — defense-in-depth so a `"read-only"` or `"annotate"` user's STS
- * session itself denies text-object writes, not just the UI.
- *
- * NOTE (C-311): The broad `*.json` Allow supersedes the per-user sidecar
- * isolation from `getPutStatement` — any user with a read-write session can
- * overwrite any `.json` under the prefix, including another user's annotation
- * sidecar. IAM cannot distinguish annotation sidecars from regular `.json`
- * files by key pattern alone. The application-layer write path
- * (`SidecarRepository.write`) still only writes the caller's own sidecar,
- * so correct app behavior is preserved; the relaxation is at the IAM
- * perimeter only.
+ * session itself denies writes to the connection data plane, not just the UI.
+ * Overwrite is `PutObject` (full-file write) — no `DeleteObject`.
  */
-function getEditTextPutStatement(bucketArn: string, prefix: string) {
-  const editableExtensions = ["*.json", "*.yaml", "*.yml", "*.txt"];
-  const resources = editableExtensions.map((ext) =>
-    [bucketArn, prefix, ext].filter(Boolean).join("/"),
-  );
+function getPutObjectStatement(bucketArn: string, prefix: string) {
+  const objectArn = [bucketArn, prefix, "*"].filter(Boolean).join("/");
 
   return {
-    Sid: "PutEditableTextObjects",
+    Sid: "PutObjectScopedToPrefix",
     Effect: "Allow",
     Action: "s3:PutObject",
-    Resource: resources,
+    Resource: objectArn,
   };
 }
 
@@ -196,9 +186,12 @@ function getKmsDecryptStatement(region: string) {
   };
 }
 
-/** Whether the access level permits general (text-object) writes. */
-const permitsTextObjectWrite = (accessLevel: AccessLevel): boolean =>
+/** Whether the access level permits writes to the connection data plane. */
+const permitsPrefixWrite = (accessLevel: AccessLevel): boolean =>
   accessLevel === "read-write" || accessLevel === "admin";
+
+/** Whether the access level permits writing annotation sidecars. */
+const permitsAnnotationWrite = (accessLevel: AccessLevel): boolean => accessLevel !== "read-only";
 
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
 export const buildSessionPolicy = ({
@@ -237,11 +230,16 @@ export const buildSessionPolicy = ({
     getListStatement(bucketArn, prefix),
     getObjectStatement(bucketArn, prefix),
     getKmsDecryptStatement(region),
-    getPutStatement(bucketArn, prefix, subject),
   ];
 
-  if (permitsTextObjectWrite(accessLevel)) {
-    statements.push(getEditTextPutStatement(bucketArn, prefix));
+  // The prefix grant (read-write/admin) subsumes the sidecar scope, so emit the
+  // narrower sidecar statement only when the session cannot write the prefix.
+  if (permitsAnnotationWrite(accessLevel) && !permitsPrefixWrite(accessLevel)) {
+    statements.push(getPutOwnSidecarStatement(bucketArn, prefix, subject));
+  }
+
+  if (permitsPrefixWrite(accessLevel)) {
+    statements.push(getPutObjectStatement(bucketArn, prefix));
   }
 
   const policy = {

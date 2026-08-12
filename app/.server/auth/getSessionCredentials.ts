@@ -13,7 +13,11 @@ import {
 } from "~/.server/providers/providerCatalog.server";
 import { canSee } from "~/utils/authorization";
 import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
-import { type AccessLevel, type ProviderCatalog } from "~/utils/providerCatalog.schema";
+import {
+  type AccessLevel,
+  type ProviderCatalog,
+  ACCESS_LEVELS,
+} from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 /** A connection config with its grants eager-loaded (the shape credential minting needs). */
@@ -95,10 +99,11 @@ const fetchTemporaryCredentials = async (
 /**
  * Pick the most permissive grant whose scope the authenticated user can see
  * (group membership or admin ancestry). A user who is a member of several
- * granted groups receives the most permissive applicable grant's role — sharing-
- * capable roles are preferred (a proxy for write access) as the tiebreaker.
- * Returns `undefined` when no grant is applicable to the user (the connection is
- * visible only through an ancestor the user does not directly hold).
+ * granted groups receives the grant with the highest access level — so an
+ * `annotate` (or `read-write`) user who also holds a `read-only` grant on the
+ * same connection is not demoted. Returns `undefined` when no grant is
+ * applicable to the user (the connection is visible only through an ancestor
+ * the user does not directly hold).
  */
 const pickGrantForUser = (
   connectionProvider: ResolvedConnectionProviderWithGrants,
@@ -109,7 +114,9 @@ const pickGrantForUser = (
     canSee(user, { organization, ownerScope: grant.scope }),
   );
   if (applicable.length === 0) return undefined;
-  applicable.sort((a, b) => Number(b.accessLevel === "admin") - Number(a.accessLevel === "admin"));
+  applicable.sort(
+    (a, b) => ACCESS_LEVELS.indexOf(b.accessLevel) - ACCESS_LEVELS.indexOf(a.accessLevel),
+  );
   return applicable[0];
 };
 
