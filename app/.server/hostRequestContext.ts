@@ -20,7 +20,7 @@ export interface HostRequestData {
    * Identity projection for the plugin handler. Set on the session path and
    * the `job-token` carve-out (derived from the token's claims); `undefined`
    * for org-agnostic carve-outs (`deployment-secret`, `webhook-secret`) that
-   * have no caller identity to project (SDS-CY-010095).
+   * have no caller identity to project.
    */
   identity?: Identity;
   authTokens: AuthTokens;

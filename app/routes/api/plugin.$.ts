@@ -10,10 +10,11 @@ import { toIdentity } from "~/.server/auth/getUserInfo";
 import { sessionMiddleware } from "~/.server/auth/sessionMiddleware";
 import { verifyJobToken } from "~/.server/auth/verifyJobToken";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
+import { jsonError } from "~/.server/httpResponse";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
 
 /**
- * Plugin-contributed server-endpoint dispatch (SDS-CY-010094/010095).
+ * Plugin-contributed server-endpoint dispatch.
  *
  * Plugins register endpoints under `/api/plugin/*` via `ctx.serverEndpoints`
  * during bootstrap; this splat resource route matches the incoming pathname
@@ -21,19 +22,18 @@ import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
  * `loader` (GET/HEAD) or `action` (mutations).
  *
  * Auth split:
- * - `"session"` endpoints run inside the host's `authMiddleware` (gate +
- *   token-refresh + active-org check, SDS-CY-010094), so `identity` is
- *   resolved when plugin code runs.
- * - `"job-token"` carve-outs run outside the session gate (SDS-CY-010095):
- *   the host verifies the bearer token's signature, issuer, and audience
- *   (SRS-CY-416102(a), SRS-CY-41901) and builds a `HostRequestData` from the
- *   verified claims so host capabilities (`jobLedger`, `assumeComputeRole`)
- *   resolve org/owner from the token, not a session (SRS-CY-416102(b),
- *   SDS-CY-080400). A token that fails verification returns 401.
+ * - `"session"` endpoints run inside the host's `authMiddleware` (gate,
+ *   token-refresh, active-org check), so `identity` is resolved when plugin
+ *   code runs.
+ * - `"job-token"` carve-outs run outside the session gate: the host verifies
+ *   the bearer token's signature, issuer, and audience and builds a
+ *   `HostRequestData` from the verified claims so host capabilities
+ *   (`jobLedger`, `assumeComputeRole`) resolve org/owner from the token, not
+ *   a session. A token that fails verification returns 401.
  * - `"deployment-secret"` / `"webhook-secret"` carve-outs run outside the
  *   session gate with an org-agnostic `HostRequestData` so a cross-org
- *   reconciler (`JobLedger.listAll`, SRS-CY-416106) can run. The constant-time
- *   secret compare is a separate host obligation (SDS-CY-010095).
+ *   reconciler (`JobLedger.listAll`) can run. The constant-time secret
+ *   compare is a separate host obligation.
  *
  * `sessionMiddleware` runs as route middleware so a session-auth dispatch can
  * read the resolved session without re-running the session loader; it does
@@ -50,14 +50,7 @@ function findEndpoint(pathname: string) {
   return serverEndpointRegistry.list().find((entry) => entry.contribution.path === pathname);
 }
 
-const notFound = () =>
-  Response.json(
-    { error: "Not Found" },
-    { status: 404, headers: { "Content-Type": "application/json" } },
-  );
-
-const deny = (status: number, message: string) =>
-  Response.json({ error: message }, { status, headers: { "Content-Type": "application/json" } });
+const notFound = () => jsonError(404, "Not Found");
 
 async function dispatchSession(
   args: LoaderFunctionArgs | ActionFunctionArgs,
@@ -100,9 +93,9 @@ async function dispatchCarveOut(
 
   if (contribution.auth === "job-token") {
     const rawToken = readBearerToken(args.request);
-    if (!rawToken) return deny(401, "A job-scoped bearer token is required.");
+    if (!rawToken) return jsonError(401, "A job-scoped bearer token is required.");
     const verified = await verifyJobToken(rawToken);
-    if (!verified) return deny(401, "The job-scoped token failed verification.");
+    if (!verified) return jsonError(401, "The job-scoped token failed verification.");
     const requestData = hostRequestDataFromJobToken(verified, rawToken);
     return withHostRequestContext(requestData, () =>
       handler({ request: args.request, params, identity: requestData.identity }),
@@ -111,7 +104,7 @@ async function dispatchCarveOut(
 
   // deployment-secret / webhook-secret: org-agnostic context so the
   // reconciler's cross-org scan can run. The secret comparison itself is a
-  // separate host obligation (SDS-CY-010095) — not implemented here.
+  // separate host obligation — not implemented here.
   const requestData = orgAgnosticHostRequestData();
   return withHostRequestContext(requestData, () =>
     handler({ request: args.request, params, identity: undefined }),

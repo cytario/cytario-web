@@ -151,10 +151,10 @@ class JobLedgerImpl implements JobLedger {
       throw new Error("Active organization missing from session");
     }
 
-    // Resolve the storage role from the output connection — host-side, using
-    // the submitting user's session token (SRS-CY-416105). The broker reads
-    // the resolved roleArn/region/s3Endpoint from the ledger row at mint time
-    // without re-resolving the provider catalog.
+    // Resolve the storage role from the output connection, host-side, using
+    // the submitting user's session token. The broker reads the resolved
+    // roleArn/region/s3Endpoint from the ledger row at mint time without
+    // re-resolving the provider catalog.
     const connection = await prisma.connectionConfig.findFirst({
       where: { id: job.connectionId, organization: user.organization },
       include: { grants: true },
@@ -223,12 +223,11 @@ class JobLedgerImpl implements JobLedger {
   }
 
   /**
-   * Cross-organization scan for the scheduled reconciler (SRS-CY-416106,
-   * SDS-CY-080901). Reaches across every tenant's rows — must only be
-   * reachable from the deployment-secret carve-out, never a session path.
-   * The host's carve-out dispatch sets up an org-agnostic request context
-   * for the deployment-secret path so {@link requireRequestData} still
-   * resolves, but no organization pre-filter is applied here.
+   * Cross-organization scan for the scheduled reconciler. Reaches across every
+   * tenant's rows — must only be reachable from the deployment-secret
+   * carve-out, never a session path. The carve-out dispatch sets up an
+   * org-agnostic request context so {@link requireRequestData} still resolves,
+   * but no organization pre-filter is applied here.
    */
   async listAll(): Promise<readonly JobRecord[]> {
     requireRequestData();

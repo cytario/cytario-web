@@ -234,17 +234,17 @@ export interface JobLedger {
   record(job: JobRecord): Promise<void>;
   lookup(jobId: string): Promise<JobRecord | null>;
   /**
-   * Lists all ledger rows for the active organization (tenant pre-filter,
-   * SRS-CY-416105). Returned in insertion order (oldest first). A plugin
-   * uses this to render the running-jobs view.
+   * Lists all ledger rows for the active organization (tenant pre-filter).
+   * Returned in insertion order (oldest first). A plugin uses this to render
+   * the running-jobs view.
    */
   list(): Promise<readonly JobRecord[]>;
   /**
    * Lists all ledger rows across every organization — the cross-tenant
-   * scan the scheduled reconciler needs (SRS-CY-416106, SDS-CY-080901).
-   * Returned in insertion order (oldest first). Only the deployment-secret
-   * carve-out (reconciler) reaches this path; a session-authenticated
-   * caller must use {@link list} so the tenant pre-filter holds.
+   * scan the scheduled reconciler needs. Returned in insertion order
+   * (oldest first). Only the deployment-secret carve-out (reconciler) reaches
+   * this path; a session-authenticated caller must use {@link list} so the
+   * tenant pre-filter holds.
    */
   listAll(): Promise<readonly JobRecord[]>;
   remove(jobId: string): Promise<void>;
@@ -299,14 +299,13 @@ export interface HostCapabilities {
   objectStore(): ObjectStore;
   /**
    * Returns a credential-bearing signed request surface for the compute
-   * submit role (SDS-CY-010098). Never raw keys.
+   * submit role. Never raw keys.
    *
    * @param organization - when omitted, the active organization is resolved
-   *   from the request context (the session path, or the job-token
-   *   carve-out whose context carries the token's org claim). When
-   *   provided, the host mints for that organization — used by the
-   *   cross-org reconciler, which groups ledger rows by organization and
-   *   mints per org (SRS-CY-416106, SDS-CY-080901).
+   *   from the request context (the session path, or the job-token carve-out
+   *   whose context carries the token's org claim). When provided, the host
+   *   mints for that organization — used by the cross-org reconciler, which
+   *   groups ledger rows by organization and mints per org.
    */
   assumeComputeRole(organization?: string): Promise<ComputeRoleSession>;
   /**

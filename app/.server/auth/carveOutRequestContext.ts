@@ -8,18 +8,16 @@ import type { Identity } from "@cytario/plugin-api";
 
 /**
  * Builds a {@link HostRequestData} for a carve-out dispatch path from the
- * job-scoped broker token's verified claims (SRS-CY-416102(b),
- * SDS-CY-080400, SRS-CY-41901).
+ * job-scoped broker token's verified claims.
  *
  * Organization and submitting user are derived exclusively from the token's
  * own claims — never from a caller-supplied body, query, or header, and never
- * from a browser session (the carve-out runs outside the session gate,
- * SDS-CY-010095). The token's nested `organization` claim is the single
- * Keycloak organization alias under which the job was submitted; `sub` is the
- * submitting user. The token itself is carried as the `idToken` so
- * `assumeComputeRole` can present it as the STS `WebIdentityToken` (the grant
- * carries the AWS principal-tag ORG claim required by the compute-role trust
- * configuration, SRS-CY-41901/SRS-CY-43105).
+ * from a browser session (the carve-out runs outside the session gate). The
+ * token's nested `organization` claim is the single Keycloak organization
+ * alias under which the job was submitted; `sub` is the submitting user. The
+ * token itself is carried as the `idToken` so `assumeComputeRole` can present
+ * it as the STS `WebIdentityToken` (the grant carries the AWS principal-tag
+ * ORG claim required by the compute-role trust configuration).
  *
  * The synthetic {@link UserProfile} carries only the fields the host
  * capabilities read (`sub`, `organization`); the remaining profile fields are
@@ -67,13 +65,13 @@ export function hostRequestDataFromJobToken(
 
 /**
  * Builds an org-agnostic {@link HostRequestData} for a deployment-secret /
- * webhook-secret carve-out (SDS-CY-010095). No organization and no user is
- * synthesized — the reconciler's cross-org scan ({@link JobLedger.listAll},
- * SRS-CY-416106) does not pre-filter by org, and the per-org compute role is
- * minted by passing the row's organization to `assumeComputeRole` explicitly.
- * The deployment-secret constant-time compare is a separate, not-yet-
- * implemented host obligation; this context only lets the dispatched handler
- * call host capabilities without a session.
+ * webhook-secret carve-out. No organization and no user is synthesized — the
+ * reconciler's cross-org scan ({@link JobLedger.listAll}) does not pre-filter
+ * by org, and the per-org compute role is minted by passing the row's
+ * organization to `assumeComputeRole` explicitly. The deployment-secret
+ * constant-time compare is a separate, not-yet-implemented host obligation;
+ * this context only lets the dispatched handler call host capabilities
+ * without a session.
  */
 export function orgAgnosticHostRequestData(): HostRequestData {
   const user: UserProfile = {
@@ -106,8 +104,7 @@ export function orgAgnosticHostRequestData(): HostRequestData {
 /**
  * Reads the Keycloak nested `organization` claim (the single alias key, the
  * same shape {@link getUserInfo} parses for a session) and returns it, or
- * `undefined` when the claim is absent. The job-scoped token carries this
- * claim per SRS-CY-41901.
+ * `undefined` when the claim is absent.
  */
 function readOrganizationClaim(payload: JWTPayload): string | undefined {
   const claim = payload.organization;

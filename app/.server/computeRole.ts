@@ -3,9 +3,9 @@ import { SignatureV4 } from "@smithy/signature-v4";
 
 import { hostRequestStorage } from "./hostRequestContext";
 import { getProviderCatalog } from "./providers/providerCatalog.server";
+import { assumeRoleWithWebIdentity, sanitizeRoleSessionName } from "./stsSession";
 import type { ComputeRoleSession, SignedFetch } from "@cytario/plugin-api";
 import type { ComputeProvider, ComputeRole, ProviderCatalog } from "~/utils/providerCatalog.schema";
-import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 function requireRequestData() {
   const data = hostRequestStorage.getStore();
@@ -112,36 +112,14 @@ export async function assumeComputeRole(
   const catalog = await getProviderCatalog(organization, authTokens.accessToken);
   const { computeProvider, computeRole } = resolveComputeRole(catalog);
 
-  const providerConfig = getS3ProviderConfig(null, computeProvider.region);
-  const { STSClient, AssumeRoleWithWebIdentityCommand } = await import("@aws-sdk/client-sts");
-  const stsClient = new STSClient({
-    endpoint: providerConfig.stsEndpoint,
+  const credentials = await assumeRoleWithWebIdentity({
+    roleArn: computeRole.roleArn,
+    roleSessionName: sanitizeRoleSessionName(`compute-${user.sub}`),
+    webIdentityToken: authTokens.idToken,
     region: computeProvider.region,
   });
 
-  const roleSessionName = `compute-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64);
-
-  const { Credentials } = await stsClient.send(
-    new AssumeRoleWithWebIdentityCommand({
-      RoleArn: computeRole.roleArn,
-      RoleSessionName: roleSessionName,
-      WebIdentityToken: authTokens.idToken,
-      DurationSeconds: 3600,
-    }),
-  );
-
-  if (!Credentials?.AccessKeyId || !Credentials?.SecretAccessKey) {
-    throw new Error("STS returned no credentials for compute role");
-  }
-
-  const signedFetch = createBatchSignedFetch(
-    {
-      AccessKeyId: Credentials.AccessKeyId,
-      SecretAccessKey: Credentials.SecretAccessKey,
-      SessionToken: Credentials.SessionToken,
-    },
-    computeProvider.region,
-  );
+  const signedFetch = createBatchSignedFetch(credentials, computeProvider.region);
 
   return {
     signedFetch,
