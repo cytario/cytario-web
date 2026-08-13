@@ -1,4 +1,3 @@
-import { exchangeJobToken as exchangeTokenImpl } from "./auth/exchangeJobToken";
 import { revokeGrant as revokeGrantImpl } from "./auth/revokeGrant";
 import { catalogFetch as connectionFetchImpl } from "./catalogFetch";
 import { assumeComputeRole as assumeComputeRoleImpl } from "./computeRole";
@@ -126,7 +125,13 @@ class HostCapabilitiesImpl implements HostCapabilities {
   }
 
   exchangeToken(): Promise<TokenGrant> {
-    return exchangeTokenImpl();
+    const data = hostRequestStorage.getStore();
+    if (!data?.jobGrant) {
+      throw new Error(
+        "exchangeToken() called outside the job-grant callback phase — the offline grant is only available during the Authorization Code callback (SRS-CY-41901)",
+      );
+    }
+    return Promise.resolve(data.jobGrant);
   }
 
   revokeGrant(offlineSessionId: string): Promise<void> {
@@ -182,6 +187,7 @@ class JobLedgerImpl implements JobLedger {
 
     await prisma.jobLedgerEntry.create({
       data: {
+        batchId: job.batchId,
         jobId: job.jobId,
         offlineSessionId: job.offlineSessionId,
         organization: user.organization,
@@ -242,6 +248,7 @@ class JobLedgerImpl implements JobLedger {
 }
 
 function toJobRecord(entry: {
+  batchId: string;
   jobId: string;
   offlineSessionId: string;
   organization: string;
@@ -254,6 +261,7 @@ function toJobRecord(entry: {
   s3Endpoint: string | null;
 }): JobRecord {
   return {
+    batchId: entry.batchId,
     jobId: entry.jobId,
     offlineSessionId: entry.offlineSessionId,
     organization: entry.organization,

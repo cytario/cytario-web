@@ -108,6 +108,14 @@ const apiRoutes = [
     path: "/api/broker",
     file: "routes/api/broker.ts",
   },
+  {
+    path: "/api/job-grant/callback",
+    file: "routes/api/job-grant/callback.ts",
+  },
+  {
+    path: "/api/job-grant/initiate",
+    file: "routes/api/job-grant/initiate.ts",
+  },
 ];
 
 export default [

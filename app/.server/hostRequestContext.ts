@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { UserProfile } from "./auth/getUserInfo";
 import type { AuthTokens } from "./auth/sessionStorage";
-import type { Identity } from "@cytario/plugin-api";
+import type { Identity, TokenGrant } from "@cytario/plugin-api";
 
 /**
  * Per-request data the host capabilities need. Set up by the request
@@ -25,6 +25,13 @@ export interface HostRequestData {
   identity?: Identity;
   authTokens: AuthTokens;
   sessionId: string;
+  /**
+   * The offline job grant obtained during the job-grant callback phase.
+   * When set, `ctx.host.exchangeToken()` returns this grant instead of
+   * performing a token exchange. Only present during the callback phase
+   * (SRS-CY-41901).
+   */
+  jobGrant?: TokenGrant;
 }
 
 export const hostRequestStorage = new AsyncLocalStorage<HostRequestData>();

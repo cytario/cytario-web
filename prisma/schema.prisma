@@ -84,6 +84,7 @@ connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectio
 // grant's revocation is confirmed.
 model JobLedgerEntry {
   id               String   @id @default(uuid())
+  batchId          String
   jobId            String
   offlineSessionId String
   organization     String
@@ -98,4 +99,5 @@ model JobLedgerEntry {
 
   @@unique([organization, jobId])
   @@index([organization, owner])
+  @@index([offlineSessionId])
 }
