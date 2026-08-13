@@ -1,0 +1,41 @@
+# Dev-only provider catalog for presigned-URL testing with rclone serve s3.
+#
+# Used by local development: set PROVIDERS_OSS_CONFIG_PATH to this file
+# and run `./scripts/rclone-serve-s3.sh` to start the local S3 server.
+#
+# The presign route has a dev-only localhost carve-out so http://localhost
+# bypasses the HTTPS-only isAllowedS3Host guard.
+#
+# staticCredentials live on providerRoles (not providerConnections) — the
+# server-side presign route picks them up from the resolved grant's role.
+
+providerConnections:
+  - id: local-rclone
+    name: Local rclone S3 (dev)
+    providerType: presigned
+    endpoint: http://localhost:9000
+    region: local
+    status: connected
+
+providerRoles:
+  - id: local-reader
+    providerConnectionId: local-rclone
+    roleArn: null
+    name: Reader (local dev)
+    allowedScopes:
+      - local
+    accessLevel: read-only
+    staticCredentials:
+      accessKeyId: cytario-dev
+      secretAccessKey: cytario-dev-secret
+
+  - id: local-readwrite
+    providerConnectionId: local-rclone
+    roleArn: null
+    name: Read-Write (local dev)
+    allowedScopes:
+      - local
+    accessLevel: read-write
+    staticCredentials:
+      accessKeyId: cytario-dev
+      secretAccessKey: cytario-dev-secret

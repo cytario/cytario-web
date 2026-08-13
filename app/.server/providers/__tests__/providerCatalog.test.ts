@@ -7,9 +7,10 @@ import {
   getProviderCatalog,
   invalidateProviderCatalogCache,
   resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "../providerCatalog.server";
 import { cytarioConfig } from "~/config";
-import { providerCatalogSchema } from "~/utils/providerCatalog.schema";
+import { clientProviderRoleSchema, providerCatalogSchema } from "~/utils/providerCatalog.schema";
 
 vi.mock("node:fs/promises", () => {
   const readFile = vi.fn();
@@ -45,6 +46,14 @@ const CATALOG = {
       region: "eu-central-1",
       status: "connected" as const,
     },
+    {
+      id: "pc-presigned",
+      name: "S3 Compatible (presigned)",
+      providerType: "presigned" as const,
+      endpoint: "https://minio.example.com",
+      region: "us-east-1",
+      status: "connected" as const,
+    },
   ],
   providerRoles: [
     {
@@ -55,6 +64,19 @@ const CATALOG = {
       allowedScopes: ["lab/team-a"],
       accessLevel: "read-only",
       bucketIds: ["bucket-1"],
+    },
+    {
+      id: "pr-presigned-rw",
+      providerConnectionId: "pc-presigned",
+      roleArn: null,
+      name: "Read-Write (presigned)",
+      allowedScopes: ["lab/team-a"],
+      accessLevel: "read-write",
+      bucketIds: [],
+      staticCredentials: {
+        accessKeyId: "AKIA-test",
+        secretAccessKey: "secret-test",
+      },
     },
     {
       id: "pr-orphan",
@@ -165,6 +187,91 @@ describe("providerCatalogSchema", () => {
     const catalog = providerCatalogSchema.parse(withoutAllowedGroups);
     expect(catalog.appCatalogs[0].allowedGroups).toEqual([]);
   });
+
+  test("accepts a presigned provider connection with staticCredentials on its role", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    const presignedConn = catalog.providerConnections.find(
+      (c) => c.id === "pc-presigned",
+    );
+    expect(presignedConn?.providerType).toBe("presigned");
+    expect(presignedConn?.endpoint).toBe("https://minio.example.com");
+
+    const presignedRole = catalog.providerRoles.find(
+      (r) => r.id === "pr-presigned-rw",
+    );
+    expect(presignedRole?.roleArn).toBeNull();
+    expect(presignedRole?.staticCredentials).toEqual({
+      accessKeyId: "AKIA-test",
+      secretAccessKey: "secret-test",
+    });
+  });
+
+  test("clientProviderRoleSchema omits staticCredentials", () => {
+    const role = clientProviderRoleSchema.parse({
+      id: "pr-1",
+      providerConnectionId: "pc-1",
+      roleArn: "arn:aws:iam::1:role/r",
+      name: "Reader",
+      allowedScopes: [],
+      accessLevel: "read-only",
+      bucketIds: [],
+      staticCredentials: { accessKeyId: "LEAK", secretAccessKey: "LEAK" },
+    });
+    expect(role).not.toHaveProperty("staticCredentials");
+  });
+});
+
+describe("resolveConnectionProviderWithGrants (C-377)", () => {
+  test("resolves a presigned provider with credentialMode='presigned' and staticCredentials", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    const resolved = resolveConnectionProviderWithGrants(catalog, {
+      providerConnectionId: "pc-presigned",
+      grants: [{ scope: "lab/team-a", providerRoleId: "pr-presigned-rw" }],
+    });
+    expect(resolved).toBeDefined();
+    expect(resolved?.providerType).toBe("presigned");
+    expect(resolved?.credentialMode).toBe("presigned");
+    expect(resolved?.staticCredentials).toEqual({
+      accessKeyId: "AKIA-test",
+      secretAccessKey: "secret-test",
+    });
+    expect(resolved?.endpoint).toBe("https://minio.example.com");
+    expect(resolved?.region).toBe("us-east-1");
+    expect(resolved?.grants).toEqual([
+      { scope: "lab/team-a", roleArn: null, accessLevel: "read-write" },
+    ]);
+  });
+
+  test("resolves an AWS provider with credentialMode='sts' and null staticCredentials", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    const resolved = resolveConnectionProviderWithGrants(catalog, {
+      providerConnectionId: "pc-1",
+      grants: [{ scope: "lab/team-a", providerRoleId: "pr-1" }],
+    });
+    expect(resolved).toBeDefined();
+    expect(resolved?.providerType).toBe("aws");
+    expect(resolved?.credentialMode).toBe("sts");
+    expect(resolved?.staticCredentials).toBeNull();
+  });
+
+  test("returns undefined for a missing provider connection", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    const resolved = resolveConnectionProviderWithGrants(catalog, {
+      providerConnectionId: "pc-missing",
+      grants: [{ scope: "lab/team-a", providerRoleId: "pr-1" }],
+    });
+    expect(resolved).toBeUndefined();
+  });
+
+  test("skips grants whose providerRole belongs to a different connection", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    const resolved = resolveConnectionProviderWithGrants(catalog, {
+      providerConnectionId: "pc-presigned",
+      grants: [{ scope: "lab/team-a", providerRoleId: "pr-1" }],
+    });
+    expect(resolved).toBeDefined();
+    expect(resolved?.grants).toEqual([]);
+  });
 });
 
 describe("getProviderCatalog (OSS build)", () => {
@@ -226,7 +333,7 @@ describe("getProviderCatalog (portal build)", () => {
     const [calledUrl, init] = fetchMock.mock.calls[0];
     expect(String(calledUrl)).toContain("http://portal.internal:4000/org/providers");
     expect(init.headers["X-Providers-Lookup-Secret"]).toBe("s3cr3t");
-    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections).toHaveLength(2);
   });
 
   test("degrades to a clear error on non-OK response", async () => {
@@ -285,7 +392,7 @@ describe("getProviderCatalog (portal build)", () => {
 
     await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
     const catalog = await getProviderCatalog("acme");
-    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 

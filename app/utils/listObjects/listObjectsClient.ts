@@ -236,7 +236,10 @@ async function presignedListBucketRequest({
     throw new Error(error.error ?? `Presign failed: ${presignResponse.status}`);
   }
 
-  const { url: presignedUrl } = (await presignResponse.json()) as { url: string };
+  const { presignedUrl } = (await presignResponse.json()) as {
+    presignedUrl: string;
+    expiresAt: string;
+  };
 
   try {
     return await fetch(presignedUrl, {

@@ -13,7 +13,7 @@ import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStor
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { enrichDirectoryPreviews } from "~/utils/enrichDirectoryPreviews";
 import { isImageFile } from "~/utils/fileType";
-import { createSignedFetch } from "~/utils/signedFetch";
+import { createDataFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
   import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then((mod) => ({
@@ -30,11 +30,12 @@ function useSignedFetch(connectionId: string) {
   const connection = useConnectionsStore(select.connection(connectionId));
   const connectionConfig = connection?.connectionConfig;
   const region = connection?.provider?.region;
+  const credentialMode = connection?.provider?.credentialMode ?? "sts";
 
   const signedFetch = useMemo(() => {
     if (!connectionConfig) return null;
-    return createSignedFetch(liveCredentials(connectionId), region, connectionId);
-  }, [connectionId, connectionConfig, region]);
+    return createDataFetch(liveCredentials(connectionId), region, connectionId, credentialMode);
+  }, [connectionId, connectionConfig, region, credentialMode]);
 
   return { connectionConfig, signedFetch };
 }
@@ -44,7 +45,7 @@ function ImagePreviewSlot({
   signedFetch,
 }: {
   resourceId: string;
-  signedFetch: ReturnType<typeof createSignedFetch>;
+  signedFetch: ReturnType<typeof createDataFetch>;
 }) {
   return (
     <ClientOnly>

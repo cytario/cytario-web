@@ -250,39 +250,7 @@ export function createSignedFetch(
   };
 
   if (credentialMode === "presigned") {
-    return async (url: string, init?: RequestInit): Promise<Response> => {
-      const method = (init?.method as string) ?? "GET";
-      const presignResponse = await fetch("/api/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId, url, method }),
-      });
-
-      if (!presignResponse.ok) {
-        const error = await presignResponse.json().catch(() => ({}));
-        throw new Error(error.error ?? `Presign failed: ${presignResponse.status}`);
-      }
-
-      const { url: presignedUrl } = (await presignResponse.json()) as { url: string };
-
-      const parsed = new URL(url);
-      const browserOrigin =
-        typeof window !== "undefined" && typeof window.location?.origin === "string"
-          ? window.location.origin
-          : "";
-
-      const callerHeaders = sanitizeHeaders(init?.headers as Record<string, string> | undefined);
-
-      const fetchInit: RequestInit = {
-        ...init,
-        method,
-        headers: callerHeaders,
-        signal: init?.signal,
-        redirect: "error",
-      };
-
-      return fetchWithCorsDetection(presignedUrl, fetchInit, parsed.host, browserOrigin);
-    };
+    return createPresignedFetch(connectionId!);
   }
 
   return async (url: string, init?: RequestInit): Promise<Response> => {
@@ -319,4 +287,137 @@ export function createSignedFetch(
 
     return response;
   };
+}
+
+// ─── Presigned-URL fetch ──────────────────────────────────────────────
+
+interface PresignCacheEntry {
+  presignedUrl: string;
+  /** Epoch-ms when the presigned URL stops being valid. */
+  expiresAt: number;
+}
+
+// One mint per image file, not per tile. A single OME-Zarr image may
+// produce hundreds of tile reads; each tile shares one presigned URL
+// per method because the URL is the object path, not the range request.
+// The cache is per-connection (each `createPresignedFetch` call gets its
+// own map) and entries expire when the presigned URL's expiresAt is reached.
+
+async function mintPresignedUrl(
+  connectionId: string,
+  url: string,
+  method: string,
+): Promise<PresignCacheEntry> {
+  const presignResponse = await fetch("/api/presign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ connectionId, url, method }),
+  });
+
+  if (!presignResponse.ok) {
+    const error = await presignResponse.json().catch(() => ({}));
+    throw new Error(error.error ?? `Presign failed: ${presignResponse.status}`);
+  }
+
+  const { presignedUrl, expiresAt } = (await presignResponse.json()) as {
+    presignedUrl: string;
+    expiresAt: string;
+  };
+
+  return {
+    presignedUrl,
+    expiresAt: new Date(expiresAt).getTime(),
+  };
+}
+
+async function isPresignedExpiredResponse(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const body = await response.clone().text();
+    return body.includes("Request has expired") || body.includes("<Code>AccessDenied</Code>");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Browser-side fetch for presigned-URL connections. Mints a presigned URL
+ * from `/api/presign` once per `(method, url)` pair and caches it in-memory
+ * so repeated tile reads for the same object don't re-mint. On a 403
+ * "Request has expired", the cache entry is cleared and the URL is
+ * re-minted once.
+ */
+export function createPresignedFetch(connectionId: string): SignedFetch {
+  const cache = new Map<string, PresignCacheEntry>();
+
+  const cacheKey = (method: string, url: string) => `${method.toUpperCase()}:${url}`;
+
+  const getOrMint = async (method: string, url: string): Promise<PresignCacheEntry> => {
+    const key = cacheKey(method, url);
+    const now = Date.now();
+    const cached = cache.get(key);
+    if (cached && cached.expiresAt > now + 5_000) {
+      return cached;
+    }
+    const entry = await mintPresignedUrl(connectionId, url, method);
+    cache.set(key, entry);
+    return entry;
+  };
+
+  return async (url: string, init?: RequestInit): Promise<Response> => {
+    const method = (init?.method as string) ?? "GET";
+
+    const parsed = new URL(url);
+    const browserOrigin =
+      typeof window !== "undefined" && typeof window.location?.origin === "string"
+        ? window.location.origin
+        : "";
+
+    const callerHeaders = sanitizeHeaders(init?.headers as Record<string, string> | undefined);
+
+    const fetchInit: RequestInit = {
+      ...init,
+      method,
+      headers: callerHeaders,
+      signal: init?.signal,
+      redirect: "error",
+    };
+
+    let entry = await getOrMint(method, url);
+    const response = await fetchWithCorsDetection(
+      entry.presignedUrl,
+      fetchInit,
+      parsed.host,
+      browserOrigin,
+    );
+
+    if (await isPresignedExpiredResponse(response)) {
+      cache.delete(cacheKey(method, url));
+      entry = await getOrMint(method, url);
+      return fetchWithCorsDetection(
+        entry.presignedUrl,
+        fetchInit,
+        parsed.host,
+        browserOrigin,
+      );
+    }
+
+    return response;
+  };
+}
+
+/**
+ * Unified data-fetch factory. Branches on `credentialMode`:
+ * - `sts`       → browser-side SigV4 signing with STS token refresh
+ * - `presigned` → server-side presigned URLs via `/api/presign` with caching
+ *
+ * Callers should use this instead of `createSignedFetch` directly.
+ */
+export function createDataFetch(
+  getCredentials: () => Credentials | null,
+  region: string | undefined,
+  connectionId: string,
+  credentialMode: "sts" | "presigned" = "sts",
+): SignedFetch {
+  return createSignedFetch(getCredentials, region, connectionId, credentialMode);
 }
