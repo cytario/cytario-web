@@ -8,6 +8,11 @@ vi.mock("~/.server/auth/verifyJobToken", () => ({
   verifyJobToken: verifyJobTokenMock,
 }));
 
+const refreshJobTokenMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/refreshJobToken", () => ({
+  refreshJobToken: refreshJobTokenMock,
+}));
+
 const stsSendMock = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: class {
@@ -25,6 +30,9 @@ const VALID_TOKEN_PAYLOAD = {
   sub: "submitting-user-42",
   organization: { testcorp: { id: "org-1", groups: [] } },
 };
+
+const REFRESHED_ACCESS_TOKEN = "fresh-access-token";
+const ROTATED_REFRESH_TOKEN = "rotated-refresh-token";
 
 function buildRequest(body: unknown): Request {
   return new Request("http://localhost/api/broker", {
@@ -52,7 +60,14 @@ const LEDGER_ROW = {
 beforeEach(() => {
   vi.clearAllMocks();
   verifyJobTokenMock.mockReset();
+  refreshJobTokenMock.mockReset();
   stsSendMock.mockReset();
+  // Default: refresh succeeds and returns a fresh access token + a rotated
+  // refresh token. Individual tests override as needed.
+  refreshJobTokenMock.mockResolvedValue({
+    accessToken: REFRESHED_ACCESS_TOKEN,
+    newRefreshToken: ROTATED_REFRESH_TOKEN,
+  });
 });
 
 describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
@@ -61,10 +76,23 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(response.status).toBe(400);
   });
 
-  test("returns 401 when the token fails verification", async () => {
+  test("returns 401 when the refresh fails (grant expired or revoked)", async () => {
+    refreshJobTokenMock.mockRejectedValueOnce(new Error("refresh failed"));
+    const response = (await action(
+      args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(401);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /expired or revoked/i,
+    });
+    // Verify is never reached when refresh fails.
+    expect(verifyJobTokenMock).not.toHaveBeenCalled();
+  });
+
+  test("returns 401 when the refreshed token fails verification", async () => {
     verifyJobTokenMock.mockResolvedValueOnce(null);
     const response = (await action(
-      args(buildRequest({ token: "bad", jobId: "job-1" })),
+      args(buildRequest({ token: "refresh-token", jobId: "job-1" })),
     )) as Response;
     expect(response.status).toBe(401);
     expect((await response.json()) as { error: string }).toMatchObject({
@@ -105,6 +133,60 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(body.secretAccessKey).toBe("secret");
     expect(body.sessionToken).toBe("token");
     expect(body.expiration).toBeDefined();
+    // The rotated refresh token is returned for the container's next mint.
+    expect(body.refreshToken).toBe(ROTATED_REFRESH_TOKEN);
+  });
+
+  test("refreshes the token with the body's refresh token, not the access token", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
+    });
+
+    await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
+
+    expect(refreshJobTokenMock).toHaveBeenCalledWith("container-refresh-token");
+  });
+
+  test("passes the refreshed access token to verifyJobToken, not the body token", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
+    });
+
+    await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
+
+    expect(verifyJobTokenMock).toHaveBeenCalledWith(REFRESHED_ACCESS_TOKEN);
+  });
+
+  test("passes the refreshed access token to STS as WebIdentityToken, not the body token", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
+    });
+
+    await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
+
+    const sentCommand = stsSendMock.mock.calls[0]?.[0];
+    expect(sentCommand.input.WebIdentityToken).toBe(REFRESHED_ACCESS_TOKEN);
   });
 
   test("STS call uses roleArn and region from the ledger row", async () => {

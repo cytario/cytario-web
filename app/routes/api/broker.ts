@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 
 import { hostRequestDataFromJobToken } from "~/.server/auth/carveOutRequestContext";
+import { refreshJobToken } from "~/.server/auth/refreshJobToken";
 import {
   buildBrokerSessionPolicy,
   InlinePolicySizeError,
@@ -22,6 +23,14 @@ import { assumeRoleWithWebIdentity, sanitizeRoleSessionName } from "~/.server/st
  * recorded at submission, with no provider catalog or connection query at
  * mint time.
  *
+ * The container carries the grant's **refresh token** (not the access token),
+ * because the access token's short `exp` would expire before a long job's
+ * first broker call. The broker redeems (refreshes) the grant at the
+ * identity service on every call (SRS-CY-416102(a), SDS-CY-080400) to obtain
+ * a fresh, unexpired access token, verifies it, passes it to STS, and
+ * returns the rotated refresh token so the container's next mint presents
+ * the current (rotated) token. A revoked or expired grant mints nothing.
+ *
  * Request body: `{ token: string, jobId: string }` — exactly what the SDK
  * sends. No caller-supplied field influences the credential scope.
  */
@@ -38,6 +47,12 @@ interface BrokerResponse {
   secretAccessKey: string;
   sessionToken: string;
   expiration: string;
+  /**
+   * The rotated refresh token the container must present on its next mint
+   * (refresh-token rotation). The SDK overwrites its in-memory token
+   * with this value.
+   */
+  refreshToken: string;
 }
 
 export async function action(args: ActionFunctionArgs): Promise<Response> {
@@ -52,12 +67,27 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
     return jsonError(400, "token and jobId are required");
   }
 
-  const verified = await verifyJobToken(body.token);
+  // Redeem the offline grant at the identity service on every call
+  // (SRS-CY-416102(a)) — a revoked or expired grant mints nothing. The
+  // container carries a refresh token; the broker refreshes it host-side
+  // (the job-broker client is confidential, so the container can't hold
+  // the client_secret) and verifies the fresh access token before STS.
+  let refreshedToken: string;
+  let newRefreshToken: string;
+  try {
+    const refreshed = await refreshJobToken(body.token);
+    refreshedToken = refreshed.accessToken;
+    newRefreshToken = refreshed.newRefreshToken;
+  } catch {
+    return jsonError(401, "The job-scoped grant is expired or revoked.");
+  }
+
+  const verified = await verifyJobToken(refreshedToken);
   if (!verified) {
     return jsonError(401, "The job-scoped token failed verification.");
   }
 
-  const requestData = hostRequestDataFromJobToken(verified, body.token);
+  const requestData = hostRequestDataFromJobToken(verified, refreshedToken);
 
   return withHostRequestContext(requestData, async () => {
     try {
@@ -99,7 +129,7 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
       const credentials = await assumeRoleWithWebIdentity({
         roleArn: entry.roleArn,
         roleSessionName: sanitizeRoleSessionName(`broker-${verified.sub}`),
-        webIdentityToken: body.token,
+        webIdentityToken: refreshedToken,
         region: entry.region,
         endpoint: entry.s3Endpoint,
         policy,
@@ -111,6 +141,7 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         sessionToken: credentials.SessionToken ?? "",
         expiration:
           credentials.Expiration?.toISOString() ?? new Date(Date.now() + 3600_000).toISOString(),
+        refreshToken: newRefreshToken,
       };
 
       console.info(`${label} minted credentials for job ${body.jobId}`);

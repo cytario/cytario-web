@@ -30,6 +30,15 @@ function requireRequestData() {
  * call the credential-broker endpoint to obtain short-lived storage
  * credentials without a browser session (SDS-CY-080400).
  *
+ * Returns the grant's **refresh token**, not the access token. The access
+ * token issued by the exchange has a short `exp` (the client's access-token
+ * lifespan, typically minutes), but a job may run for hours. The refresh
+ * token is valid until the realm's maximum offline-session validity
+ * (SRS-CY-416104). The broker redeems (refreshes) the refresh token at the
+ * identity service on every call (SRS-CY-416102(a), SDS-CY-080400) to obtain
+ * a fresh, unexpired access token for STS — passing the access token directly
+ * to STS would fail for any job whose startup outlives the token's `exp`.
+ *
  * The offline-session id from the exchange response is returned alongside
  * the token so the Job Adapter can record it in the running-jobs ledger
  * (SDS-CY-080900).
@@ -77,11 +86,16 @@ export async function exchangeJobToken(): Promise<TokenGrant> {
   const json = (await response.json()) as {
     access_token: string;
     expires_in: number;
+    refresh_token?: string;
+    refresh_expires_in?: number;
     session_state?: string;
   };
 
-  if (!json.access_token) {
-    throw new Error("Token exchange returned no access_token");
+  // The grant is the refresh token, not the access token — the access
+  // token's short `exp` would expire before a long job calls the broker.
+  // The broker refreshes this grant on every call.
+  if (!json.refresh_token) {
+    throw new Error("Token exchange returned no refresh_token (offline_access scope not granted)");
   }
 
   if (!json.session_state) {
@@ -89,8 +103,8 @@ export async function exchangeJobToken(): Promise<TokenGrant> {
   }
 
   return {
-    token: json.access_token,
-    expiresAt: new Date(Date.now() + json.expires_in * 1000),
+    token: json.refresh_token,
+    expiresAt: new Date(Date.now() + (json.refresh_expires_in ?? json.expires_in) * 1000),
     offlineSessionId: json.session_state,
   };
 }
