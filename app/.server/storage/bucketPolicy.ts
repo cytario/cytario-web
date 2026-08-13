@@ -59,20 +59,22 @@ const LIST_ACTION = "s3:ListBucket";
  */
 const BUCKET_METADATA_ACTIONS = [
   "s3:GetBucketLocation",
-  "s3:ListMultipartUploads",
+  "s3:ListBucketMultipartUploads",
   "s3:GetBucketOwnershipControls",
 ] as const;
 /**
  * Additional write + multipart actions granted for read-write / admin access.
  * The multipart actions are required for any client (Cyberduck) that chunks
- * uploads above its part threshold.
+ * uploads above its part threshold. Completing a multipart upload is
+ * authorized by `s3:PutObject` (already in the list) — `s3:CompleteMultipartUpload`
+ * is an API operation, not an IAM action key, and S3 rejects it in a policy
+ * with "Policy has invalid action".
  */
 const WRITE_ACTIONS = [
   "s3:PutObject",
   "s3:DeleteObject",
   "s3:AbortMultipartUpload",
   "s3:ListMultipartUploadParts",
-  "s3:CompleteMultipartUpload",
 ] as const;
 
 export interface PolicyCondition {
