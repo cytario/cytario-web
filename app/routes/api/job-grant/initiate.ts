@@ -56,7 +56,7 @@ export const action = async (args: ActionFunctionArgs): Promise<Response> => {
   authUrl.searchParams.set("client_id", jobBrokerClientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", "openid offline_access");
+  authUrl.searchParams.set("scope", "openid offline_access organization");
   authUrl.searchParams.set("state", state);
   authUrl.searchParams.set("code_challenge", codeChallenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
