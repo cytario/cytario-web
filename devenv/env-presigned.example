@@ -1,0 +1,19 @@
+# Example .env overrides for presigned-URL local development (C-377).
+#
+# Copy these lines into your main .env (which is gitignored) when testing the
+# presigned-URL S3 provider path with the local rclone S3 server:
+#
+#   ./scripts/rclone-serve-s3.sh
+#   npx react-router dev --port 3000
+#
+# The presigned provider reads its catalog from a local YAML file instead of
+# the admin-portal lookup, so PORTAL_INTERNAL_URL must be unset.
+
+# Force OSS catalog mode (read from YAML, not admin-portal lookup).
+# Comment out or remove PORTAL_INTERNAL_URL when testing presigned providers.
+# PORTAL_INTERNAL_URL=
+PROVIDERS_OSS_CONFIG_PATH=devenv/providers.presigned.dev.yaml
+
+# Allow the browser to reach the local rclone S3 server. This is dev-only and
+# is stripped from the CSP in production/staging regardless of the env value.
+CYTARIO_DEV_CONNECT_HOSTS=http://localhost:9000

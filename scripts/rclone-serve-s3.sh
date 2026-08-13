@@ -25,13 +25,16 @@ set -euo pipefail
 PORT="${1:-9000}"
 DATA_DIR="${2:-$(dirname "$0")/../devenv/rclone-s3-data}"
 AUTH_KEY="cytario-dev,cytario-dev-secret"
+WEB_PORT="${WEB_PORT:-3000}"
+ALLOW_ORIGIN="${ALLOW_ORIGIN:-http://localhost:${WEB_PORT}}"
 
 mkdir -p "$DATA_DIR"
 
 echo "Starting rclone serve s3 on http://localhost:${PORT}"
-echo "  Data dir:   ${DATA_DIR}"
-echo "  AccessKey:  cytario-dev"
-echo "  SecretKey:  cytario-dev-secret"
+echo "  Data dir:    ${DATA_DIR}"
+echo "  AccessKey:   cytario-dev"
+echo "  SecretKey:   cytario-dev-secret"
+echo "  Allow-Origin: ${ALLOW_ORIGIN}"
 echo ""
 echo "Configure a presigned provider in devenv/providers.dev.yaml with:"
 echo "  endpoint: http://localhost:${PORT}"
@@ -43,4 +46,5 @@ echo "Press Ctrl+C to stop."
 
 exec rclone serve s3 "${DATA_DIR}" \
   --addr "127.0.0.1:${PORT}" \
-  --auth-key "${AUTH_KEY}"
+  --auth-key "${AUTH_KEY}" \
+  --allow-origin "${ALLOW_ORIGIN}"
