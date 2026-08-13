@@ -41,7 +41,6 @@ echo "    secretAccessKey: cytario-dev-secret"
 echo ""
 echo "Press Ctrl+C to stop."
 
-exec rclone serve s3 "local:${DATA_DIR}" \
+exec rclone serve s3 "${DATA_DIR}" \
   --addr "127.0.0.1:${PORT}" \
-  --auth-key "${AUTH_KEY}" \
-  --server-side-auth
+  --auth-key "${AUTH_KEY}"

@@ -108,6 +108,10 @@ const apiRoutes = [
     path: "/api/broker",
     file: "routes/api/broker.ts",
   },
+  {
+    path: "/api/presign",
+    file: "routes/api/presign.ts",
+  },
 ];
 
 export default [
