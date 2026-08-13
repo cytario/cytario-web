@@ -1,13 +1,16 @@
 import type { ActionFunctionArgs } from "react-router";
 
-import { authContext } from "~/.server/auth/authMiddleware";
+import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { storePendingSubmission } from "~/.server/auth/jobGrantStorage";
 import { generateCodeChallenge, generateCodeVerifier } from "~/.server/auth/oauthState";
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 import { createLabel } from "~/.server/logging";
+import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
 
 const label = createLabel("job-grant", "magenta");
+
+export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
  * Initiates the Authorization Code + PKCE flow for the job grant
