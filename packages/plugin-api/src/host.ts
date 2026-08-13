@@ -180,6 +180,12 @@ export interface TokenGrant {
  */
 export interface JobRecord {
   jobId: string;
+  /**
+   * The batch identifier shared by all jobs from one submission. All jobs
+   * in a batch share the same `offlineSessionId`; the reconciler revokes
+   * the shared session only when all jobs in the batch are terminal.
+   */
+  batchId: string;
   offlineSessionId: string;
   /**
    * The organization this job belongs to. Host-injected on `record` (the

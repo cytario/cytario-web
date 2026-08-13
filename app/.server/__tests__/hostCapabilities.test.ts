@@ -307,6 +307,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     const ledger = hostCapabilities.jobLedger();
     await expect(
       ledger.record({
+        batchId: "batch-1",
         jobId: "j1",
         offlineSessionId: "s1",
         organization: "o",
@@ -359,6 +360,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     });
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().record({
+        batchId: "batch-1",
         jobId: "job-1",
         offlineSessionId: "sess-1",
         organization: "WRONG_ORG",
@@ -374,6 +376,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(create.mock.calls[0]?.[0]).toMatchObject({
       data: {
+        batchId: "batch-1",
         jobId: "job-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -414,6 +417,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await withHostRequestContext(mockRequestData, async () => {
       await expect(
         hostCapabilities.jobLedger().record({
+          batchId: "batch-1",
           jobId: "job-1",
           offlineSessionId: "sess-1",
           organization: "WRONG_ORG",
@@ -444,6 +448,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
 
   test("lookup returns a JobRecord when the row exists", async () => {
     vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValue({
+      batchId: "batch-1",
       jobId: "job-1",
       offlineSessionId: "sess-1",
       organization: "testcorp",
@@ -458,6 +463,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await withHostRequestContext(mockRequestData, async () => {
       const result = await hostCapabilities.jobLedger().lookup("job-1");
       expect(result).toEqual({
+        batchId: "batch-1",
         jobId: "job-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -488,6 +494,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
   test("list filters by the session org and returns rows in insertion order", async () => {
     const findMany = vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
       {
+        batchId: "batch-1",
         jobId: "job-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -500,6 +507,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         s3Endpoint: null,
       } as never,
       {
+        batchId: "batch-1",
         jobId: "job-2",
         offlineSessionId: "sess-2",
         organization: "testcorp",
@@ -522,6 +530,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     });
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({
+      batchId: "batch-1",
       jobId: "job-1",
       offlineSessionId: "sess-1",
       organization: "testcorp",
@@ -538,6 +547,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
   test("listAll is org-agnostic — no organization pre-filter (reconciler cross-org scan, SRS-CY-416106)", async () => {
     const findMany = vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
       {
+        batchId: "batch-1",
         jobId: "job-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -546,6 +556,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         outputS3Uri: "",
       } as never,
       {
+        batchId: "batch-1",
         jobId: "job-2",
         offlineSessionId: "sess-2",
         organization: "othercorp",
@@ -674,6 +685,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await expect(
       withHostRequestContext(noOrgData, async () =>
         hostCapabilities.jobLedger().record({
+          batchId: "batch-1",
           jobId: "j1",
           offlineSessionId: "s1",
           organization: "x",
