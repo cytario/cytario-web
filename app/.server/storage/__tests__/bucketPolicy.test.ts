@@ -99,7 +99,10 @@ describe("compileGrantStatements", () => {
     expect(actions).toContain("s3:DeleteObject");
     expect(actions).toContain("s3:AbortMultipartUpload");
     expect(actions).toContain("s3:ListMultipartUploadParts");
-    expect(actions).toContain("s3:CompleteMultipartUpload");
+    // s3:PutObject (above) authorizes completing a multipart upload —
+    // s3:CompleteMultipartUpload is an API operation, not an IAM action key,
+    // and S3 rejects it in a policy with "Policy has invalid action".
+    expect(actions).not.toContain("s3:CompleteMultipartUpload");
     // even a sharing-capable read-write grant never grants PutBucketPolicy
     expect(actions).not.toContain("s3:PutBucketPolicy");
   });
