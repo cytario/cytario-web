@@ -92,8 +92,8 @@ export async function exchangeJobToken(): Promise<TokenGrant> {
   };
 
   // The grant is the refresh token, not the access token — the access
-  // token's short `exp` would expire before a long job calls the broker
-  // (C-391). The broker refreshes this grant on every call.
+  // token's short `exp` would expire before a long job calls the broker.
+  // The broker refreshes this grant on every call.
   if (!json.refresh_token) {
     throw new Error("Token exchange returned no refresh_token (offline_access scope not granted)");
   }

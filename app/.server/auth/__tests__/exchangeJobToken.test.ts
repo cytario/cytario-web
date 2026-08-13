@@ -44,7 +44,7 @@ beforeEach(() => {
   });
 });
 
-describe("exchangeJobToken (SRS-CY-41901, SDS-CY-020105, C-391)", () => {
+describe("exchangeJobToken (SRS-CY-41901, SDS-CY-020105)", () => {
   test("returns the refresh_token as grant.token, not the access_token", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       mockResponse({

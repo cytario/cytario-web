@@ -6,7 +6,7 @@ import { cytarioConfig } from "~/config";
  * service. The `accessToken` is the fresh, unexpired JWT the broker verifies
  * and passes to STS as `WebIdentityToken`; `newRefreshToken` is the rotated
  * refresh token the broker returns to the container so its next mint
- * presents the current (rotated) token (C-391, SRS-CY-416102(a)).
+ * presents the current (rotated) token (SRS-CY-416102(a)).
  */
 export interface RefreshedJobToken {
   accessToken: string;

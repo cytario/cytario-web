@@ -70,7 +70,7 @@ beforeEach(() => {
   });
 });
 
-describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400, C-391)", () => {
+describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
   test("returns 400 when the body is missing token or jobId", async () => {
     const response = (await action(args(buildRequest({ token: "tok" })))) as Response;
     expect(response.status).toBe(400);

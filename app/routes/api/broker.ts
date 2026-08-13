@@ -25,7 +25,7 @@ import { assumeRoleWithWebIdentity, sanitizeRoleSessionName } from "~/.server/st
  *
  * The container carries the grant's **refresh token** (not the access token),
  * because the access token's short `exp` would expire before a long job's
- * first broker call (C-391). The broker redeems (refreshes) the grant at the
+ * first broker call. The broker redeems (refreshes) the grant at the
  * identity service on every call (SRS-CY-416102(a), SDS-CY-080400) to obtain
  * a fresh, unexpired access token, verifies it, passes it to STS, and
  * returns the rotated refresh token so the container's next mint presents
@@ -49,7 +49,7 @@ interface BrokerResponse {
   expiration: string;
   /**
    * The rotated refresh token the container must present on its next mint
-   * (refresh-token rotation, C-391). The SDK overwrites its in-memory token
+   * (refresh-token rotation). The SDK overwrites its in-memory token
    * with this value.
    */
   refreshToken: string;
