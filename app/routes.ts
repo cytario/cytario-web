@@ -104,6 +104,10 @@ const apiRoutes = [
     path: "/api/plugin/*",
     file: "routes/api/plugin.$.ts",
   },
+  {
+    path: "/api/broker",
+    file: "routes/api/broker.ts",
+  },
 ];
 
 export default [
