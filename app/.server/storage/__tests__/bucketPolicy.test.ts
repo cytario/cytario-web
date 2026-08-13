@@ -53,7 +53,7 @@ describe("compileGrantStatements", () => {
     expect(get.Condition?.StringEquals?.["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
   });
 
-  test("C-378: emits a bucket-metadata statement with GetBucketLocation, ListMultipartUploads, GetBucketOwnershipControls for read-only", () => {
+  test("C-378: emits a bucket-metadata statement with GetBucketLocation, ListBucketMultipartUploads, GetBucketOwnershipControls for read-only", () => {
     const statements = compileGrantStatements(grant({ accessLevel: "read-only" }));
     const meta = statements.find((s) => {
       const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
@@ -64,10 +64,13 @@ describe("compileGrantStatements", () => {
     expect(actions).toEqual(
       expect.arrayContaining([
         "s3:GetBucketLocation",
-        "s3:ListMultipartUploads",
+        "s3:ListBucketMultipartUploads",
         "s3:GetBucketOwnershipControls",
       ]),
     );
+    // the invalid name s3:ListMultipartUploads must never be emitted (S3
+    // rejects it with "Policy has invalid action").
+    expect(actions).not.toContain("s3:ListMultipartUploads");
     // bucket-level: Resource is the bucket ARN, no s3:prefix condition
     expect(meta.Resource).toBe(`arn:aws:s3:::${BUCKET}`);
     expect(meta.Condition?.StringLike?.["s3:prefix"]).toBeUndefined();

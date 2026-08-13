@@ -59,7 +59,7 @@ const LIST_ACTION = "s3:ListBucket";
  */
 const BUCKET_METADATA_ACTIONS = [
   "s3:GetBucketLocation",
-  "s3:ListMultipartUploads",
+  "s3:ListBucketMultipartUploads",
   "s3:GetBucketOwnershipControls",
 ] as const;
 /**
