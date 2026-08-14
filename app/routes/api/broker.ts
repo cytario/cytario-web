@@ -146,14 +146,42 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         }
       }
 
-      const credentials = await assumeRoleWithWebIdentity({
-        roleArn: entry.roleArn,
-        roleSessionName: sanitizeRoleSessionName(`broker-${verified.sub}`),
-        webIdentityToken: refreshedToken,
-        region: entry.region,
-        endpoint: entry.s3Endpoint,
-        policy,
-      });
+      let credentials;
+      try {
+        credentials = await assumeRoleWithWebIdentity({
+          roleArn: entry.roleArn,
+          roleSessionName: sanitizeRoleSessionName(`broker-${verified.sub}`),
+          webIdentityToken: refreshedToken,
+          region: entry.region,
+          endpoint: entry.s3Endpoint,
+          policy,
+        });
+      } catch (err) {
+        // STS's PackedPolicyTooLargeException fires when the inline policy
+        // plus the role's attached managed policies exceed the total packed
+        // limit — even when the inline policy alone is under 2048 chars.
+        // Retry without the inline policy; the role's managed policies
+        // still govern access (the inline policy is a narrowing filter).
+        if (
+          err instanceof Error &&
+          (/PackedPolicyTooLarge|packed policy/i.test(err.name) ||
+            /Packed policy/i.test(err.message))
+        ) {
+          console.warn(
+            `${label} STS rejected inline policy as too large for job ${body.jobId}; ` +
+              "retrying without inline policy — the role's attached policies govern access",
+          );
+          credentials = await assumeRoleWithWebIdentity({
+            roleArn: entry.roleArn,
+            roleSessionName: sanitizeRoleSessionName(`broker-${verified.sub}`),
+            webIdentityToken: refreshedToken,
+            region: entry.region,
+            endpoint: entry.s3Endpoint,
+          });
+        } else {
+          throw err;
+        }
+      }
 
       const result: BrokerResponse = {
         accessKeyId: credentials.AccessKeyId,
