@@ -1,15 +1,19 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 
+import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { exchangeAuthCodeForJobGrant } from "~/.server/auth/exchangeAuthCodeForJobGrant";
-import { getSession, getSessionData } from "~/.server/auth/getSession";
 import { getUserInfo, toIdentity } from "~/.server/auth/getUserInfo";
 import { consumePendingSubmission } from "~/.server/auth/jobGrantStorage";
+import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
 import { createLabel } from "~/.server/logging";
+import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
 
 const label = createLabel("job-grant", "magenta");
+
+export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
  * Authorization Code flow callback for the job-grant (SRS-CY-41901).
@@ -28,7 +32,8 @@ const label = createLabel("job-grant", "magenta");
  * The plugin's submit phase calls `ctx.host.exchangeToken()` which returns
  * the grant from the request context (no token exchange at runtime).
  */
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async (args: LoaderFunctionArgs) => {
+  const { request, context } = args;
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -61,11 +66,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect("/plugin/jobs?error=grant_failed");
   }
 
-  // Re-resolve the session to get the user + auth tokens for the host
-  // request context (the plugin's submit needs connections, compute role,
-  // etc., which require the session).
-  const session = await getSession(request);
-  const { authTokens } = await getSessionData(session);
+  // authMiddleware has already run (in the middleware array), refreshing
+  // the session tokens and populating authContext with the fresh user +
+  // authTokens. Read from there instead of manually calling getSession.
+  const { authTokens } = context.get(authContext);
   if (!authTokens) {
     console.error(`${label} No auth tokens in session`);
     return redirect("/plugin/jobs?error=no_session");
@@ -77,7 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     user: userProfile,
     identity,
     authTokens,
-    sessionId: session.id,
+    sessionId: context.get(sessionContext)?.id ?? "",
     jobGrant: grant,
   };
 

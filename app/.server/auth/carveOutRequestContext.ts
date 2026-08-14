@@ -108,7 +108,17 @@ export function orgAgnosticHostRequestData(): HostRequestData {
  */
 function readOrganizationClaim(payload: JWTPayload): string | undefined {
   const claim = payload.organization;
-  if (!claim || typeof claim !== "object") return undefined;
-  const keys = Object.keys(claim as Record<string, unknown>);
-  return keys.length === 1 ? keys[0] : undefined;
+  if (!claim) return undefined;
+  if (typeof claim === "string") {
+    console.warn(
+      `[carve-out] organization claim is a string ("${claim}"), expected object form — ` +
+        "the org mapper may not be firing on token refresh; using the string as fallback",
+    );
+    return claim;
+  }
+  if (typeof claim === "object") {
+    const keys = Object.keys(claim as Record<string, unknown>);
+    return keys.length === 1 ? keys[0] : undefined;
+  }
+  return undefined;
 }
