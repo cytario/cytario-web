@@ -11,9 +11,8 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
     );
-    const putStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "PO");
+    const putStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:PutObject");
     expect(putStmt).toBeDefined();
-    expect(putStmt.Action).toBe("s3:PutObject");
     expect(putStmt.Resource).toBe("arn:aws:s3:::data-bucket/results/run42/*");
   });
 
@@ -21,7 +20,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
     );
-    const getStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "GO");
+    const getStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:GetObject");
     expect(getStmt).toBeDefined();
     expect(getStmt.Resource).toContain("arn:aws:s3:::data-bucket/cases/case1/*");
     expect(getStmt.Resource).toContain("arn:aws:s3:::data-bucket/results/run42/*");
@@ -31,9 +30,24 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
     );
-    const kmsStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "KMS");
+    const kmsStmt = policy.Statement.find(
+      (s: { Action: string | string[] }) =>
+        Array.isArray(s.Action) && s.Action.includes("kms:Decrypt"),
+    );
     expect(kmsStmt).toBeDefined();
     expect(kmsStmt.Action).toEqual(["kms:Decrypt", "kms:GenerateDataKey"]);
+    expect(kmsStmt.Resource).toBe("*");
+  });
+
+  test("KMS statement has no ViaService condition (role policy constrains it)", () => {
+    const policy = JSON.parse(
+      buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
+    );
+    const kmsStmt = policy.Statement.find(
+      (s: { Action: string | string[] }) =>
+        Array.isArray(s.Action) && s.Action.includes("kms:Decrypt"),
+    );
+    expect(kmsStmt.Condition).toBeUndefined();
   });
 
   test("groups targets by bucket — one ListBucket per unique bucket", () => {
@@ -59,8 +73,20 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     );
     expect(listStmts).toHaveLength(1);
     expect(listStmts[0].Resource).toBe("arn:aws:s3:::data-bucket");
-    expect(listStmts[0].Condition.StringLike["s3:prefix"]).toContain("cases/case1/");
-    expect(listStmts[0].Condition.StringLike["s3:prefix"]).toContain("results/run42/");
+    expect(listStmts[0].Condition.StringLike["s3:prefix"]).toContain("cases/case1*");
+    expect(listStmts[0].Condition.StringLike["s3:prefix"]).toContain("results/run42*");
+  });
+
+  test("uses single prefix wildcard pattern (prefix*) not double (prefix/ + prefix/*)", () => {
+    const policy = JSON.parse(
+      buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
+    );
+    const listStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:ListBucket");
+    const prefixes = listStmt.Condition.StringLike["s3:prefix"] as string[];
+    for (const p of prefixes) {
+      expect(p.endsWith("*")).toBe(true);
+      expect(p.endsWith("/*")).toBe(false);
+    }
   });
 
   test("empty prefix scopes to whole bucket", () => {
@@ -73,7 +99,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     );
     const listStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:ListBucket");
     expect(listStmt.Condition).toBeUndefined();
-    const putStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "PO");
+    const putStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:PutObject");
     expect(putStmt.Resource).toBe("arn:aws:s3:::data-bucket/*");
   });
 
@@ -95,6 +121,15 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     });
     expect(serialized).not.toContain("\n");
     expect(serialized).not.toContain("  ");
+  });
+
+  test("no Sid fields in statements", () => {
+    const policy = JSON.parse(
+      buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
+    );
+    for (const stmt of policy.Statement) {
+      expect(stmt.Sid).toBeUndefined();
+    }
   });
 });
 

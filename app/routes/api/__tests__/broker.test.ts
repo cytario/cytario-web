@@ -223,9 +223,9 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
 
     const sentCommand = stsSendMock.mock.calls[0]?.[0];
     expect(sentCommand.input.Policy).toBeDefined();
-    expect(sentCommand.input.Policy).toContain('"PO"');
+    expect(sentCommand.input.Policy).toContain("s3:PutObject");
     expect(sentCommand.input.Policy).toContain("results/run42/*");
-    expect(sentCommand.input.Policy).toContain('"GO"');
+    expect(sentCommand.input.Policy).toContain("s3:GetObject");
     expect(sentCommand.input.Policy).toContain("cases/case1/*");
   });
 

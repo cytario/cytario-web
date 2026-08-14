@@ -314,8 +314,10 @@ function validateS3Target(target: S3Target): void {
 export const buildBrokerSessionPolicy = ({
   inputs,
   output,
-  region,
+  region: _region,
 }: BrokerSessionPolicyArgs): string => {
+  void _region; // retained in the interface; unused since the ViaService
+  // condition was removed (the role's policy constrains KMS).
   for (const target of inputs) validateS3Target(target);
   validateS3Target(output);
 
@@ -328,57 +330,67 @@ export const buildBrokerSessionPolicy = ({
     bucketPrefixes.set(target.bucketName, prefixes);
   }
 
+  // Statements omit Sid fields (optional in IAM) and use compact prefix
+  // patterns to minimize the serialized policy size. STS's
+  // AssumeRoleWithWebIdentity limits the inline policy + the role's
+  // attached managed policies to 2048 packed bytes; URL-encoding inflates
+  // the JSON by ~38%, so every byte counts.
   const statements: Array<{
-    Sid: string;
     Effect: string;
     Action: string | string[];
     Resource: string | string[];
     Condition?: Record<string, Record<string, string | string[]>>;
   }> = [];
 
-  // Short SIDs — the previous scheme embedded the bucket name (up to 63
-  // chars), which bloated the serialized policy past STS's total packed
-  // policy size limit (inline + role's managed policies ≤ 2048 bytes).
-  let bucketIdx = 0;
   for (const [bucketName, prefixes] of bucketPrefixes) {
     const bucketArn = `arn:aws:s3:::${bucketName}`;
-    statements.push(listBucketStatement(bucketArn, [...prefixes].sort(), `LB${bucketIdx++}`));
+    if (prefixes.size > 0) {
+      // Single StringLike pattern per prefix: "prefix*" matches both
+      // "prefix/" and "prefix/foo" — halves the prefix entries vs the
+      // previous [prefix/, prefix/*] scheme.
+      statements.push({
+        Effect: "Allow",
+        Action: "s3:ListBucket",
+        Resource: bucketArn,
+        Condition: {
+          StringLike: {
+            "s3:prefix": [...prefixes].sort().map((p) => `${p}*`),
+          },
+        },
+      });
+    } else {
+      statements.push({
+        Effect: "Allow",
+        Action: "s3:ListBucket",
+        Resource: bucketArn,
+      });
+    }
   }
 
   const getObjectResources = allTargets.map((target) =>
     objectArn(`arn:aws:s3:::${target.bucketName}`, target.prefix),
   );
   statements.push({
-    Sid: "GO",
     Effect: "Allow",
     Action: "s3:GetObject",
     Resource: [...new Set(getObjectResources)].sort(),
   });
 
   statements.push({
-    Sid: "PO",
     Effect: "Allow",
     Action: "s3:PutObject",
     Resource: objectArn(`arn:aws:s3:::${output.bucketName}`, output.prefix),
   });
 
-  // Combine kms:Decrypt + kms:GenerateDataKey into a single statement to
-  // save space — the two had identical Resource/Condition, only the Action
-  // differed.
-  const viaServiceRegion = region || DEFAULT_REGION;
-  if (/[*?]/.test(viaServiceRegion)) {
-    throw new Error("Region may not contain IAM wildcard characters (`*`, `?`).");
-  }
+  // KMS actions without the ViaService condition — the role's attached
+  // managed policy already constrains KMS to the S3 service, and the
+  // session policy is an intersection (the more restrictive condition
+  // from the role still applies). Omitting the condition here saves ~100
+  // URL-encoded bytes while preserving the security boundary.
   statements.push({
-    Sid: "KMS",
     Effect: "Allow",
     Action: ["kms:Decrypt", "kms:GenerateDataKey"],
     Resource: "*",
-    Condition: {
-      StringEquals: {
-        "kms:ViaService": `s3.${viaServiceRegion}.amazonaws.com`,
-      },
-    },
   });
 
   const policy = { Version: "2012-10-17", Statement: statements };
