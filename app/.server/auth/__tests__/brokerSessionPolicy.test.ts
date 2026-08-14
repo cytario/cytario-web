@@ -11,9 +11,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
     );
-    const putStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "PutObjectScopedToOutput",
-    );
+    const putStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "PO");
     expect(putStmt).toBeDefined();
     expect(putStmt.Action).toBe("s3:PutObject");
     expect(putStmt.Resource).toBe("arn:aws:s3:::data-bucket/results/run42/*");
@@ -23,21 +21,19 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
     );
-    const getStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "GetObjectScopedToTargets",
-    );
+    const getStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "GO");
     expect(getStmt).toBeDefined();
     expect(getStmt.Resource).toContain("arn:aws:s3:::data-bucket/cases/case1/*");
     expect(getStmt.Resource).toContain("arn:aws:s3:::data-bucket/results/run42/*");
   });
 
-  test("includes kms:Decrypt and kms:GenerateDataKey", () => {
+  test("includes kms:Decrypt and kms:GenerateDataKey in a single statement", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
     );
-    const sids = policy.Statement.map((s: { Sid: string }) => s.Sid);
-    expect(sids).toContain("KmsDecryptViaS3");
-    expect(sids).toContain("KmsGenerateDataKeyViaS3");
+    const kmsStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "KMS");
+    expect(kmsStmt).toBeDefined();
+    expect(kmsStmt.Action).toEqual(["kms:Decrypt", "kms:GenerateDataKey"]);
   });
 
   test("groups targets by bucket — one ListBucket per unique bucket", () => {
@@ -77,9 +73,7 @@ describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
     );
     const listStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:ListBucket");
     expect(listStmt.Condition).toBeUndefined();
-    const putStmt = policy.Statement.find(
-      (s: { Sid: string }) => s.Sid === "PutObjectScopedToOutput",
-    );
+    const putStmt = policy.Statement.find((s: { Sid: string }) => s.Sid === "PO");
     expect(putStmt.Resource).toBe("arn:aws:s3:::data-bucket/*");
   });
 

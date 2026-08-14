@@ -136,9 +136,13 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
           });
         } catch (err) {
           if (err instanceof InlinePolicySizeError) {
-            return jsonError(500, "Session policy size ceiling exceeded.");
+            console.warn(
+              `${label} session policy too large (${err.message}) for job ${body.jobId}; ` +
+                "omitting inline policy — the role's attached policies govern access",
+            );
+          } else {
+            throw err;
           }
-          throw err;
         }
       }
 
