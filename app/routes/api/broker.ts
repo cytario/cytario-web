@@ -78,20 +78,32 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
     const refreshed = await refreshJobToken(body.token);
     refreshedToken = refreshed.accessToken;
     newRefreshToken = refreshed.newRefreshToken;
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown";
+    console.warn(`${label} refresh failed for job ${body.jobId}: ${message}`);
     return jsonError(401, "The job-scoped grant is expired or revoked.");
   }
 
+  console.info(`${label} refreshed token for job ${body.jobId}`);
+
   const verified = await verifyJobToken(refreshedToken);
   if (!verified) {
+    console.warn(`${label} verification failed for job ${body.jobId}`);
     return jsonError(401, "The job-scoped token failed verification.");
   }
+
+  console.info(
+    `${label} verified token for job ${body.jobId}, sub=${verified.sub}, org claim=${JSON.stringify(verified.organization)}`,
+  );
 
   const requestData = hostRequestDataFromJobToken(verified, refreshedToken);
 
   return withHostRequestContext(requestData, async () => {
     try {
       if (!requestData.user.organization) {
+        console.warn(
+          `${label} 403: organization missing from token claims for job ${body.jobId}, raw claim=${JSON.stringify(verified.organization)}`,
+        );
         return jsonError(403, "Organization missing from token claims.");
       }
 
@@ -99,9 +111,13 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         where: { organization: requestData.user.organization, jobId: body.jobId },
       });
       if (!entry) {
+        console.warn(
+          `${label} 403: no ledger row for org=${requestData.user.organization} job=${body.jobId}`,
+        );
         return jsonError(403, "No active job binding for this token.");
       }
       if (!entry.roleArn) {
+        console.warn(`${label} 403: roleArn empty for job ${body.jobId}`);
         return jsonError(403, "Job predates role recording; re-submit the job.");
       }
 
