@@ -331,36 +331,55 @@ export const buildBrokerSessionPolicy = ({
   const statements: Array<{
     Sid: string;
     Effect: string;
-    Action: string;
+    Action: string | string[];
     Resource: string | string[];
     Condition?: Record<string, Record<string, string | string[]>>;
   }> = [];
 
+  // Short SIDs — the previous scheme embedded the bucket name (up to 63
+  // chars), which bloated the serialized policy past STS's total packed
+  // policy size limit (inline + role's managed policies ≤ 2048 bytes).
+  let bucketIdx = 0;
   for (const [bucketName, prefixes] of bucketPrefixes) {
     const bucketArn = `arn:aws:s3:::${bucketName}`;
-    const sid = `ListBucket${bucketName.replace(/[^A-Za-z0-9]/g, "")}`;
-    statements.push(listBucketStatement(bucketArn, [...prefixes].sort(), sid));
+    statements.push(listBucketStatement(bucketArn, [...prefixes].sort(), `LB${bucketIdx++}`));
   }
 
   const getObjectResources = allTargets.map((target) =>
     objectArn(`arn:aws:s3:::${target.bucketName}`, target.prefix),
   );
   statements.push({
-    Sid: "GetObjectScopedToTargets",
+    Sid: "GO",
     Effect: "Allow",
     Action: "s3:GetObject",
     Resource: [...new Set(getObjectResources)].sort(),
   });
 
   statements.push({
-    Sid: "PutObjectScopedToOutput",
+    Sid: "PO",
     Effect: "Allow",
     Action: "s3:PutObject",
     Resource: objectArn(`arn:aws:s3:::${output.bucketName}`, output.prefix),
   });
 
-  statements.push(getKmsStatement("kms:Decrypt", region));
-  statements.push(getKmsStatement("kms:GenerateDataKey", region));
+  // Combine kms:Decrypt + kms:GenerateDataKey into a single statement to
+  // save space — the two had identical Resource/Condition, only the Action
+  // differed.
+  const viaServiceRegion = region || DEFAULT_REGION;
+  if (/[*?]/.test(viaServiceRegion)) {
+    throw new Error("Region may not contain IAM wildcard characters (`*`, `?`).");
+  }
+  statements.push({
+    Sid: "KMS",
+    Effect: "Allow",
+    Action: ["kms:Decrypt", "kms:GenerateDataKey"],
+    Resource: "*",
+    Condition: {
+      StringEquals: {
+        "kms:ViaService": `s3.${viaServiceRegion}.amazonaws.com`,
+      },
+    },
+  });
 
   const policy = { Version: "2012-10-17", Statement: statements };
   const serialized = JSON.stringify(policy);
