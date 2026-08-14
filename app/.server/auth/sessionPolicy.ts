@@ -367,9 +367,17 @@ export const buildBrokerSessionPolicy = ({
     }
   }
 
-  const getObjectResources = allTargets.map((target) =>
-    objectArn(`arn:aws:s3:::${target.bucketName}`, target.prefix),
-  );
+  // GetObject must cover both the target object itself (bucket/prefix) and
+  // objects under it (bucket/prefix/*). A single bucket/prefix/* ARN does not
+  // match the bare key — HeadObject/GetObject on the file itself fails with
+  // "no session policy allows the s3:GetObject action" (the intersection
+  // rule means the inline policy must explicitly allow every ARN).
+  const getObjectResources = allTargets.flatMap((target) => {
+    const base = `arn:aws:s3:::${target.bucketName}`;
+    return target.prefix
+      ? [`${base}/${target.prefix}`, `${base}/${target.prefix}/*`]
+      : [`${base}/*`];
+  });
   statements.push({
     Effect: "Allow",
     Action: "s3:GetObject",
