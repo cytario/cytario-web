@@ -10,11 +10,12 @@ import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
   findOrganizationByAlias,
-  findGroupPathById,
+  findGroupPathInTree,
   removeUserFromOrganizationGroup,
   setUserEnabled,
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
+import type { KeycloakGroup } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
@@ -39,8 +40,9 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
 
   const { intent, userIds, groupId } = result.data;
   await assertUsersInScope(userIds, scope, user.organization);
+  let groupTree: readonly KeycloakGroup[] = [];
   if (groupId) {
-    await assertGroupsInScope([groupId], scope, user.organization);
+    groupTree = await assertGroupsInScope([groupId], scope, user.organization);
   }
 
   if (!user.organization) {
@@ -52,7 +54,7 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   }
 
   if (intent === "addToGroup" && groupId) {
-    const groupPath = await findGroupPathById(org.id, groupId);
+    const groupPath = findGroupPathInTree(groupTree, groupId);
     if (groupPath) {
       await consultUserMgmtGate(toIdentity(user), org.id, {
         kind: "addToGroup",

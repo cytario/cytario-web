@@ -12,6 +12,9 @@ import { ORG_ROOT_SCOPE } from "~/utils/authorization";
  * tree under `scope`. Prevents cross-scope (and cross-org) privilege
  * escalation via forged form fields referencing out-of-scope group UUIDs.
  *
+ * Returns the fetched group tree so callers that need group paths (e.g.
+ * the user-management gate) can resolve them without a second fetch.
+ *
  * Throws 400 if the user has no active org, 404 if the scope does not exist,
  * 403 if any groupId is out of scope.
  */
@@ -19,8 +22,8 @@ export async function assertGroupsInScope(
   groupIds: string[],
   scope: string,
   orgAlias: string | undefined,
-): Promise<void> {
-  if (groupIds.length === 0) return;
+): Promise<readonly KeycloakGroup[]> {
+  if (groupIds.length === 0) return [];
   if (!orgAlias) throw new Response("No active organization", { status: 400 });
 
   const org = await findOrganizationByAlias(orgAlias);
@@ -43,4 +46,6 @@ export async function assertGroupsInScope(
       throw new Response("Not authorized", { status: 403 });
     }
   }
+
+  return trees;
 }

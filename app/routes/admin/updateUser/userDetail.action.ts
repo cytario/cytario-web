@@ -9,7 +9,7 @@ import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
   findOrganizationByAlias,
-  findGroupPathById,
+  findGroupPathInTree,
   removeUserFromOrganizationGroup,
   updateUser,
 } from "~/.server/auth/keycloakAdmin";
@@ -52,7 +52,7 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   const adds = extractGroupIds(formData, ADD_PREFIX);
   const removes = extractGroupIds(formData, REMOVE_PREFIX);
 
-  await assertGroupsInScope([...adds, ...removes], scope, user.organization);
+  const groupTree = await assertGroupsInScope([...adds, ...removes], scope, user.organization);
 
   if (!user.organization) {
     throw new Response("No active organization", { status: 400 });
@@ -63,7 +63,7 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   }
 
   for (const groupId of adds) {
-    const groupPath = await findGroupPathById(org.id, groupId);
+    const groupPath = findGroupPathInTree(groupTree, groupId);
     if (groupPath) {
       await consultUserMgmtGate(toIdentity(user), org.id, {
         kind: "addToGroup",

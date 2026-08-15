@@ -5,7 +5,6 @@ export {
   collectGroupIds,
   createGroup,
   fetchOrgGroupTree,
-  findGroupPathById,
   findGroupPathInTree,
   flattenGroupsWithIds,
   getGroupWithMembers,

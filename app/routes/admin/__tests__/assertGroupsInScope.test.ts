@@ -45,7 +45,7 @@ describe("assertGroupsInScope", () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
     mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
-    await expect(assertGroupsInScope(["g1"], "lab", "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1"], "lab", "acme")).resolves.toBeDefined();
     expect(mockFindOrganizationGroupByPath).toHaveBeenCalledWith("org-uuid", "lab");
     expect(mockFetchOrgGroupTree).toHaveBeenCalledWith("org-uuid", labTree);
   });
@@ -54,18 +54,18 @@ describe("assertGroupsInScope", () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
     mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
-    await expect(assertGroupsInScope(["g2"], "lab", "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g2"], "lab", "acme")).resolves.toBeDefined();
   });
 
   test("passes when multiple groups are all in scope", async () => {
     mockFindOrganizationGroupByPath.mockResolvedValue(labTree);
     mockFetchOrgGroupTree.mockResolvedValue([labTree]);
 
-    await expect(assertGroupsInScope(["g1", "g2", "g3"], "lab", "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1", "g2", "g3"], "lab", "acme")).resolves.toBeDefined();
   });
 
   test("passes (no API call) when groupIds array is empty", async () => {
-    await expect(assertGroupsInScope([], "lab", "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope([], "lab", "acme")).resolves.toBeDefined();
     expect(mockFindOrganizationByAlias).not.toHaveBeenCalled();
   });
 
@@ -108,7 +108,7 @@ describe("assertGroupsInScope", () => {
     // No `anchor` arg → fetchOrgGroupTree returns the full org-root forest.
     mockFetchOrgGroupTree.mockResolvedValue([labTree, rndTree]);
 
-    await expect(assertGroupsInScope(["g1", "g2", "g4"], "*", "acme")).resolves.toBeUndefined();
+    await expect(assertGroupsInScope(["g1", "g2", "g4"], "*", "acme")).resolves.toBeDefined();
     expect(mockFetchOrgGroupTree).toHaveBeenCalledWith("org-uuid");
     expect(mockFindOrganizationGroupByPath).not.toHaveBeenCalled();
   });

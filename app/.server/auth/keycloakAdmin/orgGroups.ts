@@ -74,19 +74,6 @@ export function findGroupPathInTree(
   return undefined;
 }
 
-/**
- * Resolve a group id to its org-relative path (leading slash stripped) by
- * fetching the organization's group tree. Returns `undefined` when the id is
- * not found.
- */
-export async function findGroupPathById(
-  orgId: string,
-  groupId: string,
-): Promise<string | undefined> {
-  const tree = await fetchOrgGroupTree(orgId);
-  return findGroupPathInTree(tree, groupId);
-}
-
 /** Recursively collect all groups with their IDs from a GroupWithMembers tree. */
 export function flattenGroupsWithIds(
   group: GroupWithMembers,
