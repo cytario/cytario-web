@@ -7,6 +7,7 @@ import type { ServerEndpointRegistry } from "./serverEndpoints";
 import type { SidebarNavRegistry } from "./sidebarNav";
 import type { SlotRegistry } from "./slots";
 import type { StoragePickerRegistry } from "./storagePicker";
+import type { UserManagementGateRegistry } from "./userManagementGate";
 
 export interface Logger {
   debug(msg: string, fields?: Record<string, unknown>): void;
@@ -60,6 +61,13 @@ export interface PluginContext {
    * unchanged.
    */
   storagePicker: StoragePickerRegistry;
+  /**
+   * Server-side single-slot user-management gate. Server-only: the registry
+   * is live server-side and a no-op sink client-side. Added additively at
+   * hostApiVersion 6.1.0; a plugin that consumes only the pre-existing
+   * surface continues to satisfy the CytarioPlugin contract unchanged.
+   */
+  userMgmtGate: UserManagementGateRegistry;
   logger: Logger;
   /** Lets a plugin branch its register() without import-time env sniffing. */
   env: "server" | "client";

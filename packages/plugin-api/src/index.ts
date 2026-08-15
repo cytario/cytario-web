@@ -26,6 +26,12 @@ export type {
 export { normalizePixelType } from "./image";
 export type { Identity } from "./auth";
 export type { GateOutcome, GateRequest, SessionGate, GateRegistry } from "./gates";
+export type {
+  UserManagementAction,
+  UserManagementGateRequest,
+  UserManagementGate,
+  UserManagementGateRegistry,
+} from "./userManagementGate";
 export type { SlotName, SlotProps, SlotRegistry, HostConfig } from "./slots";
 export type {
   ContextMenuTarget,

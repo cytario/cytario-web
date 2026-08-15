@@ -57,6 +57,36 @@ export function collectGroupIds(group: KeycloakGroup): string[] {
   return [group.id, ...group.subGroups.flatMap(collectGroupIds)];
 }
 
+/**
+ * Find a group's path by its id within a Keycloak group tree. Returns the
+ * org-relative path (leading slash stripped) matching the format of
+ * `identity.groups`, or `undefined` when the id is not in the tree.
+ */
+export function findGroupPathInTree(
+  groups: readonly KeycloakGroup[],
+  groupId: string,
+): string | undefined {
+  for (const g of groups) {
+    if (g.id === groupId) return g.path.replace(/^\//, "");
+    const sub = findGroupPathInTree(g.subGroups, groupId);
+    if (sub) return sub;
+  }
+  return undefined;
+}
+
+/**
+ * Resolve a group id to its org-relative path (leading slash stripped) by
+ * fetching the organization's group tree. Returns `undefined` when the id is
+ * not found.
+ */
+export async function findGroupPathById(
+  orgId: string,
+  groupId: string,
+): Promise<string | undefined> {
+  const tree = await fetchOrgGroupTree(orgId);
+  return findGroupPathInTree(tree, groupId);
+}
+
 /** Recursively collect all groups with their IDs from a GroupWithMembers tree. */
 export function flattenGroupsWithIds(
   group: GroupWithMembers,

@@ -10,6 +10,7 @@ import type {
   SidebarNavRegistry,
   SlotRegistry,
   StoragePickerRegistry,
+  UserManagementGateRegistry,
 } from "@cytario/plugin-api";
 import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
@@ -40,6 +41,8 @@ export interface BootstrapRegistries {
   storagePicker?: Scoped<StoragePickerRegistry>;
   routes?: Scoped<RouteRegistry>;
   serverEndpoints?: Scoped<ServerEndpointRegistry>;
+  /** Server-only single-slot user-management gate (not scoped to a plugin). */
+  userMgmtGate?: UserManagementGateRegistry;
   /** Server-only capability object — not scoped to a plugin name. */
   host?: HostCapabilities;
   env?: PluginContext["env"];
@@ -73,6 +76,10 @@ const noopServerEndpointRegistry: Scoped<ServerEndpointRegistry> = {
   scopedFor: () => ({ register: () => {} }),
 };
 
+const noopUserManagementGateRegistry: UserManagementGateRegistry = {
+  register: () => {},
+};
+
 /**
  * Iteration body extracted from the generated `plugins.generated.ts`
  * bootstrap. The codegen template now emits a thin wrapper that hands
@@ -102,6 +109,7 @@ export async function bootstrapPluginsCore(
   const storagePicker = registries?.storagePicker ?? noopStoragePickerRegistry;
   const routes = registries?.routes ?? noopRouteRegistry;
   const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
+  const userMgmtGate = registries?.userMgmtGate ?? noopUserManagementGateRegistry;
   const host = registries?.host ?? noopHostCapabilities;
   // Both entries set `env` explicitly; the default only covers tests that call
   // this helper without registries.
@@ -132,6 +140,7 @@ export async function bootstrapPluginsCore(
       storagePicker: storagePicker.scopedFor(plugin.name),
       routes: routes.scopedFor(plugin.name),
       serverEndpoints: serverEndpoints.scopedFor(plugin.name),
+      userMgmtGate,
       host,
       env,
     };

@@ -6,15 +6,17 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
+import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
   findOrganizationByAlias,
+  findGroupPathById,
   removeUserFromOrganizationGroup,
   setUserEnabled,
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { assertAnalysisSeatAvailable } from "~/.server/billing/seats";
+import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
 const actionLabels = {
   addToGroup: "added to group",
@@ -50,7 +52,14 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   }
 
   if (intent === "addToGroup" && groupId) {
-    await assertAnalysisSeatAvailable(request, org.id, groupId);
+    const groupPath = await findGroupPathById(org.id, groupId);
+    if (groupPath) {
+      await consultUserMgmtGate(toIdentity(user), org.id, {
+        kind: "addToGroup",
+        groupPath,
+        addCount: userIds.length,
+      });
+    }
   }
 
   const session = await getSession(request);

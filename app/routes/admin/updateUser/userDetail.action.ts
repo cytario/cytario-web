@@ -5,15 +5,17 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
+import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
   findOrganizationByAlias,
+  findGroupPathById,
   removeUserFromOrganizationGroup,
   updateUser,
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { assertAnalysisSeatAvailable } from "~/.server/billing/seats";
+import { consultUserMgmtGate } from "~/.server/userManagementGate";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
 const ADD_PREFIX = "add-group-";
@@ -61,7 +63,14 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   }
 
   for (const groupId of adds) {
-    await assertAnalysisSeatAvailable(request, org.id, groupId);
+    const groupPath = await findGroupPathById(org.id, groupId);
+    if (groupPath) {
+      await consultUserMgmtGate(toIdentity(user), org.id, {
+        kind: "addToGroup",
+        groupPath,
+        addCount: 1,
+      });
+    }
   }
 
   try {
