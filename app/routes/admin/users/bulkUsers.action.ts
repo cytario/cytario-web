@@ -14,6 +14,7 @@ import {
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { assertAnalysisSeatAvailable } from "~/.server/billing/seats";
 
 const actionLabels = {
   addToGroup: "added to group",
@@ -46,6 +47,10 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   const org = await findOrganizationByAlias(user.organization);
   if (!org) {
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+  }
+
+  if (intent === "addToGroup" && groupId) {
+    await assertAnalysisSeatAvailable(request, org.id, groupId);
   }
 
   const session = await getSession(request);

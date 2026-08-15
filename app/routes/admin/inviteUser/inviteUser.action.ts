@@ -7,6 +7,7 @@ import { getSession } from "~/.server/auth/getSession";
 import { findOrganizationByAlias, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { assertViewingSeatAvailable } from "~/.server/billing/seats";
 
 export const inviteUserAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
@@ -33,6 +34,8 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
       throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
     }
 
+    await assertViewingSeatAvailable(request, org.id);
+
     await inviteOrganizationUser(
       org.id,
       result.data.email,
@@ -46,6 +49,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
     }
     session.set("notification", { status: "success", message });
   } catch (e) {
+    if (e instanceof Response) throw e;
     const status = e instanceof KeycloakAdminError ? e.status : undefined;
     if (status === 409) {
       // Keycloak returns 409 for both "pending invitation already exists" and

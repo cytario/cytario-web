@@ -7,6 +7,7 @@ import { getSession } from "~/.server/auth/getSession";
 import { findOrganizationByAlias, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { assertViewingSeatAvailable } from "~/.server/billing/seats";
 
 export const bulkInviteAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
@@ -29,6 +30,8 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
   if (!org) {
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
   }
+
+  await assertViewingSeatAvailable(request, org.id);
 
   const results = await Promise.allSettled(
     rows.map((row) =>

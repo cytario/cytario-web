@@ -271,6 +271,43 @@ describe("getUserInfo", () => {
       expect(result.organizationAttributes).not.toHaveProperty("groups");
     });
 
+    test("passes through seat-plan org attributes unchanged", async () => {
+      const rawProfile = {
+        sub: "user-uuid-seats",
+        email: "seats@example.com",
+        email_verified: true,
+        name: "Seats",
+        preferred_username: "seats",
+        given_name: "Seats",
+        family_name: "User",
+        policy: [],
+        groups: [],
+        organization: {
+          testcorp: {
+            id: "42c3-id",
+            groups: ["/lab"],
+            viewing_seats: ["10"],
+            analysis_seats: ["3"],
+            analyst_group: ["analysts"],
+          },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rawProfile),
+      });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organization).toBe("testcorp");
+      expect(result.organizationAttributes).toEqual({
+        viewing_seats: ["10"],
+        analysis_seats: ["3"],
+        analyst_group: ["analysts"],
+      });
+    });
+
     test("drops email-shaped and oversized attribute values (host-side hygiene)", async () => {
       const rawProfile = {
         sub: "user-uuid-hygiene",

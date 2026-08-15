@@ -13,6 +13,7 @@ import {
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { assertAnalysisSeatAvailable } from "~/.server/billing/seats";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
 const ADD_PREFIX = "add-group-";
@@ -57,6 +58,10 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   const org = await findOrganizationByAlias(user.organization);
   if (!org) {
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+  }
+
+  for (const groupId of adds) {
+    await assertAnalysisSeatAvailable(request, org.id, groupId);
   }
 
   try {
