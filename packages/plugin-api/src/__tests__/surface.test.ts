@@ -65,6 +65,7 @@ describe("public surface", () => {
       slots: { register: () => {} },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
+      userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
         computeConnections: () => Promise.resolve([]),
@@ -133,6 +134,7 @@ describe("public surface", () => {
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
       storagePicker: { get: () => null },
+      userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
         computeConnections: () => Promise.resolve([]),
@@ -194,6 +196,7 @@ describe("public surface", () => {
       gates: { register: () => {} },
       slots: { register: () => {} },
       serverEndpoints: { register: () => {} },
+      userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
         computeConnections: () => Promise.resolve([]),
@@ -255,6 +258,7 @@ describe("public surface", () => {
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
       slots: { register: () => {} },
+      userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
         computeConnections: () => Promise.resolve([]),

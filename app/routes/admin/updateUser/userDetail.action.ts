@@ -5,14 +5,17 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
+import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
   findOrganizationByAlias,
+  findGroupPathInTree,
   removeUserFromOrganizationGroup,
   updateUser,
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { consultUserMgmtGate } from "~/.server/userManagementGate";
 import { updateUserSchema } from "~/routes/admin/updateUser/updateUser.schema";
 
 const ADD_PREFIX = "add-group-";
@@ -49,7 +52,7 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   const adds = extractGroupIds(formData, ADD_PREFIX);
   const removes = extractGroupIds(formData, REMOVE_PREFIX);
 
-  await assertGroupsInScope([...adds, ...removes], scope, user.organization);
+  const groupTree = await assertGroupsInScope([...adds, ...removes], scope, user.organization);
 
   if (!user.organization) {
     throw new Response("No active organization", { status: 400 });
@@ -57,6 +60,17 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   const org = await findOrganizationByAlias(user.organization);
   if (!org) {
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+  }
+
+  for (const groupId of adds) {
+    const groupPath = findGroupPathInTree(groupTree, groupId);
+    if (groupPath) {
+      await consultUserMgmtGate(toIdentity(user), org.id, {
+        kind: "addToGroup",
+        groupPath,
+        addCount: 1,
+      });
+    }
   }
 
   try {

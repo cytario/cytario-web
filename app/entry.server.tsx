@@ -10,6 +10,7 @@ import { hostCapabilities } from "./.server/hostCapabilities";
 import { gateRegistry } from "./.server/pluginGates";
 import { routeRegistry } from "./.server/routeRegistry";
 import { serverEndpointRegistry } from "./.server/serverEndpointRegistry";
+import { userMgmtGateRegistry } from "./.server/userManagementGateRegistry";
 import { bootstrapPlugins } from "./plugins.generated";
 
 const ABORT_DELAY = 5_000;
@@ -27,6 +28,7 @@ const bootstrapPromise: Promise<void> = bootstrapPlugins(
     gates: gateRegistry,
     routes: routeRegistry,
     serverEndpoints: serverEndpointRegistry,
+    userMgmtGate: userMgmtGateRegistry,
     host: hostCapabilities,
     env: "server",
   },

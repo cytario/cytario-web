@@ -4,9 +4,11 @@ import { bulkInviteSchema } from "./bulkInvite.schema";
 import { assertAdminScope } from "../assertAdminScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
+import { toIdentity } from "~/.server/auth/getUserInfo";
 import { findOrganizationByAlias, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
 export const bulkInviteAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
@@ -29,6 +31,11 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
   if (!org) {
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
   }
+
+  await consultUserMgmtGate(toIdentity(user), org.id, {
+    kind: "invite",
+    inviteCount: rows.length,
+  });
 
   const results = await Promise.allSettled(
     rows.map((row) =>

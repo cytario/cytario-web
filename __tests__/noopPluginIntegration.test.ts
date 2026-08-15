@@ -23,6 +23,7 @@ describe("noop-plugin integration", () => {
       storagePicker: { get: () => null },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
+      userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
         computeConnections: () => Promise.resolve([]),
@@ -86,6 +87,7 @@ describe("noop-plugin integration", () => {
       storagePicker: { get: () => null },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
+      userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
         computeConnections: () => Promise.resolve([]),

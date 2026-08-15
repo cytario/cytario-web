@@ -6,14 +6,18 @@ import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
+import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
   findOrganizationByAlias,
+  findGroupPathInTree,
   removeUserFromOrganizationGroup,
   setUserEnabled,
 } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
+import type { KeycloakGroup } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
 const actionLabels = {
   addToGroup: "added to group",
@@ -36,8 +40,9 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
 
   const { intent, userIds, groupId } = result.data;
   await assertUsersInScope(userIds, scope, user.organization);
+  let groupTree: readonly KeycloakGroup[] = [];
   if (groupId) {
-    await assertGroupsInScope([groupId], scope, user.organization);
+    groupTree = await assertGroupsInScope([groupId], scope, user.organization);
   }
 
   if (!user.organization) {
@@ -46,6 +51,17 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   const org = await findOrganizationByAlias(user.organization);
   if (!org) {
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
+  }
+
+  if (intent === "addToGroup" && groupId) {
+    const groupPath = findGroupPathInTree(groupTree, groupId);
+    if (groupPath) {
+      await consultUserMgmtGate(toIdentity(user), org.id, {
+        kind: "addToGroup",
+        groupPath,
+        addCount: userIds.length,
+      });
+    }
   }
 
   const session = await getSession(request);
