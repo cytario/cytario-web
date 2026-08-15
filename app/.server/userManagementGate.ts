@@ -16,13 +16,21 @@ import { userMgmtGateRegistry } from "~/.server/userManagementGateRegistry";
  * the live member and analyst-group counts via its Keycloak admin client and
  * passes them with the semantic action; the gate returns `continue` to allow
  * or `deny` to block. When no gate is registered (non-SaaS build, or a SaaS
- * build whose plugin does not register one) this returns `null` and the
+ * build whose plugin does not register one) this returns early and the
  * action proceeds without consulting.
  *
  * The analyst group is read opaquely from the `analyst_group` organization
  * attribute (the plugin assigns the billing meaning); when the attribute is
  * absent the conventional default `"analysts"` is used so the count is still
  * meaningful.
+ *
+ * The live counts are computed for every consulted action, including
+ * add-to-group actions targeting non-analyst groups (where the gate will
+ * trivially return `continue`). This is by design: the host is generic and
+ * does not know which groups the gate cares about, so it provides the counts
+ * unconditionally. The cost is two Keycloak admin API calls per action;
+ * acceptable because user-management actions are low-frequency admin
+ * operations, not per-request hot paths.
  */
 
 /** Throws a `Response` (status 409 by default) when the gate denies. */
