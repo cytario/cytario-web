@@ -31,6 +31,7 @@ export type {
   UserManagementGateRequest,
   UserManagementGate,
   UserManagementGateRegistry,
+  OrgTier,
 } from "./userManagementGate";
 export type { SlotName, SlotProps, SlotRegistry, HostConfig } from "./slots";
 export type {

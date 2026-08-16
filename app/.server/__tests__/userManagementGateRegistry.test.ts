@@ -10,8 +10,7 @@ const request = (overrides?: Partial<UserManagementGateRequest>): UserManagement
     adminScopes: [],
   },
   action: { kind: "invite", inviteCount: 1 },
-  currentMemberCount: 0,
-  currentAnalystCount: 0,
+  orgTier: undefined,
   ...overrides,
 });
 
@@ -36,7 +35,7 @@ describe("userManagementGateRegistry", () => {
     const gate = vi.fn(() => ({ kind: "continue" }) as const);
     userMgmtGateRegistry.register(gate);
 
-    const req = request({ currentMemberCount: 5, currentAnalystCount: 2 });
+    const req = request({ action: { kind: "addToGroup", groupPath: "analysts", addCount: 2 } });
     const outcome = await userMgmtGateRegistry.consult(req);
 
     expect(gate).toHaveBeenCalledTimes(1);

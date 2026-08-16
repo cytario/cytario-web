@@ -10,7 +10,15 @@ export type GateOutcome =
   // this status (default 403) and a JSON `{ error: message }` body the UI
   // surfaces as a toast. Intended for unsafe methods; denying a GET yields an
   // error page (the ErrorBoundary), so gates should branch on `method`.
-  | { kind: "deny"; status?: number; message?: string };
+  // `resolveUrl` + `resolveLabel` let the UI render an actionable link
+  // alongside the message (e.g. "Upgrade to Research Platform" → portal URL).
+  | {
+      kind: "deny";
+      status?: number;
+      message?: string;
+      resolveUrl?: string;
+      resolveLabel?: string;
+    };
 
 export interface GateRequest {
   url: string; // request URL

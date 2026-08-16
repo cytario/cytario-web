@@ -65,7 +65,7 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   for (const groupId of adds) {
     const groupPath = findGroupPathInTree(groupTree, groupId);
     if (groupPath) {
-      await consultUserMgmtGate(toIdentity(user), org.id, {
+      await consultUserMgmtGate(toIdentity(user), {
         kind: "addToGroup",
         groupPath,
         addCount: 1,

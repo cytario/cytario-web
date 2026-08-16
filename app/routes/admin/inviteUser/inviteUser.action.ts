@@ -35,7 +35,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
       throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
     }
 
-    await consultUserMgmtGate(toIdentity(user), org.id, { kind: "invite", inviteCount: 1 });
+    await consultUserMgmtGate(toIdentity(user), { kind: "invite", inviteCount: 1 });
 
     await inviteOrganizationUser(
       org.id,

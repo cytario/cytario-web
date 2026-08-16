@@ -66,6 +66,8 @@ export interface PluginContext {
    * is live server-side and a no-op sink client-side. Added additively at
    * hostApiVersion 6.1.0; a plugin that consumes only the pre-existing
    * surface continues to satisfy the CytarioPlugin contract unchanged.
+   * The gate request carries `orgTier` and the deny outcome carries
+   * `resolveUrl`/`resolveLabel` — additive at hostApiVersion 6.2.0.
    */
   userMgmtGate: UserManagementGateRegistry;
   logger: Logger;

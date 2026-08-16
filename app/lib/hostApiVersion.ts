@@ -7,4 +7,4 @@
  * a new contract feature; a plugin whose declared `apiVersion` range is not
  * satisfied here is rejected by the bootstrap gate.
  */
-export const HOST_API_VERSION = "6.1.0";
+export const HOST_API_VERSION = "6.2.0";
