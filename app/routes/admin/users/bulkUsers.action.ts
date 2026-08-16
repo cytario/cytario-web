@@ -56,7 +56,7 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   if (intent === "addToGroup" && groupId) {
     const groupPath = findGroupPathInTree(groupTree, groupId);
     if (groupPath) {
-      await consultUserMgmtGate(toIdentity(user), org.id, {
+      await consultUserMgmtGate(toIdentity(user), {
         kind: "addToGroup",
         groupPath,
         addCount: userIds.length,

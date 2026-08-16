@@ -32,7 +32,7 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
     throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
   }
 
-  await consultUserMgmtGate(toIdentity(user), org.id, {
+  await consultUserMgmtGate(toIdentity(user), {
     kind: "invite",
     inviteCount: rows.length,
   });
