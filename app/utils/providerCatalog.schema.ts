@@ -79,6 +79,17 @@ export const computeProviderSchema = z.object({
     imagePullSecretRef: z.string().nullable(),
     logGroupName: z.string().min(1),
     defaultResources: z.record(z.string(), z.unknown()).nullable(),
+    /**
+     * Satisfiability ceiling the compute environment can place
+     * (SRS-CY-415110), stored as a loose JSON object the admin-portal
+     * populates. Projected to the plugin via `ComputeRoleSession.maxResources`
+     * so the pre-submit satisfiability check rejects an unsatisfiable
+     * request instead of leaving a stuck `RUNNABLE` job. Nullable because
+     * the admin-portal predates this field; a null ceiling means the host
+     * cannot determine the maximum and the plugin skips the check for
+     * that resource.
+     */
+    maxResources: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
   status: z.enum(COMPUTE_PROVIDER_STATUSES),
 });

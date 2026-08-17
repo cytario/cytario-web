@@ -68,6 +68,7 @@ export type {
   ConnectionFetch,
   ObjectStore,
   StorageEntry,
+  ProviderResourceEnvelope,
   ComputeRoleSession,
   TokenGrant,
   JobRecord,

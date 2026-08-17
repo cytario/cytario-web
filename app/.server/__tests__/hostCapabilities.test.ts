@@ -175,6 +175,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     expect(typeof store.get).toBe("function");
     expect(typeof store.delete).toBe("function");
     expect(typeof store.list).toBe("function");
+    expect(typeof store.size).toBe("function");
   });
 
   test("assumeComputeRole threads jobQueueArn and the job/execution role ARNs + pull-secret ref from the provider record (SRS-CY-45107/49110)", async () => {
@@ -279,6 +280,106 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
 
     expect(session.imagePullSecretRef).toBeNull();
     expect(session.jobQueueArn).toBe("arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue");
+  });
+
+  test("assumeComputeRole projects defaultResources and maxResources from the provider record (SRS-CY-415110)", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: { cpu: "2000m", memory: "8Gi", gpu: 1, runtimeCapSeconds: 3600 },
+            maxResources: { cpu: "32", memory: "256Gi", gpu: 8, runtimeCapSeconds: 86400 },
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: { AccessKeyId: "AKIA", SecretAccessKey: "secret", SessionToken: "token" },
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+
+    expect(session.defaultResources).toEqual({
+      cpu: "2000m",
+      memory: "8Gi",
+      gpu: 1,
+      runtimeCapSeconds: 3600,
+    });
+    expect(session.maxResources).toEqual({
+      cpu: "32",
+      memory: "256Gi",
+      gpu: 8,
+      runtimeCapSeconds: 86400,
+    });
+  });
+
+  test("assumeComputeRole omits defaultResources/maxResources when the provider record carries null", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+            maxResources: null,
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: { AccessKeyId: "AKIA", SecretAccessKey: "secret", SessionToken: "token" },
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+
+    expect(session.defaultResources).toBeUndefined();
+    expect(session.maxResources).toBeUndefined();
   });
 
   test("exchangeToken throws when the job broker client is not configured", async () => {

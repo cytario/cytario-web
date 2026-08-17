@@ -3,6 +3,7 @@ import { SignatureV4 } from "@smithy/signature-v4";
 
 import { hostRequestStorage } from "./hostRequestContext";
 import { getProviderCatalog } from "./providers/providerCatalog.server";
+import { mapResourceEnvelope } from "./resourceEnvelope";
 import { assumeRoleWithWebIdentity, sanitizeRoleSessionName } from "./stsSession";
 import type { ComputeRoleSession, SignedFetch } from "@cytario/plugin-api";
 import type { ComputeProvider, ComputeRole, ProviderCatalog } from "~/utils/providerCatalog.schema";
@@ -121,6 +122,9 @@ export async function assumeComputeRole(
 
   const signedFetch = createBatchSignedFetch(credentials, computeProvider.region);
 
+  const defaultResources = mapResourceEnvelope(computeProvider.typeSpecific.defaultResources);
+  const maxResources = mapResourceEnvelope(computeProvider.typeSpecific.maxResources);
+
   return {
     signedFetch,
     jobQueueArn: computeProvider.typeSpecific.jobQueueArn,
@@ -128,5 +132,7 @@ export async function assumeComputeRole(
     executionRoleArn: computeProvider.typeSpecific.executionRoleArn,
     imagePullSecretRef: computeProvider.typeSpecific.imagePullSecretRef,
     logGroupName: computeProvider.typeSpecific.logGroupName,
+    ...(defaultResources ? { defaultResources } : {}),
+    ...(maxResources ? { maxResources } : {}),
   };
 }

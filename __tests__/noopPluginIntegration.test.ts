@@ -34,6 +34,7 @@ describe("noop-plugin integration", () => {
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
           list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -98,6 +99,7 @@ describe("noop-plugin integration", () => {
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
           list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
         }),
         assumeComputeRole: () =>
           Promise.resolve({

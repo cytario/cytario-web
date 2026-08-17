@@ -76,6 +76,7 @@ describe("public surface", () => {
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
           list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -85,6 +86,22 @@ describe("public surface", () => {
             executionRoleArn: "arn:aws:iam::1:role/exec",
             imagePullSecretRef: null,
             logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: {
+              cpu: "1000m",
+              memory: "2Gi",
+              ephemeralStorage: "1Gi",
+              gpu: 0,
+              runtimeCapSeconds: 7200,
+              platform: "EC2",
+            },
+            maxResources: {
+              cpu: "32",
+              memory: "256Gi",
+              ephemeralStorage: "200Gi",
+              gpu: 8,
+              runtimeCapSeconds: 86400,
+              platform: "EC2",
+            },
           }),
         revokeGrant: () => Promise.resolve(),
         exchangeToken: () =>
@@ -145,6 +162,7 @@ describe("public surface", () => {
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
           list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -154,6 +172,22 @@ describe("public surface", () => {
             executionRoleArn: "arn:aws:iam::1:role/exec",
             imagePullSecretRef: null,
             logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: {
+              cpu: "1000m",
+              memory: "2Gi",
+              ephemeralStorage: "1Gi",
+              gpu: 0,
+              runtimeCapSeconds: 7200,
+              platform: "EC2",
+            },
+            maxResources: {
+              cpu: "32",
+              memory: "256Gi",
+              ephemeralStorage: "200Gi",
+              gpu: 8,
+              runtimeCapSeconds: 86400,
+              platform: "EC2",
+            },
           }),
         revokeGrant: () => Promise.resolve(),
         exchangeToken: () =>
@@ -207,6 +241,7 @@ describe("public surface", () => {
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
           list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -216,6 +251,22 @@ describe("public surface", () => {
             executionRoleArn: "arn:aws:iam::1:role/exec",
             imagePullSecretRef: null,
             logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: {
+              cpu: "1000m",
+              memory: "2Gi",
+              ephemeralStorage: "1Gi",
+              gpu: 0,
+              runtimeCapSeconds: 7200,
+              platform: "EC2",
+            },
+            maxResources: {
+              cpu: "32",
+              memory: "256Gi",
+              ephemeralStorage: "200Gi",
+              gpu: 8,
+              runtimeCapSeconds: 86400,
+              platform: "EC2",
+            },
           }),
         revokeGrant: () => Promise.resolve(),
         exchangeToken: () =>
@@ -269,6 +320,7 @@ describe("public surface", () => {
           get: () => Promise.resolve(new Response()),
           delete: () => Promise.resolve(),
           list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
         }),
         assumeComputeRole: () =>
           Promise.resolve({
@@ -278,6 +330,22 @@ describe("public surface", () => {
             executionRoleArn: "arn:aws:iam::1:role/exec",
             imagePullSecretRef: null,
             logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: {
+              cpu: "1000m",
+              memory: "2Gi",
+              ephemeralStorage: "1Gi",
+              gpu: 0,
+              runtimeCapSeconds: 7200,
+              platform: "EC2",
+            },
+            maxResources: {
+              cpu: "32",
+              memory: "256Gi",
+              ephemeralStorage: "200Gi",
+              gpu: 8,
+              runtimeCapSeconds: 86400,
+              platform: "EC2",
+            },
           }),
         revokeGrant: () => Promise.resolve(),
         exchangeToken: () =>

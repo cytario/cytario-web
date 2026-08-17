@@ -113,6 +113,58 @@ export interface ObjectStore {
    * connection's prefix. Requires read access (no write-level check).
    */
   list(connectionId: string, prefix: string): Promise<readonly StorageEntry[]>;
+  /**
+   * Returns the size in bytes of a single object at `key` (relative to
+   * the connection's prefix), or `null` when the object does not exist
+   * or its size cannot be determined (SRS-CY-415110). The compute plugin
+   * uses this to scale a job's memory and ephemeral-storage request to
+   * its actual input size (the per-GiB factor of SRS-CY-414108). A
+   * directory or prefix that is not a single object returns `null` — the
+   * plugin then collapses the per-row floor to the app's fixed floor.
+   * Requires read access (no write-level check).
+   */
+  size(connectionId: string, key: string): Promise<number | null>;
+}
+
+/**
+ * Provider-neutral compute-resource envelope expressed in Kubernetes-style
+ * quantities (SRS-CY-414108, SDS §7.22). Memory and ephemeral storage use
+ * binary suffixes (`Gi`, `Mi`, …); a bare integer is bytes. CPU uses
+ * millicores (`2000m`) or whole cores (`2`). GPU is an integer count.
+ * `runtimeCapSeconds` is the runtime cap in seconds. The host populates
+ * this for both the provider's defaults and its maximums from the
+ * compute-provider record (SRS-CY-49110), so the plugin's resource
+ * computation seam (SDS-CY-080303) needs no provider-specific control-plane
+ * call. Omitted fields on the `defaults` envelope mean "no provider
+ * default"; omitted fields on the `maximums` envelope mean "no known
+ * ceiling" (the pre-submit satisfiability check then cannot reject on
+ * that resource — acceptable for a self-hosted deployment whose
+ * compute environment is unbounded, never acceptable for a managed
+ * Fargate queue where the fixed VCPU/MEMORY pair set must be honored).
+ */
+export interface ProviderResourceEnvelope {
+  cpu?: string;
+  memory?: string;
+  ephemeralStorage?: string;
+  gpu?: number;
+  runtimeCapSeconds?: number;
+  /**
+   * Platform the compute environment runs on. Drives which knobs the
+   * binding applies: `EC2` honors `resourceRequirements` (VCPU/MEMORY/GPU)
+   * and `instanceType` is invalid for single-node jobs; `FARGATE` honors
+   * the fixed VCPU/MEMORY pair set in `supportedVcpuMemoryPairs` and
+   * rejects `gpu > 0`; a future `KUBERNETES` binding maps the envelope onto
+   * `resources.requests`/`limits`. Absent on a `defaults` envelope that
+   * predates this surface (the binding then assumes EC2).
+   */
+  platform?: "EC2" | "FARGATE";
+  /**
+   * Fargate-only: the discrete (VCPU, MEMORY) pairs the queue accepts,
+   * as Kubernetes-style quantities (e.g. `["2", "8Gi"]`). An empty or
+   * absent list means no Fargate constraint is enforced. EC2 envelopes
+   * omit it.
+   */
+  supportedVcpuMemoryPairs?: readonly [string, string][];
 }
 
 /**
@@ -153,6 +205,28 @@ export interface ComputeRoleSession {
    * it in the on-demand job definition's `logConfiguration` — never hard-coded.
    */
   logGroupName: string;
+  /**
+   * The compute provider's default resource envelope for the active
+   * organization (SRS-CY-415110), projected from the compute-provider
+   * record (SRS-CY-49110). The plugin's resource computation seam
+   * (SDS-CY-080303) takes the maximum of the app floor, this default,
+   * and the caller override. Optional — a host implementation predating
+   * this surface omits it, and the plugin computes from the app floor
+   * and caller override alone.
+   */
+  defaultResources?: ProviderResourceEnvelope;
+  /**
+   * The compute provider's maximum resource envelope for the active
+   * organization (SRS-CY-415110) — the satisfiability ceiling the
+   * compute environment can place. The plugin rejects, before any job
+   * is submitted, a target whose effective memory, ephemeral storage,
+   * or GPU request exceeds this envelope. Optional — a host that
+   * cannot determine the ceiling omits it, and the plugin skips the
+   * satisfiability check for that resource (acceptable only when the
+   * environment is genuinely unbounded; a managed Fargate queue must
+   * populate `supportedVcpuMemoryPairs`).
+   */
+  maxResources?: ProviderResourceEnvelope;
 }
 
 /**
