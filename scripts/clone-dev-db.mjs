@@ -134,7 +134,7 @@ async function listUniqueConstraints(client, table) {
   // considered applied). Returns { name, columns, style } where style is
   // "constraint" or "index".
   const { rows: constraintRows } = await client.query(
-    `SELECT con.conname AS name, array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)) AS columns
+    `SELECT con.conname AS name, array_to_string(array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)), ',') AS columns
     FROM pg_constraint con
     JOIN pg_class c ON con.conrelid = c.oid
     JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -146,7 +146,7 @@ async function listUniqueConstraints(client, table) {
   );
 
   const { rows: indexRows } = await client.query(
-    `SELECT i.relname AS name, array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS columns
+    `SELECT i.relname AS name, array_to_string(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)), ',') AS columns
     FROM pg_index ix
     JOIN pg_class i ON i.oid = ix.indexrelid
     JOIN pg_class t ON t.oid = ix.indrelid
@@ -158,9 +158,14 @@ async function listUniqueConstraints(client, table) {
     [table],
   );
 
+  const parseCols = (s) => (s ? s.split(",") : []);
   return [
-    ...constraintRows.map((r) => ({ name: r.name, columns: r.columns, style: "constraint" })),
-    ...indexRows.map((r) => ({ name: r.name, columns: r.columns, style: "index" })),
+    ...constraintRows.map((r) => ({
+      name: r.name,
+      columns: parseCols(r.columns),
+      style: "constraint",
+    })),
+    ...indexRows.map((r) => ({ name: r.name, columns: parseCols(r.columns), style: "index" })),
   ];
 }
 
@@ -268,9 +273,9 @@ async function copyTable(source, target, table) {
 
   const uniques = await listUniqueConstraints(source, table);
   for (const u of uniques) {
-    const cols = u.columns.join(", ");
+    const cols = u.columns.map((c) => `"${c}"`).join(", ");
     if (u.style !== "index") {
-      constraints += `, CONSTRAINT "${u.conname}" UNIQUE (${cols})`;
+      constraints += `, CONSTRAINT "${u.name}" UNIQUE (${cols})`;
     }
   }
 
@@ -281,7 +286,7 @@ async function copyTable(source, target, table) {
   // constraints and must be issued after the CREATE TABLE).
   for (const u of uniques) {
     if (u.style === "index") {
-      const cols = u.columns.join(", ");
+      const cols = u.columns.map((c) => `"${c}"`).join(", ");
       await target.query(`CREATE UNIQUE INDEX "${u.name}" ON "${table}" (${cols})`);
     }
   }
