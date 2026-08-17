@@ -61,7 +61,7 @@ describe("Bucket Route", () => {
         id: "aws-test-bucket",
         "*": "bucket/folder/file.ome.tiff",
       },
-      data: {
+      loaderData: {
         connectionId: "aws-test-bucket",
         connectionName: "aws-test-bucket",
         bucketName: "test-bucket",

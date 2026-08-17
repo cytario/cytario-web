@@ -70,11 +70,11 @@ export function buildCurrentNode(
 export const handle = {
   node: (match: {
     params: Record<string, string | undefined>;
-    data?: BucketRouteLoaderResponse;
+    loaderData?: BucketRouteLoaderResponse;
   }): TreeNode => {
-    const { params, data } = match;
-    const connectionId = data?.connectionId ?? params.id ?? "";
-    const connectionName = data?.connectionName ?? params.id ?? "";
+    const { params, loaderData } = match;
+    const connectionId = loaderData?.connectionId ?? params.id ?? "";
+    const connectionName = loaderData?.connectionName ?? params.id ?? "";
     const urlPath = params["*"] ?? "";
     return buildCurrentNode(connectionId, connectionName, urlPath);
   },
