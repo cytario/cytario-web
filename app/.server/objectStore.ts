@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -347,6 +348,67 @@ class ObjectStoreImpl implements ObjectStore {
       continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
     } while (continuationToken);
     return entries;
+  }
+
+  async size(connectionId: string, key: string): Promise<number | null> {
+    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
+      connectionId,
+      false,
+    );
+    const { user, authTokens } = requireRequestData();
+
+    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
+    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
+
+    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
+    const Policy = providerConfig.isAwsS3
+      ? buildSessionPolicy({
+          bucketName: config.bucketName,
+          prefix: config.prefix,
+          subject: user.sub,
+          region,
+          accessLevel,
+        })
+      : undefined;
+
+    const { Credentials } = await stsClient.send(
+      new AssumeRoleWithWebIdentityCommand({
+        RoleArn: roleArn,
+        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
+        WebIdentityToken: authTokens.idToken,
+        DurationSeconds: 900,
+        ...(Policy ? { Policy } : {}),
+      }),
+    );
+
+    if (!Credentials) throw new Error("STS returned no credentials for object store");
+
+    const s3Client = new S3Client({
+      endpoint: providerConfig.s3Endpoint,
+      region,
+      forcePathStyle: !providerConfig.isAwsS3,
+      credentials: {
+        accessKeyId: Credentials.AccessKeyId!,
+        secretAccessKey: Credentials.SecretAccessKey!,
+        sessionToken: Credentials.SessionToken,
+      },
+    });
+
+    const s3Key = buildS3Key(config.prefix, key);
+    try {
+      const response = await s3Client.send(
+        new HeadObjectCommand({ Bucket: config.bucketName, Key: s3Key }),
+      );
+      return typeof response.ContentLength === "number" ? response.ContentLength : null;
+    } catch (err: unknown) {
+      // NoSuchKey → the object does not exist (a directory or a missing
+      // object); return null so the plugin collapses the per-row floor to
+      // the app's fixed floor (SRS-CY-415110). Any other error propagates.
+      const name = (err as { name?: string })?.name;
+      if (name === "NoSuchKey" || name === "NotFound") return null;
+      throw err;
+    }
   }
 }
 
