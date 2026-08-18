@@ -6,9 +6,13 @@
  * into a live policy document while PRESERVING every foreign statement.
  *
  * Security invariants (non-negotiable):
- *  - Every Allow statement carries `aws:PrincipalTag/ORG == <org alias>` AND the
- *    per-group condition `aws:PrincipalTag/<org-relative-group-path> == "1"`. The
- *    generator REFUSES to emit any Allow lacking the ORG condition (fail closed).
+ *  - Every Allow statement carries the `aws:PrincipalTag/ORG == <org alias>`
+ *    condition. An intra-org-group grant additionally carries the per-group
+ *    condition `aws:PrincipalTag/<org-relative-group-path> == "1"`; an org-root
+ *    grant (`groupPath === ORG_ROOT_SCOPE`, shared with the whole organization)
+ *    carries ONLY the ORG condition, since Keycloak does not emit a `*` principal
+ *    tag. The generator REFUSES to emit any Allow lacking the ORG condition
+ *    (fail closed).
  *  - Managed statements carry a stable `Sid` prefixed `Cytario` so they are
  *    mergeable and revocable, while foreign statements are left untouched.
  *  - The coalesced document must fit the 20480-byte bucket-policy ceiling; on
@@ -19,6 +23,7 @@
  * ORG condition (the CI architectural-separation test asserts this).
  */
 
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
 /** Hard S3 limit on a bucket policy document. Fail closed above it. */
@@ -33,7 +38,8 @@ export type { AccessLevel };
  * A single share grant to realize on the bucket policy. `groupPath` is the
  * organization-relative group path (leading slash stripped, e.g. `Lab/TeamX`) --
  * the identical key the principal-tag mapper emits and the session policy would
- * never touch.
+ * never touch -- or the `ORG_ROOT_SCOPE` sentinel (`*`) for an org-wide grant,
+ * which carries only the ORG condition (no per-group tag is emitted for `*`).
  */
 export interface BucketPolicyGrant {
   organization: string;
@@ -132,6 +138,12 @@ export const isManagedStatement = (statement: PolicyStatement): boolean =>
  * Build the `Condition` block shared by every statement of a grant: the ORG tag
  * plus the per-group tag. This is the fail-closed heart of the generator -- a grant
  * without an organization cannot produce a condition and must never be emitted.
+ *
+ * An org-root grant (`groupPath === ORG_ROOT_SCOPE`, i.e. shared with the whole
+ * organization) carries ONLY the ORG condition: Keycloak does not emit a `*`
+ * principal tag, so an `aws:PrincipalTag/*` condition would never match and
+ * break the connection. Every member of the active org already carries the ORG
+ * tag, so the ORG condition alone is the correct boundary for an org-wide grant.
  */
 const buildGrantCondition = (grant: BucketPolicyGrant): PolicyCondition => {
   if (!grant.organization) {
@@ -139,6 +151,13 @@ const buildGrantCondition = (grant: BucketPolicyGrant): PolicyCondition => {
   }
   if (!grant.groupPath) {
     throw new Error("Bucket-policy grant is missing a target group path (fail closed).");
+  }
+  if (grant.groupPath === ORG_ROOT_SCOPE) {
+    return {
+      StringEquals: {
+        "aws:PrincipalTag/ORG": grant.organization,
+      },
+    };
   }
   return {
     StringEquals: {
