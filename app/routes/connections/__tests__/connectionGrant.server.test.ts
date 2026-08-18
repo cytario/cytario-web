@@ -100,6 +100,21 @@ describe("grantForConnection", () => {
     expect(actions).toContain("s3:PutObject");
     expect(actions).toContain("s3:AbortMultipartUpload");
   });
+
+  test("C-420: org-root scope (*) emits ONLY the ORG condition (no aws:PrincipalTag/* tag)", () => {
+    const grant = grantForConnection(
+      { organization: "acme", bucketName: "shared", prefix: "images" },
+      { scope: "*" },
+      roleArn,
+      "read-only",
+    );
+    expect(grant.groupPath).toBe("*");
+    const statements = compileGrantStatements(grant);
+    for (const s of statements) {
+      expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
+      expect(s.Condition?.StringEquals).not.toHaveProperty("aws:PrincipalTag/*");
+    }
+  });
 });
 
 describe("assembleBucketGrants", () => {

@@ -9,6 +9,7 @@ import {
   isManagedStatement,
   parseBucketPolicy,
 } from "../bucketPolicy";
+import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 const ORG = "vericura";
 const BUCKET = "customer-bucket";
@@ -145,6 +146,46 @@ describe("compileGrantStatements", () => {
 
   test("FAIL CLOSED: refuses a prefix containing wildcard characters", () => {
     expect(() => compileGrantStatements(grant({ prefix: "tenant-*" }))).toThrow(/wildcard/i);
+  });
+
+  test("C-420: org-root grant (*) carries ONLY the ORG condition (no aws:PrincipalTag/* tag is emitted)", () => {
+    const statements = compileGrantStatements(grant({ groupPath: ORG_ROOT_SCOPE }));
+    for (const s of statements) {
+      expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
+      expect(s.Condition?.StringEquals).not.toHaveProperty("aws:PrincipalTag/*");
+      // no per-group tag leaks through for the org-wide sentinel
+      const perGroupTags = Object.keys(s.Condition?.StringEquals ?? {}).filter(
+        (k) => k.startsWith("aws:PrincipalTag/") && k !== "aws:PrincipalTag/ORG",
+      );
+      expect(perGroupTags).toEqual([]);
+    }
+  });
+
+  test("C-420: org-root grant and a specific-group grant produce distinct (non-coalesced) statements", () => {
+    const result = buildMergedPolicy(parseBucketPolicy(null), [
+      grant({ groupPath: ORG_ROOT_SCOPE, prefix: "shared", accessLevel: "read-only" }),
+      grant({ groupPath: "Lab/TeamX", prefix: "shared", accessLevel: "read-only" }),
+    ]);
+    const objectStatements = result.document.Statement.filter((s) => {
+      const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
+      return actions.includes("s3:GetObject");
+    });
+    expect(objectStatements.length).toBe(2);
+  });
+
+  test("C-420: two org-root grants to different prefixes coalesce (same ORG-only condition)", () => {
+    const result = buildMergedPolicy(parseBucketPolicy(null), [
+      grant({ groupPath: ORG_ROOT_SCOPE, prefix: "a", accessLevel: "read-only" }),
+      grant({ groupPath: ORG_ROOT_SCOPE, prefix: "b", accessLevel: "read-only" }),
+    ]);
+    const objectStatements = result.document.Statement.filter((s) => {
+      const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
+      return actions.includes("s3:GetObject");
+    });
+    expect(objectStatements.length).toBe(1);
+    const resources = objectStatements[0].Resource as string[];
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/a/*`);
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/b/*`);
   });
 });
 
