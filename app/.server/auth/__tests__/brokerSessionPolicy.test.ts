@@ -155,4 +155,81 @@ describe("parseS3Uri", () => {
   test("returns null for unparseable string", () => {
     expect(parseS3Uri("not a url")).toBeNull();
   });
+
+  test("preserves a literal space in the key", () => {
+    expect(parseS3Uri("s3://data-bucket/upload test/jp2k.ome.tiff")).toEqual({
+      bucketName: "data-bucket",
+      prefix: "upload test/jp2k.ome.tiff",
+    });
+  });
+
+  test("does not double-decode an already-encoded %20 — keeps literal %20", () => {
+    // A ledger row that stores %20 must stay %20, not become a space: the
+    // contract is "literal key bytes", matching whatever S3 actually sees.
+    expect(parseS3Uri("s3://data-bucket/upload%20test/jp2k.ome.tiff")).toEqual({
+      bucketName: "data-bucket",
+      prefix: "upload%20test/jp2k.ome.tiff",
+    });
+  });
+
+  test("preserves a literal '?' in the key — no query truncation", () => {
+    expect(parseS3Uri("s3://b/foo?bar.txt")).toEqual({
+      bucketName: "b",
+      prefix: "foo?bar.txt",
+    });
+  });
+
+  test("preserves a literal '#' in the key — no fragment truncation", () => {
+    expect(parseS3Uri("s3://b/slide#2.ome.tiff")).toEqual({
+      bucketName: "b",
+      prefix: "slide#2.ome.tiff",
+    });
+  });
+
+  test("preserves a literal '%' that is not a valid escape", () => {
+    // `foo%bar` is a valid S3 key; decodeURIComponent would throw on it.
+    expect(parseS3Uri("s3://b/foo%bar/baz")).toEqual({
+      bucketName: "b",
+      prefix: "foo%bar/baz",
+    });
+  });
+
+  test("returns null for an empty bucket (s3:///key)", () => {
+    expect(parseS3Uri("s3:///key")).toBeNull();
+  });
+});
+
+describe("buildBrokerSessionPolicy — literal-key contract", () => {
+  test("emits s3:prefix and Resource ARNs with literal spaces, not %20", () => {
+    const input = {
+      bucketName: "cytario-dev-data",
+      prefix: "vericura.cytario/upload test/jp2k.ome.tiff",
+    };
+    const output = {
+      bucketName: "cytario-dev-data",
+      prefix: "vericura.cytario/upload test/jp2k.ome.tiff/output/jp2k",
+    };
+    const policy = JSON.parse(
+      buildBrokerSessionPolicy({ inputs: [input], output, region: REGION }),
+    );
+
+    const listStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:ListBucket");
+    expect(listStmt).toBeDefined();
+    const prefixes = listStmt.Condition.StringLike["s3:prefix"] as string[];
+    for (const p of prefixes) {
+      expect(p).not.toContain("%20");
+      expect(p).toContain("upload test");
+    }
+
+    const getStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:GetObject");
+    expect(getStmt).toBeDefined();
+    for (const r of getStmt.Resource as string[]) {
+      expect(r).not.toContain("%20");
+    }
+
+    const putStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:PutObject");
+    expect(putStmt).toBeDefined();
+    expect(putStmt.Resource as string).not.toContain("%20");
+    expect(putStmt.Resource as string).toContain("upload test");
+  });
 });

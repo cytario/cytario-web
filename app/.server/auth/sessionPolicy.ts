@@ -272,17 +272,22 @@ export interface S3Target {
 /**
  * Parse an `s3://bucket/prefix` URI into {@link S3Target}. Returns `null`
  * on an unparseable URI.
+ *
+ * The key is captured as the raw substring after `s3://<bucket>/` with no
+ * encoding normalization: S3 keys may contain spaces and the characters
+ * `?`, `#`, and `%` (all legal key bytes), and a generic URL parser would
+ * percent-encode the space and silently truncate at `?`/`#`, corrupting
+ * the session policy's `s3:prefix` StringLike patterns and Resource ARNs
+ * against the actual keys.
  */
 export function parseS3Uri(uri: string): S3Target | null {
-  try {
-    const url = new URL(uri);
-    if (url.protocol !== "s3:") return null;
-    const bucketName = url.host;
-    if (!bucketName) return null;
-    return { bucketName, prefix: stripSlashes(url.pathname) };
-  } catch {
-    return null;
-  }
+  if (typeof uri !== "string" || !uri.startsWith("s3://")) return null;
+  const rest = uri.slice("s3://".length);
+  const slash = rest.indexOf("/");
+  const bucketName = slash === -1 ? rest : rest.slice(0, slash);
+  if (!bucketName) return null;
+  const key = slash === -1 ? "" : rest.slice(slash + 1);
+  return { bucketName, prefix: stripSlashes(key) };
 }
 
 /**
