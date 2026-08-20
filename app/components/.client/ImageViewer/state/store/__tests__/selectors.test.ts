@@ -104,6 +104,7 @@ describe("selectors", () => {
     setAnnotationClassColor: vi.fn(),
     setAnnotationClassForIds: vi.fn(),
     renameAnnotationClass: vi.fn(),
+    renameAnnotation: vi.fn(),
     setAnnotationActiveClass: vi.fn(),
     createAnnotationClass: vi.fn(),
     deleteAnnotationClass: vi.fn(),

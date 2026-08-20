@@ -90,4 +90,65 @@ describe("AnnotationThumb", () => {
 
     expect(onZoom).toHaveBeenCalledTimes(1);
   });
+
+  test("displays the annotation name below the thumbnail", () => {
+    const feature = makeFeature({ properties: { name: "My Region" } });
+    render(<AnnotationThumb {...defaultProps} feature={feature} />);
+
+    expect(screen.getByText("My Region")).toBeInTheDocument();
+  });
+
+  test("displays 'ID: <id>' fallback when no name is set", () => {
+    render(<AnnotationThumb {...defaultProps} />);
+
+    expect(screen.getByText("ID: feat-1")).toBeInTheDocument();
+  });
+
+  test("Rename menu item is present when editable and onRename is provided", () => {
+    const onRename = vi.fn();
+    render(<AnnotationThumb {...defaultProps} onRename={onRename} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+
+    expect(screen.getByRole("menuitem", { name: "Rename annotation" })).toBeInTheDocument();
+  });
+
+  test("Rename menu item is absent when not editable", () => {
+    const onRename = vi.fn();
+    render(<AnnotationThumb {...defaultProps} editable={false} onRename={onRename} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Rename annotation" })).toBeNull();
+  });
+
+  test("calls onRename with the edited name when Enter is pressed", () => {
+    const onRename = vi.fn();
+    const feature = makeFeature({ properties: { name: "Old Name" } });
+    render(<AnnotationThumb {...defaultProps} feature={feature} onRename={onRename} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename annotation" }));
+
+    const input = screen.getByLabelText("Rename Old Name");
+    fireEvent.change(input, { target: { value: "New Name" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onRename).toHaveBeenCalledWith("New Name");
+  });
+
+  test("does not call onRename when the name is unchanged", () => {
+    const onRename = vi.fn();
+    const feature = makeFeature({ properties: { name: "Same Name" } });
+    render(<AnnotationThumb {...defaultProps} feature={feature} onRename={onRename} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename annotation" }));
+
+    const input = screen.getByLabelText("Rename Same Name");
+    fireEvent.change(input, { target: { value: "Same Name" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onRename).not.toHaveBeenCalled();
+  });
 });

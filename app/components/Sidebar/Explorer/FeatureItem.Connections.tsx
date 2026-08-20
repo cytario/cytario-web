@@ -2,10 +2,10 @@ import { EmptyState, IconButtonLink } from "@cytario/design";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
-import { SidebarSearchInput } from "./SidebarSearchInput";
 import { ConnectionSwitcherChip } from "../ConnectionSwitcherChip";
 import { ConnectionTree } from "../ConnectionTree";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
+import { SearchInput } from "~/components/SearchInput";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -52,7 +52,11 @@ export function FeatureItemConnections() {
             selectedConnection={selectedConnection ?? ""}
             onSelect={setOverride}
           />
-          <SidebarSearchInput onQueryChange={setQuery} />
+          <SearchInput
+            id="sidebar-search-input"
+            aria-label="Search connections"
+            onQueryChange={setQuery}
+          />
         </div>
       }
     >

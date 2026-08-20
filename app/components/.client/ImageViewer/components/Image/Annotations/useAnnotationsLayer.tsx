@@ -12,6 +12,7 @@ import { type ReactNode, useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
+  annotationNameOf,
   classColor as registeredClassColor,
   classNameOf,
   isReservedClassName,
@@ -75,14 +76,16 @@ const classColor = (feature: AnnotationFeature): RGB =>
 
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
-/** Hover tooltip content, styled like the overlay feature tooltip: id headline,
+/** Hover tooltip content, styled like the overlay feature tooltip: name headline,
  *  then a color swatch + classification name. */
 const AnnotationTooltip = ({ feature }: { feature: AnnotationFeature }) => {
   const [r, g, b] = classColor(feature);
   return (
     <div className="flex flex-col gap-1">
       <header>
-        <H3 className="text-lg font-normal">ID: {feature.id}</H3>
+        <H3 className="text-right font-mono tabular-nums text-lg font-normal">
+          {annotationNameOf(feature)}
+        </H3>
       </header>
       <div className="flex items-center gap-2">
         <div
@@ -108,15 +111,31 @@ const stampEdit = (
   active: AnnotationClassification | null,
 ): AnnotationFeature[] => {
   const now = new Date().toISOString();
+  // Pre-collect existing names so every new feature in this edit gets a unique
+  // auto-generated name (e.g. "0003" when 0001 and 0002 already exist).
+  const takenNames = new Set<string>();
+  for (const f of features) {
+    const name = f.properties?.name;
+    if (typeof name === "string" && name.length > 0) takenNames.add(name);
+  }
+  let nameCounter = 1;
+  const nextName = (): string => {
+    while (takenNames.has(String(nameCounter).padStart(4, "0"))) nameCounter++;
+    const name = String(nameCounter).padStart(4, "0");
+    takenNames.add(name);
+    return name;
+  };
   return features.map((feature, i) => {
     const properties = feature.properties ?? {};
     if (!feature.id) {
-      // A freshly drawn region inherits the active class (none → unclassified).
+      // A freshly drawn region inherits the active class (none → unclassified)
+      // and an auto-generated unique name.
       return {
         ...feature,
         id: crypto.randomUUID(),
         properties: {
           ...properties,
+          name: nextName(),
           ...(active ? { classification: active } : {}),
           createdAt: now,
           updatedAt: now,

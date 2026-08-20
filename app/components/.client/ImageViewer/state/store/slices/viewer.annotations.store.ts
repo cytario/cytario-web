@@ -26,6 +26,28 @@ export const classNameOf = (feature: AnnotationFeature): string =>
 export const isReservedClassName = (name: string): boolean =>
   name.trim().toLowerCase() === UNCLASSIFIED.toLowerCase();
 
+/** Generates the next auto-incrementing annotation name as a zero-padded
+ *  4-digit index ("0001", "0002", …, "0242", "22358") skipping any already
+ *  taken by an existing feature. Called at draw time so every new region is
+ *  born with a unique name. */
+export const generateAnnotationName = (features: AnnotationFeature[]): string => {
+  const taken = new Set(
+    features
+      .map((f) => f.properties?.name)
+      .filter((n): n is string => typeof n === "string" && n.length > 0),
+  );
+  for (let n = 1; ; n++) {
+    const candidate = String(n).padStart(4, "0");
+    if (!taken.has(candidate)) return candidate;
+  }
+};
+
+/** The display name of a feature: its `properties.name` if set, else a
+ *  fallback showing the ID (for legacy/imported features that predate
+ *  auto-naming). Shared by the tooltip and the sidebar label so they agree. */
+export const annotationNameOf = (feature: AnnotationFeature): string =>
+  feature.properties?.name ?? `ID: ${feature.id}`;
+
 /** RGB view of the shared categorical palette (drops the palette's alpha). */
 const PALETTE: RGB[] = CATEGORICAL_COLORS.map(([r, g, b]): RGB => [r, g, b]);
 
@@ -133,6 +155,10 @@ export interface AnnotationsSlice {
    *  it already exists, and follows the active class. Rejects the reserved
    *  "Unclassified" name (naming the null bucket goes through setAnnotationClassForIds). */
   renameAnnotationClass: (userId: string, oldName: string, newName: string) => void;
+  /** Rename a single annotation by feature id (sets `properties.name`). Names
+   *  are not required to be unique — two regions can share a name. An empty
+   *  name clears it (the feature falls back to ID display). */
+  renameAnnotation: (userId: string, id: string, name: string) => void;
   /** Set the own-set active class (`null` = draw unclassified). */
   setAnnotationActiveClass: (name: string | null) => void;
   /** Create an empty own-set class (auto-named/colored if unspecified) and make
@@ -283,6 +309,23 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       },
       false,
       "renameAnnotationClass",
+    ),
+
+  renameAnnotation: (userId, id, name) =>
+    set(
+      (state) => {
+        const features = state.annotationsByUser[userId] ?? [];
+        const feature = features.find((f) => f.id === id);
+        if (!feature) return;
+        const trimmed = name.trim();
+        if (trimmed.length === 0) {
+          delete feature.properties.name;
+        } else {
+          feature.properties.name = trimmed;
+        }
+      },
+      false,
+      "renameAnnotation",
     ),
 
   setAnnotationActiveClass: (name) =>
