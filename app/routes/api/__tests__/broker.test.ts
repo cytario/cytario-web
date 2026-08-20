@@ -8,9 +8,9 @@ vi.mock("~/.server/auth/verifyJobToken", () => ({
   verifyJobToken: verifyJobTokenMock,
 }));
 
-const refreshJobTokenMock = vi.hoisted(() => vi.fn());
-vi.mock("~/.server/auth/refreshJobToken", () => ({
-  refreshJobToken: refreshJobTokenMock,
+const refreshJobTokenWithLockMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/refreshJobTokenWithLock", () => ({
+  refreshJobTokenWithLock: refreshJobTokenWithLockMock,
 }));
 
 const stsSendMock = vi.hoisted(() => vi.fn());
@@ -60,11 +60,11 @@ const LEDGER_ROW = {
 beforeEach(() => {
   vi.clearAllMocks();
   verifyJobTokenMock.mockReset();
-  refreshJobTokenMock.mockReset();
+  refreshJobTokenWithLockMock.mockReset();
   stsSendMock.mockReset();
   // Default: refresh succeeds and returns a fresh access token + a rotated
   // refresh token. Individual tests override as needed.
-  refreshJobTokenMock.mockResolvedValue({
+  refreshJobTokenWithLockMock.mockResolvedValue({
     accessToken: REFRESHED_ACCESS_TOKEN,
     newRefreshToken: ROTATED_REFRESH_TOKEN,
   });
@@ -77,7 +77,7 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
   });
 
   test("returns 401 when the refresh fails (grant expired or revoked)", async () => {
-    refreshJobTokenMock.mockRejectedValueOnce(new Error("refresh failed"));
+    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
     const response = (await action(
       args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })),
     )) as Response;
@@ -151,7 +151,7 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
 
     await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
 
-    expect(refreshJobTokenMock).toHaveBeenCalledWith("container-refresh-token");
+    expect(refreshJobTokenWithLockMock).toHaveBeenCalledWith("container-refresh-token");
   });
 
   test("passes the refreshed access token to verifyJobToken, not the body token", async () => {

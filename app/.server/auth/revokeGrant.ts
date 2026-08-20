@@ -1,10 +1,14 @@
 import { adminRequestWithToken, KeycloakAdminError } from "./keycloakAdmin/client";
 import { getJobBrokerToken } from "./keycloakAdmin/serviceAccountToken";
+import { clearJobGrantStore } from "./refreshJobTokenWithLock";
 
 /**
  * Revokes an offline grant at the identity service by destroying the
  * Keycloak offline session identified by `offlineSessionId`
- * (SDS-CY-010098, SDS-CY-080900, SRS-CY-416106).
+ * (SDS-CY-010098, SDS-CY-080900, SRS-CY-416106), and clears the broker's
+ * canonical refresh-token cache for that session (SDS-CY-080402) so a
+ * cached token dies with the grant rather than lingering up to the 7-day
+ * safety-net TTL.
  *
  * Uses the job-broker service account, whose only realm-management role is
  * `manage-users` — the narrowest standard role covering the session-
@@ -20,9 +24,8 @@ import { getJobBrokerToken } from "./keycloakAdmin/serviceAccountToken";
  * `isOffline=false` and looks up a *regular* user session, which would 404
  * for an offline grant and silently fail to revoke.
  *
- * Called by the reconciler after a job reaches a terminal state, before
- * removing the ledger row (SRS-CY-416106). A missing or already-revoked
- * session returns 404 from Keycloak — treated as success (idempotent).
+ * A missing or already-revoked session returns 404 from Keycloak — treated
+ * as success (idempotent); the store clear is likewise idempotent.
  */
 export async function revokeGrant(offlineSessionId: string): Promise<void> {
   if (!offlineSessionId) {
@@ -35,9 +38,19 @@ export async function revokeGrant(offlineSessionId: string): Promise<void> {
   try {
     await adminRequestWithToken(accessToken, "DELETE", path);
   } catch (error) {
-    if (error instanceof KeycloakAdminError && error.status === 404) {
-      return;
+    // 404 = already revoked; still clear the store to heal a partial revocation.
+    if (!(error instanceof KeycloakAdminError && error.status === 404)) {
+      throw error;
     }
-    throw error;
   }
+
+  // Best-effort: a Redis hiccup must not undo the revocation. The 7-day TTL
+  // and Keycloak's revoked session (next refresh 401s) backstop a miss.
+  await clearJobGrantStore(offlineSessionId).catch((err) => {
+    console.warn(
+      `revokeGrant: failed to clear broker token store for ${offlineSessionId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  });
 }
