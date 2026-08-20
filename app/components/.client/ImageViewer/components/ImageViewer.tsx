@@ -3,6 +3,7 @@ import { IconButtonToggle } from "@cytario/design";
 import { AnnotationsPanel } from "./AnnotationsPanel/AnnotationsPanel";
 import { ChannelsPanel } from "./ChannelsPanel/ChannelsPanel";
 import { ImagePreview } from "./Image/ImagePreview";
+import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
@@ -25,6 +26,7 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
   return (
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
       <UndoRedoShortcuts />
+      <AnnotationModeKeyboard />
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
@@ -65,6 +67,13 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
 // Mounts the keyboard shortcut listener inside the ViewerStoreProvider.
 function UndoRedoShortcuts() {
   useUndoRedoShortcuts();
+  return null;
+}
+
+// Mounts the annotation-mode keyboard shortcuts (Esc→view, Space→temp drag)
+// inside the ViewerStoreProvider.
+function AnnotationModeKeyboard() {
+  useAnnotationModeKeyboard();
   return null;
 }
 
