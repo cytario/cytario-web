@@ -96,6 +96,7 @@ describe("authMiddleware", () => {
     params: Record<string, string> = {},
     hasSession = true,
     request: Request = new Request("http://localhost/test"),
+    url: URL = new URL(request.url),
   ) => {
     const context = new Map();
     if (hasSession) {
@@ -104,6 +105,7 @@ describe("authMiddleware", () => {
 
     return {
       request,
+      url,
       params,
       context: {
         get: (key: unknown) => context.get(key),
@@ -464,6 +466,20 @@ describe("authMiddleware", () => {
       expect(identity).not.toHaveProperty("name");
     });
 
+    test("passes RR-normalized url to the gate, stripping single-fetch _routes param from keep-alive revalidation URLs", async () => {
+      const request = new Request(
+        "http://localhost/plugin/jobs.data?_routes=routes%2Fplugin%2Fplugin.%24",
+      );
+      const url = new URL("http://localhost/plugin/jobs");
+      const args = createMiddlewareArgs({}, true, request, url);
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(runGates).toHaveBeenCalledWith(
+        expect.objectContaining({ url: "http://localhost/plugin/jobs" }),
+      );
+    });
+
     test("deny on POST returns a 403 JSON Response with the gate message", async () => {
       vi.mocked(runGates).mockResolvedValue({
         kind: "deny",
@@ -662,13 +678,42 @@ describe("authMiddleware", () => {
         },
       });
 
-      const args = createMiddlewareArgs();
-      (args.request as Request) = new Request("http://localhost/protected/page?query=test");
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/protected/page?query=test"),
+      );
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(redirect).toHaveBeenCalledWith(
         `/login?redirect=${encodeURIComponent("/protected/page?query=test")}`,
+        expect.any(Object),
+      );
+    });
+
+    test("uses RR's normalized url arg, stripping single-fetch .data suffix and _routes param from the redirect target", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        authTokens: {
+          ...mockSessionData.authTokens,
+          refreshToken: expiredRefreshToken,
+        },
+      });
+
+      // During keep-alive revalidation, request.url is the raw single-fetch
+      // URL; the sibling `url` arg is RR-normalized (.data/_routes stripped).
+      const request = new Request(
+        "http://localhost/plugin/jobs.data?_routes=routes%2Fplugin%2Fplugin.%24",
+      );
+      const url = new URL("http://localhost/plugin/jobs");
+      const args = createMiddlewareArgs({}, true, request, url);
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(redirect).toHaveBeenCalledWith(
+        `/login?redirect=${encodeURIComponent("/plugin/jobs")}`,
         expect.any(Object),
       );
     });

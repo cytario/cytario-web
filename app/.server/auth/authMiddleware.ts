@@ -105,7 +105,7 @@ const fetchAllCredentials = async (
   };
 };
 
-export const authMiddleware: MiddlewareFunction = async ({ request, context }, next) => {
+export const authMiddleware: MiddlewareFunction = async ({ request, url, context }, next) => {
   console.info(`${label} ${request.method} ${request.url}`);
 
   const session = context.get(sessionContext);
@@ -126,7 +126,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     // plugin loaded `runGates` returns `continue` and the built-in no-org
     // fallback below preserves on-prem behaviour.
     const outcome = await runGates({
-      url: request.url,
+      url: url.toString(),
       method: request.method,
       identity: toIdentity(user),
     });
@@ -234,16 +234,15 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
     }
   }
 
-  return logout(request.url, session);
+  return logout(url, session);
 };
 
 // Return the redirect rather than throwing it: under RR's middleware single-fetch
 // path a thrown redirect Response is caught and re-encoded as a 500, which
 // surfaces as `SingleFetchNoResultError` in the root ErrorBoundary.
-const logout = async (url: string, session: CytarioSession): Promise<Response> => {
+const logout = async (url: URL, session: CytarioSession): Promise<Response> => {
   console.info(`${label} Delete session and redirect to login`);
-  const requestUrl = new URL(url);
-  const relativeUrl = requestUrl.pathname + requestUrl.search;
+  const relativeUrl = url.pathname + url.search;
   return redirect(`/login?redirect=${encodeURIComponent(relativeUrl)}`, {
     headers: {
       "Set-Cookie": await sessionStorage.destroySession(session),
