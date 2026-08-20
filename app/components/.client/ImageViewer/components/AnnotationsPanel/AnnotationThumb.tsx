@@ -63,19 +63,13 @@ export const AnnotationThumb = ({
   };
 
   return (
-    <div className="group/thumb relative">
+    <div className="group/thumb relative overflow-hidden">
       <button
         type="button"
         aria-label={label}
         aria-pressed={selected}
         onClick={onSelect}
         onDoubleClick={onZoom}
-        className={`
-          rounded-2xl
-          border border-border
-          text-muted-foreground hover:text-foreground
-          overflow-hidden
-        `}
       >
         <GeometrySvg geometry={feature.geometry} color={color} selected={selected} />
       </button>

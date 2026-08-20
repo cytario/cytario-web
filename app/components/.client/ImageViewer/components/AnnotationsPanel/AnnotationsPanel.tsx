@@ -136,7 +136,7 @@ export const AnnotationsPanel = () => {
           onQueryChange={setSearchQuery}
           aria-label="Search annotations by name"
           placeholder="Search annotations…"
-          className="flex items-center gap-1 px-2 pb-1"
+          className="flex items-center gap-1 px-2 py-1"
         />
         {entries.map(([userId, features]) => (
           <AnnotationFileBlock
