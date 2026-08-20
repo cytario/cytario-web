@@ -19,7 +19,7 @@ interface SearchResult {
 }
 
 // Recursive search of the selected connection. `query` is already debounced by
-// SidebarSearchInput. Results are keyed by connection+query so isSearching/nodes
+// SearchInput. Results are keyed by connection+query so isSearching/nodes
 // derive cleanly without resetting state in the effect.
 export function useSidebarSearch(connectionId: string, query: string): SidebarSearch {
   const hasCreds = useConnectionsStore((s) => !!s.connections[connectionId]?.credentials);

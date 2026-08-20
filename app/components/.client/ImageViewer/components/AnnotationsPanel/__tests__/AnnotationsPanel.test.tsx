@@ -30,8 +30,20 @@ vi.mock("../AnnotationsTools", () => ({
 
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
 vi.mock("../AnnotationsList", () => ({
-  AnnotationsList: ({ userId, editable }: { userId: string; editable: boolean }) => (
-    <div data-testid={`annotations-list-${userId}`} data-editable={String(editable)} />
+  AnnotationsList: ({
+    userId,
+    editable,
+    searchQuery,
+  }: {
+    userId: string;
+    editable: boolean;
+    searchQuery: string;
+  }) => (
+    <div
+      data-testid={`annotations-list-${userId}`}
+      data-editable={String(editable)}
+      data-search={searchQuery}
+    />
   ),
 }));
 

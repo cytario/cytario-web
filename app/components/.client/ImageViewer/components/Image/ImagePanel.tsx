@@ -1,6 +1,6 @@
 import { InteractionState, OrthographicViewState, PickingInfo } from "@deck.gl/core";
 import DeckGL from "@deck.gl/react";
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAnnotationsLayer } from "./Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "./Channels/useChannelsLayer";
@@ -100,17 +100,26 @@ const ImagePanelInner = ({
     [activeImagePanelId, imagePanelId, setActiveImagePanelId],
   );
 
+  const annotationMode = useViewerStore((s) => s.annotationMode);
+
+  const hoveringAnnotationRef = useRef(false);
+
+  const onDeckHover = useCallback((info: PickingInfo) => {
+    hoveringAnnotationRef.current = Boolean(
+      info.object && String(info.layer?.id ?? "").startsWith("annotations-"),
+    );
+  }, []);
+
   const getCursor = useCallback(
     ({ isDragging }: InteractionState) => {
-      if (!isActivePanel) {
-        return "pointer";
-      }
-      if (isDragging) {
-        return "grabbing";
+      if (!isActivePanel) return "pointer";
+      if (annotationMode === "view") {
+        if (hoveringAnnotationRef.current) return "pointer";
+        return isDragging ? "grabbing" : "grab";
       }
       return "crosshair";
     },
-    [isActivePanel],
+    [isActivePanel, annotationMode],
   );
 
   if (!loader || loader.length === 0 || !viewStateActive) return null;
@@ -125,6 +134,7 @@ const ImagePanelInner = ({
         onViewStateChange={onViewStateChange}
         viewState={{ detail: viewStateActive }}
         getCursor={getCursor}
+        onHover={onDeckHover}
         onInteractionStateChange={handleInteractionStateChange}
         _pickable={true}
         controller={true}

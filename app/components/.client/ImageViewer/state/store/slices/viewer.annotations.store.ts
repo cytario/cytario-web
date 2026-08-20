@@ -26,6 +26,28 @@ export const classNameOf = (feature: AnnotationFeature): string =>
 export const isReservedClassName = (name: string): boolean =>
   name.trim().toLowerCase() === UNCLASSIFIED.toLowerCase();
 
+/** Generates the next auto-incrementing annotation name as a zero-padded
+ *  4-digit index ("0001", "0002", …, "0242", "22358") skipping any already
+ *  taken by an existing feature. Called at draw time so every new region is
+ *  born with a unique name. */
+export const generateAnnotationName = (features: AnnotationFeature[]): string => {
+  const taken = new Set(
+    features
+      .map((f) => f.properties?.name)
+      .filter((n): n is string => typeof n === "string" && n.length > 0),
+  );
+  for (let n = 1; ; n++) {
+    const candidate = String(n).padStart(4, "0");
+    if (!taken.has(candidate)) return candidate;
+  }
+};
+
+/** The display name of a feature: its `properties.name` if set, else a
+ *  fallback showing the ID (for legacy/imported features that predate
+ *  auto-naming). Shared by the tooltip and the sidebar label so they agree. */
+export const annotationNameOf = (feature: AnnotationFeature): string =>
+  feature.properties?.name ?? `ID: ${feature.id}`;
+
 /** RGB view of the shared categorical palette (drops the palette's alpha). */
 const PALETTE: RGB[] = CATEGORICAL_COLORS.map(([r, g, b]): RGB => [r, g, b]);
 
@@ -98,9 +120,14 @@ export interface AnnotationsSlice {
   /** Per-user view state (hidden classes), keyed by `sub`. Kept apart from
    *  `annotationsByUser` so a view change never enters the persist diff. */
   annotationView: Record<string, UserAnnotationView>;
-  /** Opacity of the whole annotation layer (all users), 0–1. Section-level,
-   *  ephemeral — mirrors the channels/overlays opacity control. */
+  /** Opacity of the whole annotation layer (all users), 0–1. Browser-persisted
+   *  per image — mirrors the channels/overlays opacity controls in
+   *  `layersStates`. */
   annotationsOpacity: number;
+  /** Whether annotation outlines (strokes) are visible. When off, only fills
+   *  render. Browser-persisted per image — mirrors the overlays outline
+   *  toggle in `layersStates`. */
+  showAnnotationOutline: boolean;
   /** Own-set class into which newly drawn regions are placed; `null` = draw
    *  unclassified. Resolved to `classification` only when a region commits.
    *  Browser-persisted per image (a "settings" sidecar is the eventual home). */
@@ -133,6 +160,10 @@ export interface AnnotationsSlice {
    *  it already exists, and follows the active class. Rejects the reserved
    *  "Unclassified" name (naming the null bucket goes through setAnnotationClassForIds). */
   renameAnnotationClass: (userId: string, oldName: string, newName: string) => void;
+  /** Rename a single annotation by feature id (sets `properties.name`). Names
+   *  are not required to be unique — two regions can share a name. An empty
+   *  name clears it (the feature falls back to ID display). */
+  renameAnnotation: (userId: string, id: string, name: string) => void;
   /** Set the own-set active class (`null` = draw unclassified). */
   setAnnotationActiveClass: (name: string | null) => void;
   /** Create an empty own-set class (auto-named/colored if unspecified) and make
@@ -144,6 +175,8 @@ export interface AnnotationsSlice {
   deleteAnnotationClass: (userId: string, name: string) => void;
   /** Set the whole annotation layer's opacity (0–1). */
   setAnnotationsOpacity: (opacity: number) => void;
+  /** Toggle annotation outlines (strokes) on/off. */
+  setShowAnnotationOutline: (show: boolean) => void;
   /** Show/hide ALL of one user's annotations at once (hides every class the
    *  user's features currently use; showing clears that user's hidden set). */
   setAnnotationUserHidden: (userId: string, hidden: boolean) => void;
@@ -167,6 +200,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
   annotationActiveClass: null,
   annotationClasses: [],
   annotationsOpacity: 1,
+  showAnnotationOutline: true,
 
   seedAnnotations: (byUser) => {
     // Pause temporal tracking around the seed so the one-time S3 read does
@@ -285,6 +319,23 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "renameAnnotationClass",
     ),
 
+  renameAnnotation: (userId, id, name) =>
+    set(
+      (state) => {
+        const features = state.annotationsByUser[userId] ?? [];
+        const feature = features.find((f) => f.id === id);
+        if (!feature) return;
+        const trimmed = name.trim();
+        if (trimmed.length === 0) {
+          delete feature.properties.name;
+        } else {
+          feature.properties.name = trimmed;
+        }
+      },
+      false,
+      "renameAnnotation",
+    ),
+
   setAnnotationActiveClass: (name) =>
     set(
       (state) => {
@@ -364,6 +415,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       },
       false,
       "setAnnotationsOpacity",
+    ),
+
+  setShowAnnotationOutline: (show) =>
+    set(
+      (state) => {
+        state.showAnnotationOutline = show;
+      },
+      false,
+      "setShowAnnotationOutline",
     ),
 
   setAnnotationUserHidden: (userId, hidden) =>

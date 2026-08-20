@@ -12,6 +12,7 @@ import { type ReactNode, useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import {
+  annotationNameOf,
   classColor as registeredClassColor,
   classNameOf,
   isReservedClassName,
@@ -75,14 +76,16 @@ const classColor = (feature: AnnotationFeature): RGB =>
 
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
-/** Hover tooltip content, styled like the overlay feature tooltip: id headline,
+/** Hover tooltip content, styled like the overlay feature tooltip: name headline,
  *  then a color swatch + classification name. */
 const AnnotationTooltip = ({ feature }: { feature: AnnotationFeature }) => {
   const [r, g, b] = classColor(feature);
   return (
     <div className="flex flex-col gap-1">
       <header>
-        <H3 className="text-lg font-normal">ID: {feature.id}</H3>
+        <H3 className="text-right font-mono tabular-nums text-lg font-normal">
+          {annotationNameOf(feature)}
+        </H3>
       </header>
       <div className="flex items-center gap-2">
         <div
@@ -108,15 +111,31 @@ const stampEdit = (
   active: AnnotationClassification | null,
 ): AnnotationFeature[] => {
   const now = new Date().toISOString();
+  // Pre-collect existing names so every new feature in this edit gets a unique
+  // auto-generated name (e.g. "0003" when 0001 and 0002 already exist).
+  const takenNames = new Set<string>();
+  for (const f of features) {
+    const name = f.properties?.name;
+    if (typeof name === "string" && name.length > 0) takenNames.add(name);
+  }
+  let nameCounter = 1;
+  const nextName = (): string => {
+    while (takenNames.has(String(nameCounter).padStart(4, "0"))) nameCounter++;
+    const name = String(nameCounter).padStart(4, "0");
+    takenNames.add(name);
+    return name;
+  };
   return features.map((feature, i) => {
     const properties = feature.properties ?? {};
     if (!feature.id) {
-      // A freshly drawn region inherits the active class (none → unclassified).
+      // A freshly drawn region inherits the active class (none → unclassified)
+      // and an auto-generated unique name.
       return {
         ...feature,
         id: crypto.randomUUID(),
         properties: {
           ...properties,
+          name: nextName(),
           ...(active ? { classification: active } : {}),
           createdAt: now,
           updatedAt: now,
@@ -151,6 +170,7 @@ export const useAnnotationsLayer = (
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
   const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
+  const showOutline = useViewerStore((s) => s.showAnnotationOutline);
   const mode = useViewerStore((s) => s.annotationMode);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
@@ -202,12 +222,7 @@ export const useAnnotationsLayer = (
       setSelectedIds([id]);
     };
 
-    const paint = (
-      hiddenClasses: string[] | undefined,
-      opacity: number,
-      fillAlpha: number,
-      lineAlpha: number,
-    ) => {
+    const paint = (hiddenClasses: string[] | undefined, fillAlpha: number, lineAlpha: number) => {
       const hidden = new Set(hiddenClasses ?? []);
       const colorAt = (f: Feature, alpha: number): RGBA =>
         withAlpha(
@@ -217,7 +232,6 @@ export const useAnnotationsLayer = (
       return {
         coordinateSystem: "cartesian" as const,
         pickable: interactive,
-        opacity,
         onClick: selectOnClick,
         onHover: (info: PickingInfo) => {
           const f = info.object as AnnotationFeature | undefined;
@@ -236,11 +250,13 @@ export const useAnnotationsLayer = (
 
     // Preview decks render the own set read-only, styled like the editable
     // layer but without edit modes or picking.
+    const ownFill = Math.round(annotationsOpacity * 255);
+    const ownLine = showOutline ? 255 : 0;
     const ownLayer = !interactive
       ? new GeoJsonLayer({
           id: `annotations-${imagePanelId}`,
           data,
-          ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
+          ...paint(ownView?.hiddenClasses, ownFill, ownLine),
           stroked: true,
           filled: true,
           pointType: "circle",
@@ -252,7 +268,7 @@ export const useAnnotationsLayer = (
           data,
           mode: MODE_CLASSES[mode],
           selectedFeatureIndexes,
-          ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
+          ...paint(ownView?.hiddenClasses, ownFill, ownLine),
 
           onEdit: ({ updatedData, editType, editContext }) => {
             // Persist only committing edits — anything else (tentative draw events,
@@ -294,8 +310,12 @@ export const useAnnotationsLayer = (
         return new GeoJsonLayer({
           id: `annotations-${imagePanelId}-peer-${userId}`,
           data: { type: "FeatureCollection", features: peerFeatures },
-          // Peers are dimmer than own (40/200 vs 60/255) but otherwise identical.
-          ...paint(peerView?.hiddenClasses, annotationsOpacity, 40, 200),
+          // Peers are dimmer than own (2/3 fill, 200 stroke) but otherwise identical.
+          ...paint(
+            peerView?.hiddenClasses,
+            Math.round(annotationsOpacity * 170),
+            showOutline ? 200 : 0,
+          ),
           stroked: true,
           filled: true,
           pointType: "circle",
@@ -353,6 +373,7 @@ export const useAnnotationsLayer = (
     annotationsByUser,
     annotationView,
     annotationsOpacity,
+    showOutline,
     mode,
     selectedIds,
     imagePanelId,

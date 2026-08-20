@@ -3,15 +3,26 @@ import { useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 300;
 
-// Focused by the Cmd/Ctrl+B shortcut.
-export const SIDEBAR_SEARCH_INPUT_ID = "sidebar-search-input";
-
-interface SidebarSearchInputProps {
-  /** Debounced query sink (owned by ExplorerTab). */
+export interface SearchInputProps {
+  /** Debounced query sink (owned by the parent). */
   onQueryChange: (query: string) => void;
+  /** Accessible label for the input element. */
+  "aria-label": string;
+  /** Placeholder text (defaults to "Search…"). */
+  placeholder?: string;
+  /** Optional id for focus-shortcut wiring. */
+  id?: string;
+  /** Optional className for the wrapper div (defaults to "flex items-center gap-1"). */
+  className?: string;
 }
 
-export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
+export function SearchInput({
+  onQueryChange,
+  "aria-label": ariaLabel,
+  placeholder = "Search…",
+  id,
+  className = "flex items-center gap-1",
+}: SearchInputProps) {
   const [value, setValue] = useState("");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -34,15 +45,15 @@ export function SidebarSearchInput({ onQueryChange }: SidebarSearchInputProps) {
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={className}>
       <Icon icon="Search" size="sm" className="text-muted-foreground" />
       <Input
         size="sm"
-        id={SIDEBAR_SEARCH_INPUT_ID}
-        aria-label="Search connections"
+        id={id}
+        aria-label={ariaLabel}
         value={value}
         onChange={onChange}
-        placeholder="Search…"
+        placeholder={placeholder}
       />
       {value ? (
         <IconButton icon="X" size="sm" variant="ghost" onPress={onClear} label="Clear search" />

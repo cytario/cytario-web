@@ -1,4 +1,3 @@
-import { SIDEBAR_SEARCH_INPUT_ID } from "./SidebarSearchInput";
 import { Sidebar, SIDEBAR } from "../Sidebar";
 import { useNavSidebarStore } from "../sidebarStores";
 import { FeatureItemConnections } from "./FeatureItem.Connections";
@@ -13,7 +12,7 @@ export function ExplorerSidebar() {
       side="left"
       store={useNavSidebarStore}
       toggleShortcut="mod+b"
-      onOpen={() => document.getElementById(SIDEBAR_SEARCH_INPUT_ID)?.focus()}
+      onOpen={() => document.getElementById("sidebar-search-input")?.focus()}
     >
       <FeatureItemConnections />
       <PluginNavSection />

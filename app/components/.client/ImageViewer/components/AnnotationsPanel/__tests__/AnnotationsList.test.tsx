@@ -66,7 +66,9 @@ function renderList(
   { userId = "user-a", editable = true }: { userId?: string; editable?: boolean } = {},
 ) {
   buildStore(userId, features);
-  return render(<AnnotationsList userId={userId} features={features} editable={editable} />);
+  return render(
+    <AnnotationsList userId={userId} features={features} editable={editable} searchQuery="" />,
+  );
 }
 
 /** Returns the thumbnail buttons in DOM order (grouped order = the Shift-range axis). */

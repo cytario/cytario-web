@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createViewerStore } from "../createViewerStore";
 import {
   classColor,
+  generateAnnotationName,
   selectUserFeatures,
   selectUserHiddenClasses,
 } from "../slices/viewer.annotations.store";
@@ -291,6 +292,80 @@ describe("selectUserHiddenClasses", () => {
 
     expect(first).toEqual([]);
     expect(first).toBe(second);
+  });
+});
+
+// -----------------------------------------------------------------------
+// generateAnnotationName
+// -----------------------------------------------------------------------
+
+describe("generateAnnotationName", () => {
+  it("returns '0001' when no features exist", () => {
+    expect(generateAnnotationName([])).toBe("0001");
+  });
+
+  it("returns '0002' when '0001' is taken", () => {
+    const features = [makeFeature({ id: "f1" })];
+    features[0].properties.name = "0001";
+    expect(generateAnnotationName(features)).toBe("0002");
+  });
+
+  it("fills the first gap when a name is missing in the sequence", () => {
+    const features = [makeFeature({ id: "f1" }), makeFeature({ id: "f3" })];
+    features[0].properties.name = "0001";
+    features[1].properties.name = "0003";
+    expect(generateAnnotationName(features)).toBe("0002");
+  });
+
+  it("ignores empty-string names", () => {
+    const features = [makeFeature({ id: "f1" })];
+    features[0].properties.name = "";
+    expect(generateAnnotationName(features)).toBe("0001");
+  });
+});
+
+// -----------------------------------------------------------------------
+// renameAnnotation
+// -----------------------------------------------------------------------
+
+describe("renameAnnotation", () => {
+  it("sets properties.name on the target feature", () => {
+    const store = createViewerStore("rename-1");
+    const features = [makeFeature({ id: "f1" })];
+    store.getState().updateUserFeatures("user-a", features);
+
+    store.getState().renameAnnotation("user-a", "f1", "My Region");
+
+    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBe("My Region");
+  });
+
+  it("trims whitespace from the name", () => {
+    const store = createViewerStore("rename-2");
+    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "f1" })]);
+
+    store.getState().renameAnnotation("user-a", "f1", "  Spaced  ");
+
+    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBe("Spaced");
+  });
+
+  it("clears the name when given an empty/whitespace string", () => {
+    const store = createViewerStore("rename-3");
+    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "f1" })]);
+    store.getState().renameAnnotation("user-a", "f1", "First");
+    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBe("First");
+
+    store.getState().renameAnnotation("user-a", "f1", "   ");
+
+    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBeUndefined();
+  });
+
+  it("is a no-op when the feature id does not exist", () => {
+    const store = createViewerStore("rename-4");
+    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "f1" })]);
+
+    store.getState().renameAnnotation("user-a", "nonexistent", "Ghost");
+
+    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBeUndefined();
   });
 });
 

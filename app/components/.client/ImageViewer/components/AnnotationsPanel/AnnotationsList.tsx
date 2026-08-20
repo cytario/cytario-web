@@ -5,6 +5,7 @@ import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { AnnotationThumb } from "./AnnotationThumb";
 import { flyToFeaturesViewState } from "./flyToFeature";
 import {
+  annotationNameOf,
   classNameOf,
   isReservedClassName,
   selectUserHiddenClasses,
@@ -30,12 +31,19 @@ interface AnnotationsListProps {
    *  read-only until role-based edit-others lands; for now the menu still shows
    *  on every geometry, only the destructive actions are disabled. */
   editable: boolean;
+  /** Case-insensitive name filter; empty shows all. */
+  searchQuery: string;
 }
 
 /** Groups one user's annotation features by classification (with an
  *  `Unclassified` fallback). Each group can be shown/hidden and (when editable)
  *  recolored; a thumbnail click selects + flies to the feature. */
-export const AnnotationsList = ({ userId, features, editable }: AnnotationsListProps) => {
+export const AnnotationsList = ({
+  userId,
+  features,
+  editable,
+  searchQuery,
+}: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
@@ -46,6 +54,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
   const setActiveClass = useViewerStore((s) => s.setAnnotationActiveClass);
   const renameClass = useViewerStore((s) => s.renameAnnotationClass);
+  const renameAnnotation = useViewerStore((s) => s.renameAnnotation);
   const classes = useViewerStore((s) => s.annotationClasses);
   const createClass = useViewerStore((s) => s.createAnnotationClass);
   const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
@@ -63,14 +72,20 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
     selectedIds.length > 1 && selectedIds.includes(feature.id) ? selectedIds : [feature.id];
 
   const annotationsGroups = useMemo<AnnotationGroup[]>(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const matches = (feature: AnnotationFeature) =>
+      query.length === 0 || annotationNameOf(feature).toLowerCase().includes(query);
+
     const byName = new Map<string, AnnotationGroup>();
     // Own set: always show the Unclassified bucket, pinned first — the default
     // draw target — then every defined class (registry), so empty classes show.
-    if (editable) {
+    // When searching, skip empty-class scaffolding (only show groups with matches).
+    if (editable && query.length === 0) {
       byName.set(UNCLASSIFIED, { name: UNCLASSIFIED, color: null, items: [] });
       for (const c of classes) byName.set(c.name, { name: c.name, color: c.color, items: [] });
     }
     features.forEach((feature, index) => {
+      if (!matches(feature)) return;
       const name = classNameOf(feature);
       let group = byName.get(name);
       if (!group) {
@@ -80,7 +95,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
       group.items.push({ feature, index });
     });
     return [...byName.values()];
-  }, [features, editable, classes]);
+  }, [features, editable, classes, searchQuery]);
 
   // Existing named classes offered as move targets (the unclassified bucket is
   // reached via "Clear classification", not a move).
@@ -216,6 +231,9 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
                         ? undefined
                         : () => setClassForIds(userId, actionTargets(feature), null)
                     }
+                    onRename={
+                      editable ? (name) => renameAnnotation(userId, feature.id, name) : undefined
+                    }
                     onDelete={() => deleteFeatures(feature)}
                   />
                 );
@@ -226,6 +244,7 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
       })}
 
       {editable &&
+        searchQuery.trim().length === 0 &&
         (adding ? (
           <NewClassInput
             onCommit={(className) => {
@@ -240,11 +259,20 @@ export const AnnotationsList = ({ userId, features, editable }: AnnotationsListP
           </Button>
         ))}
 
-      {editable && features.length === 0 && (
+      {editable && features.length === 0 && searchQuery.trim().length === 0 && (
         <EmptyState
           title="No annotations yet"
           description="Select a class above, then use the draw tools to add your first region."
           icon="Spline"
+          className="py-4"
+        />
+      )}
+
+      {searchQuery.trim().length > 0 && annotationsGroups.every((g) => g.items.length === 0) && (
+        <EmptyState
+          title="No matching annotations"
+          description={`No annotations match "${searchQuery.trim()}".`}
+          icon="Search"
           className="py-4"
         />
       )}

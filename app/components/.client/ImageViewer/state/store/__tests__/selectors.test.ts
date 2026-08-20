@@ -23,6 +23,7 @@ describe("selectors", () => {
     annotationActiveClass: null,
     annotationClasses: [],
     annotationsOpacity: 1,
+    showAnnotationOutline: true,
     layersStates: [
       {
         channels: {
@@ -104,10 +105,12 @@ describe("selectors", () => {
     setAnnotationClassColor: vi.fn(),
     setAnnotationClassForIds: vi.fn(),
     renameAnnotationClass: vi.fn(),
+    renameAnnotation: vi.fn(),
     setAnnotationActiveClass: vi.fn(),
     createAnnotationClass: vi.fn(),
     deleteAnnotationClass: vi.fn(),
     setAnnotationsOpacity: vi.fn(),
+    setShowAnnotationOutline: vi.fn(),
     setAnnotationUserHidden: vi.fn(),
     toggleAnnotationClassVisibility: vi.fn(),
     showAnnotationClass: vi.fn(),

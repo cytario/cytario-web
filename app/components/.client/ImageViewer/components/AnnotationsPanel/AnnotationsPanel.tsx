@@ -1,4 +1,4 @@
-import { Badge, Switch } from "@cytario/design";
+import { Badge, IconButton, Switch } from "@cytario/design";
 import { useMemo, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
@@ -12,6 +12,7 @@ import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
+import { SearchInput } from "~/components/SearchInput";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
@@ -26,11 +27,13 @@ const AnnotationFileBlock = ({
   label,
   features,
   editable,
+  searchQuery,
 }: {
   userId: string;
   label: string;
   features: AnnotationFeature[];
   editable: boolean;
+  searchQuery: string;
 }) => {
   const imageResourceId = useViewerStore((s) => s.id);
   const hiddenClasses = useViewerStore(selectUserHiddenClasses(userId));
@@ -68,7 +71,14 @@ const AnnotationFileBlock = ({
         />
       </div>
 
-      {isOpen && <AnnotationsList userId={userId} features={features} editable={editable} />}
+      {isOpen && (
+        <AnnotationsList
+          userId={userId}
+          features={features}
+          editable={editable}
+          searchQuery={searchQuery}
+        />
+      )}
     </div>
   );
 };
@@ -78,7 +88,10 @@ export const AnnotationsPanel = () => {
   const annotationView = useViewerStore((s) => s.annotationView);
   const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
   const setAnnotationsOpacity = useViewerStore((s) => s.setAnnotationsOpacity);
+  const showOutline = useViewerStore((s) => s.showAnnotationOutline);
+  const setShowOutline = useViewerStore((s) => s.setShowAnnotationOutline);
   const ownUserId = useCurrentUser()?.sub;
+  const [searchQuery, setSearchQuery] = useState("");
 
   // One block per user, own first. Own always appears — even with no
   // annotations yet — so its class list and draw tools are reachable.
@@ -102,14 +115,29 @@ export const AnnotationsPanel = () => {
       badge={`${visible}/${total}`}
       header={<AnnotationsTools />}
       actions={
-        <FeatureItemSlider
-          aria-label="Annotation opacity"
-          value={annotationsOpacity}
-          onChange={setAnnotationsOpacity}
-        />
+        <>
+          <IconButton
+            icon={showOutline ? "CircleDot" : "Circle"}
+            label={showOutline ? "Hide outlines" : "Show outlines"}
+            onPress={() => setShowOutline(!showOutline)}
+            variant="ghost"
+            size="xs"
+          />
+          <FeatureItemSlider
+            aria-label="Annotation opacity"
+            value={annotationsOpacity}
+            onChange={setAnnotationsOpacity}
+          />
+        </>
       }
     >
       <div className="flex flex-col">
+        <SearchInput
+          onQueryChange={setSearchQuery}
+          aria-label="Search annotations by name"
+          placeholder="Search annotations…"
+          className="flex items-center gap-1 px-2 py-1"
+        />
         {entries.map(([userId, features]) => (
           <AnnotationFileBlock
             key={userId}
@@ -117,6 +145,7 @@ export const AnnotationsPanel = () => {
             label={userId === ownUserId ? "You" : userId.slice(0, 6)}
             features={features}
             editable={userId === ownUserId}
+            searchQuery={searchQuery}
           />
         ))}
       </div>
