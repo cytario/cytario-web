@@ -4,6 +4,7 @@ import {
   generateCodeVerifier,
   generateNonce,
   generateOAuthState,
+  stripSingleFetchArtifacts,
   validateOAuthState,
   validateRedirectTo,
 } from "../oauthState";
@@ -111,6 +112,69 @@ describe("oauthState", () => {
     test("normalizes dot-dot traversal", () => {
       const result = validateRedirectTo("/a/../b");
       expect(result).toBe("/b");
+    });
+
+    test("strips .data suffix from pathname", () => {
+      expect(validateRedirectTo("/plugin/jobs.data")).toBe("/plugin/jobs");
+    });
+
+    test("strips .data suffix and _routes query param together", () => {
+      expect(validateRedirectTo("/plugin/jobs.data?_routes=routes%2Fplugin%2Fplugin.%24")).toBe(
+        "/plugin/jobs",
+      );
+    });
+
+    test("strips _data query param but preserves other params", () => {
+      expect(validateRedirectTo("/page.data?_data=1&foo=bar")).toBe("/page?foo=bar");
+    });
+
+    test("strips .data suffix but preserves legitimate query params", () => {
+      expect(validateRedirectTo("/buckets.data?connection=abc")).toBe("/buckets?connection=abc");
+    });
+
+    test("does not strip .data from the middle of a pathname", () => {
+      expect(validateRedirectTo("/data.report/view")).toBe("/data.report/view");
+    });
+
+    test("strips .data from a path with hash", () => {
+      expect(validateRedirectTo("/plugin/jobs.data#section")).toBe("/plugin/jobs#section");
+    });
+  });
+
+  describe("stripSingleFetchArtifacts", () => {
+    test("strips .data suffix from pathname", () => {
+      const url = new URL("http://x/plugin/jobs.data");
+      expect(stripSingleFetchArtifacts(url)).toBe("/plugin/jobs");
+    });
+
+    test("removes _routes query param", () => {
+      const url = new URL("http://x/plugin/jobs?_routes=routes%2Fplugin%2Fplugin.%24");
+      expect(stripSingleFetchArtifacts(url)).toBe("/plugin/jobs");
+    });
+
+    test("removes _data query param", () => {
+      const url = new URL("http://x/page?_data=routes%2Fpage");
+      expect(stripSingleFetchArtifacts(url)).toBe("/page");
+    });
+
+    test("preserves non-single-fetch query params", () => {
+      const url = new URL("http://x/buckets.data?_routes=x&connection=abc&page=2");
+      expect(stripSingleFetchArtifacts(url)).toBe("/buckets?connection=abc&page=2");
+    });
+
+    test("preserves hash", () => {
+      const url = new URL("http://x/plugin/jobs.data#section");
+      expect(stripSingleFetchArtifacts(url)).toBe("/plugin/jobs#section");
+    });
+
+    test("leaves a clean URL unchanged", () => {
+      const url = new URL("http://x/plugin/jobs?status=active");
+      expect(stripSingleFetchArtifacts(url)).toBe("/plugin/jobs?status=active");
+    });
+
+    test("strips all artifacts from a full single-fetch revalidation URL", () => {
+      const url = new URL("http://localhost/plugin/jobs.data?_routes=routes%2Fplugin%2Fplugin.%24");
+      expect(stripSingleFetchArtifacts(url)).toBe("/plugin/jobs");
     });
   });
 

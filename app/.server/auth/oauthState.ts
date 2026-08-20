@@ -36,10 +36,37 @@ export const generateCodeChallenge = (verifier: string): string =>
  */
 export const generateNonce = (): string => randomBytes(16).toString("hex");
 
+const SINGLE_FETCH_DATA_SUFFIX = ".data";
+const SINGLE_FETCH_QUERY_PARAMS = ["_routes", "_data"];
+
+/**
+ * Strips React Router v8 single-fetch artifacts — the `.data` pathname suffix
+ * and `_routes`/`_data` query params — from a parsed URL. During keep-alive
+ * revalidation, `request.url` carries these internal markers; leaking them
+ * into the login `redirect=` param causes the browser to document-navigate to
+ * a turbo-stream endpoint after the OAuth callback, rendering the raw
+ * `text/x-script` payload as plain text.
+ */
+export const stripSingleFetchArtifacts = (url: URL): string => {
+  let pathname = url.pathname;
+  if (pathname.endsWith(SINGLE_FETCH_DATA_SUFFIX)) {
+    pathname = pathname.slice(0, -SINGLE_FETCH_DATA_SUFFIX.length);
+  }
+  const searchParams = new URLSearchParams(url.searchParams);
+  for (const param of SINGLE_FETCH_QUERY_PARAMS) {
+    searchParams.delete(param);
+  }
+  const search = searchParams.toString();
+  return pathname + (search ? `?${search}` : "") + url.hash;
+};
+
 /**
  * Validates a redirect path to prevent open redirects.
  * Only allows relative paths — rejects absolute URLs, protocol-relative URLs,
- * javascript: URIs, data: URIs, and backslash bypass vectors.
+ * javascript: URIs, data: URIs, and backslash bypass vectors. Also strips
+ * React Router v8 single-fetch artifacts (`.data` suffix, `_routes`/`_data`
+ * query params) so an internal data-request URL can never leak into a
+ * post-login document navigation.
  */
 export const validateRedirectTo = (redirectTo?: string): string => {
   if (!redirectTo) return "/";
@@ -47,7 +74,7 @@ export const validateRedirectTo = (redirectTo?: string): string => {
     const base = "https://x";
     const parsed = new URL(redirectTo, base);
     if (parsed.origin !== base) return "/";
-    return parsed.pathname + parsed.search + parsed.hash;
+    return stripSingleFetchArtifacts(parsed);
   } catch {
     return "/";
   }
