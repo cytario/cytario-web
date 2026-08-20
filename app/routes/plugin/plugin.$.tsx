@@ -1,5 +1,10 @@
 import { Fragment, type ComponentType, useEffect, useState } from "react";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, useLocation } from "react-router";
+import {
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  type ShouldRevalidateFunction,
+  useLocation,
+} from "react-router";
 
 import { authContext } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
@@ -54,6 +59,18 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   const identity = toIdentity(user);
   return entry.contribution.action({ request: args.request, params: args.params, identity });
 }
+
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  formAction,
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (formAction) return defaultShouldRevalidate;
+  if (currentUrl.pathname !== nextUrl.pathname) return true;
+  if (currentUrl.search !== nextUrl.search) return true;
+  return false;
+};
 
 export default function PluginRoute() {
   const location = useLocation();
