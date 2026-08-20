@@ -123,6 +123,9 @@ export interface AnnotationsSlice {
   /** Opacity of the whole annotation layer (all users), 0–1. Section-level,
    *  ephemeral — mirrors the channels/overlays opacity control. */
   annotationsOpacity: number;
+  /** Whether annotation outlines (strokes) are visible. When off, only fills
+   *  render. Section-level, ephemeral — mirrors the overlays outline toggle. */
+  showAnnotationOutline: boolean;
   /** Own-set class into which newly drawn regions are placed; `null` = draw
    *  unclassified. Resolved to `classification` only when a region commits.
    *  Browser-persisted per image (a "settings" sidecar is the eventual home). */
@@ -170,6 +173,8 @@ export interface AnnotationsSlice {
   deleteAnnotationClass: (userId: string, name: string) => void;
   /** Set the whole annotation layer's opacity (0–1). */
   setAnnotationsOpacity: (opacity: number) => void;
+  /** Toggle annotation outlines (strokes) on/off. */
+  setShowAnnotationOutline: (show: boolean) => void;
   /** Show/hide ALL of one user's annotations at once (hides every class the
    *  user's features currently use; showing clears that user's hidden set). */
   setAnnotationUserHidden: (userId: string, hidden: boolean) => void;
@@ -193,6 +198,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
   annotationActiveClass: null,
   annotationClasses: [],
   annotationsOpacity: 1,
+  showAnnotationOutline: true,
 
   seedAnnotations: (byUser) => {
     // Pause temporal tracking around the seed so the one-time S3 read does
@@ -407,6 +413,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       },
       false,
       "setAnnotationsOpacity",
+    ),
+
+  setShowAnnotationOutline: (show) =>
+    set(
+      (state) => {
+        state.showAnnotationOutline = show;
+      },
+      false,
+      "setShowAnnotationOutline",
     ),
 
   setAnnotationUserHidden: (userId, hidden) =>

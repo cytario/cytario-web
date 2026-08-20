@@ -49,15 +49,14 @@ export const OverlaysPanel = () => {
       badge={badge}
       actions={
         <>
-          {!isInPointMode && (
-            <IconButton
-              icon={showCellOutline ? "CircleDot" : "Circle"}
-              label={showCellOutline ? "Hide outlines" : "Show outlines"}
-              onPress={() => setShowCellOutline(!showCellOutline)}
-              variant="ghost"
-              size="xs"
-            />
-          )}
+          <IconButton
+            icon={showCellOutline ? "CircleDot" : "Circle"}
+            label={showCellOutline ? "Hide outlines" : "Show outlines"}
+            onPress={() => setShowCellOutline(!showCellOutline)}
+            isDisabled={isInPointMode}
+            variant="ghost"
+            size="xs"
+          />
           <FeatureItemSlider
             aria-label="Overlay fill opacity"
             value={fillOpacity}

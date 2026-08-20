@@ -1,4 +1,4 @@
-import { Badge, Switch } from "@cytario/design";
+import { Badge, IconButton, Switch } from "@cytario/design";
 import { useMemo, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
@@ -88,6 +88,8 @@ export const AnnotationsPanel = () => {
   const annotationView = useViewerStore((s) => s.annotationView);
   const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
   const setAnnotationsOpacity = useViewerStore((s) => s.setAnnotationsOpacity);
+  const showOutline = useViewerStore((s) => s.showAnnotationOutline);
+  const setShowOutline = useViewerStore((s) => s.setShowAnnotationOutline);
   const ownUserId = useCurrentUser()?.sub;
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -113,11 +115,20 @@ export const AnnotationsPanel = () => {
       badge={`${visible}/${total}`}
       header={<AnnotationsTools />}
       actions={
-        <FeatureItemSlider
-          aria-label="Annotation opacity"
-          value={annotationsOpacity}
-          onChange={setAnnotationsOpacity}
-        />
+        <>
+          <IconButton
+            icon={showOutline ? "CircleDot" : "Circle"}
+            label={showOutline ? "Hide outlines" : "Show outlines"}
+            onPress={() => setShowOutline(!showOutline)}
+            variant="ghost"
+            size="xs"
+          />
+          <FeatureItemSlider
+            aria-label="Annotation opacity"
+            value={annotationsOpacity}
+            onChange={setAnnotationsOpacity}
+          />
+        </>
       }
     >
       <div className="flex flex-col">

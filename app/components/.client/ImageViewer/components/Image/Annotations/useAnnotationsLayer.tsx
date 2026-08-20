@@ -170,6 +170,7 @@ export const useAnnotationsLayer = (
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
   const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
+  const showOutline = useViewerStore((s) => s.showAnnotationOutline);
   const mode = useViewerStore((s) => s.annotationMode);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
@@ -221,12 +222,7 @@ export const useAnnotationsLayer = (
       setSelectedIds([id]);
     };
 
-    const paint = (
-      hiddenClasses: string[] | undefined,
-      opacity: number,
-      fillAlpha: number,
-      lineAlpha: number,
-    ) => {
+    const paint = (hiddenClasses: string[] | undefined, fillAlpha: number, lineAlpha: number) => {
       const hidden = new Set(hiddenClasses ?? []);
       const colorAt = (f: Feature, alpha: number): RGBA =>
         withAlpha(
@@ -236,7 +232,6 @@ export const useAnnotationsLayer = (
       return {
         coordinateSystem: "cartesian" as const,
         pickable: interactive,
-        opacity,
         onClick: selectOnClick,
         onHover: (info: PickingInfo) => {
           const f = info.object as AnnotationFeature | undefined;
@@ -255,11 +250,13 @@ export const useAnnotationsLayer = (
 
     // Preview decks render the own set read-only, styled like the editable
     // layer but without edit modes or picking.
+    const ownFill = Math.round(annotationsOpacity * 255);
+    const ownLine = showOutline ? 255 : 0;
     const ownLayer = !interactive
       ? new GeoJsonLayer({
           id: `annotations-${imagePanelId}`,
           data,
-          ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
+          ...paint(ownView?.hiddenClasses, ownFill, ownLine),
           stroked: true,
           filled: true,
           pointType: "circle",
@@ -271,7 +268,7 @@ export const useAnnotationsLayer = (
           data,
           mode: MODE_CLASSES[mode],
           selectedFeatureIndexes,
-          ...paint(ownView?.hiddenClasses, annotationsOpacity, 60, 255),
+          ...paint(ownView?.hiddenClasses, ownFill, ownLine),
 
           onEdit: ({ updatedData, editType, editContext }) => {
             // Persist only committing edits — anything else (tentative draw events,
@@ -313,8 +310,12 @@ export const useAnnotationsLayer = (
         return new GeoJsonLayer({
           id: `annotations-${imagePanelId}-peer-${userId}`,
           data: { type: "FeatureCollection", features: peerFeatures },
-          // Peers are dimmer than own (40/200 vs 60/255) but otherwise identical.
-          ...paint(peerView?.hiddenClasses, annotationsOpacity, 40, 200),
+          // Peers are dimmer than own (2/3 fill, 200 stroke) but otherwise identical.
+          ...paint(
+            peerView?.hiddenClasses,
+            Math.round(annotationsOpacity * 170),
+            showOutline ? 200 : 0,
+          ),
           stroked: true,
           filled: true,
           pointType: "circle",
@@ -372,6 +373,7 @@ export const useAnnotationsLayer = (
     annotationsByUser,
     annotationView,
     annotationsOpacity,
+    showOutline,
     mode,
     selectedIds,
     imagePanelId,
