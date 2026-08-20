@@ -53,7 +53,7 @@ export const createViewerStore = (id: string) => {
         ),
         {
           name: "ViewerStore-" + id,
-          version: 2,
+          version: 3,
           migrate: viewerStoreMigrate,
           partialize: viewerStorePartialize,
           onRehydrateStorage: () => (_state, error) => {

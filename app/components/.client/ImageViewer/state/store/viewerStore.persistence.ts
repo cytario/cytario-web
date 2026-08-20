@@ -12,6 +12,8 @@ type PersistedViewerState = Pick<
   | "viewStateActive"
   | "annotationClasses"
   | "annotationActiveClass"
+  | "annotationsOpacity"
+  | "showAnnotationOutline"
 >;
 
 const VIEWER_FALLBACK_STATE: PersistedViewerState = {
@@ -22,6 +24,8 @@ const VIEWER_FALLBACK_STATE: PersistedViewerState = {
   viewStateActive: null,
   annotationClasses: [],
   annotationActiveClass: null,
+  annotationsOpacity: 1,
+  showAnnotationOutline: true,
 };
 
 export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
@@ -49,6 +53,17 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         })),
       };
     },
+    // C-423: annotation opacity + outline toggle are now persisted, matching
+    // the channels/overlays opacity controls (which were already persisted via
+    // layersStates). Backfill defaults for stores saved before this change.
+    2: (state) => {
+      const s = state as Partial<PersistedViewerState>;
+      return {
+        ...s,
+        annotationsOpacity: s.annotationsOpacity ?? 1,
+        showAnnotationOutline: s.showAnnotationOutline ?? true,
+      } as PersistedViewerState;
+    },
   },
   VIEWER_FALLBACK_STATE,
 );
@@ -63,4 +78,8 @@ export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState 
   // "settings" sidecar is the eventual home.
   annotationClasses: state.annotationClasses,
   annotationActiveClass: state.annotationActiveClass,
+  // Section-level render toggles — persisted per image, matching the
+  // channels/overlays opacity controls in layersStates.
+  annotationsOpacity: state.annotationsOpacity,
+  showAnnotationOutline: state.showAnnotationOutline,
 });

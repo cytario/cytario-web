@@ -120,11 +120,13 @@ export interface AnnotationsSlice {
   /** Per-user view state (hidden classes), keyed by `sub`. Kept apart from
    *  `annotationsByUser` so a view change never enters the persist diff. */
   annotationView: Record<string, UserAnnotationView>;
-  /** Opacity of the whole annotation layer (all users), 0–1. Section-level,
-   *  ephemeral — mirrors the channels/overlays opacity control. */
+  /** Opacity of the whole annotation layer (all users), 0–1. Browser-persisted
+   *  per image — mirrors the channels/overlays opacity controls in
+   *  `layersStates`. */
   annotationsOpacity: number;
   /** Whether annotation outlines (strokes) are visible. When off, only fills
-   *  render. Section-level, ephemeral — mirrors the overlays outline toggle. */
+   *  render. Browser-persisted per image — mirrors the overlays outline
+   *  toggle in `layersStates`. */
   showAnnotationOutline: boolean;
   /** Own-set class into which newly drawn regions are placed; `null` = draw
    *  unclassified. Resolved to `classification` only when a region commits.
