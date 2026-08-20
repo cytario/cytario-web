@@ -116,7 +116,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "submission failed";
       console.error(`${label} Job submission failed:`, message);
-      return redirect("/plugin/jobs?error=submit_failed");
+      const params = new URLSearchParams({ error: "submit_failed" });
+      if (err instanceof Error && err.message) params.set("message", err.message);
+      return redirect(`/plugin/jobs?${params.toString()}`);
     }
   });
 };
