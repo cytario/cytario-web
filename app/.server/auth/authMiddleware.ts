@@ -4,6 +4,7 @@ import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
 import { toIdentity } from "./getUserInfo";
 import { withHostRequestContext } from "../hostRequestContext";
+import { stripSingleFetchArtifacts } from "./oauthState";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
 import { type CytarioSession, type SessionData, sessionStorage } from "./sessionStorage";
@@ -243,7 +244,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, context }, n
 const logout = async (url: string, session: CytarioSession): Promise<Response> => {
   console.info(`${label} Delete session and redirect to login`);
   const requestUrl = new URL(url);
-  const relativeUrl = requestUrl.pathname + requestUrl.search;
+  const relativeUrl = stripSingleFetchArtifacts(requestUrl);
   return redirect(`/login?redirect=${encodeURIComponent(relativeUrl)}`, {
     headers: {
       "Set-Cookie": await sessionStorage.destroySession(session),

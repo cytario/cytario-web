@@ -672,6 +672,56 @@ describe("authMiddleware", () => {
         expect.any(Object),
       );
     });
+
+    test("strips .data suffix and _routes param from keep-alive revalidation URL", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        authTokens: {
+          ...mockSessionData.authTokens,
+          refreshToken: expiredRefreshToken,
+        },
+      });
+
+      const args = createMiddlewareArgs();
+      (args.request as Request) = new Request(
+        "http://localhost/plugin/jobs.data?_routes=routes%2Fplugin%2Fplugin.%24",
+      );
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(result).toBeInstanceOf(Response);
+      expect(redirect).toHaveBeenCalledWith(
+        `/login?redirect=${encodeURIComponent("/plugin/jobs")}`,
+        expect.any(Object),
+      );
+    });
+
+    test("preserves legitimate query params while stripping single-fetch artifacts", async () => {
+      vi.mocked(verifyIdToken).mockResolvedValue(null);
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        authTokens: {
+          ...mockSessionData.authTokens,
+          refreshToken: expiredRefreshToken,
+        },
+      });
+
+      const args = createMiddlewareArgs();
+      (args.request as Request) = new Request(
+        "http://localhost/objects.data?_routes=x&connection=abc&page=2",
+      );
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(redirect).toHaveBeenCalledWith(
+        `/login?redirect=${encodeURIComponent("/objects?connection=abc&page=2")}`,
+        expect.any(Object),
+      );
+    });
   });
 
   describe("Invalid Token Format", () => {
