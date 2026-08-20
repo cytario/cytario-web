@@ -466,6 +466,20 @@ describe("authMiddleware", () => {
       expect(identity).not.toHaveProperty("name");
     });
 
+    test("passes RR-normalized url to the gate, stripping single-fetch _routes param from keep-alive revalidation URLs", async () => {
+      const request = new Request(
+        "http://localhost/plugin/jobs.data?_routes=routes%2Fplugin%2Fplugin.%24",
+      );
+      const url = new URL("http://localhost/plugin/jobs");
+      const args = createMiddlewareArgs({}, true, request, url);
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(runGates).toHaveBeenCalledWith(
+        expect.objectContaining({ url: "http://localhost/plugin/jobs" }),
+      );
+    });
+
     test("deny on POST returns a 403 JSON Response with the gate message", async () => {
       vi.mocked(runGates).mockResolvedValue({
         kind: "deny",

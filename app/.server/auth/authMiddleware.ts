@@ -126,7 +126,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
     // plugin loaded `runGates` returns `continue` and the built-in no-org
     // fallback below preserves on-prem behaviour.
     const outcome = await runGates({
-      url: request.url,
+      url: url.toString(),
       method: request.method,
       identity: toIdentity(user),
     });
