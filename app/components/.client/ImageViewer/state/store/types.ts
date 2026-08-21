@@ -40,12 +40,12 @@ export interface ImageChannelData {
   selection: Readonly<Selection>;
   domain: Readonly<ByteDomain>;
   histogram: number[];
+  isInitialized: boolean;
+  isLoading: boolean;
 }
 
 /** Per-preset user settings — stored in `layersStates[].channels`. */
 export interface PresetChannelConfig {
-  isInitialized: boolean;
-  isLoading: boolean;
   isVisible: boolean;
   contrastLimits: ByteDomain;
   color: RGB;

@@ -59,22 +59,16 @@ describe("selectors", () => {
       {
         channels: {
           Red: {
-            isInitialized: true,
-            isLoading: false,
             isVisible: true,
             contrastLimits: [0, 255],
             color: [255, 0, 0],
           },
           Green: {
-            isInitialized: true,
-            isLoading: false,
             isVisible: true,
             contrastLimits: [0, 65535],
             color: [0, 255, 0],
           },
           Blue: {
-            isInitialized: true,
-            isLoading: false,
             isVisible: false,
             contrastLimits: [0, 1000],
             color: [0, 0, 255],
@@ -211,8 +205,6 @@ describe("selectors", () => {
           {
             channels: {
               Single: {
-                isInitialized: true,
-                isLoading: false,
                 isVisible: true,
                 contrastLimits: [0, 4096],
                 color: [255, 255, 255],
@@ -247,8 +239,6 @@ describe("selectors", () => {
           {
             channels: {
               Red: {
-                isInitialized: true,
-                isLoading: false,
                 isVisible: false,
                 contrastLimits: [0, 255],
                 color: [255, 0, 0],
@@ -307,22 +297,16 @@ describe("selectors", () => {
           {
             channels: {
               Ch1: {
-                isInitialized: true,
-                isLoading: false,
                 isVisible: true,
                 contrastLimits: [0, 255],
                 color: [255, 0, 0],
               },
               Ch2: {
-                isInitialized: true,
-                isLoading: false,
                 isVisible: true,
                 contrastLimits: [0, 255],
                 color: [0, 255, 0],
               },
               Ch3: {
-                isInitialized: true,
-                isLoading: false,
                 isVisible: true,
                 contrastLimits: [0, 255],
                 color: [0, 0, 255],

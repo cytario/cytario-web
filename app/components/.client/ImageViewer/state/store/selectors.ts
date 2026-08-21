@@ -36,10 +36,9 @@ let _mergedChannelsCache: {
 /**
  * Merge per-panel layer channels with top-level (image-derived) channels.
  *
- * `histogram`, `domain`, and `selection` come from `topLevel` (immutable
- * across presets); all other fields (`isVisible`, `contrastLimits`, `color`,
- * `isLoading`, `isInitialized`) come from `layerChannels` (per-preset).
- * Falls back to `layerChannels` when a top-level channel doesn't exist.
+ * `selection`, `domain`, `histogram`, `isInitialized`, `isLoading` come from
+ * `topLevel` (image-derived, immutable across presets); `isVisible`,
+ * `contrastLimits`, `color` come from `layerChannels` (per-preset).
  */
 export const mergeChannelConfigs = (
   topLevel: ChannelsState,
@@ -62,6 +61,8 @@ export const mergeChannelConfigs = (
       histogram: tc.histogram,
       domain: tc.domain,
       selection: tc.selection,
+      isInitialized: tc.isInitialized,
+      isLoading: tc.isLoading,
     };
   }
 

@@ -24,6 +24,8 @@ const toLayerChannels = (channels: ChannelsState): LayerChannelsState =>
       delete rest.domain;
       delete rest.histogram;
       delete rest.selection;
+      delete rest.isInitialized;
+      delete rest.isLoading;
       return [key, rest as unknown as PresetChannelConfig];
     }),
   );
@@ -299,13 +301,13 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       const keys = [group.red, group.green, group.blue];
 
       // Initialize any uninitialized channels in parallel
-      const uninitialized = keys.filter((k) => !layerState.channels[k]?.isInitialized);
+      const uninitialized = keys.filter((k) => !state.channels[k]?.isInitialized);
 
       if (uninitialized.length > 0) {
         set(
           (state) => {
             for (const k of uninitialized) {
-              state.layersStates[activeChannelsStateIndex].channels[k].isLoading = true;
+              state.channels[k].isLoading = true;
             }
           },
           false,
@@ -326,21 +328,15 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
             (state) => {
               const ls = state.layersStates[activeChannelsStateIndex];
               for (const { key: k, domain, histogram } of results) {
-                const channel = ls.channels[k];
+                const channel = state.channels[k];
                 channel.isInitialized = true;
                 channel.isLoading = false;
-                // Brightfield: use full domain range (no percentile scaling)
-                channel.contrastLimits = [...domain] as ByteDomain;
+                channel.domain = castDraft(domain);
+                channel.histogram = castDraft(histogram);
 
-                // Stats live in top-level channels only (image-derived, immutable
-                // across presets); layersState keeps per-preset overrides only.
-                const defaultChannel = state.channels[k];
-                if (defaultChannel) {
-                  defaultChannel.isInitialized = true;
-                  defaultChannel.domain = castDraft(domain);
-                  defaultChannel.contrastLimits = [...domain] as ByteDomain;
-                  defaultChannel.histogram = castDraft(histogram);
-                }
+                // Brightfield: use full domain range (no percentile scaling)
+                ls.channels[k].contrastLimits = [...domain] as ByteDomain;
+                channel.contrastLimits = [...domain] as ByteDomain;
               }
               for (const k of keys) {
                 ls.channels[k].isVisible = isVisible;
@@ -354,7 +350,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
             (state) => {
               const ls = state.layersStates[activeChannelsStateIndex];
               for (const k of uninitialized) {
-                ls.channels[k].isLoading = false;
+                state.channels[k].isLoading = false;
                 ls.channels[k].isVisible = false;
               }
             },
@@ -377,13 +373,12 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     }
 
     // Single channel
-    const activeChannelsStateConfig = layerState.channels[key];
     const topLevelChannel = state.channels[key];
 
-    if (!activeChannelsStateConfig.isInitialized) {
+    if (!topLevelChannel.isInitialized) {
       set(
         (state) => {
-          state.layersStates[activeChannelsStateIndex].channels[key].isLoading = true;
+          state.channels[key].isLoading = true;
         },
         false,
         "setChannelVisibility/stats/request",
@@ -397,21 +392,16 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
 
         return set(
           (state) => {
-            const channel = state.layersStates[activeChannelsStateIndex].channels[key];
+            const channel = state.channels[key];
             channel.isInitialized = true;
             channel.isLoading = false;
-            channel.contrastLimits = contrastLimits;
-            channel.isVisible = isVisible;
+            channel.domain = castDraft(domain);
+            channel.histogram = castDraft(histogram);
+            channel.contrastLimits = castDraft(contrastLimits);
 
-            // Stats live in top-level channels only (image-derived, immutable
-            // across presets); layersState keeps per-preset overrides only.
-            const defaultChannel = state.channels[key];
-            if (defaultChannel) {
-              defaultChannel.isInitialized = true;
-              defaultChannel.domain = castDraft(domain);
-              defaultChannel.contrastLimits = castDraft(contrastLimits);
-              defaultChannel.histogram = castDraft(histogram);
-            }
+            state.layersStates[activeChannelsStateIndex].channels[key].contrastLimits =
+              contrastLimits;
+            state.layersStates[activeChannelsStateIndex].channels[key].isVisible = isVisible;
           },
           false,
           "setChannelVisibility/stats/success",
@@ -419,9 +409,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       } catch {
         return set(
           (state) => {
-            const channel = state.layersStates[activeChannelsStateIndex].channels[key];
-            channel.isLoading = false;
-            channel.isVisible = false;
+            state.channels[key].isLoading = false;
+            state.layersStates[activeChannelsStateIndex].channels[key].isVisible = false;
           },
           false,
           "setChannelVisibility/stats/error",
