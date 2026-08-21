@@ -57,6 +57,32 @@ export type ChannelConfig = PresetChannelConfig & ImageChannelData;
 export type ChannelsState = Record<string, ChannelConfig>;
 export type LayerChannelsState = Record<string, Partial<PresetChannelConfig>>;
 
+/** Per-preset state — one entry per user-created preset in `layersStates`. */
+export interface LayersStateEntry {
+  channels: LayerChannelsState;
+  overlays: OverlaysState;
+  channelsOpacity: number;
+  overlaysFillOpacity: number;
+  showCellOutline: boolean;
+  annotationsOpacity: number;
+  showAnnotationOutline: boolean;
+  isChannelsLoading: number;
+  isOverlaysLoading: number;
+}
+
+/** Factory for a fresh preset with image-derived defaults (no user overrides). */
+export const createDefaultLayersStateEntry = (): LayersStateEntry => ({
+  channels: {},
+  overlays: {},
+  channelsOpacity: 1,
+  overlaysFillOpacity: 0.8,
+  showCellOutline: true,
+  annotationsOpacity: 1,
+  showAnnotationOutline: true,
+  isChannelsLoading: 0,
+  isOverlaysLoading: 0,
+});
+
 export const BRIGHTFIELD_GROUP_ID = "__brightfield__" as const;
 
 export interface BrightfieldGroup {

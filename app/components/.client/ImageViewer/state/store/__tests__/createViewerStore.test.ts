@@ -300,6 +300,40 @@ describe("createViewerStore", () => {
     expect(store.getState().imagePanels).toEqual([0, 1, 2]);
   });
 
+  test("addImagePanel() clones active panel's preset", () => {
+    const store = createViewerStore("test-viewer-11b");
+
+    const preset0 = createMockLayersState();
+    preset0.channelsOpacity = 0.3;
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [preset0, createMockLayersState()],
+    });
+
+    store.getState().addImagePanel();
+
+    expect(store.getState().imagePanels).toEqual([0, 2]);
+    expect(store.getState().layersStates).toHaveLength(3);
+    expect(store.getState().layersStates[2].channelsOpacity).toBe(0.3);
+  });
+
+  test("addImagePanel() with shared presets clones the active panel's preset", () => {
+    const store = createViewerStore("test-viewer-11c");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0, 0],
+      layersStates: [createMockLayersState()],
+    });
+
+    store.getState().addImagePanel();
+
+    expect(store.getState().imagePanels).toEqual([0, 0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
+  });
+
   test("removeImagePanel()", () => {
     const store = createViewerStore("test-viewer-13");
 
@@ -387,6 +421,51 @@ describe("createViewerStore", () => {
     expect(store.getState().layersStates).toHaveLength(1);
   });
 
+  test("removeChannelsState() decrements panels above removed preset", () => {
+    const store = createViewerStore("test-viewer-16b");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0, 1, 2],
+      layersStates: [createMockLayersState(), createMockLayersState(), createMockLayersState()],
+    });
+
+    store.getState().removeChannelsState(1);
+
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 0, 1]);
+  });
+
+  test("removeChannelsState() remaps panels on removed preset to 0", () => {
+    const store = createViewerStore("test-viewer-16c");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [1, 0, 1],
+      layersStates: [createMockLayersState(), createMockLayersState(), createMockLayersState()],
+    });
+
+    store.getState().removeChannelsState(1);
+
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 0, 0]);
+  });
+
+  test("removeChannelsState() does nothing when only one preset remains", () => {
+    const store = createViewerStore("test-viewer-16d");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [createMockLayersState()],
+    });
+
+    store.getState().removeChannelsState(0);
+
+    expect(store.getState().layersStates).toHaveLength(1);
+    expect(store.getState().imagePanels).toEqual([0]);
+  });
+
   test("setActivePresetIndex()", () => {
     const store = createViewerStore("test-viewer-17");
     const layersState1 = createMockLayersState();
@@ -400,24 +479,6 @@ describe("createViewerStore", () => {
 
     store.getState().setActivePresetIndex(1);
     expect(store.getState().imagePanels[0]).toBe(1);
-  });
-
-  test("setActivePresetIndex() duplicates last state when needed", () => {
-    const store = createViewerStore("test-viewer-17b");
-    const layersState = createMockLayersState();
-
-    store.setState({
-      imagePanelIndex: 0,
-      imagePanels: [0],
-      layersStates: [layersState],
-    });
-
-    // Request index 2, which doesn't exist yet
-    store.getState().setActivePresetIndex(2);
-
-    // Should have duplicated layers states to reach index 2
-    expect(store.getState().layersStates).toHaveLength(3);
-    expect(store.getState().imagePanels[0]).toBe(2);
   });
 
   test("setContrastLimits()", () => {
@@ -835,7 +896,7 @@ describe("createViewerStore", () => {
       expect(store.getState().channelIds).toEqual(["DAPI"]);
     });
 
-    test("duplicates current channel state on subsequent calls", () => {
+    test("creates fresh default preset on subsequent calls", () => {
       const store = createViewerStore("test-viewer-33");
 
       store.setState({
@@ -850,6 +911,36 @@ describe("createViewerStore", () => {
 
       expect(store.getState().layersStates).toHaveLength(2);
       expect(store.getState().imagePanels[0]).toBe(1);
+    });
+
+    test("new preset has defaults, not a copy of the active preset", () => {
+      const store = createViewerStore("test-viewer-33b");
+
+      const modifiedState = createMockLayersState();
+      modifiedState.channels = { Red: { contrastLimits: [50, 150], color: [1, 2, 3] } };
+      modifiedState.channelsOpacity = 0.5;
+      modifiedState.showCellOutline = false;
+
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        channelIds: ["Red", "Green", "Blue"],
+        channels: createMockChannels(),
+        layersStates: [modifiedState],
+      });
+
+      store.getState().addChannelsState();
+
+      const newPreset = store.getState().layersStates[1];
+      expect(newPreset.channels).toEqual({
+        Red: { isVisible: true },
+      });
+      expect(newPreset.channelsOpacity).toBe(1);
+      expect(newPreset.showCellOutline).toBe(true);
+      expect(newPreset.overlaysFillOpacity).toBe(0.8);
+      expect(newPreset.annotationsOpacity).toBe(1);
     });
   });
 

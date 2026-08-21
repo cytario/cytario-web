@@ -46,7 +46,7 @@ export const resolveChannelsState = (
     if (!tc) continue;
     const lc = layerChannels[key];
     merged[key] = {
-      isVisible: lc?.isVisible ?? tc.isVisible,
+      isVisible: lc?.isVisible ?? false,
       contrastLimits: lc?.contrastLimits ?? tc.contrastLimits,
       color: lc?.color ?? tc.color,
       histogram: tc.histogram,

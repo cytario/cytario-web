@@ -12,9 +12,10 @@ export function Presets() {
   const setActivePresetIndex = useViewerStore(select.setActivePresetIndex);
   const layersStates = useViewerStore(select.layersStates);
   const removeChannelsState = useViewerStore(select.removeChannelsState);
+  const addChannelsState = useViewerStore(select.addChannelsState);
 
   const handleAdd = () => {
-    setActivePresetIndex(layersStates.length);
+    addChannelsState();
   };
 
   return (

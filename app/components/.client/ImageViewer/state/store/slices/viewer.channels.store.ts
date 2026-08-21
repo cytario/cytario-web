@@ -7,9 +7,9 @@ import {
   ByteDomain,
   ChannelsState,
   ChannelsStateColumns,
+  createDefaultLayersStateEntry,
   detectBrightfieldGroup,
-  LayerChannelsState,
-  OverlaysState,
+  LayersStateEntry,
   RGB,
   RGBA,
   ViewerSlice,
@@ -23,17 +23,7 @@ export interface ChannelsSlice {
   channels: ChannelsState;
   channelIds: string[];
 
-  layersStates: {
-    channels: LayerChannelsState;
-    overlays: OverlaysState;
-    channelsOpacity: number;
-    overlaysFillOpacity: number;
-    showCellOutline: boolean;
-    annotationsOpacity: number;
-    showAnnotationOutline: boolean;
-    isChannelsLoading: number;
-    isOverlaysLoading: number;
-  }[];
+  layersStates: LayersStateEntry[];
 
   setIsChannelsLoading: (imagePanelId: number, count: number) => void;
   setSelectedChannelId: (selectedChannelId: keyof ChannelsState | null) => void;
@@ -97,14 +87,12 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   addImagePanel: () =>
     set(
       (state) => {
-        const newPanelIndex = state.imagePanels.length;
-        state.imagePanels.push(newPanelIndex);
-
-        // If we don't have enough layersStates, duplicate the last one
-        while (state.layersStates.length < state.imagePanels.length) {
-          const lastLayersState = state.layersStates[state.layersStates.length - 1];
-          state.layersStates.push({ ...lastLayersState });
-        }
+        const activePresetIndex = state.imagePanels[state.imagePanelIndex];
+        const source =
+          activePresetIndex !== undefined ? state.layersStates[activePresetIndex] : undefined;
+        const newPresetIndex = state.layersStates.length;
+        state.layersStates.push(source ? { ...source } : createDefaultLayersStateEntry());
+        state.imagePanels.push(newPresetIndex);
       },
       false,
       "addImagePanel",
@@ -127,19 +115,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           state.selectedChannelId = firstChannelKey;
           state.channels = castDraft(channelsState);
           state.channelIds = channelIds;
-          state.layersStates = [
-            {
-              channels: {},
-              overlays: {},
-              channelsOpacity: 1,
-              overlaysFillOpacity: 0.8,
-              showCellOutline: true,
-              annotationsOpacity: 1,
-              showAnnotationOutline: true,
-              isChannelsLoading: 0,
-              isOverlaysLoading: 0,
-            },
-          ];
+          state.layersStates = [createDefaultLayersStateEntry()];
         },
         false,
         "addChannelsStateInitial",
@@ -149,29 +125,37 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       return;
     }
 
-    const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+    const newPresetIndex = get().layersStates.length;
 
-    return set(
+    set(
       (draft) => {
         draft.imagePanels = draft.imagePanels.map((imagePanelIndex, index) => {
           if (index === draft.imagePanelIndex) {
-            return draft.layersStates.length;
+            return newPresetIndex;
           }
           return imagePanelIndex;
         });
-        draft.layersStates.push(castDraft(state.layersStates[activeImagePanelIndex]));
+        draft.layersStates.push(createDefaultLayersStateEntry());
       },
       false,
-      "addChannelsStateDuplicate",
+      "addChannelsStateNew",
     );
+
+    const firstChannelKey = get().channelIds[0] as keyof ChannelsStateColumns;
+    if (firstChannelKey) {
+      get().setChannelVisibility(firstChannelKey, true);
+    }
   },
 
   removeChannelsState: (i) =>
     set(
       (state) => {
-        state.imagePanels = state.imagePanels.map((imagePanelIndex) =>
-          Math.min(imagePanelIndex, state.layersStates.length - 2),
-        );
+        if (state.layersStates.length <= 1) return;
+        state.imagePanels = state.imagePanels.map((imagePanelIndex) => {
+          if (imagePanelIndex === i) return 0;
+          if (imagePanelIndex > i) return imagePanelIndex - 1;
+          return imagePanelIndex;
+        });
         state.layersStates = state.layersStates.filter((_, index) => index !== i);
       },
       false,
@@ -181,12 +165,6 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   setActivePresetIndex: (channelsStateIndex) =>
     set(
       (state) => {
-        // If we don't have enough layersStates, duplicate the last one
-        while (state.layersStates.length < channelsStateIndex + 1) {
-          const lastLayersState = state.layersStates[state.layersStates.length - 1];
-          state.layersStates.push({ ...lastLayersState });
-        }
-
         state.imagePanels = state.imagePanels.map((imagePanel, index) => {
           if (index === state.imagePanelIndex) {
             return channelsStateIndex;
