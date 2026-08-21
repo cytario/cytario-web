@@ -184,5 +184,17 @@ export const select = {
   },
   setShowCellOutline: (state: ViewerStore) => state.setShowCellOutline,
 
+  annotationsOpacity: (state: ViewerStore) => {
+    const layerState = select.layersState(state);
+    return layerState?.annotationsOpacity ?? 1;
+  },
+  setAnnotationsOpacity: (state: ViewerStore) => state.setAnnotationsOpacity,
+
+  showAnnotationOutline: (state: ViewerStore) => {
+    const layerState = select.layersState(state);
+    return layerState?.showAnnotationOutline ?? true;
+  },
+  setShowAnnotationOutline: (state: ViewerStore) => state.setShowAnnotationOutline,
+
   currentZoom: (state: ViewerStore) => state.viewStateActive?.zoom ?? 0,
 };

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { AnnotationsTools } from "./AnnotationsTools";
+import { select } from "../../state/store/selectors";
 import {
   classNameOf,
   selectUserHiddenClasses,
@@ -86,10 +87,10 @@ const AnnotationFileBlock = ({
 export const AnnotationsPanel = () => {
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
-  const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
-  const setAnnotationsOpacity = useViewerStore((s) => s.setAnnotationsOpacity);
-  const showOutline = useViewerStore((s) => s.showAnnotationOutline);
-  const setShowOutline = useViewerStore((s) => s.setShowAnnotationOutline);
+  const annotationsOpacity = useViewerStore(select.annotationsOpacity);
+  const setAnnotationsOpacity = useViewerStore(select.setAnnotationsOpacity);
+  const showOutline = useViewerStore(select.showAnnotationOutline);
+  const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
   const ownUserId = useCurrentUser()?.sub;
   const [searchQuery, setSearchQuery] = useState("");
 

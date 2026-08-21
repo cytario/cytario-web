@@ -38,6 +38,8 @@ const createMockLayersState = () => ({
   channelsOpacity: 1,
   overlaysFillOpacity: 0.8,
   showCellOutline: true,
+  annotationsOpacity: 1,
+  showAnnotationOutline: true,
   isChannelsLoading: 0,
   isOverlaysLoading: 0,
 });
@@ -69,8 +71,6 @@ describe("createViewerStore", () => {
       annotationView: {},
       annotationActiveClass: null,
       annotationClasses: [],
-      annotationsOpacity: 1,
-      showAnnotationOutline: true,
       layersStates: [],
       setError: expect.any(Function),
       setCursorPosition: expect.any(Function),

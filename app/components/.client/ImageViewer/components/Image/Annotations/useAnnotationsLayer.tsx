@@ -11,6 +11,7 @@ import type { Feature, FeatureCollection } from "geojson";
 import { type ReactNode, useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
+import { select } from "../../../state/store/selectors";
 import {
   annotationNameOf,
   classColor as registeredClassColor,
@@ -169,8 +170,10 @@ export const useAnnotationsLayer = (
   const features = useViewerStore(selectUserFeatures(ownUserId));
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
   const annotationView = useViewerStore((s) => s.annotationView);
-  const annotationsOpacity = useViewerStore((s) => s.annotationsOpacity);
-  const showOutline = useViewerStore((s) => s.showAnnotationOutline);
+  const layersStates = useViewerStore(select.layersStates);
+  const panelLayersStateIndex = useViewerStore((state) => state.imagePanels)[imagePanelId];
+  const annotationsOpacity = layersStates[panelLayersStateIndex]?.annotationsOpacity ?? 1;
+  const showOutline = layersStates[panelLayersStateIndex]?.showAnnotationOutline ?? true;
   const mode = useViewerStore((s) => s.annotationMode);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);

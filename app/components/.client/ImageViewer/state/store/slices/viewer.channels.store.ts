@@ -25,6 +25,8 @@ export interface ChannelsSlice {
     channelsOpacity: number;
     overlaysFillOpacity: number;
     showCellOutline: boolean;
+    annotationsOpacity: number;
+    showAnnotationOutline: boolean;
     isChannelsLoading: number;
     isOverlaysLoading: number;
   }[];
@@ -138,6 +140,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
                 channelsOpacity: 1,
                 overlaysFillOpacity: 0.8,
                 showCellOutline: true,
+                annotationsOpacity: 1,
+                showAnnotationOutline: true,
                 isChannelsLoading: 0,
                 isOverlaysLoading: 0,
               },
