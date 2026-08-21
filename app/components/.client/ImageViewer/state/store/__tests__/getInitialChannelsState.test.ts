@@ -77,10 +77,8 @@ describe("getInitialChannelsState", () => {
 
     expect(result.channelsState["DAPI"].domain).toEqual([0, dtypeMax]);
     expect(result.channelsState["DAPI"].contrastLimits).toEqual([0, dtypeMax]);
-    expect(result.channelsState["DAPI"].contrastLimitsInitial).toEqual([0, dtypeMax]);
     expect(result.channelsState["GFP"].domain).toEqual([0, dtypeMax]);
     expect(result.channelsState["GFP"].contrastLimits).toEqual([0, dtypeMax]);
-    expect(result.channelsState["GFP"].contrastLimitsInitial).toEqual([0, dtypeMax]);
   });
 
   test("channels use color from metadata when available", () => {

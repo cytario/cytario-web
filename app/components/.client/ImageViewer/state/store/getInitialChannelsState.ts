@@ -30,7 +30,6 @@ export const getInitialChannelsState = (metadata: Image, loader: Loader) => {
       selection: { c: index, x: 0, y: 0, z: 0, t: 0 },
       domain: defaultRange,
       contrastLimits: defaultRange,
-      contrastLimitsInitial: defaultRange,
       histogram: new Array(256).fill(0),
       color,
       isInitialized: false,

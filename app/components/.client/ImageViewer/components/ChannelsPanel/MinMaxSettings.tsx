@@ -7,6 +7,7 @@ import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);
+  const defaultContrastLimits = useViewerStore(select.defaultContrastLimits);
   const valueRange = useViewerStore(select.valueRange);
   const setContrastLimits = useViewerStore(select.setContrastLimits);
   const resetContrastLimits = useViewerStore((state) => state.resetContrastLimits);
@@ -55,8 +56,9 @@ export function MinMaxSettings() {
 
   const isResetDisabled =
     !selectedChannel ||
-    (selectedChannel.contrastLimits[0] === selectedChannel.contrastLimitsInitial[0] &&
-      selectedChannel.contrastLimits[1] === selectedChannel.contrastLimitsInitial[1]);
+    !defaultContrastLimits ||
+    (selectedChannel.contrastLimits[0] === defaultContrastLimits[0] &&
+      selectedChannel.contrastLimits[1] === defaultContrastLimits[1]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, type: "min" | "max") => {
     if (e.key === "Enter") {

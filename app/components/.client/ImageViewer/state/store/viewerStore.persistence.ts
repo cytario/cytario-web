@@ -9,6 +9,8 @@ type PersistedViewerState = Pick<
   | "imagePanelIndex"
   | "imagePanels"
   | "layersStates"
+  | "channels"
+  | "channelIds"
   | "viewStateActive"
   | "annotationClasses"
   | "annotationActiveClass"
@@ -19,6 +21,8 @@ const VIEWER_FALLBACK_STATE: PersistedViewerState = {
   imagePanelIndex: -1,
   imagePanels: [],
   layersStates: [],
+  channels: {},
+  channelIds: [],
   viewStateActive: null,
   annotationClasses: [],
   annotationActiveClass: null,
@@ -84,6 +88,10 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         })),
       } as PersistedViewerState;
     },
+    // C-559: contrastLimitsInitial removed from ChannelConfig; reset target is
+    // now the top-level `channels` (persisted separately). Old persisted state
+    // has stale shape — just clear it; the viewer reinitializes from metadata.
+    4: () => VIEWER_FALLBACK_STATE,
   },
   VIEWER_FALLBACK_STATE,
 );
@@ -93,6 +101,8 @@ export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState 
   imagePanelIndex: state.imagePanelIndex,
   imagePanels: state.imagePanels,
   layersStates: state.layersStates,
+  channels: state.channels,
+  channelIds: state.channelIds,
   viewStateActive: state.viewStateActive,
   // Per-image class registry + active class — browser-persisted for now; a
   // "settings" sidecar is the eventual home.

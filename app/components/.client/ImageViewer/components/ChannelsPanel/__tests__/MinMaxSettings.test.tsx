@@ -15,9 +15,10 @@ describe("MinMaxSettings", () => {
 
   const mockSelectedChannel = {
     contrastLimits: [50, 200] as [number, number],
-    contrastLimitsInitial: [0, 255] as [number, number],
     domain: [0, 255] as [number, number],
   };
+
+  const mockDefaultContrastLimits = [0, 255] as [number, number];
 
   // 16-bit value range is 0..65535, independent of the auto-fitted data domain.
   const mockValueRange = [0, 65535] as [number, number];
@@ -28,6 +29,9 @@ describe("MinMaxSettings", () => {
     (useViewerStore as Mock).mockImplementation((selector) => {
       if (selector === select.selectedChannel) {
         return mockSelectedChannel;
+      }
+      if (selector === select.defaultContrastLimits) {
+        return mockDefaultContrastLimits;
       }
       if (selector === select.valueRange) {
         return mockValueRange;
@@ -174,6 +178,9 @@ describe("MinMaxSettings", () => {
       if (selector === select.selectedChannel) {
         return null;
       }
+      if (selector === select.defaultContrastLimits) {
+        return null;
+      }
       if (selector === select.setContrastLimits) {
         return mockSetContrastLimits;
       }
@@ -198,14 +205,16 @@ describe("MinMaxSettings", () => {
     expect(mockResetContrastLimits).toHaveBeenCalled();
   });
 
-  test("reset button is disabled when limits match initial", () => {
+  test("reset button is disabled when limits match default", () => {
     (useViewerStore as Mock).mockImplementation((selector) => {
       if (selector === select.selectedChannel) {
         return {
           contrastLimits: [0, 255],
-          contrastLimitsInitial: [0, 255],
           domain: [0, 255],
         };
+      }
+      if (selector === select.defaultContrastLimits) {
+        return [0, 255];
       }
       if (selector === select.setContrastLimits) {
         return mockSetContrastLimits;
@@ -224,6 +233,9 @@ describe("MinMaxSettings", () => {
   test("shows default values when no channel selected", () => {
     (useViewerStore as Mock).mockImplementation((selector) => {
       if (selector === select.selectedChannel) {
+        return null;
+      }
+      if (selector === select.defaultContrastLimits) {
         return null;
       }
       if (selector === select.setContrastLimits) {

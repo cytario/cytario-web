@@ -1,6 +1,7 @@
 import {
   BRIGHTFIELD_GROUP_ID,
   BrightfieldGroup,
+  ByteDomain,
   ChannelConfig,
   ChannelsStateColumns,
   detectBrightfieldGroup,
@@ -147,7 +148,6 @@ export const select = {
         color: [200, 200, 200],
         domain: [domainMin, domainMax],
         contrastLimits: g.contrastLimits,
-        contrastLimitsInitial: g.contrastLimitsInitial,
         isVisible: r.isVisible && g.isVisible && b.isVisible,
         isLoading: r.isLoading || g.isLoading || b.isLoading,
         isInitialized: r.isInitialized && g.isInitialized && b.isInitialized,
@@ -158,6 +158,23 @@ export const select = {
 
     const channelConfig = channelsState?.[selectedChannelId!];
     return channelConfig ?? null;
+  },
+
+  /** Default contrast limits for the selected channel, sourced from the
+   *  top-level `channels` (pristine default with real stats).  Used by
+   *  `MinMaxSettings` to compute `isResetDisabled` and by `resetContrastLimits`
+   *  as the reset target.  Returns `null` when no default channel is found. */
+  defaultContrastLimits: (state: ViewerStore): ByteDomain | null => {
+    const selectedChannelId = select.selectedChannelId(state);
+    if (!selectedChannelId) return null;
+
+    if (selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+      const group = select.brightfieldGroup(state);
+      if (!group) return null;
+      return state.channels[group.green]?.contrastLimits ?? null;
+    }
+
+    return state.channels[selectedChannelId as string]?.contrastLimits ?? null;
   },
 
   addOverlaysState: (state: ViewerStore) => state.addOverlaysState,

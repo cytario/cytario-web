@@ -44,7 +44,6 @@ export interface ChannelConfig {
   selection: Readonly<Selection>;
   domain: Readonly<ByteDomain>;
   histogram: number[];
-  contrastLimitsInitial: Readonly<ByteDomain>;
   contrastLimits: ByteDomain;
   color: RGB;
 }

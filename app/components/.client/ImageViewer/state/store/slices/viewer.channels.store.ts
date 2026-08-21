@@ -18,6 +18,12 @@ export interface ChannelsSlice {
   selectedChannelId: keyof ChannelsState | null;
   imagePanelIndex: number;
   imagePanels: number[];
+
+  /** Top-level default channels state (mirrors layersStates[0] for now). */
+  channels: ChannelsState;
+  /** Top-level default channel IDs (mirrors layersStates[0] for now). */
+  channelIds: string[];
+
   layersStates: {
     channels: ChannelsState;
     channelIds: string[];
@@ -55,6 +61,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   selectedChannelId: null,
   imagePanelIndex: -1,
   imagePanels: [],
+  channels: {},
+  channelIds: [],
   layersStates: [],
 
   setIsChannelsLoading: (imagePanelId, count) =>
@@ -119,6 +127,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           state.imagePanelIndex = 0;
           state.imagePanels = [0];
           state.selectedChannelId = firstChannelKey;
+          state.channels = castDraft(channelsState);
+          state.channelIds = channelIds;
           state.layersStates = [
             {
               channels: castDraft(channelsState),
@@ -239,15 +249,17 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           if (!group) return;
           for (const key of [group.red, group.green, group.blue]) {
             const channel = layerState.channels[key];
-            if (channel) {
-              channel.contrastLimits = channel.contrastLimitsInitial as ByteDomain;
+            const defaultChannel = state.channels[key];
+            if (channel && defaultChannel) {
+              channel.contrastLimits = [...defaultChannel.contrastLimits] as ByteDomain;
             }
           }
         } else {
           const key = state.selectedChannelId as keyof ChannelsStateColumns;
           const channel = layerState.channels[key];
-          if (channel) {
-            channel.contrastLimits = channel.contrastLimitsInitial as ByteDomain;
+          const defaultChannel = state.channels[key];
+          if (channel && defaultChannel) {
+            channel.contrastLimits = [...defaultChannel.contrastLimits] as ByteDomain;
           }
         }
       },
@@ -308,8 +320,16 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
                 channel.domain = castDraft(domain);
                 // Brightfield: use full domain range (no percentile scaling)
                 channel.contrastLimits = [...domain] as ByteDomain;
-                channel.contrastLimitsInitial = castDraft(domain);
                 channel.histogram = castDraft(histogram);
+
+                // Mirror stats into top-level default channels
+                const defaultChannel = state.channels[k];
+                if (defaultChannel) {
+                  defaultChannel.isInitialized = true;
+                  defaultChannel.domain = castDraft(domain);
+                  defaultChannel.contrastLimits = [...domain] as ByteDomain;
+                  defaultChannel.histogram = castDraft(histogram);
+                }
               }
               for (const k of keys) {
                 ls.channels[k].isVisible = isVisible;
@@ -370,9 +390,17 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
             channel.isLoading = false;
             channel.domain = castDraft(domain);
             channel.contrastLimits = contrastLimits;
-            channel.contrastLimitsInitial = castDraft(contrastLimits);
             channel.histogram = castDraft(histogram);
             channel.isVisible = isVisible;
+
+            // Mirror stats into top-level default channels
+            const defaultChannel = state.channels[key];
+            if (defaultChannel) {
+              defaultChannel.isInitialized = true;
+              defaultChannel.domain = castDraft(domain);
+              defaultChannel.contrastLimits = castDraft(contrastLimits);
+              defaultChannel.histogram = castDraft(histogram);
+            }
           },
           false,
           "setChannelVisibility/stats/success",

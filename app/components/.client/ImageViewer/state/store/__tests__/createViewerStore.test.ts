@@ -17,7 +17,6 @@ const createMockLayersState = () => ({
       selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
       domain: [0, 255] as const,
       histogram: [],
-      contrastLimitsInitial: [10, 200] as const,
       contrastLimits: [10, 200] as [number, number],
       color: [255, 0, 0] as [number, number, number],
     } as ChannelConfig,
@@ -28,7 +27,6 @@ const createMockLayersState = () => ({
       selection: { c: 1, x: 0, y: 0, z: 0, t: 0 },
       domain: [0, 65535] as const,
       histogram: [],
-      contrastLimitsInitial: [0, 65535] as const,
       contrastLimits: [0, 65535] as [number, number],
       color: [0, 255, 0] as [number, number, number],
     } as ChannelConfig,
@@ -63,6 +61,8 @@ describe("createViewerStore", () => {
       viewStateActive: null,
       imagePanelIndex: -1,
       imagePanels: [],
+      channels: {},
+      channelIds: [],
       cursorPosition: null,
       pixelValues: {},
       annotationsByUser: {},
@@ -446,11 +446,14 @@ describe("createViewerStore", () => {
   test("resetContrastLimits()", () => {
     const store = createViewerStore("test-viewer-19");
 
+    const mockLayers = createMockLayersState();
     store.setState({
       imagePanelIndex: 0,
       imagePanels: [0],
       selectedChannelId: "Red",
-      layersStates: [createMockLayersState()],
+      layersStates: [mockLayers],
+      channels: { ...mockLayers.channels },
+      channelIds: [...mockLayers.channelIds],
     });
 
     // First change the contrast limits
@@ -798,7 +801,6 @@ describe("createViewerStore", () => {
           selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
           domain: [0, 65535] as const,
           histogram: new Array(256).fill(0),
-          contrastLimitsInitial: [0, 65535] as const,
           contrastLimits: [0, 65535] as [number, number],
           color: [0, 0, 255] as [number, number, number],
         },
@@ -926,6 +928,57 @@ describe("createViewerStore", () => {
 
       const result = migrate(v1State, 1);
       expect(result).toEqual(v1State);
+    });
+  });
+
+  describe("persist migration v3 -> v4 (clear stale state)", () => {
+    const fallback = {
+      selectedChannelId: null,
+      imagePanelIndex: -1,
+      imagePanels: [],
+      layersStates: [],
+      channels: {},
+      channelIds: [],
+      viewStateActive: null,
+    };
+
+    const migrate = createMigrate(
+      {
+        3: (state) => state,
+        4: () => fallback,
+      },
+      fallback,
+    );
+
+    test("clears all persisted state from v3", () => {
+      const v3State = {
+        selectedChannelId: "Red",
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [
+          {
+            channels: {
+              Red: {
+                isInitialized: true,
+                isVisible: true,
+                contrastLimits: [50, 150],
+                contrastLimitsInitial: [10, 200],
+                domain: [0, 255],
+                color: [255, 0, 0],
+                histogram: [],
+                selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
+                isLoading: false,
+              },
+            },
+            channelIds: ["Red"],
+          },
+        ],
+        viewStateActive: null,
+      };
+
+      const result = migrate(v3State, 3);
+
+      expect(result).toEqual(fallback);
     });
   });
 });
