@@ -33,7 +33,15 @@ export interface FileTypeMeta {
 export type FormatExtension = string | string[] | RegExp;
 
 export interface FormatHandler {
-  load(url: string, opts: LoadOptions): Promise<{ data: Loader; metadata: Image }>;
+  load(
+    url: string,
+    opts: LoadOptions,
+  ): Promise<{
+    data: Loader;
+    metadata: Image;
+    /** True when an expected sidecar (e.g. `.offsets.json`) was absent. */
+    offsetsMissing?: boolean;
+  }>;
   fileTypeMeta?: FileTypeMeta;
 }
 

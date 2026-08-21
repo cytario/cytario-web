@@ -133,6 +133,8 @@ export interface ClientConnectionProvider {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** Whether the user's grants permit `s3:PutObject` on this connection's prefix. */
+  canWrite: boolean;
 }
 
 export interface SessionCredentialsResult {
@@ -195,6 +197,7 @@ export const getAllSessionCredentials = async (
           region: connectionProvider.region,
           endpoint: connectionProvider.endpoint,
           allowsSharing: connectionProvider.allowsSharing,
+          canWrite: connectionProvider.canWrite,
         };
       }
     }

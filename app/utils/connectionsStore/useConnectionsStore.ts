@@ -28,6 +28,8 @@ export interface ConnectionProviderClient {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** Whether the user's grants permit `s3:PutObject` on this connection's prefix. */
+  canWrite: boolean;
 }
 
 /** Static config + STS credentials + live health for one connection. */

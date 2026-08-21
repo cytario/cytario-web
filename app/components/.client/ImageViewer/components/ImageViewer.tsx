@@ -1,4 +1,5 @@
 import { IconButtonToggle } from "@cytario/design";
+import { useEffect, useRef } from "react";
 
 import { AnnotationsPanel } from "./AnnotationsPanel/AnnotationsPanel";
 import { ChannelsPanel } from "./ChannelsPanel/ChannelsPanel";
@@ -9,10 +10,15 @@ import { Magnifier } from "./Magnifier";
 import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
 import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
+import { MissingOffsetsError } from "../state/loaders/loadOmeTiffWithCredentials";
+import { select } from "../state/store/selectors";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
-import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
+import { useViewerStore, ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar, SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
+import { useModal } from "~/hooks/useModal";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { parseResourceId } from "~/utils/resourceId";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface ViewerProps {
@@ -27,6 +33,7 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
       <UndoRedoShortcuts />
       <AnnotationModeKeyboard />
+      <MissingOffsetsPrompt resourceId={resourceId} />
       <ViewerHeader>
         {({ metadata, viewStateActive, setViewStateActive }) => (
           <Magnifier
@@ -74,6 +81,34 @@ function UndoRedoShortcuts() {
 // inside the ViewerStoreProvider.
 function AnnotationModeKeyboard() {
   useAnnotationModeKeyboard();
+  return null;
+}
+
+// Opens the "generate offsets" modal whenever the offsets sidecar is absent
+// for an OME-TIFF and the user can write to the connection's prefix. Offered at
+// most once per viewer mount: the `offsetsMissing` store flag stays true after a
+// dismissal, so without this gate the effect would re-open the modal (and fight
+// the back button) the moment the user closed it.
+function MissingOffsetsPrompt({ resourceId }: { resourceId: string }) {
+  const error = useViewerStore(select.error);
+  const offsetsMissing = useViewerStore(select.offsetsMissing);
+  const { openModal, modalName } = useModal();
+  const offeredRef = useRef(false);
+
+  const { connectionId } = parseResourceId(resourceId);
+  const canWrite = useConnectionsStore(
+    (s) => s.connections[connectionId]?.provider?.canWrite ?? false,
+  );
+
+  useEffect(() => {
+    if (offeredRef.current) return;
+    if (modalName) return;
+    if (!canWrite) return;
+    if (!offsetsMissing && !(error instanceof MissingOffsetsError)) return;
+    offeredRef.current = true;
+    openModal("generate-offsets", { resourceId, connectionId });
+  }, [offsetsMissing, error, canWrite, openModal, resourceId, connectionId, modalName]);
+
   return null;
 }
 

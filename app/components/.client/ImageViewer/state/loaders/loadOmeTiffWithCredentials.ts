@@ -12,17 +12,72 @@ function getOffsetsUrl(tiffUrl: string): string | null {
   return tiffUrl.replace(/\.ome\.tiff?$/i, ".offsets.json");
 }
 
+/**
+ * Thrown when the offsets sidecar is absent and viv's IFD chain walk fails
+ * (`GeoTIFFImageIndexError`). The viewer catches this to offer the user a
+ * "generate offsets" modal when they have write access to the bucket.
+ */
+export class MissingOffsetsError extends Error {
+  constructor() {
+    super("Offsets sidecar is missing and the IFD chain is incomplete.");
+    this.name = "MissingOffsetsError";
+  }
+}
+
+/**
+ * Strips RGB sub-image elements (thumbnail, overview, label, etc.) from
+ * OME-XML so viv's `loadSingleFileOmeTiff` doesn't try to access IFDs that
+ * don't exist as separate chain entries.
+ *
+ * Some producers (e.g. Olympus/OME Bio-Formats) embed multi-channel data
+ * images alongside single-IFD RGB sub-images (thumbnail, overview, label).
+ * Each RGB sub-image declares `SizeC="3"` but has a single `TiffData` element
+ * with `SamplesPerPixel=3`. Viv computes `imageIfdOffset += SizeT*SizeZ*SizeC`
+ * per OME image, so it treats the 3-channel RGB image as 3 separate IFDs and
+ * walks past the end of the chain → `GeoTIFFImageIndexError`.
+ *
+ * Heuristic: keep only Image elements where `TiffData` count == `SizeC`
+ * (one TiffData per channel). Strip the rest. If all images would be
+ * stripped (e.g. a single RGB image), keep the first.
+ */
+function stripRgbSubImages(omexml: string): string {
+  const imageRe = /<Image\b[^>]*>([\s\S]*?)<\/Image>/g;
+  const images: { block: string; tiffDataCount: number; sizeC: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = imageRe.exec(omexml)) !== null) {
+    const body = m[1];
+    const tiffDataCount = (body.match(/<TiffData\b/g) ?? []).length;
+    const sizeCMatch = /SizeC="(\d+)"/.exec(body);
+    const sizeC = sizeCMatch ? parseInt(sizeCMatch[1], 10) : 0;
+    images.push({ block: m[0], tiffDataCount, sizeC });
+  }
+
+  if (images.length <= 1) return omexml;
+
+  const hasMismatch = images.some((i) => i.tiffDataCount !== i.sizeC);
+  if (!hasMismatch) return omexml;
+
+  const keep = images.filter((i) => i.tiffDataCount === i.sizeC);
+  const toKeep = keep.length > 0 ? keep : [images[0]];
+
+  let result = omexml;
+  for (const img of images) {
+    if (!toKeep.includes(img)) {
+      result = result.replace(img.block, "");
+    }
+  }
+  return result;
+}
+
 /** Load an OME-TIFF via SigV4-signed S3 requests; delegates to viv. */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
   opts: LoadOptions,
-): Promise<{ data: Loader; metadata: Image }> {
+): Promise<{ data: Loader; metadata: Image; offsetsMissing?: boolean }> {
   const { signedFetch, signal, headers } = opts;
 
-  // Sidecar is optional — fetch only if caller did not pre-supply offsets.
-  // Caller-supplied headers (SDS-CY-010050) must reach EVERY network
-  // request the handler issues, including the sidecar fetch.
   let offsets: number[] | undefined = opts.offsets;
+  let sidecarMissing = false;
   if (offsets === undefined) {
     const offsetsUrl = getOffsetsUrl(s3Url);
     if (offsetsUrl) {
@@ -33,6 +88,8 @@ export async function loadOmeTiffWithCredentials(
           if (Array.isArray(json) && json.every((v) => typeof v === "number")) {
             offsets = json;
           }
+        } else {
+          sidecarMissing = true;
         }
       } catch {
         // Sidecar is optional.
@@ -49,8 +106,38 @@ export async function loadOmeTiffWithCredentials(
     cacheSize: Number.POSITIVE_INFINITY,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await (loadOmeTiff as any)("", { source, offsets });
+  // Pre-read IFD 0 and strip RGB sub-images from the OME-XML so viv doesn't
+  // walk past the end of the IFD chain. geotiff caches the parsed IFD in
+  // ifdRequests[0]; GeoTIFFImage shares the same fileDirectory object
+  // reference, so mutating the property in-place is visible to viv's
+  // subsequent getImage(0) call — no extra network round-trip.
+  try {
+    const firstImage = await source.getImage(0);
+    const omexml = firstImage.fileDirectory.ImageDescription;
+    if (typeof omexml === "string") {
+      const stripped = stripRgbSubImages(omexml);
+      if (stripped !== omexml) {
+        console.warn(
+          "[loadOmeTiffWithCredentials] Stripping RGB sub-images " +
+            "(thumbnail/overview/label) from OME-XML to prevent IFD chain overrun.",
+        );
+        firstImage.fileDirectory.ImageDescription = stripped;
+      }
+    }
+  } catch {
+    // If pre-read fails, let viv's loadOmeTiff surface the real error.
+  }
+
+  let result;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result = await (loadOmeTiff as any)("", { source, offsets });
+  } catch (error) {
+    if (sidecarMissing && error instanceof Error && error.name === "GeoTIFFImageIndexError") {
+      throw new MissingOffsetsError();
+    }
+    throw error;
+  }
 
   // OME-XML sanitizer (C-78). Some producers emit Interleaved=true on planar
   // multi-IFD layouts with SamplesPerPixel=1 per channel. Viv then appends a
@@ -87,5 +174,6 @@ export async function loadOmeTiffWithCredentials(
   return {
     data: result.data as unknown as Loader,
     metadata: result.metadata as unknown as Image,
+    offsetsMissing: sidecarMissing,
   };
 }
