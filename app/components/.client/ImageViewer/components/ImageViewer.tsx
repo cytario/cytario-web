@@ -49,14 +49,13 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
           toggleShortcut="mod+alt+b"
           openOnMount
         >
-          <Presets>
-            <div className="block h-60 w-full shrink-0">
-              <ImagePreview isInteractive />
-            </div>
-            <ChannelsPanel />
-            <OverlaysPanel />
-            <AnnotationsPanel />
-          </Presets>
+          <div className="block h-60 w-full shrink-0">
+            <ImagePreview isInteractive />
+          </div>
+          <Presets />
+          <ChannelsPanel />
+          <OverlaysPanel />
+          <AnnotationsPanel />
         </Sidebar>
         <ViewerSidebarToggle />
       </div>

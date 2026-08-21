@@ -1,5 +1,3 @@
-import { TabPanel } from "@cytario/design";
-
 import { ChannelsPanelItemList } from "./ChannelsPanelItemList";
 import { Histogram } from "./Histogram";
 import { select } from "../../state/store/selectors";
@@ -8,7 +6,6 @@ import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 
 export function ChannelsPanel() {
-  const layersStates = useViewerStore(select.layersStates);
   const channelsOpacity = useViewerStore(select.channelsOpacity);
   const setChannelsOpacity = useViewerStore(select.setChannelsOpacity);
   const visibleChannelCount = useViewerStore(select.visibleChannelCount);
@@ -41,11 +38,7 @@ export function ChannelsPanel() {
         />
       }
     >
-      {layersStates.map((_, index) => (
-        <TabPanel key={index} id={String(index)}>
-          <ChannelsPanelItemList />
-        </TabPanel>
-      ))}
+      <ChannelsPanelItemList />
     </FeatureItem>
   );
 }
