@@ -21,6 +21,7 @@ export function Presets() {
   return (
     <FeatureItem title="Presets" actions={<SplitViewToggle />}>
       <RadioGroup
+        aria-label="Presets"
         value={String(activePresetIndex)}
         onChange={(value) => setActivePresetIndex(Number(value))}
         className={`
