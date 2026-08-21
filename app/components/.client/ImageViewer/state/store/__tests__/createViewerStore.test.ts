@@ -334,6 +334,33 @@ describe("createViewerStore", () => {
     expect(store.getState().layersStates).toHaveLength(2);
   });
 
+  test("addImagePanel() clone does not share nested channel state", () => {
+    const store = createViewerStore("test-viewer-11d");
+
+    const preset0 = createMockLayersState();
+    preset0.channels = { Red: { isVisible: true } };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [preset0],
+      channels: createMockChannels(),
+      selectedChannelId: "Red",
+    });
+
+    store.getState().addImagePanel();
+
+    // Switch to the new panel (index 1, uses the cloned preset)
+    store.setState({ imagePanelIndex: 1 });
+
+    // Hide Red on the cloned preset
+    store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
+
+    // Original preset should be unaffected
+    expect(store.getState().layersStates[0].channels["Red"]?.isVisible).toBe(true);
+    expect(store.getState().layersStates[1].channels["Red"]?.isVisible).toBe(false);
+  });
+
   test("removeImagePanel()", () => {
     const store = createViewerStore("test-viewer-13");
 
