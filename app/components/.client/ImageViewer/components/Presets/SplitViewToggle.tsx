@@ -1,17 +1,47 @@
 import { Button, Tooltip } from "@cytario/design";
 
-import { select } from "../../state/store/selectors";
+import { channelsStateForPanel, select } from "../../state/store/selectors";
+import { ChannelsState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 
-const emptyObj = {};
+const EMPTY_CHANNELS: ChannelsState = Object.freeze({});
+
+function SplitPanelButton({ panelIndex, isActive }: { panelIndex: number; isActive: boolean }) {
+  const channelsState = useViewerStore(channelsStateForPanel(panelIndex)) ?? EMPTY_CHANNELS;
+  const channelsOpacity = useViewerStore((state) => {
+    const channelsStateIndex = state.imagePanels[panelIndex];
+    return state.layersStates[channelsStateIndex]?.channelsOpacity ?? 1;
+  });
+
+  const colors = Object.entries(channelsState)
+    .filter(([, { isVisible }]) => isVisible)
+    .map(([, config]) => rgb(config.color, channelsOpacity));
+
+  const background =
+    colors.length > 0 ? `linear-gradient(-45deg, ${colors.join(", ")})` : "var(--color-muted)";
+
+  return (
+    <div
+      className={`
+        flex items-center justify-center grow h-full w-2
+        rounded-sm overflow-hidden
+        text-[10px] font-bold
+        border transition-all
+        ${isActive ? "border-ring ring-1 ring-ring ring-offset-1 ring-offset-background" : "border-border"}
+      `}
+      style={{ background }}
+    >
+      {panelIndex + 1}
+    </div>
+  );
+}
 
 export const SplitViewToggle = () => {
   const imagePanels = useViewerStore((state) => state.imagePanels);
   const addImagePanel = useViewerStore(select.addImagePanel);
-  const removeChannelsState = useViewerStore(select.removeImagePanel);
+  const removeImagePanel = useViewerStore(select.removeImagePanel);
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
-  const layersStates = useViewerStore(select.layersStates);
 
   const isSplitViewEnabled = imagePanels.length > 1;
 
@@ -22,7 +52,7 @@ export const SplitViewToggle = () => {
           if (imagePanels.length === 1) {
             addImagePanel();
           } else {
-            removeChannelsState(imagePanels.length - 1);
+            removeImagePanel(imagePanels.length - 1);
           }
         }}
         className={`
@@ -32,34 +62,13 @@ export const SplitViewToggle = () => {
           flex
         `}
       >
-        {imagePanels.map((i, index) => {
-          const layersState = layersStates[i];
-          const opacity = layersState?.channelsOpacity ?? 1;
-          const colors = Object.entries(layersState?.channels ?? emptyObj)
-            .filter(([, { isVisible }]) => isVisible)
-            .map(([, config]) => rgb(config.color, opacity));
-
-          const background =
-            colors.length > 0
-              ? `linear-gradient(-45deg, ${colors.join(", ")})`
-              : "var(--color-muted)";
-
-          return (
-            <div
-              key={index}
-              className={`
-                flex items-center justify-center grow h-full w-2
-                rounded-sm overflow-hidden
-                text-[10px] font-bold
-                border transition-all
-                ${activeImagePanelId === index ? "border-ring ring-1 ring-ring ring-offset-1 ring-offset-background" : "border-border"}
-              `}
-              style={{ background }}
-            >
-              {index + 1}
-            </div>
-          );
-        })}
+        {imagePanels.map((_, index) => (
+          <SplitPanelButton
+            key={index}
+            panelIndex={index}
+            isActive={activeImagePanelId === index}
+          />
+        ))}
       </Button>
     </Tooltip>
   );

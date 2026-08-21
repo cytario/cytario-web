@@ -100,7 +100,7 @@ describe("selectors", () => {
     addImagePanel: vi.fn(),
     addChannelsState: vi.fn(),
     removeChannelsState: vi.fn(),
-    setActiveChannelsStateIndex: vi.fn(),
+    setActivePresetIndex: vi.fn(),
     removeImagePanel: vi.fn(),
     setContrastLimits: vi.fn(),
     resetContrastLimits: vi.fn(),

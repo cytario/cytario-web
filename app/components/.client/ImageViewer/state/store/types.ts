@@ -55,7 +55,7 @@ export interface PresetChannelConfig {
 export type ChannelConfig = PresetChannelConfig & ImageChannelData;
 
 export type ChannelsState = Record<string, ChannelConfig>;
-export type LayerChannelsState = Record<string, PresetChannelConfig>;
+export type LayerChannelsState = Record<string, Partial<PresetChannelConfig>>;
 
 export const BRIGHTFIELD_GROUP_ID = "__brightfield__" as const;
 

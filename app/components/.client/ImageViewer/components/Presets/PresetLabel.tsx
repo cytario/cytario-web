@@ -1,8 +1,9 @@
-import { select } from "../../state/store/selectors";
+import { channelsStateForLayer, select } from "../../state/store/selectors";
+import { ChannelsState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 
-const emptyObj = {};
+const EMPTY_CHANNELS: ChannelsState = Object.freeze({});
 
 export function PresetLabel({ index }: { index: number }) {
   const layersStates = useViewerStore(select.layersStates);
@@ -12,11 +13,12 @@ export function PresetLabel({ index }: { index: number }) {
   const annotationsOpacity = layersState?.annotationsOpacity ?? 1;
   const showAnnotationOutline = layersState?.showAnnotationOutline ?? true;
 
-  const colors = Object.entries(layersState?.channels ?? emptyObj)
+  const channelsState = useViewerStore(channelsStateForLayer(index)) ?? EMPTY_CHANNELS;
+  const colors = Object.entries(channelsState)
     .filter(([, { isVisible }]) => isVisible)
     .map(([, config]) => rgb(config.color, presetChannelsOpacity));
 
-  const visibleOverlays = Object.values(layersState?.overlays ?? emptyObj)
+  const visibleOverlays = Object.values(layersState?.overlays ?? EMPTY_CHANNELS)
     .flatMap((overlayState) => Object.values(overlayState))
     .filter((marker) => marker.isVisible);
 

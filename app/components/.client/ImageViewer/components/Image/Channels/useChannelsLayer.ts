@@ -2,7 +2,7 @@ import { PickingInfo } from "@deck.gl/core";
 import { MultiscaleImageLayer, ColorPaletteExtension } from "@hms-dbmi/viv";
 import { useMemo } from "react";
 
-import { select, mergeChannelConfigs } from "../../../state/store/selectors";
+import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
 import { getCachedTile } from "../../../utils/sharedTileCache";
@@ -18,12 +18,7 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
     return type;
   });
 
-  const channelsState = useViewerStore((state) => {
-    const channelsStateIndex = state.imagePanels[imagePanelId];
-    const layersState = state.layersStates[channelsStateIndex];
-
-    return mergeChannelConfigs(state.channels, layersState?.channels) ?? EMPTY_OBJECT;
-  });
+  const channelsState = useViewerStore(channelsStateForPanel(imagePanelId)) ?? EMPTY_OBJECT;
 
   const channelsStateColumns = useMemo(
     () => mapChannelConfigsToState(channelsState ?? {}),

@@ -1,13 +1,6 @@
-import {
-  ChannelsStateColumns,
-  ChannelsState,
-  LayerChannelsState,
-  Selection,
-} from "../state/store/types";
+import { ChannelsStateColumns, ChannelsState, Selection } from "../state/store/types";
 
-export const mapChannelConfigsToState = (
-  state: ChannelsState | LayerChannelsState,
-): ChannelsStateColumns => {
+export const mapChannelConfigsToState = (state: ChannelsState): ChannelsStateColumns => {
   return Object.entries(state).reduce<ChannelsStateColumns>(
     (acc, [id, config]) => {
       if (!config.isVisible) return acc;

@@ -2,25 +2,20 @@ import { getSelectionStats } from "../../../utils/getSelectionStats";
 import { createViewerStore } from "../createViewerStore";
 import { getInitialChannelsState } from "../getInitialChannelsState";
 import { Image, Loader } from "../ome.tif.types";
-import { ChannelConfig, ChannelsStateColumns, OverlaysState, ViewState } from "../types";
+import {
+  ChannelConfig,
+  ChannelsStateColumns,
+  OverlaysState,
+  PresetChannelConfig,
+  ViewState,
+} from "../types";
 import { createMigrate } from "~/utils/persistMigration";
 
 vi.mock("../../../utils/getSelectionStats");
 vi.mock("../getInitialChannelsState");
 
 const createMockLayersState = () => ({
-  channels: {
-    Red: {
-      isVisible: true,
-      contrastLimits: [10, 200] as [number, number],
-      color: [255, 0, 0] as [number, number, number],
-    } as ChannelConfig,
-    Green: {
-      isVisible: false,
-      contrastLimits: [0, 65535] as [number, number],
-      color: [0, 255, 0] as [number, number, number],
-    } as ChannelConfig,
-  },
+  channels: {} as Record<string, Partial<PresetChannelConfig>>,
   overlays: {} as OverlaysState,
   channelsOpacity: 1,
   overlaysFillOpacity: 0.8,
@@ -99,7 +94,7 @@ describe("createViewerStore", () => {
       addImagePanel: expect.any(Function),
       addChannelsState: expect.any(Function),
       removeChannelsState: expect.any(Function),
-      setActiveChannelsStateIndex: expect.any(Function),
+      setActivePresetIndex: expect.any(Function),
       removeImagePanel: expect.any(Function),
       setContrastLimits: expect.any(Function),
       resetContrastLimits: expect.any(Function),
@@ -392,7 +387,7 @@ describe("createViewerStore", () => {
     expect(store.getState().layersStates).toHaveLength(1);
   });
 
-  test("setActiveChannelsStateIndex()", () => {
+  test("setActivePresetIndex()", () => {
     const store = createViewerStore("test-viewer-17");
     const layersState1 = createMockLayersState();
     const layersState2 = createMockLayersState();
@@ -403,11 +398,11 @@ describe("createViewerStore", () => {
       layersStates: [layersState1, layersState2],
     });
 
-    store.getState().setActiveChannelsStateIndex(1);
+    store.getState().setActivePresetIndex(1);
     expect(store.getState().imagePanels[0]).toBe(1);
   });
 
-  test("setActiveChannelsStateIndex() duplicates last state when needed", () => {
+  test("setActivePresetIndex() duplicates last state when needed", () => {
     const store = createViewerStore("test-viewer-17b");
     const layersState = createMockLayersState();
 
@@ -418,7 +413,7 @@ describe("createViewerStore", () => {
     });
 
     // Request index 2, which doesn't exist yet
-    store.getState().setActiveChannelsStateIndex(2);
+    store.getState().setActivePresetIndex(2);
 
     // Should have duplicated layers states to reach index 2
     expect(store.getState().layersStates).toHaveLength(3);
@@ -432,10 +427,9 @@ describe("createViewerStore", () => {
       imagePanelIndex: 0,
       imagePanels: [0],
       selectedChannelId: "Red",
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
-
-    expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([10, 200]);
 
     store.getState().setContrastLimits([50, 150]);
     expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([50, 150]);
@@ -464,7 +458,7 @@ describe("createViewerStore", () => {
       imagePanels: [0],
       selectedChannelId: "Red",
       layersStates: [mockLayers],
-      channels: { ...mockLayers.channels },
+      channels: createMockChannels(),
       channelIds: ["Red", "Green"],
     });
 
@@ -488,8 +482,6 @@ describe("createViewerStore", () => {
       layersStates: [createMockLayersState()],
     });
 
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
-
     await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
     expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(false);
 
@@ -508,8 +500,8 @@ describe("createViewerStore", () => {
     });
 
     await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
-    // Should remain unchanged
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
+    // Should not throw and should not create channel entries
+    expect(store.getState().layersStates[0].channels["Red"]).toBeUndefined();
   });
 
   test("setChannelVisibility() initializes uninitialized channel", async () => {
@@ -565,10 +557,9 @@ describe("createViewerStore", () => {
     store.setState({
       imagePanelIndex: 0,
       imagePanels: [0],
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
-
-    expect(store.getState().layersStates[0].channels["Red"].color).toEqual([255, 0, 0]);
 
     store.getState().setChannelColor("Red", [0, 128, 255, 255]);
     expect(store.getState().layersStates[0].channels["Red"].color).toEqual([0, 128, 255]);

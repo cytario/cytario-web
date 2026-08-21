@@ -8,20 +8,20 @@ import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 
 export function Presets() {
-  const activeChannelsStateIndex = useViewerStore(select.activeChannelsStateIndex);
-  const setActiveChannelsStateIndex = useViewerStore(select.setActiveChannelsStateIndex);
+  const activePresetIndex = useViewerStore(select.activePresetIndex);
+  const setActivePresetIndex = useViewerStore(select.setActivePresetIndex);
   const layersStates = useViewerStore(select.layersStates);
   const removeChannelsState = useViewerStore(select.removeChannelsState);
 
   const handleAdd = () => {
-    setActiveChannelsStateIndex(layersStates.length);
+    setActivePresetIndex(layersStates.length);
   };
 
   return (
     <FeatureItem title="Presets" actions={<SplitViewToggle />}>
       <RadioGroup
-        value={String(activeChannelsStateIndex)}
-        onChange={(value) => setActiveChannelsStateIndex(Number(value))}
+        value={String(activePresetIndex)}
+        onChange={(value) => setActivePresetIndex(Number(value))}
         className={`
           flex flex-col
           gap-1.5 px-3 pt-2 pb-3
