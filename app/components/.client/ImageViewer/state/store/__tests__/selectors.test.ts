@@ -46,7 +46,7 @@ describe("selectors", () => {
         color: [0, 0, 255],
       },
     },
-    channelIds: [],
+    channelIds: ["Red", "Green", "Blue"],
     cursorPosition: null,
     pixelValues: {},
     annotationsByUser: {},
@@ -74,7 +74,6 @@ describe("selectors", () => {
             color: [0, 0, 255],
           },
         },
-        channelIds: ["Red", "Green", "Blue"],
         overlays: {},
         channelsOpacity: 1,
         overlaysFillOpacity: 0.8,
@@ -144,6 +143,7 @@ describe("selectors", () => {
       const state = createMockState({
         imagePanelIndex: -1,
         imagePanels: [],
+        channelIds: [],
         layersStates: [],
       });
       expect(select.channelIds(state)).toEqual([]);
@@ -153,6 +153,7 @@ describe("selectors", () => {
       const state = createMockState({
         imagePanelIndex: 5,
         imagePanels: [0],
+        channelIds: [],
       });
       expect(select.channelIds(state)).toEqual([]);
     });
@@ -169,10 +170,10 @@ describe("selectors", () => {
       const state = createMockState({
         imagePanelIndex: 0,
         imagePanels: [0],
+        channelIds: [],
         layersStates: [
           {
             channels: {},
-            channelIds: [],
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
@@ -201,6 +202,7 @@ describe("selectors", () => {
             color: [255, 255, 255],
           },
         },
+        channelIds: ["Single"],
         layersStates: [
           {
             channels: {
@@ -210,7 +212,6 @@ describe("selectors", () => {
                 color: [255, 255, 255],
               },
             },
-            channelIds: ["Single"],
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
@@ -235,6 +236,39 @@ describe("selectors", () => {
 
     test("returns 0 when no channels are visible", () => {
       const state = createMockState({
+        channelIds: ["Red"],
+        channels: {
+          Red: {
+            isInitialized: true,
+            isLoading: false,
+            isVisible: false,
+            selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
+            domain: [0, 255],
+            histogram: [],
+            contrastLimits: [0, 255],
+            color: [255, 0, 0],
+          },
+          Green: {
+            isInitialized: true,
+            isLoading: false,
+            isVisible: true,
+            selection: { c: 1, x: 0, y: 0, z: 0, t: 0 },
+            domain: [0, 65535],
+            histogram: [],
+            contrastLimits: [0, 65535],
+            color: [0, 255, 0],
+          },
+          Blue: {
+            isInitialized: true,
+            isLoading: false,
+            isVisible: false,
+            selection: { c: 2, x: 0, y: 0, z: 0, t: 0 },
+            domain: [0, 1000],
+            histogram: [],
+            contrastLimits: [0, 1000],
+            color: [0, 0, 255],
+          },
+        },
         layersStates: [
           {
             channels: {
@@ -244,7 +278,6 @@ describe("selectors", () => {
                 color: [255, 0, 0],
               },
             },
-            channelIds: ["Red"],
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
@@ -293,6 +326,7 @@ describe("selectors", () => {
             color: [0, 0, 255],
           },
         },
+        channelIds: ["Ch1", "Ch2", "Ch3"],
         layersStates: [
           {
             channels: {
@@ -312,7 +346,6 @@ describe("selectors", () => {
                 color: [0, 0, 255],
               },
             },
-            channelIds: ["Ch1", "Ch2", "Ch3"],
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
@@ -359,7 +392,6 @@ describe("selectors", () => {
         layersStates: [
           {
             channels: {},
-            channelIds: [],
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,
@@ -371,7 +403,6 @@ describe("selectors", () => {
           },
           {
             channels: {},
-            channelIds: [],
             overlays: {},
             channelsOpacity: 1,
             overlaysFillOpacity: 0.8,

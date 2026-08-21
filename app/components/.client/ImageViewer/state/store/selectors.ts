@@ -11,7 +11,6 @@ import {
 } from "./types";
 
 const EMPTY_OBJECT = Object.freeze({});
-const EMPTY_ARRAY: readonly string[] = Object.freeze([]);
 
 // Memoization caches for selectors that return new object references.
 // Zustand uses Object.is for equality — returning a new object on every call
@@ -126,10 +125,7 @@ export const select = {
     const layerState = select.layersState(state);
     return mergeChannelConfigs(state.channels, layerState?.channels);
   },
-  channelIds: (state: ViewerStore) => {
-    const layerState = select.layersState(state);
-    return layerState?.channelIds ?? EMPTY_ARRAY;
-  },
+  channelIds: (state: ViewerStore) => state.channelIds,
   maxChannelDomain: (state: ViewerStore) => {
     const channelsState = select.channelsState(state);
     const channelIds = select.channelIds(state);

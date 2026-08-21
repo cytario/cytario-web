@@ -21,7 +21,6 @@ const createMockLayersState = () => ({
       color: [0, 255, 0] as [number, number, number],
     } as ChannelConfig,
   },
-  channelIds: ["Red", "Green"],
   overlays: {} as OverlaysState,
   channelsOpacity: 1,
   overlaysFillOpacity: 0.8,
@@ -466,7 +465,7 @@ describe("createViewerStore", () => {
       selectedChannelId: "Red",
       layersStates: [mockLayers],
       channels: { ...mockLayers.channels },
-      channelIds: [...mockLayers.channelIds],
+      channelIds: ["Red", "Green"],
     });
 
     // First change the contrast limits
@@ -842,7 +841,7 @@ describe("createViewerStore", () => {
       expect(store.getState().imagePanels).toEqual([0]);
       expect(store.getState().selectedChannelId).toBe("DAPI");
       expect(store.getState().layersStates).toHaveLength(1);
-      expect(store.getState().layersStates[0].channelIds).toEqual(["DAPI"]);
+      expect(store.getState().channelIds).toEqual(["DAPI"]);
     });
 
     test("duplicates current channel state on subsequent calls", () => {

@@ -223,7 +223,6 @@ describe("setAnnotationsOpacity", () => {
       layersStates: [
         {
           channels: {},
-          channelIds: [],
           overlays: {},
           channelsOpacity: 1,
           overlaysFillOpacity: 0.8,
@@ -247,7 +246,6 @@ describe("setAnnotationsOpacity", () => {
       layersStates: [
         {
           channels: {},
-          channelIds: [],
           overlays: {},
           channelsOpacity: 1,
           overlaysFillOpacity: 0.8,

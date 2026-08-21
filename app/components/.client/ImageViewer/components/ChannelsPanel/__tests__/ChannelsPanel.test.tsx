@@ -51,7 +51,6 @@ describe("ChannelsPanel", () => {
           return [
             {
               channels: mockChannelsState,
-              channelIds: ["Red", "Green"],
             },
           ];
 

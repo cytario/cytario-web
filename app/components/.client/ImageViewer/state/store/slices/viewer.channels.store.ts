@@ -40,7 +40,6 @@ export interface ChannelsSlice {
 
   layersStates: {
     channels: LayerChannelsState;
-    channelIds: string[];
     overlays: OverlaysState;
     channelsOpacity: number;
     overlaysFillOpacity: number;
@@ -146,7 +145,6 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           state.layersStates = [
             {
               channels: castDraft(toLayerChannels(channelsState)),
-              channelIds,
               overlays: {},
               channelsOpacity: 1,
               overlaysFillOpacity: 0.8,
@@ -233,7 +231,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
         if (!layerState) return;
 
         if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
-          const group = detectBrightfieldGroup(layerState.channelIds);
+          const group = detectBrightfieldGroup(state.channelIds);
           if (!group) return;
           for (const key of [group.red, group.green, group.blue]) {
             if (layerState.channels[key]) {
@@ -259,7 +257,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
         if (!layerState) return;
 
         if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
-          const group = detectBrightfieldGroup(layerState.channelIds);
+          const group = detectBrightfieldGroup(state.channelIds);
           if (!group) return;
           for (const key of [group.red, group.green, group.blue]) {
             const channel = layerState.channels[key];
@@ -292,15 +290,13 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     if (!state.loader || state.imagePanelIndex < 0) return;
 
     const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
-    const layerState = state.layersStates[activeChannelsStateIndex];
 
     // Brightfield group: toggle all 3 channels
     if (key === BRIGHTFIELD_GROUP_ID) {
-      const group = detectBrightfieldGroup(layerState.channelIds);
+      const group = detectBrightfieldGroup(state.channelIds);
       if (!group) return;
       const keys = [group.red, group.green, group.blue];
 
-      // Initialize any uninitialized channels in parallel
       const uninitialized = keys.filter((k) => !state.channels[k]?.isInitialized);
 
       if (uninitialized.length > 0) {
