@@ -3,8 +3,10 @@ import {
   BrightfieldGroup,
   ByteDomain,
   ChannelConfig,
+  ChannelsState,
   ChannelsStateColumns,
   detectBrightfieldGroup,
+  LayerChannelsState,
   ViewerStore,
 } from "./types";
 
@@ -21,6 +23,51 @@ let _bfSelectedCache: {
   b: ChannelConfig;
   result: ChannelConfig;
 } | null = null;
+
+// Cache for the merged channelsState selector. Zustand uses Object.is for
+// equality — returning a new object on every call causes infinite re-render
+// loops. The cache returns the same merged result when neither input changed.
+let _mergedChannelsCache: {
+  topLevel: ChannelsState;
+  layerChannels: LayerChannelsState | undefined;
+  result: ChannelsState | undefined;
+} | null = null;
+
+/**
+ * Merge per-panel layer channels with top-level (image-derived) channels.
+ *
+ * `histogram`, `domain`, and `selection` come from `topLevel` (immutable
+ * across presets); all other fields (`isVisible`, `contrastLimits`, `color`,
+ * `isLoading`, `isInitialized`) come from `layerChannels` (per-preset).
+ * Falls back to `layerChannels` when a top-level channel doesn't exist.
+ */
+export const mergeChannelConfigs = (
+  topLevel: ChannelsState,
+  layerChannels: LayerChannelsState | undefined,
+): ChannelsState | undefined => {
+  if (!layerChannels) return undefined;
+
+  if (
+    _mergedChannelsCache?.topLevel === topLevel &&
+    _mergedChannelsCache?.layerChannels === layerChannels
+  ) {
+    return _mergedChannelsCache.result;
+  }
+
+  const merged: ChannelsState = {};
+  for (const key of Object.keys(layerChannels)) {
+    const tc = topLevel[key];
+    merged[key] = {
+      ...layerChannels[key],
+      histogram: tc.histogram,
+      domain: tc.domain,
+      selection: tc.selection,
+    };
+  }
+
+  _mergedChannelsCache = { topLevel, layerChannels, result: merged };
+  return merged;
+};
 export const select = {
   id: (state: ViewerStore) => state.id,
   error: (state: ViewerStore) => state.error,
@@ -74,9 +121,9 @@ export const select = {
   },
 
   /* Channels */
-  channelsState: (state: ViewerStore) => {
+  channelsState: (state: ViewerStore): ChannelsState | undefined => {
     const layerState = select.layersState(state);
-    return layerState?.channels;
+    return mergeChannelConfigs(state.channels, layerState?.channels);
   },
   channelIds: (state: ViewerStore) => {
     const layerState = select.layersState(state);

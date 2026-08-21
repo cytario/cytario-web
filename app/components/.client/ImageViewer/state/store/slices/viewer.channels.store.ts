@@ -8,11 +8,25 @@ import {
   ChannelsState,
   ChannelsStateColumns,
   detectBrightfieldGroup,
+  LayerChannelConfig,
+  LayerChannelsState,
   OverlaysState,
   RGB,
   RGBA,
   ViewerSlice,
 } from "../types";
+
+/** Strip image-derived fields (domain, histogram, selection) to produce per-preset layer channel config. */
+const toLayerChannels = (channels: ChannelsState): LayerChannelsState =>
+  Object.fromEntries(
+    Object.entries(channels).map(([key, cfg]) => {
+      const rest = { ...cfg } as Record<string, unknown>;
+      delete rest.domain;
+      delete rest.histogram;
+      delete rest.selection;
+      return [key, rest as LayerChannelConfig];
+    }),
+  );
 
 export interface ChannelsSlice {
   selectedChannelId: keyof ChannelsState | null;
@@ -25,7 +39,7 @@ export interface ChannelsSlice {
   channelIds: string[];
 
   layersStates: {
-    channels: ChannelsState;
+    channels: LayerChannelsState;
     channelIds: string[];
     overlays: OverlaysState;
     channelsOpacity: number;
@@ -131,7 +145,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           state.channelIds = channelIds;
           state.layersStates = [
             {
-              channels: castDraft(channelsState),
+              channels: castDraft(toLayerChannels(channelsState)),
               channelIds,
               overlays: {},
               channelsOpacity: 1,
@@ -305,7 +319,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
             uninitialized.map((k) =>
               getSelectionStats({
                 loader: state.loader!,
-                selection: layerState.channels[k].selection,
+                selection: state.channels[k].selection,
               }).then((stats) => ({ key: k, ...stats })),
             ),
           );
@@ -317,12 +331,11 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
                 const channel = ls.channels[k];
                 channel.isInitialized = true;
                 channel.isLoading = false;
-                channel.domain = castDraft(domain);
                 // Brightfield: use full domain range (no percentile scaling)
                 channel.contrastLimits = [...domain] as ByteDomain;
-                channel.histogram = castDraft(histogram);
 
-                // Mirror stats into top-level default channels
+                // Stats live in top-level channels only (image-derived, immutable
+                // across presets); layersState keeps per-preset overrides only.
                 const defaultChannel = state.channels[k];
                 if (defaultChannel) {
                   defaultChannel.isInitialized = true;
@@ -367,6 +380,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
 
     // Single channel
     const activeChannelsStateConfig = layerState.channels[key];
+    const topLevelChannel = state.channels[key];
 
     if (!activeChannelsStateConfig.isInitialized) {
       set(
@@ -380,7 +394,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       try {
         const { domain, contrastLimits, histogram } = await getSelectionStats({
           loader: state.loader,
-          selection: activeChannelsStateConfig.selection,
+          selection: topLevelChannel.selection,
         });
 
         return set(
@@ -388,12 +402,11 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
             const channel = state.layersStates[activeChannelsStateIndex].channels[key];
             channel.isInitialized = true;
             channel.isLoading = false;
-            channel.domain = castDraft(domain);
             channel.contrastLimits = contrastLimits;
-            channel.histogram = castDraft(histogram);
             channel.isVisible = isVisible;
 
-            // Mirror stats into top-level default channels
+            // Stats live in top-level channels only (image-derived, immutable
+            // across presets); layersState keeps per-preset overrides only.
             const defaultChannel = state.channels[key];
             if (defaultChannel) {
               defaultChannel.isInitialized = true;

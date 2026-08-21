@@ -14,9 +14,6 @@ const createMockLayersState = () => ({
       isInitialized: true,
       isLoading: false,
       isVisible: true,
-      selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
-      domain: [0, 255] as const,
-      histogram: [],
       contrastLimits: [10, 200] as [number, number],
       color: [255, 0, 0] as [number, number, number],
     } as ChannelConfig,
@@ -24,9 +21,6 @@ const createMockLayersState = () => ({
       isInitialized: false,
       isLoading: false,
       isVisible: false,
-      selection: { c: 1, x: 0, y: 0, z: 0, t: 0 },
-      domain: [0, 65535] as const,
-      histogram: [],
       contrastLimits: [0, 65535] as [number, number],
       color: [0, 255, 0] as [number, number, number],
     } as ChannelConfig,
@@ -512,6 +506,10 @@ describe("createViewerStore", () => {
       imagePanelIndex: 0,
       imagePanels: [0],
       loader: [{}] as unknown as Loader,
+      channels: {
+        Red: { ...createMockLayersState().channels["Red"] },
+        Green: { ...createMockLayersState().channels["Green"] },
+      },
       layersStates: [createMockLayersState()],
     });
 
@@ -521,7 +519,7 @@ describe("createViewerStore", () => {
 
     expect(store.getState().layersStates[0].channels["Green"].isInitialized).toBe(true);
     expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(true);
-    expect(store.getState().layersStates[0].channels["Green"].domain).toEqual([0, 1000]);
+    expect(store.getState().channels["Green"].domain).toEqual([0, 1000]);
     expect(store.getState().layersStates[0].channels["Green"].contrastLimits).toEqual([50, 800]);
   });
 

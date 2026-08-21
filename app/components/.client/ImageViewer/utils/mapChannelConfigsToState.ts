@@ -1,6 +1,13 @@
-import { ChannelsStateColumns, ChannelsState } from "../state/store/types";
+import {
+  ChannelsStateColumns,
+  ChannelsState,
+  LayerChannelsState,
+  Selection,
+} from "../state/store/types";
 
-export const mapChannelConfigsToState = (state: ChannelsState): ChannelsStateColumns => {
+export const mapChannelConfigsToState = (
+  state: ChannelsState | LayerChannelsState,
+): ChannelsStateColumns => {
   return Object.entries(state).reduce<ChannelsStateColumns>(
     (acc, [id, config]) => {
       if (!config.isVisible) return acc;
@@ -9,9 +16,9 @@ export const mapChannelConfigsToState = (state: ChannelsState): ChannelsStateCol
       acc.channelsVisible.push(config.isVisible);
       acc.contrastLimits.push(config.contrastLimits);
       acc.colors.push(config.color);
-      acc.domains.push(config.domain);
-      acc.selections.push(config.selection);
-      acc.histograms.push(config.histogram);
+      acc.selections.push(
+        (config as { selection?: Selection }).selection ?? { c: 0, x: 0, y: 0, z: 0, t: 0 },
+      );
 
       return acc;
     },
@@ -20,9 +27,7 @@ export const mapChannelConfigsToState = (state: ChannelsState): ChannelsStateCol
       channelsVisible: [],
       contrastLimits: [],
       colors: [],
-      domains: [],
       selections: [],
-      histograms: [],
     },
   );
 };

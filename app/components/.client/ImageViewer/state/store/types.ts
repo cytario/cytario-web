@@ -32,9 +32,7 @@ export interface ChannelsStateColumns {
   channelsVisible: boolean[];
   contrastLimits: ByteDomain[];
   colors: RGB[];
-  domains: Readonly<ByteDomain>[];
   selections: Selection[];
-  histograms: number[][];
 }
 
 export interface ChannelConfig {
@@ -49,6 +47,10 @@ export interface ChannelConfig {
 }
 
 export type ChannelsState = Record<string, ChannelConfig>;
+
+/** Per-preset channel config — domain/histogram/selection live in top-level ChannelsState only. */
+export type LayerChannelConfig = Omit<ChannelConfig, "domain" | "histogram" | "selection">;
+export type LayerChannelsState = Record<string, LayerChannelConfig>;
 
 export const BRIGHTFIELD_GROUP_ID = "__brightfield__" as const;
 
