@@ -67,6 +67,7 @@ export interface LayersStateEntry {
   showAnnotationOutline: boolean;
   isChannelsLoading: number;
   isOverlaysLoading: number;
+  name?: string;
 }
 
 export const createDefaultLayersStateEntry = (): LayersStateEntry => ({

@@ -1,13 +1,13 @@
 import { Button } from "@cytario/design";
 import { RadioField, RadioGroup } from "react-aria-components";
 
-import { PresetRadioButton } from "./PresetRadioButton";
 import { SplitViewToggle } from "./SplitViewToggle";
+import { ViewRadioButton } from "./ViewRadioButton";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 
-export function Presets() {
+export function Views() {
   const activePresetIndex = useViewerStore(select.activePresetIndex);
   const setActivePresetIndex = useViewerStore(select.setActivePresetIndex);
   const layersStates = useViewerStore(select.layersStates);
@@ -19,9 +19,9 @@ export function Presets() {
   };
 
   return (
-    <FeatureItem title="Presets" actions={<SplitViewToggle />}>
+    <FeatureItem title="Views" actions={<SplitViewToggle />}>
       <RadioGroup
-        aria-label="Presets"
+        aria-label="Views"
         value={String(activePresetIndex)}
         onChange={(value) => setActivePresetIndex(Number(value))}
         className={`
@@ -33,7 +33,7 @@ export function Presets() {
       >
         {layersStates.map((_, index) => (
           <RadioField key={index} value={String(index)}>
-            <PresetRadioButton
+            <ViewRadioButton
               index={index}
               canDelete={layersStates.length > 1}
               onDelete={() => removeChannelsState(index)}
@@ -41,7 +41,7 @@ export function Presets() {
           </RadioField>
         ))}
         <Button size="sm" variant="ghost" iconLeft="Plus" onPress={handleAdd}>
-          Add preset
+          Add view
         </Button>
       </RadioGroup>
     </FeatureItem>

@@ -7,8 +7,8 @@ import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
 import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
-import { Presets } from "./Presets/Presets";
 import { ViewerHeader } from "./ViewerHeader";
+import { Views } from "./Views/Views";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
@@ -52,7 +52,7 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
           <div className="block h-60 w-full shrink-0">
             <ImagePreview isInteractive />
           </div>
-          <Presets />
+          <Views />
           <ChannelsPanel />
           <OverlaysPanel />
           <AnnotationsPanel />

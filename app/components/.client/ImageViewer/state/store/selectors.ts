@@ -126,6 +126,7 @@ export const select = {
 
   /* Preset Management */
   setActivePresetIndex: (state: ViewerStore) => state.setActivePresetIndex,
+  setViewName: (state: ViewerStore) => state.setViewName,
   activePresetIndex: (state: ViewerStore) => state.imagePanels[state.imagePanelIndex],
 
   /* Channels */
@@ -159,6 +160,15 @@ export const select = {
   },
 
   layersStates: (state: ViewerStore) => state.layersStates,
+  viewName:
+    (layerIndex: number) =>
+    (state: ViewerStore): string => {
+      const entry = state.layersStates[layerIndex];
+      if (entry?.name) return entry.name;
+      const merged = resolveChannelsState(state.channels, entry?.channels, state.channelIds);
+      const visible = state.channelIds.filter((id) => merged?.[id]?.isVisible);
+      return visible.length > 0 ? visible.join(", ") : "No channels";
+    },
 
   addChannelsState: (state: ViewerStore) => state.addChannelsState,
   removeChannelsState: (state: ViewerStore) => state.removeChannelsState,

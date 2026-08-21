@@ -24,6 +24,7 @@ const createMockLayersState = () => ({
   showAnnotationOutline: true,
   isChannelsLoading: 0,
   isOverlaysLoading: 0,
+  name: undefined as string | undefined,
 });
 
 const createMockChannels = () => ({
@@ -108,6 +109,7 @@ describe("createViewerStore", () => {
       setOverlaysFillOpacity: expect.any(Function),
       setChannelsOpacity: expect.any(Function),
       setShowCellOutline: expect.any(Function),
+      setViewName: expect.any(Function),
       seedAnnotations: expect.any(Function),
       updateUserFeatures: expect.any(Function),
       setAnnotationClassColor: expect.any(Function),
@@ -941,6 +943,70 @@ describe("createViewerStore", () => {
       expect(newPreset.showCellOutline).toBe(true);
       expect(newPreset.overlaysFillOpacity).toBe(0.8);
       expect(newPreset.annotationsOpacity).toBe(1);
+    });
+  });
+
+  describe("setViewName()", () => {
+    test("sets a custom name on a view", () => {
+      const store = createViewerStore("test-viewer-34");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [createMockLayersState()],
+      });
+
+      store.getState().setViewName(0, "My View");
+      expect(store.getState().layersStates[0].name).toBe("My View");
+    });
+
+    test("clearing the name sets it to undefined", () => {
+      const store = createViewerStore("test-viewer-35");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), name: "Custom" }],
+      });
+
+      store.getState().setViewName(0, null);
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+
+    test("empty string also clears the name", () => {
+      const store = createViewerStore("test-viewer-36");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), name: "Custom" }],
+      });
+
+      store.getState().setViewName(0, "");
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+
+    test("whitespace-only string clears the name", () => {
+      const store = createViewerStore("test-viewer-37");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), name: "Custom" }],
+      });
+
+      store.getState().setViewName(0, "   ");
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+
+    test("does nothing for out-of-bounds index", () => {
+      const store = createViewerStore("test-viewer-38");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [createMockLayersState()],
+      });
+
+      store.getState().setViewName(5, "Invalid");
+      store.getState().setViewName(-1, "Invalid");
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].name).toBeUndefined();
     });
   });
 

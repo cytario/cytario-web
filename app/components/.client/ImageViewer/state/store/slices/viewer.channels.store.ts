@@ -38,6 +38,7 @@ export interface ChannelsSlice {
   setChannelVisibility: (key: keyof ChannelsStateColumns, isVisible: boolean) => void;
   setChannelColor: (key: keyof ChannelsState, color: RGBA) => void;
   setChannelsOpacity: (opacity: number) => void;
+  setViewName: (index: number, name: string | null) => void;
 }
 
 /**
@@ -174,6 +175,17 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       },
       false,
       "setActivePresetIndex",
+    ),
+
+  setViewName: (index, name) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        const trimmed = name?.trim();
+        state.layersStates[index].name = trimmed ? trimmed : undefined;
+      },
+      false,
+      "setViewName",
     ),
 
   removeImagePanel: (imagePanelIndex) =>

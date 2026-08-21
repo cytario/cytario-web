@@ -104,7 +104,7 @@ describe("ChannelsPanel", () => {
   const renderWithTabs = () => {
     return render(
       <Tabs selectedKey="0">
-        <TabList aria-label="Presets">
+        <TabList aria-label="Views">
           <Tab id="0">1</Tab>
         </TabList>
         <ChannelsPanel />

@@ -5,7 +5,7 @@ import { rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 
 const EMPTY_CHANNELS: ChannelsState = Object.freeze({});
 
-export function PresetLabel({ index }: { index: number }) {
+export function ViewLabel({ index }: { index: number }) {
   const layersStates = useViewerStore(select.layersStates);
 
   const layersState = layersStates[index];
