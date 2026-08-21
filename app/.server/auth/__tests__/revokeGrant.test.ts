@@ -14,6 +14,11 @@ vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
   getJobBrokerToken: vi.fn().mockResolvedValue("broker-bearer-token"),
 }));
 
+const clearJobGrantStoreMock = vi.hoisted(() => vi.fn());
+vi.mock("../refreshJobTokenWithLock", () => ({
+  clearJobGrantStore: clearJobGrantStoreMock,
+}));
+
 import { KeycloakAdminError } from "../keycloakAdmin/client";
 import { getJobBrokerToken } from "../keycloakAdmin/serviceAccountToken";
 import { revokeGrant } from "../revokeGrant";
@@ -24,6 +29,8 @@ describe("revokeGrant (SDS-CY-080901, SRS-CY-416106)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockedGetJobBrokerToken.mockResolvedValue("broker-bearer-token");
+    clearJobGrantStoreMock.mockReset();
+    clearJobGrantStoreMock.mockResolvedValue(undefined);
   });
 
   test("DELETEs the offline session with isOffline=true via the job-broker token", async () => {
@@ -79,5 +86,37 @@ describe("revokeGrant (SDS-CY-080901, SRS-CY-416106)", () => {
 
     const url = fetchMock.mock.calls[0][0] as string;
     expect(url).toContain("/sessions/a%2Fb%20c%3Fd%3De?isOffline=true");
+  });
+
+  test("clears the broker canonical-token store for the session (SDS-CY-080402)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await revokeGrant("sess-123");
+
+    expect(clearJobGrantStoreMock).toHaveBeenCalledTimes(1);
+    expect(clearJobGrantStoreMock).toHaveBeenCalledWith("sess-123");
+  });
+
+  test("clears the store even when Keycloak returns 404 (already revoked)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await revokeGrant("already-revoked");
+
+    expect(clearJobGrantStoreMock).toHaveBeenCalledWith("already-revoked");
+  });
+
+  test("does not throw if the store clear fails (best-effort, TTL backstops)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal("fetch", fetchMock);
+    clearJobGrantStoreMock.mockRejectedValueOnce(new Error("redis down"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(revokeGrant("sess-123")).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

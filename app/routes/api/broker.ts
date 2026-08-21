@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 
 import { hostRequestDataFromJobToken } from "~/.server/auth/carveOutRequestContext";
-import { refreshJobToken } from "~/.server/auth/refreshJobToken";
+import { refreshJobTokenWithLock } from "~/.server/auth/refreshJobTokenWithLock";
 import {
   buildBrokerSessionPolicy,
   InlinePolicySizeError,
@@ -75,7 +75,7 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   let refreshedToken: string;
   let newRefreshToken: string;
   try {
-    const refreshed = await refreshJobToken(body.token);
+    const refreshed = await refreshJobTokenWithLock(body.token);
     refreshedToken = refreshed.accessToken;
     newRefreshToken = refreshed.newRefreshToken;
   } catch (err) {

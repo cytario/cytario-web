@@ -1,13 +1,6 @@
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 import { cytarioConfig } from "~/config";
 
-/**
- * The result of redeeming an offline grant's refresh token at the identity
- * service. The `accessToken` is the fresh, unexpired JWT the broker verifies
- * and passes to STS as `WebIdentityToken`; `newRefreshToken` is the rotated
- * refresh token the broker returns to the container so its next mint
- * presents the current (rotated) token (SRS-CY-416102(a)).
- */
 export interface RefreshedJobToken {
   accessToken: string;
   newRefreshToken: string;
