@@ -29,6 +29,7 @@ export const Magnifier = ({
         isReadOnly
         value={magnification.toFixed(1)}
         size="sm"
+        aria-label="Current magnification"
         className="w-16 text-xs text-right tabular-nums"
       />
 

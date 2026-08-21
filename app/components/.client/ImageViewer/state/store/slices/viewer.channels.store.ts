@@ -104,64 +104,42 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       "addImagePanel",
     ),
 
-  addChannelsState: async () => {
+  addChannelsState: () => {
     const state = get();
     if (!state.metadata || !state.loader) return;
 
     if (state.imagePanelIndex < 0) {
-      try {
-        // Create a timeout promise to prevent infinite hanging
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(
-              new Error(
-                "Worker initialization timeout after 10 seconds. The decoder worker may not be loaded correctly.",
-              ),
-            );
-          }, 10000);
-        });
+      const { channelsState, channelIds, firstChannelKey } = getInitialChannelsState(
+        state.metadata,
+        state.loader,
+      );
 
-        // Race between actual initialization and timeout
-        const { channelsState, channelIds, firstChannelKey } = await Promise.race([
-          getInitialChannelsState(state.metadata, state.loader),
-          timeoutPromise,
-        ]);
+      set(
+        (state) => {
+          state.imagePanelIndex = 0;
+          state.imagePanels = [0];
+          state.selectedChannelId = firstChannelKey;
+          state.layersStates = [
+            {
+              channels: castDraft(channelsState),
+              channelIds,
+              overlays: {},
+              channelsOpacity: 1,
+              overlaysFillOpacity: 0.8,
+              showCellOutline: true,
+              annotationsOpacity: 1,
+              showAnnotationOutline: true,
+              isChannelsLoading: 0,
+              isOverlaysLoading: 0,
+            },
+          ];
+        },
+        false,
+        "addChannelsStateInitial",
+      );
 
-        return set(
-          (state) => {
-            state.imagePanelIndex = 0;
-            state.imagePanels = [0];
-            state.selectedChannelId = firstChannelKey;
-            state.layersStates = [
-              {
-                channels: castDraft(channelsState),
-                channelIds,
-                overlays: {},
-                channelsOpacity: 1,
-                overlaysFillOpacity: 0.8,
-                showCellOutline: true,
-                annotationsOpacity: 1,
-                showAnnotationOutline: true,
-                isChannelsLoading: 0,
-                isOverlaysLoading: 0,
-              },
-            ];
-          },
-          false,
-          "addChannelsStateInitial",
-        );
-      } catch (error) {
-        console.error("[createViewerStore] addChannelsState - FAILED:", error);
-        // Set error state so the UI can show an error message instead of hanging
-        set(
-          (state) => {
-            state.error = error instanceof Error ? error : new Error(String(error));
-          },
-          false,
-          "addChannelsStateError",
-        );
-        return;
-      }
+      state.setChannelVisibility(firstChannelKey as keyof ChannelsStateColumns, true);
+      return;
     }
 
     const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];

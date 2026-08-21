@@ -763,7 +763,7 @@ describe("createViewerStore", () => {
   });
 
   describe("addChannelsState()", () => {
-    test("does nothing when metadata is null", async () => {
+    test("does nothing when metadata is null", () => {
       const store = createViewerStore("test-viewer-29");
 
       store.setState({
@@ -771,11 +771,11 @@ describe("createViewerStore", () => {
         loader: [{}] as unknown as Loader,
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
       expect(store.getState().layersStates).toEqual([]);
     });
 
-    test("does nothing when loader is null", async () => {
+    test("does nothing when loader is null", () => {
       const store = createViewerStore("test-viewer-30");
 
       store.setState({
@@ -783,28 +783,28 @@ describe("createViewerStore", () => {
         loader: null,
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
       expect(store.getState().layersStates).toEqual([]);
     });
 
-    test("initializes channels state on first call", async () => {
+    test("initializes channels state on first call", () => {
       const store = createViewerStore("test-viewer-31");
 
       const mockChannelsState = {
         DAPI: {
-          isInitialized: true,
+          isInitialized: false,
           isLoading: false,
-          isVisible: true,
+          isVisible: false,
           selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
           domain: [0, 65535] as const,
-          histogram: [],
+          histogram: new Array(256).fill(0),
           contrastLimitsInitial: [0, 65535] as const,
           contrastLimits: [0, 65535] as [number, number],
           color: [0, 0, 255] as [number, number, number],
         },
       };
 
-      vi.mocked(getInitialChannelsState).mockResolvedValue({
+      vi.mocked(getInitialChannelsState).mockReturnValue({
         channelsState: mockChannelsState,
         channelIds: ["DAPI"],
         firstChannelKey: "DAPI",
@@ -818,7 +818,7 @@ describe("createViewerStore", () => {
         loader: [{}] as unknown as Loader,
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
 
       expect(store.getState().imagePanelIndex).toBe(0);
       expect(store.getState().imagePanels).toEqual([0]);
@@ -827,45 +827,7 @@ describe("createViewerStore", () => {
       expect(store.getState().layersStates[0].channelIds).toEqual(["DAPI"]);
     });
 
-    test("sets error state when initialization fails", async () => {
-      const store = createViewerStore("test-viewer-32");
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      vi.mocked(getInitialChannelsState).mockRejectedValue(new Error("Failed to load channels"));
-
-      store.setState({
-        imagePanelIndex: -1,
-        metadata: { Pixels: { Channels: [] } } as unknown as Image,
-        loader: [{}] as unknown as Loader,
-      });
-
-      await store.getState().addChannelsState();
-
-      expect(store.getState().error).toBeInstanceOf(Error);
-      expect(store.getState().error?.message).toBe("Failed to load channels");
-      consoleSpy.mockRestore();
-    });
-
-    test("sets error state for non-Error thrown values", async () => {
-      const store = createViewerStore("test-viewer-32b");
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      vi.mocked(getInitialChannelsState).mockRejectedValue("String error");
-
-      store.setState({
-        imagePanelIndex: -1,
-        metadata: { Pixels: { Channels: [] } } as unknown as Image,
-        loader: [{}] as unknown as Loader,
-      });
-
-      await store.getState().addChannelsState();
-
-      expect(store.getState().error).toBeInstanceOf(Error);
-      expect(store.getState().error?.message).toBe("String error");
-      consoleSpy.mockRestore();
-    });
-
-    test("duplicates current channel state on subsequent calls", async () => {
+    test("duplicates current channel state on subsequent calls", () => {
       const store = createViewerStore("test-viewer-33");
 
       store.setState({
@@ -876,7 +838,7 @@ describe("createViewerStore", () => {
         layersStates: [createMockLayersState()],
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
 
       expect(store.getState().layersStates).toHaveLength(2);
       expect(store.getState().imagePanels[0]).toBe(1);

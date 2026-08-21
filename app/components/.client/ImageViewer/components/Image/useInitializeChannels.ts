@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import { select } from "../../state/store/selectors";
-import { type ViewPort } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 /**
@@ -9,18 +8,14 @@ import { useViewerStore } from "../../state/store/ViewerStoreContext";
  * This hook runs once when the component mounts and whenever the metadata or
  * viewPort changes.
  */
-export const useInitializeChannels = (viewPort: ViewPort) => {
-  const isInitialized = useRef(false);
-
+export const useInitializeChannels = () => {
   const metadata = useViewerStore(select.metadata);
   const channelsState = useViewerStore(select.channelsState);
   const addChannelsState = useViewerStore(select.addChannelsState);
-  const setChannelVisibility = useViewerStore(select.setChannelVisibility);
 
   useEffect(() => {
-    if (!isInitialized.current && metadata && viewPort && !channelsState) {
-      isInitialized.current = true;
+    if (!channelsState && metadata) {
       addChannelsState();
     }
-  }, [metadata, viewPort, channelsState, addChannelsState, setChannelVisibility]);
+  }, [metadata, channelsState, addChannelsState]);
 };
