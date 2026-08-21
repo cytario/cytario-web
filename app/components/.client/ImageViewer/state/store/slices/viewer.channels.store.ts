@@ -8,15 +8,15 @@ import {
   ChannelsState,
   ChannelsStateColumns,
   detectBrightfieldGroup,
-  LayerChannelConfig,
   LayerChannelsState,
   OverlaysState,
+  PresetChannelConfig,
   RGB,
   RGBA,
   ViewerSlice,
 } from "../types";
 
-/** Strip image-derived fields (domain, histogram, selection) to produce per-preset layer channel config. */
+/** Strip image-derived fields to produce per-preset layer channel config. */
 const toLayerChannels = (channels: ChannelsState): LayerChannelsState =>
   Object.fromEntries(
     Object.entries(channels).map(([key, cfg]) => {
@@ -24,7 +24,7 @@ const toLayerChannels = (channels: ChannelsState): LayerChannelsState =>
       delete rest.domain;
       delete rest.histogram;
       delete rest.selection;
-      return [key, rest as LayerChannelConfig];
+      return [key, rest as unknown as PresetChannelConfig];
     }),
   );
 
@@ -33,9 +33,7 @@ export interface ChannelsSlice {
   imagePanelIndex: number;
   imagePanels: number[];
 
-  /** Top-level default channels state (mirrors layersStates[0] for now). */
   channels: ChannelsState;
-  /** Top-level default channel IDs (mirrors layersStates[0] for now). */
   channelIds: string[];
 
   layersStates: {

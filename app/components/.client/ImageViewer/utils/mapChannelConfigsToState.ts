@@ -17,7 +17,9 @@ export const mapChannelConfigsToState = (
       acc.contrastLimits.push(config.contrastLimits);
       acc.colors.push(config.color);
       acc.selections.push(
-        (config as { selection?: Selection }).selection ?? { c: 0, x: 0, y: 0, z: 0, t: 0 },
+        "selection" in config
+          ? (config.selection as Selection)
+          : ({ c: 0, x: 0, y: 0, z: 0, t: 0 } as Selection),
       );
 
       return acc;

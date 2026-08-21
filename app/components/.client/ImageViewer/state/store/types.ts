@@ -35,22 +35,27 @@ export interface ChannelsStateColumns {
   selections: Selection[];
 }
 
-export interface ChannelConfig {
-  isInitialized: boolean;
-  isLoading: boolean;
-  isVisible: boolean;
+/** File-derived channel data — immutable across presets, stored in top-level `channels` only. */
+export interface ImageChannelData {
   selection: Readonly<Selection>;
   domain: Readonly<ByteDomain>;
   histogram: number[];
+}
+
+/** Per-preset user settings — stored in `layersStates[].channels`. */
+export interface PresetChannelConfig {
+  isInitialized: boolean;
+  isLoading: boolean;
+  isVisible: boolean;
   contrastLimits: ByteDomain;
   color: RGB;
 }
 
-export type ChannelsState = Record<string, ChannelConfig>;
+/** Full channel config — top-level `channels` entries (image data + preset settings merged). */
+export type ChannelConfig = PresetChannelConfig & ImageChannelData;
 
-/** Per-preset channel config — domain/histogram/selection live in top-level ChannelsState only. */
-export type LayerChannelConfig = Omit<ChannelConfig, "domain" | "histogram" | "selection">;
-export type LayerChannelsState = Record<string, LayerChannelConfig>;
+export type ChannelsState = Record<string, ChannelConfig>;
+export type LayerChannelsState = Record<string, PresetChannelConfig>;
 
 export const BRIGHTFIELD_GROUP_ID = "__brightfield__" as const;
 
