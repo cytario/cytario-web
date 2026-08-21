@@ -25,7 +25,7 @@ describe("useConnectionsStore", () => {
         [config],
         { [config.id]: creds },
         {},
-        provider ? { [config.id]: { allowsSharing: false, ...provider } } : {},
+        provider ? { [config.id]: { allowsSharing: false, canWrite: false, ...provider } } : {},
       );
   };
 

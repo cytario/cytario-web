@@ -19,6 +19,7 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 interface ViewerRegistryStore {
   viewers: Record<string, ViewerStoreApi>;
   registerViewer: (resourceId: string, signedFetch: SignedFetch) => ViewerStoreApi;
+  evictViewer: (resourceId: string) => void;
 }
 
 /**
@@ -28,7 +29,7 @@ interface ViewerRegistryStore {
  * derived from the resourceId for loading only; it is never the identity. Lazy
  * credentials mean cached stores pick up fresh STS tokens automatically.
  */
-const useViewerRegistryStore = create<ViewerRegistryStore>()(
+export const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
     (set, get) => ({
       viewers: {},
@@ -55,9 +56,10 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
         };
 
         loadImage()
-          .then(({ data: loader, metadata }) => {
+          .then(({ data: loader, metadata, offsetsMissing }) => {
             viewerState.setLoader(loader);
             viewerState.setMetadata(metadata);
+            if (offsetsMissing) viewerState.setOffsetsMissing(true);
           })
           .catch((error: Error) => {
             viewerState.setError(error);
@@ -75,6 +77,17 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
         );
 
         return viewerStore;
+      },
+      evictViewer: (resourceId) => {
+        set(
+          (registryState) => {
+            const next = { ...registryState.viewers };
+            delete next[resourceId];
+            return { viewers: next };
+          },
+          false,
+          "evictViewer",
+        );
       },
     }),
     { name: "ViewerRegistryStore" },

@@ -23,6 +23,7 @@ let _bfSelectedCache: {
 export const select = {
   id: (state: ViewerStore) => state.id,
   error: (state: ViewerStore) => state.error,
+  offsetsMissing: (state: ViewerStore) => state.offsetsMissing,
 
   isViewerLoading: (state: ViewerStore) => state.isViewerLoading,
 

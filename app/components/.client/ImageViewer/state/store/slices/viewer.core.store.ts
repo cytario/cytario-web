@@ -11,11 +11,14 @@ export interface CoreSlice {
   valueRange: ByteDomain;
   error: Error | null;
   isViewerLoading: boolean;
+  /** True when the offsets sidecar was absent on the last load. */
+  offsetsMissing: boolean;
 
   setError: (error: Error | null) => void;
   setMetadata: (metadata: Image) => void;
   setLoader: (loader: Loader) => void;
   setIsViewerLoading: (val: boolean) => void;
+  setOffsetsMissing: (val: boolean) => void;
 }
 
 /** Core image lifecycle: loader, metadata, dtype value range, load/error flags. */
@@ -25,6 +28,7 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
   valueRange: [0, 0],
   error: null,
   isViewerLoading: true,
+  offsetsMissing: false,
 
   setError: (error) =>
     set(
@@ -65,5 +69,14 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
       },
       false,
       "setIsViewerLoading",
+    ),
+
+  setOffsetsMissing: (offsetsMissing) =>
+    set(
+      (state) => {
+        state.offsetsMissing = offsetsMissing;
+      },
+      false,
+      "setOffsetsMissing",
     ),
 });

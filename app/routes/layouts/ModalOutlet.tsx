@@ -16,6 +16,9 @@ const MODAL_REGISTRY = {
   "edit-connection": lazy(() => import("~/routes/connections/updateConnection.modal")),
   "share-folder": lazy(() => import("~/routes/connections/shareFolder.modal")),
   cyberduck: lazy(() => import("~/components/DirectoryView/modals/Cyberduck.modal")),
+  "generate-offsets": lazy(
+    () => import("~/components/.client/ImageViewer/components/GenerateOffsets.modal"),
+  ),
 } satisfies Record<string, ModalComponent>;
 
 /**

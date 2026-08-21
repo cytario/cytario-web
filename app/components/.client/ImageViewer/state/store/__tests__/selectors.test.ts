@@ -5,6 +5,7 @@ describe("selectors", () => {
   const createMockState = (overrides: Partial<ViewerStore> = {}): ViewerStore => ({
     id: "test",
     error: null,
+    offsetsMissing: false,
     selectedChannelId: null,
     loader: [],
     valueRange: [0, 0],
@@ -77,6 +78,7 @@ describe("selectors", () => {
     setViewStatePreview: vi.fn(),
     setViewStateActive: vi.fn(),
     setIsViewerLoading: vi.fn(),
+    setOffsetsMissing: vi.fn(),
     setIsChannelsLoading: vi.fn(),
     setIsOverlaysLoading: vi.fn(),
     setMetadata: vi.fn(),

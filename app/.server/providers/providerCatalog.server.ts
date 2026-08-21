@@ -243,6 +243,8 @@ export interface ResolvedConnectionProviderWithGrants {
   endpoint: string | null;
   region: string;
   allowsSharing: boolean;
+  /** True when any grant is `read-write` or `admin` (permits `s3:PutObject`). */
+  canWrite: boolean;
   grants: ResolvedConnectionGrant[];
 }
 
@@ -264,6 +266,7 @@ export function resolveConnectionProviderWithGrants(
 
   const grants: ResolvedConnectionGrant[] = [];
   let allowsSharing = false;
+  let canWrite = false;
   for (const grant of connection.grants) {
     const providerRole = findProviderRole(catalog, grant.providerRoleId);
     if (!providerRole || providerRole.providerConnectionId !== providerConnection.id) continue;
@@ -273,6 +276,9 @@ export function resolveConnectionProviderWithGrants(
       accessLevel: providerRole.accessLevel,
     });
     if (providerRole.accessLevel === "admin") allowsSharing = true;
+    if (providerRole.accessLevel === "read-write" || providerRole.accessLevel === "admin") {
+      canWrite = true;
+    }
   }
 
   return {
@@ -280,6 +286,7 @@ export function resolveConnectionProviderWithGrants(
     endpoint: providerConnection.endpoint,
     region: providerConnection.region,
     allowsSharing,
+    canWrite,
     grants,
   };
 }

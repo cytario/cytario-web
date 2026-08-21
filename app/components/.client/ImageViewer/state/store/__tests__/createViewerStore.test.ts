@@ -52,6 +52,7 @@ describe("createViewerStore", () => {
     expect(initialState).toEqual({
       id: storeId,
       error: null,
+      offsetsMissing: false,
       selectedChannelId: null,
       loader: [],
       valueRange: [0, 0],
@@ -78,6 +79,7 @@ describe("createViewerStore", () => {
       setViewStatePreview: expect.any(Function),
       setViewStateActive: expect.any(Function),
       setIsViewerLoading: expect.any(Function),
+      setOffsetsMissing: expect.any(Function),
       setIsChannelsLoading: expect.any(Function),
       setIsOverlaysLoading: expect.any(Function),
       setMetadata: expect.any(Function),
