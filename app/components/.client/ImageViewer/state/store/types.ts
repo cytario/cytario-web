@@ -57,7 +57,6 @@ export type ChannelConfig = PresetChannelConfig & ImageChannelData;
 export type ChannelsState = Record<string, ChannelConfig>;
 export type LayerChannelsState = Record<string, Partial<PresetChannelConfig>>;
 
-/** Per-preset state — one entry per user-created preset in `layersStates`. */
 export interface LayersStateEntry {
   channels: LayerChannelsState;
   overlays: OverlaysState;
@@ -70,7 +69,6 @@ export interface LayersStateEntry {
   isOverlaysLoading: number;
 }
 
-/** Factory for a fresh preset with image-derived defaults (no user overrides). */
 export const createDefaultLayersStateEntry = (): LayersStateEntry => ({
   channels: {},
   overlays: {},
