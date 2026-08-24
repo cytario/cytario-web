@@ -1,0 +1,121 @@
+import { useMemo } from "react";
+import { RadioGroup } from "react-aria-components";
+
+import { ChannelsPanelBrightfieldItem } from "./ChannelsPanelBrightfieldItem";
+import { ChannelsPanelItem } from "./ChannelsPanelItem";
+import { select } from "../../../state/store/selectors";
+import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../../state/store/types";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+const MAX_VISIBLE_CHANNELS = 6;
+
+export function ChannelsPanelItemList() {
+  const channelsState = useViewerStore(select.channelsState);
+  const channelIds = useViewerStore(select.channelIds);
+  const maxChannelDomain = useViewerStore(select.maxChannelDomain);
+  const visibleChannelCount = useViewerStore(select.visibleChannelCount);
+  const selectedChannelId = useViewerStore(select.selectedChannelId);
+  const setSelectedChannelId = useViewerStore(select.setSelectedChannelId);
+  const setChannelVisibility = useViewerStore(select.setChannelVisibility);
+  const setChannelColor = useViewerStore(select.setChannelColor);
+  const brightfieldGroup = useViewerStore(select.brightfieldGroup);
+
+  const pixelValues = useViewerStore(select.pixelValues);
+
+  const brightfieldChannelIds = useMemo(() => {
+    if (!brightfieldGroup) return new Set<string>();
+    return new Set([brightfieldGroup.red, brightfieldGroup.green, brightfieldGroup.blue]);
+  }, [brightfieldGroup]);
+
+  const isBrightfieldVisible = useMemo(() => {
+    if (!brightfieldGroup || !channelsState) return false;
+    return (
+      channelsState[brightfieldGroup.red]?.isVisible &&
+      channelsState[brightfieldGroup.green]?.isVisible &&
+      channelsState[brightfieldGroup.blue]?.isVisible
+    );
+  }, [brightfieldGroup, channelsState]);
+
+  const visibleChannelIds = useMemo(
+    () => channelIds.filter((id) => !brightfieldChannelIds.has(id)),
+    [channelIds, brightfieldChannelIds],
+  );
+
+  const showBrightfield = !!brightfieldGroup;
+
+  return (
+    <RadioGroup
+      aria-label="Image channels"
+      value={selectedChannelId}
+      onChange={(name) => {
+        if (!name) return;
+
+        // Check if enabling this channel/group would exceed the viv limit
+        const isBrightfield = name === BRIGHTFIELD_GROUP_ID;
+        const slotsNeeded = isBrightfield ? 3 : 1;
+        const alreadyVisible = isBrightfield
+          ? isBrightfieldVisible
+          : channelsState?.[name]?.isVisible;
+        if (!alreadyVisible && visibleChannelCount + slotsNeeded > MAX_VISIBLE_CHANNELS) return;
+
+        setSelectedChannelId(name);
+        setChannelVisibility(name as keyof ChannelsStateColumns, true);
+      }}
+      className="flex flex-col p-2 gap-1"
+    >
+      {visibleChannelIds.map((id) => {
+        const config = channelsState?.[id];
+        if (!config) return null;
+
+        const name = id as keyof ChannelsStateColumns;
+        const { color, isVisible, isLoading } = config;
+
+        const toggleChannelVisibility = () => {
+          setChannelVisibility(name, !isVisible);
+
+          if (isVisible && name === selectedChannelId) {
+            setSelectedChannelId(null);
+          } else if (!isVisible) {
+            setSelectedChannelId(name);
+          }
+        };
+
+        return (
+          <ChannelsPanelItem
+            key={id}
+            name={name}
+            color={[...color, 255]}
+            isVisible={isVisible}
+            isLoading={isLoading}
+            pixelValue={pixelValues[name] ?? 0}
+            maxDomain={maxChannelDomain}
+            visibleChannelCount={visibleChannelCount}
+            toggleChannelVisibility={toggleChannelVisibility}
+            onColorChange={(newColor) => setChannelColor(id, newColor)}
+          />
+        );
+      })}
+
+      {showBrightfield && (
+        <ChannelsPanelBrightfieldItem
+          isVisible={isBrightfieldVisible}
+          isLoading={
+            !!channelsState?.[brightfieldGroup.red]?.isLoading ||
+            !!channelsState?.[brightfieldGroup.green]?.isLoading ||
+            !!channelsState?.[brightfieldGroup.blue]?.isLoading
+          }
+          visibleChannelCount={visibleChannelCount}
+          toggleVisibility={() => {
+            const newVisible = !isBrightfieldVisible;
+            setChannelVisibility(BRIGHTFIELD_GROUP_ID as keyof ChannelsStateColumns, newVisible);
+
+            if (!newVisible && selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+              setSelectedChannelId(null);
+            } else if (newVisible) {
+              setSelectedChannelId(BRIGHTFIELD_GROUP_ID);
+            }
+          }}
+        />
+      )}
+    </RadioGroup>
+  );
+}

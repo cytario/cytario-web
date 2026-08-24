@@ -1,14 +1,14 @@
 import { IconButtonToggle } from "@cytario/design";
 
-import { AnnotationsPanel } from "./AnnotationsPanel/AnnotationsPanel";
-import { ChannelsPanel } from "./ChannelsPanel/ChannelsPanel";
 import { ImagePreview } from "./Image/ImagePreview";
 import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
-import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
+import { AnnotationsPanel } from "./panels/AnnotationsPanel/AnnotationsPanel";
+import { ChannelsPanel } from "./panels/ChannelsPanel/ChannelsPanel";
+import { OverlaysPanel } from "./panels/OverlaysPanel/OverlaysPanel";
+import { Views } from "./panels/ViewsPanel/Views";
 import { ViewerHeader } from "./ViewerHeader";
-import { Views } from "./Views/Views";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";

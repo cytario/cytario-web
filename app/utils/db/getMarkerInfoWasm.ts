@@ -1,6 +1,6 @@
 import { createDatabase } from "./createDatabase";
 import { resolveResourceId } from "../connectionsStore/selectors";
-import { MarkerInfo } from "~/components/.client/ImageViewer/components/OverlaysPanel/getOverlayState";
+import { MarkerInfo } from "~/components/.client/ImageViewer/components/panels/OverlaysPanel/getOverlayState";
 
 /** Total cell/object count (row count) of an overlay parquet. */
 export async function getOverlayCellCount(resourceId: string): Promise<number> {
