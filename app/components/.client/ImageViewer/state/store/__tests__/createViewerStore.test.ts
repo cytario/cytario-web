@@ -1018,6 +1018,342 @@ describe("createViewerStore", () => {
     });
   });
 
+  describe("shareView()", () => {
+    test("sets shared=true on own view", () => {
+      const store = createViewerStore("test-share-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      store.getState().shareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(true);
+    });
+
+    test("does nothing for peer-authored view", () => {
+      const store = createViewerStore("test-share-2", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b", shared: false }],
+      });
+
+      store.getState().shareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(false);
+    });
+
+    test("does nothing for out-of-bounds index", () => {
+      const store = createViewerStore("test-share-4", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      store.getState().shareView(5);
+      store.getState().shareView(-1);
+      expect(store.getState().layersStates[0].shared).toBe(false);
+    });
+  });
+
+  describe("unshareView()", () => {
+    test("sets shared=false on own view", () => {
+      const store = createViewerStore("test-unshare-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: true }],
+      });
+
+      store.getState().unshareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(false);
+    });
+
+    test("entry remains in layersStates after unshare", () => {
+      const store = createViewerStore("test-unshare-2", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: true }],
+      });
+
+      store.getState().unshareView(0);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+
+    test("does nothing for peer-authored view", () => {
+      const store = createViewerStore("test-unshare-3", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b", shared: true }],
+      });
+
+      store.getState().unshareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(true);
+    });
+  });
+
+  describe("forkView()", () => {
+    test("clones view with new UUID, current user as author, shared=false", () => {
+      const store = createViewerStore("test-fork-1", "user-a");
+      const source = {
+        ...createMockLayersState(),
+        author: "user-b",
+        shared: true,
+        name: "Peer View",
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [source],
+      });
+
+      store.getState().forkView(0);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      const fork = store.getState().layersStates[1];
+      expect(fork.id).not.toBe(source.id);
+      expect(fork.author).toBe("user-a");
+      expect(fork.shared).toBe(false);
+      expect(fork.name).toBe("Peer View (copy)");
+      expect(fork.channels).toEqual(source.channels);
+      expect(fork.overlays).toEqual(source.overlays);
+    });
+
+    test("forked view has unique id across multiple forks", () => {
+      const store = createViewerStore("test-fork-2", "user-a");
+      const source = {
+        ...createMockLayersState(),
+        author: "user-b",
+        shared: true,
+        name: "Shared",
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [source],
+      });
+
+      store.getState().forkView(0);
+      store.getState().forkView(0);
+
+      expect(store.getState().layersStates).toHaveLength(3);
+      const ids = store.getState().layersStates.map((ls) => ls.id);
+      expect(new Set(ids).size).toBe(3);
+    });
+
+    test("fork of unnamed view produces unnamed clone", () => {
+      const store = createViewerStore("test-fork-3", "user-a");
+      const source = {
+        ...createMockLayersState(),
+        author: "user-b",
+        shared: true,
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [source],
+      });
+
+      store.getState().forkView(0);
+      expect(store.getState().layersStates[1].name).toBeUndefined();
+    });
+
+    test("does nothing for out-of-bounds index", () => {
+      const store = createViewerStore("test-fork-4", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b" }],
+      });
+
+      store.getState().forkView(5);
+      store.getState().forkView(-1);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+  });
+
+  describe("loadSharedViews()", () => {
+    test("appends new shared views", () => {
+      const store = createViewerStore("test-load-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      const entries = [
+        {
+          id: "shared-1",
+          author: "user-b",
+          name: "Peer View",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+      ];
+
+      store.getState().loadSharedViews(entries);
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].id).toBe("shared-1");
+      expect(store.getState().layersStates[1].author).toBe("user-b");
+      expect(store.getState().layersStates[1].shared).toBe(true);
+    });
+
+    test("overwrites existing view by id instead of duplicating", () => {
+      const store = createViewerStore("test-load-2", "user-a");
+      const existing = {
+        ...createMockLayersState(),
+        id: "view-1",
+        author: "user-b",
+        shared: true,
+        name: "Old Name",
+        channelsOpacity: 0.5,
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [existing],
+      });
+
+      const entries = [
+        {
+          id: "view-1",
+          author: "user-b",
+          name: "New Name",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+      ];
+
+      store.getState().loadSharedViews(entries);
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].name).toBe("New Name");
+      expect(store.getState().layersStates[0].channelsOpacity).toBe(1);
+    });
+
+    test("does nothing with empty entries", () => {
+      const store = createViewerStore("test-load-3", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      store.getState().loadSharedViews([]);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+
+    test("handles mix of new and existing ids", () => {
+      const store = createViewerStore("test-load-4", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [
+          { ...createMockLayersState(), id: "existing-1", author: "user-a" },
+          {
+            ...createMockLayersState(),
+            id: "shared-1",
+            author: "user-b",
+            shared: true,
+            name: "Old",
+          },
+        ],
+      });
+
+      const entries = [
+        {
+          id: "shared-1",
+          author: "user-b",
+          name: "Updated",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+        {
+          id: "shared-2",
+          author: "user-c",
+          name: "New Peer View",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+      ];
+
+      store.getState().loadSharedViews(entries);
+      expect(store.getState().layersStates).toHaveLength(3);
+      expect(store.getState().layersStates[1].name).toBe("Updated");
+      expect(store.getState().layersStates[2].id).toBe("shared-2");
+    });
+  });
+
+  describe("setViewName() peer guard", () => {
+    test("does not rename a peer-authored view", () => {
+      const store = createViewerStore("test-setname-peer-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b", name: "Original" }],
+      });
+
+      store.getState().setViewName(0, "Hacked");
+      expect(store.getState().layersStates[0].name).toBe("Original");
+    });
+  });
+
+  describe("removeChannelsState() peer guard", () => {
+    test("does not remove a peer-authored view", () => {
+      const store = createViewerStore("test-remove-peer-1", "user-a");
+      const peerView = { ...createMockLayersState(), author: "user-b" };
+      const ownView = { ...createMockLayersState(), author: "user-a" };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0, 1],
+        layersStates: [peerView, ownView],
+      });
+
+      store.getState().removeChannelsState(0);
+      expect(store.getState().layersStates).toHaveLength(2);
+    });
+
+    test("removes own view normally", () => {
+      const store = createViewerStore("test-remove-peer-2", "user-a");
+      const ownView1 = { ...createMockLayersState(), author: "user-a" };
+      const ownView2 = { ...createMockLayersState(), author: "user-a" };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0, 1],
+        layersStates: [ownView1, ownView2],
+      });
+
+      store.getState().removeChannelsState(0);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+  });
+
   describe("persist migration v0 -> v1", () => {
     const fallback = {
       selectedChannelId: null,

@@ -56,3 +56,20 @@ describe("parseOwnerFromKey (settings)", () => {
     );
   });
 });
+
+describe("parseOwnerFromKey (annotations)", () => {
+  it("extracts userId from an annotations filename", () => {
+    expect(parseOwnerFromKey("s3://bucket/data/slide.annotations.u1.json", "annotations")).toBe(
+      "u1",
+    );
+  });
+
+  it("returns undefined for a settings filename when kind is annotations", () => {
+    expect(parseOwnerFromKey("s3://bucket/data/settings.u1.json", "annotations")).toBe(undefined);
+  });
+
+  it("returns undefined for a plain image filename", () => {
+    expect(parseOwnerFromKey("s3://bucket/data/slide.ome.tif", "settings")).toBe(undefined);
+    expect(parseOwnerFromKey("s3://bucket/data/slide.ome.tif", "annotations")).toBe(undefined);
+  });
+});
