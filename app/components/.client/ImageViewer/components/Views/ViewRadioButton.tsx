@@ -5,6 +5,8 @@ import { RadioButton } from "react-aria-components";
 import { ViewLabel } from "./ViewLabel";
 import { select } from "../../state/store/selectors";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { parseResourceId } from "~/utils/resourceId";
 
 export function ViewRadioButton({
   index,
@@ -15,8 +17,16 @@ export function ViewRadioButton({
   canDelete: boolean;
   onDelete: () => void;
 }) {
+  const resourceId = useViewerStore((s) => s.id);
+  const { connectionId } = parseResourceId(resourceId);
+  const canWrite = useConnectionsStore(
+    (s) => s.connections[connectionId]?.provider?.canWrite ?? false,
+  );
   const viewName = useViewerStore(select.viewName(index));
   const setViewName = useViewerStore(select.setViewName);
+  const isShared = useViewerStore((s) => s.layersStates[index]?.shared ?? false);
+  const shareView = useViewerStore((s) => s.shareView);
+  const unshareView = useViewerStore((s) => s.unshareView);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +69,15 @@ export function ViewRadioButton({
         <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
           Rename
         </MenuItem>
+        {canWrite && (
+          <MenuItem
+            id="share"
+            icon={isShared ? "Cloud" : "Send"}
+            onAction={() => (isShared ? unshareView(index) : shareView(index))}
+          >
+            {isShared ? "Stop sharing" : "Share"}
+          </MenuItem>
+        )}
         <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!canDelete} onAction={onDelete}>
           Delete view
         </MenuItem>
@@ -125,6 +144,15 @@ export function ViewRadioButton({
             <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
               Rename
             </MenuItem>
+            {canWrite && (
+              <MenuItem
+                id="share"
+                icon={isShared ? "Cloud" : "Send"}
+                onAction={() => (isShared ? unshareView(index) : shareView(index))}
+              >
+                {isShared ? "Stop sharing" : "Share"}
+              </MenuItem>
+            )}
             <MenuItem
               id="delete"
               icon="Trash2"

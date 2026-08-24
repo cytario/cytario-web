@@ -58,6 +58,7 @@ export type ChannelsState = Record<string, ChannelConfig>;
 export type LayerChannelsState = Record<string, Partial<PresetChannelConfig>>;
 
 export interface LayersStateEntry {
+  id: string;
   channels: LayerChannelsState;
   overlays: OverlaysState;
   channelsOpacity: number;
@@ -68,9 +69,11 @@ export interface LayersStateEntry {
   isChannelsLoading: number;
   isOverlaysLoading: number;
   name?: string;
+  shared?: boolean;
 }
 
 export const createDefaultLayersStateEntry = (): LayersStateEntry => ({
+  id: crypto.randomUUID(),
   channels: {},
   overlays: {},
   channelsOpacity: 1,

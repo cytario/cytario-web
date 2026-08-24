@@ -1,3 +1,5 @@
+import { Icon } from "@cytario/design";
+
 import { channelsStateForLayer, select } from "../../state/store/selectors";
 import { ChannelsState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
@@ -9,6 +11,7 @@ export function ViewLabel({ index }: { index: number }) {
   const layersStates = useViewerStore(select.layersStates);
 
   const layersState = layersStates[index];
+  const isShared = layersState?.shared ?? false;
   const presetChannelsOpacity = layersState?.channelsOpacity ?? 1;
   const annotationsOpacity = layersState?.annotationsOpacity ?? 1;
   const showAnnotationOutline = layersState?.showAnnotationOutline ?? true;
@@ -45,6 +48,11 @@ export function ViewLabel({ index }: { index: number }) {
             className={`w-1.5 h-1.5 rounded-full bg-foreground ${showAnnotationOutline ? "ring-1 ring-foreground/40" : ""}`}
             style={{ opacity: annotationsOpacity }}
           />
+        </div>
+      )}
+      {isShared && (
+        <div className="absolute -top-px -left-px text-primary-foreground bg-primary rounded-full p-px">
+          <Icon icon="Cloud" size="xs" strokeWidth={2.5} />
         </div>
       )}
     </div>

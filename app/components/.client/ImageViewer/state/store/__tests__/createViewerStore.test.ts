@@ -15,6 +15,8 @@ vi.mock("../../../utils/getSelectionStats");
 vi.mock("../getInitialChannelsState");
 
 const createMockLayersState = () => ({
+  id: crypto.randomUUID(),
+  shared: false,
   channels: {} as Record<string, Partial<PresetChannelConfig>>,
   overlays: {} as OverlaysState,
   channelsOpacity: 1,
@@ -126,6 +128,9 @@ describe("createViewerStore", () => {
       showAnnotationClass: expect.any(Function),
       setAnnotationMode: expect.any(Function),
       setAnnotationSelectedIds: expect.any(Function),
+      shareView: expect.any(Function),
+      unshareView: expect.any(Function),
+      loadSharedViews: expect.any(Function),
     });
   });
 

@@ -57,6 +57,8 @@ describe("selectors", () => {
     annotationClasses: [],
     layersStates: [
       {
+        id: "test-id",
+        shared: false,
         channels: {
           Red: {
             isVisible: true,
@@ -131,6 +133,9 @@ describe("selectors", () => {
     showAnnotationClass: vi.fn(),
     setAnnotationMode: vi.fn(),
     setAnnotationSelectedIds: vi.fn(),
+    shareView: vi.fn(),
+    unshareView: vi.fn(),
+    loadSharedViews: vi.fn(),
     ...overrides,
   });
 
@@ -174,6 +179,8 @@ describe("selectors", () => {
         channelIds: [],
         layersStates: [
           {
+            id: "test-id",
+            shared: false,
             channels: {},
             overlays: {},
             channelsOpacity: 1,
@@ -206,6 +213,8 @@ describe("selectors", () => {
         channelIds: ["Single"],
         layersStates: [
           {
+            id: "test-id",
+            shared: false,
             channels: {
               Single: {
                 isVisible: true,
@@ -272,6 +281,8 @@ describe("selectors", () => {
         },
         layersStates: [
           {
+            id: "test-id",
+            shared: false,
             channels: {
               Red: {
                 isVisible: false,
@@ -330,6 +341,8 @@ describe("selectors", () => {
         channelIds: ["Ch1", "Ch2", "Ch3"],
         layersStates: [
           {
+            id: "test-id",
+            shared: false,
             channels: {
               Ch1: {
                 isVisible: true,
@@ -392,6 +405,8 @@ describe("selectors", () => {
         imagePanels: [0, 1],
         layersStates: [
           {
+            id: "test-id",
+            shared: false,
             channels: {},
             overlays: {},
             channelsOpacity: 1,
@@ -403,6 +418,8 @@ describe("selectors", () => {
             isOverlaysLoading: 0,
           },
           {
+            id: "test-id",
+            shared: false,
             channels: {},
             overlays: {},
             channelsOpacity: 1,

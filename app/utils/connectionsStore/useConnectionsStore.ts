@@ -28,6 +28,9 @@ export interface ConnectionProviderClient {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** Whether the current user's grant permits general data-plane writes
+   *  (read-write or admin). Advisory UI gate; S3 denies enforce it. */
+  canWrite: boolean;
 }
 
 /** Static config + STS credentials + live health for one connection. */

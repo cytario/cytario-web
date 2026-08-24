@@ -222,6 +222,8 @@ describe("setAnnotationsOpacity", () => {
       imagePanels: [0],
       layersStates: [
         {
+          id: "test-id",
+          shared: false,
           channels: {},
           overlays: {},
           channelsOpacity: 1,
@@ -245,6 +247,8 @@ describe("setAnnotationsOpacity", () => {
       imagePanels: [0],
       layersStates: [
         {
+          id: "test-id",
+          shared: false,
           channels: {},
           overlays: {},
           channelsOpacity: 1,

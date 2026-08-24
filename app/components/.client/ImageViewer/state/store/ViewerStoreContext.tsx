@@ -5,6 +5,7 @@ import { devtools } from "zustand/middleware";
 import { attachAnnotationSync } from "./annotationSync";
 import { createViewerStore } from "./createViewerStore";
 import type { ViewerStore } from "./types";
+import { attachViewSync } from "./viewSync";
 import { registerBuiltinFormats } from "../formats/builtins";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
@@ -44,6 +45,7 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
         // the store (not a component) so it loads once per image and pending
         // writes survive image switches and panel collapse.
         attachAnnotationSync(viewerStore);
+        attachViewSync(viewerStore);
 
         const loadImage = async () => {
           const { httpsUrl } = resolveResourceId(resourceId);

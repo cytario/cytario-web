@@ -133,6 +133,9 @@ export interface ClientConnectionProvider {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** Whether the current user's resolved grant permits general data-plane
+   *  writes (read-write or admin). Advisory UI gate; S3 denies enforce it. */
+  canWrite: boolean;
 }
 
 export interface SessionCredentialsResult {
@@ -191,10 +194,14 @@ export const getAllSessionCredentials = async (
     for (const config of connectionConfigs) {
       const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
       if (connectionProvider) {
+        const grant = pickGrantForUser(connectionProvider, sessionData.user, organization);
         providers[config.id] = {
           region: connectionProvider.region,
           endpoint: connectionProvider.endpoint,
           allowsSharing: connectionProvider.allowsSharing,
+          canWrite: grant
+            ? grant.accessLevel === "read-write" || grant.accessLevel === "admin"
+            : false,
         };
       }
     }

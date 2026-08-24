@@ -14,6 +14,7 @@ import {
   RGBA,
   ViewerSlice,
 } from "../types";
+import { sidecarEntryToLayersState, type ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 
 export interface ChannelsSlice {
   selectedChannelId: keyof ChannelsState | null;
@@ -39,6 +40,9 @@ export interface ChannelsSlice {
   setChannelColor: (key: keyof ChannelsState, color: RGBA) => void;
   setChannelsOpacity: (opacity: number) => void;
   setViewName: (index: number, name: string | null) => void;
+  shareView: (index: number) => void;
+  unshareView: (index: number) => void;
+  loadSharedViews: (entries: ViewSettingsEntry[]) => void;
 }
 
 /**
@@ -423,5 +427,45 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       },
       false,
       "setChannelsOpacity",
+    ),
+
+  shareView: (index) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        state.layersStates[index].shared = true;
+      },
+      false,
+      "shareView",
+    ),
+
+  unshareView: (index) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        state.layersStates[index].shared = false;
+      },
+      false,
+      "unshareView",
+    ),
+
+  loadSharedViews: (entries) =>
+    set(
+      (state) => {
+        if (entries.length === 0) return;
+        const existingIds = new Set(state.layersStates.map((ls) => ls.id));
+        for (const entry of entries) {
+          if (existingIds.has(entry.id)) {
+            const idx = state.layersStates.findIndex((ls) => ls.id === entry.id);
+            if (idx >= 0) {
+              state.layersStates[idx] = sidecarEntryToLayersState(entry);
+            }
+          } else {
+            state.layersStates.push(sidecarEntryToLayersState(entry));
+          }
+        }
+      },
+      false,
+      "loadSharedViews",
     ),
 });

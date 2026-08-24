@@ -6,9 +6,14 @@ import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { Views } from "../Views";
 import { useFeatureItemStore } from "~/components/FeatureItem/useFeatureItem";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
+}));
+
+vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
+  useConnectionsStore: vi.fn(),
 }));
 
 vi.mock("~/components/FeatureItem/useFeatureItem", () => ({
@@ -20,19 +25,28 @@ const mockSetViewName = vi.fn();
 const mockSetActivePresetIndex = vi.fn();
 const mockRemoveChannelsState = vi.fn();
 const mockAddChannelsState = vi.fn();
+const mockShareView = vi.fn();
+const mockUnshareView = vi.fn();
 
 function setupStore(overrides?: {
-  layersStates?: { channels: Record<string, { isVisible: boolean }>; name?: string }[];
+  layersStates?: {
+    channels: Record<string, { isVisible: boolean }>;
+    name?: string;
+    shared?: boolean;
+  }[];
   channelIds?: string[];
   channels?: Record<string, Record<string, unknown>>;
   activePresetIndex?: number;
+  canWrite?: boolean;
 }) {
   const layersStates = overrides?.layersStates ?? [{ channels: {} }];
   const channelIds = overrides?.channelIds ?? [];
   const channels = overrides?.channels ?? {};
   const activePresetIndex = overrides?.activePresetIndex ?? 0;
+  const canWrite = overrides?.canWrite ?? true;
 
   const mockState = {
+    id: "test-conn/some/path.ome.tif",
     layersStates,
     channelIds,
     channels,
@@ -42,6 +56,8 @@ function setupStore(overrides?: {
     setActivePresetIndex: mockSetActivePresetIndex,
     removeChannelsState: mockRemoveChannelsState,
     addChannelsState: mockAddChannelsState,
+    shareView: mockShareView,
+    unshareView: mockUnshareView,
   };
 
   vi.clearAllMocks();
@@ -68,6 +84,7 @@ function setupStore(overrides?: {
     }
   });
 
+  (useConnectionsStore as unknown as Mock).mockReturnValue(canWrite);
   (useFeatureItemStore as Mock).mockReturnValue({ isOpen: true, setIsOpen: vi.fn() });
 }
 
