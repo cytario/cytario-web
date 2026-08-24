@@ -20,14 +20,15 @@ import { createTemporalOptions, type TemporalState } from "./viewerTemporal";
  * stack. `subscribeWithSelector` lets the annotation autosave writer
  * subscribe to a single slice of state. `temporal` (zundo) is innermost so
  * it intercepts every `set` first, snapshotting the pre-mutation state into
- * the undo/redo history. Only `id` lives at the root; it keys persistence +
- * devtools.
+ * the undo/redo history. `id` and `currentUserId` live at the root; `id`
+ * keys persistence + devtools, `currentUserId` scopes per-user sidecar writes
+ * and ownership guards.
  *
  * The `TemporalState` (cool-off controller) is attached as a property on the
  * returned store so the `useUndoRedo` hook can reset the gesture debounce
  * before calling undo/redo.
  */
-export const createViewerStore = (id: string) => {
+export const createViewerStore = (id: string, userId: string = "") => {
   const { options: temporalOptions, temporalState } = createTemporalOptions();
 
   const store = createStore<ViewerStore>()(
@@ -38,6 +39,7 @@ export const createViewerStore = (id: string) => {
             temporal(
               (set, get, storeApi) => ({
                 id,
+                currentUserId: userId,
                 ...createCoreSlice(set, get, storeApi),
                 ...createViewSlice(set, get, storeApi),
                 ...createChannelsSlice(set, get, storeApi),
@@ -53,7 +55,7 @@ export const createViewerStore = (id: string) => {
         ),
         {
           name: "ViewerStore-" + id,
-          version: 4,
+          version: 5,
           migrate: viewerStoreMigrate,
           partialize: viewerStorePartialize,
           onRehydrateStorage: () => (_state, error) => {

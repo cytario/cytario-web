@@ -9,6 +9,7 @@ import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { ClientOnly } from "~/components/ClientOnly";
 import { GridItem } from "~/components/DirectoryView/GridItem";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { enrichDirectoryPreviews } from "~/utils/enrichDirectoryPreviews";
@@ -46,10 +47,11 @@ function ImagePreviewSlot({
   resourceId: string;
   signedFetch: ReturnType<typeof createSignedFetch>;
 }) {
+  const userId = useCurrentUser()?.sub ?? "";
   return (
     <ClientOnly>
       <Suspense fallback={<div className="animate-pulse w-full h-full bg-muted" />}>
-        <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
+        <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
           <ImagePreview />
         </ViewerStoreProvider>
       </Suspense>

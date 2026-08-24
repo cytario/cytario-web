@@ -19,7 +19,7 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
 interface ViewerRegistryStore {
   viewers: Record<string, ViewerStoreApi>;
-  registerViewer: (resourceId: string, signedFetch: SignedFetch) => ViewerStoreApi;
+  registerViewer: (resourceId: string, signedFetch: SignedFetch, userId: string) => ViewerStoreApi;
 }
 
 /**
@@ -33,11 +33,21 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
     (set, get) => ({
       viewers: {},
-      registerViewer: (resourceId, signedFetch) => {
+      registerViewer: (resourceId, signedFetch, userId) => {
         const existingStore = get().viewers[resourceId];
-        if (existingStore) return existingStore;
+        if (existingStore) {
+          if (userId && existingStore.getState().currentUserId !== userId) {
+            existingStore.setState((state) => {
+              state.currentUserId = userId;
+              for (const ls of state.layersStates) {
+                if (!ls.author) ls.author = userId;
+              }
+            });
+          }
+          return existingStore;
+        }
 
-        const viewerStore = createViewerStore(resourceId);
+        const viewerStore = createViewerStore(resourceId, userId);
         const viewerState = viewerStore.getState();
         const abortController = new AbortController();
 
@@ -93,8 +103,10 @@ interface ViewerStoreProviderProps {
   /** Stable image identity (`connectionName/pathName`). Keys the store and is
    *  resolved to the S3 URL for loading. */
   resourceId: string;
-  /** SigV4-signing fetch function. Resolves credentials lazily per request. */
+  /** Sigv4-signing fetch function. Resolves credentials lazily per request. */
   signedFetch: SignedFetch;
+  /** Keycloak `sub` of the current user — scopes per-user sidecar writes. */
+  userId: string;
   children: ReactNode;
 }
 
@@ -102,13 +114,14 @@ interface ViewerStoreProviderProps {
 export const ViewerStoreProvider = ({
   resourceId,
   signedFetch,
+  userId,
   children,
 }: ViewerStoreProviderProps) => {
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
 
   const store = useMemo(
-    () => registerViewer(resourceId, signedFetch),
-    [resourceId, signedFetch, registerViewer],
+    () => registerViewer(resourceId, signedFetch, userId),
+    [resourceId, signedFetch, userId, registerViewer],
   );
 
   return <ViewerStoreContext.Provider value={store}>{children}</ViewerStoreContext.Provider>;

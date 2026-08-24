@@ -18,6 +18,7 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
 interface FakeState {
   id: string;
+  currentUserId: string;
   layersStates: LayersStateEntry[];
   loadSharedViews: (entries: ViewSettingsEntry[]) => void;
   shareView: (index: number) => void;
@@ -27,6 +28,7 @@ interface FakeState {
 function makeEntry(overrides: Partial<LayersStateEntry> = {}): LayersStateEntry {
   return {
     id: crypto.randomUUID(),
+    author: "user-123",
     channels: {},
     overlays: {},
     channelsOpacity: 1,
@@ -41,10 +43,11 @@ function makeEntry(overrides: Partial<LayersStateEntry> = {}): LayersStateEntry 
   };
 }
 
-function makeFakeStore() {
+function makeFakeStore(userId = "user-123") {
   let listener: (() => void) | undefined;
   const state: FakeState = {
     id: "conn/slide.ome.tif",
+    currentUserId: userId,
     layersStates: [makeEntry()],
     loadSharedViews: (entries) => {
       for (const entry of entries) {
@@ -54,6 +57,7 @@ function makeFakeStore() {
         } else {
           state.layersStates.push({
             id: entry.id,
+            author: "user-123",
             channels: {},
             overlays: {},
             channelsOpacity: entry.channelsOpacity,
@@ -93,6 +97,7 @@ function makeFakeStore() {
 function makeSidecarEntry(id: string, name?: string): ViewSettingsEntry {
   return {
     id,
+    author: "user-123",
     name,
     shared: true,
     channels: {},
@@ -109,7 +114,7 @@ describe("attachViewSync", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     readMock.mockReset();
-    readMock.mockResolvedValue(null);
+    readMock.mockResolvedValue([]);
     writeMock.mockReset();
     writeMock.mockResolvedValue(undefined);
   });
@@ -119,10 +124,7 @@ describe("attachViewSync", () => {
 
   it("loads shared views from S3 on attach", async () => {
     const entries = [makeSidecarEntry("view-1", "Shared View")];
-    readMock.mockResolvedValue({
-      cytario: { schemaVersion: "1.0", kind: "settings", image: "s3://conn/slide.ome.tif" },
-      views: entries,
-    });
+    readMock.mockResolvedValue(entries);
     const { store, state } = makeFakeStore();
 
     attachViewSync(store);
@@ -156,6 +158,7 @@ describe("attachViewSync", () => {
     expect(writeMock).toHaveBeenCalledTimes(1);
     expect(writeMock).toHaveBeenCalledWith(
       "conn/slide.ome.tif",
+      "user-123",
       expect.arrayContaining([expect.objectContaining({ shared: true })]),
     );
   });
@@ -163,10 +166,7 @@ describe("attachViewSync", () => {
   it("does not write when shared views are unchanged (baseline diff)", async () => {
     const entry = makeEntry({ shared: true });
     const sidecarEntry = makeSidecarEntry(entry.id);
-    readMock.mockResolvedValue({
-      cytario: { schemaVersion: "1.0", kind: "settings", image: "s3://conn/slide.ome.tif" },
-      views: [sidecarEntry],
-    });
+    readMock.mockResolvedValue([sidecarEntry]);
 
     const { store, fire } = makeFakeStore();
     store.getState().layersStates = [entry];

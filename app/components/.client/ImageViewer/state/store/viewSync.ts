@@ -7,12 +7,15 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
 const SAVE_DEBOUNCE_MS = 800;
 
-function hasSharedViews(layersStates: LayersStateEntry[]): boolean {
-  return layersStates.some((ls) => ls.shared);
+function hasOwnSharedViews(layersStates: LayersStateEntry[], currentUserId: string): boolean {
+  return layersStates.some((ls) => ls.shared && ls.author === currentUserId);
 }
 
-function sharedViewsOnly(layersStates: LayersStateEntry[]): LayersStateEntry[] {
-  return layersStates.filter((ls) => ls.shared);
+function ownSharedViewsOnly(
+  layersStates: LayersStateEntry[],
+  currentUserId: string,
+): LayersStateEntry[] {
+  return layersStates.filter((ls) => ls.shared && ls.author === currentUserId);
 }
 
 export function attachViewSync(store: ViewerStoreApi): void {
@@ -21,10 +24,10 @@ export function attachViewSync(store: ViewerStoreApi): void {
   let flushing = false;
 
   readViewSettings(store.getState().id)
-    .then((doc) => {
-      if (!doc || doc.views.length === 0) return;
-      persisted = doc.views;
-      store.getState().loadSharedViews(doc.views);
+    .then((views) => {
+      if (views.length === 0) return;
+      persisted = views;
+      store.getState().loadSharedViews(views);
     })
     .catch((error) => console.error("[viewSettings] load failed:", error));
 
@@ -38,8 +41,8 @@ export function attachViewSync(store: ViewerStoreApi): void {
     if (flushing) return schedule();
     flushing = true;
     try {
-      const { id, layersStates } = store.getState();
-      const sharedViews = sharedViewsOnly(layersStates);
+      const { id, layersStates, currentUserId } = store.getState();
+      const sharedViews = ownSharedViewsOnly(layersStates, currentUserId);
       if (sharedViews.length === 0) return;
 
       const currentEntries = sharedViews.map(layersStateToSidecarEntry);
@@ -47,7 +50,7 @@ export function attachViewSync(store: ViewerStoreApi): void {
       const persistedJson = JSON.stringify(persisted);
       if (currentJson === persistedJson) return;
 
-      await writeViewSettings(id, sharedViews);
+      await writeViewSettings(id, currentUserId, sharedViews);
       persisted = currentEntries;
     } catch (error) {
       console.error("[viewSettings] save failed:", error);
@@ -59,7 +62,7 @@ export function attachViewSync(store: ViewerStoreApi): void {
   store.subscribe(
     (s) => s.layersStates,
     () => {
-      if (hasSharedViews(store.getState().layersStates)) {
+      if (hasOwnSharedViews(store.getState().layersStates, store.getState().currentUserId)) {
         schedule();
       }
     },

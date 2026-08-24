@@ -224,6 +224,7 @@ describe("setAnnotationsOpacity", () => {
         {
           id: "test-id",
           shared: false,
+          author: "",
           channels: {},
           overlays: {},
           channelsOpacity: 1,
@@ -249,6 +250,7 @@ describe("setAnnotationsOpacity", () => {
         {
           id: "test-id",
           shared: false,
+          author: "",
           channels: {},
           overlays: {},
           channelsOpacity: 1,

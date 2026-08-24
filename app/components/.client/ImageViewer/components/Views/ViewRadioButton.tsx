@@ -1,4 +1,4 @@
-import { IconButton, Menu, MenuItem, TruncatedText, useContextMenu } from "@cytario/design";
+import { IconButton, Menu, MenuItem, TruncatedText } from "@cytario/design";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { RadioButton } from "react-aria-components";
 
@@ -11,10 +11,12 @@ import { parseResourceId } from "~/utils/resourceId";
 export function ViewRadioButton({
   index,
   canDelete,
+  isOwnView,
   onDelete,
 }: {
   index: number;
   canDelete: boolean;
+  isOwnView: boolean;
   onDelete: () => void;
 }) {
   const resourceId = useViewerStore((s) => s.id);
@@ -27,6 +29,7 @@ export function ViewRadioButton({
   const isShared = useViewerStore((s) => s.layersStates[index]?.shared ?? false);
   const shareView = useViewerStore((s) => s.shareView);
   const unshareView = useViewerStore((s) => s.unshareView);
+  const forkView = useViewerStore((s) => s.forkView);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,55 +66,59 @@ export function ViewRadioButton({
     }
   };
 
-  const contextMenu = useContextMenu({
-    content: (
-      <>
-        <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
-          Rename
+  const ownMenuItems = (
+    <>
+      <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
+        Rename
+      </MenuItem>
+      {canWrite && (
+        <MenuItem
+          id="share"
+          icon={isShared ? "Cloud" : "Send"}
+          onAction={() => (isShared ? unshareView(index) : shareView(index))}
+        >
+          {isShared ? "Stop sharing" : "Share"}
         </MenuItem>
-        {canWrite && (
-          <MenuItem
-            id="share"
-            icon={isShared ? "Cloud" : "Send"}
-            onAction={() => (isShared ? unshareView(index) : shareView(index))}
-          >
-            {isShared ? "Stop sharing" : "Share"}
-          </MenuItem>
-        )}
-        <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!canDelete} onAction={onDelete}>
-          Delete view
-        </MenuItem>
-      </>
-    ),
-  });
+      )}
+      <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!canDelete} onAction={onDelete}>
+        Delete view
+      </MenuItem>
+    </>
+  );
+
+  const peerMenuItems = (
+    <MenuItem id="fork" icon="Copy" onAction={() => forkView(index)}>
+      Copy to my views
+    </MenuItem>
+  );
+
+  const menuItems = isOwnView ? ownMenuItems : peerMenuItems;
 
   return (
     <div className="flex items-center gap-1">
       <RadioButton
         aria-label={`Channels view ${index + 1}`}
-        {...contextMenu.targetProps}
         className={`
+          cursor-pointer
           group/radio-btn
           relative overflow-hidden
-          flex items-center gap-2
-          rounded-sm h-8
-          p-0
+          flex items-center gap-2 p-2
+          rounded-full h-8
           flex-1
+          bg-card
+          text-sm
 
-          border transition-colors
-          border-border
-          bg-muted
-          data-hovered:bg-border
+          transition-colors
 
-          data-selected:border-ring
-          data-selected:ring-1
-          data-selected:ring-ring
-          data-selected:ring-offset-1
-          data-selected:ring-offset-background
+          data-hovered:bg-muted
+
+          data-selected:border-border
+          data-selected:bg-muted
+
         `}
       >
         <ViewLabel index={index} />
-        {isEditing ? (
+        {isEditing && isOwnView ? (
           <input
             ref={inputRef}
             value={editValue}
@@ -130,6 +137,7 @@ export function ViewRadioButton({
           <span
             className="flex-1 min-w-0"
             onDoubleClick={(e) => {
+              if (!isOwnView) return;
               e.stopPropagation();
               startEditing();
             }}
@@ -138,33 +146,7 @@ export function ViewRadioButton({
           </span>
         )}
       </RadioButton>
-      <Menu
-        content={
-          <>
-            <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
-              Rename
-            </MenuItem>
-            {canWrite && (
-              <MenuItem
-                id="share"
-                icon={isShared ? "Cloud" : "Send"}
-                onAction={() => (isShared ? unshareView(index) : shareView(index))}
-              >
-                {isShared ? "Stop sharing" : "Share"}
-              </MenuItem>
-            )}
-            <MenuItem
-              id="delete"
-              icon="Trash2"
-              isDanger
-              isDisabled={!canDelete}
-              onAction={onDelete}
-            >
-              Delete view
-            </MenuItem>
-          </>
-        }
-      >
+      <Menu content={menuItems}>
         <IconButton
           icon="EllipsisVertical"
           label={`Actions for view ${index + 1}`}
@@ -172,7 +154,6 @@ export function ViewRadioButton({
           size="xs"
         />
       </Menu>
-      {contextMenu.menu}
     </div>
   );
 }

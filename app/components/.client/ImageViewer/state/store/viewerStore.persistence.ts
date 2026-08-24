@@ -5,6 +5,7 @@ import { createMigrate } from "~/utils/persistMigration";
  *  truth for both the migrate fallback and `createViewerStore`'s `partialize`. */
 type PersistedViewerState = Pick<
   ViewerStore,
+  | "currentUserId"
   | "selectedChannelId"
   | "imagePanelIndex"
   | "imagePanels"
@@ -17,6 +18,7 @@ type PersistedViewerState = Pick<
 >;
 
 const VIEWER_FALLBACK_STATE: PersistedViewerState = {
+  currentUserId: "",
   selectedChannelId: null,
   imagePanelIndex: -1,
   imagePanels: [],
@@ -88,19 +90,18 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         })),
       } as PersistedViewerState;
     },
-    // C-559: contrastLimitsInitial removed from ChannelConfig; reset target is
-    // now the top-level `channels` (persisted separately). Old persisted state
-    // has stale shape — just clear it; the viewer reinitializes from metadata.
+    // C-331: the persisted state shape changed to include a top-level `currentUserId` field, which is now used to filter layersStates for the current user. Migrate the old state by adding a default value for currentUserId and filtering layersStates to only include entries authored by that user.
     4: () => VIEWER_FALLBACK_STATE,
   },
   VIEWER_FALLBACK_STATE,
 );
 
 export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState => ({
+  currentUserId: state.currentUserId,
   selectedChannelId: state.selectedChannelId,
   imagePanelIndex: state.imagePanelIndex,
   imagePanels: state.imagePanels,
-  layersStates: state.layersStates,
+  layersStates: state.layersStates.filter((ls) => ls.author === state.currentUserId),
   channels: state.channels,
   channelIds: state.channelIds,
   viewStateActive: state.viewStateActive,

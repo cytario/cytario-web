@@ -27,26 +27,36 @@ const mockRemoveChannelsState = vi.fn();
 const mockAddChannelsState = vi.fn();
 const mockShareView = vi.fn();
 const mockUnshareView = vi.fn();
+const mockForkView = vi.fn();
+
+const CURRENT_USER = "test-user";
 
 function setupStore(overrides?: {
   layersStates?: {
     channels: Record<string, { isVisible: boolean }>;
     name?: string;
     shared?: boolean;
+    author?: string;
   }[];
   channelIds?: string[];
   channels?: Record<string, Record<string, unknown>>;
   activePresetIndex?: number;
   canWrite?: boolean;
+  currentUserId?: string;
 }) {
-  const layersStates = overrides?.layersStates ?? [{ channels: {} }];
+  const layersStates = (overrides?.layersStates ?? [{ channels: {} }]).map((ls) => ({
+    ...ls,
+    author: ls.author ?? overrides?.currentUserId ?? CURRENT_USER,
+  }));
   const channelIds = overrides?.channelIds ?? [];
   const channels = overrides?.channels ?? {};
   const activePresetIndex = overrides?.activePresetIndex ?? 0;
   const canWrite = overrides?.canWrite ?? true;
+  const currentUserId = overrides?.currentUserId ?? CURRENT_USER;
 
   const mockState = {
     id: "test-conn/some/path.ome.tif",
+    currentUserId,
     layersStates,
     channelIds,
     channels,
@@ -58,6 +68,7 @@ function setupStore(overrides?: {
     addChannelsState: mockAddChannelsState,
     shareView: mockShareView,
     unshareView: mockUnshareView,
+    forkView: mockForkView,
   };
 
   vi.clearAllMocks();
@@ -203,5 +214,79 @@ describe("Views", () => {
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(mockSetViewName).toHaveBeenCalledWith(0, null);
+  });
+
+  test("renders three groups when views span local, own-shared, and peer-shared", () => {
+    setupStore({
+      layersStates: [
+        { channels: {}, name: "Local view" },
+        { channels: {}, name: "My shared view", shared: true },
+        { channels: {}, name: "Peer view", shared: true, author: "other-user" },
+      ],
+      channelIds: [],
+    });
+    render(<Views />);
+    expect(screen.getByText("My views")).toBeInTheDocument();
+    expect(screen.getByText("Shared by me")).toBeInTheDocument();
+    expect(screen.getByText("Shared with me")).toBeInTheDocument();
+    expect(screen.getByText("Local view")).toBeInTheDocument();
+    expect(screen.getByText("My shared view")).toBeInTheDocument();
+    expect(screen.getByText("Peer view")).toBeInTheDocument();
+  });
+
+  test("hides 'Shared by me' section when no own shared views exist", () => {
+    setupStore({
+      layersStates: [
+        { channels: {}, name: "Local view" },
+        { channels: {}, name: "Peer view", shared: true, author: "other-user" },
+      ],
+      channelIds: [],
+    });
+    render(<Views />);
+    expect(screen.getByText("My views")).toBeInTheDocument();
+    expect(screen.queryByText("Shared by me")).not.toBeInTheDocument();
+    expect(screen.getByText("Shared with me")).toBeInTheDocument();
+  });
+
+  test("fork action on peer view calls forkView with correct index", () => {
+    setupStore({
+      layersStates: [
+        { channels: {}, name: "Local view" },
+        { channels: {}, name: "Peer view", shared: true, author: "other-user" },
+      ],
+      channelIds: [],
+    });
+    render(<Views />);
+    fireEvent.click(screen.getByRole("button", { name: "Actions for view 2" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy to my views" }));
+    expect(mockForkView).toHaveBeenCalledWith(1);
+  });
+
+  test("peer view context menu does not show Rename or Delete", () => {
+    setupStore({
+      layersStates: [
+        { channels: {}, name: "Local view" },
+        { channels: {}, name: "Peer view", shared: true, author: "other-user" },
+      ],
+      channelIds: [],
+    });
+    render(<Views />);
+    fireEvent.click(screen.getByRole("button", { name: "Actions for view 2" }));
+    expect(screen.getByRole("menuitem", { name: "Copy to my views" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Rename" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete view" })).not.toBeInTheDocument();
+  });
+
+  test("own view context menu shows Share and Rename and Delete", () => {
+    setupStore({
+      layersStates: [{ channels: {}, name: "My view" }],
+      channelIds: [],
+    });
+    render(<Views />);
+    fireEvent.click(screen.getByRole("button", { name: "Actions for view 1" }));
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Share" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Delete view" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Copy to my views" })).not.toBeInTheDocument();
   });
 });

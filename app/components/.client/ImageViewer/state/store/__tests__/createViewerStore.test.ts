@@ -16,6 +16,7 @@ vi.mock("../getInitialChannelsState");
 
 const createMockLayersState = () => ({
   id: crypto.randomUUID(),
+  author: "",
   shared: false,
   channels: {} as Record<string, Partial<PresetChannelConfig>>,
   overlays: {} as OverlaysState,
@@ -61,6 +62,7 @@ describe("createViewerStore", () => {
 
     expect(initialState).toEqual({
       id: storeId,
+      currentUserId: "",
       error: null,
       selectedChannelId: null,
       loader: [],
@@ -130,6 +132,7 @@ describe("createViewerStore", () => {
       setAnnotationSelectedIds: expect.any(Function),
       shareView: expect.any(Function),
       unshareView: expect.any(Function),
+      forkView: expect.any(Function),
       loadSharedViews: expect.any(Function),
     });
   });
@@ -1147,6 +1150,63 @@ describe("createViewerStore", () => {
       const result = migrate(v3State, 3);
 
       expect(result).toEqual(fallback);
+    });
+  });
+
+  describe("persist migration v4 -> v5 (per-user sidecar model)", () => {
+    const fallback = {
+      currentUserId: "",
+      selectedChannelId: null,
+      imagePanelIndex: -1,
+      imagePanels: [],
+      layersStates: [],
+      channels: {},
+      channelIds: [],
+      viewStateActive: null,
+      annotationClasses: [],
+      annotationActiveClass: null,
+    };
+
+    const migrate = createMigrate(
+      {
+        4: (state) => state,
+        5: () => fallback,
+      },
+      fallback,
+    );
+
+    test("drops all old presets from v4 (they lack author field)", () => {
+      const v4State = {
+        currentUserId: "user-1",
+        selectedChannelId: "Red",
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [
+          {
+            id: "old-preset",
+            shared: false,
+            channels: {},
+            overlays: {},
+            channelsOpacity: 1,
+            overlaysFillOpacity: 0.8,
+            showCellOutline: true,
+            annotationsOpacity: 1,
+            showAnnotationOutline: true,
+            isChannelsLoading: 0,
+            isOverlaysLoading: 0,
+          },
+        ],
+        channels: {},
+        channelIds: ["Red"],
+        viewStateActive: null,
+        annotationClasses: [],
+        annotationActiveClass: null,
+      };
+
+      const result = migrate(v4State, 4);
+
+      expect(result).toEqual(fallback);
+      expect(result.layersStates).toEqual([]);
     });
   });
 });

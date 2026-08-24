@@ -42,6 +42,7 @@ export interface ChannelsSlice {
   setViewName: (index: number, name: string | null) => void;
   shareView: (index: number) => void;
   unshareView: (index: number) => void;
+  forkView: (index: number) => void;
   loadSharedViews: (entries: ViewSettingsEntry[]) => void;
 }
 
@@ -96,7 +97,9 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
         const source =
           activePresetIndex !== undefined ? state.layersStates[activePresetIndex] : undefined;
         const newPresetIndex = state.layersStates.length;
-        state.layersStates.push(source ? { ...source } : createDefaultLayersStateEntry());
+        state.layersStates.push(
+          source ? { ...source } : createDefaultLayersStateEntry(state.currentUserId),
+        );
         state.imagePanels.push(newPresetIndex);
       },
       false,
@@ -120,7 +123,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           state.selectedChannelId = firstChannelKey;
           state.channels = castDraft(channelsState);
           state.channelIds = channelIds;
-          state.layersStates = [createDefaultLayersStateEntry()];
+          state.layersStates = [createDefaultLayersStateEntry(state.currentUserId)];
         },
         false,
         "addChannelsStateInitial",
@@ -140,7 +143,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
           }
           return imagePanelIndex;
         });
-        draft.layersStates.push(createDefaultLayersStateEntry());
+        draft.layersStates.push(createDefaultLayersStateEntry(draft.currentUserId));
       },
       false,
       "addChannelsStateNew",
@@ -156,6 +159,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     set(
       (state) => {
         if (state.layersStates.length <= 1) return;
+        if (state.layersStates[i]?.author !== state.currentUserId) return;
         state.imagePanels = state.imagePanels.map((imagePanelIndex) => {
           if (imagePanelIndex === i) return 0;
           if (imagePanelIndex > i) return imagePanelIndex - 1;
@@ -185,6 +189,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     set(
       (state) => {
         if (index < 0 || index >= state.layersStates.length) return;
+        if (state.layersStates[index]?.author !== state.currentUserId) return;
         const trimmed = name?.trim();
         state.layersStates[index].name = trimmed ? trimmed : undefined;
       },
@@ -433,7 +438,10 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     set(
       (state) => {
         if (index < 0 || index >= state.layersStates.length) return;
-        state.layersStates[index].shared = true;
+        const entry = state.layersStates[index];
+        if (entry.author !== state.currentUserId) return;
+        if (!entry.author) entry.author = state.currentUserId;
+        entry.shared = true;
       },
       false,
       "shareView",
@@ -443,10 +451,31 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     set(
       (state) => {
         if (index < 0 || index >= state.layersStates.length) return;
-        state.layersStates[index].shared = false;
+        const entry = state.layersStates[index];
+        if (entry.author !== state.currentUserId) return;
+        entry.shared = false;
       },
       false,
       "unshareView",
+    ),
+
+  forkView: (index) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        const source = state.layersStates[index];
+        if (!source) return;
+        const clone: LayersStateEntry = {
+          ...source,
+          id: crypto.randomUUID(),
+          author: state.currentUserId,
+          shared: false,
+          name: source.name ? `${source.name} (copy)` : undefined,
+        };
+        state.layersStates.push(clone);
+      },
+      false,
+      "forkView",
     ),
 
   loadSharedViews: (entries) =>

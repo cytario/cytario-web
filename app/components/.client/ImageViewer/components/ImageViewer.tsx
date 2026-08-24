@@ -13,6 +13,7 @@ import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar, SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface ViewerProps {
@@ -23,8 +24,10 @@ interface ViewerProps {
 export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" });
 
 export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
+  const userId = useCurrentUser()?.sub ?? "";
+
   return (
-    <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
+    <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
       <UndoRedoShortcuts />
       <AnnotationModeKeyboard />
       <ViewerHeader>

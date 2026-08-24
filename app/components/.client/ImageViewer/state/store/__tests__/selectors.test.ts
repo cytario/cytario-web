@@ -4,6 +4,7 @@ import { ViewerStore } from "../types";
 describe("selectors", () => {
   const createMockState = (overrides: Partial<ViewerStore> = {}): ViewerStore => ({
     id: "test",
+    currentUserId: "",
     error: null,
     selectedChannelId: null,
     loader: [],
@@ -59,6 +60,7 @@ describe("selectors", () => {
       {
         id: "test-id",
         shared: false,
+        author: "",
         channels: {
           Red: {
             isVisible: true,
@@ -135,6 +137,7 @@ describe("selectors", () => {
     setAnnotationSelectedIds: vi.fn(),
     shareView: vi.fn(),
     unshareView: vi.fn(),
+    forkView: vi.fn(),
     loadSharedViews: vi.fn(),
     ...overrides,
   });
@@ -181,6 +184,7 @@ describe("selectors", () => {
           {
             id: "test-id",
             shared: false,
+            author: "",
             channels: {},
             overlays: {},
             channelsOpacity: 1,
@@ -215,6 +219,7 @@ describe("selectors", () => {
           {
             id: "test-id",
             shared: false,
+            author: "",
             channels: {
               Single: {
                 isVisible: true,
@@ -283,6 +288,7 @@ describe("selectors", () => {
           {
             id: "test-id",
             shared: false,
+            author: "",
             channels: {
               Red: {
                 isVisible: false,
@@ -343,6 +349,7 @@ describe("selectors", () => {
           {
             id: "test-id",
             shared: false,
+            author: "",
             channels: {
               Ch1: {
                 isVisible: true,
@@ -407,6 +414,7 @@ describe("selectors", () => {
           {
             id: "test-id",
             shared: false,
+            author: "",
             channels: {},
             overlays: {},
             channelsOpacity: 1,
@@ -420,6 +428,7 @@ describe("selectors", () => {
           {
             id: "test-id",
             shared: false,
+            author: "",
             channels: {},
             overlays: {},
             channelsOpacity: 1,

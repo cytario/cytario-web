@@ -59,6 +59,7 @@ export type LayerChannelsState = Record<string, Partial<PresetChannelConfig>>;
 
 export interface LayersStateEntry {
   id: string;
+  author: string;
   channels: LayerChannelsState;
   overlays: OverlaysState;
   channelsOpacity: number;
@@ -72,8 +73,9 @@ export interface LayersStateEntry {
   shared?: boolean;
 }
 
-export const createDefaultLayersStateEntry = (): LayersStateEntry => ({
+export const createDefaultLayersStateEntry = (author = ""): LayersStateEntry => ({
   id: crypto.randomUUID(),
+  author,
   channels: {},
   overlays: {},
   channelsOpacity: 1,
@@ -121,6 +123,9 @@ export type AnnotationMode = "view" | "draw-polygon" | "draw-freehand" | "draw-p
 export interface ViewerStoreState {
   /** Image identity (`connectionName/pathName`) — keys persistence + devtools. */
   id: string;
+  /** Keycloak `sub` of the current user — scopes per-user sidecar writes and
+   *  ownership guards on shared views. */
+  currentUserId: string;
 }
 
 export type ViewerStore = ViewerStoreState &

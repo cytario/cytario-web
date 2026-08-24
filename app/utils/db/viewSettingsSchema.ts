@@ -10,6 +10,7 @@ const SCHEMA_VERSION = "1.0";
 
 export const viewSettingsChannelSchema = z.object({
   id: z.string(),
+  author: z.string(),
   name: z.string().optional(),
   shared: z.boolean().default(false),
   channels: z.record(
@@ -33,6 +34,7 @@ export const viewSettingsDocumentSchema = z.object({
     schemaVersion: z.literal(SCHEMA_VERSION),
     kind: z.literal("settings"),
     image: z.string(),
+    author: z.string(),
   }),
   views: z.array(viewSettingsChannelSchema),
 });
@@ -67,6 +69,7 @@ export function layersStateToSidecarEntry(entry: LayersStateEntry): ViewSettings
   }
   return {
     id: entry.id,
+    author: entry.author,
     name: entry.name,
     shared: entry.shared ?? false,
     channels,
@@ -90,6 +93,7 @@ export function sidecarEntryToLayersState(entry: ViewSettingsEntry): LayersState
   }
   return {
     id: entry.id,
+    author: entry.author,
     channels,
     overlays: entry.overlays as LayersStateEntry["overlays"],
     channelsOpacity: entry.channelsOpacity,
