@@ -1,23 +1,19 @@
-import { InteractionState, OrthographicViewState, PickingInfo } from "@deck.gl/core";
+import { InteractionState, OrthographicViewState } from "@deck.gl/core";
 import DeckGL from "@deck.gl/react";
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
 
-import { useAnnotationsLayer } from "./Annotations/useAnnotationsLayer";
-import { useChannelsLayer } from "./Channels/useChannelsLayer";
+import { LayersTooltip } from "./Hover/LayersTooltip";
+import { useCompositeHover } from "./Hover/useCompositeHover";
 import { ImageContainer } from "./ImageContainer";
-import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
+import { TileLoaderIndicator } from "./TileLoaderIndicator";
 import { useView } from "./useView";
-import { channelsStateForPanel, select } from "../../state/store/selectors";
-import { ChannelsState, ViewPort, ViewState } from "../../state/store/types";
+import { select } from "../../state/store/selectors";
+import type { ViewPort, ViewState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { handleImageViewerHover } from "../../utils/handleImageViewerHover";
-import { mapChannelConfigsToState } from "../../utils/mapChannelConfigsToState";
 import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 import { Crosshair } from "../Measurements/Crosshair";
 import { Measurements } from "../Measurements/Measurements";
 import { SlideCarrier } from "../Measurements/SlideCarrier";
-
-const EMPTY_CHANNELS: ChannelsState = Object.freeze({});
 
 export interface ViewProps {
   viewPort: ViewPort;
@@ -41,35 +37,11 @@ const ImagePanelInner = ({
 
   const isActivePanel = activeImagePanelId === imagePanelId;
 
-  // TODO: Hoist tooltip state in a more global context
-  const [tooltip, setTooltip] = useState<{
-    content: ReactNode;
-    x: number;
-    y: number;
-  } | null>(null);
+  const compositeTooltip = useViewerStore(select.compositeTooltip);
 
   const view = useView({ width, height });
 
-  const channelsState = useViewerStore(channelsStateForPanel(imagePanelId)) ?? EMPTY_CHANNELS;
-
-  /** Setup Orthographic View */
-  const { ids } = useMemo(() => mapChannelConfigsToState(channelsState), [channelsState]);
-  const setPixelValues = useViewerStore(select.setPixelValues);
-
-  const onMultiscaleLayerHover = useCallback(
-    (info: PickingInfo) => {
-      const data = handleImageViewerHover(info);
-      // console.log("hover", data);
-      setPixelValues(ids, data ? data.hoverData : ids.map(() => 0));
-    },
-    [ids, setPixelValues],
-  );
-
-  /* Setup Layers */
-  const multiscaleLayer = useChannelsLayer(imagePanelId, onMultiscaleLayerHover);
-  const markersLayers = useOverlaysLayers(imagePanelId, setTooltip);
-  const annotationsLayers = useAnnotationsLayer(imagePanelId, setTooltip);
-  const layers = [multiscaleLayer, ...markersLayers, ...annotationsLayers];
+  const { layers, deckRef, onHover, getCursor } = useCompositeHover(imagePanelId, isActivePanel);
 
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
@@ -100,33 +72,12 @@ const ImagePanelInner = ({
     [activeImagePanelId, imagePanelId, setActiveImagePanelId],
   );
 
-  const annotationMode = useViewerStore((s) => s.annotationMode);
-
-  const hoveringAnnotationRef = useRef(false);
-
-  const onDeckHover = useCallback((info: PickingInfo) => {
-    hoveringAnnotationRef.current = Boolean(
-      info.object && String(info.layer?.id ?? "").startsWith("annotations-"),
-    );
-  }, []);
-
-  const getCursor = useCallback(
-    ({ isDragging }: InteractionState) => {
-      if (!isActivePanel) return "pointer";
-      if (annotationMode === "view") {
-        if (hoveringAnnotationRef.current) return "pointer";
-        return isDragging ? "grabbing" : "grab";
-      }
-      return "crosshair";
-    },
-    [isActivePanel, annotationMode],
-  );
-
   if (!loader || loader.length === 0 || !viewStateActive) return null;
 
   return (
     <>
       <DeckGL
+        ref={deckRef}
         width={width}
         height={height}
         views={[view]}
@@ -134,28 +85,14 @@ const ImagePanelInner = ({
         onViewStateChange={onViewStateChange}
         viewState={{ detail: viewStateActive }}
         getCursor={getCursor}
-        onHover={onDeckHover}
+        onHover={onHover}
         onInteractionStateChange={handleInteractionStateChange}
         _pickable={true}
         controller={true}
       />
 
-      {tooltip && (
-        <div
-          className={`
-            absolute px-2 py-1 rounded shadow-lg
-            bg-background
-            border border-border
-            text-foreground text-sm
-            pointer-events-none
-          `}
-          style={{
-            left: tooltip.x, //adjustedCoords.x,
-            top: tooltip.y, //adjustedCoords.y,
-          }}
-        >
-          {tooltip.content}
-        </div>
+      {compositeTooltip && compositeTooltip.items.length > 0 && (
+        <LayersTooltip tooltip={compositeTooltip} />
       )}
     </>
   );
@@ -208,36 +145,5 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
         </>
       )}
     </ImageContainer>
-  );
-};
-
-const TileLoaderIndicator = ({
-  isChannelsLoading,
-  isOverlaysLoading,
-}: {
-  isChannelsLoading: number;
-  isOverlaysLoading: number;
-}) => {
-  const channelsLoadingTiles = new Array(isChannelsLoading).fill(0);
-  const overlaysLoadingTiles = new Array(isOverlaysLoading).fill(0);
-  return (
-    <div className="absolute top-0 left-0 pointer-events-none">
-      <div className="flex">
-        {channelsLoadingTiles.map((_, index) => (
-          <div
-            key={index}
-            className="w-2 h-2 rounded-sm m-1 bg-white border border-border animate-pulse"
-          />
-        ))}
-      </div>
-      <div className="flex">
-        {overlaysLoadingTiles.map((_, index) => (
-          <div
-            key={index}
-            className="w-2 h-2 rounded-sm m-1 bg-white border border-border animate-pulse"
-          />
-        ))}
-      </div>
-    </div>
   );
 };

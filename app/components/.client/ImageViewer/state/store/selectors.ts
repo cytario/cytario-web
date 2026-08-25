@@ -272,4 +272,13 @@ export const select = {
   setShowAnnotationOutline: (state: ViewerStore) => state.setShowAnnotationOutline,
 
   currentZoom: (state: ViewerStore) => state.viewStateActive?.zoom ?? 0,
+
+  /* Hover / composite tooltip */
+  compositeTooltip: (state: ViewerStore) => state.compositeTooltip,
+  setCompositeTooltip: (state: ViewerStore) => state.setCompositeTooltip,
+  hoverMode: (state: ViewerStore) => state.hoverMode,
+  setHoverMode: (state: ViewerStore) => state.setHoverMode,
+  pinnedTooltip: (state: ViewerStore) => state.pinnedTooltip,
+  pinTooltip: (state: ViewerStore) => state.pinTooltip,
+  unpinTooltip: (state: ViewerStore) => state.unpinTooltip,
 };

@@ -1,10 +1,8 @@
-import { H3 } from "@cytario/design";
 import { AccessorContext, PickingInfo } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { PolygonLayer } from "@deck.gl/layers";
 import { type Table } from "apache-arrow";
 import { TileLoadProps } from "node_modules/@deck.gl/geo-layers/dist/tileset-2d";
-import { ReactNode } from "react";
 
 import { AdditivePolygonLayer } from "./AdditivePolygonLayer";
 import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
@@ -16,14 +14,11 @@ import { toastBridge } from "~/toast-bridge";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
 
-type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
-
 interface OverlaysLayerProps {
   resourceId: string;
   fileMarkers: Record<string, CellMarker>;
   enabledMarkers: string[];
   markerProps: MarkerProps;
-  setTooltip?: SetTooltip;
   imageWidth: number;
   imageHeight: number;
   minZoom: number;
@@ -33,21 +28,11 @@ interface OverlaysLayerProps {
   finishTile: (id: string) => void;
 }
 
-const MarkerLabel = ({ color, name }: { color: string; name: string }) => {
-  return (
-    <div key={name} className="flex items-center gap-2">
-      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }} />
-      {name}
-    </div>
-  );
-};
-
 export const OverlaysLayer = ({
   resourceId,
   fileMarkers,
   enabledMarkers,
   markerProps,
-  setTooltip,
   imageWidth,
   imageHeight,
   minZoom,
@@ -56,8 +41,6 @@ export const OverlaysLayer = ({
   loadTile,
   finishTile,
 }: OverlaysLayerProps) => {
-  const markerPrefix = "marker_positive_";
-
   const getTileData = async ({ id, index }: TileLoadProps): Promise<Table | null> => {
     loadTile(id);
 
@@ -89,67 +72,6 @@ export const OverlaysLayer = ({
     }
   };
 
-  const onHover = (info: PickingInfo) => {
-    if (!setTooltip) return;
-
-    // With Arrow data, info.object is undefined - use info.index instead
-    if (!info.picked || info.index === undefined) {
-      return setTooltip(null);
-    }
-
-    // Get Arrow table from source layer props
-    // Handle both wrapped { src: Table } (scatterplot) and direct Table (polygon) formats
-    const rawData = info.sourceLayer?.props?.data;
-    const arrowTable = ((rawData as { src?: Table })?.src ?? rawData) as Table;
-
-    if (!arrowTable) {
-      return setTooltip(null);
-    }
-
-    const index = info.index;
-
-    // Access Arrow columns by index
-    const idCol = arrowTable.getChild("id");
-    const id = idCol?.get(index);
-
-    // Check which markers are active for this feature using bitmask
-    const bitmaskCol = arrowTable.getChild("marker_bitmask");
-    if (!bitmaskCol) {
-      return setTooltip(null);
-    }
-
-    const bitmask = bitmaskCol.get(index) as number;
-    const allMarkerKeys = Object.keys(fileMarkers);
-
-    const activeMarkers = enabledMarkers.filter((markerKey) => {
-      const bitIndex = allMarkerKeys.indexOf(markerKey);
-      if (bitIndex < 0 || bitIndex >= 32) return false;
-      // Check if the bit at bitIndex is set in the bitmask
-      return (bitmask & (1 << bitIndex)) !== 0;
-    });
-
-    if (activeMarkers.length === 0) {
-      return setTooltip(null);
-    }
-
-    return setTooltip({
-      content: (
-        <div className="flex flex-col gap-1">
-          <header>
-            <H3 className="text-lg font-normal">ID: {String(id)}</H3>
-          </header>
-          {activeMarkers.map((marker) => {
-            const color = `rgba(${fileMarkers[marker].color.join(",")})`;
-            const name = marker.replace(markerPrefix, "");
-            return <MarkerLabel key={marker} color={color} name={name} />;
-          })}
-        </div>
-      ),
-      x: info.x,
-      y: info.y,
-    });
-  };
-
   const onClick = (info: PickingInfo) => {
     console.log(info);
   };
@@ -174,7 +96,6 @@ export const OverlaysLayer = ({
     },
     pickable: true,
     getTileData,
-    onHover,
     onClick,
     renderSubLayers: (props) => {
       const { data } = props;

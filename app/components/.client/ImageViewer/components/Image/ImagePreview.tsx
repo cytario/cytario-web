@@ -25,6 +25,17 @@ interface ViewProps {
   isInteractive: boolean;
 }
 
+/**
+ * Read-only DeckGL preview of the active image. Used in two contexts:
+ * - Dashboard grid thumbnails (`isInteractive = false`) — no click handling.
+ * - Slide view side panel (`isInteractive = true`) — clicking navigates the
+ *   active viewport to the clicked coordinate.
+ *
+ * Shares the same channel, overlay, and annotation layer hooks as the main
+ * {@link ImagePanel}, but without hover/tooltip or interactive annotation
+ * editing. The deck.gl `controller` is intentionally omitted so the preview
+ * cannot be panned/zoomed.
+ */
 const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   const metadata = useViewerStore(select.metadata);
   const viewStatePreview = useViewerStore(select.viewStatePreview);
@@ -36,7 +47,7 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
 
   useInitializeChannels();
 
-  /* Reset `viewStatePreview` upon container resize */
+  // Recompute the preview viewport whenever the container is resized.
   useEffect(() => {
     if (metadata) {
       const initialViewState = calculateViewStateToFit(metadata, viewPort);
@@ -47,11 +58,12 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   const view = useView(viewPort);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
-  const multiscaleLayer = useChannelsLayer(activeImagePanelId);
-  const markersLayers = useOverlaysLayers(activeImagePanelId);
-  // Read-only: annotations render in the preview but clicks keep panning.
-  const annotationsLayers = useAnnotationsLayer(activeImagePanelId, undefined, false);
+  const channelsResult = useChannelsLayer(activeImagePanelId);
+  const overlaysResult = useOverlaysLayers(activeImagePanelId);
+  // Read-only: annotations render in the preview but are not editable.
+  const annotationsResult = useAnnotationsLayer(activeImagePanelId, false);
 
+  // Click handler: when interactive, pan the active viewport to the clicked coordinate.
   const setViewState = useCallback(
     ({ coordinate }: PickingInfo) => {
       if (isInteractive && viewStateActive && coordinate) {
@@ -64,15 +76,6 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
     [isInteractive, viewStateActive, setViewStateActive],
   );
 
-  const getCursor = useCallback(
-    ({ isDragging }: { isHovering: boolean; isDragging: boolean }) => {
-      if (!isInteractive) return "inherit";
-      if (isDragging) return "grabbing";
-      return "grab";
-    },
-    [isInteractive],
-  );
-
   if (!viewStatePreview) {
     return null;
   }
@@ -82,15 +85,22 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
       width={viewPort.width}
       height={viewPort.height}
       views={[view]}
-      layers={[multiscaleLayer, ...markersLayers, ...annotationsLayers]}
+      layers={[...channelsResult.layers, ...overlaysResult.layers, ...annotationsResult.layers]}
       viewState={{ detail: viewStatePreview }}
-      getCursor={getCursor}
       onClick={setViewState}
       onDrag={setViewState}
     />
   );
 };
 
+/**
+ * Wrapper that provides a sized container for the DeckGL preview and overlays
+ * the active-viewport indicator. Renders nothing until the container measures
+ * a non-zero viewport (handled by {@link ImageContainer}).
+ *
+ * @param isInteractive - When `true`, clicks navigate the active viewport.
+ *   Defaults to `false` (dashboard thumbnail mode).
+ */
 export const ImagePreview = ({ isInteractive = false }: { isInteractive?: boolean }) => {
   return (
     <ImageContainer isPreview>

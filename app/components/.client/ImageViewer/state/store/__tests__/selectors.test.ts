@@ -139,6 +139,13 @@ describe("selectors", () => {
     unshareView: vi.fn(),
     forkView: vi.fn(),
     loadSharedViews: vi.fn(),
+    compositeTooltip: null,
+    hoverMode: "compact",
+    pinnedTooltip: null,
+    setCompositeTooltip: vi.fn(),
+    setHoverMode: vi.fn(),
+    pinTooltip: vi.fn(),
+    unpinTooltip: vi.fn(),
     ...overrides,
   });
 
