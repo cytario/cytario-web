@@ -116,12 +116,17 @@ function getObjectStatement(bucketArn: string, prefix: string) {
 }
 
 /**
- * `PutObject` limited to the caller's OWN annotation sidecars
- * (`*.annotations.<sub>.json`) under the connection prefix — the trailing
- * `<sub>` segment stops a tampered client from writing another user's file
- * (which the cross-user read union would then surface as forged authorship).
- * Overwrite is `PutObject` (full-file write of the user's own file) — no
- * `DeleteObject`.
+ * `PutObject` limited to the caller's OWN sidecar files under the connection
+ * prefix — the trailing `<sub>` segment stops a tampered client from writing
+ * another user's file (which the cross-user read union would then surface as
+ * forged authorship). Overwrite is `PutObject` (full-file write of the user's
+ * own file) — no `DeleteObject`.
+ *
+ * Two sidecar kinds are covered:
+ * - **Annotations** (`*.annotations.<sub>.json`) — per-image, the `*` matches
+ *   the image base name (and any directory path, since IAM `*` matches `/`).
+ * - **Settings** (`settings.<sub>.json` and `<dir>/settings.<sub>.json`) —
+ *   directory-level, shared across sibling images in the same directory.
  *
  * Emitted only for the `annotate` level: `read-only` gets no write at all, and
  * `read-write`/`admin` get the broader prefix grant (see `getPutObjectStatement`)
@@ -129,13 +134,19 @@ function getObjectStatement(bucketArn: string, prefix: string) {
  * read-only at the `annotate` level, and the inline policy stays lean.
  */
 function getPutOwnSidecarStatement(bucketArn: string, prefix: string, subject: string) {
-  const sidecarArn = [bucketArn, prefix, `*.annotations.${subject}.json`].filter(Boolean).join("/");
+  const annotationArn = [bucketArn, prefix, `*.annotations.${subject}.json`]
+    .filter(Boolean)
+    .join("/");
+  const settingsArnBase = [bucketArn, prefix, `settings.${subject}.json`].filter(Boolean).join("/");
+  const settingsArnNested = [bucketArn, prefix, `*/settings.${subject}.json`]
+    .filter(Boolean)
+    .join("/");
 
   return {
-    Sid: "PutOwnAnnotationSidecars",
+    Sid: "PutOwnSidecars",
     Effect: "Allow",
     Action: "s3:PutObject",
-    Resource: sidecarArn,
+    Resource: [annotationArn, settingsArnBase, settingsArnNested],
   };
 }
 
@@ -187,8 +198,8 @@ function getKmsStatement(action: "kms:Decrypt" | "kms:GenerateDataKey", region: 
 const permitsPrefixWrite = (accessLevel: AccessLevel): boolean =>
   accessLevel === "read-write" || accessLevel === "admin";
 
-/** Whether the access level permits writing annotation sidecars. */
-const permitsAnnotationWrite = (accessLevel: AccessLevel): boolean => accessLevel !== "read-only";
+/** Whether the access level permits writing sidecar files (annotations + settings). */
+const permitsSidecarWrite = (accessLevel: AccessLevel): boolean => accessLevel !== "read-only";
 
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
 export const buildSessionPolicy = ({
@@ -235,7 +246,7 @@ export const buildSessionPolicy = ({
 
   // The prefix grant (read-write/admin) subsumes the sidecar scope, so emit the
   // narrower sidecar statement only when the session cannot write the prefix.
-  if (permitsAnnotationWrite(accessLevel) && !permitsPrefixWrite(accessLevel)) {
+  if (permitsSidecarWrite(accessLevel) && !permitsPrefixWrite(accessLevel)) {
     statements.push(getPutOwnSidecarStatement(bucketArn, prefix, subject));
   }
 

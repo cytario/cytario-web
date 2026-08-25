@@ -89,6 +89,13 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
       dtype,
       onHover,
       opacity: channelsOpacity,
+      onTileError: (error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof Error && error.name === "AbortError") return;
+        if (error instanceof AggregateError && error.errors.every((e) => e?.name === "AbortError"))
+          return;
+        console.error(error);
+      },
     } as unknown as MultiscaleImageLayerProps);
   }, [
     loader,

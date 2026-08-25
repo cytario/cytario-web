@@ -456,7 +456,7 @@ describe("getAllSessionCredentials", () => {
     // read-write was selected → prefix write present; the sidecar statement is
     // omitted because the prefix grant subsumes it.
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
-    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
   });
 
   test("non-AWS (MinIO) connection: Policy field is absent", async () => {

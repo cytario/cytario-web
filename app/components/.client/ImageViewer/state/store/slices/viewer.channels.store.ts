@@ -129,7 +129,13 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
         "addChannelsStateInitial",
       );
 
-      state.setChannelVisibility(firstChannelKey as keyof ChannelsStateColumns, true);
+      // For brightfield images (Red/Green/Blue channel set), toggle the group
+      // as a unit so all three channels get the brightfield-specific init
+      // (full domain range, no percentile scaling). For regular images, toggle
+      // the first channel as before.
+      const bfGroup = detectBrightfieldGroup(channelIds);
+      const initKey = bfGroup ? BRIGHTFIELD_GROUP_ID : firstChannelKey;
+      state.setChannelVisibility(initKey as keyof ChannelsStateColumns, true);
       return;
     }
 

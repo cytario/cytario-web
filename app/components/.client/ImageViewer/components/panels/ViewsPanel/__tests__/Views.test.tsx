@@ -41,7 +41,7 @@ function setupStore(overrides?: {
   channelIds?: string[];
   channels?: Record<string, Record<string, unknown>>;
   activePresetIndex?: number;
-  canWrite?: boolean;
+  accessLevel?: "read-only" | "annotate" | "read-write" | "admin";
   currentUserId?: string;
 }) {
   const layersStates = (overrides?.layersStates ?? [{ channels: {} }]).map((ls) => ({
@@ -51,7 +51,7 @@ function setupStore(overrides?: {
   const channelIds = overrides?.channelIds ?? [];
   const channels = overrides?.channels ?? {};
   const activePresetIndex = overrides?.activePresetIndex ?? 0;
-  const canWrite = overrides?.canWrite ?? true;
+  const accessLevel = overrides?.accessLevel ?? "read-write";
   const currentUserId = overrides?.currentUserId ?? CURRENT_USER;
 
   const mockState = {
@@ -95,7 +95,7 @@ function setupStore(overrides?: {
     }
   });
 
-  (useConnectionsStore as unknown as Mock).mockReturnValue(canWrite);
+  (useConnectionsStore as unknown as Mock).mockReturnValue(accessLevel);
   (useFeatureItemStore as Mock).mockReturnValue({ isOpen: true, setIsOpen: vi.fn() });
 }
 

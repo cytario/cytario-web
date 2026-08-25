@@ -23,8 +23,8 @@ export function ViewRadioButton({
 }) {
   const resourceId = useViewerStore((s) => s.id);
   const { connectionId } = parseResourceId(resourceId);
-  const canWrite = useConnectionsStore(
-    (s) => s.connections[connectionId]?.provider?.canWrite ?? false,
+  const accessLevel = useConnectionsStore(
+    (s) => s.connections[connectionId]?.provider?.accessLevel ?? "read-only",
   );
   const activePresetIndex = useViewerStore(select.activePresetIndex);
   const isActive = activePresetIndex === index;
@@ -75,7 +75,7 @@ export function ViewRadioButton({
       <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
         Rename
       </MenuItem>
-      {canWrite && (
+      {accessLevel !== "read-only" && (
         <MenuItem
           id="share"
           icon={isShared ? "Cloud" : "Send"}

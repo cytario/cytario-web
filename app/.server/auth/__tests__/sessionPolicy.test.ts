@@ -242,14 +242,20 @@ describe("buildSessionPolicy", () => {
     );
   });
 
-  test("PutOwnAnnotationSidecars is scoped to the caller's own sidecar under the prefix", () => {
+  test("PutOwnSidecars is scoped to the caller's own annotation and settings sidecars under the prefix", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
 
-    const put = findBySid(policy, "PutOwnAnnotationSidecars");
+    const put = findBySid(policy, "PutOwnSidecars");
     expect(put.Effect).toBe("Allow");
-    expect(put.Resource).toBe(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
+    const resources = Array.isArray(put.Resource) ? put.Resource : [put.Resource];
+    // Annotation sidecars — per-image, user segment pinned.
+    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
+    // Settings sidecars — directory-level, base and nested patterns.
+    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/settings.${SUBJECT}.json`);
+    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/*/settings.${SUBJECT}.json`);
     // The user segment is pinned, not a wildcard — no writing another user's file.
-    expect(put.Resource).not.toContain("annotations.*.json");
+    expect(resources.every((r) => !r.includes("annotations.*.json"))).toBe(true);
+    expect(resources.every((r) => !r.includes("settings.*.json"))).toBe(true);
   });
 
   test("PutObjectScopedToPrefix is scoped to the whole connection prefix", () => {
@@ -271,32 +277,31 @@ describe("buildSessionPolicy", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-write" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
     // The prefix grant subsumes the sidecar scope — don't emit a redundant statement.
-    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
-    // Writing to an SSE-KMS-encrypted bucket requires kms:GenerateDataKey.
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(true);
   });
 
   test("accessLevel admin → includes PutObjectScopedToPrefix, omits redundant sidecar", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "admin" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(true);
-    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(true);
   });
 
   test("accessLevel read-only → omits all PutObject and kms:GenerateDataKey statements", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "read-only" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
-    // A read-only session may not write annotation sidecars either.
-    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(false);
+    // A read-only session may not write sidecars either.
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
     // No writes → no key generation needed.
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
   });
 
-  test("accessLevel annotate → includes PutOwnAnnotationSidecars, omits PutObjectScopedToPrefix and kms:GenerateDataKey", () => {
+  test("accessLevel annotate → includes PutOwnSidecars, omits PutObjectScopedToPrefix and kms:GenerateDataKey", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
-    expect(policy.Statement.some((s) => s.Sid === "PutOwnAnnotationSidecars")).toBe(true);
-    // Annotation sidecars are small JSON files, not SSE-KMS-encrypted.
+    expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(true);
+    // Sidecars are small JSON files, not SSE-KMS-encrypted.
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
   });
 

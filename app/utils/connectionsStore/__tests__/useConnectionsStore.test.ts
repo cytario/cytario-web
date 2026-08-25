@@ -21,7 +21,7 @@ describe("useConnectionsStore", () => {
       region: string;
       endpoint: string | null;
       allowsSharing?: boolean;
-      canWrite?: boolean;
+      accessLevel?: "read-only" | "annotate" | "read-write" | "admin";
     },
   ) => {
     useConnectionsStore
@@ -30,7 +30,9 @@ describe("useConnectionsStore", () => {
         [config],
         { [config.id]: creds },
         {},
-        provider ? { [config.id]: { allowsSharing: false, canWrite: false, ...provider } } : {},
+        provider
+          ? { [config.id]: { allowsSharing: false, accessLevel: "read-only", ...provider } }
+          : {},
       );
   };
 

@@ -75,6 +75,9 @@ export const OverlaysLayer = ({
 
       return data;
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return null;
+      }
       toastBridge.emit({
         variant: "error",
         message: `Error fetching tile data: ${(error as Error).message ?? error}`,
@@ -388,6 +391,7 @@ export const OverlaysLayer = ({
     },
 
     onTileError: (error) => {
+      if (error?.name === "AbortError") return;
       toastBridge.emit({
         variant: "error",
         message: `Error loading tile: ${error.message}`,
