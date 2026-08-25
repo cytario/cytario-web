@@ -43,8 +43,6 @@ export function attachViewSync(store: ViewerStoreApi): void {
     try {
       const { id, layersStates, currentUserId } = store.getState();
       const sharedViews = ownSharedViewsOnly(layersStates, currentUserId);
-      if (sharedViews.length === 0) return;
-
       const currentEntries = sharedViews.map(layersStateToSidecarEntry);
       const currentJson = JSON.stringify(currentEntries);
       const persistedJson = JSON.stringify(persisted);
@@ -62,7 +60,11 @@ export function attachViewSync(store: ViewerStoreApi): void {
   store.subscribe(
     (s) => s.layersStates,
     () => {
-      if (hasOwnSharedViews(store.getState().layersStates, store.getState().currentUserId)) {
+      const { layersStates, currentUserId } = store.getState();
+      // The persisted.length > 0 arm covers unsharing the last shared view:
+      // hasOwnSharedViews flips to false, but the stale sidecar must be
+      // overwritten so it doesn't re-seed on the next reload.
+      if (hasOwnSharedViews(layersStates, currentUserId) || persisted.length > 0) {
         schedule();
       }
     },

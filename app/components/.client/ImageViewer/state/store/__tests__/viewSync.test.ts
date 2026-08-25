@@ -180,7 +180,7 @@ describe("attachViewSync", () => {
     expect(writeMock).not.toHaveBeenCalled();
   });
 
-  it("stops writing after a view is unshared", async () => {
+  it("stops writing after a view is unshared (no prior persisted sidecar)", async () => {
     const entry = makeEntry({ shared: true });
     const { store, state, fire } = makeFakeStore();
     store.getState().layersStates = [entry];
@@ -193,6 +193,28 @@ describe("attachViewSync", () => {
     fire();
     await vi.runAllTimersAsync();
 
+    // persisted is empty, so the subscriber does not schedule a flush —
+    // nothing to clear on S3.
     expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the sidecar when the last shared view is unshared after a prior persist", async () => {
+    const entry = makeEntry({ shared: true });
+    const sidecarEntry = makeSidecarEntry(entry.id);
+    readMock.mockResolvedValue([sidecarEntry]);
+
+    const { store, state, fire } = makeFakeStore();
+    store.getState().layersStates = [entry];
+
+    attachViewSync(store);
+    await vi.runAllTimersAsync();
+
+    writeMock.mockClear();
+    state.unshareView(0);
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(writeMock).toHaveBeenCalledTimes(1);
+    expect(writeMock).toHaveBeenCalledWith("conn/slide.ome.tif", "user-123", []);
   });
 });
