@@ -7,8 +7,8 @@ import { useChannelsLayer } from "./Channels/useChannelsLayer";
 import { ImageContainer } from "./ImageContainer";
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
 import { useView } from "./useView";
-import { select } from "../../state/store/selectors";
-import { ViewPort, ViewState } from "../../state/store/types";
+import { channelsStateForPanel, select } from "../../state/store/selectors";
+import { ChannelsState, ViewPort, ViewState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { handleImageViewerHover } from "../../utils/handleImageViewerHover";
 import { mapChannelConfigsToState } from "../../utils/mapChannelConfigsToState";
@@ -16,6 +16,8 @@ import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit
 import { Crosshair } from "../Measurements/Crosshair";
 import { Measurements } from "../Measurements/Measurements";
 import { SlideCarrier } from "../Measurements/SlideCarrier";
+
+const EMPTY_CHANNELS: ChannelsState = Object.freeze({});
 
 export interface ViewProps {
   viewPort: ViewPort;
@@ -48,12 +50,10 @@ const ImagePanelInner = ({
 
   const view = useView({ width, height });
 
-  const channelsState = useViewerStore(
-    (store) => store.layersStates[store.imagePanels[imagePanelId]].channels,
-  );
+  const channelsState = useViewerStore(channelsStateForPanel(imagePanelId)) ?? EMPTY_CHANNELS;
 
   /** Setup Orthographic View */
-  const { ids } = useMemo(() => mapChannelConfigsToState(channelsState ?? {}), [channelsState]);
+  const { ids } = useMemo(() => mapChannelConfigsToState(channelsState), [channelsState]);
   const setPixelValues = useViewerStore(select.setPixelValues);
 
   const onMultiscaleLayerHover = useCallback(

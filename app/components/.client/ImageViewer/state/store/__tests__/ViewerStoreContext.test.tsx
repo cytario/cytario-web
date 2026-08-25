@@ -76,6 +76,7 @@ describe("ViewerStoreContext", () => {
         <ViewerStoreProvider
           resourceId="https://bucket.s3.amazonaws.com/image.ome.tif"
           signedFetch={mockSignedFetch}
+          userId="user-1"
         >
           <div data-testid="child">Child content</div>
         </ViewerStoreProvider>,
@@ -96,7 +97,7 @@ describe("ViewerStoreContext", () => {
 
       const url = `https://bucket.s3.amazonaws.com/new-${Date.now()}.ome.tif`;
       render(
-        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -117,7 +118,7 @@ describe("ViewerStoreContext", () => {
 
       const url = `https://bucket.s3.amazonaws.com/same-${Date.now()}.ome.tif`;
       const { rerender } = render(
-        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -127,7 +128,7 @@ describe("ViewerStoreContext", () => {
       });
 
       rerender(
-        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
           <div>Test Updated</div>
         </ViewerStoreProvider>,
       );
@@ -166,7 +167,7 @@ describe("ViewerStoreContext", () => {
       });
 
       render(
-        <ViewerStoreProvider resourceId={uniqueUrl} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={uniqueUrl} signedFetch={mockSignedFetch} userId="user-1">
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -212,7 +213,7 @@ describe("ViewerStoreContext", () => {
       });
 
       render(
-        <ViewerStoreProvider resourceId={uniqueUrl} signedFetch={mockSignedFetch}>
+        <ViewerStoreProvider resourceId={uniqueUrl} signedFetch={mockSignedFetch} userId="user-1">
           <div>Test</div>
         </ViewerStoreProvider>,
       );
@@ -251,6 +252,7 @@ describe("ViewerStoreContext", () => {
         <ViewerStoreProvider
           resourceId={`https://bucket.s3.amazonaws.com/bad-${Date.now()}.ome.tif`}
           signedFetch={mockSignedFetch}
+          userId="user-1"
         >
           <div>Test</div>
         </ViewerStoreProvider>,

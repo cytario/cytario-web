@@ -17,7 +17,12 @@ describe("useConnectionsStore", () => {
   const seed = (
     config = connectionConfig,
     creds = credentials,
-    provider?: { region: string; endpoint: string | null; allowsSharing?: boolean },
+    provider?: {
+      region: string;
+      endpoint: string | null;
+      allowsSharing?: boolean;
+      accessLevel?: "read-only" | "annotate" | "read-write" | "admin";
+    },
   ) => {
     useConnectionsStore
       .getState()
@@ -25,7 +30,9 @@ describe("useConnectionsStore", () => {
         [config],
         { [config.id]: creds },
         {},
-        provider ? { [config.id]: { allowsSharing: false, ...provider } } : {},
+        provider
+          ? { [config.id]: { allowsSharing: false, accessLevel: "read-only", ...provider } }
+          : {},
       );
   };
 

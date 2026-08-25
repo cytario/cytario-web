@@ -108,6 +108,43 @@ describe("compileGrantStatements", () => {
     expect(actions).not.toContain("s3:PutBucketPolicy");
   });
 
+  test("annotate grant adds PutObject scoped to annotation and settings sidecar patterns", () => {
+    const statements = compileGrantStatements(grant({ accessLevel: "annotate" }));
+
+    // GetObject still emitted on the full prefix (read is always allowed).
+    const get = findByAction(statements, "s3:GetObject");
+    expect(get.Resource).toBe(`arn:aws:s3:::${BUCKET}/projects/alpha/*`);
+
+    // PutObject is scoped to sidecar patterns, NOT the whole prefix.
+    const putStmt = statements.find((s) =>
+      Array.isArray(s.Action) ? s.Action.includes("s3:PutObject") : s.Action === "s3:PutObject",
+    );
+    expect(putStmt).toBeDefined();
+    const resources = Array.isArray(putStmt!.Resource) ? putStmt!.Resource : [putStmt!.Resource];
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/projects/alpha/*.annotations.*.json`);
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/projects/alpha/settings.*.json`);
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/projects/alpha/*/settings.*.json`);
+    // No whole-prefix write access.
+    expect(resources).not.toContain(`arn:aws:s3:::${BUCKET}/projects/alpha/*`);
+    // No delete or multipart at annotate level.
+    const allActions = statements.flatMap((s) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
+    expect(allActions).not.toContain("s3:DeleteObject");
+    expect(allActions).not.toContain("s3:AbortMultipartUpload");
+  });
+
+  test("annotate grant with empty prefix → sidecar patterns at bucket root and nested depth", () => {
+    const statements = compileGrantStatements(grant({ accessLevel: "annotate", prefix: "" }));
+
+    const putStmt = statements.find((s) =>
+      Array.isArray(s.Action) ? s.Action.includes("s3:PutObject") : s.Action === "s3:PutObject",
+    );
+    expect(putStmt).toBeDefined();
+    const resources = Array.isArray(putStmt!.Resource) ? putStmt!.Resource : [putStmt!.Resource];
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/*.annotations.*.json`);
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/settings.*.json`);
+    expect(resources).toContain(`arn:aws:s3:::${BUCKET}/*/settings.*.json`);
+  });
+
   test("empty prefix → whole-bucket object ARN and no s3:prefix condition", () => {
     const statements = compileGrantStatements(grant({ prefix: "" }));
     const list = findByAction(statements, "s3:ListBucket");

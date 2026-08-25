@@ -34,7 +34,7 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   const viewStateActive = useViewerStore(select.viewStateActive);
   const setViewStateActive = useViewerStore(select.setViewStateActive);
 
-  useInitializeChannels(viewPort);
+  useInitializeChannels();
 
   /* Reset `viewStatePreview` upon container resize */
   useEffect(() => {

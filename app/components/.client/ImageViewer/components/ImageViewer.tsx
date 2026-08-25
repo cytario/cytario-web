@@ -1,18 +1,19 @@
 import { IconButtonToggle } from "@cytario/design";
 
-import { AnnotationsPanel } from "./AnnotationsPanel/AnnotationsPanel";
-import { ChannelsPanel } from "./ChannelsPanel/ChannelsPanel";
 import { ImagePreview } from "./Image/ImagePreview";
 import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
-import { OverlaysPanel } from "./OverlaysPanel/OverlaysPanel";
-import { Presets } from "./Presets/Presets";
+import { AnnotationsPanel } from "./panels/AnnotationsPanel/AnnotationsPanel";
+import { ChannelsPanel } from "./panels/ChannelsPanel/ChannelsPanel";
+import { OverlaysPanel } from "./panels/OverlaysPanel/OverlaysPanel";
+import { Views } from "./panels/ViewsPanel/Views";
 import { ViewerHeader } from "./ViewerHeader";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar, SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface ViewerProps {
@@ -23,8 +24,10 @@ interface ViewerProps {
 export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" });
 
 export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
+  const userId = useCurrentUser()?.sub ?? "";
+
   return (
-    <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch}>
+    <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
       <UndoRedoShortcuts />
       <AnnotationModeKeyboard />
       <ViewerHeader>
@@ -49,14 +52,13 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
           toggleShortcut="mod+alt+b"
           openOnMount
         >
-          <Presets>
-            <div className="block h-60 w-full shrink-0">
-              <ImagePreview isInteractive />
-            </div>
-            <ChannelsPanel />
-            <OverlaysPanel />
-            <AnnotationsPanel />
-          </Presets>
+          <div className="block h-60 w-full shrink-0">
+            <ImagePreview isInteractive />
+          </div>
+          <Views />
+          <ChannelsPanel />
+          <OverlaysPanel />
+          <AnnotationsPanel />
         </Sidebar>
         <ViewerSidebarToggle />
       </div>

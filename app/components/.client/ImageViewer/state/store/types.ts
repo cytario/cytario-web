@@ -32,24 +32,60 @@ export interface ChannelsStateColumns {
   channelsVisible: boolean[];
   contrastLimits: ByteDomain[];
   colors: RGB[];
-  domains: Readonly<ByteDomain>[];
   selections: Selection[];
-  histograms: number[][];
 }
 
-export interface ChannelConfig {
-  isInitialized: boolean;
-  isLoading: boolean;
-  isVisible: boolean;
+/** File-derived channel data — immutable across presets, stored in top-level `channels` only. */
+export interface ImageChannelData {
   selection: Readonly<Selection>;
   domain: Readonly<ByteDomain>;
   histogram: number[];
-  contrastLimitsInitial: Readonly<ByteDomain>;
+  isInitialized: boolean;
+  isLoading: boolean;
+}
+
+/** Per-preset user settings — stored in `layersStates[].channels`. */
+export interface PresetChannelConfig {
+  isVisible: boolean;
   contrastLimits: ByteDomain;
   color: RGB;
 }
 
+/** Full channel config — top-level `channels` entries (image data + preset settings merged). */
+export type ChannelConfig = PresetChannelConfig & ImageChannelData;
+
 export type ChannelsState = Record<string, ChannelConfig>;
+export type LayerChannelsState = Record<string, Partial<PresetChannelConfig>>;
+
+export interface LayersStateEntry {
+  id: string;
+  author: string;
+  channels: LayerChannelsState;
+  overlays: OverlaysState;
+  channelsOpacity: number;
+  overlaysFillOpacity: number;
+  showCellOutline: boolean;
+  annotationsOpacity: number;
+  showAnnotationOutline: boolean;
+  isChannelsLoading: number;
+  isOverlaysLoading: number;
+  name?: string;
+  shared?: boolean;
+}
+
+export const createDefaultLayersStateEntry = (author = ""): LayersStateEntry => ({
+  id: crypto.randomUUID(),
+  author,
+  channels: {},
+  overlays: {},
+  channelsOpacity: 1,
+  overlaysFillOpacity: 0.8,
+  showCellOutline: true,
+  annotationsOpacity: 1,
+  showAnnotationOutline: true,
+  isChannelsLoading: 0,
+  isOverlaysLoading: 0,
+});
 
 export const BRIGHTFIELD_GROUP_ID = "__brightfield__" as const;
 
@@ -87,6 +123,9 @@ export type AnnotationMode = "view" | "draw-polygon" | "draw-freehand" | "draw-p
 export interface ViewerStoreState {
   /** Image identity (`connectionName/pathName`) — keys persistence + devtools. */
   id: string;
+  /** Keycloak `sub` of the current user — scopes per-user sidecar writes and
+   *  ownership guards on shared views. */
+  currentUserId: string;
 }
 
 export type ViewerStore = ViewerStoreState &

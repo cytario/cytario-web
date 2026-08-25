@@ -21,9 +21,7 @@ import {
 } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
-/** A connection config with its grants eager-loaded (the shape credential minting needs). */
 type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
-
 const label = createLabel("credentials", "cyan");
 
 export const isValidCredentials = (credentials?: { Expiration?: Date }): boolean => {
@@ -34,17 +32,26 @@ export const isValidCredentials = (credentials?: { Expiration?: Date }): boolean
 
 export { sanitizeRoleSessionName };
 
-const fetchTemporaryCredentials = async (
-  connectionConfig: ConnectionConfig,
-  roleArn: string,
-  region: string,
-  endpoint: string | null,
-  idToken: string,
-  roleSessionName: string,
-  subject: string,
-  accessLevel: AccessLevel,
-): Promise<Credentials> => {
+interface SessionCredentialRequest {
+  connectionConfig: ConnectionConfig;
+  grant: ResolvedConnectionGrant;
+  connectionProvider: ResolvedConnectionProviderWithGrants;
+  sessionData: SessionData;
+  roleSessionName: string;
+}
+
+const fetchTemporaryCredentials = async ({
+  connectionConfig,
+  grant,
+  connectionProvider,
+  sessionData,
+  roleSessionName,
+}: SessionCredentialRequest): Promise<Credentials> => {
   const { bucketName, prefix } = connectionConfig;
+  const { roleArn, accessLevel } = grant;
+  const { region, endpoint } = connectionProvider;
+  const { idToken } = sessionData.authTokens;
+  const subject = sessionData.user.sub;
 
   const providerConfig = getS3ProviderConfig(endpoint, region);
 
@@ -133,6 +140,9 @@ export interface ClientConnectionProvider {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** The current user's resolved grant access level. Advisory UI gate;
+   *  S3 denies enforce the actual permission boundary. */
+  accessLevel: AccessLevel;
 }
 
 export interface SessionCredentialsResult {
@@ -188,34 +198,38 @@ export const getAllSessionCredentials = async (
   // credential is still cached and no mint runs this request.
   const providers: Record<string, ClientConnectionProvider> = {};
   if (catalog) {
-    for (const config of connectionConfigs) {
-      const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
+    for (const connectionConfig of connectionConfigs) {
+      const connectionProvider = resolveConnectionProviderWithGrants(catalog, connectionConfig);
       if (connectionProvider) {
-        providers[config.id] = {
+        const grant = pickGrantForUser(connectionProvider, sessionData.user, organization);
+        providers[connectionConfig.id] = {
           region: connectionProvider.region,
           endpoint: connectionProvider.endpoint,
           allowsSharing: connectionProvider.allowsSharing,
+          accessLevel: grant?.accessLevel ?? "read-only",
         };
       }
     }
   }
 
-  const stale = connectionConfigs.filter(
-    (config) => !isValidCredentials(sessionData.credentials[config.id]),
+  const connectionsNeedingRefresh = connectionConfigs.filter(
+    (connectionConfig) => !isValidCredentials(sessionData.credentials[connectionConfig.id]),
   );
 
-  if (stale.length === 0) {
+  if (connectionsNeedingRefresh.length === 0) {
     return { credentials: sessionData.credentials, errors: {}, providers };
   }
 
-  console.info(`${label} Fetching credentials for ${stale.length} connection(s)`);
+  console.info(
+    `${label} Fetching credentials for ${connectionsNeedingRefresh.length} connection(s)`,
+  );
 
-  const results = await Promise.allSettled(
-    stale.map(async (config) => {
+  const credentialResults = await Promise.allSettled(
+    connectionsNeedingRefresh.map(async (connectionConfig) => {
       if (!catalog) {
         throw new Error(catalogError ?? "Provider catalog is unavailable.");
       }
-      const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
+      const connectionProvider = resolveConnectionProviderWithGrants(catalog, connectionConfig);
       if (!connectionProvider) {
         throw new Error(
           "This connection references a provider connection or role that is no longer available. Ask an administrator to check the storage onboarding.",
@@ -226,32 +240,29 @@ export const getAllSessionCredentials = async (
         throw new Error("You are not a member of any group granted access to this connection.");
       }
       return {
-        id: config.id,
-        name: config.name,
-        credentials: await fetchTemporaryCredentials(
-          config,
-          grant.roleArn,
-          connectionProvider.region,
-          connectionProvider.endpoint,
-          sessionData.authTokens.idToken,
+        id: connectionConfig.id,
+        name: connectionConfig.name,
+        credentials: await fetchTemporaryCredentials({
+          connectionConfig,
+          grant,
+          connectionProvider,
+          sessionData,
           roleSessionName,
-          sessionData.user.sub,
-          grant.accessLevel,
-        ),
+        }),
       };
     }),
   );
 
   const newCredentials = { ...sessionData.credentials };
   const errors: Record<string, string> = {};
-  results.forEach((result, i) => {
-    if (result.status === "fulfilled") {
-      newCredentials[result.value.id] = result.value.credentials;
+  credentialResults.forEach((credentialResult, i) => {
+    if (credentialResult.status === "fulfilled") {
+      newCredentials[credentialResult.value.id] = credentialResult.value.credentials;
     } else {
-      const config = stale[i];
-      const reason = describeCredentialError(result.reason);
-      errors[config.id] = reason;
-      console.warn(`${label} Failed to fetch credentials for ${config.name}: ${reason}`);
+      const connectionConfig = connectionsNeedingRefresh[i];
+      const reason = describeCredentialError(credentialResult.reason);
+      errors[connectionConfig.id] = reason;
+      console.warn(`${label} Failed to fetch credentials for ${connectionConfig.name}: ${reason}`);
     }
   });
 

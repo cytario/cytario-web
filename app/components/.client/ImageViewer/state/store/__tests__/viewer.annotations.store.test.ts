@@ -217,16 +217,56 @@ describe("toggleAnnotationClassVisibility", () => {
 describe("setAnnotationsOpacity", () => {
   it("defaults to 1", () => {
     const store = createViewerStore("sao-0");
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [
+        {
+          id: "test-id",
+          shared: false,
+          author: "",
+          channels: {},
+          overlays: {},
+          channelsOpacity: 1,
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+          isChannelsLoading: 0,
+          isOverlaysLoading: 0,
+        },
+      ],
+    });
 
-    expect(store.getState().annotationsOpacity).toBe(1);
+    expect(store.getState().layersStates[0].annotationsOpacity).toBe(1);
   });
 
   it("sets the whole-layer opacity", () => {
     const store = createViewerStore("sao-1");
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [
+        {
+          id: "test-id",
+          shared: false,
+          author: "",
+          channels: {},
+          overlays: {},
+          channelsOpacity: 1,
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+          isChannelsLoading: 0,
+          isOverlaysLoading: 0,
+        },
+      ],
+    });
 
     store.getState().setAnnotationsOpacity(0.5);
 
-    expect(store.getState().annotationsOpacity).toBe(0.5);
+    expect(store.getState().layersStates[0].annotationsOpacity).toBe(0.5);
   });
 });
 

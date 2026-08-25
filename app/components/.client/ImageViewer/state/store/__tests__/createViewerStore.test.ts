@@ -2,44 +2,55 @@ import { getSelectionStats } from "../../../utils/getSelectionStats";
 import { createViewerStore } from "../createViewerStore";
 import { getInitialChannelsState } from "../getInitialChannelsState";
 import { Image, Loader } from "../ome.tif.types";
-import { ChannelConfig, ChannelsStateColumns, OverlaysState, ViewState } from "../types";
+import {
+  ChannelConfig,
+  ChannelsStateColumns,
+  OverlaysState,
+  PresetChannelConfig,
+  ViewState,
+} from "../types";
 import { createMigrate } from "~/utils/persistMigration";
 
 vi.mock("../../../utils/getSelectionStats");
 vi.mock("../getInitialChannelsState");
 
 const createMockLayersState = () => ({
-  channels: {
-    Red: {
-      isInitialized: true,
-      isLoading: false,
-      isVisible: true,
-      selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
-      domain: [0, 255] as const,
-      histogram: [],
-      contrastLimitsInitial: [10, 200] as const,
-      contrastLimits: [10, 200] as [number, number],
-      color: [255, 0, 0] as [number, number, number],
-    } as ChannelConfig,
-    Green: {
-      isInitialized: false,
-      isLoading: false,
-      isVisible: false,
-      selection: { c: 1, x: 0, y: 0, z: 0, t: 0 },
-      domain: [0, 65535] as const,
-      histogram: [],
-      contrastLimitsInitial: [0, 65535] as const,
-      contrastLimits: [0, 65535] as [number, number],
-      color: [0, 255, 0] as [number, number, number],
-    } as ChannelConfig,
-  },
-  channelIds: ["Red", "Green"],
+  id: crypto.randomUUID(),
+  author: "",
+  shared: false,
+  channels: {} as Record<string, Partial<PresetChannelConfig>>,
   overlays: {} as OverlaysState,
   channelsOpacity: 1,
   overlaysFillOpacity: 0.8,
   showCellOutline: true,
+  annotationsOpacity: 1,
+  showAnnotationOutline: true,
   isChannelsLoading: 0,
   isOverlaysLoading: 0,
+  name: undefined as string | undefined,
+});
+
+const createMockChannels = () => ({
+  Red: {
+    isInitialized: true,
+    isLoading: false,
+    isVisible: true,
+    selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
+    domain: [0, 255] as const,
+    histogram: new Array(256).fill(0),
+    contrastLimits: [10, 200] as [number, number],
+    color: [255, 0, 0] as [number, number, number],
+  } as ChannelConfig,
+  Green: {
+    isInitialized: false,
+    isLoading: false,
+    isVisible: false,
+    selection: { c: 1, x: 0, y: 0, z: 0, t: 0 },
+    domain: [0, 65535] as const,
+    histogram: new Array(256).fill(0),
+    contrastLimits: [0, 65535] as [number, number],
+    color: [0, 255, 0] as [number, number, number],
+  } as ChannelConfig,
 });
 
 describe("createViewerStore", () => {
@@ -51,6 +62,7 @@ describe("createViewerStore", () => {
 
     expect(initialState).toEqual({
       id: storeId,
+      currentUserId: "",
       error: null,
       selectedChannelId: null,
       loader: [],
@@ -61,6 +73,8 @@ describe("createViewerStore", () => {
       viewStateActive: null,
       imagePanelIndex: -1,
       imagePanels: [],
+      channels: {},
+      channelIds: [],
       cursorPosition: null,
       pixelValues: {},
       annotationsByUser: {},
@@ -69,8 +83,6 @@ describe("createViewerStore", () => {
       annotationView: {},
       annotationActiveClass: null,
       annotationClasses: [],
-      annotationsOpacity: 1,
-      showAnnotationOutline: true,
       layersStates: [],
       setError: expect.any(Function),
       setCursorPosition: expect.any(Function),
@@ -87,7 +99,7 @@ describe("createViewerStore", () => {
       addImagePanel: expect.any(Function),
       addChannelsState: expect.any(Function),
       removeChannelsState: expect.any(Function),
-      setActiveChannelsStateIndex: expect.any(Function),
+      setActivePresetIndex: expect.any(Function),
       removeImagePanel: expect.any(Function),
       setContrastLimits: expect.any(Function),
       resetContrastLimits: expect.any(Function),
@@ -101,6 +113,7 @@ describe("createViewerStore", () => {
       setOverlaysFillOpacity: expect.any(Function),
       setChannelsOpacity: expect.any(Function),
       setShowCellOutline: expect.any(Function),
+      setViewName: expect.any(Function),
       seedAnnotations: expect.any(Function),
       updateUserFeatures: expect.any(Function),
       setAnnotationClassColor: expect.any(Function),
@@ -117,6 +130,10 @@ describe("createViewerStore", () => {
       showAnnotationClass: expect.any(Function),
       setAnnotationMode: expect.any(Function),
       setAnnotationSelectedIds: expect.any(Function),
+      shareView: expect.any(Function),
+      unshareView: expect.any(Function),
+      forkView: expect.any(Function),
+      loadSharedViews: expect.any(Function),
     });
   });
 
@@ -293,6 +310,40 @@ describe("createViewerStore", () => {
     expect(store.getState().imagePanels).toEqual([0, 1, 2]);
   });
 
+  test("addImagePanel() clones active panel's preset", () => {
+    const store = createViewerStore("test-viewer-11b");
+
+    const preset0 = createMockLayersState();
+    preset0.channelsOpacity = 0.3;
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [preset0, createMockLayersState()],
+    });
+
+    store.getState().addImagePanel();
+
+    expect(store.getState().imagePanels).toEqual([0, 2]);
+    expect(store.getState().layersStates).toHaveLength(3);
+    expect(store.getState().layersStates[2].channelsOpacity).toBe(0.3);
+  });
+
+  test("addImagePanel() with shared presets clones the active panel's preset", () => {
+    const store = createViewerStore("test-viewer-11c");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0, 0],
+      layersStates: [createMockLayersState()],
+    });
+
+    store.getState().addImagePanel();
+
+    expect(store.getState().imagePanels).toEqual([0, 0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
+  });
+
   test("removeImagePanel()", () => {
     const store = createViewerStore("test-viewer-13");
 
@@ -380,7 +431,52 @@ describe("createViewerStore", () => {
     expect(store.getState().layersStates).toHaveLength(1);
   });
 
-  test("setActiveChannelsStateIndex()", () => {
+  test("removeChannelsState() decrements panels above removed preset", () => {
+    const store = createViewerStore("test-viewer-16b");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0, 1, 2],
+      layersStates: [createMockLayersState(), createMockLayersState(), createMockLayersState()],
+    });
+
+    store.getState().removeChannelsState(1);
+
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 0, 1]);
+  });
+
+  test("removeChannelsState() remaps panels on removed preset to 0", () => {
+    const store = createViewerStore("test-viewer-16c");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [1, 0, 1],
+      layersStates: [createMockLayersState(), createMockLayersState(), createMockLayersState()],
+    });
+
+    store.getState().removeChannelsState(1);
+
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 0, 0]);
+  });
+
+  test("removeChannelsState() does nothing when only one preset remains", () => {
+    const store = createViewerStore("test-viewer-16d");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [createMockLayersState()],
+    });
+
+    store.getState().removeChannelsState(0);
+
+    expect(store.getState().layersStates).toHaveLength(1);
+    expect(store.getState().imagePanels).toEqual([0]);
+  });
+
+  test("setActivePresetIndex()", () => {
     const store = createViewerStore("test-viewer-17");
     const layersState1 = createMockLayersState();
     const layersState2 = createMockLayersState();
@@ -391,26 +487,8 @@ describe("createViewerStore", () => {
       layersStates: [layersState1, layersState2],
     });
 
-    store.getState().setActiveChannelsStateIndex(1);
+    store.getState().setActivePresetIndex(1);
     expect(store.getState().imagePanels[0]).toBe(1);
-  });
-
-  test("setActiveChannelsStateIndex() duplicates last state when needed", () => {
-    const store = createViewerStore("test-viewer-17b");
-    const layersState = createMockLayersState();
-
-    store.setState({
-      imagePanelIndex: 0,
-      imagePanels: [0],
-      layersStates: [layersState],
-    });
-
-    // Request index 2, which doesn't exist yet
-    store.getState().setActiveChannelsStateIndex(2);
-
-    // Should have duplicated layers states to reach index 2
-    expect(store.getState().layersStates).toHaveLength(3);
-    expect(store.getState().imagePanels[0]).toBe(2);
   });
 
   test("setContrastLimits()", () => {
@@ -420,10 +498,9 @@ describe("createViewerStore", () => {
       imagePanelIndex: 0,
       imagePanels: [0],
       selectedChannelId: "Red",
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
-
-    expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([10, 200]);
 
     store.getState().setContrastLimits([50, 150]);
     expect(store.getState().layersStates[0].channels["Red"].contrastLimits).toEqual([50, 150]);
@@ -446,11 +523,14 @@ describe("createViewerStore", () => {
   test("resetContrastLimits()", () => {
     const store = createViewerStore("test-viewer-19");
 
+    const mockLayers = createMockLayersState();
     store.setState({
       imagePanelIndex: 0,
       imagePanels: [0],
       selectedChannelId: "Red",
-      layersStates: [createMockLayersState()],
+      layersStates: [mockLayers],
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
     });
 
     // First change the contrast limits
@@ -469,10 +549,9 @@ describe("createViewerStore", () => {
       imagePanelIndex: 0,
       imagePanels: [0],
       loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
-
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
 
     await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
     expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(false);
@@ -492,8 +571,8 @@ describe("createViewerStore", () => {
     });
 
     await store.getState().setChannelVisibility("Red" as keyof ChannelsStateColumns, false);
-    // Should remain unchanged
-    expect(store.getState().layersStates[0].channels["Red"].isVisible).toBe(true);
+    // Should not throw and should not create channel entries
+    expect(store.getState().layersStates[0].channels["Red"]).toBeUndefined();
   });
 
   test("setChannelVisibility() initializes uninitialized channel", async () => {
@@ -509,16 +588,17 @@ describe("createViewerStore", () => {
       imagePanelIndex: 0,
       imagePanels: [0],
       loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
 
-    expect(store.getState().layersStates[0].channels["Green"].isInitialized).toBe(false);
+    expect(store.getState().channels["Green"].isInitialized).toBe(false);
 
     await store.getState().setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
 
-    expect(store.getState().layersStates[0].channels["Green"].isInitialized).toBe(true);
+    expect(store.getState().channels["Green"].isInitialized).toBe(true);
     expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(true);
-    expect(store.getState().layersStates[0].channels["Green"].domain).toEqual([0, 1000]);
+    expect(store.getState().channels["Green"].domain).toEqual([0, 1000]);
     expect(store.getState().layersStates[0].channels["Green"].contrastLimits).toEqual([50, 800]);
   });
 
@@ -531,13 +611,14 @@ describe("createViewerStore", () => {
       imagePanelIndex: 0,
       imagePanels: [0],
       loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
 
     await store.getState().setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
 
     // Should set loading to false and visibility to false on error
-    expect(store.getState().layersStates[0].channels["Green"].isLoading).toBe(false);
+    expect(store.getState().channels["Green"].isLoading).toBe(false);
     expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(false);
   });
 
@@ -547,10 +628,9 @@ describe("createViewerStore", () => {
     store.setState({
       imagePanelIndex: 0,
       imagePanels: [0],
+      channels: createMockChannels(),
       layersStates: [createMockLayersState()],
     });
-
-    expect(store.getState().layersStates[0].channels["Red"].color).toEqual([255, 0, 0]);
 
     store.getState().setChannelColor("Red", [0, 128, 255, 255]);
     expect(store.getState().layersStates[0].channels["Red"].color).toEqual([0, 128, 255]);
@@ -763,7 +843,7 @@ describe("createViewerStore", () => {
   });
 
   describe("addChannelsState()", () => {
-    test("does nothing when metadata is null", async () => {
+    test("does nothing when metadata is null", () => {
       const store = createViewerStore("test-viewer-29");
 
       store.setState({
@@ -771,11 +851,11 @@ describe("createViewerStore", () => {
         loader: [{}] as unknown as Loader,
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
       expect(store.getState().layersStates).toEqual([]);
     });
 
-    test("does nothing when loader is null", async () => {
+    test("does nothing when loader is null", () => {
       const store = createViewerStore("test-viewer-30");
 
       store.setState({
@@ -783,28 +863,27 @@ describe("createViewerStore", () => {
         loader: null,
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
       expect(store.getState().layersStates).toEqual([]);
     });
 
-    test("initializes channels state on first call", async () => {
+    test("initializes channels state on first call", () => {
       const store = createViewerStore("test-viewer-31");
 
       const mockChannelsState = {
         DAPI: {
-          isInitialized: true,
+          isInitialized: false,
           isLoading: false,
-          isVisible: true,
+          isVisible: false,
           selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
           domain: [0, 65535] as const,
-          histogram: [],
-          contrastLimitsInitial: [0, 65535] as const,
+          histogram: new Array(256).fill(0),
           contrastLimits: [0, 65535] as [number, number],
           color: [0, 0, 255] as [number, number, number],
         },
       };
 
-      vi.mocked(getInitialChannelsState).mockResolvedValue({
+      vi.mocked(getInitialChannelsState).mockReturnValue({
         channelsState: mockChannelsState,
         channelIds: ["DAPI"],
         firstChannelKey: "DAPI",
@@ -818,54 +897,16 @@ describe("createViewerStore", () => {
         loader: [{}] as unknown as Loader,
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
 
       expect(store.getState().imagePanelIndex).toBe(0);
       expect(store.getState().imagePanels).toEqual([0]);
       expect(store.getState().selectedChannelId).toBe("DAPI");
       expect(store.getState().layersStates).toHaveLength(1);
-      expect(store.getState().layersStates[0].channelIds).toEqual(["DAPI"]);
+      expect(store.getState().channelIds).toEqual(["DAPI"]);
     });
 
-    test("sets error state when initialization fails", async () => {
-      const store = createViewerStore("test-viewer-32");
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      vi.mocked(getInitialChannelsState).mockRejectedValue(new Error("Failed to load channels"));
-
-      store.setState({
-        imagePanelIndex: -1,
-        metadata: { Pixels: { Channels: [] } } as unknown as Image,
-        loader: [{}] as unknown as Loader,
-      });
-
-      await store.getState().addChannelsState();
-
-      expect(store.getState().error).toBeInstanceOf(Error);
-      expect(store.getState().error?.message).toBe("Failed to load channels");
-      consoleSpy.mockRestore();
-    });
-
-    test("sets error state for non-Error thrown values", async () => {
-      const store = createViewerStore("test-viewer-32b");
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      vi.mocked(getInitialChannelsState).mockRejectedValue("String error");
-
-      store.setState({
-        imagePanelIndex: -1,
-        metadata: { Pixels: { Channels: [] } } as unknown as Image,
-        loader: [{}] as unknown as Loader,
-      });
-
-      await store.getState().addChannelsState();
-
-      expect(store.getState().error).toBeInstanceOf(Error);
-      expect(store.getState().error?.message).toBe("String error");
-      consoleSpy.mockRestore();
-    });
-
-    test("duplicates current channel state on subsequent calls", async () => {
+    test("creates fresh default preset on subsequent calls", () => {
       const store = createViewerStore("test-viewer-33");
 
       store.setState({
@@ -876,10 +917,440 @@ describe("createViewerStore", () => {
         layersStates: [createMockLayersState()],
       });
 
-      await store.getState().addChannelsState();
+      store.getState().addChannelsState();
 
       expect(store.getState().layersStates).toHaveLength(2);
       expect(store.getState().imagePanels[0]).toBe(1);
+    });
+
+    test("new preset has defaults, not a copy of the active preset", () => {
+      const store = createViewerStore("test-viewer-33b");
+
+      const modifiedState = createMockLayersState();
+      modifiedState.channels = { Red: { contrastLimits: [50, 150], color: [1, 2, 3] } };
+      modifiedState.channelsOpacity = 0.5;
+      modifiedState.showCellOutline = false;
+
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        channelIds: ["Red", "Green", "Blue"],
+        channels: createMockChannels(),
+        layersStates: [modifiedState],
+      });
+
+      store.getState().addChannelsState();
+
+      const newPreset = store.getState().layersStates[1];
+      expect(newPreset.channels).toEqual({
+        Red: { isVisible: true },
+      });
+      expect(newPreset.channelsOpacity).toBe(1);
+      expect(newPreset.showCellOutline).toBe(true);
+      expect(newPreset.overlaysFillOpacity).toBe(0.8);
+      expect(newPreset.annotationsOpacity).toBe(1);
+    });
+  });
+
+  describe("setViewName()", () => {
+    test("sets a custom name on a view", () => {
+      const store = createViewerStore("test-viewer-34");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [createMockLayersState()],
+      });
+
+      store.getState().setViewName(0, "My View");
+      expect(store.getState().layersStates[0].name).toBe("My View");
+    });
+
+    test("clearing the name sets it to undefined", () => {
+      const store = createViewerStore("test-viewer-35");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), name: "Custom" }],
+      });
+
+      store.getState().setViewName(0, null);
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+
+    test("empty string also clears the name", () => {
+      const store = createViewerStore("test-viewer-36");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), name: "Custom" }],
+      });
+
+      store.getState().setViewName(0, "");
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+
+    test("whitespace-only string clears the name", () => {
+      const store = createViewerStore("test-viewer-37");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), name: "Custom" }],
+      });
+
+      store.getState().setViewName(0, "   ");
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+
+    test("does nothing for out-of-bounds index", () => {
+      const store = createViewerStore("test-viewer-38");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [createMockLayersState()],
+      });
+
+      store.getState().setViewName(5, "Invalid");
+      store.getState().setViewName(-1, "Invalid");
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].name).toBeUndefined();
+    });
+  });
+
+  describe("shareView()", () => {
+    test("sets shared=true on own view", () => {
+      const store = createViewerStore("test-share-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      store.getState().shareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(true);
+    });
+
+    test("does nothing for peer-authored view", () => {
+      const store = createViewerStore("test-share-2", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b", shared: false }],
+      });
+
+      store.getState().shareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(false);
+    });
+
+    test("does nothing for out-of-bounds index", () => {
+      const store = createViewerStore("test-share-4", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      store.getState().shareView(5);
+      store.getState().shareView(-1);
+      expect(store.getState().layersStates[0].shared).toBe(false);
+    });
+  });
+
+  describe("unshareView()", () => {
+    test("sets shared=false on own view", () => {
+      const store = createViewerStore("test-unshare-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: true }],
+      });
+
+      store.getState().unshareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(false);
+    });
+
+    test("entry remains in layersStates after unshare", () => {
+      const store = createViewerStore("test-unshare-2", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: true }],
+      });
+
+      store.getState().unshareView(0);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+
+    test("does nothing for peer-authored view", () => {
+      const store = createViewerStore("test-unshare-3", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b", shared: true }],
+      });
+
+      store.getState().unshareView(0);
+      expect(store.getState().layersStates[0].shared).toBe(true);
+    });
+  });
+
+  describe("forkView()", () => {
+    test("clones view with new UUID, current user as author, shared=false", () => {
+      const store = createViewerStore("test-fork-1", "user-a");
+      const source = {
+        ...createMockLayersState(),
+        author: "user-b",
+        shared: true,
+        name: "Peer View",
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [source],
+      });
+
+      store.getState().forkView(0);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      const fork = store.getState().layersStates[1];
+      expect(fork.id).not.toBe(source.id);
+      expect(fork.author).toBe("user-a");
+      expect(fork.shared).toBe(false);
+      expect(fork.name).toBe("Peer View (copy)");
+      expect(fork.channels).toEqual(source.channels);
+      expect(fork.overlays).toEqual(source.overlays);
+    });
+
+    test("forked view has unique id across multiple forks", () => {
+      const store = createViewerStore("test-fork-2", "user-a");
+      const source = {
+        ...createMockLayersState(),
+        author: "user-b",
+        shared: true,
+        name: "Shared",
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [source],
+      });
+
+      store.getState().forkView(0);
+      store.getState().forkView(0);
+
+      expect(store.getState().layersStates).toHaveLength(3);
+      const ids = store.getState().layersStates.map((ls) => ls.id);
+      expect(new Set(ids).size).toBe(3);
+    });
+
+    test("fork of unnamed view produces unnamed clone", () => {
+      const store = createViewerStore("test-fork-3", "user-a");
+      const source = {
+        ...createMockLayersState(),
+        author: "user-b",
+        shared: true,
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [source],
+      });
+
+      store.getState().forkView(0);
+      expect(store.getState().layersStates[1].name).toBeUndefined();
+    });
+
+    test("does nothing for out-of-bounds index", () => {
+      const store = createViewerStore("test-fork-4", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b" }],
+      });
+
+      store.getState().forkView(5);
+      store.getState().forkView(-1);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+  });
+
+  describe("loadSharedViews()", () => {
+    test("appends new shared views", () => {
+      const store = createViewerStore("test-load-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      const entries = [
+        {
+          id: "shared-1",
+          author: "user-b",
+          name: "Peer View",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+      ];
+
+      store.getState().loadSharedViews(entries);
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].id).toBe("shared-1");
+      expect(store.getState().layersStates[1].author).toBe("user-b");
+      expect(store.getState().layersStates[1].shared).toBe(true);
+    });
+
+    test("overwrites existing view by id instead of duplicating", () => {
+      const store = createViewerStore("test-load-2", "user-a");
+      const existing = {
+        ...createMockLayersState(),
+        id: "view-1",
+        author: "user-b",
+        shared: true,
+        name: "Old Name",
+        channelsOpacity: 0.5,
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [existing],
+      });
+
+      const entries = [
+        {
+          id: "view-1",
+          author: "user-b",
+          name: "New Name",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+      ];
+
+      store.getState().loadSharedViews(entries);
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].name).toBe("New Name");
+      expect(store.getState().layersStates[0].channelsOpacity).toBe(1);
+    });
+
+    test("does nothing with empty entries", () => {
+      const store = createViewerStore("test-load-3", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-a" }],
+      });
+
+      store.getState().loadSharedViews([]);
+      expect(store.getState().layersStates).toHaveLength(1);
+    });
+
+    test("handles mix of new and existing ids", () => {
+      const store = createViewerStore("test-load-4", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [
+          { ...createMockLayersState(), id: "existing-1", author: "user-a" },
+          {
+            ...createMockLayersState(),
+            id: "shared-1",
+            author: "user-b",
+            shared: true,
+            name: "Old",
+          },
+        ],
+      });
+
+      const entries = [
+        {
+          id: "shared-1",
+          author: "user-b",
+          name: "Updated",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+        {
+          id: "shared-2",
+          author: "user-c",
+          name: "New Peer View",
+          shared: true,
+          channels: {},
+          channelsOpacity: 1,
+          overlays: {},
+          overlaysFillOpacity: 0.8,
+          showCellOutline: true,
+          annotationsOpacity: 1,
+          showAnnotationOutline: true,
+        },
+      ];
+
+      store.getState().loadSharedViews(entries);
+      expect(store.getState().layersStates).toHaveLength(3);
+      expect(store.getState().layersStates[1].name).toBe("Updated");
+      expect(store.getState().layersStates[2].id).toBe("shared-2");
+    });
+  });
+
+  describe("setViewName() peer guard", () => {
+    test("does not rename a peer-authored view", () => {
+      const store = createViewerStore("test-setname-peer-1", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [{ ...createMockLayersState(), author: "user-b", name: "Original" }],
+      });
+
+      store.getState().setViewName(0, "Hacked");
+      expect(store.getState().layersStates[0].name).toBe("Original");
+    });
+  });
+
+  describe("removeChannelsState() peer guard", () => {
+    test("does not remove a peer-authored view", () => {
+      const store = createViewerStore("test-remove-peer-1", "user-a");
+      const peerView = { ...createMockLayersState(), author: "user-b" };
+      const ownView = { ...createMockLayersState(), author: "user-a" };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0, 1],
+        layersStates: [peerView, ownView],
+      });
+
+      store.getState().removeChannelsState(0);
+      expect(store.getState().layersStates).toHaveLength(2);
+    });
+
+    test("removes own view normally", () => {
+      const store = createViewerStore("test-remove-peer-2", "user-a");
+      const ownView1 = { ...createMockLayersState(), author: "user-a" };
+      const ownView2 = { ...createMockLayersState(), author: "user-a" };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0, 1],
+        layersStates: [ownView1, ownView2],
+      });
+
+      store.getState().removeChannelsState(0);
+      expect(store.getState().layersStates).toHaveLength(1);
     });
   });
 
@@ -964,6 +1435,114 @@ describe("createViewerStore", () => {
 
       const result = migrate(v1State, 1);
       expect(result).toEqual(v1State);
+    });
+  });
+
+  describe("persist migration v3 -> v4 (clear stale state)", () => {
+    const fallback = {
+      selectedChannelId: null,
+      imagePanelIndex: -1,
+      imagePanels: [],
+      layersStates: [],
+      channels: {},
+      channelIds: [],
+      viewStateActive: null,
+    };
+
+    const migrate = createMigrate(
+      {
+        3: (state) => state,
+        4: () => fallback,
+      },
+      fallback,
+    );
+
+    test("clears all persisted state from v3", () => {
+      const v3State = {
+        selectedChannelId: "Red",
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [
+          {
+            channels: {
+              Red: {
+                isInitialized: true,
+                isVisible: true,
+                contrastLimits: [50, 150],
+                contrastLimitsInitial: [10, 200],
+                domain: [0, 255],
+                color: [255, 0, 0],
+                histogram: [],
+                selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
+                isLoading: false,
+              },
+            },
+            channelIds: ["Red"],
+          },
+        ],
+        viewStateActive: null,
+      };
+
+      const result = migrate(v3State, 3);
+
+      expect(result).toEqual(fallback);
+    });
+  });
+
+  describe("persist migration v4 -> v5 (per-user sidecar model)", () => {
+    const fallback = {
+      currentUserId: "",
+      selectedChannelId: null,
+      imagePanelIndex: -1,
+      imagePanels: [],
+      layersStates: [],
+      channels: {},
+      channelIds: [],
+      viewStateActive: null,
+      annotationClasses: [],
+      annotationActiveClass: null,
+    };
+
+    const migrate = createMigrate(
+      {
+        4: (state) => state,
+        5: () => fallback,
+      },
+      fallback,
+    );
+
+    test("drops all old presets from v4 (they lack author field)", () => {
+      const v4State = {
+        currentUserId: "user-1",
+        selectedChannelId: "Red",
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        layersStates: [
+          {
+            id: "old-preset",
+            shared: false,
+            channels: {},
+            overlays: {},
+            channelsOpacity: 1,
+            overlaysFillOpacity: 0.8,
+            showCellOutline: true,
+            annotationsOpacity: 1,
+            showAnnotationOutline: true,
+            isChannelsLoading: 0,
+            isOverlaysLoading: 0,
+          },
+        ],
+        channels: {},
+        channelIds: ["Red"],
+        viewStateActive: null,
+        annotationClasses: [],
+        annotationActiveClass: null,
+      };
+
+      const result = migrate(v4State, 4);
+
+      expect(result).toEqual(fallback);
+      expect(result.layersStates).toEqual([]);
     });
   });
 });

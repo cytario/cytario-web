@@ -120,14 +120,6 @@ export interface AnnotationsSlice {
   /** Per-user view state (hidden classes), keyed by `sub`. Kept apart from
    *  `annotationsByUser` so a view change never enters the persist diff. */
   annotationView: Record<string, UserAnnotationView>;
-  /** Opacity of the whole annotation layer (all users), 0–1. Browser-persisted
-   *  per image — mirrors the channels/overlays opacity controls in
-   *  `layersStates`. */
-  annotationsOpacity: number;
-  /** Whether annotation outlines (strokes) are visible. When off, only fills
-   *  render. Browser-persisted per image — mirrors the overlays outline
-   *  toggle in `layersStates`. */
-  showAnnotationOutline: boolean;
   /** Own-set class into which newly drawn regions are placed; `null` = draw
    *  unclassified. Resolved to `classification` only when a region commits.
    *  Browser-persisted per image (a "settings" sidecar is the eventual home). */
@@ -199,8 +191,6 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
   annotationView: {},
   annotationActiveClass: null,
   annotationClasses: [],
-  annotationsOpacity: 1,
-  showAnnotationOutline: true,
 
   seedAnnotations: (byUser) => {
     // Pause temporal tracking around the seed so the one-time S3 read does
@@ -411,7 +401,11 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
   setAnnotationsOpacity: (opacity) =>
     set(
       (state) => {
-        state.annotationsOpacity = opacity;
+        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+        const layerState = state.layersStates[activeImagePanelIndex];
+        if (layerState) {
+          layerState.annotationsOpacity = opacity;
+        }
       },
       false,
       "setAnnotationsOpacity",
@@ -420,7 +414,11 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
   setShowAnnotationOutline: (show) =>
     set(
       (state) => {
-        state.showAnnotationOutline = show;
+        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+        const layerState = state.layersStates[activeImagePanelIndex];
+        if (layerState) {
+          layerState.showAnnotationOutline = show;
+        }
       },
       false,
       "setShowAnnotationOutline",

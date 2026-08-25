@@ -1,8 +1,5 @@
-import { getSelectionStats } from "../../../utils/getSelectionStats";
 import { getInitialChannelsState } from "../getInitialChannelsState";
 import { Image, Loader } from "../ome.tif.types";
-
-vi.mock("../../../utils/getSelectionStats");
 
 describe("getInitialChannelsState", () => {
   const createMockMetadata = (channels: { Name?: string; Color?: number[] }[]): Image =>
@@ -13,116 +10,107 @@ describe("getInitialChannelsState", () => {
     }) as unknown as Image;
 
   const mockLoader: Loader = [{ dtype: "Uint16" }] as unknown as Loader;
+  const dtypeMax = 65535;
 
-  beforeEach(() => {
-    vi.mocked(getSelectionStats).mockResolvedValue({
-      domain: [0, 65535] as const,
-      contrastLimits: [100, 50000] as const,
-      histogram: new Array(256).fill(10),
-    });
-  });
-
-  test("returns channelIds array with channel names", async () => {
+  test("returns channelIds array with channel names", () => {
     const metadata = createMockMetadata([
       { Name: "DAPI", Color: [0, 0, 255, 255] },
       { Name: "GFP", Color: [0, 255, 0, 255] },
       { Name: "RFP", Color: [255, 0, 0, 255] },
     ]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
     expect(result.channelIds).toEqual(["DAPI", "GFP", "RFP"]);
   });
 
-  test("returns channelIds with fallback names when channel Name is undefined", async () => {
+  test("returns channelIds with fallback names when channel Name is undefined", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: undefined }, { Name: "RFP" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
     expect(result.channelIds).toEqual(["DAPI", "Channel 1", "RFP"]);
   });
 
-  test("returns all fallback names when no channel has Name", async () => {
+  test("returns all fallback names when no channel has Name", () => {
     const metadata = createMockMetadata([{}, {}, {}]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
     expect(result.channelIds).toEqual(["Channel 0", "Channel 1", "Channel 2"]);
   });
 
-  test("firstChannelKey matches first channelId", async () => {
+  test("firstChannelKey matches first channelId", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "GFP" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
     expect(result.firstChannelKey).toBe("DAPI");
     expect(result.firstChannelKey).toBe(result.channelIds[0]);
   });
 
-  test("channelsState keys match channelIds", async () => {
+  test("channelsState keys match channelIds", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "GFP" }, { Name: "RFP" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
     expect(Object.keys(result.channelsState)).toEqual(result.channelIds);
   });
 
-  test("only first channel is visible initially", async () => {
+  test("all channels start invisible and uninitialized", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "GFP" }, { Name: "RFP" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
-    expect(result.channelsState["DAPI"].isVisible).toBe(true);
+    expect(result.channelsState["DAPI"].isVisible).toBe(false);
     expect(result.channelsState["GFP"].isVisible).toBe(false);
     expect(result.channelsState["RFP"].isVisible).toBe(false);
+    expect(result.channelsState["DAPI"].isInitialized).toBe(false);
+    expect(result.channelsState["GFP"].isInitialized).toBe(false);
+    expect(result.channelsState["RFP"].isInitialized).toBe(false);
   });
 
-  test("first channel has initialized domain and contrastLimits", async () => {
+  test("all channels get dtype-max default domain and contrastLimits", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "GFP" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
-    // First channel gets the actual stats
-    expect(result.channelsState["DAPI"].domain).toEqual([0, 65535]);
-    expect(result.channelsState["DAPI"].contrastLimits).toEqual([100, 50000]);
-
-    // Other channels get dtype-max default (Uint16 max = 65535)
-    expect(result.channelsState["GFP"].domain).toEqual([0, 65535]);
-    expect(result.channelsState["GFP"].contrastLimits).toEqual([0, 65535]);
+    expect(result.channelsState["DAPI"].domain).toEqual([0, dtypeMax]);
+    expect(result.channelsState["DAPI"].contrastLimits).toEqual([0, dtypeMax]);
+    expect(result.channelsState["GFP"].domain).toEqual([0, dtypeMax]);
+    expect(result.channelsState["GFP"].contrastLimits).toEqual([0, dtypeMax]);
   });
 
-  test("channels use color from metadata when available", async () => {
+  test("channels use color from metadata when available", () => {
     const metadata = createMockMetadata([
       { Name: "DAPI", Color: [0, 0, 255, 255] },
       { Name: "GFP", Color: [0, 255, 0, 255] },
     ]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
-    // Color should be RGB (without alpha)
     expect(result.channelsState["DAPI"].color).toEqual([0, 0, 255]);
     expect(result.channelsState["GFP"].color).toEqual([0, 255, 0]);
   });
 
-  test("channels fall back to OVERLAY_COLORS as RGB when metadata lacks Color", async () => {
+  test("channels fall back to CATEGORICAL_COLORS as RGB when metadata lacks Color", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }, { Name: "CD8" }, { Name: "PanCK" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
-    // Fallback colors should be RGB (3 elements), not RGBA (4 elements)
     expect(result.channelsState["DAPI"].color).toEqual([255, 0, 0]);
     expect(result.channelsState["CD8"].color).toEqual([255, 128, 0]);
     expect(result.channelsState["PanCK"].color).toEqual([255, 255, 0]);
     expect(result.channelsState["DAPI"].color).toHaveLength(3);
   });
 
-  test("handles single channel", async () => {
+  test("handles single channel", () => {
     const metadata = createMockMetadata([{ Name: "SingleChannel" }]);
 
-    const result = await getInitialChannelsState(metadata, mockLoader);
+    const result = getInitialChannelsState(metadata, mockLoader);
 
     expect(result.channelIds).toEqual(["SingleChannel"]);
     expect(result.firstChannelKey).toBe("SingleChannel");
-    expect(result.channelsState["SingleChannel"].isVisible).toBe(true);
+    expect(result.channelsState["SingleChannel"].isVisible).toBe(false);
   });
 });

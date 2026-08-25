@@ -26,6 +26,7 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
             transition-colors
             bg-background
             hover:text-foreground
+             overflow-hidden
           `}
         >
           <button

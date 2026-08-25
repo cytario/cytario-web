@@ -7,27 +7,24 @@ import {
   ByteDomain,
   ChannelsState,
   ChannelsStateColumns,
+  createDefaultLayersStateEntry,
   detectBrightfieldGroup,
-  OverlaysState,
+  LayersStateEntry,
   RGB,
   RGBA,
   ViewerSlice,
 } from "../types";
+import { sidecarEntryToLayersState, type ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 
 export interface ChannelsSlice {
   selectedChannelId: keyof ChannelsState | null;
   imagePanelIndex: number;
   imagePanels: number[];
-  layersStates: {
-    channels: ChannelsState;
-    channelIds: string[];
-    overlays: OverlaysState;
-    channelsOpacity: number;
-    overlaysFillOpacity: number;
-    showCellOutline: boolean;
-    isChannelsLoading: number;
-    isOverlaysLoading: number;
-  }[];
+
+  channels: ChannelsState;
+  channelIds: string[];
+
+  layersStates: LayersStateEntry[];
 
   setIsChannelsLoading: (imagePanelId: number, count: number) => void;
   setSelectedChannelId: (selectedChannelId: keyof ChannelsState | null) => void;
@@ -35,13 +32,18 @@ export interface ChannelsSlice {
   addImagePanel: () => void;
   addChannelsState: () => void;
   removeChannelsState: (channelsStateIndex: number) => void;
-  setActiveChannelsStateIndex: (channelsStateIndex: number) => void;
+  setActivePresetIndex: (channelsStateIndex: number) => void;
   removeImagePanel: (index: number) => void;
   setContrastLimits: (contrastLimits: ByteDomain) => void;
   resetContrastLimits: () => void;
   setChannelVisibility: (key: keyof ChannelsStateColumns, isVisible: boolean) => void;
   setChannelColor: (key: keyof ChannelsState, color: RGBA) => void;
   setChannelsOpacity: (opacity: number) => void;
+  setViewName: (index: number, name: string | null) => void;
+  shareView: (index: number) => void;
+  unshareView: (index: number) => void;
+  forkView: (index: number) => void;
+  loadSharedViews: (entries: ViewSettingsEntry[]) => void;
 }
 
 /**
@@ -53,6 +55,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   selectedChannelId: null,
   imagePanelIndex: -1,
   imagePanels: [],
+  channels: {},
+  channelIds: [],
   layersStates: [],
 
   setIsChannelsLoading: (imagePanelId, count) =>
@@ -89,115 +93,93 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   addImagePanel: () =>
     set(
       (state) => {
-        const newPanelIndex = state.imagePanels.length;
-        state.imagePanels.push(newPanelIndex);
-
-        // If we don't have enough layersStates, duplicate the last one
-        while (state.layersStates.length < state.imagePanels.length) {
-          const lastLayersState = state.layersStates[state.layersStates.length - 1];
-          state.layersStates.push({ ...lastLayersState });
-        }
+        const activePresetIndex = state.imagePanels[state.imagePanelIndex];
+        const source =
+          activePresetIndex !== undefined ? state.layersStates[activePresetIndex] : undefined;
+        const newPresetIndex = state.layersStates.length;
+        state.layersStates.push(
+          source ? { ...source } : createDefaultLayersStateEntry(state.currentUserId),
+        );
+        state.imagePanels.push(newPresetIndex);
       },
       false,
       "addImagePanel",
     ),
 
-  addChannelsState: async () => {
+  addChannelsState: () => {
     const state = get();
     if (!state.metadata || !state.loader) return;
 
     if (state.imagePanelIndex < 0) {
-      try {
-        // Create a timeout promise to prevent infinite hanging
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(
-              new Error(
-                "Worker initialization timeout after 10 seconds. The decoder worker may not be loaded correctly.",
-              ),
-            );
-          }, 10000);
-        });
+      const { channelsState, channelIds, firstChannelKey } = getInitialChannelsState(
+        state.metadata,
+        state.loader,
+      );
 
-        // Race between actual initialization and timeout
-        const { channelsState, channelIds, firstChannelKey } = await Promise.race([
-          getInitialChannelsState(state.metadata, state.loader),
-          timeoutPromise,
-        ]);
+      set(
+        (state) => {
+          state.imagePanelIndex = 0;
+          state.imagePanels = [0];
+          state.selectedChannelId = firstChannelKey;
+          state.channels = castDraft(channelsState);
+          state.channelIds = channelIds;
+          state.layersStates = [createDefaultLayersStateEntry(state.currentUserId)];
+        },
+        false,
+        "addChannelsStateInitial",
+      );
 
-        return set(
-          (state) => {
-            state.imagePanelIndex = 0;
-            state.imagePanels = [0];
-            state.selectedChannelId = firstChannelKey;
-            state.layersStates = [
-              {
-                channels: castDraft(channelsState),
-                channelIds,
-                overlays: {},
-                channelsOpacity: 1,
-                overlaysFillOpacity: 0.8,
-                showCellOutline: true,
-                isChannelsLoading: 0,
-                isOverlaysLoading: 0,
-              },
-            ];
-          },
-          false,
-          "addChannelsStateInitial",
-        );
-      } catch (error) {
-        console.error("[createViewerStore] addChannelsState - FAILED:", error);
-        // Set error state so the UI can show an error message instead of hanging
-        set(
-          (state) => {
-            state.error = error instanceof Error ? error : new Error(String(error));
-          },
-          false,
-          "addChannelsStateError",
-        );
-        return;
-      }
+      // For brightfield images (Red/Green/Blue channel set), toggle the group
+      // as a unit so all three channels get the brightfield-specific init
+      // (full domain range, no percentile scaling). For regular images, toggle
+      // the first channel as before.
+      const bfGroup = detectBrightfieldGroup(channelIds);
+      const initKey = bfGroup ? BRIGHTFIELD_GROUP_ID : firstChannelKey;
+      state.setChannelVisibility(initKey as keyof ChannelsStateColumns, true);
+      return;
     }
 
-    const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+    const newPresetIndex = get().layersStates.length;
 
-    return set(
+    set(
       (draft) => {
         draft.imagePanels = draft.imagePanels.map((imagePanelIndex, index) => {
           if (index === draft.imagePanelIndex) {
-            return draft.layersStates.length;
+            return newPresetIndex;
           }
           return imagePanelIndex;
         });
-        draft.layersStates.push(castDraft(state.layersStates[activeImagePanelIndex]));
+        draft.layersStates.push(createDefaultLayersStateEntry(draft.currentUserId));
       },
       false,
-      "addChannelsStateDuplicate",
+      "addChannelsStateNew",
     );
+
+    const firstChannelKey = get().channelIds[0] as keyof ChannelsStateColumns;
+    if (firstChannelKey) {
+      get().setChannelVisibility(firstChannelKey, true);
+    }
   },
 
   removeChannelsState: (i) =>
     set(
       (state) => {
-        state.imagePanels = state.imagePanels.map((imagePanelIndex) =>
-          Math.min(imagePanelIndex, state.layersStates.length - 2),
-        );
+        if (state.layersStates.length <= 1) return;
+        if (state.layersStates[i]?.author !== state.currentUserId) return;
+        state.imagePanels = state.imagePanels.map((imagePanelIndex) => {
+          if (imagePanelIndex === i) return 0;
+          if (imagePanelIndex > i) return imagePanelIndex - 1;
+          return imagePanelIndex;
+        });
         state.layersStates = state.layersStates.filter((_, index) => index !== i);
       },
       false,
       "removeChannelsState",
     ),
 
-  setActiveChannelsStateIndex: (channelsStateIndex) =>
+  setActivePresetIndex: (channelsStateIndex) =>
     set(
       (state) => {
-        // If we don't have enough layersStates, duplicate the last one
-        while (state.layersStates.length < channelsStateIndex + 1) {
-          const lastLayersState = state.layersStates[state.layersStates.length - 1];
-          state.layersStates.push({ ...lastLayersState });
-        }
-
         state.imagePanels = state.imagePanels.map((imagePanel, index) => {
           if (index === state.imagePanelIndex) {
             return channelsStateIndex;
@@ -206,7 +188,19 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
         });
       },
       false,
-      "setActiveChannelsStateIndex",
+      "setActivePresetIndex",
+    ),
+
+  setViewName: (index, name) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        if (state.layersStates[index]?.author !== state.currentUserId) return;
+        const trimmed = name?.trim();
+        state.layersStates[index].name = trimmed ? trimmed : undefined;
+      },
+      false,
+      "setViewName",
     ),
 
   removeImagePanel: (imagePanelIndex) =>
@@ -222,23 +216,21 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   setContrastLimits: (contrastLimits) =>
     set(
       (state) => {
-        const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeChannelsStateIndex];
+        const activePresetIndex = state.imagePanels[state.imagePanelIndex];
+        const layerState = state.layersStates[activePresetIndex];
         if (!layerState) return;
 
         if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
-          const group = detectBrightfieldGroup(layerState.channelIds);
+          const group = detectBrightfieldGroup(state.channelIds);
           if (!group) return;
           for (const key of [group.red, group.green, group.blue]) {
-            if (layerState.channels[key]) {
-              layerState.channels[key].contrastLimits = contrastLimits;
-            }
+            if (!state.channels[key]) continue;
+            (layerState.channels[key] ??= {}).contrastLimits = contrastLimits;
           }
         } else {
           const key = state.selectedChannelId as keyof ChannelsStateColumns;
-          if (layerState.channels[key]) {
-            layerState.channels[key].contrastLimits = contrastLimits;
-          }
+          if (!state.channels[key]) return;
+          (layerState.channels[key] ??= {}).contrastLimits = contrastLimits;
         }
       },
       false,
@@ -248,25 +240,27 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   resetContrastLimits: () =>
     set(
       (state) => {
-        const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeChannelsStateIndex];
+        const activePresetIndex = state.imagePanels[state.imagePanelIndex];
+        const layerState = state.layersStates[activePresetIndex];
         if (!layerState) return;
 
         if (state.selectedChannelId === BRIGHTFIELD_GROUP_ID) {
-          const group = detectBrightfieldGroup(layerState.channelIds);
+          const group = detectBrightfieldGroup(state.channelIds);
           if (!group) return;
           for (const key of [group.red, group.green, group.blue]) {
-            const channel = layerState.channels[key];
-            if (channel) {
-              channel.contrastLimits = channel.contrastLimitsInitial as ByteDomain;
-            }
+            const defaultChannel = state.channels[key];
+            if (!defaultChannel) continue;
+            (layerState.channels[key] ??= {}).contrastLimits = [
+              ...defaultChannel.contrastLimits,
+            ] as ByteDomain;
           }
         } else {
           const key = state.selectedChannelId as keyof ChannelsStateColumns;
-          const channel = layerState.channels[key];
-          if (channel) {
-            channel.contrastLimits = channel.contrastLimitsInitial as ByteDomain;
-          }
+          const defaultChannel = state.channels[key];
+          if (!defaultChannel) return;
+          (layerState.channels[key] ??= {}).contrastLimits = [
+            ...defaultChannel.contrastLimits,
+          ] as ByteDomain;
         }
       },
       false,
@@ -283,23 +277,21 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
 
     if (!state.loader || state.imagePanelIndex < 0) return;
 
-    const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
-    const layerState = state.layersStates[activeChannelsStateIndex];
+    const activePresetIndex = state.imagePanels[state.imagePanelIndex];
 
     // Brightfield group: toggle all 3 channels
     if (key === BRIGHTFIELD_GROUP_ID) {
-      const group = detectBrightfieldGroup(layerState.channelIds);
+      const group = detectBrightfieldGroup(state.channelIds);
       if (!group) return;
       const keys = [group.red, group.green, group.blue];
 
-      // Initialize any uninitialized channels in parallel
-      const uninitialized = keys.filter((k) => !layerState.channels[k]?.isInitialized);
+      const uninitialized = keys.filter((k) => !state.channels[k]?.isInitialized);
 
       if (uninitialized.length > 0) {
         set(
           (state) => {
             for (const k of uninitialized) {
-              state.layersStates[activeChannelsStateIndex].channels[k].isLoading = true;
+              state.channels[k].isLoading = true;
             }
           },
           false,
@@ -311,26 +303,27 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
             uninitialized.map((k) =>
               getSelectionStats({
                 loader: state.loader!,
-                selection: layerState.channels[k].selection,
+                selection: state.channels[k].selection,
               }).then((stats) => ({ key: k, ...stats })),
             ),
           );
 
           return set(
             (state) => {
-              const ls = state.layersStates[activeChannelsStateIndex];
+              const ls = state.layersStates[activePresetIndex];
               for (const { key: k, domain, histogram } of results) {
-                const channel = ls.channels[k];
+                const channel = state.channels[k];
                 channel.isInitialized = true;
                 channel.isLoading = false;
                 channel.domain = castDraft(domain);
-                // Brightfield: use full domain range (no percentile scaling)
-                channel.contrastLimits = [...domain] as ByteDomain;
-                channel.contrastLimitsInitial = castDraft(domain);
                 channel.histogram = castDraft(histogram);
+
+                // Brightfield: use full domain range (no percentile scaling)
+                (ls.channels[k] ??= {}).contrastLimits = [...domain] as ByteDomain;
+                channel.contrastLimits = [...domain] as ByteDomain;
               }
               for (const k of keys) {
-                ls.channels[k].isVisible = isVisible;
+                (ls.channels[k] ??= {}).isVisible = isVisible;
               }
             },
             false,
@@ -339,10 +332,10 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
         } catch {
           return set(
             (state) => {
-              const ls = state.layersStates[activeChannelsStateIndex];
+              const ls = state.layersStates[activePresetIndex];
               for (const k of uninitialized) {
-                ls.channels[k].isLoading = false;
-                ls.channels[k].isVisible = false;
+                state.channels[k].isLoading = false;
+                (ls.channels[k] ??= {}).isVisible = false;
               }
             },
             false,
@@ -353,9 +346,9 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
 
       return set(
         (state) => {
-          const ls = state.layersStates[activeChannelsStateIndex];
+          const ls = state.layersStates[activePresetIndex];
           for (const k of keys) {
-            ls.channels[k].isVisible = isVisible;
+            (ls.channels[k] ??= {}).isVisible = isVisible;
           }
         },
         false,
@@ -364,12 +357,13 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
     }
 
     // Single channel
-    const activeChannelsStateConfig = layerState.channels[key];
+    const topLevelChannel = state.channels[key];
+    if (!topLevelChannel) return;
 
-    if (!activeChannelsStateConfig.isInitialized) {
+    if (!topLevelChannel.isInitialized) {
       set(
         (state) => {
-          state.layersStates[activeChannelsStateIndex].channels[key].isLoading = true;
+          state.channels[key].isLoading = true;
         },
         false,
         "setChannelVisibility/stats/request",
@@ -378,19 +372,21 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       try {
         const { domain, contrastLimits, histogram } = await getSelectionStats({
           loader: state.loader,
-          selection: activeChannelsStateConfig.selection,
+          selection: topLevelChannel.selection,
         });
 
         return set(
           (state) => {
-            const channel = state.layersStates[activeChannelsStateIndex].channels[key];
+            const channel = state.channels[key];
             channel.isInitialized = true;
             channel.isLoading = false;
             channel.domain = castDraft(domain);
-            channel.contrastLimits = contrastLimits;
-            channel.contrastLimitsInitial = castDraft(contrastLimits);
             channel.histogram = castDraft(histogram);
-            channel.isVisible = isVisible;
+            channel.contrastLimits = castDraft(contrastLimits);
+
+            const lc = (state.layersStates[activePresetIndex].channels[key] ??= {});
+            lc.contrastLimits = contrastLimits;
+            lc.isVisible = isVisible;
           },
           false,
           "setChannelVisibility/stats/success",
@@ -398,9 +394,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       } catch {
         return set(
           (state) => {
-            const channel = state.layersStates[activeChannelsStateIndex].channels[key];
-            channel.isLoading = false;
-            channel.isVisible = false;
+            state.channels[key].isLoading = false;
+            (state.layersStates[activePresetIndex].channels[key] ??= {}).isVisible = false;
           },
           false,
           "setChannelVisibility/stats/error",
@@ -410,7 +405,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
 
     set(
       (state) => {
-        state.layersStates[activeChannelsStateIndex].channels[key].isVisible = isVisible;
+        (state.layersStates[activePresetIndex].channels[key] ??= {}).isVisible = isVisible;
       },
       false,
       "setChannelVisibility",
@@ -420,12 +415,12 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
   setChannelColor: (key, color) =>
     set(
       (state) => {
-        const activeChannelsStateIndex = state.imagePanels[state.imagePanelIndex];
-        const channel = state.layersStates[activeChannelsStateIndex]?.channels[key];
+        const activePresetIndex = state.imagePanels[state.imagePanelIndex];
+        const layerState = state.layersStates[activePresetIndex];
+        if (!layerState) return;
 
-        if (channel) {
-          channel.color = color.slice(0, 3) as RGB;
-        }
+        if (!state.channels[key]) return;
+        (layerState.channels[key] ??= {}).color = color.slice(0, 3) as RGB;
       },
       false,
       "setChannelColor",
@@ -443,5 +438,69 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => ({
       },
       false,
       "setChannelsOpacity",
+    ),
+
+  shareView: (index) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        const entry = state.layersStates[index];
+        if (entry.author !== state.currentUserId) return;
+        if (!entry.author) entry.author = state.currentUserId;
+        entry.shared = true;
+      },
+      false,
+      "shareView",
+    ),
+
+  unshareView: (index) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        const entry = state.layersStates[index];
+        if (entry.author !== state.currentUserId) return;
+        entry.shared = false;
+      },
+      false,
+      "unshareView",
+    ),
+
+  forkView: (index) =>
+    set(
+      (state) => {
+        if (index < 0 || index >= state.layersStates.length) return;
+        const source = state.layersStates[index];
+        if (!source) return;
+        const clone: LayersStateEntry = {
+          ...source,
+          id: crypto.randomUUID(),
+          author: state.currentUserId,
+          shared: false,
+          name: source.name ? `${source.name} (copy)` : undefined,
+        };
+        state.layersStates.push(clone);
+      },
+      false,
+      "forkView",
+    ),
+
+  loadSharedViews: (entries) =>
+    set(
+      (state) => {
+        if (entries.length === 0) return;
+        const existingIds = new Set(state.layersStates.map((ls) => ls.id));
+        for (const entry of entries) {
+          if (existingIds.has(entry.id)) {
+            const idx = state.layersStates.findIndex((ls) => ls.id === entry.id);
+            if (idx >= 0) {
+              state.layersStates[idx] = sidecarEntryToLayersState(entry);
+            }
+          } else {
+            state.layersStates.push(sidecarEntryToLayersState(entry));
+          }
+        }
+      },
+      false,
+      "loadSharedViews",
     ),
 });

@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import type { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
+import type { AccessLevel } from "~/utils/providerCatalog.schema";
 
 /** A connection config with its grants eager-loaded. */
 export type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
@@ -28,6 +29,9 @@ export interface ConnectionProviderClient {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
+  /** The current user's grant access level for this connection.
+   *  Advisory UI gate; S3 denies enforce the actual permission boundary. */
+  accessLevel: AccessLevel;
 }
 
 /** Static config + STS credentials + live health for one connection. */

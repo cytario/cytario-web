@@ -222,9 +222,10 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
   const statements: PolicyStatement[] = [listStatement, bucketMetadataStatement];
 
   // Object-level actions depend on the access level. Read Only → GetObject
-  // only. Annotate → GetObject + PutObject scoped to *.annotations.*.json (a
-  // separate statement with a narrower Resource). Read Write / Admin → GetObject
-  // + the full write + multipart action set on the whole prefix.
+  // only. Annotate → GetObject + PutObject scoped to sidecar files
+  // (*.annotations.*.json and settings.*.json at any directory depth —
+  // separate statements with narrower Resources). Read Write / Admin →
+  // GetObject + the full write + multipart action set on the whole prefix.
   if (grant.accessLevel === "annotate") {
     statements.push({
       Sid: `${sidStem}Object`,
@@ -234,14 +235,21 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
       Resource: objectArn,
       Condition: condition,
     });
+    const annotationResource = prefix
+      ? `${bucketArn}/${prefix}/*.annotations.*.json`
+      : `${bucketArn}/*.annotations.*.json`;
+    const settingsBaseResource = prefix
+      ? `${bucketArn}/${prefix}/settings.*.json`
+      : `${bucketArn}/settings.*.json`;
+    const settingsNestedResource = prefix
+      ? `${bucketArn}/${prefix}/*/settings.*.json`
+      : `${bucketArn}/*/settings.*.json`;
     statements.push({
       Sid: `${sidStem}Annotate`,
       Effect: "Allow",
       Principal: { AWS: grant.roleArn },
       Action: "s3:PutObject",
-      Resource: prefix
-        ? `${bucketArn}/${prefix}/*.annotations.*.json`
-        : `${bucketArn}/*.annotations.*.json`,
+      Resource: [annotationResource, settingsBaseResource, settingsNestedResource],
       Condition: condition,
     });
   } else {

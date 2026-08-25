@@ -122,7 +122,6 @@ interface ChannelState {
   color: [number, number, number]; // RGB color mapping
   isVisible: boolean; // Visibility toggle
   contrastLimits: [number, number]; // Current contrast range
-  contrastLimitsInitial: [number, number]; // Default contrast range
   domain: [number, number]; // Data value range
   histogram: number[]; // Histogram data
   pixelValue: number; // Current pixel value at cursor

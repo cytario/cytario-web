@@ -3,9 +3,17 @@ import { getExtension } from "./fileType";
 export type SidecarKind = "annotations" | "settings";
 
 /**
- * Sidecar key for an image — the image's extension replaced with
- * `.<kind>.<userId>.json`. With `userId` omitted it defaults to the `*`
- * wildcard, yielding a glob that matches every user's sidecar.
+ * Sidecar key for an image.
+ *
+ * **Annotations** are per-image: the image's extension is replaced with
+ * `.annotations.<userId>.json`.
+ *
+ * **Settings** are directory-level: the image filename is stripped and the
+ * sidecar lives at `<dir>/.settings.<userId>.json`, so shared views are
+ * visible across sibling images in the same directory.
+ *
+ * With `userId` omitted it defaults to the `*` wildcard, yielding a glob
+ * that matches every user's sidecar.
  *
  * Inputs are always clean `s3://bucket/key` image URIs (the viewer's current
  * image, built in `resolveResourceId`), so no query-string stripping or
@@ -14,10 +22,17 @@ export type SidecarKind = "annotations" | "settings";
  * @example
  * getSidecarKey("s3://b/data/slide.ome.tif", "annotations", "u1")
  * // "s3://b/data/slide.annotations.u1.json"
- * getSidecarKey("s3://b/data/slide.ome.tif", "annotations")
- * // "s3://b/data/slide.annotations.*.json"  (all users)
+ * getSidecarKey("s3://b/data/slide.ome.tif", "settings", "u1")
+ * // "s3://b/data/settings.u1.json"
+ * getSidecarKey("s3://b/data/slide.ome.tif", "settings")
+ * // "s3://b/data/settings.*.json"  (all users)
  */
 export function getSidecarKey(imageKey: string, kind: SidecarKind, userId = "*"): string {
+  if (kind === "settings") {
+    const slashIdx = imageKey.lastIndexOf("/");
+    if (slashIdx < 0) return `settings.${userId}.json`;
+    return `${imageKey.slice(0, slashIdx)}/settings.${userId}.json`;
+  }
   const ext = getExtension(imageKey);
   const base = ext ? imageKey.slice(0, -(ext.length + 1)) : imageKey;
   return `${base}.${kind}.${userId}.json`;
@@ -27,7 +42,11 @@ export function getSidecarKey(imageKey: string, kind: SidecarKind, userId = "*")
  * Owner id (`userId`) from a sidecar filename produced by `getSidecarKey`. The
  * capture is greedy up to the final `.json`, so a `userId` that itself contains
  * dots (e.g. a federated IdP subject) is still parsed, not dropped.
+ *
+ * Annotations keys are `<base>.<kind>.<userId>.json` (dot before kind);
+ * settings keys are `<dir>/<kind>.<userId>.json` (slash before kind) or bare
+ * `<kind>.<userId>.json`. The separator class `[/.]` covers all three.
  */
 export function parseOwnerFromKey(filename: string, kind: SidecarKind): string | undefined {
-  return filename.match(new RegExp(`\\.${kind}\\.(.+)\\.json$`))?.[1];
+  return filename.match(new RegExp(`(?:^|[/.])${kind}\\.(.+)\\.json$`))?.[1];
 }

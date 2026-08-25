@@ -1,0 +1,123 @@
+import { IconButton } from "@cytario/design";
+import { useState } from "react";
+
+import { select } from "../../../state/store/selectors";
+import { ByteDomain } from "../../../state/store/types";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+
+export function MinMaxSettings() {
+  const selectedChannel = useViewerStore(select.selectedChannel);
+  const defaultContrastLimits = useViewerStore(select.defaultContrastLimits);
+  const valueRange = useViewerStore(select.valueRange);
+  const setContrastLimits = useViewerStore(select.setContrastLimits);
+  const resetContrastLimits = useViewerStore((state) => state.resetContrastLimits);
+
+  // Local state only used while editing (null = not editing, use store value)
+  const [editingMin, setEditingMin] = useState<string | null>(null);
+  const [editingMax, setEditingMax] = useState<string | null>(null);
+
+  const minValue = editingMin ?? String(selectedChannel?.contrastLimits[0] ?? 0);
+  const maxValue = editingMax ?? String(selectedChannel?.contrastLimits[1] ?? 0);
+
+  const commitValue = (type: "min" | "max", value: string) => {
+    // Clear editing state first
+    if (type === "min") {
+      setEditingMin(null);
+    } else {
+      setEditingMax(null);
+    }
+
+    if (!selectedChannel) return;
+
+    const numValue = parseInt(value, 10);
+    if (isNaN(numValue)) return;
+
+    // Clamp to the full dtype value range (e.g. 0..65535 for 16-bit), not the
+    // auto-fitted data domain — otherwise large entered maxima snap back. Fall
+    // back to the data domain until the loader has populated the value range.
+    const [floor, ceiling] = valueRange[1] > 0 ? valueRange : selectedChannel.domain;
+    const clampedValue = Math.max(floor, Math.min(ceiling, numValue));
+
+    const currentLimits = selectedChannel.contrastLimits;
+    let newLimits: ByteDomain;
+
+    if (type === "min") {
+      // Ensure min doesn't exceed max
+      const newMin = Math.min(clampedValue, currentLimits[1]);
+      newLimits = [newMin, currentLimits[1]];
+    } else {
+      // Ensure max doesn't go below min
+      const newMax = Math.max(clampedValue, currentLimits[0]);
+      newLimits = [currentLimits[0], newMax];
+    }
+
+    setContrastLimits(newLimits);
+  };
+
+  const isResetDisabled =
+    !selectedChannel ||
+    !defaultContrastLimits ||
+    (selectedChannel.contrastLimits[0] === defaultContrastLimits[0] &&
+      selectedChannel.contrastLimits[1] === defaultContrastLimits[1]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, type: "min" | "max") => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      // Clear editing state without committing
+      if (type === "min") {
+        setEditingMin(null);
+      } else {
+        setEditingMax(null);
+      }
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <div className="m-2 flex gap-2 items-center">
+      <div className="relative flex min-w-0">
+        <label
+          htmlFor="min-contrast"
+          className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]"
+        >
+          Min
+        </label>
+        <input
+          id="min-contrast"
+          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-border bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+          type="number"
+          value={minValue}
+          disabled={!selectedChannel}
+          onChange={(e) => setEditingMin(e.target.value)}
+          onBlur={(e) => commitValue("min", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "min")}
+        />
+      </div>
+      <div className="relative flex min-w-0">
+        <label
+          htmlFor="max-contrast"
+          className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]"
+        >
+          Max
+        </label>
+        <input
+          id="max-contrast"
+          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-border bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+          type="number"
+          value={maxValue}
+          disabled={!selectedChannel}
+          onChange={(e) => setEditingMax(e.target.value)}
+          onBlur={(e) => commitValue("max", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "max")}
+        />
+      </div>
+      <IconButton
+        label="Reset contrast"
+        isDisabled={isResetDisabled}
+        icon="RotateCcw"
+        onPress={resetContrastLimits}
+      />
+    </div>
+  );
+}
