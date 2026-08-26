@@ -25,8 +25,10 @@ const ChannelSection = ({ item }: { item: TooltipItem }) => {
   const v = item.values[0];
   return (
     <div className="flex items-center justify-between gap-2 px-2 py-1">
-      <Swatch color={v?.color} />
-      <span>{item.label}</span>
+      <div>
+        <Swatch color={v?.color} />
+        <span>{item.label}</span>
+      </div>
       {v?.value && <Badge>{v.value}</Badge>}
     </div>
   );
@@ -71,7 +73,7 @@ const FeatureSection = ({ item }: { item: TooltipItem }) => {
  */
 export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => (
   <div
-    className="absolute pointer-events-none z-50 max-w-xs"
+    className="absolute pointer-events-none z-50 min-w-40 max-w-xs"
     style={{ left: tooltip.cursor.x + 12, top: tooltip.cursor.y + 12 }}
   >
     <div className="rounded shadow-lg bg-background border border-border text-foreground text-sm overflow-hidden">
