@@ -2,25 +2,20 @@ import { Badge } from "@cytario/design";
 import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
+import { LoaderDots } from "~/components/Loader/LoaderDots";
+
 interface PanelRowProps {
-  /** Leading visual: a ColorPicker, a static swatch, the brightfield tri-dot… */
   swatch?: ReactNode;
   title: ReactNode;
-  /** Wrap the title in a truncating span (disable while the title is an input). */
   titleTruncate?: boolean;
-  /** Hover/focus-revealed row actions (e.g. rename, delete). */
   actions?: ReactNode;
-  /** Trailing count, rendered as a `<Badge>`. Omit to hide (e.g. a zero the
-   *  caller chooses not to show). */
   count?: number;
-  /** Trailing control, typically a visibility Switch. */
   toggle?: ReactNode;
-  /** Absolutely-positioned overlays (intensity bar, loader); the row is `relative`. */
   accessory?: ReactNode;
-  /** Row-level selection visual (accent bar + tint). Selection *semantics* stay
-   *  with the caller — a RAC Radio root, a role="radio" title button, etc. */
   selected?: boolean;
   className?: string;
+
+  isLoading?: boolean;
 }
 
 /**
@@ -40,6 +35,7 @@ export function PanelRow({
   accessory,
   selected,
   className,
+  isLoading = false,
 }: PanelRowProps) {
   const cx = twMerge(
     `
@@ -64,6 +60,8 @@ export function PanelRow({
       )}
 
       <span className={twMerge("min-w-0 flex-1", titleTruncate && "truncate")}>{title}</span>
+
+      {isLoading && <LoaderDots rows={1} cols={6} />}
 
       {actions}
 

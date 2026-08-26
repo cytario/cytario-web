@@ -6,7 +6,6 @@ import { select } from "../../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { PanelRow } from "../../PanelRow";
-import { LavaLoader } from "~/components/LavaLoader";
 
 // viv library only supports 6 channels
 // Brightfield uses 3 of those slots
@@ -54,7 +53,7 @@ export function ChannelsPanelBrightfieldItem({
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
       <PanelRow
         selected={isActive}
-        accessory={isLoading && <LavaLoader absolute rows={1} cols={6} />}
+        isLoading={isLoading}
         swatch={
           <span
             aria-hidden

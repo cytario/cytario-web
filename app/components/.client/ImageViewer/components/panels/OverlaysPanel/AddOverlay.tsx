@@ -5,7 +5,7 @@ import { useFetcher } from "react-router";
 import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
-import { LavaLoader } from "~/components/LavaLoader";
+import { LoaderView } from "~/components/Loader/LoaderView";
 import { SearchRouteLoaderResponse } from "~/routes/search.route";
 import { toToastVariant } from "~/toast-bridge";
 import { select } from "~/utils/connectionsStore/selectors";
@@ -140,11 +140,7 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         onChange={setSearchTerm}
       />
 
-      {isLoading && (
-        <div className="flex items-center justify-center py-2">
-          <LavaLoader />
-        </div>
-      )}
+      {isLoading && <LoaderView label={isSearching ? "Searching…" : "Loading…"} />}
 
       <DirectoryViewTree
         key={isSearching ? `search:${objectsFetcher.data?.searchQuery ?? "loading"}` : "lazy"}

@@ -9,7 +9,7 @@ import { PanelRow } from "../../PanelRow";
 import { ColorPicker, rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
-import { LavaLoader } from "~/components/LavaLoader";
+import { LoaderView } from "~/components/Loader/LoaderView";
 import { select as connectionsSelect } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getMarkerInfoWasm, getOverlayCellCount } from "~/utils/db/getMarkerInfoWasm";
@@ -154,7 +154,8 @@ export const OverlaysPanelItem = ({ resourceId, overlayState }: OverlaysPanelIte
         <div role="group" aria-label="Overlay markers" className="flex flex-col gap-2 px-2">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
-              <LavaLoader />
+              <LoaderView label="Loading markers…" />
+
               {fileProgress && fileProgress.percentage < 100 && (
                 <div className="text-sm">Downloading: {Math.round(fileProgress.percentage)}%</div>
               )}

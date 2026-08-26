@@ -18,6 +18,7 @@ import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
+import { LoaderView } from "~/components/Loader/LoaderView";
 import { useModal } from "~/hooks/useModal";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
@@ -120,6 +121,7 @@ export default function ObjectsRoute() {
   const recentFetcher = useFetcher();
   const navigation = useNavigation();
   const lastRecentSubmit = useRef<string | null>(null);
+
   useEffect(() => {
     if (!urlPath) return;
     if (navigation.state !== "idle") return;
@@ -142,7 +144,7 @@ export default function ObjectsRoute() {
       <EmptyState
         icon="AlertTriangle"
         title="Connection unavailable"
-        description={connectionError}
+        description={connectionError ?? undefined}
         action={
           <Button
             onPress={() => openModal("edit-connection", { connectionId })}
@@ -178,7 +180,7 @@ export default function ObjectsRoute() {
       );
       return (
         <ClientOnly>
-          <Suspense fallback={<div>Loading editor…</div>}>
+          <Suspense fallback={<LoaderView label="Loading editor…" />}>
             <TextEditor key={resourceId} resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
@@ -209,9 +211,10 @@ export default function ObjectsRoute() {
         signingRegion,
         connectionId,
       );
+
       return (
         <ClientOnly>
-          <Suspense fallback={<div>Loading viewer...</div>}>
+          <Suspense fallback={<LoaderView label="Loading viewer…" />}>
             <Viewer resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
@@ -237,15 +240,7 @@ export default function ObjectsRoute() {
   }
 
   if (pendingClientLoad) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex h-full items-center justify-center p-8 text-muted-foreground"
-      >
-        Loading…
-      </div>
-    );
+    return <LoaderView label="Loading files…" />;
   }
 
   return (

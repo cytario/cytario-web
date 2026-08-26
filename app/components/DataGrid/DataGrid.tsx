@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { GeometrySvg } from "../GeometrySvg";
-import { LavaLoader } from "../LavaLoader";
+import { LoaderView } from "../Loader/LoaderView";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { wktToGeometry } from "~/utils/geometry";
@@ -144,7 +144,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   }, [virtualItems, tableRows.length, hasMore, isFetchingMore, fetchMore]);
 
   if (loading) {
-    return <LavaLoader />;
+    return <LoaderView label="Loading data…" />;
   }
 
   if (error) {

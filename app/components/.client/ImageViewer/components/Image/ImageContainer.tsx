@@ -8,7 +8,7 @@ import { useResizeObserver } from "./useResizeObserver";
 import { select } from "../../state/store/selectors";
 import { ViewPort } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { LavaLoader } from "~/components/LavaLoader";
+import { LoaderView } from "~/components/Loader/LoaderView";
 
 interface ViewContainerProps {
   children: (viewPort: ViewPort) => React.JSX.Element;
@@ -81,7 +81,7 @@ export function ImageContainer({
           </div>
         ) : (
           <>
-            {isViewerLoading && <LavaLoader />}
+            {isViewerLoading && <LoaderView label="Loading viewer…" />}
             {children(viewPort)}
           </>
         )}

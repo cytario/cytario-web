@@ -7,7 +7,6 @@ import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { PanelRow } from "../../PanelRow";
-import { LavaLoader } from "~/components/LavaLoader";
 
 // viv library only supports 6 channels
 // See: https://github.com/hms-dbmi/viv/issues/687
@@ -64,6 +63,7 @@ export function ChannelsPanelItem({
     <Radio key={name} value={name} className={cx}>
       <PanelRow
         selected={isActive}
+        isLoading={isLoading}
         accessory={
           <>
             <div className="absolute bottom-0 left-0 right-0 h-0.5">
@@ -77,7 +77,6 @@ export function ChannelsPanelItem({
                 />
               )}
             </div>
-            {isLoading && <LavaLoader absolute rows={1} cols={6} />}
           </>
         }
         swatch={
