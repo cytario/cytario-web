@@ -66,7 +66,7 @@ const toShape = (geometry: Geometry): Shape => {
 export const GeometrySvg = ({
   geometry,
   size = 48,
-  padding = 4,
+  padding = 8,
   color,
   selected,
 }: GeometrySvgProps) => {
@@ -103,6 +103,7 @@ export const GeometrySvg = ({
       return shape.closed ? `${d} Z` : d;
     })
     .join(" ");
+
   const glyphs = shape.points.map(transform);
 
   const stroke = color ?? "currentColor";
@@ -113,7 +114,7 @@ export const GeometrySvg = ({
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      className="inline-block rounded bg-muted"
+      className="inline-block shrink-0"
     >
       {selected &&
         pathData &&
@@ -132,7 +133,7 @@ export const GeometrySvg = ({
         <path
           d={pathData}
           fill={shape.closed ? stroke : "none"}
-          fillOpacity={shape.closed ? 0.3 : undefined}
+          fillOpacity={shape.closed ? 1 : undefined}
           stroke={stroke}
           strokeWidth={1}
           className={colorClass}

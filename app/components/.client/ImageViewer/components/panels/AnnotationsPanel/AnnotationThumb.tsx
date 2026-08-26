@@ -70,6 +70,7 @@ export const AnnotationThumb = ({
         aria-pressed={selected}
         onClick={onSelect}
         onDoubleClick={onZoom}
+        className="cursor-pointer bg-muted rounded-xl overflow-hidden"
       >
         <GeometrySvg geometry={feature.geometry} color={color} selected={selected} />
       </button>

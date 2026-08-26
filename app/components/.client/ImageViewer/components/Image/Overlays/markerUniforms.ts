@@ -93,3 +93,35 @@ export function createMarkerProps(
     opacity,
   };
 }
+
+/**
+ * Blend the active slot colors from a {@link MarkerProps} + bitmask,
+ * mirroring the GLSL additive blend in `additiveBlending.glsl.ts`:
+ * bit `i` → slot `i % 8`, summed per channel, clamped to [0, 255].
+ * Returns `[r, g, b, 255]` (opaque) or `[0, 0, 0, 0]` when no bits are set.
+ */
+export function blendMarkerColor(props: MarkerProps, bitmask: number): RGBA {
+  if (bitmask === 0) return [0, 0, 0, 0];
+  const slots: RGBA[] = [
+    props.color0,
+    props.color1,
+    props.color2,
+    props.color3,
+    props.color4,
+    props.color5,
+    props.color6,
+    props.color7,
+  ];
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (let i = 0; i < 32; i++) {
+    if (bitmask & (1 << i)) {
+      const c = slots[i % 8];
+      r += c[0];
+      g += c[1];
+      b += c[2];
+    }
+  }
+  return [Math.min(r, 255), Math.min(g, 255), Math.min(b, 255), 255];
+}

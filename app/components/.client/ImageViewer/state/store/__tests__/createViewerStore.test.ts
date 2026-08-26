@@ -77,6 +77,9 @@ describe("createViewerStore", () => {
       channelIds: [],
       cursorPosition: null,
       pixelValues: {},
+      compositeTooltip: null,
+      hoverMode: "compact",
+      pinnedTooltip: null,
       annotationsByUser: {},
       annotationMode: "view",
       annotationSelectedIds: [],
@@ -134,6 +137,10 @@ describe("createViewerStore", () => {
       unshareView: expect.any(Function),
       forkView: expect.any(Function),
       loadSharedViews: expect.any(Function),
+      setCompositeTooltip: expect.any(Function),
+      setHoverMode: expect.any(Function),
+      pinTooltip: expect.any(Function),
+      unpinTooltip: expect.any(Function),
     });
   });
 

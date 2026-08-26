@@ -1,4 +1,3 @@
-import { H3 } from "@cytario/design";
 import type { PickingInfo } from "@deck.gl/core";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import {
@@ -8,7 +7,7 @@ import {
   ViewMode,
 } from "@deck.gl-community/editable-layers";
 import type { Feature, FeatureCollection } from "geojson";
-import { type ReactNode, useMemo } from "react";
+import { useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import { select } from "../../../state/store/selectors";
@@ -21,6 +20,10 @@ import {
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/slices/viewer.annotations.store";
+import {
+  type CytarioLayerResult,
+  type LayerTooltipItem,
+} from "../../../state/store/slices/viewer.view.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
@@ -29,8 +32,6 @@ import {
   validAnnotationFeatures,
 } from "~/utils/db/annotationSchema";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
-
-type SetTooltip = (tooltip: { content: ReactNode; x: number; y: number } | null) => void;
 
 /** Minimal structural shape of the modifier flags carried by the DOM event
  *  behind a deck picking event — all optional so any concrete DOM event
@@ -76,28 +77,6 @@ const classColor = (feature: AnnotationFeature): RGB =>
   feature.properties?.classification?.color ?? UNCLASSIFIED_COLOR;
 
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
-
-/** Hover tooltip content, styled like the overlay feature tooltip: name headline,
- *  then a color swatch + classification name. */
-const AnnotationTooltip = ({ feature }: { feature: AnnotationFeature }) => {
-  const [r, g, b] = classColor(feature);
-  return (
-    <div className="flex flex-col gap-1">
-      <header>
-        <H3 className="text-right font-mono tabular-nums text-lg font-normal">
-          {annotationNameOf(feature)}
-        </H3>
-      </header>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-4 h-4 rounded-full"
-          style={{ backgroundColor: `rgb(${r}, ${g}, ${b})` }}
-        />
-        {classNameOf(feature)}
-      </div>
-    </div>
-  );
-};
 
 /**
  * Stamps identity onto edited features (per the sidecar schema): any feature
@@ -163,9 +142,8 @@ const stampEdit = (
  */
 export const useAnnotationsLayer = (
   imagePanelId: number,
-  setTooltip?: SetTooltip,
   interactive = true,
-) => {
+): CytarioLayerResult<GeoJsonLayer | EditableGeoJsonLayer> => {
   const ownUserId = useCurrentUser()?.sub;
   const features = useViewerStore(selectUserFeatures(ownUserId));
   const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
@@ -236,12 +214,6 @@ export const useAnnotationsLayer = (
         coordinateSystem: "cartesian" as const,
         pickable: interactive,
         onClick: selectOnClick,
-        onHover: (info: PickingInfo) => {
-          const f = info.object as AnnotationFeature | undefined;
-          setTooltip?.(
-            f ? { content: <AnnotationTooltip feature={f} />, x: info.x, y: info.y } : null,
-          );
-        },
         getFillColor: (f: Feature) => colorAt(f, fillAlpha),
         getLineColor: (f: Feature) => colorAt(f, lineAlpha),
         getLineWidth: 2,
@@ -370,7 +342,49 @@ export const useAnnotationsLayer = (
 
     // Selection frame beneath the color layers so the classification color line
     // stays on top and the achromatic frame reads around it; own above peers.
-    return [...highlightLayers, ...peerLayers, ownLayer];
+    const layers = [...highlightLayers, ...peerLayers, ownLayer];
+
+    // --- Composite tooltip contributors ---
+
+    // Build a lookup of hidden classes per user so `getTooltipItems` can
+    // quickly check whether a picked feature is visually transparent (its
+    // class is hidden → fill alpha 0). This is the core fix for C-427:
+    // transparent annotations return `[]` so they no longer block tooltip
+    // items from layers beneath them.
+    const hiddenByUser = new Map<string, Set<string>>();
+    hiddenByUser.set(ownUserId ?? "", new Set(ownView?.hiddenClasses ?? []));
+    for (const uid of Object.keys(annotationsByUser)) {
+      if (uid !== ownUserId) {
+        hiddenByUser.set(uid, new Set(annotationView[uid]?.hiddenClasses ?? []));
+      }
+    }
+
+    const isHiddenFeature = (f: AnnotationFeature): boolean => {
+      const cls = classNameOf(f);
+      for (const hidden of hiddenByUser.values()) {
+        if (hidden.has(cls)) return true;
+      }
+      return false;
+    };
+
+    const getTooltipItems = (info: PickingInfo): LayerTooltipItem[] => {
+      const f = info.object as AnnotationFeature | undefined;
+      if (!f) return [];
+      if (isHiddenFeature(f)) return [];
+      const [r, g, b] = classColor(f);
+      const cls = classNameOf(f);
+      return [
+        {
+          type: "Annotations" as const,
+          id: annotationNameOf(f),
+          values: { [cls]: { value: "", color: [r, g, b] } },
+          geometry: f.geometry,
+          geometryColor: [r, g, b],
+        },
+      ];
+    };
+
+    return { layers, getTooltipItems };
   }, [
     features,
     annotationsByUser,
@@ -384,7 +398,6 @@ export const useAnnotationsLayer = (
     updateUserFeatures,
     setSelectedIds,
     showAnnotationClass,
-    setTooltip,
     activeClassification,
     interactive,
   ]);

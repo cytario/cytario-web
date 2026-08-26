@@ -1,9 +1,14 @@
 import { PickingInfo } from "@deck.gl/core";
 import { MultiscaleImageLayer, ColorPaletteExtension } from "@hms-dbmi/viv";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
+import {
+  type CytarioLayerResult,
+  type LayerTooltipItem,
+} from "../../../state/store/slices/viewer.view.store";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { handleImageViewerHover } from "../../../utils/handleImageViewerHover";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
 import { getCachedTile } from "../../../utils/sharedTileCache";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
@@ -12,7 +17,9 @@ const EMPTY_OBJECT = Object.freeze({});
 
 type MultiscaleImageLayerProps = ConstructorParameters<typeof MultiscaleImageLayer>[0];
 
-export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingInfo) => void) => {
+export const useChannelsLayer = (
+  imagePanelId: number,
+): CytarioLayerResult<InstanceType<typeof MultiscaleImageLayer> | null> => {
   const dtype = useViewerStore((state) => {
     const type = state.metadata?.Pixels.Type ?? "Uint8";
     return type;
@@ -27,10 +34,11 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
 
   const extensions = useMemo(() => [new ColorPaletteExtension()], []);
 
-  const { selections, contrastLimits, colors, channelsVisible } = channelsStateColumns;
+  const { selections, contrastLimits, colors, channelsVisible, ids } = channelsStateColumns;
 
   const rawLoader = useViewerStore(select.loader);
   const setIsChannelsLoading = useViewerStore(select.setIsChannelsLoading);
+  const setPixelValues = useViewerStore(select.setPixelValues);
   const { loadTile, finishTile } = useTilesLoading(imagePanelId, setIsChannelsLoading);
   const channelsOpacity = useViewerStore((state) => {
     const channelsStateIndex = state.imagePanels[imagePanelId];
@@ -76,10 +84,16 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
     });
   }, [finishTile, loadTile, rawLoader]);
 
+  // Channel sublayers are pickable so the composite hover hook can find
+  // the channels pick via `pickMultipleObjects` and read pixel values
+  // through `handleImageViewerHover`. The explicit id lets the composite
+  // hook identify this layer among all picks. No per-layer `onHover` is
+  // set — the composite hook handles all hover orchestration.
   const multiscaleLayer = useMemo(() => {
     if (!loader || loader.length === 0) return null;
 
     return new MultiscaleImageLayer({
+      id: `channels-${imagePanelId}`,
       loader,
       extensions,
       selections,
@@ -87,8 +101,8 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
       colors,
       channelsVisible,
       dtype,
-      onHover,
       opacity: channelsOpacity,
+      pickable: true,
       onTileError: (error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         if (error instanceof Error && error.name === "AbortError") return;
@@ -105,9 +119,49 @@ export const useChannelsLayer = (imagePanelId: number, onHover?: (info: PickingI
     colors,
     channelsVisible,
     dtype,
-    onHover,
     channelsOpacity,
+    imagePanelId,
   ]);
 
-  return multiscaleLayer;
+  // Extract visible channel ids + colors for tooltip mapping. `colors` and
+  // `ids` are parallel arrays from `mapChannelConfigsToState` (already
+  // filtered to visible channels); we zip them here so `getTooltipItems`
+  // can build TooltipItems without re-reading the store on every hover event.
+  const visibleChannels = useMemo(() => {
+    const result: { id: string; color: number[] }[] = [];
+    for (let i = 0; i < ids.length; i++) {
+      result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255] });
+    }
+    return result;
+  }, [ids, colors]);
+
+  const getTooltipItems = useCallback(
+    (info: PickingInfo): LayerTooltipItem[] => {
+      const data = handleImageViewerHover(info);
+      if (!data) return [];
+
+      const { hoverData } = data;
+
+      // Update the sidebar pixel-value readout (replaces the old
+      // `onMultiscaleLayerHover` → `setPixelValues` path). Channels without
+      // loaded tile data fall back to 0, matching the previous behaviour.
+      const ids = visibleChannels.map((c) => c.id);
+      const values = visibleChannels.map((_, i) => hoverData[i] ?? 0);
+      setPixelValues(ids, values);
+
+      const valuesRecord: Record<string, { value: string; color?: number[] }> = {};
+      for (let i = 0; i < visibleChannels.length; i++) {
+        const { id, color } = visibleChannels[i];
+        const value = hoverData[i];
+        if (value === undefined) continue;
+        valuesRecord[id] = { value: String(value), color };
+      }
+      return Object.keys(valuesRecord).length > 0
+        ? [{ type: "Channels" as const, values: valuesRecord }]
+        : [];
+    },
+    [visibleChannels, setPixelValues],
+  );
+
+  return { layers: [multiscaleLayer], getTooltipItems };
 };

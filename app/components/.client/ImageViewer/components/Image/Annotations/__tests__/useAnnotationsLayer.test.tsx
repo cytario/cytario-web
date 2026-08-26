@@ -16,7 +16,6 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 /** The editable own-set layer is always the last layer the hook returns. */
 const editableOnEdit = (layers: unknown[]) =>
   (layers[layers.length - 1] as { props: { onEdit: (params: unknown) => void } }).props.onEdit;
-
 const drawnFeature = {
   type: "Feature",
   geometry: { type: "Point", coordinates: [10, 20] },
@@ -36,7 +35,7 @@ describe("useAnnotationsLayer onEdit", () => {
     const { color } = store.getState().annotationClasses[0];
 
     const { result } = renderHook(() => useAnnotationsLayer(0));
-    editableOnEdit(result.current)(addFeatureEdit);
+    editableOnEdit(result.current.layers)(addFeatureEdit);
 
     const [stamped] = store.getState().annotationsByUser["me"];
     expect(stamped.properties?.classification).toEqual({ name, color });
@@ -47,7 +46,7 @@ describe("useAnnotationsLayer onEdit", () => {
     store = createViewerStore("c328-no-active");
 
     const { result } = renderHook(() => useAnnotationsLayer(0));
-    editableOnEdit(result.current)(addFeatureEdit);
+    editableOnEdit(result.current.layers)(addFeatureEdit);
 
     const [stamped] = store.getState().annotationsByUser["me"];
     expect(stamped.properties?.classification).toBeUndefined();
