@@ -42,7 +42,7 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
 
       <div
         data-theme="dark"
-        className="relative flex grow h-full bg-background text-foreground overflow-hidden"
+        className="relative flex grow h-full bg-background text-foreground overflow-clip"
       >
         <ImagePanels />
         <Sidebar
