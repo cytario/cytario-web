@@ -1,7 +1,5 @@
-import { Button, EmptyState } from "@cytario/design";
-
 import type { DirectoryKind } from "./DirectoryView";
-import { useColumnFilters } from "../Table/useColumnFilters";
+import { NoFilterResults } from "../Table/NoFilterResults";
 
 /**
  * Empty state shared across DirectoryView's child views (Grid, Tree, Table*).
@@ -10,18 +8,5 @@ import { useColumnFilters } from "../Table/useColumnFilters";
  * visible above, giving the user agency to clear filters.
  */
 export function DirectoryViewEmptyState({ kind }: { kind: DirectoryKind }) {
-  const { resetFilters } = useColumnFilters({ tableId: kind });
-
-  return (
-    <EmptyState
-      icon="SearchX"
-      title="No results"
-      description="No results match your filters"
-      action={
-        <Button variant="secondary" iconLeft="FilterX" onPress={resetFilters}>
-          Clear all filters
-        </Button>
-      }
-    />
-  );
+  return <NoFilterResults tableId={kind} />;
 }
