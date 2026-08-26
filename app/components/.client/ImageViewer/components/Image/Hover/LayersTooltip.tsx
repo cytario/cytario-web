@@ -1,92 +1,81 @@
-import { Badge } from "@cytario/design";
-
-import type { TooltipItem, CompositeTooltip } from "../../../state/store/slices/viewer.view.store";
+import type {
+  CompositeTooltip,
+  LayerTooltipItem,
+  TooltipSection,
+} from "../../../state/store/slices/viewer.view.store";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
-/** Convert `[r, g, b]` to a CSS color string, or `undefined`. */
-const toCssColor = (c?: number[]) => (c ? `rgb(${c[0]}, ${c[1]}, ${c[2]})` : undefined);
+const GEO_THUMB_SIZE = 48;
 
-/** Small colored swatch used in tooltip rows. */
-const Swatch = ({ color }: { color?: number[] }) =>
-  color ? (
-    <span
-      className="inline-block w-2.5 h-2.5 rounded-sm border border-border shrink-0"
-      style={{
-        backgroundColor: `rgb(${color[0]}, ${color[1]}, ${color[2]})`,
-      }}
-    />
-  ) : null;
+const Section = ({ item }: { item: LayerTooltipItem }) => {
+  const geoColor = item.geometryColor
+    ? `rgb(${item.geometryColor[0]}, ${item.geometryColor[1]}, ${item.geometryColor[2]})`
+    : undefined;
 
-/** Thumbnail size for geometry previews inside the tooltip. */
-const GEO_THUMB_SIZE = 24;
-
-/** Tooltip section for a channel — single line: swatch + name + value. */
-const ChannelSection = ({ item }: { item: TooltipItem }) => {
-  const v = item.values[0];
   return (
-    <div className="flex items-center justify-between gap-2 px-2 py-1">
-      <div>
-        <Swatch color={v?.color} />
-        <span>{item.label}</span>
-      </div>
-      {v?.value && <Badge>{v.value}</Badge>}
-    </div>
-  );
-};
-
-/** Tooltip section for a feature (annotation or overlay) — geometry thumbnail
- *  colored as on the deck layer, header label, and key/value rows below. */
-const FeatureSection = ({ item }: { item: TooltipItem }) => {
-  const geoColor = toCssColor(item.values[0]?.color);
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 px-2 py-1">
-        {item.geometry && (
-          <GeometrySvg geometry={item.geometry} size={GEO_THUMB_SIZE} color={geoColor} />
+    <div className="flex items-start justify-between border-t border-border first:border-t-0">
+      <div className="w-full p-2 gap-2">
+        {item.id && (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <span className="font-mono text-xs">#{item.id}</span>
+          </div>
         )}
-        <span>{item.label}</span>
-      </div>
-      {item.values.length > 0 && (
-        <div className="px-2 py-1 space-y-0.5">
-          {item.values.map((v, j) => (
-            <div key={j} className="flex items-center gap-1.5">
-              <Swatch color={v.color} />
-              {v.key && <span>{v.key}</span>}
-              {v.value && <span className="font-mono">{v.value}</span>}
+        {Object.entries(item.values).map(([label, { value, color = [255, 255, 255] }]) => (
+          <div key={label} className="flex items-center gap-2 justify-between">
+            <div className="flex grow items-center gap-1.5 w-full">
+              <span
+                className="inline-block w-4 h-4 rounded-full border border-border shrink-0"
+                style={{ backgroundColor: `rgb(${color[0]}, ${color[1]}, ${color[2]})` }}
+                title={label}
+              />
+              <span>{label}</span>
             </div>
-          ))}
+            {value && (
+              <span className="font-medium leading-tight tracking-wider tabular-nums">{value}</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {item.geometry && (
+        <div className="flex items-center gap-2 justify-between">
+          <GeometrySvg geometry={item.geometry} size={GEO_THUMB_SIZE} color={geoColor} />
         </div>
       )}
     </div>
   );
 };
 
-/**
- * Renders the composite hover tooltip for all layers (channels, overlays,
- * annotations). Positioned absolutely relative to the cursor and styled
- * with kind-specific accent borders. Does not capture pointer events.
- *
- * Layout per kind:
- * - **channel** — single line: swatch + channel name + value.
- * - **annotation** — geometry thumbnail (class color) + name + class rows.
- * - **overlay** — geometry thumbnail (marker color) + id + marker rows.
- */
-export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => (
-  <div
-    className="absolute pointer-events-none z-50 min-w-40 max-w-xs"
-    style={{ left: tooltip.cursor.x + 12, top: tooltip.cursor.y + 12 }}
-  >
-    <div className="rounded shadow-lg bg-background border border-border text-foreground text-sm overflow-hidden">
-      {tooltip.items.map((item, i) => {
-        const sectionBorder = i > 0 ? "border-t border-border" : "";
-        return (
-          <div key={`${item.providerId}-${i}`} className={sectionBorder}>
-            {item.kind === "channel" && <ChannelSection item={item} />}
-            {item.kind === "annotation" && <FeatureSection item={item} />}
-            {item.kind === "overlay" && <FeatureSection item={item} />}
+const SECTION_ORDER: TooltipSection[] = ["Channels", "Overlays", "Annotations"];
+
+export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => {
+  const entries = SECTION_ORDER.filter((s) => tooltip.sections[s]?.length).map(
+    (s) => [s, tooltip.sections[s]!] as [TooltipSection, LayerTooltipItem[]],
+  );
+  if (entries.length === 0) return null;
+
+  const cx = `
+    absolute z-50
+    min-w-40 max-w-xs
+    rounded shadow-lg
+    bg-card text-foreground
+    border border-border
+    text-sm
+    overflow-hidden
+  `;
+
+  return (
+    <div className={cx} style={{ left: tooltip.cursor.x + 12, top: tooltip.cursor.y + 12 }}>
+      {entries.map(([type, items]) => (
+        <div key={type}>
+          <div className="bg-background px-2 py-1 border-t border-border first:border-t-0">
+            {type}
           </div>
-        );
-      })}
+          {items.map((item, i) => (
+            <Section key={item.id ?? i} item={item} />
+          ))}
+        </div>
+      ))}
     </div>
-  </div>
-);
+  );
+};

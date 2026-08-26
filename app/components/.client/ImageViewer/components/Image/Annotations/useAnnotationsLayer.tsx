@@ -22,7 +22,7 @@ import {
 } from "../../../state/store/slices/viewer.annotations.store";
 import {
   type CytarioLayerResult,
-  type TooltipItem,
+  type LayerTooltipItem,
 } from "../../../state/store/slices/viewer.view.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
@@ -367,20 +367,19 @@ export const useAnnotationsLayer = (
       return false;
     };
 
-    const getTooltipItems = (info: PickingInfo): TooltipItem[] => {
+    const getTooltipItems = (info: PickingInfo): LayerTooltipItem[] => {
       const f = info.object as AnnotationFeature | undefined;
       if (!f) return [];
       if (isHiddenFeature(f)) return [];
       const [r, g, b] = classColor(f);
-      const name = annotationNameOf(f);
       const cls = classNameOf(f);
       return [
         {
-          providerId: "annotations",
-          kind: "annotation",
-          label: name,
-          values: [{ key: "", value: cls, color: [r, g, b] }],
+          type: "Annotations" as const,
+          id: annotationNameOf(f),
+          values: { [cls]: { value: "", color: [r, g, b] } },
           geometry: f.geometry,
+          geometryColor: [r, g, b],
         },
       ];
     };

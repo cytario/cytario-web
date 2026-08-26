@@ -4,7 +4,11 @@ import type { DeckGLRef } from "@deck.gl/react";
 import { useCallback, useMemo, useRef } from "react";
 
 import { select } from "../../../state/store/selectors";
-import type { CompositeTooltip, TooltipItem } from "../../../state/store/slices/viewer.view.store";
+import type {
+  CompositeTooltip,
+  LayerTooltipItem,
+  TooltipSection,
+} from "../../../state/store/slices/viewer.view.store";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useAnnotationsLayer } from "../Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "../Channels/useChannelsLayer";
@@ -19,7 +23,7 @@ import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
  * Each pick is routed by layer-id prefix to the matching provider's
  * `getTooltipItems`; transparent annotation picks (hidden class → alpha 0)
  * return `[]` so they no longer steal the cursor from pixel reads beneath
- * them. The merged `TooltipItem[]` is published to the store as a
+ * them. The merged items array is published to the store as a
  * `CompositeTooltip`.
  *
  * The hook also owns the `getCursor` callback, which shows a pointer over
@@ -46,9 +50,9 @@ const ANNOTATIONS_SELECTION_SUFFIX = "-selection-";
  * Orchestrates hover across all layers (channels, overlays, annotations) and
  * produces a single composite tooltip. Each layer hook exposes a
  * `getTooltipItems` callback; this hook calls them in priority order, merges
- * results into one {@link CompositeTooltip}, and writes it to the viewer store.
- * Transparent/hidden annotations are filtered out by returning `[]` from their
- * `getTooltipItems`.
+ * results into a flat `LayerTooltipItem[]`, and writes it to the viewer
+ * store. Transparent/hidden annotations are filtered out by returning `[]`
+ * from their `getTooltipItems`.
  */
 export const useCompositeHover = (
   imagePanelId: number,
@@ -108,9 +112,7 @@ export const useCompositeHover = (
         return;
       }
 
-      const channelItems: TooltipItem[] = [];
-      const overlayItems: TooltipItem[] = [];
-      const annotationItems: TooltipItem[] = [];
+      const sections: Partial<Record<TooltipSection, LayerTooltipItem[]>> = {};
       let hoveringAnnotation = false;
 
       for (const pick of picks) {
@@ -120,13 +122,13 @@ export const useCompositeHover = (
         // The sublayers are `Tiled-Image-channels-<id>` and
         // `Background-Image-channels-<id>`, both contain `channels-`.
         if (layerId.includes(CHANNELS_ID_HINT)) {
-          channelItems.push(...getChannelTooltipItems(pick));
+          for (const it of getChannelTooltipItems(pick)) (sections.Channels ??= []).push(it);
           continue;
         }
 
         // Overlays
         if (layerId.startsWith(OVERLAYS_ID_PREFIX)) {
-          overlayItems.push(...getOverlayTooltipItems(pick));
+          for (const it of getOverlayTooltipItems(pick)) (sections.Overlays ??= []).push(it);
           continue;
         }
 
@@ -141,19 +143,17 @@ export const useCompositeHover = (
           const items = getAnnotationTooltipItems(pick);
           if (items.length > 0) {
             hoveringAnnotation = true;
-            annotationItems.push(...items);
+            (sections.Annotations ??= []).push(...items);
           }
         }
       }
-
-      const items = [...channelItems, ...overlayItems, ...annotationItems];
 
       hoveringAnnotationRef.current = hoveringAnnotation;
 
       const tooltip: CompositeTooltip = {
         cursor: { x: info.x, y: info.y },
         coordinate: info.coordinate ?? [0, 0, 0],
-        items,
+        sections,
         mode: shift ? "verbose" : "compact",
       };
       setCompositeTooltip(tooltip);

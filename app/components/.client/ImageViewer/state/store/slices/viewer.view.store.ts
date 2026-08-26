@@ -5,44 +5,49 @@ import type { ViewerSlice, ViewState } from "../types";
 
 /**
  * One unit of tooltip content contributed by a layer hook's
- * `getTooltipItems` callback. All current layer hooks (channels, overlays, annotations) and any future plugin return
- * `TooltipItem[]`; `useCompositeHover` merges them into a
- * {@link CompositeTooltip}.
+ * `getTooltipItems` callback. The `values` Record is keyed by the label
+ * shown to the user (channel name, class name, marker name); the entry's
+ * `value` is optional supplementary data (e.g. channel intensity). `color`
+ * paints a swatch and/or the geometry thumbnail.
+ *
+ * For features with geometry (annotations, overlays), `geometry` is set
+ * so the tooltip can render a preview thumbnail. Channels omit it.
  *
  * Keep this contract pure and synchronous — no async in the hover path.
- * Plugins pre-fetch and cache; the tooltip reads the cache.
  */
-export interface TooltipItem {
-  /** Stable provider id — `"channels" | "overlays" | "annotations"`. */
-  providerId: string;
-  /** Kind tag — drives section ordering and the left-edge accent stripe. */
-  kind: "channel" | "annotation" | "overlay";
-  /** Header label — channel name, annotation name, "Cell 1234", … */
-  label: string;
-  /** Key/value rows below the header. `color` paints a swatch for the row. */
-  values: { key: string; value: string; color?: number[] }[];
-  /** Optional GeoJSON geometry — rendered as a thumbnail preview by the
-   *  tooltip for annotation and overlay items. Channels omit this. */
+export type TooltipSection = "Channels" | "Overlays" | "Annotations";
+
+export interface LayerTooltipItem {
+  /** Discriminator for section grouping in the renderer
+   *  (channels → overlays → annotations). */
+  type: TooltipSection;
+  /** Display name shown in the sidebar (annotation `annotationNameOf`,
+   *  overlay Arrow `id` column). Channels omit it. */
+  id?: string;
+  values: Record<string, { value: string; color?: number[] }>;
   geometry?: Geometry | null;
+  /** Colour for the geometry thumbnail. For overlays this is the
+   *  additively-blended marker colour (matching the layer render); for
+   *  annotations it's the class colour. Channels have no geometry. */
+  geometryColor?: number[];
 }
 
-/** Composite hover tooltip — the merged output of the hover pipeline. */
 export interface CompositeTooltip {
   cursor: { x: number; y: number };
-  /** Level-0 pixel-space coordinate under the cursor. */
   coordinate: number[];
-  items: TooltipItem[];
+  /** Grouped by section in display order (Channels → Overlays → Annotations).
+   *  Empty sections are omitted. */
+  sections: Partial<Record<TooltipSection, LayerTooltipItem[]>>;
   mode: "compact" | "verbose";
 }
 
-/** Unified return type for all layer hooks (channels, overlays, annotations,
- *  and future plugins). Each hook returns its layers plus a `getTooltipItems`
- *  callback that maps a deck.gl pick to zero or more {@link TooltipItem}s.
- *  Transparent / hidden picks return `[]` — the composite hook uses
- *  `items.length > 0` to detect non-transparent annotation hits. */
+/** Unified return type for all layer hooks (channels, overlays, annotations).
+ *  Each hook returns its layers plus a `getTooltipItems` callback that maps
+ *  a deck.gl pick to zero or more {@link LayerTooltipItem}s. Transparent /
+ *  hidden picks return `[]`. */
 export interface CytarioLayerResult<T extends Layer = Layer> {
   layers: T[];
-  getTooltipItems: (info: PickingInfo) => TooltipItem[];
+  getTooltipItems: (info: PickingInfo) => LayerTooltipItem[];
 }
 
 export interface ViewSlice {

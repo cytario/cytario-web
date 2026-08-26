@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import {
   type CytarioLayerResult,
-  type TooltipItem,
+  type LayerTooltipItem,
 } from "../../../state/store/slices/viewer.view.store";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { handleImageViewerHover } from "../../../utils/handleImageViewerHover";
@@ -136,7 +136,7 @@ export const useChannelsLayer = (
   }, [ids, colors]);
 
   const getTooltipItems = useCallback(
-    (info: PickingInfo): TooltipItem[] => {
+    (info: PickingInfo): LayerTooltipItem[] => {
       const data = handleImageViewerHover(info);
       if (!data) return [];
 
@@ -149,19 +149,16 @@ export const useChannelsLayer = (
       const values = visibleChannels.map((_, i) => hoverData[i] ?? 0);
       setPixelValues(ids, values);
 
-      const items: TooltipItem[] = [];
+      const valuesRecord: Record<string, { value: string; color?: number[] }> = {};
       for (let i = 0; i < visibleChannels.length; i++) {
         const { id, color } = visibleChannels[i];
         const value = hoverData[i];
         if (value === undefined) continue;
-        items.push({
-          providerId: "channels",
-          kind: "channel",
-          label: id,
-          values: [{ key: "", value: String(value), color }],
-        });
+        valuesRecord[id] = { value: String(value), color };
       }
-      return items;
+      return Object.keys(valuesRecord).length > 0
+        ? [{ type: "Channels" as const, values: valuesRecord }]
+        : [];
     },
     [visibleChannels, setPixelValues],
   );

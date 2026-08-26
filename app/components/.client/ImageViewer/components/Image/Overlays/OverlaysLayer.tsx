@@ -7,7 +7,7 @@ import { TileLoadProps } from "node_modules/@deck.gl/geo-layers/dist/tileset-2d"
 import { AdditivePolygonLayer } from "./AdditivePolygonLayer";
 import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
 import { getPolygon } from "./getPolygon";
-import { MarkerProps } from "./markerUniforms";
+import { blendMarkerColor, MarkerProps } from "./markerUniforms";
 import { CellMarker } from "../../../state/store/types";
 import { OVERLAY_CACHE_NS, getCachedTile } from "../../../utils/sharedTileCache";
 import { toastBridge } from "~/toast-bridge";
@@ -92,7 +92,7 @@ export const OverlaysLayer = ({
       // Sublayer rendering updates
       getMarkerMask: [enabledMarkers, fileMarkers],
       getFillColor: [enabledMarkers, fileMarkers],
-      getLineColor: [enabledMarkers, strokeOpacity],
+      getLineColor: [enabledMarkers, strokeOpacity, markerProps],
     },
     pickable: true,
     getTileData,
@@ -296,7 +296,7 @@ export const OverlaysLayer = ({
           if (strokeOpacity === 0 || markerMasks[index] === 0) {
             return [0, 0, 0, 0];
           }
-          return [255, 255, 255, 255];
+          return blendMarkerColor(markerProps, markerMasks[index]);
         },
         getLineWidth: getLineWidth,
         lineWidthMinPixels,
@@ -304,7 +304,7 @@ export const OverlaysLayer = ({
         stroked: true,
         pickable: false,
         updateTriggers: {
-          getLineColor: [strokeOpacity, enabledMarkers],
+          getLineColor: [strokeOpacity, enabledMarkers, markerProps],
         },
       });
 

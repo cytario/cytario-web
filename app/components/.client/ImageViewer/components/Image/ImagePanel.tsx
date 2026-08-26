@@ -38,6 +38,21 @@ const ImagePanelInner = ({
   const isActivePanel = activeImagePanelId === imagePanelId;
 
   const compositeTooltip = useViewerStore(select.compositeTooltip);
+  const pinnedTooltip = useViewerStore(select.pinnedTooltip);
+  const pinTooltip = useViewerStore(select.pinTooltip);
+  const unpinTooltip = useViewerStore(select.unpinTooltip);
+
+  // Debug: press "p" to pin/unpin the tooltip so it stays visible for DOM inspection.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "p" && !e.ctrlKey && !e.metaKey) {
+        if (pinnedTooltip) unpinTooltip();
+        else pinTooltip();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pinnedTooltip, pinTooltip, unpinTooltip]);
 
   const view = useView({ width, height });
 
@@ -91,9 +106,10 @@ const ImagePanelInner = ({
         controller={true}
       />
 
-      {compositeTooltip && compositeTooltip.items.length > 0 && (
-        <LayersTooltip tooltip={compositeTooltip} />
-      )}
+      {(pinnedTooltip ??
+        (compositeTooltip && Object.keys(compositeTooltip.sections).length > 0
+          ? compositeTooltip
+          : null)) && <LayersTooltip tooltip={(pinnedTooltip ?? compositeTooltip)!} />}
     </>
   );
 };

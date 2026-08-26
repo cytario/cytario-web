@@ -10,8 +10,9 @@ import { OverlaysLayer } from "./OverlaysLayer";
 import { select } from "../../../state/store/selectors";
 import {
   type CytarioLayerResult,
-  type TooltipItem,
+  type LayerTooltipItem,
 } from "../../../state/store/slices/viewer.view.store";
+import { RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
@@ -91,7 +92,7 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   }, [overlayState]);
 
   const getTooltipItems = useCallback(
-    (info: PickingInfo): TooltipItem[] => {
+    (info: PickingInfo): LayerTooltipItem[] => {
       if (!info.picked || info.index === undefined || !tooltipCtx) return [];
 
       // Get Arrow table from source layer props
@@ -101,8 +102,6 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
 
       const index = info.index;
 
-      const idCol = arrowTable.getChild("id");
-      const id = idCol?.get(index);
       const bitmaskCol = arrowTable.getChild("marker_bitmask");
       if (!bitmaskCol) return [];
 
@@ -127,6 +126,10 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
       const ctx = tooltipCtx.find((c) => layerId.startsWith(`MarkersLayer-${c.resourceId}`));
       if (!ctx) return [];
 
+      // Stable feature id from the Arrow `id` column (fallback: row index).
+      const idCol = arrowTable.getChild("id");
+      const id = idCol ? String(idCol.get(index)) : String(index);
+
       const activeMarkers = ctx.enabledMarkers.filter((markerKey) => {
         const bitIndex = ctx.allMarkerKeys.indexOf(markerKey);
         if (bitIndex < 0 || bitIndex >= 32) return false;
@@ -135,21 +138,23 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
 
       if (activeMarkers.length === 0) return [];
 
-      const values = activeMarkers.map((marker) => {
-        const color = ctx.fileMarkers[marker].color;
-        const name = marker.replace(MARKER_PREFIX, "");
-        return { key: name, value: "", color };
-      });
-
-      return [
-        {
-          providerId: "overlays",
-          kind: "overlay",
-          label: String(id),
-          values,
-          geometry,
+      const { values, geometryColor } = activeMarkers.reduce(
+        (acc, marker) => {
+          const color = ctx.fileMarkers[marker].color as RGBA;
+          const name = marker.replace(MARKER_PREFIX, "");
+          acc.values[name] = { value: "", color };
+          acc.geometryColor[0] = Math.min(acc.geometryColor[0] + color[0], 255);
+          acc.geometryColor[1] = Math.min(acc.geometryColor[1] + color[1], 255);
+          acc.geometryColor[2] = Math.min(acc.geometryColor[2] + color[2], 255);
+          return acc;
         },
-      ];
+        {
+          values: {} as Record<string, { value: string; color?: number[] }>,
+          geometryColor: [0, 0, 0] as number[],
+        },
+      );
+
+      return [{ type: "Overlays" as const, id, values, geometry, geometryColor }];
     },
     [tooltipCtx],
   );
