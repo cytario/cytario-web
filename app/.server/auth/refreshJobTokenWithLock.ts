@@ -1,27 +1,14 @@
-import { createHash, randomUUID } from "crypto";
+import { createHash } from "crypto";
 
 import { refreshJobToken, type RefreshedJobToken } from "./refreshJobToken";
 import { redis } from "../db/redis";
+import { withRedisLock } from "../db/redisLock";
 
 const LOCK_PREFIX = "broker_rt_lock:";
 const STORE_PREFIX = "broker_rt:";
-const LOCK_TTL_SECONDS = 15;
 // Safety-net TTL; revokeGrant DELs on revocation. Matches the realm's 7-day
 // offline-session max so a long job's cache isn't reaped mid-run.
 const STORE_TTL_SECONDS = 604800;
-const MAX_RETRIES = 10;
-const RETRY_DELAY_MS = 100;
-
-// Mirrors the browser-path release script in refreshAuthTokens.ts.
-const RELEASE_LOCK_SCRIPT = `
-  if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-  else
-    return 0
-  end
-`;
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Key derivation only — no signature verification. Returns "" if undecodable.
 function offlineSessionIdFromToken(token: string): string {
@@ -54,30 +41,17 @@ export async function refreshJobTokenWithLock(
     offlineSessionId || `hash:${createHash("sha256").update(presentedRefreshToken).digest("hex")}`;
   const lockKey = `${LOCK_PREFIX}${keySuffix}`;
   const storeKey = `${STORE_PREFIX}${keySuffix}`;
-  const lockValue = randomUUID();
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const acquired = await redis.set(lockKey, lockValue, "EX", LOCK_TTL_SECONDS, "NX");
-
-    if (acquired === "OK") {
-      try {
-        // Redeem the canonical token, not the caller's — under
-        // refresh_token_max_reuse=0 the caller's may already be revoked.
-        const canonicalRefreshToken = await redis.get(storeKey);
-        const tokenToRedeem = canonicalRefreshToken ?? presentedRefreshToken;
-        const result = await refreshJobToken(tokenToRedeem);
-        // Write before lock release so waiters read the current token.
-        await redis.set(storeKey, result.newRefreshToken, "EX", STORE_TTL_SECONDS);
-        return result;
-      } finally {
-        await redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockValue);
-      }
-    }
-
-    await delay(RETRY_DELAY_MS);
-  }
-
-  throw new Error("Failed to acquire broker refresh lock after maximum retries");
+  return withRedisLock(lockKey, async () => {
+    // Redeem the canonical token, not the caller's — under
+    // refresh_token_max_reuse=0 the caller's may already be revoked.
+    const canonicalRefreshToken = await redis.get(storeKey);
+    const tokenToRedeem = canonicalRefreshToken ?? presentedRefreshToken;
+    const result = await refreshJobToken(tokenToRedeem);
+    // Write before lock release so waiters read the current token.
+    await redis.set(storeKey, result.newRefreshToken, "EX", STORE_TTL_SECONDS);
+    return result;
+  });
 }
 
 // Idempotent.

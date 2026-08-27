@@ -191,9 +191,7 @@ describe("refreshJobTokenWithLock (SRS-CY-416109, SDS-CY-080402)", () => {
   test("throws when the lock cannot be acquired after retries", async () => {
     redisMock.set.mockResolvedValue(null); // lock never acquired
 
-    await expect(refreshJobTokenWithLock(RT0)).rejects.toThrow(
-      /Failed to acquire broker refresh lock/,
-    );
+    await expect(refreshJobTokenWithLock(RT0)).rejects.toThrow(/Failed to acquire Redis lock/);
     expect(refreshJobTokenMock).not.toHaveBeenCalled();
   });
 

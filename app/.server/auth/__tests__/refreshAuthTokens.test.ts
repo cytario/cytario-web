@@ -21,6 +21,7 @@ vi.mock("../../db/redis", () => ({
     set: vi.fn(),
     eval: vi.fn(),
     hget: vi.fn(),
+    hset: vi.fn(),
   },
 }));
 
@@ -293,7 +294,7 @@ describe("refreshAccessTokenWithLock", () => {
     vi.mocked(redis.set).mockResolvedValue(null as never);
 
     await expect(refreshAccessTokenWithLock("session-123", "refresh-token")).rejects.toThrow(
-      "Failed to acquire refresh lock after maximum retries",
+      "Failed to acquire Redis lock after maximum retries",
     );
 
     expect(redis.set).toHaveBeenCalledTimes(10);
