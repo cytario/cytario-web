@@ -1,8 +1,7 @@
-import { randomUUID } from "crypto";
-
 import { AuthTokens, SessionData } from "./sessionStorage";
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 import { redis } from "../db/redis";
+import { withRedisLock } from "../db/redisLock";
 import { cytarioConfig } from "~/config";
 
 export interface AuthTokensResponse {
@@ -44,23 +43,6 @@ export async function refreshAccessToken(refreshToken: string): Promise<AuthToke
 }
 
 const LOCK_PREFIX = "refresh_lock:";
-const LOCK_TTL_SECONDS = 15;
-const MAX_RETRIES = 10;
-const RETRY_DELAY_MS = 100;
-
-/**
- * Lua script for atomic check-and-delete.
- * Only deletes the key if the value matches (prevents stale lock release).
- */
-const RELEASE_LOCK_SCRIPT = /*sql*/ `
-  if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-  else
-    return 0
-  end
-`;
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Reads the current session auth tokens directly from Redis,
@@ -104,40 +86,28 @@ export async function refreshAccessTokenWithLock(
   sessionId: string,
   refreshToken: string,
 ): Promise<AuthTokens> {
-  const lockKey = `${LOCK_PREFIX}${sessionId}`;
-  const lockValue = randomUUID();
+  return withRedisLock(`${LOCK_PREFIX}${sessionId}`, async () => {
+    // Re-read session from Redis to check if tokens were already refreshed
+    // by a previous lock holder (Keycloak rotates refresh tokens, so the
+    // old token would be revoked). If the stored refresh token differs
+    // from the one passed in, the already-refreshed tokens are returned
+    // without hitting Keycloak.
+    const currentTokens = await readSessionTokensFromStore(sessionId);
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const acquired = await redis.set(lockKey, lockValue, "EX", LOCK_TTL_SECONDS, "NX");
-
-    if (acquired === "OK") {
-      try {
-        // Re-read session from Redis to check if tokens were already refreshed
-        // by a previous lock holder (handles refresh token rotation)
-        const currentTokens = await readSessionTokensFromStore(sessionId);
-
-        if (currentTokens && currentTokens.refreshToken !== refreshToken) {
-          return currentTokens;
-        }
-
-        const newTokens = await refreshAccessToken(refreshToken);
-
-        // Persist the new tokens to Redis BEFORE releasing the lock so
-        // the next lock holder sees the rotated refresh token and skips
-        // the Keycloak call. Without this, there is a window between lock
-        // release and the middleware's commitSession where a concurrent
-        // request reads the old (revoked) refresh token, calls Keycloak,
-        // gets rejected, and logs the user out.
-        await writeSessionTokensToStore(sessionId, newTokens);
-
-        return newTokens;
-      } finally {
-        await redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockValue);
-      }
+    if (currentTokens && currentTokens.refreshToken !== refreshToken) {
+      return currentTokens;
     }
 
-    await delay(RETRY_DELAY_MS);
-  }
+    const newTokens = await refreshAccessToken(refreshToken);
 
-  throw new Error("Failed to acquire refresh lock after maximum retries");
+    // Persist the new tokens to Redis BEFORE releasing the lock so
+    // the next lock holder sees the rotated refresh token and skips
+    // the Keycloak call. Without this, there is a window between lock
+    // release and the middleware's commitSession where a concurrent
+    // request reads the old (revoked) refresh token, calls Keycloak,
+    // gets rejected, and logs the user out.
+    await writeSessionTokensToStore(sessionId, newTokens);
+
+    return newTokens;
+  });
 }
