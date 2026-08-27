@@ -1,4 +1,3 @@
-import { Button, EmptyState } from "@cytario/design";
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,6 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { ReactNode, useCallback, useMemo, useRef } from "react";
 
+import { NoFilterResults } from "./NoFilterResults";
 import { TableBodyRow } from "./TableBodyRow";
 import { TableHeaderRow } from "./TableHeaderRow";
 import { CellRenderers, TableProps as TablePropsType } from "./types";
@@ -192,16 +192,7 @@ export function Table<TData extends object>({
             {data.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + 1}>
-                  <EmptyState
-                    icon="SearchX"
-                    title="No results"
-                    description="No results match your filters"
-                    action={
-                      <Button variant="secondary" iconLeft="FilterX" onPress={resetFilters}>
-                        Clear all filters
-                      </Button>
-                    }
-                  />
+                  <NoFilterResults tableId={tableId} />
                 </td>
               </tr>
             ) : (

@@ -77,8 +77,8 @@ const dirStub: TreeNode = {
 };
 
 describe("useFavorite", () => {
-  test("isFavorite reconciles a directory's trailing slash with the stored key", () => {
-    favorites = [fav("conn", "dir")];
+  test("isFavorite matches a directory favorite by its trailing-slash key", () => {
+    favorites = [fav("conn", "dir/")];
     const { result } = renderHook(() => useFavorite(loadedDir), { wrapper });
     expect(result.current.isFavorite).toBe(true);
   });
@@ -94,7 +94,7 @@ describe("useFavorite", () => {
     fetcherFormMethod = "PUT";
     fetcherFormData = new FormData();
     fetcherFormData.append("connectionId", "conn");
-    fetcherFormData.append("pathName", "dir");
+    fetcherFormData.append("pathName", "dir/");
 
     const { result } = renderHook(() => useFavorite(loadedDir), { wrapper });
     expect(result.current.isFavorite).toBe(true);
@@ -133,7 +133,7 @@ describe("useFavorite", () => {
     expect(submit).toHaveBeenCalledWith(
       {
         connectionId: "conn",
-        pathName: "dir",
+        pathName: "dir/",
         displayName: "dir",
         totalSize: "1234",
         lastModified: String(lastModified.getTime()),
@@ -146,17 +146,17 @@ describe("useFavorite", () => {
     const { result } = renderHook(() => useFavorite(dirStub), { wrapper });
     act(() => result.current.toggle());
     expect(submit).toHaveBeenCalledWith(
-      { connectionId: "conn", pathName: "empty", displayName: "empty" },
+      { connectionId: "conn", pathName: "empty/", displayName: "empty" },
       { method: "put", action: "/favorites" },
     );
   });
 
-  test("removing submits only the normalized key", () => {
-    favorites = [fav("conn", "dir")];
+  test("removing submits only the key", () => {
+    favorites = [fav("conn", "dir/")];
     const { result } = renderHook(() => useFavorite(loadedDir), { wrapper });
     act(() => result.current.toggle());
     expect(submit).toHaveBeenCalledWith(
-      { connectionId: "conn", pathName: "dir" },
+      { connectionId: "conn", pathName: "dir/" },
       { method: "delete", action: "/favorites" },
     );
   });

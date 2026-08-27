@@ -1,4 +1,4 @@
-import { Checkbox } from "@cytario/design";
+import { Button, Checkbox } from "@cytario/design";
 import {
   createColumnHelper,
   flexRender,
@@ -11,9 +11,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getParquetRows } from "./getParquetRows";
 import { getParquetSchema, ParquetColumn } from "./getParquetSchema";
 import { GeometrySvg } from "../GeometrySvg";
-import { LavaLoader } from "../LavaLoader";
+import { LoaderView } from "../Loader/LoaderView";
+import { useModal } from "~/hooks/useModal";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { getFileType } from "~/utils/fileType";
 import { wktToGeometry } from "~/utils/geometry";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -38,6 +40,8 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { connectionId } = parseResourceId(resourceId);
   const connectionConfig = useConnectionsStore(select.connectionConfig(connectionId));
+  const { openModal } = useModal();
+  const isCsv = getFileType(resourceId) === "CSV";
 
   // Initial data fetch
   useEffect(() => {
@@ -144,7 +148,7 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   }, [virtualItems, tableRows.length, hasMore, isFetchingMore, fetchMore]);
 
   if (loading) {
-    return <LavaLoader />;
+    return <LoaderView label="Loading data…" />;
   }
 
   if (error) {
@@ -152,62 +156,74 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   }
 
   return (
-    <div ref={containerRef} className="h-full overflow-auto">
-      <table className="min-w-full border-collapse text-sm">
-        <thead className="bg-muted sticky top-0 z-10">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="grid" style={{ gridTemplateColumns }}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className={`border-b border-border px-4 py-2 font-semibold ${
-                    RIGHT_ALIGNED_COLUMNS.has(header.id) ? "text-right" : "text-left"
-                  }`}
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody
-          style={{
-            height: `${virtualizer.getTotalSize()}px`,
-            position: "relative",
-          }}
-        >
-          {virtualItems.map((virtualRow) => {
-            const row = tableRows[virtualRow.index];
-            return (
-              <tr
-                key={row.id}
-                className="hover:bg-accent absolute w-full grid"
-                style={{
-                  gridTemplateColumns,
-                  height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className={`border-b border-border tabular-nums px-4 flex items-center ${
-                      RIGHT_ALIGNED_COLUMNS.has(cell.column.id) ? "justify-end" : ""
+    <div className="flex flex-col h-full">
+      {isCsv && (
+        <header className="flex items-center justify-between p-4 bg-amber-100 border-b border-amber-300 text-amber-900">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">
+              CSV files are slow to query. Convert to Parquet for better performance.
+            </span>
+          </div>
+          <Button onPress={() => openModal("convert-overlay")}>Convert to Parquet</Button>
+        </header>
+      )}
+      <div ref={containerRef} className="h-full overflow-auto">
+        <table className="min-w-full border-collapse text-sm">
+          <thead className="bg-muted sticky top-0 z-10">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="grid" style={{ gridTemplateColumns }}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className={`border-b border-border px-4 py-2 font-semibold ${
+                      RIGHT_ALIGNED_COLUMNS.has(header.id) ? "text-right" : "text-left"
                     }`}
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
                 ))}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {isFetchingMore && (
-        <div className="p-2 text-center text-muted-foreground">Loading more...</div>
-      )}
+            ))}
+          </thead>
+          <tbody
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              position: "relative",
+            }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const row = tableRows[virtualRow.index];
+              return (
+                <tr
+                  key={row.id}
+                  className="hover:bg-accent absolute w-full grid"
+                  style={{
+                    gridTemplateColumns,
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className={`border-b border-border tabular-nums px-4 flex items-center ${
+                        RIGHT_ALIGNED_COLUMNS.has(cell.column.id) ? "justify-end" : ""
+                      }`}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {isFetchingMore && (
+          <div className="p-2 text-center text-muted-foreground">Loading more...</div>
+        )}
+      </div>
     </div>
   );
 };

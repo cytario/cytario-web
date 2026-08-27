@@ -152,7 +152,7 @@ describe("ChannelsPanelItem", () => {
 
   test("shows loading indicator when isLoading is true", () => {
     const { container } = renderWithRadioGroup({ isLoading: true });
-    // LavaLoader has a specific class or structure we can look for
+    // LoaderDots has a specific class or structure we can look for
     const loader = container.querySelector('[class*="absolute"]');
     expect(loader).toBeInTheDocument();
   });

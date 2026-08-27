@@ -11,7 +11,7 @@ import {
 const FAVORITES_ACTION = "/favorites";
 
 function favoriteKey(pathName: string): string {
-  return (pathName ?? "").replace(/\/$/, "");
+  return pathName ?? "";
 }
 
 function nodeKey(connectionId: string, pathName: string): string {

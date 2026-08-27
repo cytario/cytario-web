@@ -42,7 +42,23 @@ describe("nodeToTrail", () => {
     const trail = nodeToTrail(leaf);
 
     expect(trail.map((t) => t.name)).toEqual(["bucket", "a", "b"]);
-    expect(trail.map((t) => t.id)).toEqual(["bucket/", "bucket/a", "bucket/a/b"]);
+    expect(trail.map((t) => t.id)).toEqual(["bucket/", "bucket/a/", "bucket/a/b"]);
+    expect(trail.map((t) => t.pathName)).toEqual(["", "a/", "a/b"]);
     expect(trail[trail.length - 1]).toBe(leaf);
+  });
+
+  test("directory leaf preserves trailing slash on intermediate nodes", () => {
+    const leaf = node({
+      id: "bucket/a/b/",
+      connectionId: "bucket",
+      connectionName: "bucket",
+      pathName: "a/b/",
+      name: "b",
+      type: "directory",
+    });
+    const trail = nodeToTrail(leaf);
+
+    expect(trail.map((t) => t.id)).toEqual(["bucket/", "bucket/a/", "bucket/a/b/"]);
+    expect(trail.map((t) => t.pathName)).toEqual(["", "a/", "a/b/"]);
   });
 });

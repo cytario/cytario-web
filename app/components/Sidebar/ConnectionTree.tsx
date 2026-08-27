@@ -2,10 +2,10 @@ import { EmptyState } from "@cytario/design";
 import { useMemo } from "react";
 
 import { useSidebarSearch } from "./Explorer/useSidebarSearch";
+import { LoaderView } from "../Loader/LoaderView";
 import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { onExpand } from "~/components/DirectoryView/onExpand";
-import { LavaLoader } from "~/components/LavaLoader";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { ancestorDirIds } from "~/utils/resourceId";
 
@@ -60,7 +60,7 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
 
   if (query) {
     if (isSearching && searchNodes.length === 0) {
-      return <LavaLoader rows={4} cols={3} />;
+      return <LoaderView label="Searching…" />;
     }
     if (error) {
       return (

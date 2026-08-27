@@ -6,10 +6,7 @@ import { formatTruncationMessage } from "~/utils/listingLimits";
 import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 import { CorsLikelyError } from "~/utils/signedFetch";
 
-/**
- * Browser-side `ListObjectsV2` issued directly to S3 via SigV4-signed fetch.
- * Server loader supplies auth + connection metadata only.
- */
+/** Browser-side S3 listing via SigV4-signed fetch; server loader supplies auth + metadata only. */
 export const clientLoader = async ({
   request,
   serverLoader,
@@ -18,14 +15,16 @@ export const clientLoader = async ({
 
   const resolved = { ...serverData, pendingClientLoad: false };
 
-  // Server already flagged this connection as unreachable (e.g. STS denied
-  // AssumeRoleWithWebIdentity). Skip the S3 listing — the route renders the
-  // connectionError banner instead.
+  // Server already flagged this connection as unreachable — skip the S3 listing.
   if (resolved.connectionError || !resolved.credentials) {
     return { ...resolved, nodes: [] };
   }
 
   if (resolved.serverDeterminedSingleFile) {
+    return { ...resolved, nodes: [], isSingleFile: true };
+  }
+
+  if (resolved.urlPath && !resolved.urlPath.endsWith("/")) {
     return { ...resolved, nodes: [], isSingleFile: true };
   }
 
@@ -40,10 +39,6 @@ export const clientLoader = async ({
       urlPath: resolved.urlPath,
       signal: request.signal,
     });
-
-    if (nodes.length === 0) {
-      return { ...resolved, nodes: [], isSingleFile: true };
-    }
 
     return {
       ...resolved,

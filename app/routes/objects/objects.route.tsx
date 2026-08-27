@@ -1,29 +1,26 @@
-import { Button, EmptyState } from "@cytario/design";
-import { lazy, Suspense, useEffect, useRef } from "react";
-import {
-  type MetaFunction,
-  type ShouldRevalidateFunction,
-  useFetcher,
-  useLoaderData,
-  useNavigate,
-  useNavigation,
-} from "react-router";
+import { lazy, Suspense, useEffect } from "react";
+import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
 import { clientLoader } from "./objects.clientLoader";
+import {
+  EmptyStateConnectionError,
+  EmptyStateUnsupportedFile,
+  EmptyStateNoObjects,
+} from "./objects.emptyStates";
 import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
+import { buildCurrentNode } from "./objects.node";
+import { useRecordRecentView } from "../recent/useRecordRecentView";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { ClientOnly } from "~/components/ClientOnly";
-import { DataGrid } from "~/components/DataGrid/DataGrid";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
-import { useModal } from "~/hooks/useModal";
+import { LoaderView } from "~/components/Loader/LoaderView";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType, isImageFile, isTextFile } from "~/utils/fileType";
-import { getName } from "~/utils/pathUtils";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const Viewer = lazy(() =>
@@ -38,6 +35,12 @@ const TextEditor = lazy(() =>
   })),
 );
 
+const DataGrid = lazy(() =>
+  import("~/components/DataGrid/DataGrid").then((module) => ({
+    default: module.DataGrid,
+  })),
+);
+
 export { clientLoader, loader };
 export type { BucketRouteLoaderResponse };
 
@@ -48,24 +51,6 @@ export const headers = () => ({ "Cache-Control": "no-store, private" });
 export const meta: MetaFunction<typeof clientLoader> = ({ loaderData }) => [
   { title: loaderData?.name ?? "Cytario" },
 ];
-
-export function buildCurrentNode(
-  connectionId: string,
-  connectionName: string,
-  urlPath: string,
-  children: TreeNode[] = [],
-): TreeNode {
-  const displayName = urlPath ? getName(urlPath, connectionName) : connectionName;
-  return {
-    id: `${connectionId}/${urlPath}`,
-    connectionId,
-    connectionName,
-    pathName: urlPath,
-    name: displayName,
-    type: urlPath ? "directory" : "bucket",
-    children,
-  };
-}
 
 export const handle = {
   node: (match: {
@@ -99,8 +84,6 @@ export default function ObjectsRoute() {
     connectionError,
   } = useLoaderData<typeof clientLoader>();
 
-  const navigate = useNavigate();
-  const { openModal } = useModal();
   const signingRegion = useConnectionsStore(
     (state) => state.connections[connectionId]?.provider?.region,
   );
@@ -117,41 +100,11 @@ export default function ObjectsRoute() {
   const resourceId = `${connectionId}/${urlPath}`;
   const fileType = getFileType(resourceId);
 
-  const recentFetcher = useFetcher();
-  const navigation = useNavigation();
-  const lastRecentSubmit = useRef<string | null>(null);
-  useEffect(() => {
-    if (!urlPath) return;
-    if (navigation.state !== "idle") return;
-    if (lastRecentSubmit.current === resourceId) return;
-    lastRecentSubmit.current = resourceId;
-    recentFetcher.submit(
-      {
-        connectionId,
-        pathName: urlPath,
-        name,
-        type: isSingleFile ? "file" : "directory",
-      },
-      { method: "post", action: "/recent" },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, navigation.state]);
+  useRecordRecentView(resourceId, { connectionId, pathName: urlPath, name, isSingleFile });
 
   if (connectionError) {
     return (
-      <EmptyState
-        icon="AlertTriangle"
-        title="Connection unavailable"
-        description={connectionError}
-        action={
-          <Button
-            onPress={() => openModal("edit-connection", { connectionId })}
-            variant="secondary"
-          >
-            Edit connection
-          </Button>
-        }
-      />
+      <EmptyStateConnectionError connectionError={connectionError} connectionId={connectionId} />
     );
   }
 
@@ -167,7 +120,6 @@ export default function ObjectsRoute() {
   }
 
   if (isSingleFile) {
-    const isCsv = fileType === "CSV";
     const isTabularFile = ["CSV", "Parquet"].includes(fileType);
 
     if (isTextFile(resourceId)) {
@@ -178,7 +130,7 @@ export default function ObjectsRoute() {
       );
       return (
         <ClientOnly>
-          <Suspense fallback={<div>Loading editor…</div>}>
+          <Suspense fallback={<LoaderView label="Loading editor…" />}>
             <TextEditor key={resourceId} resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
@@ -187,19 +139,11 @@ export default function ObjectsRoute() {
 
     if (isTabularFile) {
       return (
-        <div className="flex flex-col h-full">
-          {isCsv && (
-            <header className="flex items-center justify-between p-4 bg-amber-100 border-b border-amber-300 text-amber-900">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">
-                  CSV files are slow to query. Convert to Parquet for better performance.
-                </span>
-              </div>
-              <Button onPress={() => openModal("convert-overlay")}>Convert to Parquet</Button>
-            </header>
-          )}
-          <DataGrid resourceId={resourceId} />
-        </div>
+        <ClientOnly fallback={<LoaderView label="Loading data…" />}>
+          <Suspense fallback={<LoaderView label="Loading data…" />}>
+            <DataGrid resourceId={resourceId} />
+          </Suspense>
+        </ClientOnly>
       );
     }
 
@@ -209,59 +153,22 @@ export default function ObjectsRoute() {
         signingRegion,
         connectionId,
       );
+
       return (
         <ClientOnly>
-          <Suspense fallback={<div>Loading viewer...</div>}>
+          <Suspense fallback={<LoaderView label="Loading viewer…" />}>
             <Viewer resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );
     }
 
-    return (
-      <EmptyState
-        title="Unsupported file format."
-        description="The selected file format is not supported for viewing."
-        icon="Ban"
-        action={
-          <Button
-            onPress={() => {
-              navigate(-1);
-            }}
-          >
-            Go Back
-          </Button>
-        }
-      />
-    );
+    return <EmptyStateUnsupportedFile />;
   }
 
   if (pendingClientLoad) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex h-full items-center justify-center p-8 text-muted-foreground"
-      >
-        Loading…
-      </div>
-    );
+    return <LoaderView label="Loading files…" />;
   }
 
-  return (
-    <EmptyState
-      title="No objects found in this bucket."
-      description="Try uploading some files or check your permissions."
-      icon="Ban"
-      action={
-        <Button
-          onPress={() => {
-            navigate(-1);
-          }}
-        >
-          Go Back
-        </Button>
-      }
-    />
-  );
+  return <EmptyStateNoObjects />;
 }

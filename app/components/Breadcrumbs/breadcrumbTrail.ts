@@ -46,7 +46,9 @@ export function nodeToTrail(node: TreeNode): TreeNode[] {
   segments.forEach((segment, index) => {
     acc = acc ? `${acc}/${segment}` : segment;
     const isLeaf = index === segments.length - 1;
-    trail.push(isLeaf ? node : buildDirectoryNode(connectionId, node.connectionName, acc, segment));
+    trail.push(
+      isLeaf ? node : buildDirectoryNode(connectionId, node.connectionName, `${acc}/`, segment),
+    );
   });
 
   return trail;
