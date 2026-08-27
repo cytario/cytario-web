@@ -6,7 +6,7 @@ import {
   EmptyStateConnectionError,
   EmptyStateUnsupportedFile,
   EmptyStateNoObjects,
-} from "./objects.empty-states";
+} from "./objects.emptyStates";
 import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { buildCurrentNode } from "./objects.node";
 import { useRecordRecentView } from "../recent/useRecordRecentView";

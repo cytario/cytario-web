@@ -17,7 +17,7 @@ export function getPrefix(path?: string) {
 
 export function getName(path?: string, bucketName?: string): string {
   if (!path) return bucketName ?? "";
-  return path.split("/").pop() ?? "";
+  return path.replace(/\/+$/, "").split("/").pop() ?? "";
 }
 
 /** Thrown when a caller-supplied prefix escapes the connection's `prefix` boundary. */
@@ -41,6 +41,11 @@ export interface ResolvedConnectionPrefix {
  * Compose the S3 listing prefix, asserting `rawUrlPath` stays under
  * `connPrefix`. Defense in depth above STS / bucket policy. Throws
  * `ConnectionPrefixError` on `..` segments or out-of-prefix paths.
+ *
+ * A trailing slash on `rawUrlPath` is preserved in `urlPath` — it is the
+ * discriminator between a file (`slide.ome.tiff`) and a directory
+ * (`slide.ome.tiff/`). `pathName` (the S3 key) never carries the slash;
+ * `prefix` adds one via `getPrefix` for LIST requests.
  */
 export function resolveConnectionPrefix(
   connPrefix: string | null | undefined,
@@ -53,7 +58,9 @@ export function resolveConnectionPrefix(
     }
   }
 
-  const urlPath = segments.filter((s) => s !== "" && s !== ".").join("/");
+  const hasTrailingSlash = rawUrlPath.endsWith("/");
+  const urlPathClean = segments.filter((s) => s !== "" && s !== ".").join("/");
+  const urlPath = hasTrailingSlash && urlPathClean ? `${urlPathClean}/` : urlPathClean;
 
   const normalizedConnPrefix = (connPrefix ?? "").replace(/^\/+|\/+$/g, "");
 

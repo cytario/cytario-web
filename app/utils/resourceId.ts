@@ -57,12 +57,11 @@ export function ancestorDirIds(connectionId: string, pathName: string): string[]
   return ids;
 }
 
-/** Builds a routable URL path from a connection id and an object path. */
+/** Builds a routable URL path from a connection id and an object path.
+ *  A trailing slash is preserved — it is the discriminator between a file
+ *  (`slide.ome.tiff`) and a directory (`slide.ome.tiff/`). */
 export function buildConnectionPath(connectionId: string, pathName: string): string {
-  const path = pathName
-    ? `/connections/${connectionId}/${pathName}`
-    : `/connections/${connectionId}`;
-  return path.replace(/\/$/, "");
+  return pathName ? `/connections/${connectionId}/${pathName}` : `/connections/${connectionId}`;
 }
 
 /**

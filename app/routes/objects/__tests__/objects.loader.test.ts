@@ -167,7 +167,38 @@ describe("objects loader (C-193)", () => {
     expect(result.notification?.message).toMatch(/truncated/i);
   });
 
-  test("clientLoader falls back to isSingleFile when the listing is empty", async () => {
+  test("clientLoader shows directory when path has trailing slash and directory exists", async () => {
+    const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
+      connectionName: "test-conn",
+      bucketName: "b",
+      urlPath: "some/folder/",
+      pathName: "some/folder/",
+      name: "folder",
+      credentials: mock.credentials(),
+      connectionConfig: mock.connectionConfig({ prefix: "" }),
+      serverDeterminedSingleFile: false,
+      pendingClientLoad: true,
+    });
+
+    listObjectsClient.mockResolvedValueOnce({
+      contents: [{ Key: "some/folder/file.tif" }],
+      commonPrefixes: [],
+      isCapped: false,
+    });
+
+    const request = new Request("http://localhost/connections/test-conn/some/folder/");
+    const result = await clientLoader({
+      request,
+      params: { id: "test-conn", "*": "some/folder/" },
+      serverLoader,
+    } as never);
+
+    expect(result.isSingleFile).toBeFalsy();
+    expect(result.nodes.length).toBeGreaterThan(0);
+  });
+
+  test("clientLoader returns isSingleFile for file path without trailing slash (skips LIST)", async () => {
     const serverLoader = vi.fn().mockResolvedValue({
       connectionId: "test-conn",
       connectionName: "test-conn",
@@ -181,12 +212,6 @@ describe("objects loader (C-193)", () => {
       pendingClientLoad: true,
     });
 
-    listObjectsClient.mockResolvedValueOnce({
-      contents: [],
-      commonPrefixes: [],
-      isCapped: false,
-    });
-
     const request = new Request("http://localhost/connections/test-conn/some/file.tif");
     const result = await clientLoader({
       request,
@@ -196,6 +221,7 @@ describe("objects loader (C-193)", () => {
 
     expect(result.isSingleFile).toBe(true);
     expect(result.nodes).toEqual([]);
+    expect(listObjectsClient).not.toHaveBeenCalled();
   });
 
   test("clientLoader flips pendingClientLoad to false once it resolves", async () => {

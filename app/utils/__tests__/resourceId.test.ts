@@ -59,8 +59,8 @@ describe("buildConnectionPath", () => {
     );
   });
 
-  test("strips trailing slash", () => {
-    expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder");
+  test("preserves trailing slash", () => {
+    expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder/");
   });
 });
 

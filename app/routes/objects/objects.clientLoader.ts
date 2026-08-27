@@ -24,6 +24,10 @@ export const clientLoader = async ({
     return { ...resolved, nodes: [], isSingleFile: true };
   }
 
+  if (resolved.urlPath && !resolved.urlPath.endsWith("/")) {
+    return { ...resolved, nodes: [], isSingleFile: true };
+  }
+
   try {
     const provider = useConnectionsStore.getState().connections[resolved.connectionId]?.provider;
     const { nodes, isCapped } = await loadConnectionLevel({
@@ -35,10 +39,6 @@ export const clientLoader = async ({
       urlPath: resolved.urlPath,
       signal: request.signal,
     });
-
-    if (nodes.length === 0) {
-      return { ...resolved, nodes: [], isSingleFile: true };
-    }
 
     return {
       ...resolved,

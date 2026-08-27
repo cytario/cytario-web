@@ -48,7 +48,7 @@ describe("pathUtils", () => {
     });
 
     test("should handle path with trailing slash", () => {
-      expect(getName("folder/subfolder/")).toBe("");
+      expect(getName("folder/subfolder/")).toBe("subfolder");
     });
 
     test("should handle single segment path", () => {
@@ -99,10 +99,26 @@ describe("pathUtils", () => {
       });
     });
 
+    test("preserves trailing slash in urlPath for directory paths", () => {
+      expect(resolveConnectionPrefix("scope", "sub/dir/")).toEqual({
+        urlPath: "sub/dir/",
+        pathName: "scope/sub/dir/",
+        prefix: "scope/sub/dir/",
+      });
+    });
+
+    test("does not add trailing slash for file paths", () => {
+      expect(resolveConnectionPrefix("scope", "sub/file.txt")).toEqual({
+        urlPath: "sub/file.txt",
+        pathName: "scope/sub/file.txt",
+        prefix: "scope/sub/file.txt/",
+      });
+    });
+
     test("squashes empty segments and '.' segments", () => {
       expect(resolveConnectionPrefix("scope", "/sub//./dir/")).toMatchObject({
-        urlPath: "sub/dir",
-        pathName: "scope/sub/dir",
+        urlPath: "sub/dir/",
+        pathName: "scope/sub/dir/",
       });
     });
 
