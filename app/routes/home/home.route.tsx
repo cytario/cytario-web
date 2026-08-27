@@ -12,7 +12,7 @@ import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
 import { type LoaderData } from "~/routes/connections/connections.loader";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
-import { isImageFile } from "~/utils/fileType";
+import { getFileCategory } from "~/utils/fileType";
 import { favoriteToNode, filterByKnownConnection, recentToNode } from "~/utils/treeNodeFactories";
 
 const title = "cytario®";
@@ -69,7 +69,7 @@ export default function HomeRoute() {
     const files: TreeNode[] = [];
     for (const n of allRecentItems) {
       if (n.type === "directory") dirs.push(n);
-      else if (isImageFile(n.name)) images.push(n);
+      else if (getFileCategory(n.name) === "image") images.push(n);
       else files.push(n);
     }
     return { recentImages: images, recentDirs: dirs, recentFiles: files };

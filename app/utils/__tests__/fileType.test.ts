@@ -1,18 +1,13 @@
 import { describe, expect, test } from "vitest";
 
-import { getFileType, isImageFile, isTextFile } from "../fileType";
+import { getFileCategory, getFileType, getFileTypeEntry, isDownloadable } from "../fileType";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 describe("getFileType", () => {
-  test("identifies OME-TIFF files (takes precedence over TIFF)", () => {
+  test("identifies OME-TIFF files", () => {
     expect(getFileType("image.ome.tiff")).toBe("OME-TIFF");
     expect(getFileType("image.ome.tif")).toBe("OME-TIFF");
     expect(getFileType("IMAGE.OME.TIFF")).toBe("OME-TIFF");
-  });
-
-  test("identifies TIFF files", () => {
-    expect(getFileType("photo.tiff")).toBe("TIFF");
-    expect(getFileType("photo.tif")).toBe("TIFF");
   });
 
   test("identifies Parquet files", () => {
@@ -24,9 +19,8 @@ describe("getFileType", () => {
     expect(getFileType("table.csv")).toBe("CSV");
   });
 
-  test("identifies JSON and NDJSON files", () => {
+  test("identifies JSON files", () => {
     expect(getFileType("config.json")).toBe("JSON");
-    expect(getFileType("stream.ndjson")).toBe("JSON");
   });
 
   test("identifies YAML and TXT files", () => {
@@ -35,13 +29,10 @@ describe("getFileType", () => {
     expect(getFileType("notes.txt")).toBe("TXT");
   });
 
-  test("identifies image files", () => {
-    expect(getFileType("photo.png")).toBe("PNG");
-    expect(getFileType("photo.jpg")).toBe("JPEG");
-    expect(getFileType("photo.jpeg")).toBe("JPEG");
-  });
-
   test("returns Unknown for unrecognized extensions", () => {
+    expect(getFileType("photo.png")).toBe("Unknown");
+    expect(getFileType("photo.jpg")).toBe("Unknown");
+    expect(getFileType("photo.tiff")).toBe("Unknown");
     expect(getFileType("file.xyz")).toBe("Unknown");
     expect(getFileType("readme.md")).toBe("Unknown");
   });
@@ -55,53 +46,60 @@ describe("getFileType", () => {
   });
 });
 
-describe("isImageFile", () => {
-  test("returns true for image types", () => {
-    expect(isImageFile("photo.tiff")).toBe(true);
-    expect(isImageFile("image.ome.tiff")).toBe(true);
-    expect(isImageFile("image.ome.zarr")).toBe(true);
-    expect(isImageFile("image.zarr")).toBe(true);
-    expect(isImageFile("photo.png")).toBe(true);
-    expect(isImageFile("photo.jpg")).toBe(true);
+describe("getFileCategory", () => {
+  test("returns image for OME-TIFF and OME-Zarr", () => {
+    expect(getFileCategory("image.ome.tiff")).toBe("image");
+    expect(getFileCategory("image.ome.tif")).toBe("image");
+    expect(getFileCategory("image.ome.zarr")).toBe("image");
+    expect(getFileCategory("image.zarr")).toBe("image");
   });
 
-  test("returns false for non-image types", () => {
-    expect(isImageFile("table.csv")).toBe(false);
-    expect(isImageFile("data.parquet")).toBe(false);
-    expect(isImageFile("config.json")).toBe(false);
-    expect(isImageFile("unknown.xyz")).toBe(false);
-    expect(isImageFile("Makefile")).toBe(false);
+  test("returns tabular for CSV and Parquet", () => {
+    expect(getFileCategory("table.csv")).toBe("tabular");
+    expect(getFileCategory("data.parquet")).toBe("tabular");
+  });
+
+  test("returns text for JSON, YAML, TXT", () => {
+    expect(getFileCategory("config.json")).toBe("text");
+    expect(getFileCategory("manifest.yaml")).toBe("text");
+    expect(getFileCategory("manifest.yml")).toBe("text");
+    expect(getFileCategory("notes.txt")).toBe("text");
+  });
+
+  test("returns none for unknown / removed types", () => {
+    expect(getFileCategory("photo.png")).toBe("none");
+    expect(getFileCategory("photo.tiff")).toBe("none");
+    expect(getFileCategory("unknown.xyz")).toBe("none");
+    expect(getFileCategory("Makefile")).toBe("none");
   });
 });
 
-describe("isTextFile", () => {
-  test("returns true for editable text types", () => {
-    expect(isTextFile("config.json")).toBe(true);
-    expect(isTextFile("manifest.yaml")).toBe(true);
-    expect(isTextFile("manifest.yml")).toBe(true);
-    expect(isTextFile("notes.txt")).toBe(true);
+describe("isDownloadable", () => {
+  test("returns true for text files (JSON, YAML, TXT)", () => {
+    expect(isDownloadable("config.json")).toBe(true);
+    expect(isDownloadable("manifest.yaml")).toBe(true);
+    expect(isDownloadable("manifest.yml")).toBe(true);
+    expect(isDownloadable("notes.txt")).toBe(true);
   });
 
-  test("returns false for NDJSON — stays on DataGrid", () => {
-    expect(isTextFile("stream.ndjson")).toBe(false);
+  test("returns false for non-text files", () => {
+    expect(isDownloadable("image.ome.tif")).toBe(false);
+    expect(isDownloadable("image.zarr")).toBe(false);
+    expect(isDownloadable("table.csv")).toBe(false);
+    expect(isDownloadable("data.parquet")).toBe(false);
+    expect(isDownloadable("unknown.xyz")).toBe(false);
+  });
+});
+
+describe("getFileTypeEntry", () => {
+  test("returns the full entry for a known file type", () => {
+    const entry = getFileTypeEntry("config.json");
+    expect(entry?.type).toBe("JSON");
+    expect(entry?.category).toBe("text");
   });
 
-  test("returns false for tabular and image types", () => {
-    expect(isTextFile("table.csv")).toBe(false);
-    expect(isTextFile("data.parquet")).toBe(false);
-    expect(isTextFile("photo.png")).toBe(false);
-    expect(isTextFile("image.ome.tif")).toBe(false);
-  });
-
-  test("returns false for unknown extensions", () => {
-    expect(isTextFile("readme.md")).toBe(false);
-    expect(isTextFile("Makefile")).toBe(false);
-    expect(isTextFile("file.xyz")).toBe(false);
-  });
-
-  test("strips query strings before matching", () => {
-    expect(isTextFile("config.json?X-Amz-Signature=abc")).toBe(true);
-    expect(isTextFile("notes.txt#fragment")).toBe(true);
+  test("returns undefined for unknown types", () => {
+    expect(getFileTypeEntry("file.xyz")).toBeUndefined();
   });
 });
 
@@ -115,7 +113,7 @@ describe("plugin-derived file types", () => {
       load: async () => ({ data: [], metadata: {} as never }),
     });
     expect(getFileType("file.xyz")).toBe("my-plugin");
-    expect(isImageFile("file.xyz")).toBe(true);
+    expect(getFileCategory("file.xyz")).toBe("image");
   });
 
   test("uses fileTypeMeta.label and fileTypeMeta.icon when provided", () => {
@@ -127,10 +125,6 @@ describe("plugin-derived file types", () => {
   });
 
   test("plugin entries do not shadow built-in OME-TIFF/OME-Zarr (built-ins stay in STATIC_FILE_TYPES)", () => {
-    // Built-ins (cytario-web) are excluded from plugin-derived entries; the
-    // hardcoded STATIC_FILE_TYPES still owns the OME-TIFF / OME-Zarr labels
-    // — proven by the existing test cases above which never depend on the
-    // registry being bootstrapped.
     expect(getFileType("image.ome.tif")).toBe("OME-TIFF");
     expect(getFileType("image.zarr")).toBe("OME-Zarr");
   });
@@ -142,7 +136,7 @@ describe("zarr trailing-slash and compound extensions", () => {
     expect(getFileType("image.ome.zarr/")).toBe("OME-Zarr");
   });
 
-  test(".ome.tiff resolves to OME-TIFF, not TIFF", () => {
+  test(".ome.tiff resolves to OME-TIFF", () => {
     expect(getFileType("image.ome.tiff")).toBe("OME-TIFF");
   });
 });
@@ -150,7 +144,6 @@ describe("zarr trailing-slash and compound extensions", () => {
 describe("query-string and fragment handling", () => {
   test("presigned URLs (?sig=...) resolve to the correct type", () => {
     expect(getFileType("image.ome.tif?sig=abc&exp=123")).toBe("OME-TIFF");
-    expect(getFileType("photo.png?cache=bust")).toBe("PNG");
     expect(getFileType("data.parquet?range=0-1024")).toBe("Parquet");
   });
 
@@ -158,8 +151,8 @@ describe("query-string and fragment handling", () => {
     expect(getFileType("image.ome.tif#region-1")).toBe("OME-TIFF");
   });
 
-  test("isImageFile honours query-stripped extension", () => {
-    expect(isImageFile("photo.jpg?expires=tomorrow")).toBe(true);
-    expect(isImageFile("data.csv?range=0-100")).toBe(false);
+  test("getFileCategory honours query-stripped extension", () => {
+    expect(getFileCategory("config.json?X-Amz-Signature=abc")).toBe("text");
+    expect(getFileCategory("data.csv?range=0-100")).toBe("tabular");
   });
 });

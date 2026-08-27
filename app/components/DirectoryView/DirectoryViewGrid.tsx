@@ -13,7 +13,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { liveCredentials, select, selectHttpsUrl } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { enrichDirectoryPreviews } from "~/utils/enrichDirectoryPreviews";
-import { isImageFile } from "~/utils/fileType";
+import { getFileCategory } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
@@ -87,8 +87,8 @@ function usePreviewResourceId(node: TreeNode, connectionId: string) {
   const { connectionConfig } = useSignedFetch(connectionId);
   return useMemo(() => {
     const explicitKey = node._Object?.Key ?? null;
-    const isImage = explicitKey ? isImageFile(explicitKey) : isImageFile(node.name);
-    if (!isImage) return null;
+    const keyToCheck = explicitKey ?? node.name;
+    if (getFileCategory(keyToCheck) !== "image") return null;
     if (!explicitKey) return node.id;
     if (!connectionConfig) return null;
     const prefix = connectionConfig.prefix?.replace(/^\/+|\/+$/g, "") ?? "";

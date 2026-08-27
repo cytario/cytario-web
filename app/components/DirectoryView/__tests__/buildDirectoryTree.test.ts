@@ -182,7 +182,6 @@ describe("buildLevelTree", () => {
         name: "subdir",
         pathName: "subdir/",
         children: [],
-        hasChildren: true,
         isLeaf: false,
         loadState: "idle",
       },
@@ -194,7 +193,6 @@ describe("buildLevelTree", () => {
         name: "czi",
         pathName: "czi/",
         children: [],
-        hasChildren: true,
         isLeaf: false,
         loadState: "idle",
       },
@@ -246,7 +244,6 @@ describe("buildLevelTree", () => {
       type: "file",
       name: "data.zarr",
       isLeaf: true,
-      hasChildren: false,
       loadState: undefined,
     });
     expect(nodes[0].children).toBeUndefined();
@@ -271,7 +268,6 @@ describe("buildLevelTree", () => {
         name: "sub",
         pathName: "outer/inner/sub/",
         children: [],
-        hasChildren: true,
         isLeaf: false,
         loadState: "idle",
       },

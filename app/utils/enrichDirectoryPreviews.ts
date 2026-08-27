@@ -6,13 +6,13 @@ import { listObjectsClient } from "./listObjects/listObjectsClient";
 import { getPrefix, resolveConnectionPrefix } from "./pathUtils";
 import type { ConnectionConfig } from "~/.generated/client";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { isImageFile } from "~/utils/fileType";
+import { getFileCategory } from "~/utils/fileType";
 
 const PREVIEW_CONCURRENCY = 4;
 const PREVIEW_MAX_KEYS = 100;
 const PREVIEW_MAX_TOTAL = 100;
 
-const isImagePreview = (obj: _Object) => isImageFile(obj.Key ?? "");
+const isImagePreview = (obj: _Object) => getFileCategory(obj.Key ?? "") === "image";
 
 export interface EnrichDirectoryPreviewsArgs {
   connectionConfig: ConnectionConfig;

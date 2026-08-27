@@ -33,12 +33,12 @@ describe("getNodeIcon", () => {
     expect(getNodeIcon(makeNode({ name: "sample.ome.tiff" }))).toBe("Microscope");
   });
 
-  test("returns Image for .png files", () => {
-    expect(getNodeIcon(makeNode({ name: "photo.png" }))).toBe("Image");
+  test("returns File for .png files (removed from registry)", () => {
+    expect(getNodeIcon(makeNode({ name: "photo.png" }))).toBe("File");
   });
 
-  test("returns Image for .jpg files", () => {
-    expect(getNodeIcon(makeNode({ name: "photo.jpg" }))).toBe("Image");
+  test("returns File for .jpg files (removed from registry)", () => {
+    expect(getNodeIcon(makeNode({ name: "photo.jpg" }))).toBe("File");
   });
 
   test("returns FileSpreadsheet for .csv files", () => {

@@ -1,6 +1,6 @@
-import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
+import { getFileType } from "~/utils/fileType";
 
 export interface ParquetColumn {
   name: string;
@@ -9,7 +9,7 @@ export interface ParquetColumn {
 
 /**
  * Fetch the schema (column names and types) from a data file on S3.
- * Supports: parquet, csv, json
+ * Supports: parquet, csv
  */
 export async function getParquetSchema(resourceId: string): Promise<ParquetColumn[]> {
   const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
@@ -18,17 +18,18 @@ export async function getParquetSchema(resourceId: string): Promise<ParquetColum
 
   let result;
 
-  if (fileType === "parquet") {
+  if (fileType === "CSV") {
+    result = await connection.query(/*sql*/ `
+      DESCRIBE SELECT * FROM read_csv_auto('${s3Uri}', comment = '#')
+    `);
+  } else if (fileType === "Parquet") {
     result = await connection.query(/*sql*/ `
       SELECT name, type
       FROM parquet_schema('${s3Uri}')
       WHERE type IS NOT NULL
     `);
   } else {
-    const readFn = getReadFunction(fileType, s3Uri);
-    result = await connection.query(/*sql*/ `
-      DESCRIBE SELECT * FROM ${readFn}
-    `);
+    throw new Error(`Unsupported file type for schema extraction: ${fileType}`);
   }
 
   const columns: ParquetColumn[] = [];

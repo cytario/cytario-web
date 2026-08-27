@@ -1,10 +1,10 @@
-import { getFileType, getReadFunction } from "./fileReader";
 import { createDatabase } from "../../utils/db/createDatabase";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
+import { getFileType } from "~/utils/fileType";
 
 /**
  * Fetch rows from a data file on S3.
- * Supports: parquet, csv, json
+ * Supports: parquet, csv
  */
 export async function getParquetRows(
   resourceId: string,
@@ -13,8 +13,8 @@ export async function getParquetRows(
 ): Promise<Record<string, unknown>[]> {
   const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
   const connection = await createDatabase(resourceId, credentials, { region, endpoint });
-  const fileType = getFileType(resourceId);
-  const readFn = getReadFunction(fileType, s3Uri);
+  const isCsv = getFileType(resourceId) === "CSV";
+  const readFn = isCsv ? `read_csv_auto('${s3Uri}', comment = '#')` : `read_parquet('${s3Uri}')`;
 
   const result = await connection.query(/*sql*/ `
     SELECT * FROM ${readFn}
