@@ -52,7 +52,7 @@ const RETRY_DELAY_MS = 100;
  * Lua script for atomic check-and-delete.
  * Only deletes the key if the value matches (prevents stale lock release).
  */
-const RELEASE_LOCK_SCRIPT = `
+const RELEASE_LOCK_SCRIPT = /*sql*/ `
   if redis.call("get", KEYS[1]) == ARGV[1] then
     return redis.call("del", KEYS[1])
   else
@@ -72,6 +72,23 @@ async function readSessionTokensFromStore(sessionId: string): Promise<AuthTokens
 
   const parsed = JSON.parse(data) as Partial<SessionData>;
   return parsed.authTokens ?? null;
+}
+
+/**
+ * Writes the refreshed auth tokens directly to Redis, bypassing the
+ * in-memory LRU cache. Called inside the lock so concurrent waiters
+ * see the new (rotated) refresh token before the lock is released —
+ * without this, a concurrent request that acquires the lock next
+ * would read the old (now-revoked) refresh token from Redis and
+ * fail the refresh, logging the user out.
+ */
+async function writeSessionTokensToStore(sessionId: string, tokens: AuthTokens): Promise<void> {
+  const data = await redis.hget(sessionId, "data");
+  if (!data) return;
+
+  const parsed = JSON.parse(data) as Partial<SessionData>;
+  parsed.authTokens = tokens;
+  await redis.hset(sessionId, "data", JSON.stringify(parsed));
 }
 
 /**
@@ -103,7 +120,17 @@ export async function refreshAccessTokenWithLock(
           return currentTokens;
         }
 
-        return await refreshAccessToken(refreshToken);
+        const newTokens = await refreshAccessToken(refreshToken);
+
+        // Persist the new tokens to Redis BEFORE releasing the lock so
+        // the next lock holder sees the rotated refresh token and skips
+        // the Keycloak call. Without this, there is a window between lock
+        // release and the middleware's commitSession where a concurrent
+        // request reads the old (revoked) refresh token, calls Keycloak,
+        // gets rejected, and logs the user out.
+        await writeSessionTokensToStore(sessionId, newTokens);
+
+        return newTokens;
       } finally {
         await redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockValue);
       }

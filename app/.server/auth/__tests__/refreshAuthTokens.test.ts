@@ -21,6 +21,7 @@ vi.mock("../../db/redis", () => ({
     set: vi.fn(),
     eval: vi.fn(),
     hget: vi.fn(),
+    hset: vi.fn(),
   },
 }));
 
