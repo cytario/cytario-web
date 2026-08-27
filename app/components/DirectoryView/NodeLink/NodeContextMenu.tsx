@@ -12,6 +12,8 @@ import { toastBridge } from "~/toast-bridge";
 import { canModify } from "~/utils/authorization";
 import { resolveResourceId, select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { getUint8ArrayForResourceId } from "~/utils/db/getBlobFromObjectNode";
+import { isDownloadable } from "~/utils/fileType";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 /**
@@ -57,6 +59,9 @@ export const NodeContextMenu = ({
   const isFolder = node.type === "directory" || node.type === "bucket";
   const canShare = isFolder && (connection?.provider?.allowsSharing ?? false);
 
+  const isFile = node.type === "file";
+  const downloadable = isFile && isDownloadable(node.name);
+
   const copyS3Uri = async () => {
     try {
       const { s3Uri } = resolveResourceId(node.id);
@@ -64,6 +69,24 @@ export const NodeContextMenu = ({
       toastBridge.emit({ variant: "success", message: "S3 URI copied to clipboard" });
     } catch {
       toastBridge.emit({ variant: "error", message: "Could not copy the S3 URI" });
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      const data = await getUint8ArrayForResourceId(node.id);
+      const blob = new Blob([data.buffer as ArrayBuffer], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = node.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toastBridge.emit({ variant: "success", message: `Downloaded ${node.name}` });
+    } catch {
+      toastBridge.emit({ variant: "error", message: `Could not download ${node.name}` });
     }
   };
 
@@ -84,6 +107,11 @@ export const NodeContextMenu = ({
             <MenuItem id="copy-s3-uri" icon="Copy" onAction={copyS3Uri}>
               Copy S3 URI
             </MenuItem>
+            {isFile && downloadable && (
+              <MenuItem id="download" icon="Download" onAction={handleDownload}>
+                Download
+              </MenuItem>
+            )}
             <MenuItem
               id="cyberduck"
               icon="Download"
