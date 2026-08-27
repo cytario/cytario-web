@@ -25,7 +25,7 @@ export interface BucketRouteServerLoaderResponse {
   connectionConfig: ConnectionConfig;
   serverDeterminedSingleFile: boolean;
   pendingClientLoad: boolean;
-  connectionError: string | null;
+  connectionError: string | undefined;
 }
 
 export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderResponse {
@@ -49,7 +49,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
 
   const credentials = connectionsCredentials[connectionId] ?? null;
   const connectionError = credentials
-    ? null
+    ? undefined
     : (credentialErrors[connectionId] ??
       "No credentials available for this connection. Verify the connection's role configuration.");
 

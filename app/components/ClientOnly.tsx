@@ -2,7 +2,13 @@ import { useSyncExternalStore } from "react";
 
 const emptySubscribe = () => () => {};
 
-export const ClientOnly = ({ children }: { children: React.ReactNode }) => {
+export const ClientOnly = ({
+  children,
+  fallback = null,
+}: {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) => {
   const isClient = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -10,7 +16,7 @@ export const ClientOnly = ({ children }: { children: React.ReactNode }) => {
   );
 
   if (!isClient) {
-    return null;
+    return <>{fallback}</>;
   }
 
   return <>{children}</>;

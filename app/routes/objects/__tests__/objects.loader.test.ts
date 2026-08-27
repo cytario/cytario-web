@@ -55,15 +55,10 @@ describe("objects loader (C-193)", () => {
       url: new URL(request.url),
     });
 
-    // Cache-Control: no-store, private is attached via the route-level
-    // `headers` export in `objects.route.tsx` rather than a `data()`
-    // wrapper — the latter breaks RR v8 single-fetch unwrapping.
     const result = response;
     expect(result.serverDeterminedSingleFile).toBe(true);
     expect(result.isSingleFile).toBe(true);
     expect(result.nodes).toEqual([]);
-    // SSR has no listing yet, so the route component should know to
-    // render a loading skeleton rather than the empty state.
     expect(result.pendingClientLoad).toBe(true);
   });
 
