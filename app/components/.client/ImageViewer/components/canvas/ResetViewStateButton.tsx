@@ -1,24 +1,23 @@
 import { IconButton } from "@cytario/design";
-import { Dispatch, useMemo } from "react";
+import { useMemo } from "react";
 
 import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
-import { ViewerStore, ViewPort, ViewState } from "../../state/store/types";
+import { select } from "../../state/store/selectors";
+import { ViewPort } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
-export const ResetViewStateButton = ({
-  metadata,
-  viewState,
-  setViewState,
-}: {
-  metadata: ViewerStore["metadata"] | null;
-  viewState: ViewState | null;
-  setViewState: Dispatch<ViewState>;
-}) => {
+/** Resets the active panel's view to fit the full image frame. */
+export const ResetViewStateButton = () => {
+  const metadata = useViewerStore(select.metadata);
+  const viewStateActive = useViewerStore(select.viewStateActive);
+  const setViewStateActive = useViewerStore(select.setViewStateActive);
+
   const viewPort = useMemo<ViewPort>(
     () => ({
-      width: viewState?.width ?? 0,
-      height: viewState?.height ?? 0,
+      width: viewStateActive?.width ?? 0,
+      height: viewStateActive?.height ?? 0,
     }),
-    [viewState],
+    [viewStateActive],
   );
 
   return (
@@ -28,10 +27,7 @@ export const ResetViewStateButton = ({
       icon="Fullscreen"
       onPress={() => {
         if (metadata) {
-          const viewStateActive = calculateViewStateToFit(metadata, viewPort, {
-            padding: 48,
-          });
-          setViewState(viewStateActive);
+          setViewStateActive(calculateViewStateToFit(metadata, viewPort, { padding: 48 }));
         }
       }}
     />

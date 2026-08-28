@@ -23,9 +23,9 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 import { getFileCategory } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
 
-const Viewer = lazy(() =>
+const ImageViewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then((module) => ({
-    default: module.Viewer,
+    default: module.ImageViewer,
   })),
 );
 
@@ -156,7 +156,7 @@ export default function ObjectsRoute() {
       return (
         <ClientOnly>
           <Suspense fallback={<LoaderView label="Loading viewer…" />}>
-            <Viewer resourceId={resourceId} signedFetch={signedFetch} />
+            <ImageViewer resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );

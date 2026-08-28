@@ -1,5 +1,6 @@
 import { IconButton } from "@cytario/design";
 
+import { FloatingBar } from "./FloatingBar";
 import { type AnnotationMode } from "../state/store/types";
 import { useUndoRedo } from "../state/store/useUndoRedo";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
@@ -7,14 +8,12 @@ import { useViewerStore } from "../state/store/ViewerStoreContext";
 const tools = [
   { mode: "view", icon: "Hand", label: "Drag, pan, and zoom" },
   { mode: "inspect", icon: "Search", label: "Inspect pixel values" },
-  { mode: "draw-polygon", icon: "Pentagon", label: "Draw polygon" },
   { mode: "draw-freehand", icon: "Pencil", label: "Draw freehand" },
+  { mode: "draw-polygon", icon: "Pentagon", label: "Draw polygon" },
   { mode: "draw-point", icon: "MapPin", label: "Draw point" },
 ] as const;
 
-/**
- * Floating canvas toolbar: interaction modes + undo/redo.
- */
+/** Floating canvas toolbar: interaction modes + undo/redo. */
 export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
@@ -26,14 +25,12 @@ export const Toolbar = () => {
     setMode(target);
   };
 
-  const cx = `
-    absolute bottom-8 left-1/2 -translate-x-1/2 z-30
-    flex flex-row items-center p-2 gap-4 rounded-full    
-    bg-background/80 backdrop-blur-sm shadow-md
-  `;
-
   return (
-    <div className={cx} role="toolbar" aria-label="Annotation tools">
+    <FloatingBar
+      role="toolbar"
+      aria-label="Annotation tools"
+      className="bottom-8 left-1/2 -translate-x-1/2"
+    >
       {tools.map(({ mode, icon, label }) => {
         const isActive = activeMode === mode;
         return (
@@ -63,6 +60,6 @@ export const Toolbar = () => {
         isDisabled={!canRedo}
         onPress={redo}
       />
-    </div>
+    </FloatingBar>
   );
 };
