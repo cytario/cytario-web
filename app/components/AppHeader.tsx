@@ -4,7 +4,7 @@ import { type UserProfile } from "~/.server/auth/getUserInfo";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
-import { PanelToggle } from "~/components/Sidebar/PanelToggle";
+import { ExplorerSidebarToggle } from "~/components/Sidebar/Explorer/ExplorerSidebarToggle";
 import { UserMenu } from "~/components/UserMenu";
 
 interface RootLoaderResponse {
@@ -31,7 +31,7 @@ export function AppHeader() {
       `}
     >
       <div className="h-full flex items-center gap-1 shrink min-w-0 pl-2">
-        <PanelToggle />
+        <ExplorerSidebarToggle />
         <Breadcrumbs />
       </div>
 

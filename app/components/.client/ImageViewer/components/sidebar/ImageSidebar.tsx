@@ -1,17 +1,19 @@
 import { useViewerSidebarStore } from "../ImageViewer";
 import { AnnotationsControl } from "./AnnotationsControl/AnnotationsControl";
 import { ChannelsControl } from "./ChannelsControl/ChannelsControl";
+import { ImageSidebarToggle } from "./ImageSidebarToggle";
 import { OverlaysControl } from "./OverlaysControl/OverlaysControl";
 import { OverviewControl } from "./OverviewControl/OverviewControl";
-import { SidebarToggle } from "./SidebarToggle";
 import { ViewsControl } from "./ViewsControl/ViewsControl";
-import { Sidebar, SIDEBAR } from "~/components/Sidebar/Sidebar";
+import { Sidebar } from "~/components/Sidebar/Sidebar";
+
+export const IMAGE_SIDEBAR_NAME = "Image Controls";
 
 /** Viewer controls sidebar: overview, views, channels, overlays, annotations. */
 export const ImageSidebar = () => (
   <>
     <Sidebar
-      name={SIDEBAR.viewer}
+      name={IMAGE_SIDEBAR_NAME}
       side="right"
       store={useViewerSidebarStore}
       toggleShortcut="mod+shift+b"
@@ -23,6 +25,6 @@ export const ImageSidebar = () => (
       <OverlaysControl />
       <AnnotationsControl />
     </Sidebar>
-    <SidebarToggle />
+    <ImageSidebarToggle />
   </>
 );

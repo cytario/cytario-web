@@ -4,9 +4,6 @@ import { useEffect, type ReactNode } from "react";
 import { SIDEBAR_MIN_WIDTH, type SidebarStoreApi } from "./createSidebarStore";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
 
-/** Human-facing names — single source for aria-label + derived DOM ids. */
-export const SIDEBAR = { nav: "Navigation", viewer: "Image controls" } as const;
-
 const slug = (name: string) => name.toLowerCase().replace(/\s+/g, "-");
 export const sidebarDomId = (name: string) => `${slug(name)}-sidebar`;
 export const sidebarToggleId = (name: string) => `${slug(name)}-toggle`;
