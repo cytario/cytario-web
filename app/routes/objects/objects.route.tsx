@@ -20,7 +20,7 @@ import { LoaderView } from "~/components/Loader/LoaderView";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { getFileType, isImageFile, isTextFile } from "~/utils/fileType";
+import { getFileCategory } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const Viewer = lazy(() =>
@@ -98,7 +98,6 @@ export default function ObjectsRoute() {
   }, [notification]);
 
   const resourceId = `${connectionId}/${urlPath}`;
-  const fileType = getFileType(resourceId);
 
   useRecordRecentView(resourceId, { connectionId, pathName: urlPath, name, isSingleFile });
 
@@ -120,9 +119,9 @@ export default function ObjectsRoute() {
   }
 
   if (isSingleFile) {
-    const isTabularFile = ["CSV", "Parquet"].includes(fileType);
+    const category = getFileCategory(resourceId);
 
-    if (isTextFile(resourceId)) {
+    if (category === "text") {
       const signedFetch = createSignedFetch(
         liveCredentials(connectionId),
         signingRegion,
@@ -137,7 +136,7 @@ export default function ObjectsRoute() {
       );
     }
 
-    if (isTabularFile) {
+    if (category === "tabular") {
       return (
         <ClientOnly fallback={<LoaderView label="Loading data…" />}>
           <Suspense fallback={<LoaderView label="Loading data…" />}>
@@ -147,7 +146,7 @@ export default function ObjectsRoute() {
       );
     }
 
-    if (isImageFile(resourceId)) {
+    if (category === "image") {
       const signedFetch = createSignedFetch(
         liveCredentials(connectionId),
         signingRegion,

@@ -5,24 +5,24 @@ import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 export type FileType =
   | "OME-TIFF"
   | "OME-Zarr"
-  | "TIFF"
   | "Parquet"
   | "CSV"
   | "JSON"
   | "YAML"
   | "TXT"
-  | "PNG"
-  | "JPEG"
   | "Directory"
   | "Unknown"
   | string;
+
+/** Broad rendering category — determines which viewer component handles a file. */
+export type FileCategory = "image" | "text" | "tabular" | "none";
 
 interface FileTypeEntry {
   pattern: RegExp;
   type: FileType;
   label: string;
   icon: IconName;
-  isImage: boolean;
+  category: FileCategory;
 }
 
 // Matched top-to-bottom — OME-TIFF must precede TIFF so `.ome.tif` hits the
@@ -34,84 +34,49 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     type: "OME-TIFF",
     label: "OME-TIFF",
     icon: "Microscope",
-    isImage: true,
+    category: "image",
   },
   {
-    pattern: /\.ome\.zarr\/?$/i,
+    pattern: /\.(?:ome\.)?zarr\/?$/i,
     type: "OME-Zarr",
     label: "OME-Zarr",
     icon: "Microscope",
-    isImage: true,
-  },
-  {
-    pattern: /\.zarr\/?$/i,
-    type: "OME-Zarr",
-    label: "OME-Zarr",
-    icon: "Microscope",
-    isImage: true,
-  },
-  {
-    pattern: /\.tiff?$/i,
-    type: "TIFF",
-    label: "TIFF",
-    icon: "Image",
-    isImage: true,
+    category: "image",
   },
   {
     pattern: /\.parquet$/i,
     type: "Parquet",
     label: "Parquet",
     icon: "Table",
-    isImage: false,
+    category: "tabular",
   },
   {
     pattern: /\.csv$/i,
     type: "CSV",
     label: "CSV",
     icon: "FileSpreadsheet",
-    isImage: false,
-  },
-  {
-    pattern: /\.ndjson$/i,
-    type: "JSON",
-    label: "NDJSON",
-    icon: "Braces",
-    isImage: false,
+    category: "tabular",
   },
   {
     pattern: /\.json$/i,
     type: "JSON",
     label: "JSON",
     icon: "Braces",
-    isImage: false,
+    category: "text",
   },
   {
     pattern: /\.(ya?ml)$/i,
     type: "YAML",
     label: "YAML",
     icon: "File",
-    isImage: false,
+    category: "text",
   },
   {
     pattern: /\.txt$/i,
     type: "TXT",
     label: "Text",
     icon: "File",
-    isImage: false,
-  },
-  {
-    pattern: /\.png$/i,
-    type: "PNG",
-    label: "PNG",
-    icon: "Image",
-    isImage: true,
-  },
-  {
-    pattern: /\.jpe?g$/i,
-    type: "JPEG",
-    label: "JPEG",
-    icon: "Image",
-    isImage: true,
+    category: "text",
   },
 ];
 
@@ -142,7 +107,7 @@ function pluginFileTypes(): FileTypeEntry[] {
         type: label,
         label,
         icon,
-        isImage: true,
+        category: "image",
       });
     }
   }
@@ -192,35 +157,20 @@ export function stripUrlSuffix(path: string): string {
   return path.slice(0, end);
 }
 
+/** Returns the first matching {@link FileTypeEntry} for a file path or key. */
+export function getFileTypeEntry(nameOrKey: string): FileTypeEntry | undefined {
+  const cleaned = stripUrlSuffix(nameOrKey);
+  return allFileTypes().find((entry) => entry.pattern.test(cleaned));
+}
+
 /** Returns a human-readable file type label from a file path or key. */
 export function getFileType(path: string): FileType {
-  const cleaned = stripUrlSuffix(path);
-  for (const entry of allFileTypes()) {
-    if (entry.pattern.test(cleaned)) return entry.type;
-  }
-  return "Unknown";
+  return getFileTypeEntry(path)?.type ?? "Unknown";
 }
 
-/** Returns true if the name or key matches a viewable image type. */
-export function isImageFile(nameOrKey: string): boolean {
-  const cleaned = stripUrlSuffix(nameOrKey);
-  for (const entry of allFileTypes()) {
-    if (entry.pattern.test(cleaned)) return entry.isImage;
-  }
-  return false;
-}
-
-/**
- * Returns true if the name or key matches an editable text-based file type.
- *
- * NDJSON (`.ndjson`) is deliberately excluded — it stays on `<DataGrid>`
- * via `read_json_auto` because each line is a separate record and the
- * tabular view is the better UX.
- */
-export function isTextFile(nameOrKey: string): boolean {
-  const cleaned = stripUrlSuffix(nameOrKey);
-  if (/\.ndjson$/i.test(cleaned)) return false;
-  return /\.(json|ya?ml|txt)$/i.test(cleaned);
+/** Returns the rendering category for a file path or key. */
+export function getFileCategory(nameOrKey: string): FileCategory {
+  return getFileTypeEntry(nameOrKey)?.category ?? "none";
 }
 
 export type { FileTypeEntry };

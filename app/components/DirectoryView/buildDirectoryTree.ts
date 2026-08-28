@@ -1,6 +1,6 @@
 import type { _Object } from "@aws-sdk/client-s3";
 
-import { isImageFile } from "~/utils/fileType";
+import { getFileCategory } from "~/utils/fileType";
 import { isZarrPath } from "~/utils/zarrUtils";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
@@ -21,7 +21,6 @@ export interface TreeNode {
 
   _Object?: _Object;
 
-  hasChildren?: boolean;
   isLeaf?: boolean;
   /** `"idle"` marks a lazy stub awaiting fetch via `DirectoryViewTree`'s `onExpand`. */
   loadState?: "idle";
@@ -82,7 +81,10 @@ function buildDirectoryTreeRecursive(
         _Object: obj,
       };
       currentDir.push(existingDir);
-    } else if (isImageFile(obj.Key ?? "") && !isImageFile(existingDir._Object?.Key ?? "")) {
+    } else if (
+      getFileCategory(obj.Key ?? "") === "image" &&
+      getFileCategory(existingDir._Object?.Key ?? "") !== "image"
+    ) {
       existingDir._Object = obj;
     }
 
@@ -185,7 +187,6 @@ export function buildLevelTree({
       name,
       pathName,
       children: isZarr ? undefined : [],
-      hasChildren: !isZarr,
       isLeaf: isZarr,
       loadState: isZarr ? undefined : "idle",
     });

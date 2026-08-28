@@ -43,7 +43,6 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
         name: connectionName,
         pathName: "",
         children: [],
-        hasChildren: true,
         isLeaf: false,
         loadState: "idle",
       },

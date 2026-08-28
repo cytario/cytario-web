@@ -18,7 +18,6 @@ function makeDirNode(name: string, pathName: string): TreeNode {
     name,
     pathName,
     children: [],
-    hasChildren: true,
     isLeaf: false,
     loadState: "idle",
   };
@@ -34,12 +33,12 @@ describe("enrichDirectoryPreviews", () => {
 
     listObjectsClient
       .mockResolvedValueOnce({
-        contents: [{ Key: "scope/dir-a/image.tif" }],
+        contents: [{ Key: "scope/dir-a/image.ome.tif" }],
         commonPrefixes: [],
         isCapped: false,
       })
       .mockResolvedValueOnce({
-        contents: [{ Key: "scope/dir-b/photo.png" }],
+        contents: [{ Key: "scope/dir-b/photo.ome.tif" }],
         commonPrefixes: [],
         isCapped: false,
       });
@@ -50,8 +49,8 @@ describe("enrichDirectoryPreviews", () => {
       connectionId: "conn-id",
     });
 
-    expect(result["conn-id/dir-a"]?.Key).toBe("scope/dir-a/image.tif");
-    expect(result["conn-id/dir-b"]?.Key).toBe("scope/dir-b/photo.png");
+    expect(result["conn-id/dir-a"]?.Key).toBe("scope/dir-a/image.ome.tif");
+    expect(result["conn-id/dir-b"]?.Key).toBe("scope/dir-b/photo.ome.tif");
   });
 
   test("omits directories with no imageable objects from the map", async () => {
@@ -76,13 +75,13 @@ describe("enrichDirectoryPreviews", () => {
     const nodes: TreeNode[] = [
       {
         ...makeDirNode("dir-a", "dir-a"),
-        _Object: { Key: "scope/dir-a/existing.tif" } as never,
+        _Object: { Key: "scope/dir-a/existing.ome.tif" } as never,
       },
       makeDirNode("dir-b", "dir-b"),
     ];
 
     listObjectsClient.mockResolvedValueOnce({
-      contents: [{ Key: "scope/dir-b/image.tif" }],
+      contents: [{ Key: "scope/dir-b/image.ome.tif" }],
       commonPrefixes: [],
       isCapped: false,
     });
@@ -95,13 +94,13 @@ describe("enrichDirectoryPreviews", () => {
 
     expect(listObjectsClient).toHaveBeenCalledTimes(1);
     expect(result["conn-id/dir-a"]).toBeUndefined();
-    expect(result["conn-id/dir-b"]?.Key).toBe("scope/dir-b/image.tif");
+    expect(result["conn-id/dir-b"]?.Key).toBe("scope/dir-b/image.ome.tif");
   });
 
   test("returns empty map when there are no directory nodes", async () => {
     const nodes = [
       {
-        ...makeDirNode("file.tif", "file.tif"),
+        ...makeDirNode("file.ome.tif", "file.ome.tif"),
         type: "file" as const,
       },
     ];
@@ -120,7 +119,7 @@ describe("enrichDirectoryPreviews", () => {
     const nodes = [makeDirNode("dir-a", "dir-a")];
 
     listObjectsClient.mockResolvedValueOnce({
-      contents: [{ Key: "scope/dir-a/image.tif" }],
+      contents: [{ Key: "scope/dir-a/image.ome.tif" }],
       commonPrefixes: [],
       isCapped: false,
     });

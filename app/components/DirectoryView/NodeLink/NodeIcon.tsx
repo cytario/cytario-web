@@ -1,7 +1,7 @@
 import { Icon, type IconName } from "@cytario/design";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { allFileTypes, stripUrlSuffix } from "~/utils/fileType";
+import { getFileTypeEntry } from "~/utils/fileType";
 
 interface NodeIconProps {
   node: TreeNode;
@@ -16,11 +16,7 @@ interface NodeIconProps {
 export function getNodeIcon(node: { type: string; name: string }): IconName {
   if (node.type === "bucket") return "Archive";
   if (node.type === "directory") return "Folder";
-  const cleaned = stripUrlSuffix(node.name);
-  for (const entry of allFileTypes()) {
-    if (entry.pattern.test(cleaned)) return entry.icon;
-  }
-  return "File";
+  return getFileTypeEntry(node.name)?.icon ?? "File";
 }
 
 export function NodeIcon({ node, size = "sm", className }: NodeIconProps) {

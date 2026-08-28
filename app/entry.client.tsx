@@ -13,7 +13,7 @@ import { bootstrapPlugins } from "./plugins.generated";
 storagePickerRegistry.set(storagePicker);
 
 // Await bootstrap before hydrating so registry-derived gates (e.g. the
-// `isImageFile` viewer gate) see plugin-contributed formats on the first
+// `getFileCategory` viewer gate) see plugin-contributed formats on the first
 // client render, matching the server which also awaits before SSR. Plugin
 // modules are already statically imported above, so this only waits for
 // `register()` to run — it pulls in no extra bundle. (Built-ins still register

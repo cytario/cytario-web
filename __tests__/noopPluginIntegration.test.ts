@@ -4,7 +4,7 @@ import noopPlugin, { NOOP_SENTINEL } from "./fixtures/noop-plugin";
 import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { HOST_API_VERSION } from "~/lib/hostApiVersion";
-import { getFileType, isImageFile } from "~/utils/fileType";
+import { getFileType, getFileCategory } from "~/utils/fileType";
 
 beforeEach(() => {
   formatRegistry.__reset();
@@ -131,7 +131,7 @@ describe("noop-plugin integration", () => {
     });
 
     expect(getFileType("anything.noop")).toBe("noop-plugin");
-    expect(isImageFile("anything.noop")).toBe(true);
+    expect(getFileCategory("anything.noop")).toBe("image");
   });
 
   test("apiVersion gate rejects an incompatible plugin shape", () => {

@@ -2,7 +2,7 @@ import { _Object } from "@aws-sdk/client-s3";
 import { Credentials } from "@aws-sdk/client-sts";
 
 import type { ConnectionConfig } from "~/.generated/client";
-import { isImageFile } from "~/utils/fileType";
+import { getFileCategory } from "~/utils/fileType";
 import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
 import { getPrefix } from "~/utils/pathUtils";
 import { CorsLikelyError } from "~/utils/signedFetch";
@@ -13,7 +13,7 @@ export interface ProbeProvider {
   endpoint?: string | null;
 }
 
-const isImagePreview = (obj: _Object) => isImageFile(obj.Key ?? "");
+const isImagePreview = (obj: _Object) => getFileCategory(obj.Key ?? "") === "image";
 
 export interface ConnectionProbeResult {
   previewObj?: _Object;
