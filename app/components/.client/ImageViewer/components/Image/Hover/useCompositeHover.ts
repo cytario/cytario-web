@@ -85,9 +85,8 @@ export const useCompositeHover = (
   // --- Hover pipeline ----------------------------------------------------
   const onHover = useCallback(
     (info: PickingInfo, event?: { srcEvent?: { shiftKey?: boolean } }) => {
-      // Suppress tooltip in annotation editing modes — the cursor is a
-      // crosshair and hover would be distracting.
-      if (annotationMode !== "view") {
+      // Tooltip only renders in inspect mode — not in view or draw modes.
+      if (annotationMode !== "inspect") {
         setCompositeTooltip(null);
         return;
       }
@@ -172,7 +171,7 @@ export const useCompositeHover = (
   const getCursor = useCallback(
     (state: InteractionState) => {
       if (!isActivePanel) return "pointer";
-      if (annotationMode === "view") {
+      if (annotationMode === "view" || annotationMode === "inspect") {
         if (hoveringAnnotationRef.current) return "pointer";
         return state.isDragging ? "grabbing" : "grab";
       }

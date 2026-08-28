@@ -2,7 +2,6 @@ import { Badge, IconButton, Switch } from "@cytario/design";
 import { useMemo, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
-import { AnnotationsTools } from "./AnnotationsTools";
 import { select } from "../../../state/store/selectors";
 import {
   classNameOf,
@@ -114,7 +113,14 @@ export const AnnotationsPanel = () => {
     <FeatureItem
       title="Annotations"
       badge={`${visible}/${total}`}
-      header={<AnnotationsTools />}
+      header={
+        <SearchInput
+          onQueryChange={setSearchQuery}
+          aria-label="Search annotations by name"
+          placeholder="Search annotations…"
+          className="flex items-center gap-1 px-2 py-1"
+        />
+      }
       actions={
         <>
           <IconButton
@@ -133,12 +139,6 @@ export const AnnotationsPanel = () => {
       }
     >
       <div className="flex flex-col">
-        <SearchInput
-          onQueryChange={setSearchQuery}
-          aria-label="Search annotations by name"
-          placeholder="Search annotations…"
-          className="flex items-center gap-1 px-2 py-1"
-        />
         {entries.map(([userId, features]) => (
           <AnnotationFileBlock
             key={userId}

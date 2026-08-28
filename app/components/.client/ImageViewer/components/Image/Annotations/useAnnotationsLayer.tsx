@@ -40,6 +40,7 @@ type ModifierKeys = { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean }
 
 const MODE_CLASSES = {
   view: ViewMode,
+  inspect: ViewMode,
   "draw-polygon": DrawPolygonMode,
   "draw-freehand": DrawPolygonByDraggingMode,
   "draw-point": ClickOrDragPointMode,
