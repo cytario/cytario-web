@@ -5,7 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { select } from "../../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { PanelRow } from "../../PanelRow";
+import { PanelRow } from "../PanelRow";
 
 // viv library only supports 6 channels
 // Brightfield uses 3 of those slots

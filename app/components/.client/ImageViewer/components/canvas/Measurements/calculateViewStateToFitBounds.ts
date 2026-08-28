@@ -1,4 +1,4 @@
-import { ViewPort, ViewState } from "../../state/store/types";
+import { ViewPort, ViewState } from "../../../state/store/types";
 
 /** Pixel-space bounding box: `[minX, minY, maxX, maxY]`. */
 export type Bounds = [number, number, number, number];

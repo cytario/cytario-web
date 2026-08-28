@@ -1,5 +1,5 @@
-import { ImagePanel } from "./Image/ImagePanel";
-import { AnnotationsTools } from "./panels/AnnotationsPanel/AnnotationsTools";
+import { ImagePanel } from "./canvas/ImagePanel";
+import { Toolbar } from "./Toolbar";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
 
 export const ImagePanels = () => {
@@ -7,7 +7,7 @@ export const ImagePanels = () => {
 
   return (
     <div className="relative flex w-full h-full">
-      <AnnotationsTools />
+      <Toolbar />
 
       {imagePanels.map((_, index) => (
         <ImagePanel key={index} imagePanelId={index} />

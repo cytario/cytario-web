@@ -21,13 +21,6 @@ vi.mock("~/hooks/useCurrentUser", () => ({
   useCurrentUser: () => (currentUserId ? { sub: currentUserId } : undefined),
 }));
 
-// AnnotationsTools renders draw-mode controls that pull from the store and
-// have deep dependencies (canvas layer modes, etc.); stub it to keep these
-// tests focused on the AnnotationsPanel layout logic.
-vi.mock("../AnnotationsTools", () => ({
-  AnnotationsTools: () => <div data-testid="annotations-tools" />,
-}));
-
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
 vi.mock("../AnnotationsList", () => ({
   AnnotationsList: ({
@@ -178,17 +171,5 @@ describe("AnnotationsPanel — editable gating", () => {
 
     const peerList = screen.getByTestId("annotations-list-peer-a");
     expect(peerList).toHaveAttribute("data-editable", "false");
-  });
-
-  test("draw tools appear once, in the single section header", () => {
-    const store = buildStore();
-    store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
-    store.getState().updateUserFeatures("peer-a", [makeFeature("f2")]);
-
-    renderController();
-    openAll();
-
-    // AnnotationsTools lives in the one Annotations section header, not per file block.
-    expect(screen.getAllByTestId("annotations-tools")).toHaveLength(1);
   });
 });

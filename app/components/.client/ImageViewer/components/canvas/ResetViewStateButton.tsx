@@ -1,8 +1,8 @@
 import { IconButton } from "@cytario/design";
 import { Dispatch, useMemo } from "react";
 
+import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
 import { ViewerStore, ViewPort, ViewState } from "../../state/store/types";
-import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
 
 export const ResetViewStateButton = ({
   metadata,

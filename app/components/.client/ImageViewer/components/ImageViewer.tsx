@@ -1,10 +1,10 @@
 import { IconButtonToggle } from "@cytario/design";
 
-import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
+import { useAnnotationModeKeyboard } from "./canvas/useAnnotationModeKeyboard";
 import { ImagePanels } from "./ImagePanels";
-import { Magnifier } from "./Magnifier";
 import { AnnotationsPanel } from "./panels/AnnotationsPanel/AnnotationsPanel";
 import { ChannelsPanel } from "./panels/ChannelsPanel/ChannelsPanel";
+import { Magnifier } from "./panels/Magnifier";
 import { OverlaysPanel } from "./panels/OverlaysPanel/OverlaysPanel";
 import { Views } from "./panels/ViewsPanel/Views";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";

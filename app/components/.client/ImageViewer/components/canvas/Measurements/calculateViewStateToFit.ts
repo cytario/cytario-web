@@ -1,5 +1,5 @@
-import { Image } from "../../state/store/ome.tif.types";
-import { ViewPort, ViewState } from "../../state/store/types";
+import { Image } from "../../../state/store/ome.tif.types";
+import { ViewPort, ViewState } from "../../../state/store/types";
 
 interface CalculateViewStateOptions {
   padding: number;

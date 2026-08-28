@@ -1,4 +1,4 @@
-import { WavelengthUnit } from "../../../state/store/ome.tif.types";
+import { WavelengthUnit } from "../../../../state/store/ome.tif.types";
 import { absoluteToMetricFactory, metricToAbsoluteFactory } from "../utils";
 
 describe("absoluteToMetricFactory", () => {

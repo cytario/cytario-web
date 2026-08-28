@@ -22,7 +22,7 @@ const ViewerStoreProvider = lazy(() =>
   })),
 );
 const ImagePreview = lazy(() =>
-  import("~/components/.client/ImageViewer/components/Image/ImagePreview").then((mod) => ({
+  import("~/components/.client/ImageViewer/components/canvas/ImagePreview").then((mod) => ({
     default: mod.ImagePreview,
   })),
 );

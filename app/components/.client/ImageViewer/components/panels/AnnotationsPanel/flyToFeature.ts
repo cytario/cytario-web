@@ -4,7 +4,7 @@ import { ViewState } from "../../../state/store/types";
 import {
   calculateViewStateToFitBounds,
   type Bounds,
-} from "../../Measurements/calculateViewStateToFitBounds";
+} from "../../canvas/Measurements/calculateViewStateToFitBounds";
 
 /** Collects every position from a (possibly nested) coordinate array. */
 const collectPositions = (coords: unknown, out: Position[]): void => {

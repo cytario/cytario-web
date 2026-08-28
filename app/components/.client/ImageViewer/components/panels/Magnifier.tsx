@@ -1,9 +1,9 @@
 import { Input, SegmentedControl, SegmentedControlItem } from "@cytario/design";
 
-import { ImagePreview } from "./Image/ImagePreview";
-import { ResetViewStateButton } from "./Image/ResetViewStateButton";
-import { select } from "../state/store/selectors";
-import { useViewerStore } from "../state/store/ViewerStoreContext";
+import { select } from "../../state/store/selectors";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { ImagePreview } from "../canvas/ImagePreview";
+import { ResetViewStateButton } from "../canvas/ResetViewStateButton";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 
 const MAGNIFICATION_PRESETS = [1, 2, 5, 10, 20, 40, 80] as const;

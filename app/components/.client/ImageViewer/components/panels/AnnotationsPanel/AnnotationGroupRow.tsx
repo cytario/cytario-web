@@ -4,8 +4,8 @@ import { twMerge } from "tailwind-merge";
 
 import { UNCLASSIFIED_COLOR } from "../../../state/store/slices/viewer.annotations.store";
 import { RGB } from "../../../state/store/types";
-import { PanelRow } from "../../PanelRow";
 import { ColorPicker, rgb } from "../ChannelsPanel/ColorPicker/ColorPicker";
+import { PanelRow } from "../PanelRow";
 
 interface AnnotationGroupRowProps {
   name: string;

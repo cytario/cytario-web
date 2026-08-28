@@ -1,8 +1,8 @@
 import { IconButton } from "@cytario/design";
 
-import { type AnnotationMode } from "../../../state/store/types";
-import { useUndoRedo } from "../../../state/store/useUndoRedo";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { type AnnotationMode } from "../state/store/types";
+import { useUndoRedo } from "../state/store/useUndoRedo";
+import { useViewerStore } from "../state/store/ViewerStoreContext";
 
 const tools = [
   { mode: "view", icon: "Hand", label: "Drag, pan, and zoom" },
@@ -15,7 +15,7 @@ const tools = [
 /**
  * Floating canvas toolbar: interaction modes + undo/redo.
  */
-export const AnnotationsTools = () => {
+export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);

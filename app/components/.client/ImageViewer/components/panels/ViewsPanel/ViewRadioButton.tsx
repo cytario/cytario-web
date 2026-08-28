@@ -6,7 +6,7 @@ import { twMerge } from "tailwind-merge";
 import { ViewLabel } from "./ViewLabel";
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { PanelRow } from "../../PanelRow";
+import { PanelRow } from "../PanelRow";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 

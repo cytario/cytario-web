@@ -5,15 +5,15 @@ import { useCallback, useEffect } from "react";
 import { LayersTooltip } from "./Hover/LayersTooltip";
 import { useCompositeHover } from "./Hover/useCompositeHover";
 import { ImageContainer } from "./ImageContainer";
+import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
+import { Crosshair } from "./Measurements/Crosshair";
+import { Measurements } from "./Measurements/Measurements";
+import { SlideCarrier } from "./Measurements/SlideCarrier";
 import { TileLoaderIndicator } from "./TileLoaderIndicator";
 import { useView } from "./useView";
 import { select } from "../../state/store/selectors";
 import type { ViewPort, ViewState } from "../../state/store/types";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
-import { calculateViewStateToFit } from "../Measurements/calculateViewStateToFit";
-import { Crosshair } from "../Measurements/Crosshair";
-import { Measurements } from "../Measurements/Measurements";
-import { SlideCarrier } from "../Measurements/SlideCarrier";
 
 export interface ViewProps {
   viewPort: ViewPort;

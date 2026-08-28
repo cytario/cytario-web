@@ -2,19 +2,19 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Mock } from "vitest";
 
-import { type ViewState } from "../../state/store/types";
-import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { type ViewState } from "../../../state/store/types";
+import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { Magnifier, magnificationFromZoom, zoomFromMagnification } from "../Magnifier";
 
-vi.mock("../Image/ResetViewStateButton", () => ({
+vi.mock("../../canvas/ResetViewStateButton", () => ({
   ResetViewStateButton: () => <button type="button">Reset</button>,
 }));
 
-vi.mock("../Image/ImagePreview", () => ({
+vi.mock("../../canvas/ImagePreview", () => ({
   ImagePreview: () => <div data-testid="image-preview" />,
 }));
 
-vi.mock("../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 

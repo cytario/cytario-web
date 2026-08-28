@@ -6,7 +6,7 @@ import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
 import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { PanelRow } from "../../PanelRow";
+import { PanelRow } from "../PanelRow";
 
 // viv library only supports 6 channels
 // See: https://github.com/hms-dbmi/viv/issues/687

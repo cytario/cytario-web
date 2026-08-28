@@ -1,10 +1,10 @@
 import { renderHook } from "@testing-library/react";
 import { Mock } from "vitest";
 
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { useViewerStore } from "../../../../state/store/ViewerStoreContext";
 import { useMeasurements } from "../useMeasurements";
 
-vi.mock("../../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 
