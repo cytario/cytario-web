@@ -47,7 +47,6 @@ export const ScaleBar = () => {
         flex items-center
         text-xs font-semibold
         text-muted-foreground
-        backdrop-blur-sm
         border-x-2 border-muted-foreground
       `}
       style={{ width: size }}
