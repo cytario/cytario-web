@@ -1,4 +1,4 @@
-import { useViewerSidebarStore } from "../ImageViewer";
+import { useViewerSidebarStore } from "../useViewerSidebarStore";
 import { AnnotationsControl } from "./AnnotationsControl/AnnotationsControl";
 import { ChannelsControl } from "./ChannelsControl/ChannelsControl";
 import { ImageSidebarToggle } from "./ImageSidebarToggle";
