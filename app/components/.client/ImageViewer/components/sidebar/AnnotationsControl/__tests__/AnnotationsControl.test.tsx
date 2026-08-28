@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { useStore } from "zustand";
 
@@ -71,13 +71,6 @@ function renderController() {
   return render(<AnnotationsControl />);
 }
 
-/** Opens all FeatureItem accordions (click every [data-expander] button). */
-function openAll() {
-  for (const btn of screen.getAllByRole("button").filter((b) => b.getAttribute("data-expander"))) {
-    fireEvent.click(btn);
-  }
-}
-
 // -----------------------------------------------------------------------
 // Own-first ordering
 // -----------------------------------------------------------------------
@@ -90,7 +83,6 @@ describe("AnnotationsControl — own-first ordering", () => {
     store.getState().updateUserFeatures("peer-b", [makeFeature("f3")]);
 
     renderController();
-    openAll();
 
     const blocks = screen.getAllByTestId(/^node-link-/);
     expect(blocks[0]).toHaveTextContent("You");
@@ -101,7 +93,6 @@ describe("AnnotationsControl — own-first ordering", () => {
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
 
     renderController();
-    openAll();
 
     expect(screen.getByTestId("node-link-You")).toBeInTheDocument();
   });
@@ -111,7 +102,6 @@ describe("AnnotationsControl — own-first ordering", () => {
     store.getState().updateUserFeatures("peer-xyz", [makeFeature("f1")]);
 
     renderController();
-    openAll();
 
     // peer-xyz → first 6 chars "peer-x"
     expect(screen.getByTestId("node-link-peer-x")).toBeInTheDocument();
@@ -127,7 +117,6 @@ describe("AnnotationsControl — empty own block", () => {
     buildStore(); // empty store — own user has no key
 
     renderController();
-    openAll();
 
     expect(screen.getByTestId("node-link-You")).toBeInTheDocument();
   });
@@ -137,7 +126,6 @@ describe("AnnotationsControl — empty own block", () => {
     buildStore();
 
     renderController();
-    openAll();
 
     expect(screen.queryByTestId("node-link-You")).not.toBeInTheDocument();
 
@@ -156,7 +144,6 @@ describe("AnnotationsControl — editable gating", () => {
     store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
 
     renderController();
-    openAll();
 
     const ownList = screen.getByTestId("annotations-list-own-user");
     expect(ownList).toHaveAttribute("data-editable", "true");
@@ -167,7 +154,6 @@ describe("AnnotationsControl — editable gating", () => {
     store.getState().updateUserFeatures("peer-a", [makeFeature("f1")]);
 
     renderController();
-    openAll();
 
     const peerList = screen.getByTestId("annotations-list-peer-a");
     expect(peerList).toHaveAttribute("data-editable", "false");
