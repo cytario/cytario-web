@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { getFileCategory, getFileType, getFileTypeEntry, isDownloadable } from "../fileType";
+import { getFileCategory, getFileType, getFileTypeEntry } from "../fileType";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 describe("getFileType", () => {
@@ -71,23 +71,6 @@ describe("getFileCategory", () => {
     expect(getFileCategory("photo.tiff")).toBe("none");
     expect(getFileCategory("unknown.xyz")).toBe("none");
     expect(getFileCategory("Makefile")).toBe("none");
-  });
-});
-
-describe("isDownloadable", () => {
-  test("returns true for text files (JSON, YAML, TXT)", () => {
-    expect(isDownloadable("config.json")).toBe(true);
-    expect(isDownloadable("manifest.yaml")).toBe(true);
-    expect(isDownloadable("manifest.yml")).toBe(true);
-    expect(isDownloadable("notes.txt")).toBe(true);
-  });
-
-  test("returns false for non-text files", () => {
-    expect(isDownloadable("image.ome.tif")).toBe(false);
-    expect(isDownloadable("image.zarr")).toBe(false);
-    expect(isDownloadable("table.csv")).toBe(false);
-    expect(isDownloadable("data.parquet")).toBe(false);
-    expect(isDownloadable("unknown.xyz")).toBe(false);
   });
 });
 

@@ -1,4 +1,4 @@
-import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
+import { Icon, IconButton, Menu, MenuItem, MenuSeparator, Tooltip } from "@cytario/design";
 import { type ReactNode, useRef, useState } from "react";
 import { Form } from "react-router";
 
@@ -13,8 +13,12 @@ import { canModify } from "~/utils/authorization";
 import { resolveResourceId, select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getUint8ArrayForResourceId } from "~/utils/db/getBlobFromObjectNode";
-import { isDownloadable } from "~/utils/fileType";
 import { buildConnectionPath } from "~/utils/resourceId";
+
+/** Above this object size the in-browser download path is withheld — it
+ * buffers the full body into a Uint8Array + Blob (2× heap) and caches it in
+ * IndexedDB, which OOMs the tab on large objects. */
+const MAX_DOWNLOADABLE_SIZE = 256 * 1024 * 1024;
 
 /**
  * Trailing context menu for a `TreeNode` (bucket, directory, file). All node
@@ -60,7 +64,9 @@ export const NodeContextMenu = ({
   const canShare = isFolder && (connection?.provider?.allowsSharing ?? false);
 
   const isFile = node.type === "file";
-  const downloadable = isFile && isDownloadable(node.name);
+  const fileSize = isFile ? node._Object?.Size : undefined;
+  const tooLargeForDownload = fileSize !== undefined && fileSize > MAX_DOWNLOADABLE_SIZE;
+  const canDownload = isFile && fileSize !== undefined && !tooLargeForDownload;
 
   const copyS3Uri = async () => {
     try {
@@ -75,7 +81,7 @@ export const NodeContextMenu = ({
   const handleDownload = async () => {
     try {
       const data = await getUint8ArrayForResourceId(node.id);
-      const blob = new Blob([data.buffer as ArrayBuffer], { type: "application/json" });
+      const blob = new Blob([data.slice()]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -85,7 +91,8 @@ export const NodeContextMenu = ({
       a.remove();
       URL.revokeObjectURL(url);
       toastBridge.emit({ variant: "success", message: `Downloaded ${node.name}` });
-    } catch {
+    } catch (error) {
+      console.error("Download failed", error);
       toastBridge.emit({ variant: "error", message: `Could not download ${node.name}` });
     }
   };
@@ -107,8 +114,24 @@ export const NodeContextMenu = ({
             <MenuItem id="copy-s3-uri" icon="Copy" onAction={copyS3Uri}>
               Copy S3 URI
             </MenuItem>
-            {isFile && downloadable && (
+            {isFile && canDownload && (
               <MenuItem id="download" icon="Download" onAction={handleDownload}>
+                Download
+              </MenuItem>
+            )}
+            {isFile && tooLargeForDownload && (
+              <MenuItem
+                id="download"
+                icon="Download"
+                isDisabled
+                endContent={
+                  <Tooltip content="File too large for in-browser download (max 256 MB)">
+                    <span className="pointer-events-auto">
+                      <Icon icon="Info" size="sm" />
+                    </span>
+                  </Tooltip>
+                }
+              >
                 Download
               </MenuItem>
             )}

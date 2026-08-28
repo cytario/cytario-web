@@ -173,9 +173,4 @@ export function getFileCategory(nameOrKey: string): FileCategory {
   return getFileTypeEntry(nameOrKey)?.category ?? "none";
 }
 
-/** Returns true if the file can be downloaded via the context menu. */
-export function isDownloadable(nameOrKey: string): boolean {
-  return getFileCategory(nameOrKey) === "text";
-}
-
 export type { FileTypeEntry };
