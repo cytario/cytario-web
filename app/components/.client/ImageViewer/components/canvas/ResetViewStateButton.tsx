@@ -23,7 +23,7 @@ export const ResetViewStateButton = () => {
   return (
     <IconButton
       label="Reset View State"
-      size="sm"
+      // variant="outline"
       icon="Fullscreen"
       onPress={() => {
         if (metadata) {

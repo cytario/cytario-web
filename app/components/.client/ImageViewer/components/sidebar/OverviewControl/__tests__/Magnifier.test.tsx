@@ -60,7 +60,7 @@ describe("Magnifier", () => {
     render(<OverviewControl />);
 
     for (const mag of [1, 2, 5, 10, 20, 40, 80]) {
-      expect(screen.getByRole("radio", { name: `${mag}x` })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `${mag}x` })).toBeInTheDocument();
     }
   });
 
@@ -68,21 +68,21 @@ describe("Magnifier", () => {
     mockStore(makeViewState(0)); // zoom 0 = 20x at objectivePower 20
     render(<OverviewControl />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("20.0");
+    expect(screen.getByRole("textbox")).toHaveValue("20.0x");
   });
 
   test("displays magnification for non-zero zoom", () => {
     mockStore(makeViewState(1)); // zoom 1 = 40x
     render(<OverviewControl />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("40.0");
+    expect(screen.getByRole("textbox")).toHaveValue("40.0x");
   });
 
   test("clicking a preset button sets the correct zoom", async () => {
     const user = userEvent.setup();
     render(<OverviewControl />);
 
-    await user.click(screen.getByRole("radio", { name: "40x" }));
+    await user.click(screen.getByRole("button", { name: "40x" }));
 
     expect(setViewStateActive).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -96,7 +96,7 @@ describe("Magnifier", () => {
     const user = userEvent.setup();
     render(<OverviewControl />);
 
-    await user.click(screen.getByRole("radio", { name: "20x" }));
+    await user.click(screen.getByRole("button", { name: "20x" }));
 
     expect(setViewStateActive).not.toHaveBeenCalled();
   });
@@ -105,13 +105,13 @@ describe("Magnifier", () => {
     mockStore(null);
     render(<OverviewControl />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("20.0");
+    expect(screen.getByRole("textbox")).toHaveValue("20.0x");
   });
 
-  test("renders the segmented control with correct aria-label", () => {
+  test("renders the preset container with correct aria-label", () => {
     render(<OverviewControl />);
 
-    expect(screen.getByRole("radiogroup", { name: "Magnification presets" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Magnification presets" })).toBeInTheDocument();
   });
 });
 
