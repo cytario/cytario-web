@@ -1,11 +1,26 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Mock } from "vitest";
 
-import { type ViewState, type ViewerStore } from "../../state/store/types";
+import { type ViewState } from "../../state/store/types";
+import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { Magnifier, magnificationFromZoom, zoomFromMagnification } from "../Magnifier";
 
 vi.mock("../Image/ResetViewStateButton", () => ({
   ResetViewStateButton: () => <button type="button">Reset</button>,
+}));
+
+vi.mock("../Image/ImagePreview", () => ({
+  ImagePreview: () => <div data-testid="image-preview" />,
+}));
+
+vi.mock("../../state/store/ViewerStoreContext", () => ({
+  useViewerStore: vi.fn(),
+}));
+
+vi.mock("~/components/FeatureItem/useFeatureItem", () => ({
+  useFeatureItemStore: vi.fn(() => ({ isOpen: true, setIsOpen: vi.fn() })),
+  FeatureItemStoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const makeViewState = (zoom = 0): ViewState =>
@@ -23,44 +38,48 @@ const makeViewState = (zoom = 0): ViewState =>
     transitionDuration: 0,
   }) as ViewState;
 
+const setViewStateActive = vi.fn();
+
+const mockStore = (viewStateActive: ViewState | null = makeViewState()) =>
+  (useViewerStore as Mock).mockImplementation((selector) =>
+    selector({
+      metadata: null,
+      viewStateActive,
+      setViewStateActive,
+    }),
+  );
+
 describe("Magnifier", () => {
-  const setViewStateActive = vi.fn();
-
-  const defaultProps = {
-    metadata: null as ViewerStore["metadata"] | null,
-    viewStateActive: makeViewState(),
-    setViewStateActive,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
+    mockStore();
   });
 
   test("renders all magnification preset buttons", () => {
-    render(<Magnifier {...defaultProps} />);
+    render(<Magnifier />);
 
-    for (const mag of [5, 10, 20, 40, 80]) {
+    for (const mag of [1, 2, 5, 10, 20, 40, 80]) {
       expect(screen.getByRole("radio", { name: `${mag}x` })).toBeInTheDocument();
     }
   });
 
   test("displays current magnification in the input", () => {
-    const viewState = makeViewState(0); // zoom 0 = 20x at objectivePower 20
-    render(<Magnifier {...defaultProps} viewStateActive={viewState} />);
+    mockStore(makeViewState(0)); // zoom 0 = 20x at objectivePower 20
+    render(<Magnifier />);
 
     expect(screen.getByRole("textbox")).toHaveValue("20.0");
   });
 
   test("displays magnification for non-zero zoom", () => {
-    const viewState = makeViewState(1); // zoom 1 = 40x
-    render(<Magnifier {...defaultProps} viewStateActive={viewState} />);
+    mockStore(makeViewState(1)); // zoom 1 = 40x
+    render(<Magnifier />);
 
     expect(screen.getByRole("textbox")).toHaveValue("40.0");
   });
 
   test("clicking a preset button sets the correct zoom", async () => {
     const user = userEvent.setup();
-    render(<Magnifier {...defaultProps} />);
+    render(<Magnifier />);
 
     await user.click(screen.getByRole("radio", { name: "40x" }));
 
@@ -72,8 +91,9 @@ describe("Magnifier", () => {
   });
 
   test("clicking a preset does nothing when viewStateActive is null", async () => {
+    mockStore(null);
     const user = userEvent.setup();
-    render(<Magnifier {...defaultProps} viewStateActive={null} />);
+    render(<Magnifier />);
 
     await user.click(screen.getByRole("radio", { name: "20x" }));
 
@@ -81,13 +101,14 @@ describe("Magnifier", () => {
   });
 
   test("displays 20.0 when viewStateActive is null (default zoom 0)", () => {
-    render(<Magnifier {...defaultProps} viewStateActive={null} />);
+    mockStore(null);
+    render(<Magnifier />);
 
     expect(screen.getByRole("textbox")).toHaveValue("20.0");
   });
 
   test("renders the segmented control with correct aria-label", () => {
-    render(<Magnifier {...defaultProps} />);
+    render(<Magnifier />);
 
     expect(screen.getByRole("radiogroup", { name: "Magnification presets" })).toBeInTheDocument();
   });

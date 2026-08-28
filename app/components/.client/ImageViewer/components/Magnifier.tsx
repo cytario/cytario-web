@@ -1,9 +1,12 @@
 import { Input, SegmentedControl, SegmentedControlItem } from "@cytario/design";
 
+import { ImagePreview } from "./Image/ImagePreview";
 import { ResetViewStateButton } from "./Image/ResetViewStateButton";
-import { type ViewerStore, type ViewState } from "../state/store/types";
+import { select } from "../state/store/selectors";
+import { useViewerStore } from "../state/store/ViewerStoreContext";
+import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 
-const MAGNIFICATION_PRESETS = [5, 10, 20, 40, 80] as const;
+const MAGNIFICATION_PRESETS = [1, 2, 5, 10, 20, 40, 80] as const;
 
 export const zoomFromMagnification = (magnification: number, objectivePower = 20): number =>
   Math.log2(magnification / objectivePower);
@@ -11,52 +14,62 @@ export const zoomFromMagnification = (magnification: number, objectivePower = 20
 export const magnificationFromZoom = (zoom: number, objectivePower = 20): number =>
   objectivePower * Math.pow(2, zoom);
 
-export const Magnifier = ({
-  metadata,
-  viewStateActive,
-  setViewStateActive,
-}: {
-  metadata: ViewerStore["metadata"] | null;
-  viewStateActive: ViewState | null;
-  setViewStateActive: (viewState: ViewState) => void;
-}) => {
+export const Magnifier = () => {
+  const metadata = useViewerStore(select.metadata);
+  const viewStateActive = useViewerStore(select.viewStateActive);
+  const setViewStateActive = useViewerStore(select.setViewStateActive);
+
   const zoom = viewStateActive?.zoom ?? 0;
   const magnification = magnificationFromZoom(zoom, 20);
 
   return (
-    <div className="flex items-center gap-2">
-      <Input
-        isReadOnly
-        value={magnification.toFixed(1)}
-        size="sm"
-        aria-label="Current magnification"
-        className="w-16 text-xs text-right tabular-nums"
-      />
+    <FeatureItem
+      title="Overview"
+      actions={
+        <ResetViewStateButton
+          metadata={metadata}
+          viewState={viewStateActive}
+          setViewState={setViewStateActive}
+        />
+      }
+    >
+      <div className="block h-60 w-full shrink-0">
+        <ImagePreview isInteractive />
+      </div>
+      <div className="flex items-center gap-1 px-2 py-2">
+        <Input
+          isReadOnly
+          value={magnification.toFixed(1)}
+          size="sm"
+          aria-label="Current magnification"
+          className="w-12 shrink-0 text-xs text-right tabular-nums"
+        />
 
-      <ResetViewStateButton
-        metadata={metadata}
-        viewState={viewStateActive}
-        setViewState={setViewStateActive}
-      />
-
-      <SegmentedControl selectionMode="none" size="sm" aria-label="Magnification presets">
-        {MAGNIFICATION_PRESETS.map((mag) => (
-          <SegmentedControlItem
-            key={mag}
-            id={String(mag)}
-            onPress={() => {
-              if (viewStateActive) {
-                setViewStateActive({
-                  ...viewStateActive,
-                  zoom: zoomFromMagnification(mag),
-                });
-              }
-            }}
-          >
-            {mag}x
-          </SegmentedControlItem>
-        ))}
-      </SegmentedControl>
-    </div>
+        <SegmentedControl
+          selectionMode="none"
+          size="sm"
+          aria-label="Magnification presets"
+          className="flex flex-1"
+        >
+          {MAGNIFICATION_PRESETS.map((mag) => (
+            <SegmentedControlItem
+              key={mag}
+              id={String(mag)}
+              className="flex-1 text-xs px-1"
+              onPress={() => {
+                if (viewStateActive) {
+                  setViewStateActive({
+                    ...viewStateActive,
+                    zoom: zoomFromMagnification(mag),
+                  });
+                }
+              }}
+            >
+              {mag}x
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
+      </div>
+    </FeatureItem>
   );
 };

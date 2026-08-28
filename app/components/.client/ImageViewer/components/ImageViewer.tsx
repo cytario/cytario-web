@@ -1,6 +1,5 @@
 import { IconButtonToggle } from "@cytario/design";
 
-import { ImagePreview } from "./Image/ImagePreview";
 import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
 import { ImagePanels } from "./ImagePanels";
 import { Magnifier } from "./Magnifier";
@@ -8,7 +7,6 @@ import { AnnotationsPanel } from "./panels/AnnotationsPanel/AnnotationsPanel";
 import { ChannelsPanel } from "./panels/ChannelsPanel/ChannelsPanel";
 import { OverlaysPanel } from "./panels/OverlaysPanel/OverlaysPanel";
 import { Views } from "./panels/ViewsPanel/Views";
-import { ViewerHeader } from "./ViewerHeader";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
@@ -30,15 +28,6 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
       <UndoRedoShortcuts />
       <AnnotationModeKeyboard />
-      <ViewerHeader>
-        {({ metadata, viewStateActive, setViewStateActive }) => (
-          <Magnifier
-            metadata={metadata}
-            viewStateActive={viewStateActive}
-            setViewStateActive={setViewStateActive}
-          />
-        )}
-      </ViewerHeader>
 
       <div
         data-theme="dark"
@@ -52,9 +41,8 @@ export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
           toggleShortcut="mod+alt+b"
           openOnMount
         >
-          <div className="block h-60 w-full shrink-0">
-            <ImagePreview isInteractive />
-          </div>
+          <Magnifier />
+
           <Views />
           <ChannelsPanel />
           <OverlaysPanel />
