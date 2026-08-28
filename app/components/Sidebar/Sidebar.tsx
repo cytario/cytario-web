@@ -119,7 +119,12 @@ export function Sidebar({
         </div>
       </div>
 
-      <SidebarResizeHandle store={store} side={side} motionWidth={motionWidth} />
+      <SidebarResizeHandle
+        store={store}
+        side={side}
+        motionWidth={motionWidth}
+        toggleShortcut={toggleShortcut}
+      />
     </motion.aside>
   );
 }

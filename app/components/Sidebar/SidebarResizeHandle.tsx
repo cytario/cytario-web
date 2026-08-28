@@ -1,3 +1,4 @@
+import { Tooltip } from "@cytario/design";
 import { animate, motion, type MotionValue, type PanInfo } from "motion/react";
 import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
@@ -13,10 +14,19 @@ interface SidebarResizeHandleProps {
   store: SidebarStoreApi;
   side: "left" | "right";
   motionWidth: MotionValue<number>;
+  /** Global toggle shortcut, e.g. "mod+b", to show in the tooltip. */
+  toggleShortcut?: string;
 }
 
 const KEYBOARD_STEP = 24;
-const DOUBLE_TAP_MS = 300;
+
+function formatShortcut(combo: string): string {
+  const mod = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
+  return combo
+    .split("+")
+    .map((p) => ({ mod, alt: "⌥", shift: "⇧" })[p] ?? p.toUpperCase())
+    .join("");
+}
 
 // A child of the panel `<aside>`, positioned at its inner edge and extending
 // outward over the content. The aside's width *is* the panel width, so `right-0`
@@ -26,7 +36,12 @@ const DOUBLE_TAP_MS = 300;
 // (width 0), enabling drag-to-open. Drives the live width through `motionWidth`
 // (no re-render per frame); framer `onPan` reports the gesture without moving
 // the element.
-export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeHandleProps) {
+export function SidebarResizeHandle({
+  store,
+  side,
+  motionWidth,
+  toggleShortcut,
+}: SidebarResizeHandleProps) {
   const setWidth = store((s) => s.setWidth);
   const setOpen = store((s) => s.setOpen);
   const toggle = store((s) => s.toggle);
@@ -34,7 +49,6 @@ export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeH
   const width = store((s) => s.width);
   const dir = side === "left" ? 1 : -1;
   const widthAtPanStart = useRef(0);
-  const lastTap = useRef(0);
 
   // Drive motionWidth here rather than relying on the panel's open/width effect:
   // a drag that leaves isOpen/width unchanged (e.g. nudging an already-closed
@@ -70,31 +84,33 @@ export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeH
       absolute top-0 
       h-full w-4 
       border-transparent
-      hover:border-secondary
+      hover:border-secondary focus:border-secondary
       transition-colors
     `,
     side === "left" ? "right-0 translate-x-full border-l-4" : "left-0 -translate-x-full border-r-4",
   );
 
+  const tooltip = toggleShortcut
+    ? `Double-click to toggle · ${formatShortcut(toggleShortcut)}`
+    : "Double-click to toggle";
+
   return (
-    <motion.div
-      onPanStart={() => (widthAtPanStart.current = motionWidth.get())}
-      onPan={onPan}
-      onPanEnd={() => commit(motionWidth.get())}
-      onTap={() => {
-        const now = Date.now();
-        if (now - lastTap.current < DOUBLE_TAP_MS) toggle();
-        lastTap.current = now;
-      }}
-      onKeyDown={onKeyDown}
-      tabIndex={0}
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize panel"
-      aria-valuenow={Math.round(isOpen ? width : 0)}
-      aria-valuemin={0}
-      aria-valuemax={SIDEBAR_MAX_WIDTH}
-      className={cx}
-    />
+    <Tooltip content={tooltip}>
+      <motion.div
+        onPanStart={() => (widthAtPanStart.current = motionWidth.get())}
+        onPan={onPan}
+        onPanEnd={() => commit(motionWidth.get())}
+        onDoubleClick={toggle}
+        onKeyDown={onKeyDown}
+        tabIndex={0}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize panel"
+        aria-valuenow={Math.round(isOpen ? width : 0)}
+        aria-valuemin={0}
+        aria-valuemax={SIDEBAR_MAX_WIDTH}
+        className={cx}
+      />
+    </Tooltip>
   );
 }
