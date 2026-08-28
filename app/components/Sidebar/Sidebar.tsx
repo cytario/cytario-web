@@ -103,10 +103,7 @@ export function Sidebar({
       aria-label={name}
       data-theme="dark"
       style={{ width: motionWidth }}
-      className={twMerge(
-        "relative shrink-0 border-border bg-background text-foreground",
-        side === "left" ? "border-r" : "border-l",
-      )}
+      className="relative shrink-0 border-border bg-background text-foreground"
     >
       {/* inert + clip on this wrapper (not the aside) so the resize handle below
           stays interactive and unclipped when the panel is closed. */}
