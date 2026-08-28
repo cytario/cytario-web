@@ -1,4 +1,4 @@
-import { AccessorContext, PickingInfo } from "@deck.gl/core";
+import { AccessorContext } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { PolygonLayer } from "@deck.gl/layers";
 import { type Table } from "apache-arrow";
@@ -72,10 +72,6 @@ export const OverlaysLayer = ({
     }
   };
 
-  const onClick = (info: PickingInfo) => {
-    console.log(info);
-  };
-
   return new TileLayer({
     // Unique id per overlay resource — multiple overlays would otherwise collide
     // and deck.gl would reconcile them as the same layer, clobbering each other.
@@ -96,7 +92,6 @@ export const OverlaysLayer = ({
     },
     pickable: true,
     getTileData,
-    onClick,
     renderSubLayers: (props) => {
       const { data } = props;
 
