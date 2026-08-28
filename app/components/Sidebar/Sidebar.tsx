@@ -18,7 +18,7 @@ const isEditable = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
   (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
 
-// combo e.g. "mod+b" (mod = Cmd/Ctrl) or "mod+alt+b".
+// combo e.g. "mod+b" (mod = Cmd/Ctrl) or "mod+shift+b".
 function matchesShortcut(e: KeyboardEvent, combo: string): boolean {
   const parts = combo.toLowerCase().split("+");
   return (

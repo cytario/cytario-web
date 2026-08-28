@@ -14,7 +14,7 @@ export const ImageSidebar = () => (
       name={SIDEBAR.viewer}
       side="right"
       store={useViewerSidebarStore}
-      toggleShortcut="mod+alt+b"
+      toggleShortcut="mod+shift+b"
       openOnMount
     >
       <OverviewControl />
