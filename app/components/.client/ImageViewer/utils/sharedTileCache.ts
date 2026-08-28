@@ -1,7 +1,7 @@
 import { LRUCache } from "lru-cache";
 
 /**
- * Process-wide tile cache shared across ImagePanels.
+ * Process-wide tile cache shared across ImagePanels (canvas view panels).
  *
  * Each ImagePanel renders its own DeckGL instance, so deck.gl's per-layer
  * Tileset2D cache is isolated per canvas — enabling split view forces the 2nd

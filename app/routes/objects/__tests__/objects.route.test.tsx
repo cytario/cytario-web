@@ -32,7 +32,7 @@ vi.mock("@cytario/design", async (importOriginal) => {
 });
 
 vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
-  Viewer: () => <canvas id="deckgl-overlay"></canvas>,
+  ImageViewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));
 
 vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({

@@ -1,12 +1,8 @@
 import { animate, motion, useMotionValue } from "motion/react";
 import { useEffect, type ReactNode } from "react";
-import { twMerge } from "tailwind-merge";
 
 import { SIDEBAR_MIN_WIDTH, type SidebarStoreApi } from "./createSidebarStore";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
-
-/** Human-facing names — single source for aria-label + derived DOM ids. */
-export const SIDEBAR = { nav: "Navigation", viewer: "Image controls" } as const;
 
 const slug = (name: string) => name.toLowerCase().replace(/\s+/g, "-");
 export const sidebarDomId = (name: string) => `${slug(name)}-sidebar`;
@@ -18,7 +14,7 @@ const isEditable = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
   (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
 
-// combo e.g. "mod+b" (mod = Cmd/Ctrl) or "mod+alt+b".
+// combo e.g. "mod+b" (mod = Cmd/Ctrl) or "mod+shift+b".
 function matchesShortcut(e: KeyboardEvent, combo: string): boolean {
   const parts = combo.toLowerCase().split("+");
   return (
@@ -103,20 +99,25 @@ export function Sidebar({
       aria-label={name}
       data-theme="dark"
       style={{ width: motionWidth }}
-      className={twMerge(
-        "relative shrink-0 border-border bg-background text-foreground",
-        side === "left" ? "border-r" : "border-l",
-      )}
+      className="relative shrink-0 border-border bg-background text-foreground"
     >
       {/* inert + clip on this wrapper (not the aside) so the resize handle below
           stays interactive and unclipped when the panel is closed. */}
       <div className="h-full w-full overflow-hidden" inert={!isOpen || undefined}>
-        <div className="flex h-full flex-col overflow-auto" style={{ minWidth: SIDEBAR_MIN_WIDTH }}>
+        <div
+          className="flex h-full flex-col overflow-auto pb-60"
+          style={{ minWidth: SIDEBAR_MIN_WIDTH }}
+        >
           {children}
         </div>
       </div>
 
-      <SidebarResizeHandle store={store} side={side} motionWidth={motionWidth} />
+      <SidebarResizeHandle
+        store={store}
+        side={side}
+        motionWidth={motionWidth}
+        toggleShortcut={toggleShortcut}
+      />
     </motion.aside>
   );
 }

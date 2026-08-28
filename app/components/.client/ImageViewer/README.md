@@ -7,41 +7,57 @@ The Image Viewer is a multi-panel microscopy image viewing interface that allows
 ## Architecture
 
 ```
-ImageViewer (registers decoders, provides store)
-├── ViewerStoreProvider (fetches offsets, loads OME-TIFF)
-│   ├── ViewerHeader
-│   │   └── Magnifier
-│   ├── FeatureBar (left sidebar)
-│   │   ├── ImagePreview (navigation map)
-│   │   └── ChannelsController (visibility, contrast, histogram)
-│   └── ImagePanels (main viewport area)
-│       ├── ImagePanel[0]
-│       └── ImagePanel[1] (optional)
+ImageViewer (composition root: registers decoders, provides store)
+├── canvas/
+│   ├── ImageCanvas (1-N ImagePanels + floating Toolbar)
+│   │   ├── ImagePanel[0]
+│   │   └── ImagePanel[1] (optional, up to 4)
+│   ├── Toolbar (interaction modes: pan, inspect, draw; undo/redo)
+│   ├── ImagePreview (navigation thumbnail)
+│   ├── ResetViewStateButton (fit-to-frame reset)
+│   ├── Annotations/ (deck.gl annotation layers)
+│   ├── Channels/ (deck.gl channel layers)
+│   ├── Measurements/ (scale bar, tick marks)
+│   └── Overlays/ (overlay marker layers)
+├── sidebar/
+│   ├── OverviewControl (ImagePreview + Magnifier presets)
+│   ├── ViewsControl (split-panel layout controls)
+│   ├── ChannelsControl (visibility, contrast, histogram per channel)
+│   ├── OverlaysControl (overlay toggles)
+│   └── AnnotationsControl (annotation list, groups, thumbnails)
+└── state/
+    ├── store/ (Zustand store, selectors, undo/redo)
+    ├── decoders/ (JPEG2000, LZW)
+    ├── formats/ (built-in format loaders)
+    ├── loaders/ (Bioformats Zarr)
+    └── transport/ (SigV4 TIFF client, credentialed HTTP)
 ```
 
 ## Layout
 
-The ImageViewer component renders an ImagePreview and 1-n ImagePanels.
+The ImageViewer renders a canvas area with 1-N ImagePanels and a right-hand sidebar with feature controls.
 
 ```
  ImageViewer
-┌───────────────────────┬───────────────────────────────────────┐
-│ImageControlBar        │ImagePanels                            │
-│┌─────────────────────┐│┌──────────────────┬──────────────────┐│
-││ImagePreview         │││ImagePanel(0)     │ImagePanel(1)     ││
-││{viewStatePreview}   │││{viewStateActive} │{viewStateActive} ││
-││{channelsStateActive}│││{channelsState(n)}│{channelsState(n)}││
-││                     │││                  │                  ││
-││                     │││                  │                  ││
-│└─────────────────────┘││                  │                  ││
-│┌─────────────────────┐││                  │                  ││
-││ChannelsController   │││                  │                  ││
-││{channelsStateActive}│││                  │                  ││
-││                     │││                  │                  ││
-││                     │││                  │                  ││
-││                     │││                  │                  ││
-│└─────────────────────┘│└──────────────────┴──────────────────┘│
-└───────────────────────┴───────────────────────────────────────┘
+┌───────────────────────────────────────┬───────────────────────┐
+│ImageCanvas                            │Sidebar                │
+│┌──────────────────┬──────────────────┐│┌─────────────────────┐│
+││ImagePanel(0)     │ImagePanel(1)     │││OverviewControl      ││
+││{viewStateActive} │{viewStateActive} │││ ImagePreview +       ││
+││{channelsState(n)}│{channelsState(n)}│││ Magnifier presets    ││
+││                  │                  ││├─────────────────────┤│
+││                  │                  │││ViewsControl         ││
+││                  │                  │││ (split-panel layout) ││
+││                  │                  ││├─────────────────────┤│
+││                  │                  │││ChannelsControl      ││
+│└──────────────────┴──────────────────┘│││ (per-channel: color,││
+│             [Floating Toolbar]        │││  contrast, histogram)│
+│                                       │├─────────────────────┤│
+│                                       ││OverlaysControl      ││
+│                                       │├─────────────────────┤│
+│                                       ││AnnotationsControl   ││
+│                                       │└─────────────────────┘│
+└───────────────────────────────────────┴───────────────────────┘
 ```
 
 ## Visual State Relationships
@@ -50,25 +66,25 @@ The ImageViewer component renders an ImagePreview and 1-n ImagePanels.
 
 ```
  ImagePanels state
-┌─────────────────────────────────────┐
-│ imagePanels: [0, 2]                 │◄── Panel indices
-│ imagePanelIndex: 0                  │◄── Active panel
-└─────────────────────────────────────┘
-                │
-                ▼
-┌─────────────────────────────────────┐
-│ channelsStates[]                    │
-│ [0] Default ◄──── Panel[0] shows    │
-│ [1] Unused                          │
-│ [2] Custom  ◄──── Panel[1] shows    │
-│ [3] Unused                          │
-└─────────────────────────────────────┘
-                │
-                ▼
-┌─────────────────────────────────────┐
-│ ImageControlBar reflects:           │
-│ channelsStates[0]                   │
-└─────────────────────────────────────┘
+ ┌─────────────────────────────────────┐
+ │ imagePanels: [0, 2]                 │◄── Panel indices
+ │ imagePanelIndex: 0                  │◄── Active panel
+ └─────────────────────────────────────┘
+                 │
+                 ▼
+ ┌─────────────────────────────────────┐
+ │ channelsStates[]                    │
+ │ [0] Default ◄──── Panel[0] shows    │
+ │ [1] Unused                          │
+ │ [2] Custom  ◄──── Panel[1] shows    │
+ │ [3] Unused                          │
+ └─────────────────────────────────────┘
+                 │
+                 ▼
+ ┌─────────────────────────────────────┐
+ │ Sidebar controls reflect:           │
+ │ channelsStates[0]                   │
+ └─────────────────────────────────────┘
 ```
 
 ## Core Concepts
@@ -112,7 +128,7 @@ Defines visualization settings for all channels in a slide:
 
 - **Capacity**: Up to 4 different VCS configurations per slide
 - **Active State**: Only one VCS is active at any time
-- **Control Binding**: ImageControlBar always reflects the active VCS
+- **Control Binding**: Sidebar always reflects the active VCS
 - **Panel Assignment**: Each ImagePanel can be assigned any VCS
 
 #### **Channel Properties**
@@ -167,7 +183,7 @@ imagePanelIndex: 0; // Currently active panel (receives control input)
 
 ### **Channel Control**
 
-1. User adjusts channel in ImageControlBar
+1. User adjusts channel in sidebar
 2. Active VCS updated
 3. All panels displaying that VCS re-render
 4. Other VCS remain unchanged
@@ -176,7 +192,7 @@ imagePanelIndex: 0; // Currently active panel (receives control input)
 
 1. User clicks different ImagePanel
 2. `imagePanelIndex` updates to new active panel
-3. ImageControlBar loads the active panel's VCS
+3. Sidebar loads the active panel's VCS
 4. Controls reflect new VCS state
 
 ## Decoder Registration
@@ -225,24 +241,14 @@ Offsets are generated with [`generate-tiff-offsets`](https://github.com/hms-dbmi
 
 ### **ImageViewer**
 
-- Root component and state provider
-- Layout management
-- Store initialization
+- Composition root: wires store provider, keyboard shortcuts, canvas + sidebar
 - Decoder registration (LZW, JP2K)
 
-### **ImageControlBar**
+### **ImageCanvas**
 
-- Channel visibility controls
-- Contrast limit adjustments
-- Histogram display
-- Navigation preview
-- Always reflects active panel's VCS
-
-### **ImagePanels**
-
-- Renders 1-n ImagePanel components
+- Renders 1-N ImagePanel components
+- Hosts the floating Toolbar
 - Manages panel layout and sizing
-- Handles panel creation/deletion
 
 ### **ImagePanel**
 
@@ -250,3 +256,11 @@ Offsets are generated with [`generate-tiff-offsets`](https://github.com/hms-dbmi
 - Mouse/keyboard interaction handling
 - VPS synchronization
 - VCS-specific channel rendering
+
+### **Sidebar Controls**
+
+- **OverviewControl** — navigation thumbnail + magnification presets
+- **ViewsControl** — split-panel layout (add/remove panels, assign VCS)
+- **ChannelsControl** — per-channel visibility, color, contrast, histogram
+- **OverlaysControl** — overlay layer toggles
+- **AnnotationsControl** — annotation list, grouping, thumbnails

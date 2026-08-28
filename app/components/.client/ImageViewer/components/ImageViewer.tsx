@@ -1,18 +1,7 @@
-import { IconButtonToggle } from "@cytario/design";
-
-import { ImagePreview } from "./Image/ImagePreview";
-import { useAnnotationModeKeyboard } from "./Image/useAnnotationModeKeyboard";
-import { ImagePanels } from "./ImagePanels";
-import { Magnifier } from "./Magnifier";
-import { AnnotationsPanel } from "./panels/AnnotationsPanel/AnnotationsPanel";
-import { ChannelsPanel } from "./panels/ChannelsPanel/ChannelsPanel";
-import { OverlaysPanel } from "./panels/OverlaysPanel/OverlaysPanel";
-import { Views } from "./panels/ViewsPanel/Views";
-import { ViewerHeader } from "./ViewerHeader";
-import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
+import { ImageCanvas } from "./canvas/ImageCanvas";
+import { useInitializeChannels } from "./canvas/useInitializeChannels";
+import { ImageSidebar } from "./sidebar/ImageSidebar";
 import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
-import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
-import { Sidebar, SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import type { SignedFetch } from "~/utils/signedFetch";
 
@@ -21,80 +10,24 @@ interface ViewerProps {
   signedFetch: SignedFetch;
 }
 
-export const useViewerSidebarStore = createSidebarStore({ name: "ViewerSidebar" });
+function ChannelInitializer() {
+  useInitializeChannels();
+  return null;
+}
 
-export const Viewer = ({ signedFetch, resourceId }: ViewerProps) => {
+export const ImageViewer = ({ signedFetch, resourceId }: ViewerProps) => {
   const userId = useCurrentUser()?.sub ?? "";
 
   return (
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
-      <UndoRedoShortcuts />
-      <AnnotationModeKeyboard />
-      <ViewerHeader>
-        {({ metadata, viewStateActive, setViewStateActive }) => (
-          <Magnifier
-            metadata={metadata}
-            viewStateActive={viewStateActive}
-            setViewStateActive={setViewStateActive}
-          />
-        )}
-      </ViewerHeader>
-
+      <ChannelInitializer />
       <div
         data-theme="dark"
         className="relative flex grow h-full bg-background text-foreground overflow-clip"
       >
-        <ImagePanels />
-        <Sidebar
-          name={SIDEBAR.viewer}
-          side="right"
-          store={useViewerSidebarStore}
-          toggleShortcut="mod+alt+b"
-          openOnMount
-        >
-          <div className="block h-60 w-full shrink-0">
-            <ImagePreview isInteractive />
-          </div>
-          <Views />
-          <ChannelsPanel />
-          <OverlaysPanel />
-          <AnnotationsPanel />
-        </Sidebar>
-        <ViewerSidebarToggle />
+        <ImageCanvas />
+        <ImageSidebar />
       </div>
     </ViewerStoreProvider>
   );
 };
-
-// Mounts the keyboard shortcut listener inside the ViewerStoreProvider.
-function UndoRedoShortcuts() {
-  useUndoRedoShortcuts();
-  return null;
-}
-
-// Mounts the annotation-mode keyboard shortcuts (Esc→view, Space→temp drag)
-// inside the ViewerStoreProvider.
-function AnnotationModeKeyboard() {
-  useAnnotationModeKeyboard();
-  return null;
-}
-
-// Always-visible toggle (bottom-right) so the panel can be reopened when collapsed.
-function ViewerSidebarToggle() {
-  const isOpen = useViewerSidebarStore((s) => s.isOpen);
-  const toggle = useViewerSidebarStore((s) => s.toggle);
-  return (
-    <div data-theme="dark" className="absolute right-2 bottom-2 z-40">
-      <IconButtonToggle
-        id={sidebarToggleId(SIDEBAR.viewer)}
-        icon={isOpen ? "PanelRightClose" : "PanelRightOpen"}
-        label="Toggle image controls"
-        aria-controls={sidebarDomId(SIDEBAR.viewer)}
-        aria-expanded={isOpen}
-        variant="ghost"
-        isSelected={isOpen}
-        onChange={toggle}
-      />
-    </div>
-  );
-}

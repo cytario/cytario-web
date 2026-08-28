@@ -12,7 +12,7 @@ export function createFeatureItemStore(name: string) {
     persist(
       devtools(
         (set) => ({
-          isOpen: false,
+          isOpen: true,
           setIsOpen: (isOpen: boolean) => set({ isOpen }),
         }),
         { name },
