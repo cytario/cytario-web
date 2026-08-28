@@ -71,8 +71,8 @@ const ImagePanelInner = ({
   }, [isActivePanel, metadata, padding, setViewStateActive, width, height, viewStateActive]);
 
   const onViewStateChange = useCallback(
-    ({ viewState }: { viewState: OrthographicViewState }) => {
-      setViewStateActive(viewState as ViewState);
+    ({ viewState: { zoom, target } }: { viewState: OrthographicViewState }) => {
+      setViewStateActive({ zoom, target } as ViewState);
     },
     [setViewStateActive],
   );
