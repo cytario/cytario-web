@@ -7,6 +7,7 @@ import { type AnnotationMode } from "../state/store/types";
 import { useUndoRedo } from "../state/store/useUndoRedo";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
+import { ScaleBar } from "./canvas/Measurements/ScaleBar";
 
 const tools = [
   { mode: "view", icon: "Hand", label: "Drag, pan, and zoom" },
@@ -31,41 +32,47 @@ export const Toolbar = () => {
   };
 
   return (
-    <FloatingBar
-      role="toolbar"
-      aria-label="Annotation tools"
-      className="bottom-8 left-1/2 -translate-x-1/2"
-    >
-      {tools.map(({ mode, icon, label }) => {
-        const isActive = activeMode === mode;
-        return (
-          <IconButton
-            key={mode}
-            icon={icon}
-            label={label}
-            aria-pressed={isActive}
-            variant={isActive ? "primary" : "ghost"}
-            onPress={() => activate(mode)}
-          />
-        );
-      })}
+    <>
+      <FloatingBar className="bottom-8 left-8 p-5">
+        <ScaleBar />
+      </FloatingBar>
 
-      <IconButton
-        icon="RotateCcw"
-        label="Undo"
-        variant="ghost"
-        isDisabled={!canUndo}
-        onPress={undo}
-      />
+      <FloatingBar
+        role="toolbar"
+        aria-label="Annotation tools"
+        className="bottom-8 left-1/2 -translate-x-1/2"
+      >
+        {tools.map(({ mode, icon, label }) => {
+          const isActive = activeMode === mode;
+          return (
+            <IconButton
+              key={mode}
+              icon={icon}
+              label={label}
+              aria-pressed={isActive}
+              variant={isActive ? "primary" : "ghost"}
+              onPress={() => activate(mode)}
+            />
+          );
+        })}
 
-      <IconButton
-        icon="RotateCw"
-        label="Redo"
-        variant="ghost"
-        isDisabled={!canRedo}
-        onPress={redo}
-      />
-    </FloatingBar>
+        <IconButton
+          icon="RotateCcw"
+          label="Undo"
+          variant="ghost"
+          isDisabled={!canUndo}
+          onPress={undo}
+        />
+
+        <IconButton
+          icon="RotateCw"
+          label="Redo"
+          variant="ghost"
+          isDisabled={!canRedo}
+          onPress={redo}
+        />
+      </FloatingBar>
+    </>
   );
 };
 

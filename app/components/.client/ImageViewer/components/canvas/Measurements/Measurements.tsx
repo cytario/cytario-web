@@ -1,5 +1,4 @@
 import { Ruler } from "./Ruler";
-import { Scale } from "./Scale";
 import { useMeasurements } from "./useMeasurements";
 
 export function Measurements() {
@@ -32,8 +31,6 @@ export function Measurements() {
         one_mm={one_mm}
         vertical
       />
-
-      <Scale />
     </div>
   );
 }

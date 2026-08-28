@@ -35,7 +35,7 @@ const getSize = (one_mm: number): [number, string] => {
   return [one_mm * arr[n][0], arr[n][1]];
 };
 
-export const Scale = () => {
+export const ScaleBar = () => {
   const { one_mm } = useMeasurements();
 
   const [size, unit] = getSize(one_mm);
@@ -44,14 +44,17 @@ export const Scale = () => {
     <div
       className={`
         pointer-events-none 
-        absolute top-0 right-0 
-        flex flex-col items-center
+        flex items-center
         text-xs font-semibold
-        bg-muted-foreground text-background
+        text-muted-foreground
+        backdrop-blur-sm
+        border-x-2 border-muted-foreground
       `}
       style={{ width: size }}
     >
-      {unit}
+      <div className="h-0.5 w-full bg-muted-foreground" />
+      <div className="px-1 text-center text-nowrap">{unit}</div>
+      <div className="h-0.5 w-full bg-muted-foreground" />
     </div>
   );
 };

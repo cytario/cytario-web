@@ -1,6 +1,5 @@
 import { animate, motion, useMotionValue } from "motion/react";
 import { useEffect, type ReactNode } from "react";
-import { twMerge } from "tailwind-merge";
 
 import { SIDEBAR_MIN_WIDTH, type SidebarStoreApi } from "./createSidebarStore";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
