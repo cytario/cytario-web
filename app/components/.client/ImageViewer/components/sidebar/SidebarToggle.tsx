@@ -1,7 +1,7 @@
 import { IconButton } from "@cytario/design";
 
-import { FloatingBar } from "./FloatingBar";
-import { useViewerSidebarStore } from "./ImageViewer";
+import { useViewerSidebarStore } from "../ImageViewer";
+import { FloatingBar } from "../Toolbar";
 import { SIDEBAR, sidebarDomId, sidebarToggleId } from "~/components/Sidebar/Sidebar";
 
 /** Always-visible toggle (bottom-right) so the panel can be reopened when collapsed. */

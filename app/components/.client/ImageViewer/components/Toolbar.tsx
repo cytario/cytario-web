@@ -1,24 +1,29 @@
 import { IconButton } from "@cytario/design";
+import type { HTMLAttributes } from "react";
+import { twMerge } from "tailwind-merge";
 
-import { FloatingBar } from "./FloatingBar";
+import { useAnnotationModeKeyboard } from "./canvas/useAnnotationModeKeyboard";
 import { type AnnotationMode } from "../state/store/types";
 import { useUndoRedo } from "../state/store/useUndoRedo";
+import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
 
 const tools = [
   { mode: "view", icon: "Hand", label: "Drag, pan, and zoom" },
-  { mode: "inspect", icon: "Search", label: "Inspect pixel values" },
+  { mode: "inspect", icon: "Crosshair", label: "Inspect pixel values" },
   { mode: "draw-freehand", icon: "Pencil", label: "Draw freehand" },
   { mode: "draw-polygon", icon: "Pentagon", label: "Draw polygon" },
   { mode: "draw-point", icon: "MapPin", label: "Draw point" },
 ] as const;
 
-/** Floating canvas toolbar: interaction modes + undo/redo. */
+/** Floating canvas toolbar: interaction modes + undo/redo + keyboard shortcuts. */
 export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
+  useUndoRedoShortcuts();
+  useAnnotationModeKeyboard();
 
   const activate = (target: AnnotationMode) => {
     if (target !== "view" && target !== "inspect") setSelectedIds([]);
@@ -63,3 +68,20 @@ export const Toolbar = () => {
     </FloatingBar>
   );
 };
+
+/** Floating overlay bar: absolute-positioned pill with blur background. */
+export const FloatingBar = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
+  <div
+    {...props}
+    className={twMerge(
+      `
+        z-30 absolute
+        flex flex-row items-center
+        p-2 gap-4 rounded-full
+        bg-background/80 backdrop-blur-sm
+        shadow-md
+      `,
+      className,
+    )}
+  />
+);

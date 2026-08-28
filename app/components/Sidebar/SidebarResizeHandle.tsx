@@ -1,5 +1,6 @@
 import { animate, motion, type MotionValue, type PanInfo } from "motion/react";
 import { useRef } from "react";
+import { twMerge } from "tailwind-merge";
 
 import {
   clampSidebarWidth,
@@ -15,6 +16,7 @@ interface SidebarResizeHandleProps {
 }
 
 const KEYBOARD_STEP = 24;
+const DOUBLE_TAP_MS = 300;
 
 // A child of the panel `<aside>`, positioned at its inner edge and extending
 // outward over the content. The aside's width *is* the panel width, so `right-0`
@@ -27,10 +29,12 @@ const KEYBOARD_STEP = 24;
 export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeHandleProps) {
   const setWidth = store((s) => s.setWidth);
   const setOpen = store((s) => s.setOpen);
+  const toggle = store((s) => s.toggle);
   const isOpen = store((s) => s.isOpen);
   const width = store((s) => s.width);
   const dir = side === "left" ? 1 : -1;
   const widthAtPanStart = useRef(0);
+  const lastTap = useRef(0);
 
   // Drive motionWidth here rather than relying on the panel's open/width effect:
   // a drag that leaves isOpen/width unchanged (e.g. nudging an already-closed
@@ -60,11 +64,28 @@ export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeH
     else if (isOpen) commit(width - KEYBOARD_STEP);
   };
 
+  const cx = twMerge(
+    `
+      z-30 cursor-ew-resize
+      absolute top-0 
+      h-full w-4 
+      border-transparent
+      hover:border-secondary
+      transition-colors
+    `,
+    side === "left" ? "right-0 translate-x-full border-l-4" : "left-0 -translate-x-full border-r-4",
+  );
+
   return (
     <motion.div
       onPanStart={() => (widthAtPanStart.current = motionWidth.get())}
       onPan={onPan}
       onPanEnd={() => commit(motionWidth.get())}
+      onTap={() => {
+        const now = Date.now();
+        if (now - lastTap.current < DOUBLE_TAP_MS) toggle();
+        lastTap.current = now;
+      }}
       onKeyDown={onKeyDown}
       tabIndex={0}
       role="separator"
@@ -73,9 +94,7 @@ export function SidebarResizeHandle({ store, side, motionWidth }: SidebarResizeH
       aria-valuenow={Math.round(isOpen ? width : 0)}
       aria-valuemin={0}
       aria-valuemax={SIDEBAR_MAX_WIDTH}
-      className={`absolute top-0 z-30 h-full w-4 cursor-ew-resize hover:bg-accent/40 ${
-        side === "left" ? "right-0 translate-x-full" : "left-0 -translate-x-full"
-      }`}
+      className={cx}
     />
   );
 }
