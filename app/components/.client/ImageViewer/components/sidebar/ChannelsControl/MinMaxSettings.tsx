@@ -1,4 +1,4 @@
-import { IconButton } from "@cytario/design";
+import { IconButton, Input } from "@cytario/design";
 import { useState } from "react";
 
 import { select } from "../../../state/store/selectors";
@@ -76,42 +76,28 @@ export function MinMaxSettings() {
 
   return (
     <div className="m-2 flex gap-2 items-center">
-      <div className="relative flex min-w-0">
-        <label
-          htmlFor="min-contrast"
-          className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]"
-        >
-          Min
-        </label>
-        <input
-          id="min-contrast"
-          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-border bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-          type="number"
-          value={minValue}
-          disabled={!selectedChannel}
-          onChange={(e) => setEditingMin(e.target.value)}
-          onBlur={(e) => commitValue("min", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "min")}
-        />
-      </div>
-      <div className="relative flex min-w-0">
-        <label
-          htmlFor="max-contrast"
-          className="absolute left-2 text-sm font-bold top-1/2 -translate-y-1/2 leading-[1.2]"
-        >
-          Max
-        </label>
-        <input
-          id="max-contrast"
-          className="flex w-full h-8 px-2 text-base text-right rounded-sm border border-border bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-          type="number"
-          value={maxValue}
-          disabled={!selectedChannel}
-          onChange={(e) => setEditingMax(e.target.value)}
-          onBlur={(e) => commitValue("max", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "max")}
-        />
-      </div>
+      <Input
+        id="min-contrast"
+        type="number"
+        size="sm"
+        prefix="Min"
+        value={minValue}
+        isDisabled={!selectedChannel}
+        onChange={(value) => setEditingMin(value)}
+        onBlur={(e) => commitValue("min", e.target.value)}
+        onKeyDown={(e) => handleKeyDown(e, "min")}
+      />
+      <Input
+        id="max-contrast"
+        type="number"
+        size="sm"
+        prefix="Max"
+        value={maxValue}
+        isDisabled={!selectedChannel}
+        onChange={(value) => setEditingMax(value)}
+        onBlur={(e) => commitValue("max", e.target.value)}
+        onKeyDown={(e) => handleKeyDown(e, "max")}
+      />
       <IconButton
         label="Reset contrast"
         isDisabled={isResetDisabled}

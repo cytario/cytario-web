@@ -46,7 +46,6 @@ export function SearchInput({
 
   return (
     <div className={className}>
-      <Icon icon="Search" size="sm" className="text-muted-foreground" />
       <Input
         size="sm"
         id={id}
@@ -54,10 +53,23 @@ export function SearchInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        prefix={<Icon icon="Search" size="sm" className="text-muted-foreground" />}
+        suffix={
+          value ? (
+            <IconButton
+              //
+              icon="X"
+              size="xs"
+              variant="primary"
+              onPress={onClear}
+              label="Clear search"
+            />
+          ) : null
+        }
       />
-      {value ? (
+      {/* {value ? (
         <IconButton icon="X" size="sm" variant="ghost" onPress={onClear} label="Clear search" />
-      ) : null}
+      ) : null} */}
     </div>
   );
 }

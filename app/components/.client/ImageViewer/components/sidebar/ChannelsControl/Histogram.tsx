@@ -46,8 +46,8 @@ export function Histogram() {
   }, []);
 
   return (
-    <div ref={ref} className="relative top-0 overflow-hidden px-3 pt-3">
-      <div className="relative p-2 pb-2 bg-card rounded overflow-visible">
+    <>
+      <div ref={ref} className="relative p-2 rounded overflow-visible">
         <div className="absolute right-2 top-2 z-10">
           <ToggleButton
             size="xs"
@@ -60,6 +60,7 @@ export function Histogram() {
             {logScaleX ? "log" : "lin"}
           </ToggleButton>
         </div>
+
         <svg width={width} height={height}>
           {channelConfigs.map(({ histogram, color, contrastLimits, isVisible }, channelIndex) => {
             if (!isVisible) return null;
@@ -92,6 +93,6 @@ export function Histogram() {
       </div>
 
       <MinMaxSettings />
-    </div>
+    </>
   );
 }

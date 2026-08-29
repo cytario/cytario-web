@@ -54,27 +54,18 @@ export const Magnifier = () => {
         <ResetViewStateButton />
         <Input
           isReadOnly
-          value={magnification.toFixed(1) + "x"}
+          value={magnification.toFixed(1)}
+          suffix="x"
           size="sm"
           aria-label="Current magnification"
           align="right"
-          className="w-18 shrink-0 tabular-nums"
+          className="w-16 tabular-nums"
         />
       </div>
 
       <div role="group" aria-label="Magnification presets" className="relative h-10 flex-1 mx-5">
         {/* Slate */}
-        <div
-          aria-hidden
-          className={twMerge(
-            `
-              absolute top-1/2 -translate-y-1/2
-              left-1 right-1
-              h-3
-              bg-border
-            `,
-          )}
-        >
+        <div aria-hidden className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-3 bg-border">
           <div
             className="absolute inset-y-0.5 h-2 bg-primary rounded-full"
             style={{
@@ -93,22 +84,29 @@ export const Magnifier = () => {
 
         {[...MINOR_MAGNIFICATIONS, ...MAGNIFICATION_PRESETS].map((m) => {
           const isPreset = (MAGNIFICATION_PRESETS as readonly number[]).includes(m);
+
+          const cx = twMerge(
+            CENTER,
+            `
+              flex justify-center
+              gap-0 p-0
+              backdrop-blur-xl bg-card
+              rounded-full
+            `,
+            isPreset ? "w-10 h-10 text-sm select-none " : "p-0 h-3 w-3 ",
+            roundedMag === m && "ring-2 ring-muted-foreground ring-offset-2 ring-offset-background",
+          );
+
           return (
             <Button
               key={m}
               variant="outline"
               onPress={() => setZoom(m)}
               aria-label={`${m}x`}
-              className={twMerge(
-                CENTER,
-                "backdrop-blur-xl bg-card rounded-full",
-                isPreset ? "w-10 h-10 text-sm select-none " : "p-0 h-3 w-3 ",
-                roundedMag === m &&
-                  "ring-2 ring-muted-foreground ring-offset-2 ring-offset-background",
-              )}
+              className={cx}
               style={{ left: `${axisPos(zoomFromMagnification(m, 20)) * 100}%` }}
             >
-              {isPreset ? `${m}x` : undefined}
+              {isPreset ? <span>{m}x</span> : undefined}
             </Button>
           );
         })}

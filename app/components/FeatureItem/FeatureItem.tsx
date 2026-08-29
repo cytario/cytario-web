@@ -60,7 +60,7 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
         </div>
 
         {/* Sticky content via props, e.g. Histogram */}
-        {isOpen && <div className="bg-background pb-2">{header}</div>}
+        {isOpen && <div className="bg-background">{header}</div>}
       </header>
 
       {isOpen && <div className="bg-card">{children}</div>}

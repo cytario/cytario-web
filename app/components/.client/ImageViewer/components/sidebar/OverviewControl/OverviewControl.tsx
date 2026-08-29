@@ -10,7 +10,7 @@ export const OverviewControl = () => {
       title="Overview"
       actions={<ResetViewStateButton />}
       header={
-        <div className="block h-60 shrink-0 mx-2 rounded-l overflow-hidden">
+        <div className="block h-60">
           <ImagePreview isInteractive />
         </div>
       }

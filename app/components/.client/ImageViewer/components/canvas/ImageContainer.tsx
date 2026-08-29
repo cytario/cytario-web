@@ -14,6 +14,7 @@ interface ViewContainerProps {
   children: (viewPort: ViewPort) => React.JSX.Element;
   isActivePanel?: boolean;
   isPreview?: boolean;
+  isInteractive?: boolean;
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onPointerMove?: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerLeave?: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -23,6 +24,7 @@ export function ImageContainer({
   children,
   isActivePanel = false,
   isPreview = false,
+  isInteractive = false,
   onClick,
   onPointerMove,
   onPointerLeave,
@@ -44,7 +46,8 @@ export function ImageContainer({
 
   let border = "border border-2 border-border";
   if (isActivePanel) border += " border-muted-foreground";
-  if (isPreview) border += " border-none";
+  if (isPreview) border += " border-none ";
+  if (isInteractive) border += " mix-blend-lighten";
   if (error) background += " border-none";
 
   const cx = twMerge(style, background, border);

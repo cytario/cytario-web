@@ -103,7 +103,7 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
  */
 export const ImagePreview = ({ isInteractive = false }: { isInteractive?: boolean }) => {
   return (
-    <ImageContainer isPreview>
+    <ImageContainer isPreview isInteractive={isInteractive}>
       {(viewPort) => (
         <>
           <ImagePreviewInner viewPort={viewPort} isInteractive={isInteractive} />

@@ -68,14 +68,14 @@ describe("Magnifier", () => {
     mockStore(makeViewState(0)); // zoom 0 = 20x at objectivePower 20
     render(<OverviewControl />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("20.0x");
+    expect(screen.getByRole("textbox")).toHaveValue("20.0");
   });
 
   test("displays magnification for non-zero zoom", () => {
     mockStore(makeViewState(1)); // zoom 1 = 40x
     render(<OverviewControl />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("40.0x");
+    expect(screen.getByRole("textbox")).toHaveValue("40.0");
   });
 
   test("clicking a preset button sets the correct zoom", async () => {
@@ -105,7 +105,7 @@ describe("Magnifier", () => {
     mockStore(null);
     render(<OverviewControl />);
 
-    expect(screen.getByRole("textbox")).toHaveValue("20.0x");
+    expect(screen.getByRole("textbox")).toHaveValue("20.0");
   });
 
   test("renders the preset container with correct aria-label", () => {
