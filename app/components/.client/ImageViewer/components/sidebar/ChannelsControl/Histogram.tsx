@@ -1,7 +1,7 @@
-import { ToggleButton } from "@cytario/design";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { ratioToIntensity } from "./axisScale";
+import { countToRatio, intensityToRatio } from "./axisScale";
+import { AxisTicks } from "./AxisTicks";
 import { rgb } from "./ColorPicker/ColorPicker";
 import { DomainSlider } from "./DomainSlider";
 import { HistogramChannel } from "./HistogramChannel";
@@ -23,7 +23,6 @@ export function Histogram() {
   const channelConfigs = useMemo(() => {
     const configs = Object.values(channelsState ?? []);
     if (!selectedChannel) return configs;
-    // Sort selectedChannel to render on top
     const filtered = configs.filter((c) => c !== selectedChannel);
     return [...filtered, selectedChannel];
   }, [channelsState, selectedChannel]);
@@ -32,14 +31,12 @@ export function Histogram() {
 
   const maxValue = Math.max(...allValues);
   const maxDomain = Math.max(...channelConfigs.map(({ domain }) => domain[1]));
-  const xTicks = [0, 0.5, 1].map((r) => Math.round(ratioToIntensity(r, maxDomain, logScaleX)));
 
-  // Handle sidebar resize
   useLayoutEffect(() => {
     if (!ref.current) return;
     const observer = new ResizeObserver(([entry]) => {
       const { width } = entry.contentRect;
-      setWidth(width - 8 - 8);
+      setWidth(width);
     });
     observer.observe(ref.current);
     return () => observer.disconnect();
@@ -47,20 +44,7 @@ export function Histogram() {
 
   return (
     <>
-      <div ref={ref} className="relative p-2 rounded overflow-visible">
-        <div className="absolute right-2 top-2 z-10">
-          <ToggleButton
-            size="xs"
-            variant="outlined"
-            className="text-muted-foreground"
-            aria-label={`Intensity axis scale: ${logScaleX ? "logarithmic" : "linear"}`}
-            isSelected={logScaleX}
-            onChange={setLogScaleX}
-          >
-            {logScaleX ? "log" : "lin"}
-          </ToggleButton>
-        </div>
-
+      <div ref={ref} className="relative mx-6">
         <svg width={width} height={height}>
           {channelConfigs.map(({ histogram, color, contrastLimits, isVisible }, channelIndex) => {
             if (!isVisible) return null;
@@ -82,17 +66,23 @@ export function Histogram() {
             );
           })}
         </svg>
+        <AxisTicks
+          orientation="y"
+          max={maxValue}
+          log={logScaleY}
+          toRatio={(v) => countToRatio(v, maxValue, logScaleY)}
+        />
 
         <DomainSlider domain={[0, maxDomain]} logScaleX={logScaleX} />
 
-        <div className="grid grid-cols-3 text-[10px] leading-loose text-muted-foreground tabular-nums">
-          <span className="text-left">{xTicks[0]}</span>
-          <span className="text-center">{xTicks[1]}</span>
-          <span className="text-right">{xTicks[2]}</span>
-        </div>
+        <AxisTicks
+          orientation="x"
+          max={maxDomain}
+          log={logScaleX}
+          toRatio={(v) => intensityToRatio(v, maxDomain, logScaleX)}
+        />
       </div>
-
-      <MinMaxSettings />
+      <MinMaxSettings logScaleX={logScaleX} setLogScaleX={setLogScaleX} />
     </>
   );
 }

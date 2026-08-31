@@ -48,7 +48,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("renders min and max input fields", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     expect(screen.getByText("Min")).toBeInTheDocument();
     expect(screen.getByText("Max")).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("displays current contrast limits values", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const inputs = screen.getAllByRole("spinbutton");
     expect(inputs[0]).toHaveValue(50); // min
@@ -66,7 +66,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("commits min value on blur", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const minInput = screen.getAllByRole("spinbutton")[0];
     fireEvent.change(minInput, { target: { value: "75" } });
@@ -76,7 +76,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("commits max value on blur", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const maxInput = screen.getAllByRole("spinbutton")[1];
     fireEvent.change(maxInput, { target: { value: "180" } });
@@ -86,7 +86,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("commits value on Enter key", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const minInput = screen.getAllByRole("spinbutton")[0];
     fireEvent.change(minInput, { target: { value: "30" } });
@@ -98,7 +98,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("cancels editing on Escape key without committing", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const minInput = screen.getAllByRole("spinbutton")[0];
     fireEvent.change(minInput, { target: { value: "999" } });
@@ -109,7 +109,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("clamps min value to domain bounds", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const minInput = screen.getAllByRole("spinbutton")[0];
     fireEvent.change(minInput, { target: { value: "-50" } });
@@ -120,7 +120,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("accepts max values above the auto-fitted domain, up to the dtype range", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const maxInput = screen.getAllByRole("spinbutton")[1];
     fireEvent.change(maxInput, { target: { value: "50000" } });
@@ -131,7 +131,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("clamps max value to the dtype ceiling", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const maxInput = screen.getAllByRole("spinbutton")[1];
     fireEvent.change(maxInput, { target: { value: "99999" } });
@@ -142,7 +142,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("ensures min does not exceed max", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const minInput = screen.getAllByRole("spinbutton")[0];
     fireEvent.change(minInput, { target: { value: "250" } });
@@ -153,7 +153,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("ensures max does not go below min", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const maxInput = screen.getAllByRole("spinbutton")[1];
     fireEvent.change(maxInput, { target: { value: "10" } });
@@ -164,7 +164,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("does not commit invalid (NaN) values", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const minInput = screen.getAllByRole("spinbutton")[0];
     fireEvent.change(minInput, { target: { value: "abc" } });
@@ -190,7 +190,7 @@ describe("MinMaxSettings", () => {
       return undefined;
     });
 
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const inputs = screen.getAllByRole("spinbutton");
     expect(inputs[0]).toBeDisabled();
@@ -198,7 +198,7 @@ describe("MinMaxSettings", () => {
   });
 
   test("reset button calls resetContrastLimits", () => {
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     fireEvent.click(screen.getByLabelText("Reset contrast"));
 
@@ -225,7 +225,7 @@ describe("MinMaxSettings", () => {
       return undefined;
     });
 
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     expect(screen.getByLabelText("Reset contrast")).toBeDisabled();
   });
@@ -247,7 +247,7 @@ describe("MinMaxSettings", () => {
       return undefined;
     });
 
-    render(<MinMaxSettings />);
+    render(<MinMaxSettings logScaleX={false} setLogScaleX={vi.fn()} />);
 
     const inputs = screen.getAllByRole("spinbutton");
     expect(inputs[0]).toHaveValue(0);

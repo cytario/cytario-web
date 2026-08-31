@@ -47,10 +47,10 @@ export const DomainSlider = ({
               height: 1,
             },
             handle: {
-              width: 16,
-              height: 16,
+              width: 20,
+              height: 20,
               backgroundColor: color,
-              borderColor: "var(--color-background)",
+              borderColor: "var(--color-border)",
               borderWidth: 2,
               boxShadow: "none",
               opacity: 1,

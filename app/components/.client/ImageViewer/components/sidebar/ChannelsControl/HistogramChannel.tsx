@@ -20,8 +20,6 @@ export const HistogramChannel = ({
   logScaleY,
   width,
   height,
-
-  /*  */
   histogram,
   color,
   contrastLimit,

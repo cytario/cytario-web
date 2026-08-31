@@ -1,4 +1,4 @@
-import { Button, Tooltip } from "@cytario/design";
+import { Button, MetricText, Tooltip } from "@cytario/design";
 
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import { ChannelsState } from "../../../state/store/types";
@@ -26,13 +26,12 @@ function SplitPanelButton({ panelIndex, isActive }: { panelIndex: number; isActi
       className={`
         flex items-center justify-center grow h-full w-2
         rounded-sm overflow-hidden
-        text-[10px] font-bold
         border transition-all
         ${isActive ? "border-ring ring-1 ring-ring ring-offset-1 ring-offset-background" : "border-border"}
       `}
       style={{ background }}
     >
-      {panelIndex + 1}
+      <MetricText>{panelIndex + 1}</MetricText>
     </div>
   );
 }

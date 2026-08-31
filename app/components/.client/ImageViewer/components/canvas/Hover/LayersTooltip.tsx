@@ -1,4 +1,4 @@
-import { Icon, TruncatedText } from "@cytario/design";
+import { Icon, MetricText, TruncatedText } from "@cytario/design";
 import { useLayoutEffect, useRef } from "react";
 
 import type {
@@ -37,9 +37,7 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
               />
               <span>{label}</span>
             </div>
-            {value && (
-              <span className="font-medium leading-tight tracking-wider tabular-nums">{value}</span>
-            )}
+            {value && <MetricText>{value}</MetricText>}
           </div>
         ))}
       </div>

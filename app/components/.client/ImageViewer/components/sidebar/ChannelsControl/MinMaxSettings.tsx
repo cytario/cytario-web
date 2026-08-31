@@ -1,11 +1,16 @@
-import { IconButton, Input } from "@cytario/design";
+import { IconButton, Input, ToggleButton } from "@cytario/design";
 import { useState } from "react";
 
 import { select } from "../../../state/store/selectors";
 import { ByteDomain } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
-export function MinMaxSettings() {
+interface MinMaxSettingsProps {
+  logScaleX: boolean;
+  setLogScaleX: (value: boolean) => void;
+}
+
+export function MinMaxSettings({ logScaleX, setLogScaleX }: MinMaxSettingsProps) {
   const selectedChannel = useViewerStore(select.selectedChannel);
   const defaultContrastLimits = useViewerStore(select.defaultContrastLimits);
   const valueRange = useViewerStore(select.valueRange);
@@ -75,12 +80,22 @@ export function MinMaxSettings() {
   };
 
   return (
-    <div className="m-2 flex gap-2 items-center">
+    <div className="px-2 py-1 flex gap-2 items-center">
+      <ToggleButton
+        size="xs"
+        variant="outlined"
+        aria-label={`Intensity axis scale: ${logScaleX ? "logarithmic" : "linear"}`}
+        isSelected={logScaleX}
+        onChange={setLogScaleX}
+      >
+        {logScaleX ? "log" : "lin"}
+      </ToggleButton>
       <Input
         id="min-contrast"
         type="number"
         size="sm"
         prefix="Min"
+        aria-label="Minimum contrast limit"
         value={minValue}
         isDisabled={!selectedChannel}
         onChange={(value) => setEditingMin(value)}
@@ -92,6 +107,7 @@ export function MinMaxSettings() {
         type="number"
         size="sm"
         prefix="Max"
+        aria-label="Maximum contrast limit"
         value={maxValue}
         isDisabled={!selectedChannel}
         onChange={(value) => setEditingMax(value)}

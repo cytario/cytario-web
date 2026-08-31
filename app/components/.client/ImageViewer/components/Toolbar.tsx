@@ -85,7 +85,7 @@ export const FloatingBar = ({ className, ...props }: HTMLAttributes<HTMLDivEleme
         z-30 absolute
         flex flex-row items-center
         p-2 gap-4 rounded-full
-        bg-background/80 backdrop-blur-sm
+        bg-background/80 backdrop-blur
         shadow-md
       `,
       className,

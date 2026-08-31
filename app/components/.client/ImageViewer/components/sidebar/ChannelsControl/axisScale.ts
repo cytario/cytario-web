@@ -32,3 +32,41 @@ export function countToRatio(value: number, maxValue: number, logScaleY: boolean
   const scaledMax = logScaleY ? Math.log(maxValue + 1) : maxValue;
   return scaledMax > 0 ? Math.min(1, scaled / scaledMax) : 0;
 }
+
+// Inverse of countToRatio.
+export function ratioToCount(ratio: number, maxValue: number, logScaleY: boolean): number {
+  if (logScaleY) return (maxValue + 1) ** ratio - 1;
+  return ratio * maxValue;
+}
+
+// --- Tick generation (shared by both axes) ---
+
+function niceStep(raw: number): number {
+  if (raw <= 0) return 1;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / mag;
+  const nice = norm <= 1.5 ? 1 : norm <= 3 ? 2 : norm <= 7 ? 5 : 10;
+  return nice * mag;
+}
+
+export function generateTicks(max: number, log: boolean, includeZero = true): number[] {
+  if (max <= 0) return [0];
+  if (log) {
+    const ticks = includeZero ? [0] : [];
+    const start = max > 10000 ? 1000 : max > 1000 ? 100 : max > 100 ? 10 : 1;
+    for (let p = start; p <= max; p *= 10) ticks.push(p);
+    return ticks;
+  }
+  const step = niceStep(max / 4);
+  const ticks: number[] = [];
+  for (let v = includeZero ? 0 : step; v <= max; v += step) ticks.push(v);
+  return ticks;
+}
+
+export function formatTick(v: number): string {
+  return v >= 1_000_000
+    ? `${(v / 1_000_000).toFixed(1)}M`
+    : v >= 1000
+      ? `${(v / 1000).toFixed(1)}k`
+      : String(v);
+}

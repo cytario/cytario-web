@@ -26,12 +26,12 @@ export const Ruler = ({
 
   const cx = twMerge(
     `
-        absolute top-0 left-0 
-        flex w-4 h-4
-        origin-top-left
-        text-xs
-        font-semibold         
-      `,
+      absolute top-0 left-0 
+      flex w-4 h-4
+      origin-top-left
+      text-xs
+      font-semibold         
+    `,
     vertical ? "rotate-90 translate-x-4" : "",
     vertical ? "items-end" : "items-start",
   );

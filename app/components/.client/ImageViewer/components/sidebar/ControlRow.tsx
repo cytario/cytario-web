@@ -43,7 +43,7 @@ export function ControlRow({
       group/controlrow
       relative flex items-center
       gap-1 rounded-full
-      px-2 py-1
+      px-1 py-1
       font-medium text-sm
       hover:bg-muted
     `,

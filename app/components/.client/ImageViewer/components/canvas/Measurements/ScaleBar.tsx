@@ -1,3 +1,5 @@
+import { MetricText } from "@cytario/design";
+
 import { useMeasurements } from "./useMeasurements";
 
 const arr: [number, string][] = [
@@ -52,7 +54,7 @@ export const ScaleBar = () => {
       style={{ width: size }}
     >
       <div className="h-0.5 w-full bg-muted-foreground" />
-      <div className="px-1 text-center text-nowrap">{unit}</div>
+      <MetricText className="px-1 text-nowrap">{unit}</MetricText>
       <div className="h-0.5 w-full bg-muted-foreground" />
     </div>
   );

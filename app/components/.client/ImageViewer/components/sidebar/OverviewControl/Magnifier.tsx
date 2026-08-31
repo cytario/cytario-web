@@ -21,12 +21,6 @@ const Z_MAX = PRESET_ZOOMS[PRESET_ZOOMS.length - 1];
 // Unclamped so the indicator can run past the ends for zooms outside the preset range.
 const axisPos = (zoom: number) => (zoom - Z_MIN) / (Z_MAX - Z_MIN);
 
-// Minor ticks: integers 1–19 and every 5x above 20x, excluding preset values.
-const MINOR_MAGNIFICATIONS = [
-  ...Array.from({ length: 19 }, (_, i) => i + 1),
-  ...Array.from({ length: 12 }, (_, i) => 25 + i * 5),
-].filter((m) => !(MAGNIFICATION_PRESETS as readonly number[]).includes(m));
-
 /** Magnification presets: log-scale posts with a snapping indicator. */
 export const Magnifier = () => {
   const viewStateActive = useViewerStore(select.viewStateActive);
@@ -65,7 +59,10 @@ export const Magnifier = () => {
 
       <div role="group" aria-label="Magnification presets" className="relative h-10 flex-1 mx-5">
         {/* Slate */}
-        <div aria-hidden className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-3 bg-border">
+        <div
+          aria-hidden
+          className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-0.5 bg-border"
+        >
           <div
             className="absolute inset-y-0.5 h-2 bg-primary rounded-full"
             style={{
@@ -82,9 +79,7 @@ export const Magnifier = () => {
           style={{ left: `${axisPos(zoom) * 100}%` }}
         />
 
-        {[...MINOR_MAGNIFICATIONS, ...MAGNIFICATION_PRESETS].map((m) => {
-          const isPreset = (MAGNIFICATION_PRESETS as readonly number[]).includes(m);
-
+        {MAGNIFICATION_PRESETS.map((m) => {
           const cx = twMerge(
             CENTER,
             `
@@ -92,8 +87,8 @@ export const Magnifier = () => {
               gap-0 p-0
               backdrop-blur-xl bg-card
               rounded-full
+              w-10 h-10 text-sm select-none
             `,
-            isPreset ? "w-10 h-10 text-sm select-none " : "p-0 h-3 w-3 ",
             roundedMag === m && "ring-2 ring-muted-foreground ring-offset-2 ring-offset-background",
           );
 
@@ -106,7 +101,7 @@ export const Magnifier = () => {
               className={cx}
               style={{ left: `${axisPos(zoomFromMagnification(m, 20)) * 100}%` }}
             >
-              {isPreset ? <span>{m}x</span> : undefined}
+              {m}x
             </Button>
           );
         })}
