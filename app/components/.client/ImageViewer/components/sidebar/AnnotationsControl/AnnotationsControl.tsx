@@ -1,5 +1,5 @@
 import { Badge, IconButton, Switch } from "@cytario/design";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { select } from "../../../state/store/selectors";
@@ -14,6 +14,7 @@ import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { SearchInput } from "~/components/SearchInput";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
 import { getSidecarKey } from "~/utils/sidecarKey";
@@ -93,6 +94,21 @@ export const AnnotationsControl = () => {
   const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
   const ownUserId = useCurrentUser()?.sub;
   const [searchQuery, setSearchQuery] = useState("");
+  const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onImportFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text) as { features?: unknown };
+      const features = validAnnotationFeatures(json.features);
+      const id = crypto.randomUUID();
+      const set: AnnotationSet = { id, createdBy: id, features };
+      seedAnnotations([set]);
+    } catch (e) {
+      console.error("[annotations] import failed:", e);
+    }
+  };
 
   // One block per set: own first, then unowned, then peer-owned (read-only).
   const entries = useMemo<AnnotationSet[]>(() => {
@@ -123,6 +139,24 @@ export const AnnotationsControl = () => {
       }
       actions={
         <>
+          <IconButton
+            icon="Plus"
+            label="Import annotations from JSON"
+            onPress={() => fileInputRef.current?.click()}
+            variant="ghost"
+            size="xs"
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onImportFile(f);
+              e.target.value = "";
+            }}
+          />
           <IconButton
             icon={showOutline ? "CircleDot" : "Circle"}
             label={showOutline ? "Hide outlines" : "Show outlines"}
