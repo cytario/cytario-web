@@ -13,7 +13,6 @@ import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { SearchInput } from "~/components/SearchInput";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
@@ -27,13 +26,11 @@ const AnnotationFileBlock = ({
   setId,
   label,
   features,
-  editable,
   searchQuery,
 }: {
   setId: string;
   label: string;
   features: AnnotationFeature[];
-  editable: boolean;
   searchQuery: string;
 }) => {
   const imageResourceId = useViewerStore((s) => s.id);
@@ -72,14 +69,7 @@ const AnnotationFileBlock = ({
         />
       </div>
 
-      {isOpen && (
-        <AnnotationsList
-          setId={setId}
-          features={features}
-          editable={editable}
-          searchQuery={searchQuery}
-        />
-      )}
+      {isOpen && <AnnotationsList setId={setId} features={features} searchQuery={searchQuery} />}
     </div>
   );
 };
@@ -92,7 +82,6 @@ export const AnnotationsControl = () => {
   const setAnnotationsOpacity = useViewerStore(select.setAnnotationsOpacity);
   const showOutline = useViewerStore(select.showAnnotationOutline);
   const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
-  const ownUserId = useCurrentUser()?.sub;
   const [searchQuery, setSearchQuery] = useState("");
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,24 +92,16 @@ export const AnnotationsControl = () => {
       const json = JSON.parse(text) as { features?: unknown };
       const features = validAnnotationFeatures(json.features);
       const id = crypto.randomUUID();
-      const set: AnnotationSet = { id, createdBy: id, features };
+      const set: AnnotationSet = { id, createdBy: undefined, features };
       seedAnnotations([set]);
     } catch (e) {
       console.error("[annotations] import failed:", e);
     }
   };
 
-  // One block per set: own first, then unowned, then peer-owned (read-only).
-  const entries = useMemo<AnnotationSet[]>(() => {
-    const own = annotationSets.filter((s) => s.createdBy === ownUserId);
-    const unowned = annotationSets.filter((s) => s.createdBy === s.id);
-    const peers = annotationSets.filter((s) => s.createdBy !== ownUserId && s.createdBy !== s.id);
-    return [...own, ...unowned, ...peers];
-  }, [annotationSets, ownUserId]);
-
   // visible/total regions across all sets.
-  const total = entries.reduce((sum, s) => sum + s.features.length, 0);
-  const visible = entries.reduce((sum, s) => {
+  const total = annotationSets.reduce((sum, s) => sum + s.features.length, 0);
+  const visible = annotationSets.reduce((sum, s) => {
     const hidden = annotationView[s.id]?.hiddenClasses ?? [];
     return sum + s.features.filter((f) => !hidden.includes(classNameOf(f))).length;
   }, 0);
@@ -173,13 +154,12 @@ export const AnnotationsControl = () => {
       }
     >
       <div className="flex flex-col">
-        {entries.map((s, i) => (
+        {annotationSets.map((s, i) => (
           <AnnotationFileBlock
             key={s.id}
             setId={s.id}
             label={`Annotation Set ${i + 1}`}
             features={s.features}
-            editable={s.createdBy === ownUserId || s.createdBy === s.id}
             searchQuery={searchQuery}
           />
         ))}

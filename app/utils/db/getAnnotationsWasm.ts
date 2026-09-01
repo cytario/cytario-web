@@ -13,12 +13,13 @@ export type {
   AnnotationProperties,
 } from "./annotationSchema";
 
-/** A set of annotations owned by one user. `id` is the sidecar key segment
- *  (UUID for new sets, legacy userId for pre-migration files). `createdBy` is
- *  the author extracted from the sidecar's `cytario.createdBy` field. */
+/** A set of annotations. `id` is the sidecar key segment (UUID).
+ *  `createdBy` is the author from the sidecar's `cytario.createdBy` field.
+ *  `undefined` means unowned (e.g. imported QuPath export with no cytario
+ *  envelope) — editable by anyone, first edit claims ownership. */
 export type AnnotationSet = {
   id: string;
-  createdBy: string;
+  createdBy: string | undefined;
   features: AnnotationFeature[];
 };
 
@@ -27,13 +28,13 @@ export type AnnotationSet = {
  * source of truth for the viewer's annotation sets. Each set's sidecar is parsed
  * to its feature array; sets with no features are dropped (lazy-create semantics).
  * The `createdBy` field is extracted from the sidecar's `cytario.createdBy`
- * body field — for legacy files (pre-C-330) this falls back to `cytario.author`,
- * then to the key segment (userId).
+ * body field — absent for QuPath exports (no `cytario` envelope), leaving
+ * `createdBy` undefined (unowned).
  */
 export async function readAllAnnotations(resourceId: string): Promise<AnnotationSet[]> {
   const documents = await SidecarRepository.readAll<
     FeatureCollection & {
-      cytario?: { createdBy?: string; author?: string };
+      cytario?: { createdBy?: string };
     }
   >(resourceId, "annotations");
   const sets: AnnotationSet[] = [];
@@ -44,7 +45,7 @@ export async function readAllAnnotations(resourceId: string): Promise<Annotation
     if (!features.length) continue;
     sets.push({
       id: setId,
-      createdBy: collection?.cytario?.createdBy ?? collection?.cytario?.author ?? setId,
+      createdBy: collection?.cytario?.createdBy,
       features,
     });
   }

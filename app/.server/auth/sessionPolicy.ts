@@ -115,10 +115,9 @@ function getObjectStatement(bucketArn: string, prefix: string) {
 
 /**
  * `PutObject` for annotation and settings sidecar files under the connection
- * prefix. The wildcard author segment (`*`) allows writing any author's
- * sidecar — per-user scoping is by filename convention (the UUID in the key
- * is the default author), not IAM enforcement. The viewer renders non-own
- * authors' sets read-only as a UI-only gate. No `DeleteObject` is granted.
+ * prefix. The wildcard segment (`*`) allows writing any annotation set —
+ * per-user scoping is by filename convention (the UUID in the key identifies
+ * the set), not IAM enforcement. No `DeleteObject` is granted.
  *
  * Two sidecar kinds are covered:
  * - **Annotations** (`*.annotations.*.json`) — per-image.

@@ -24,26 +24,15 @@ interface AnnotationGroup {
 }
 
 interface AnnotationsListProps {
-  /** Owner of this set; the key edits route to. */
   setId: string;
   features: AnnotationFeature[];
-  /** Current user owns this set → drawing/recolor/delete enabled. Peers are
-   *  read-only until role-based edit-others lands; for now the menu still shows
-   *  on every geometry, only the destructive actions are disabled. */
-  editable: boolean;
-  /** Case-insensitive name filter; empty shows all. */
   searchQuery: string;
 }
 
 /** Groups one set's annotation features by classification (with an
- *  `Unclassified` fallback). Each group can be shown/hidden and (when editable)
- *  recolored; a thumbnail click selects + flies to the feature. */
-export const AnnotationsList = ({
-  setId,
-  features,
-  editable,
-  searchQuery,
-}: AnnotationsListProps) => {
+ *  `Unclassified` fallback). Each group can be shown/hidden and recolored;
+ *  a thumbnail click selects + flies to the feature. */
+export const AnnotationsList = ({ setId, features, searchQuery }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const updateSetFeatures = useViewerStore((s) => s.updateSetFeatures);
@@ -80,7 +69,7 @@ export const AnnotationsList = ({
     // Own set: always show the Unclassified bucket, pinned first — the default
     // draw target — then every defined class (registry), so empty classes show.
     // When searching, skip empty-class scaffolding (only show groups with matches).
-    if (editable && query.length === 0) {
+    if (query.length === 0) {
       byName.set(UNCLASSIFIED, { name: UNCLASSIFIED, color: null, items: [] });
       for (const c of classes) byName.set(c.name, { name: c.name, color: c.color, items: [] });
     }
@@ -95,7 +84,7 @@ export const AnnotationsList = ({
       group.items.push({ feature, index });
     });
     return [...byName.values()];
-  }, [features, editable, classes, searchQuery]);
+  }, [features, classes, searchQuery]);
 
   // Existing named classes offered as move targets (the unclassified bucket is
   // reached via "Clear classification", not a move).
@@ -190,21 +179,13 @@ export const AnnotationsList = ({
               color={color}
               isVisible={!hiddenClasses.includes(name)}
               onToggleVisibility={() => toggleClassVisibility(setId, name)}
-              onColorChange={
-                editable && color ? (color) => setClassColor(setId, name, color) : undefined
-              }
-              isActive={editable && (isUnclassified ? activeClass === null : activeClass === name)}
-              onSelectActive={
-                editable ? () => setActiveClass(isUnclassified ? null : name) : undefined
-              }
+              onColorChange={color ? (color) => setClassColor(setId, name, color) : undefined}
+              isActive={isUnclassified ? activeClass === null : activeClass === name}
+              onSelectActive={() => setActiveClass(isUnclassified ? null : name)}
               onRename={
-                // Named classes only — new classes are created via "Add class",
-                // so the Unclassified bucket is never renamed.
-                editable && !isUnclassified
-                  ? (newName) => renameClass(setId, name, newName)
-                  : undefined
+                !isUnclassified ? (newName) => renameClass(setId, name, newName) : undefined
               }
-              onDelete={editable && !isUnclassified ? () => deleteClass(setId, name) : undefined}
+              onDelete={!isUnclassified ? () => deleteClass(setId, name) : undefined}
               isUnclassified={isUnclassified}
             />
 
@@ -217,7 +198,6 @@ export const AnnotationsList = ({
                     feature={feature}
                     selected={!!id && selectedIds.includes(id)}
                     color={cssColor}
-                    editable={editable}
                     // Don't offer moving into the group the region already sits in.
                     classNames={namedClasses.filter((n) => n !== name)}
                     onSelect={(e) => select(feature, e)}
@@ -231,9 +211,7 @@ export const AnnotationsList = ({
                         ? undefined
                         : () => setClassForIds(setId, actionTargets(feature), null)
                     }
-                    onRename={
-                      editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
-                    }
+                    onRename={(name) => renameAnnotation(setId, feature.id, name)}
                     onDelete={() => deleteFeatures(feature)}
                   />
                 );
@@ -243,8 +221,7 @@ export const AnnotationsList = ({
         );
       })}
 
-      {editable &&
-        searchQuery.trim().length === 0 &&
+      {searchQuery.trim().length === 0 &&
         (adding ? (
           <NewClassInput
             onCommit={(className) => {
@@ -259,7 +236,7 @@ export const AnnotationsList = ({
           </Button>
         ))}
 
-      {editable && features.length === 0 && searchQuery.trim().length === 0 && (
+      {features.length === 0 && searchQuery.trim().length === 0 && (
         <EmptyState
           title="No annotations yet"
           description="Select a class above, then use the draw tools to add your first region."

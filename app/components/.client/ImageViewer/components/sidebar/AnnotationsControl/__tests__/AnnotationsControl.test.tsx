@@ -23,20 +23,8 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
 vi.mock("../AnnotationsList", () => ({
-  AnnotationsList: ({
-    setId,
-    editable,
-    searchQuery,
-  }: {
-    setId: string;
-    editable: boolean;
-    searchQuery: string;
-  }) => (
-    <div
-      data-testid={`annotations-list-${setId}`}
-      data-editable={String(editable)}
-      data-search={searchQuery}
-    />
+  AnnotationsList: ({ setId, searchQuery }: { setId: string; searchQuery: string }) => (
+    <div data-testid={`annotations-list-${setId}`} data-search={searchQuery} />
   ),
 }));
 
@@ -162,32 +150,6 @@ describe("AnnotationsControl — empty own block", () => {
 });
 
 // -----------------------------------------------------------------------
-// Editable gating — own vs peers
-// -----------------------------------------------------------------------
-
-describe("AnnotationsControl — editable gating", () => {
-  test("own AnnotationsList is rendered with editable=true", () => {
-    const store = buildStore();
-    const setId = seedOwnSet(store, [makeFeature("f1")]);
-
-    renderController();
-
-    const ownList = screen.getByTestId(`annotations-list-${setId}`);
-    expect(ownList).toHaveAttribute("data-editable", "true");
-  });
-
-  test("peer AnnotationsList is rendered with editable=false", () => {
-    const store = buildStore();
-    const peerSetId = seedPeerSet(store, "peer-a", [makeFeature("f1")]);
-
-    renderController();
-
-    const peerList = screen.getByTestId(`annotations-list-${peerSetId}`);
-    expect(peerList).toHaveAttribute("data-editable", "false");
-  });
-});
-
-// -----------------------------------------------------------------------
 // Import from JSON file (QuPath export)
 // -----------------------------------------------------------------------
 
@@ -259,7 +221,7 @@ describe("AnnotationsControl — JSON import", () => {
 
     const set = store.getState().annotationSets[0];
     expect(set.features).toHaveLength(2);
-    expect(set.createdBy).toBe(set.id); // unowned
+    expect(set.createdBy).toBeUndefined(); // unowned
   });
 
   test("invalid features are dropped, valid ones kept", async () => {

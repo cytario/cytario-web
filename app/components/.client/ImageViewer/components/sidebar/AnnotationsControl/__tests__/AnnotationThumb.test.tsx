@@ -16,7 +16,6 @@ const defaultProps = {
   feature: makeFeature(),
   selected: false,
   color: "rgba(255, 0, 0, 255)",
-  editable: true,
   onSelect: vi.fn(),
   onZoom: vi.fn(),
   onDelete: vi.fn(),
@@ -50,20 +49,8 @@ describe("AnnotationThumb", () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
-  test("Delete menu item is disabled when editable is false", () => {
-    render(<AnnotationThumb {...defaultProps} editable={false} />);
-
-    // Open the actions menu
-    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
-
-    expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-  });
-
-  test("Delete menu item is enabled when editable is true", () => {
-    render(<AnnotationThumb {...defaultProps} editable={true} />);
+  test("Delete menu item is enabled", () => {
+    render(<AnnotationThumb {...defaultProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 
@@ -104,7 +91,7 @@ describe("AnnotationThumb", () => {
     expect(screen.getByText("ID: feat-1")).toBeInTheDocument();
   });
 
-  test("Rename menu item is present when editable and onRename is provided", () => {
+  test("Rename menu item is present when onRename is provided", () => {
     const onRename = vi.fn();
     render(<AnnotationThumb {...defaultProps} onRename={onRename} />);
 
@@ -113,9 +100,8 @@ describe("AnnotationThumb", () => {
     expect(screen.getByRole("menuitem", { name: "Rename annotation" })).toBeInTheDocument();
   });
 
-  test("Rename menu item is absent when not editable", () => {
-    const onRename = vi.fn();
-    render(<AnnotationThumb {...defaultProps} editable={false} onRename={onRename} />);
+  test("Rename menu item is absent when onRename is not provided", () => {
+    render(<AnnotationThumb {...defaultProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 

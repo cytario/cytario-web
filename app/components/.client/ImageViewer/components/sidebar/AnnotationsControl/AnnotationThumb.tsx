@@ -10,17 +10,15 @@ interface AnnotationThumbProps {
   selected: boolean;
   /** Classification color for the glyph, or undefined for the unclassified fallback. */
   color?: string;
-  /** Own set → destructive actions enabled; peers are read-only. */
-  editable: boolean;
-  /** Existing class names offered as move targets (own set only). */
+  /** Existing class names offered as move targets. */
   classNames?: string[];
   onSelect: (event: React.MouseEvent) => void;
   onZoom: () => void;
-  /** Assign the selection to a class (own set only). */
+  /** Assign the selection to a class. */
   onClassify?: (name: string) => void;
-  /** Clear the selection's classification → Unclassified (own set only). */
+  /** Clear the selection's classification → Unclassified. */
   onClear?: () => void;
-  /** Rename this annotation (own set only). */
+  /** Rename this annotation. */
   onRename?: (name: string) => void;
   onDelete: () => void;
 }
@@ -32,7 +30,6 @@ export const AnnotationThumb = ({
   feature,
   selected,
   color,
-  editable,
   classNames,
   onSelect,
   onZoom,
@@ -105,12 +102,12 @@ export const AnnotationThumb = ({
             <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
               Zoom to annotation
             </MenuItem>
-            {editable && onRename && (
+            {onRename && (
               <MenuItem id="rename" icon="Pencil" onAction={startEdit}>
                 Rename annotation
               </MenuItem>
             )}
-            {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
+            {onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
               <>
                 <MenuSeparator />
                 {(classNames ?? []).map((name) => (
@@ -131,7 +128,7 @@ export const AnnotationThumb = ({
               </>
             )}
             <MenuSeparator />
-            <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
+            <MenuItem id="delete" icon="Trash2" isDanger onAction={onDelete}>
               Delete annotation
             </MenuItem>
           </>
