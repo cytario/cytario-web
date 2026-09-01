@@ -131,7 +131,6 @@ class ObjectStoreImpl implements ObjectStore {
       ? buildSessionPolicy({
           bucketName: config.bucketName,
           prefix: config.prefix,
-          subject: user.sub,
           region,
           accessLevel,
         })
@@ -186,7 +185,6 @@ class ObjectStoreImpl implements ObjectStore {
       ? buildSessionPolicy({
           bucketName: config.bucketName,
           prefix: config.prefix,
-          subject: user.sub,
           region,
           accessLevel,
         })
@@ -242,7 +240,6 @@ class ObjectStoreImpl implements ObjectStore {
       ? buildSessionPolicy({
           bucketName: config.bucketName,
           prefix: config.prefix,
-          subject: user.sub,
           region,
           accessLevel,
         })
@@ -291,7 +288,6 @@ class ObjectStoreImpl implements ObjectStore {
       ? buildSessionPolicy({
           bucketName: config.bucketName,
           prefix: config.prefix,
-          subject: user.sub,
           region,
           accessLevel,
         })
@@ -366,7 +362,6 @@ class ObjectStoreImpl implements ObjectStore {
       ? buildSessionPolicy({
           bucketName: config.bucketName,
           prefix: config.prefix,
-          subject: user.sub,
           region,
           accessLevel,
         })

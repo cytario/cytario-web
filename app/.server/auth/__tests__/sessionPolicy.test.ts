@@ -32,12 +32,10 @@ const findBySid = (policy: ParsedPolicy, sid: string): PolicyStatement => {
   return stmt;
 };
 
-const SUBJECT = "4cd912ea-5136-4b2d-8959-d5e983cbea05";
 const REGION = "us-east-1";
 const args = (overrides: Partial<Parameters<typeof buildSessionPolicy>[0]> = {}) => ({
   bucketName: "my-bucket",
   prefix: "",
-  subject: SUBJECT,
   region: REGION,
   accessLevel: "read-write" as const,
   ...overrides,
@@ -182,15 +180,11 @@ describe("buildSessionPolicy", () => {
   });
 
   test("throws InlinePolicySizeError when serialized policy exceeds the 2048-char ceiling", () => {
-    // A bucket name + prefix long enough that the prefix repeats ~5x across
-    // ListBucket / GetObject / PutObject Resource ARNs and pushes the serialized
-    // document past the 2048-char ceiling.
     expect(() =>
       buildSessionPolicy(
         args({
           bucketName: "bucket-" + "x".repeat(200),
           prefix: "prefix-" + "y".repeat(400),
-          subject: "subject-" + "z".repeat(100),
         }),
       ),
     ).toThrow(InlinePolicySizeError);
@@ -202,7 +196,6 @@ describe("buildSessionPolicy", () => {
         args({
           bucketName: "b".repeat(800),
           prefix: "p".repeat(800),
-          subject: "s".repeat(200),
         }),
       );
       throw new Error("expected buildSessionPolicy to throw");
@@ -242,20 +235,15 @@ describe("buildSessionPolicy", () => {
     );
   });
 
-  test("PutOwnSidecars is scoped to the caller's own annotation and settings sidecars under the prefix", () => {
+  test("PutOwnSidecars allows writing any annotation and settings sidecar under the prefix (wildcard author)", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
 
     const put = findBySid(policy, "PutOwnSidecars");
     expect(put.Effect).toBe("Allow");
     const resources = Array.isArray(put.Resource) ? put.Resource : [put.Resource];
-    // Annotation sidecars — per-image, user segment pinned.
-    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/*.annotations.${SUBJECT}.json`);
-    // Settings sidecars — directory-level, base and nested patterns.
-    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/settings.${SUBJECT}.json`);
-    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/*/settings.${SUBJECT}.json`);
-    // The user segment is pinned, not a wildcard — no writing another user's file.
-    expect(resources.every((r) => !r.includes("annotations.*.json"))).toBe(true);
-    expect(resources.every((r) => !r.includes("settings.*.json"))).toBe(true);
+    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/*.annotations.*.json`);
+    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/settings.*.json`);
+    expect(resources).toContain(`arn:aws:s3:::my-bucket/foo/*/settings.*.json`);
   });
 
   test("PutObjectScopedToPrefix is scoped to the whole connection prefix", () => {
@@ -303,15 +291,6 @@ describe("buildSessionPolicy", () => {
     expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(true);
     // Sidecars are small JSON files, not SSE-KMS-encrypted.
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
-  });
-
-  test("throws when subject is empty (would widen Put scope to all users)", () => {
-    expect(() => buildSessionPolicy(args({ subject: "" }))).toThrow(/Subject is required/);
-  });
-
-  test("rejects subject containing IAM wildcard characters", () => {
-    expect(() => buildSessionPolicy(args({ subject: "*" }))).toThrow(/wildcard/i);
-    expect(() => buildSessionPolicy(args({ subject: "user?" }))).toThrow(/wildcard/i);
   });
 });
 
