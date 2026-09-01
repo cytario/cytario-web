@@ -39,6 +39,7 @@ const classificationSchema = z.object({
 const propertiesSchema = z.looseObject({
   name: z.string().optional(),
   classification: classificationSchema.optional(),
+  createdBy: z.string().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

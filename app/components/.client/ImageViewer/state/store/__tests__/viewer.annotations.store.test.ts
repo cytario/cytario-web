@@ -4,10 +4,10 @@ import { createViewerStore } from "../createViewerStore";
 import {
   classColor,
   generateAnnotationName,
-  selectUserFeatures,
-  selectUserHiddenClasses,
+  selectSetFeatures,
+  selectSetHiddenClasses,
 } from "../slices/viewer.annotations.store";
-import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
+import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
 // Helpers ----------------------------------------------------------------
 
@@ -27,97 +27,120 @@ const makeFeature = (overrides?: {
   },
 });
 
+const makeSet = (
+  id: string,
+  createdBy: string,
+  features: AnnotationFeature[] = [],
+): AnnotationSet => ({ id, createdBy, features });
+
 // -----------------------------------------------------------------------
 // seedAnnotations
 // -----------------------------------------------------------------------
 
 describe("seedAnnotations", () => {
-  it("installs a supplied key that was not present before", () => {
+  it("installs a supplied set that was not present before", () => {
     const store = createViewerStore("seed-1");
     const features = [makeFeature({ id: "f1" })];
 
-    store.getState().seedAnnotations({ "user-a": features });
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", features)]);
 
-    expect(store.getState().annotationsByUser["user-a"]).toBe(features);
+    expect(store.getState().annotationSets.find((s) => s.id === "set-a")?.features).toBe(features);
   });
 
   it("does not mark any entry dirty (annotationView stays empty)", () => {
     const store = createViewerStore("seed-2");
-    const byUser: AnnotationsByUser = { "user-a": [makeFeature()] };
 
-    store.getState().seedAnnotations(byUser);
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
 
     // annotationView must remain untouched — seeding must never be treated
     // as a user edit that triggers an autosave write-back
     expect(store.getState().annotationView).toEqual({});
   });
 
-  it("merges: adds absent keys while preserving keys already present", () => {
+  it("merges: adds absent sets while preserving sets already present", () => {
     const store = createViewerStore("seed-3");
     const existing = [makeFeature({ id: "keep" })];
-    store.getState().updateUserFeatures("user-a", existing);
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", existing)]);
 
-    store.getState().seedAnnotations({
-      "user-a": [makeFeature({ id: "from-s3" })],
-      "user-b": [makeFeature({ id: "b1" })],
-    });
+    store
+      .getState()
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [makeFeature({ id: "from-s3" })]),
+        makeSet("set-b", "user-b", [makeFeature({ id: "b1" })]),
+      ]);
 
-    // user-a was already present (user-touched) → in-memory version wins
-    expect(store.getState().annotationsByUser["user-a"]).toBe(existing);
-    // user-b was absent → the seeded set is installed
-    expect(store.getState().annotationsByUser["user-b"]![0].id).toBe("b1");
+    // set-a was already present (user-touched) → in-memory version wins
+    expect(store.getState().annotationSets.find((s) => s.id === "set-a")?.features).toBe(existing);
+    // set-b was absent → the seeded set is installed
+    expect(store.getState().annotationSets.find((s) => s.id === "set-b")?.features[0]?.id).toBe(
+      "b1",
+    );
   });
 
-  it("regression (C-313): a pre-seed draw survives a seed that also targets that key", () => {
-    const store = createViewerStore("seed-4");
+  it("regression (C-313): a pre-seed draw survives a seed that also targets that set", () => {
+    const store = createViewerStore("seed-4", "user-a");
     // Simulate the user drawing a region before the async S3 read resolves.
     const drawn = [makeFeature({ id: "just-drawn" })];
-    store.getState().updateUserFeatures("user-a", drawn);
+    const setId = store.getState().ensureOwnSet();
+    store.getState().updateSetFeatures(setId, drawn);
 
-    // The one-time read resolves with a different (older) version of the same key.
-    store.getState().seedAnnotations({ "user-a": [makeFeature({ id: "stale-from-s3" })] });
+    // The one-time read resolves with a different (older) version of the same set.
+    store
+      .getState()
+      .seedAnnotations([makeSet(setId, "user-a", [makeFeature({ id: "stale-from-s3" })])]);
 
     // The user's in-memory version must be kept, not clobbered by the seed.
-    expect(store.getState().annotationsByUser["user-a"]).toBe(drawn);
-    expect(store.getState().annotationsByUser["user-a"]![0].id).toBe("just-drawn");
+    expect(store.getState().annotationSets.find((s) => s.id === setId)?.features).toBe(drawn);
+    expect(store.getState().annotationSets.find((s) => s.id === setId)?.features[0]?.id).toBe(
+      "just-drawn",
+    );
   });
 });
 
 // -----------------------------------------------------------------------
-// updateUserFeatures
+// updateSetFeatures
 // -----------------------------------------------------------------------
 
-describe("updateUserFeatures", () => {
-  it("sets the features array for the given user", () => {
+describe("updateSetFeatures", () => {
+  it("sets the features array for the given set", () => {
     const store = createViewerStore("uuf-1");
     const features = [makeFeature({ id: "f1" })];
+    store.getState().seedAnnotations([makeSet("set-a", "user-a")]);
 
-    store.getState().updateUserFeatures("user-a", features);
+    store.getState().updateSetFeatures("set-a", features);
 
-    expect(store.getState().annotationsByUser["user-a"]).toEqual(features);
+    expect(store.getState().annotationSets.find((s) => s.id === "set-a")?.features).toEqual(
+      features,
+    );
   });
 
-  it("produces a fresh array ref for the updated user (immer identity)", () => {
+  it("produces a fresh array ref for the updated set (immer identity)", () => {
     const store = createViewerStore("uuf-2");
     const initial = [makeFeature({ id: "f1" })];
-    store.getState().updateUserFeatures("user-a", initial);
-    const refBefore = store.getState().annotationsByUser["user-a"];
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", initial)]);
+    const refBefore = store.getState().annotationSets.find((s) => s.id === "set-a")?.features;
 
     const updated = [makeFeature({ id: "f2" })];
-    store.getState().updateUserFeatures("user-a", updated);
+    store.getState().updateSetFeatures("set-a", updated);
 
-    expect(store.getState().annotationsByUser["user-a"]).not.toBe(refBefore);
+    expect(store.getState().annotationSets.find((s) => s.id === "set-a")?.features).not.toBe(
+      refBefore,
+    );
   });
 
-  it("only touches the targeted user's key", () => {
+  it("only touches the targeted set's features", () => {
     const store = createViewerStore("uuf-3");
     const userBFeatures = [makeFeature({ id: "b1" })];
-    store.getState().updateUserFeatures("user-b", userBFeatures);
+    store
+      .getState()
+      .seedAnnotations([makeSet("set-b", "user-b", userBFeatures), makeSet("set-a", "user-a")]);
 
-    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "a1" })]);
+    store.getState().updateSetFeatures("set-a", [makeFeature({ id: "a1" })]);
 
-    // user-b's array must be the same reference (immer did not copy it)
-    expect(store.getState().annotationsByUser["user-b"]).toBe(userBFeatures);
+    // set-b's array must be the same reference (immer did not copy it)
+    expect(store.getState().annotationSets.find((s) => s.id === "set-b")?.features).toBe(
+      userBFeatures,
+    );
   });
 });
 
@@ -126,18 +149,20 @@ describe("updateUserFeatures", () => {
 // -----------------------------------------------------------------------
 
 describe("setAnnotationClassColor", () => {
-  it("recolors all features of the named class for that user", () => {
+  it("recolors all features of the named class for that set", () => {
     const store = createViewerStore("sacc-1");
     store
       .getState()
-      .updateUserFeatures("user-a", [
-        makeFeature({ className: "Tumor", color: [255, 0, 0] }),
-        makeFeature({ className: "Tumor", color: [255, 0, 0] }),
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [
+          makeFeature({ className: "Tumor", color: [255, 0, 0] }),
+          makeFeature({ className: "Tumor", color: [255, 0, 0] }),
+        ]),
       ]);
 
-    store.getState().setAnnotationClassColor("user-a", "Tumor", [0, 255, 0]);
+    store.getState().setAnnotationClassColor("set-a", "Tumor", [0, 255, 0]);
 
-    const features = store.getState().annotationsByUser["user-a"]!;
+    const features = store.getState().annotationSets.find((s) => s.id === "set-a")!.features;
     expect(features[0].properties!.classification!.color).toEqual([0, 255, 0]);
     expect(features[1].properties!.classification!.color).toEqual([0, 255, 0]);
   });
@@ -146,67 +171,69 @@ describe("setAnnotationClassColor", () => {
     const store = createViewerStore("sacc-2");
     store
       .getState()
-      .updateUserFeatures("user-a", [
-        makeFeature({ className: "Tumor", color: [255, 0, 0] }),
-        makeFeature({ className: "Stroma", color: [0, 0, 255] }),
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [
+          makeFeature({ className: "Tumor", color: [255, 0, 0] }),
+          makeFeature({ className: "Stroma", color: [0, 0, 255] }),
+        ]),
       ]);
 
-    store.getState().setAnnotationClassColor("user-a", "Tumor", [0, 255, 0]);
+    store.getState().setAnnotationClassColor("set-a", "Tumor", [0, 255, 0]);
 
-    const features = store.getState().annotationsByUser["user-a"]!;
+    const features = store.getState().annotationSets.find((s) => s.id === "set-a")!.features;
     expect(features[1].properties!.classification!.color).toEqual([0, 0, 255]);
   });
 
-  it("does nothing when user has no features", () => {
+  it("does nothing when set has no features", () => {
     const store = createViewerStore("sacc-3");
 
-    // Must not throw when the user key is absent
+    // Must not throw when the set id is absent
     expect(() => {
-      store.getState().setAnnotationClassColor("user-missing", "Tumor", [0, 255, 0]);
+      store.getState().setAnnotationClassColor("set-missing", "Tumor", [0, 255, 0]);
     }).not.toThrow();
   });
 });
 
 // -----------------------------------------------------------------------
-// toggleAnnotationClassVisibility — per-user isolation (this fixed a real bug)
+// toggleAnnotationClassVisibility — per-set isolation (this fixed a real bug)
 // -----------------------------------------------------------------------
 
 describe("toggleAnnotationClassVisibility", () => {
   it("hides a class on first toggle", () => {
     const store = createViewerStore("tacv-1");
 
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
+    store.getState().toggleAnnotationClassVisibility("set-a", "Tumor");
 
-    expect(store.getState().annotationView["user-a"]?.hiddenClasses).toContain("Tumor");
+    expect(store.getState().annotationView["set-a"]?.hiddenClasses).toContain("Tumor");
   });
 
   it("un-hides a class on second toggle", () => {
     const store = createViewerStore("tacv-2");
 
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
+    store.getState().toggleAnnotationClassVisibility("set-a", "Tumor");
+    store.getState().toggleAnnotationClassVisibility("set-a", "Tumor");
 
-    expect(store.getState().annotationView["user-a"]?.hiddenClasses).not.toContain("Tumor");
+    expect(store.getState().annotationView["set-a"]?.hiddenClasses).not.toContain("Tumor");
   });
 
-  it("two users' hidden class lists are independent", () => {
+  it("two sets' hidden class lists are independent", () => {
     const store = createViewerStore("tacv-3");
 
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
-    // user-b has NOT toggled anything
+    store.getState().toggleAnnotationClassVisibility("set-a", "Tumor");
+    // set-b has NOT toggled anything
 
-    expect(store.getState().annotationView["user-a"]?.hiddenClasses).toContain("Tumor");
-    expect(store.getState().annotationView["user-b"]?.hiddenClasses ?? []).not.toContain("Tumor");
+    expect(store.getState().annotationView["set-a"]?.hiddenClasses).toContain("Tumor");
+    expect(store.getState().annotationView["set-b"]?.hiddenClasses ?? []).not.toContain("Tumor");
   });
 
-  it("toggling for user-b does not affect user-a", () => {
+  it("toggling for set-b does not affect set-a", () => {
     const store = createViewerStore("tacv-4");
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
+    store.getState().toggleAnnotationClassVisibility("set-a", "Tumor");
 
-    store.getState().toggleAnnotationClassVisibility("user-b", "Tumor");
+    store.getState().toggleAnnotationClassVisibility("set-b", "Tumor");
 
-    // user-a's state must be unaffected
-    expect(store.getState().annotationView["user-a"]?.hiddenClasses).toContain("Tumor");
+    // set-a's state must be unaffected
+    expect(store.getState().annotationView["set-a"]?.hiddenClasses).toContain("Tumor");
   });
 });
 
@@ -274,43 +301,43 @@ describe("setAnnotationsOpacity", () => {
 // Selectors
 // -----------------------------------------------------------------------
 
-describe("selectUserFeatures", () => {
-  it("returns the features array for a known user", () => {
+describe("selectSetFeatures", () => {
+  it("returns the features array for a known set", () => {
     const store = createViewerStore("suf-1");
     const features = [makeFeature({ id: "f1" })];
-    store.getState().updateUserFeatures("user-a", features);
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", features)]);
 
-    const result = selectUserFeatures("user-a")(store.getState());
+    const result = selectSetFeatures("set-a")(store.getState());
 
     expect(result).toBe(features);
   });
 
-  it("returns a stable empty array for an unknown user", () => {
+  it("returns a stable empty array for an unknown set", () => {
     const store = createViewerStore("suf-2");
 
-    const first = selectUserFeatures("absent")(store.getState());
-    const second = selectUserFeatures("absent")(store.getState());
+    const first = selectSetFeatures("absent")(store.getState());
+    const second = selectSetFeatures("absent")(store.getState());
 
     expect(first).toEqual([]);
     // Same reference across calls — prevents zustand render loops
     expect(first).toBe(second);
   });
 
-  it("returns the stable empty array when userId is undefined", () => {
+  it("returns the stable empty array when setId is undefined", () => {
     const store = createViewerStore("suf-3");
 
-    const result = selectUserFeatures(undefined)(store.getState());
+    const result = selectSetFeatures(undefined)(store.getState());
 
     expect(result).toEqual([]);
   });
 });
 
-describe("selectUserHiddenClasses", () => {
+describe("selectSetHiddenClasses", () => {
   it("returns a stable empty array when no classes are hidden", () => {
     const store = createViewerStore("suhc-1");
 
-    const first = selectUserHiddenClasses("absent")(store.getState());
-    const second = selectUserHiddenClasses("absent")(store.getState());
+    const first = selectSetHiddenClasses("absent")(store.getState());
+    const second = selectSetHiddenClasses("absent")(store.getState());
 
     expect(first).toEqual([]);
     // Same reference — prevents zustand render loops
@@ -319,16 +346,16 @@ describe("selectUserHiddenClasses", () => {
 
   it("returns the hidden classes once toggled", () => {
     const store = createViewerStore("suhc-2");
-    store.getState().toggleAnnotationClassVisibility("user-a", "Tumor");
+    store.getState().toggleAnnotationClassVisibility("set-a", "Tumor");
 
-    expect(selectUserHiddenClasses("user-a")(store.getState())).toContain("Tumor");
+    expect(selectSetHiddenClasses("set-a")(store.getState())).toContain("Tumor");
   });
 
-  it("returns a stable empty array when userId is undefined", () => {
+  it("returns a stable empty array when setId is undefined", () => {
     const store = createViewerStore("suhc-3");
 
-    const first = selectUserHiddenClasses(undefined)(store.getState());
-    const second = selectUserHiddenClasses(undefined)(store.getState());
+    const first = selectSetHiddenClasses(undefined)(store.getState());
+    const second = selectSetHiddenClasses(undefined)(store.getState());
 
     expect(first).toEqual([]);
     expect(first).toBe(second);
@@ -372,40 +399,50 @@ describe("renameAnnotation", () => {
   it("sets properties.name on the target feature", () => {
     const store = createViewerStore("rename-1");
     const features = [makeFeature({ id: "f1" })];
-    store.getState().updateUserFeatures("user-a", features);
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", features)]);
 
-    store.getState().renameAnnotation("user-a", "f1", "My Region");
+    store.getState().renameAnnotation("set-a", "f1", "My Region");
 
-    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBe("My Region");
+    expect(
+      store.getState().annotationSets.find((s) => s.id === "set-a")!.features[0].properties.name,
+    ).toBe("My Region");
   });
 
   it("trims whitespace from the name", () => {
     const store = createViewerStore("rename-2");
-    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "f1" })]);
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature({ id: "f1" })])]);
 
-    store.getState().renameAnnotation("user-a", "f1", "  Spaced  ");
+    store.getState().renameAnnotation("set-a", "f1", "  Spaced  ");
 
-    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBe("Spaced");
+    expect(
+      store.getState().annotationSets.find((s) => s.id === "set-a")!.features[0].properties.name,
+    ).toBe("Spaced");
   });
 
   it("clears the name when given an empty/whitespace string", () => {
     const store = createViewerStore("rename-3");
-    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "f1" })]);
-    store.getState().renameAnnotation("user-a", "f1", "First");
-    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBe("First");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature({ id: "f1" })])]);
+    store.getState().renameAnnotation("set-a", "f1", "First");
+    expect(
+      store.getState().annotationSets.find((s) => s.id === "set-a")!.features[0].properties.name,
+    ).toBe("First");
 
-    store.getState().renameAnnotation("user-a", "f1", "   ");
+    store.getState().renameAnnotation("set-a", "f1", "   ");
 
-    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBeUndefined();
+    expect(
+      store.getState().annotationSets.find((s) => s.id === "set-a")!.features[0].properties.name,
+    ).toBeUndefined();
   });
 
   it("is a no-op when the feature id does not exist", () => {
     const store = createViewerStore("rename-4");
-    store.getState().updateUserFeatures("user-a", [makeFeature({ id: "f1" })]);
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature({ id: "f1" })])]);
 
-    store.getState().renameAnnotation("user-a", "nonexistent", "Ghost");
+    store.getState().renameAnnotation("set-a", "nonexistent", "Ghost");
 
-    expect(store.getState().annotationsByUser["user-a"]![0].properties.name).toBeUndefined();
+    expect(
+      store.getState().annotationSets.find((s) => s.id === "set-a")!.features[0].properties.name,
+    ).toBeUndefined();
   });
 });
 

@@ -28,27 +28,33 @@ const addFeatureEdit = {
   editContext: { featureIndexes: [0] },
 };
 
+/** Features of the active (own) set after a draw. */
+const activeSetFeatures = () => {
+  const s = store.getState();
+  return s.annotationSets.find((set) => set.id === s.activeSetId)!.features;
+};
+
 describe("useAnnotationsLayer onEdit", () => {
   it("stamps a freshly created class with zero members onto a new draw (C-328)", () => {
-    store = createViewerStore("c328-empty-class");
+    store = createViewerStore("c328-empty-class", "me");
     const name = store.getState().createAnnotationClass("Tumor");
     const { color } = store.getState().annotationClasses[0];
 
     const { result } = renderHook(() => useAnnotationsLayer(0));
     editableOnEdit(result.current.layers)(addFeatureEdit);
 
-    const [stamped] = store.getState().annotationsByUser["me"];
+    const [stamped] = activeSetFeatures();
     expect(stamped.properties?.classification).toEqual({ name, color });
     expect(stamped.id).toBeTruthy();
   });
 
   it("leaves a draw unclassified when no class is active", () => {
-    store = createViewerStore("c328-no-active");
+    store = createViewerStore("c328-no-active", "me");
 
     const { result } = renderHook(() => useAnnotationsLayer(0));
     editableOnEdit(result.current.layers)(addFeatureEdit);
 
-    const [stamped] = store.getState().annotationsByUser["me"];
+    const [stamped] = activeSetFeatures();
     expect(stamped.properties?.classification).toBeUndefined();
   });
 });

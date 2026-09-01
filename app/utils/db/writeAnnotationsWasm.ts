@@ -5,18 +5,26 @@ import { resolveResourceId } from "../connectionsStore/selectors";
 const SCHEMA_VERSION = "1.0";
 
 /**
- * Writes a user's complete annotation set to their own sidecar
- * (`<image>.annotations.<userId>.json`). Each user owns one file (single-writer
- * per key), so this is a full-file overwrite. Builds the GeoJSON
- * `FeatureCollection` + `cytario` envelope here and hands it to the repository;
- * geometry is level-0 pixel coordinates, written verbatim.
+ * Writes a complete annotation set to its own sidecar
+ * (`<image>.annotations.<setId>.json`). Each set owns one file (single-writer
+ * per key), so this is a full-file overwrite. `setId` is the key segment
+ * (UUID for new sets); `createdBy` is the user id written into
+ * `cytario.createdBy` (set-level) and stamped onto each feature's
+ * `properties.createdBy` (feature-level provenance that survives merges/copies).
+ * Geometry is level-0 pixel coordinates, written verbatim.
  */
 export async function writeAnnotations(
   resourceId: string,
-  userId: string,
+  setId: string,
+  createdBy: string,
   features: AnnotationFeature[],
 ): Promise<void> {
   const { s3Uri } = resolveResourceId(resourceId);
+
+  const stamped = features.map((f) => ({
+    ...f,
+    properties: { ...f.properties, createdBy },
+  }));
 
   const document = {
     type: "FeatureCollection",
@@ -27,10 +35,10 @@ export async function writeAnnotations(
       series: 0,
       coordinateSpace: "pixel",
       pyramidLevel: 0,
-      author: userId,
+      createdBy,
     },
-    features,
+    features: stamped,
   };
 
-  await new SidecarRepository(resourceId, userId).write("annotations", document);
+  await new SidecarRepository(resourceId, setId).write("annotations", document);
 }

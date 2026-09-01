@@ -27,33 +27,38 @@ const getTemporal = (store: ReturnType<typeof createViewerStore>): ZundoTemporal
   (store as unknown as { temporal?: ZundoTemporalStoreApi }).temporal!;
 
 describe("temporal history", () => {
-  it("records history after updateUserFeatures", () => {
-    const store = createViewerStore("test/image.ome.tif");
+  it("records history after updateSetFeatures", () => {
+    const store = createViewerStore("test/image.ome.tif", "user-a");
 
     const temporal = getTemporal(store);
     expect(temporal).toBeDefined();
 
+    // Seed an own set so updateSetFeatures has a target.
+    const setId = store.getState().ensureOwnSet();
+
     const before = temporal.getState().pastStates.length;
 
-    store.getState().updateUserFeatures("user-a", [pointFeature("f1")]);
+    store.getState().updateSetFeatures(setId, [pointFeature("f1")]);
 
     const after = temporal.getState().pastStates.length;
     expect(after).toBeGreaterThan(before);
   });
 
   it("does not block real edits after ephemeral state changes (no cooldown from unrelated sets)", () => {
-    const store = createViewerStore("test/image.ome.tif");
+    const store = createViewerStore("test/image.ome.tif", "user-a");
     const temporal = getTemporal(store);
 
+    const setId = store.getState().ensureOwnSet();
+
     // Simulate ephemeral state changes (draw mode, selection, etc.)
-    // that don't touch annotationsByUser or annotationClasses
+    // that don't touch annotationSets or annotationClasses
     store.setState({ annotationMode: "draw-point" });
     store.setState({ annotationMode: "draw-polygon" });
     store.setState({ annotationSelectedIds: ["some-id"] });
 
     // Now perform a real annotation edit — it should still be recorded
     const before = temporal.getState().pastStates.length;
-    store.getState().updateUserFeatures("user-a", [pointFeature("f1")]);
+    store.getState().updateSetFeatures(setId, [pointFeature("f1")]);
 
     const after = temporal.getState().pastStates.length;
     expect(after).toBeGreaterThan(before);
