@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { useStore } from "zustand";
 
@@ -184,5 +184,130 @@ describe("AnnotationsControl — editable gating", () => {
 
     const peerList = screen.getByTestId(`annotations-list-${peerSetId}`);
     expect(peerList).toHaveAttribute("data-editable", "false");
+  });
+});
+
+// -----------------------------------------------------------------------
+// Import from JSON file (QuPath export)
+// -----------------------------------------------------------------------
+
+const quPathExport = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      id: "qph-1",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [10, 0],
+            [10, 10],
+            [0, 10],
+            [0, 0],
+          ],
+        ],
+      },
+      properties: { name: "Tumor" },
+    },
+    {
+      type: "Feature",
+      id: "qph-2",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [20, 20],
+            [30, 20],
+            [30, 30],
+            [20, 30],
+            [20, 20],
+          ],
+        ],
+      },
+      properties: { classification: { name: "Stroma", color: [255, 0, 0] } },
+    },
+  ],
+};
+
+describe("AnnotationsControl — JSON import", () => {
+  test("Plus button is rendered in header", () => {
+    buildStore();
+    renderController();
+
+    expect(
+      screen.getByRole("button", { name: "Import annotations from JSON" }),
+    ).toBeInTheDocument();
+  });
+
+  test("importing a valid QuPath JSON adds an unowned set", async () => {
+    const store = buildStore();
+    expect(store.getState().annotationSets).toHaveLength(0);
+
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([JSON.stringify(quPathExport)], "export.json", {
+      type: "application/json",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(1);
+    });
+
+    const set = store.getState().annotationSets[0];
+    expect(set.features).toHaveLength(2);
+    expect(set.createdBy).toBe(set.id); // unowned
+  });
+
+  test("invalid features are dropped, valid ones kept", async () => {
+    const store = buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(
+      [
+        JSON.stringify({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              id: "good",
+              geometry: { type: "Point", coordinates: [1, 2] },
+              properties: {},
+            },
+            {
+              type: "Feature",
+              id: "bad",
+              geometry: { type: "Point", coordinates: "not-coords" },
+              properties: {},
+            },
+          ],
+        }),
+      ],
+      "mixed.json",
+      { type: "application/json" },
+    );
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(1);
+    });
+    expect(store.getState().annotationSets[0].features).toHaveLength(1);
+  });
+
+  test("malformed JSON logs error and adds no set", async () => {
+    const store = buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["{not json}"], "broken.json", { type: "application/json" });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(0);
+    });
   });
 });
