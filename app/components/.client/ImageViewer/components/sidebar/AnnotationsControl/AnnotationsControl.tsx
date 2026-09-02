@@ -14,7 +14,7 @@ import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { SearchInput } from "~/components/SearchInput";
-import { annotationSetNameFromFile, parseAnnotationImportFile } from "~/utils/db/annotationImport";
+import { parseAnnotationImportFile } from "~/utils/db/annotationImport";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
 import { getSidecarKey } from "~/utils/sidecarKey";
@@ -202,7 +202,7 @@ export const AnnotationsControl = () => {
         {
           id: crypto.randomUUID(),
           createdBy: undefined,
-          name: annotationSetNameFromFile(file),
+          name: file.name,
           features,
         },
       ]);

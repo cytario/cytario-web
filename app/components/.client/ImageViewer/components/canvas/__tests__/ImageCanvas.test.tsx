@@ -72,7 +72,7 @@ describe("ImageCanvas — annotation drag-and-drop import", () => {
     const set = currentStore.getState().annotationSets[0];
     expect(set.features).toHaveLength(1);
     expect(set.createdBy).toBeUndefined(); // unowned until someone edits
-    expect(set.name).toBe("export"); // filename minus extension
+    expect(set.name).toBe("export.geojson"); // full filename, extension kept
   });
 
   test("dropping a malformed file shows an error toast and adds no set", async () => {

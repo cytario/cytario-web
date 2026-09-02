@@ -410,7 +410,7 @@ describe("AnnotationsControl — set deletion entry", () => {
 // C-457: set naming — import takes the filename minus extension; the block
 // label shows the name with a positional fallback; double-click renames inline.
 describe("AnnotationsControl — set naming", () => {
-  test("an imported set is labeled with the filename minus its extension", async () => {
+  test("an imported set is labeled with the full filename, extension kept", async () => {
     buildStore();
     renderController();
 
@@ -421,7 +421,7 @@ describe("AnnotationsControl — set naming", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await vi.waitFor(() => {
-      expect(screen.getByTestId("node-link-patient-12-tumor")).toBeInTheDocument();
+      expect(screen.getByTestId("node-link-patient-12-tumor.geojson")).toBeInTheDocument();
     });
   });
 

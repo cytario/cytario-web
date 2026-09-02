@@ -5,11 +5,7 @@ import { ImagePanel } from "./ImagePanel";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { useCanAnnotate } from "../../utils/useCanAnnotate";
 import { Toolbar } from "../Toolbar";
-import {
-  annotationSetNameFromFile,
-  isAnnotationImportFile,
-  parseAnnotationImportFile,
-} from "~/utils/db/annotationImport";
+import { isAnnotationImportFile, parseAnnotationImportFile } from "~/utils/db/annotationImport";
 
 /** Canvas area: renders N ImagePanels + floating Toolbar. Dragging annotation
  *  export files (.json/.geojson) onto the canvas imports them as unowned
@@ -50,7 +46,7 @@ export const ImageCanvas = () => {
           {
             id: crypto.randomUUID(),
             createdBy: undefined,
-            name: annotationSetNameFromFile(file),
+            name: file.name,
             features,
           },
         ]);
