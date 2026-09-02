@@ -9,6 +9,7 @@ import {
   useToast,
 } from "@cytario/design";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { twMerge } from "tailwind-merge";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { select } from "../../../state/store/selectors";
@@ -97,6 +98,19 @@ const AnnotationFileBlock = ({
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
+        {/* Accordion chevron, mirroring the tree views' expand affordance. */}
+        <IconButton
+          icon="ChevronRight"
+          label={isOpen ? `Collapse ${label}` : `Expand ${label}`}
+          variant="ghost"
+          size="xs"
+          onPress={() => setIsOpen(!isOpen)}
+          className={twMerge(
+            "shrink-0 transition-transform text-muted-foreground",
+            isOpen && "rotate-90",
+            isOpen && "text-foreground",
+          )}
+        />
         {isRenaming ? (
           <input
             ref={renameInputRef}

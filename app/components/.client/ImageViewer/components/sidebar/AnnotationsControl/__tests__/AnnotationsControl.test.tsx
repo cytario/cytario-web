@@ -516,3 +516,36 @@ describe("AnnotationsControl — Add-set menu", () => {
     clickSpy.mockRestore();
   });
 });
+
+// C-458 polish: the set block carries a leading accordion chevron (mirroring
+// the tree views) alongside the click-on-name toggle.
+describe("AnnotationsControl — set block chevron", () => {
+  test("renders a chevron whose label reflects the expansion state, and toggling collapses the group list", () => {
+    buildStore();
+    const { setId } = seedOwnSetBlock();
+    renderController();
+
+    const chevron = screen.getByRole("button", {
+      name: "Collapse Annotation Set 1.json",
+    });
+    expect(chevron).toBeInTheDocument();
+    // The block starts expanded — its list is rendered.
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toBeInTheDocument();
+
+    fireEvent.click(chevron);
+
+    expect(screen.queryByTestId(`annotations-list-${setId}`)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Expand Annotation Set 1.json" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand Annotation Set 1.json" }));
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toBeInTheDocument();
+  });
+});
+
+/** Seeds an own set and returns its id, for tests that need the block rendered. */
+function seedOwnSetBlock(): { setId: string } {
+  const setId = seedOwnSet(currentStore!, [makeFeature("f1")]);
+  return { setId };
+}
