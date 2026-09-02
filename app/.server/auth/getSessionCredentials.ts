@@ -51,7 +51,6 @@ const fetchTemporaryCredentials = async ({
   const { roleArn, accessLevel } = grant;
   const { region, endpoint } = connectionProvider;
   const { idToken } = sessionData.authTokens;
-  const subject = sessionData.user.sub;
 
   const providerConfig = getS3ProviderConfig(endpoint, region);
 
@@ -72,7 +71,7 @@ const fetchTemporaryCredentials = async ({
   // `Policy` (notably MinIO, signalled by a non-AWS endpoint) omit it — the
   // role's attached policy is then the only bound.
   const Policy = providerConfig.isAwsS3
-    ? buildSessionPolicy({ bucketName, prefix, subject, region, accessLevel })
+    ? buildSessionPolicy({ bucketName, prefix, region, accessLevel })
     : undefined;
 
   console.info(`${label} Policy: ${Policy}`);

@@ -8,7 +8,7 @@ import {
   annotationNameOf,
   classNameOf,
   isReservedClassName,
-  selectUserHiddenClasses,
+  selectSetHiddenClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/slices/viewer.annotations.store";
@@ -25,7 +25,7 @@ interface AnnotationGroup {
 
 interface AnnotationsListProps {
   /** Owner of this set; the key edits route to. */
-  userId: string;
+  setId: string;
   features: AnnotationFeature[];
   /** Current user owns this set → drawing/recolor/delete enabled. Peers are
    *  read-only until role-based edit-others lands; for now the menu still shows
@@ -35,19 +35,19 @@ interface AnnotationsListProps {
   searchQuery: string;
 }
 
-/** Groups one user's annotation features by classification (with an
+/** Groups one set's annotation features by classification (with an
  *  `Unclassified` fallback). Each group can be shown/hidden and (when editable)
  *  recolored; a thumbnail click selects + flies to the feature. */
 export const AnnotationsList = ({
-  userId,
+  setId,
   features,
   editable,
   searchQuery,
 }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
-  const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
-  const hiddenClasses = useViewerStore(selectUserHiddenClasses(userId));
+  const updateSetFeatures = useViewerStore((s) => s.updateSetFeatures);
+  const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
   const setClassForIds = useViewerStore((s) => s.setAnnotationClassForIds);
@@ -169,8 +169,8 @@ export const AnnotationsList = ({
     const ids = new Set(actionTargets(feature));
     setSelectedIds([]);
     anchorId.current = null;
-    updateUserFeatures(
-      userId,
+    updateSetFeatures(
+      setId,
       features.filter((f) => !ids.has(f.id)),
     );
   };
@@ -189,9 +189,9 @@ export const AnnotationsList = ({
               count={items.length}
               color={color}
               isVisible={!hiddenClasses.includes(name)}
-              onToggleVisibility={() => toggleClassVisibility(userId, name)}
+              onToggleVisibility={() => toggleClassVisibility(setId, name)}
               onColorChange={
-                editable && color ? (color) => setClassColor(userId, name, color) : undefined
+                editable && color ? (color) => setClassColor(setId, name, color) : undefined
               }
               isActive={editable && (isUnclassified ? activeClass === null : activeClass === name)}
               onSelectActive={
@@ -201,10 +201,10 @@ export const AnnotationsList = ({
                 // Named classes only — new classes are created via "Add class",
                 // so the Unclassified bucket is never renamed.
                 editable && !isUnclassified
-                  ? (newName) => renameClass(userId, name, newName)
+                  ? (newName) => renameClass(setId, name, newName)
                   : undefined
               }
-              onDelete={editable && !isUnclassified ? () => deleteClass(userId, name) : undefined}
+              onDelete={editable && !isUnclassified ? () => deleteClass(setId, name) : undefined}
               isUnclassified={isUnclassified}
             />
 
@@ -223,16 +223,16 @@ export const AnnotationsList = ({
                     onSelect={(e) => select(feature, e)}
                     onZoom={() => zoomToFeature(feature)}
                     onClassify={(className) =>
-                      setClassForIds(userId, actionTargets(feature), className)
+                      setClassForIds(setId, actionTargets(feature), className)
                     }
                     // Already-unclassified regions have nothing to clear.
                     onClear={
                       isUnclassified
                         ? undefined
-                        : () => setClassForIds(userId, actionTargets(feature), null)
+                        : () => setClassForIds(setId, actionTargets(feature), null)
                     }
                     onRename={
-                      editable ? (name) => renameAnnotation(userId, feature.id, name) : undefined
+                      editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
                     }
                     onDelete={() => deleteFeatures(feature)}
                   />

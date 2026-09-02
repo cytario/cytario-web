@@ -67,7 +67,6 @@ describe("policy-generator architectural separation (positive output properties)
     const json = buildSessionPolicy({
       bucketName: "b",
       prefix: "p",
-      subject: "sub-123",
       region: "us-east-1",
       accessLevel: "read-write",
     });

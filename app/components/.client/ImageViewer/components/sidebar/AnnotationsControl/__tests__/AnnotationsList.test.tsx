@@ -11,6 +11,7 @@ import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 // image-loading / S3-sync side-effects of the full ViewerStoreProvider.
 // Every test builds its own store instance via buildStore().
 let currentStore: ReturnType<typeof createViewerStore>;
+let currentSetId: string;
 
 vi.mock("../../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
@@ -54,9 +55,13 @@ const makeIdlessFeature = (): AnnotationFeature =>
   }) as unknown as AnnotationFeature;
 
 function buildStore(userId = "user-a", features: AnnotationFeature[] = []) {
-  const store = createViewerStore(`test-${Math.random()}`);
-  store.getState().updateUserFeatures(userId, features);
+  const store = createViewerStore(`test-${Math.random()}`, userId);
+  const setId = store.getState().ensureOwnSet();
+  if (features.length > 0) {
+    store.getState().updateSetFeatures(setId, features);
+  }
   currentStore = store;
+  currentSetId = setId;
   return store;
 }
 
@@ -67,7 +72,7 @@ function renderList(
 ) {
   buildStore(userId, features);
   return render(
-    <AnnotationsList userId={userId} features={features} editable={editable} searchQuery="" />,
+    <AnnotationsList setId={currentSetId} features={features} editable={editable} searchQuery="" />,
   );
 }
 
@@ -84,6 +89,10 @@ function clickThumb(
   const buttons = thumbButtons();
   fireEvent.click(buttons[index]!, modifiers ?? {});
 }
+
+/** Features of the current test's active set. */
+const setFeatures = () =>
+  currentStore.getState().annotationSets.find((s) => s.id === currentSetId)!.features;
 
 // -----------------------------------------------------------------------
 // select() — C-319 multi-select logic
@@ -263,7 +272,7 @@ describe("AnnotationsList — thumbnail selected state", () => {
 // -----------------------------------------------------------------------
 
 describe("AnnotationsList — delete", () => {
-  test("delete removes the feature from the user's set", () => {
+  test("delete removes the feature from the set", () => {
     const f1 = makeFeature("f1");
     const f2 = makeFeature("f2");
     renderList([f1, f2]);
@@ -273,8 +282,8 @@ describe("AnnotationsList — delete", () => {
     fireEvent.click(actionButtons[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete annotation" }));
 
-    expect(currentStore.getState().annotationsByUser["user-a"]).toHaveLength(1);
-    expect(currentStore.getState().annotationsByUser["user-a"]![0].id).toBe("f2");
+    expect(setFeatures()).toHaveLength(1);
+    expect(setFeatures()[0].id).toBe("f2");
   });
 
   test("delete clears the selection and anchor", () => {

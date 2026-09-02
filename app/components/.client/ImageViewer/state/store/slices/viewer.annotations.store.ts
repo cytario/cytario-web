@@ -1,6 +1,6 @@
 import { CATEGORICAL_COLORS } from "../../../categoricalColors";
 import type { AnnotationMode, RGB, ViewerSlice, ViewerStore } from "../types";
-import type { AnnotationFeature, AnnotationsByUser } from "~/utils/db/getAnnotationsWasm";
+import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
 /** Group name for features without a classification.
  *
@@ -76,10 +76,10 @@ const pickClassColor = (classes: AnnotationClass[], features: AnnotationFeature[
   return PALETTE.find((c) => !used.has(colorKey(c))) ?? PALETTE[used.size % PALETTE.length];
 };
 
-/** Per-user view state — ephemeral, never persisted (lives apart from the
- *  S3-backed `annotationsByUser` so a view change can't trigger a sidecar write). */
-export interface UserAnnotationView {
-  /** Classification names hidden for THIS user's set (per-user, not global). */
+/** Per-set view state — ephemeral, never persisted (lives apart from the
+ *  S3-backed `annotationSets` so a view change can't trigger a sidecar write). */
+export interface SetAnnotationView {
+  /** Classification names hidden for THIS set. */
   hiddenClasses: string[];
 }
 
@@ -96,30 +96,44 @@ export interface AnnotationClass {
 const NO_FEATURES: AnnotationFeature[] = [];
 const NO_HIDDEN: string[] = [];
 
-/** A single user's feature set from the map (or a stable empty array). */
-export const selectUserFeatures =
-  (userId: string | undefined) =>
-  (state: ViewerStore): AnnotationFeature[] =>
-    (userId && state.annotationsByUser[userId]) || NO_FEATURES;
+/** A set is editable if the current user owns it or it's unowned (no
+ *  `cytario` envelope on read → `createdBy` fell back to `setId`). */
+export const isEditableSet = (s: AnnotationSet, userId: string) =>
+  s.createdBy === userId || s.createdBy === s.id;
 
-/** A single user's hidden classification names (stable empty array by default). */
-export const selectUserHiddenClasses =
-  (userId: string | undefined) =>
+/** Active set's features — the set that receives drawings. */
+export const selectActiveSetFeatures = (state: ViewerStore): AnnotationFeature[] =>
+  state.annotationSets.find((s) => s.id === state.activeSetId)?.features ?? NO_FEATURES;
+
+/** A specific set's features by id. */
+export const selectSetFeatures =
+  (setId: string | undefined) =>
+  (state: ViewerStore): AnnotationFeature[] =>
+    setId
+      ? (state.annotationSets.find((s) => s.id === setId)?.features ?? NO_FEATURES)
+      : NO_FEATURES;
+
+/** A specific set's hidden classification names (stable empty array by default). */
+export const selectSetHiddenClasses =
+  (setId: string | undefined) =>
   (state: ViewerStore): string[] =>
-    (userId ? state.annotationView[userId]?.hiddenClasses : undefined) ?? NO_HIDDEN;
+    (setId ? state.annotationView[setId]?.hiddenClasses : undefined) ?? NO_HIDDEN;
 
 export interface AnnotationsSlice {
-  /** Every user's annotations, keyed by Keycloak `sub` — the single source of
-   *  truth. Own is just `annotationsByUser[ownSub]`; no own/peer split is stored.
-   *  Edit-others (future, role-gated) writes another key, same as own. */
-  annotationsByUser: AnnotationsByUser;
+  /** All annotation sets — the single source of truth. Each set is one sidecar
+   *  file on S3. The active set (`activeSetId`) is the own set that receives
+   *  drawings; all others render read-only. */
+  annotationSets: AnnotationSet[];
+  /** The own set that receives drawings. `null` until the first own set is
+   *  seeded or lazy-created on first draw. */
+  activeSetId: string | null;
   annotationMode: AnnotationMode;
   /** `feature.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
-  /** Per-user view state (hidden classes), keyed by `sub`. Kept apart from
-   *  `annotationsByUser` so a view change never enters the persist diff. */
-  annotationView: Record<string, UserAnnotationView>;
+  /** Per-set view state (hidden classes), keyed by `setId`. Kept apart from
+   *  `annotationSets` so a view change never enters the persist diff. */
+  annotationView: Record<string, SetAnnotationView>;
   /** Own-set class into which newly drawn regions are placed; `null` = draw
    *  unclassified. Resolved to `classification` only when a region commits.
    *  Browser-persisted per image (a "settings" sidecar is the eventual home). */
@@ -129,33 +143,38 @@ export interface AnnotationsSlice {
    *  their features and have no registry. */
   annotationClasses: AnnotationClass[];
 
-  /** Merge the per-user map from the one-time S3 read into the working copy.
-   *  Only keys not already present are installed — a user who drew a region
-   *  before the async read resolved keeps their in-memory version, so the seed
-   *  can never clobber a pre-seed draw. The sync middleware sets its persisted
-   *  baseline to the read result, so untouched seeded keys diff to zero (no
+  /** Merge sets from the one-time S3 read into the working copy. Only sets
+   *  whose `id` is not already present are installed — a set the user drew
+   *  into before the async read resolved keeps its in-memory version, so the
+   *  seed can never clobber a pre-seed draw. Also sets `activeSetId` to the
+   *  first own set if not already set. The sync middleware sets its persisted
+   *  baseline to the read result, so untouched seeded sets diff to zero (no
    *  write-back of what was just read) while a pre-seed draw absent from the
    *  baseline still diffs and gets written. */
-  seedAnnotations: (byUser: AnnotationsByUser) => void;
-  /** Replace one user's features (draw/move/delete). Immer gives that key a
+  seedAnnotations: (sets: AnnotationSet[]) => void;
+  /** Ensure an own set exists and is active; returns its id. If `activeSetId`
+   *  already points to a live own set, returns it. If no own set exists, creates
+   *  one (UUID) and activates it. Called at draw time before `updateSetFeatures`. */
+  ensureOwnSet: () => string;
+  /** Replace one set's features (draw/move/delete). Immer gives that set a
    *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
-  updateUserFeatures: (userId: string, features: AnnotationFeature[]) => void;
-  /** Recolor every feature of a classification within one user's set. */
-  setAnnotationClassColor: (userId: string, name: string, color: RGB) => void;
+  updateSetFeatures: (setId: string, features: AnnotationFeature[]) => void;
+  /** Recolor every feature of a classification within one set. */
+  setAnnotationClassColor: (setId: string, name: string, color: RGB) => void;
   /** Assign (or, with `name: null`, clear to unclassified) the classification of
    *  a set of features by `feature.id` — the single primitive behind classify,
    *  move-to-class, and clear. A new class name auto-picks a palette color; an
    *  existing name reuses its color. Naming the Unclassified group routes here
    *  with that group's ids (its members carry no `classification` to rename). */
-  setAnnotationClassForIds: (userId: string, ids: string[], name: string | null) => void;
+  setAnnotationClassForIds: (setId: string, ids: string[], name: string | null) => void;
   /** Rename a class, reassigning every member; merges into the target's color if
    *  it already exists, and follows the active class. Rejects the reserved
    *  "Unclassified" name (naming the null bucket goes through setAnnotationClassForIds). */
-  renameAnnotationClass: (userId: string, oldName: string, newName: string) => void;
+  renameAnnotationClass: (setId: string, oldName: string, newName: string) => void;
   /** Rename a single annotation by feature id (sets `properties.name`). Names
    *  are not required to be unique — two regions can share a name. An empty
    *  name clears it (the feature falls back to ID display). */
-  renameAnnotation: (userId: string, id: string, name: string) => void;
+  renameAnnotation: (setId: string, id: string, name: string) => void;
   /** Set the own-set active class (`null` = draw unclassified). */
   setAnnotationActiveClass: (name: string | null) => void;
   /** Create an empty own-set class (auto-named/colored if unspecified) and make
@@ -164,35 +183,36 @@ export interface AnnotationsSlice {
   createAnnotationClass: (name?: string) => string;
   /** Delete an own-set class: drop it from the registry, clear it from any
    *  member features (→ unclassified), and clear the active class if it matched. */
-  deleteAnnotationClass: (userId: string, name: string) => void;
+  deleteAnnotationClass: (setId: string, name: string) => void;
   /** Set the whole annotation layer's opacity (0–1). */
   setAnnotationsOpacity: (opacity: number) => void;
   /** Toggle annotation outlines (strokes) on/off. */
   setShowAnnotationOutline: (show: boolean) => void;
-  /** Show/hide ALL of one user's annotations at once (hides every class the
-   *  user's features currently use; showing clears that user's hidden set). */
-  setAnnotationUserHidden: (userId: string, hidden: boolean) => void;
-  /** Show/hide a classification within ONE user's set (display only). */
-  toggleAnnotationClassVisibility: (userId: string, name: string) => void;
-  /** Ensure a class is visible for ONE user (idempotent un-hide) — e.g. after
+  /** Show/hide ALL of one set's annotations at once (hides every class the
+   *  set's features currently use; showing clears that set's hidden set). */
+  setAnnotationSetHidden: (setId: string, hidden: boolean) => void;
+  /** Show/hide a classification within ONE set (display only). */
+  toggleAnnotationClassVisibility: (setId: string, name: string) => void;
+  /** Ensure a class is visible for ONE set (idempotent un-hide) — e.g. after
    *  drawing into it, so a new region is never born into a hidden class. */
-  showAnnotationClass: (userId: string, name: string) => void;
+  showAnnotationClass: (setId: string, name: string) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
   setAnnotationSelectedIds: (ids: string[]) => void;
 }
 
-/** Per-image annotation state. Features live on S3 (one sidecar per user); this
+/** Per-image annotation state. Features live on S3 (one sidecar per set); this
  *  slice holds the working copy + view state. Persistence is the sync middleware
  *  (`attachAnnotationSync`), bound to the store — never serialized here. */
-export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get, store) => ({
-  annotationsByUser: {},
+export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, store) => ({
+  annotationSets: [],
+  activeSetId: null,
   annotationMode: "view",
   annotationSelectedIds: [],
   annotationView: {},
   annotationActiveClass: null,
   annotationClasses: [],
 
-  seedAnnotations: (byUser) => {
+  seedAnnotations: (sets) => {
     // Pause temporal tracking around the seed so the one-time S3 read does
     // not enter the undo history. Without this, the seed would be the first
     // past state — undoing immediately after load would wipe all annotations.
@@ -207,13 +227,16 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
     try {
       set(
         (state) => {
-          // Merge, not replace: a key the user already touched (drew into) before
-          // this async read resolved wins — installing only absent keys prevents
-          // the seed from clobbering a pre-seed draw.
-          for (const [userId, features] of Object.entries(byUser)) {
-            if (state.annotationsByUser[userId] === undefined) {
-              state.annotationsByUser[userId] = features;
+          for (const set of sets) {
+            if (!state.annotationSets.some((s) => s.id === set.id)) {
+              state.annotationSets.push(set);
             }
+          }
+          if (!state.activeSetId) {
+            const editable = state.annotationSets.find((s) =>
+              isEditableSet(s, state.currentUserId),
+            );
+            if (editable) state.activeSetId = editable.id;
           }
         },
         false,
@@ -224,24 +247,71 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
     }
   },
 
-  updateUserFeatures: (userId, features) => {
+  ensureOwnSet: () => {
+    const state = get();
+    if (
+      state.activeSetId &&
+      state.annotationSets.some(
+        (s) => s.id === state.activeSetId && isEditableSet(s, state.currentUserId),
+      )
+    ) {
+      return state.activeSetId;
+    }
+    const editable = state.annotationSets.find((s) => isEditableSet(s, state.currentUserId));
+    const temporalStore = (
+      store as unknown as {
+        temporal?: { getState: () => { pause: () => void; resume: () => void } };
+      }
+    ).temporal;
+    temporalStore?.getState().pause();
+    try {
+      if (editable) {
+        set(
+          (s) => {
+            s.activeSetId = editable.id;
+          },
+          false,
+          "ensureOwnSet",
+        );
+        return editable.id;
+      }
+      const id = crypto.randomUUID();
+      set(
+        (s) => {
+          s.annotationSets.push({ id, createdBy: s.currentUserId, features: [] });
+          s.activeSetId = id;
+        },
+        false,
+        "ensureOwnSet",
+      );
+      return id;
+    } finally {
+      temporalStore?.getState().resume();
+    }
+  },
+
+  updateSetFeatures: (setId, features) => {
     set(
       (state) => {
-        state.annotationsByUser[userId] = features;
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (set) {
+          set.features = features;
+          if (set.createdBy === set.id) set.createdBy = state.currentUserId;
+        }
       },
       false,
-      "updateUserFeatures",
+      "updateSetFeatures",
     );
   },
 
-  setAnnotationClassColor: (userId, name, color) =>
+  setAnnotationClassColor: (setId, name, color) =>
     set(
       (state) => {
         const entry = state.annotationClasses.find((c) => c.name === name);
         if (entry) entry.color = color;
-        const features = state.annotationsByUser[userId];
-        if (features) {
-          for (const feature of features) {
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (set) {
+          for (const feature of set.features) {
             if (feature.properties?.classification?.name === name) {
               feature.properties.classification.color = color;
             }
@@ -252,24 +322,25 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "setAnnotationClassColor",
     ),
 
-  setAnnotationClassForIds: (userId, ids, name) =>
+  setAnnotationClassForIds: (setId, ids, name) =>
     set(
       (state) => {
-        const features = state.annotationsByUser[userId];
-        if (!features) return;
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (!set) return;
+        if (set.createdBy === set.id) set.createdBy = state.currentUserId;
         const idSet = new Set(ids);
         // A reserved/empty name clears to unclassified (absence, not a named class).
         const target = name && !isReservedClassName(name) ? name : null;
         // One color for the whole batch: registry/existing color, else a fresh one.
         const color = target
-          ? (classColor(state.annotationClasses, features, target) ??
-            pickClassColor(state.annotationClasses, features))
+          ? (classColor(state.annotationClasses, set.features, target) ??
+            pickClassColor(state.annotationClasses, set.features))
           : null;
         // Assigning to a not-yet-registered name registers it (classified names are classes).
         if (target && color && !state.annotationClasses.some((c) => c.name === target)) {
           state.annotationClasses.push({ name: target, color });
         }
-        for (const feature of features) {
+        for (const feature of set.features) {
           if (!idSet.has(feature.id)) continue;
           if (target && color) {
             feature.properties.classification = { name: target, color };
@@ -282,11 +353,13 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "setAnnotationClassForIds",
     ),
 
-  renameAnnotationClass: (userId, oldName, newName) =>
+  renameAnnotationClass: (setId, oldName, newName) =>
     set(
       (state) => {
         if (isReservedClassName(newName) || isReservedClassName(oldName)) return;
-        const features = state.annotationsByUser[userId] ?? [];
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (set && set.createdBy === set.id) set.createdBy = state.currentUserId;
+        const features = set?.features ?? [];
         // Adopt the target class's color when renaming merges into an existing class.
         const mergeColor = classColor(state.annotationClasses, features, newName);
         for (const feature of features) {
@@ -309,11 +382,13 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "renameAnnotationClass",
     ),
 
-  renameAnnotation: (userId, id, name) =>
+  renameAnnotation: (setId, id, name) =>
     set(
       (state) => {
-        const features = state.annotationsByUser[userId] ?? [];
-        const feature = features.find((f) => f.id === id);
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (!set) return;
+        if (set.createdBy === set.id) set.createdBy = state.currentUserId;
+        const feature = set.features.find((f) => f.id === id);
         if (!feature) return;
         const trimmed = name.trim();
         if (trimmed.length === 0) {
@@ -357,13 +432,13 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
     return created;
   },
 
-  deleteAnnotationClass: (userId, name) =>
+  deleteAnnotationClass: (setId, name) =>
     set(
       (state) => {
         state.annotationClasses = state.annotationClasses.filter((c) => c.name !== name);
-        const features = state.annotationsByUser[userId];
-        if (features) {
-          for (const feature of features) {
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (set) {
+          for (const feature of set.features) {
             if (feature.properties?.classification?.name === name) {
               delete feature.properties.classification;
             }
@@ -375,10 +450,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "deleteAnnotationClass",
     ),
 
-  toggleAnnotationClassVisibility: (userId, name) =>
+  toggleAnnotationClassVisibility: (setId, name) =>
     set(
       (state) => {
-        const view = (state.annotationView[userId] ??= { hiddenClasses: [] });
+        const view = (state.annotationView[setId] ??= { hiddenClasses: [] });
         const index = view.hiddenClasses.indexOf(name);
         if (index === -1) view.hiddenClasses.push(name);
         else view.hiddenClasses.splice(index, 1);
@@ -387,10 +462,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "toggleAnnotationClassVisibility",
     ),
 
-  showAnnotationClass: (userId, name) =>
+  showAnnotationClass: (setId, name) =>
     set(
       (state) => {
-        const hidden = state.annotationView[userId]?.hiddenClasses;
+        const hidden = state.annotationView[setId]?.hiddenClasses;
         const index = hidden?.indexOf(name) ?? -1;
         if (hidden && index !== -1) hidden.splice(index, 1);
       },
@@ -424,16 +499,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, _get,
       "setShowAnnotationOutline",
     ),
 
-  setAnnotationUserHidden: (userId, hidden) =>
+  setAnnotationSetHidden: (setId, hidden) =>
     set(
       (state) => {
-        const view = (state.annotationView[userId] ??= { hiddenClasses: [] });
-        view.hiddenClasses = hidden
-          ? [...new Set((state.annotationsByUser[userId] ?? []).map(classNameOf))]
-          : [];
+        const view = (state.annotationView[setId] ??= { hiddenClasses: [] });
+        const set = state.annotationSets.find((s) => s.id === setId);
+        view.hiddenClasses = hidden ? [...new Set((set?.features ?? []).map(classNameOf))] : [];
       },
       false,
-      "setAnnotationUserHidden",
+      "setAnnotationSetHidden",
     ),
 
   setAnnotationMode: (mode) =>

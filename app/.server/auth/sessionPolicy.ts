@@ -52,8 +52,6 @@ export class InlinePolicySizeError extends Error {
 export interface SessionPolicyArgs {
   bucketName: string;
   prefix: string | null | undefined;
-  /** Keycloak `sub` of the caller — pins their writable sidecar to their own file. */
-  subject: string;
   /** AWS region of the connection's S3 endpoint — scopes the `kms:ViaService` condition. */
   region: string;
   /**
@@ -116,31 +114,24 @@ function getObjectStatement(bucketArn: string, prefix: string) {
 }
 
 /**
- * `PutObject` limited to the caller's OWN sidecar files under the connection
- * prefix — the trailing `<sub>` segment stops a tampered client from writing
- * another user's file (which the cross-user read union would then surface as
- * forged authorship). Overwrite is `PutObject` (full-file write of the user's
- * own file) — no `DeleteObject`.
+ * `PutObject` for annotation and settings sidecar files under the connection
+ * prefix. The wildcard author segment (`*`) allows writing any author's
+ * sidecar — per-user scoping is by filename convention (the UUID in the key
+ * is the default author), not IAM enforcement. The viewer renders non-own
+ * authors' sets read-only as a UI-only gate. No `DeleteObject` is granted.
  *
  * Two sidecar kinds are covered:
- * - **Annotations** (`*.annotations.<sub>.json`) — per-image, the `*` matches
- *   the image base name (and any directory path, since IAM `*` matches `/`).
- * - **Settings** (`settings.<sub>.json` and `<dir>/settings.<sub>.json`) —
- *   directory-level, shared across sibling images in the same directory.
+ * - **Annotations** (`*.annotations.*.json`) — per-image.
+ * - **Settings** (`settings.*.json` and `<dir>/settings.*.json`) — directory-level.
  *
  * Emitted only for the `annotate` level: `read-only` gets no write at all, and
  * `read-write`/`admin` get the broader prefix grant (see `getPutObjectStatement`)
- * which subsumes this scope — so image data, `offsets.json`, and parquet stay
- * read-only at the `annotate` level, and the inline policy stays lean.
+ * which subsumes this scope.
  */
-function getPutOwnSidecarStatement(bucketArn: string, prefix: string, subject: string) {
-  const annotationArn = [bucketArn, prefix, `*.annotations.${subject}.json`]
-    .filter(Boolean)
-    .join("/");
-  const settingsArnBase = [bucketArn, prefix, `settings.${subject}.json`].filter(Boolean).join("/");
-  const settingsArnNested = [bucketArn, prefix, `*/settings.${subject}.json`]
-    .filter(Boolean)
-    .join("/");
+function getPutOwnSidecarStatement(bucketArn: string, prefix: string) {
+  const annotationArn = [bucketArn, prefix, `*.annotations.*.json`].filter(Boolean).join("/");
+  const settingsArnBase = [bucketArn, prefix, `settings.*.json`].filter(Boolean).join("/");
+  const settingsArnNested = [bucketArn, prefix, `*/settings.*.json`].filter(Boolean).join("/");
 
   return {
     Sid: "PutOwnSidecars",
@@ -205,19 +196,9 @@ const permitsSidecarWrite = (accessLevel: AccessLevel): boolean => accessLevel !
 export const buildSessionPolicy = ({
   bucketName,
   prefix: prefixRaw,
-  subject,
   region,
   accessLevel,
 }: SessionPolicyArgs): string => {
-  // The subject is interpolated into the PutObject Resource ARN; an empty or
-  // wildcard sub would widen the write scope to other users' sidecars.
-  if (!subject) {
-    throw new Error("Subject is required to build a session policy");
-  }
-  if (/[*?]/.test(subject)) {
-    throw new Error("Subject may not contain IAM wildcard characters (`*`, `?`)");
-  }
-
   const prefix = stripSlashes(prefixRaw ?? "");
 
   // Defense-in-depth: refuse wildcards here so the schema is not the only gate
@@ -247,7 +228,7 @@ export const buildSessionPolicy = ({
   // The prefix grant (read-write/admin) subsumes the sidecar scope, so emit the
   // narrower sidecar statement only when the session cannot write the prefix.
   if (permitsSidecarWrite(accessLevel) && !permitsPrefixWrite(accessLevel)) {
-    statements.push(getPutOwnSidecarStatement(bucketArn, prefix, subject));
+    statements.push(getPutOwnSidecarStatement(bucketArn, prefix));
   }
 
   if (permitsPrefixWrite(accessLevel)) {

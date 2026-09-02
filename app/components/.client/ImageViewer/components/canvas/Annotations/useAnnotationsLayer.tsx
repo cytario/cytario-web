@@ -16,7 +16,7 @@ import {
   classColor as registeredClassColor,
   classNameOf,
   isReservedClassName,
-  selectUserFeatures,
+  selectActiveSetFeatures,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/slices/viewer.annotations.store";
@@ -134,8 +134,8 @@ const stampEdit = (
  * Builds the `EditableGeoJsonLayer` for the image's annotations, rendering and
  * editing the shared working set held in the viewer store. Coordinates are
  * level-0 pixel space (CARTESIAN, matching the viewer's `OrthographicView`).
- * Edits flow back through `onEdit` → `updateUserFeatures(ownUserId, …)`, which
- * the sync middleware diffs and autosaves to the user's own sidecar.
+ * Edits flow back through `onEdit` → `ensureOwnSet()` + `updateSetFeatures(setId, …)`,
+ * which the sync middleware diffs and autosaves to that set's sidecar.
  *
  * With `interactive: false` (preview/minimap decks) the own set renders as a
  * plain read-only `GeoJsonLayer` like the peers and picking is disabled
@@ -146,8 +146,9 @@ export const useAnnotationsLayer = (
   interactive = true,
 ): CytarioLayerResult<GeoJsonLayer | EditableGeoJsonLayer> => {
   const ownUserId = useCurrentUser()?.sub;
-  const features = useViewerStore(selectUserFeatures(ownUserId));
-  const annotationsByUser = useViewerStore((s) => s.annotationsByUser);
+  const activeSetId = useViewerStore((s) => s.activeSetId);
+  const features = useViewerStore(selectActiveSetFeatures);
+  const annotationSets = useViewerStore((s) => s.annotationSets);
   const annotationView = useViewerStore((s) => s.annotationView);
   const layersStates = useViewerStore(select.layersStates);
   const panelLayersStateIndex = useViewerStore((state) => state.imagePanels)[imagePanelId];
@@ -155,7 +156,8 @@ export const useAnnotationsLayer = (
   const showOutline = layersStates[panelLayersStateIndex]?.showAnnotationOutline ?? true;
   const mode = useViewerStore((s) => s.annotationMode);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
-  const updateUserFeatures = useViewerStore((s) => s.updateUserFeatures);
+  const ensureOwnSet = useViewerStore((s) => s.ensureOwnSet);
+  const updateSetFeatures = useViewerStore((s) => s.updateSetFeatures);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const showAnnotationClass = useViewerStore((s) => s.showAnnotationClass);
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
@@ -172,7 +174,7 @@ export const useAnnotationsLayer = (
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
-    const ownView = ownUserId ? annotationView[ownUserId] : undefined;
+    const ownView = activeSetId ? annotationView[activeSetId] : undefined;
     const ownHidden = new Set(ownView?.hiddenClasses ?? []);
     const isHidden = (f: AnnotationFeature) => ownHidden.has(classNameOf(f));
 
@@ -263,14 +265,15 @@ export const useAnnotationsLayer = (
             // `[[null]]`) is dropped and never written to S3 — the store is valid by
             // construction.
             const valid = validAnnotationFeatures(stamped);
-            updateUserFeatures(ownUserId, valid);
+            const setId = ensureOwnSet();
+            updateSetFeatures(setId, valid);
             if (editType === "addFeature") {
               // Select the new feature only if it survived validation.
               const newId = stamped[stamped.length - 1]?.id;
               if (newId && valid.some((f) => f.id === newId)) {
                 setSelectedIds([newId]);
                 // Never draw into a hidden class — reveal the class the region landed in.
-                showAnnotationClass(ownUserId, activeClassification?.name ?? UNCLASSIFIED);
+                showAnnotationClass(setId, activeClassification?.name ?? UNCLASSIFIED);
               }
             }
           },
@@ -279,13 +282,13 @@ export const useAnnotationsLayer = (
     // Other users' sets: one layer each, read-only (selectable + hoverable, not
     // editable), dimmer than own, drawn beneath the editable layer. Hidden
     // classes fade to alpha 0, mirroring the editable layer.
-    const peerLayers = Object.entries(annotationsByUser)
-      .filter(([userId]) => userId !== ownUserId)
-      .map(([userId, peerFeatures]) => {
-        const peerView = annotationView[userId];
+    const peerLayers = annotationSets
+      .filter((s) => s.id !== activeSetId)
+      .map((set) => {
+        const peerView = annotationView[set.id];
         return new GeoJsonLayer({
-          id: `annotations-${imagePanelId}-peer-${userId}`,
-          data: { type: "FeatureCollection", features: peerFeatures },
+          id: `annotations-${imagePanelId}-peer-${set.id}`,
+          data: { type: "FeatureCollection", features: set.features },
           // Peers are dimmer than own (2/3 fill, 200 stroke) but otherwise identical.
           ...paint(
             peerView?.hiddenClasses,
@@ -307,11 +310,11 @@ export const useAnnotationsLayer = (
     // halo never reveals one.
     const selectedFeatures: AnnotationFeature[] = [
       ...features.filter((f) => isSelected(f) && !isHidden(f)),
-      ...Object.entries(annotationsByUser)
-        .filter(([userId]) => userId !== ownUserId)
-        .flatMap(([userId, peerFeatures]) => {
-          const peerHidden = new Set(annotationView[userId]?.hiddenClasses ?? []);
-          return peerFeatures.filter((f) => isSelected(f) && !peerHidden.has(classNameOf(f)));
+      ...annotationSets
+        .filter((s) => s.id !== activeSetId)
+        .flatMap((set) => {
+          const peerHidden = new Set(annotationView[set.id]?.hiddenClasses ?? []);
+          return set.features.filter((f) => isSelected(f) && !peerHidden.has(classNameOf(f)));
         }),
     ];
 
@@ -353,10 +356,10 @@ export const useAnnotationsLayer = (
     // transparent annotations return `[]` so they no longer block tooltip
     // items from layers beneath them.
     const hiddenByUser = new Map<string, Set<string>>();
-    hiddenByUser.set(ownUserId ?? "", new Set(ownView?.hiddenClasses ?? []));
-    for (const uid of Object.keys(annotationsByUser)) {
-      if (uid !== ownUserId) {
-        hiddenByUser.set(uid, new Set(annotationView[uid]?.hiddenClasses ?? []));
+    if (activeSetId) hiddenByUser.set(activeSetId, new Set(ownView?.hiddenClasses ?? []));
+    for (const set of annotationSets) {
+      if (set.id !== activeSetId) {
+        hiddenByUser.set(set.id, new Set(annotationView[set.id]?.hiddenClasses ?? []));
       }
     }
 
@@ -388,7 +391,8 @@ export const useAnnotationsLayer = (
     return { layers, getTooltipItems };
   }, [
     features,
-    annotationsByUser,
+    annotationSets,
+    activeSetId,
     annotationView,
     annotationsOpacity,
     showOutline,
@@ -396,7 +400,8 @@ export const useAnnotationsLayer = (
     selectedIds,
     imagePanelId,
     ownUserId,
-    updateUserFeatures,
+    ensureOwnSet,
+    updateSetFeatures,
     setSelectedIds,
     showAnnotationClass,
     activeClassification,

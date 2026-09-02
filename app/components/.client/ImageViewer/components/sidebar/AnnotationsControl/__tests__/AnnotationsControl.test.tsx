@@ -24,16 +24,16 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
 vi.mock("../AnnotationsList", () => ({
   AnnotationsList: ({
-    userId,
+    setId,
     editable,
     searchQuery,
   }: {
-    userId: string;
+    setId: string;
     editable: boolean;
     searchQuery: string;
   }) => (
     <div
-      data-testid={`annotations-list-${userId}`}
+      data-testid={`annotations-list-${setId}`}
       data-editable={String(editable)}
       data-search={searchQuery}
     />
@@ -61,10 +61,34 @@ const makeFeature = (id: string): AnnotationFeature => ({
 
 function buildStore() {
   // A valid resourceId (connectionName/pathName) — the controller derives each
-  // user's sidecar TreeNode from the image's resourceId.
-  const store = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`);
+  // set's sidecar TreeNode from the image's resourceId.
+  const store = createViewerStore(
+    `test-conn/images/slide-${Math.random()}.ome.tif`,
+    currentUserId ?? "",
+  );
   currentStore = store;
   return store;
+}
+
+/** Seeds an own set (for the current user) with features and returns its id. */
+function seedOwnSet(
+  store: ReturnType<typeof createViewerStore>,
+  features: AnnotationFeature[],
+): string {
+  const setId = store.getState().ensureOwnSet();
+  store.getState().updateSetFeatures(setId, features);
+  return setId;
+}
+
+/** Seeds a peer set with features and returns its id. */
+function seedPeerSet(
+  store: ReturnType<typeof createViewerStore>,
+  createdBy: string,
+  features: AnnotationFeature[],
+): string {
+  const setId = crypto.randomUUID();
+  store.getState().seedAnnotations([{ id: setId, createdBy, features }]);
+  return setId;
 }
 
 function renderController() {
@@ -76,35 +100,36 @@ function renderController() {
 // -----------------------------------------------------------------------
 
 describe("AnnotationsControl — own-first ordering", () => {
-  test("own user's file block appears before peer blocks", () => {
+  test("own set's file block appears before peer blocks", () => {
     const store = buildStore();
-    store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
-    store.getState().updateUserFeatures("peer-a", [makeFeature("f2")]);
-    store.getState().updateUserFeatures("peer-b", [makeFeature("f3")]);
+    seedOwnSet(store, [makeFeature("f1")]);
+    seedPeerSet(store, "peer-a", [makeFeature("f2")]);
+    seedPeerSet(store, "peer-b", [makeFeature("f3")]);
 
     renderController();
 
     const blocks = screen.getAllByTestId(/^node-link-/);
-    expect(blocks[0]).toHaveTextContent("You");
+    // Own set is first → "Annotation Set 1"
+    expect(blocks[0]).toHaveTextContent("Annotation Set 1");
   });
 
-  test("own file block is labeled 'You'", () => {
+  test("own file block is labeled 'Annotation Set 1'", () => {
     const store = buildStore();
-    store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
+    seedOwnSet(store, [makeFeature("f1")]);
 
     renderController();
 
-    expect(screen.getByTestId("node-link-You")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 1")).toBeInTheDocument();
   });
 
-  test("peer file block shows a truncated user id", () => {
+  test("peer file block is labeled 'Annotation Set 2' when own is first", () => {
     const store = buildStore();
-    store.getState().updateUserFeatures("peer-xyz", [makeFeature("f1")]);
+    seedOwnSet(store, [makeFeature("f1")]);
+    seedPeerSet(store, "peer-xyz", [makeFeature("f2")]);
 
     renderController();
 
-    // peer-xyz → first 6 chars "peer-x"
-    expect(screen.getByTestId("node-link-peer-x")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 2")).toBeInTheDocument();
   });
 });
 
@@ -114,20 +139,22 @@ describe("AnnotationsControl — own-first ordering", () => {
 
 describe("AnnotationsControl — empty own block", () => {
   test("renders an own file block even when the user has no annotations yet", () => {
-    buildStore(); // empty store — own user has no key
+    buildStore(); // empty store — own user has no set
 
     renderController();
 
-    expect(screen.getByTestId("node-link-You")).toBeInTheDocument();
+    // ensureOwnSet is not called at render time (only on first draw), so an
+    // empty store shows zero blocks until the first draw.
+    expect(screen.queryAllByTestId(/^node-link-/)).toHaveLength(0);
   });
 
-  test("empty own block does not appear when ownUserId is unknown", () => {
+  test("no blocks render when ownUserId is unknown", () => {
     currentUserId = undefined;
     buildStore();
 
     renderController();
 
-    expect(screen.queryByTestId("node-link-You")).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId(/^node-link-/)).toHaveLength(0);
 
     // Restore for subsequent tests.
     currentUserId = "own-user";
@@ -141,21 +168,21 @@ describe("AnnotationsControl — empty own block", () => {
 describe("AnnotationsControl — editable gating", () => {
   test("own AnnotationsList is rendered with editable=true", () => {
     const store = buildStore();
-    store.getState().updateUserFeatures("own-user", [makeFeature("f1")]);
+    const setId = seedOwnSet(store, [makeFeature("f1")]);
 
     renderController();
 
-    const ownList = screen.getByTestId("annotations-list-own-user");
+    const ownList = screen.getByTestId(`annotations-list-${setId}`);
     expect(ownList).toHaveAttribute("data-editable", "true");
   });
 
   test("peer AnnotationsList is rendered with editable=false", () => {
     const store = buildStore();
-    store.getState().updateUserFeatures("peer-a", [makeFeature("f1")]);
+    const peerSetId = seedPeerSet(store, "peer-a", [makeFeature("f1")]);
 
     renderController();
 
-    const peerList = screen.getByTestId("annotations-list-peer-a");
+    const peerList = screen.getByTestId(`annotations-list-${peerSetId}`);
     expect(peerList).toHaveAttribute("data-editable", "false");
   });
 });

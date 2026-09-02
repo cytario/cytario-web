@@ -360,7 +360,6 @@ describe("getAllSessionCredentials", () => {
       Policy: buildSessionPolicy({
         bucketName: "test-bucket",
         prefix: "",
-        subject: "user-123",
         region: "us-west-2",
         accessLevel: "read-write",
       }),
@@ -375,7 +374,6 @@ describe("getAllSessionCredentials", () => {
     const expectedPolicy = buildSessionPolicy({
       bucketName: "scoped-bucket",
       prefix: "tenant-a",
-      subject: "user-123",
       region: "us-east-1",
       accessLevel: "read-write",
     });
@@ -393,7 +391,6 @@ describe("getAllSessionCredentials", () => {
     const expectedPolicy = buildSessionPolicy({
       bucketName: "whole-bucket",
       prefix: "",
-      subject: "user-123",
       region: "us-east-1",
       accessLevel: "read-write",
     });
