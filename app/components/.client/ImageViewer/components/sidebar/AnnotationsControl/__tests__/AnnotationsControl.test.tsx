@@ -1,3 +1,4 @@
+import { ToastProvider } from "@cytario/design";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { useStore } from "zustand";
@@ -80,7 +81,11 @@ function seedPeerSet(
 }
 
 function renderController() {
-  return render(<AnnotationsControl />);
+  return render(
+    <ToastProvider>
+      <AnnotationsControl />
+    </ToastProvider>,
+  );
 }
 
 // -----------------------------------------------------------------------
@@ -281,7 +286,7 @@ describe("AnnotationsControl — JSON import", () => {
     expect(store.getState().annotationSets[0].features).toHaveLength(1);
   });
 
-  test("malformed JSON logs error and adds no set", async () => {
+  test("malformed JSON shows an error toast and adds no set", async () => {
     const store = buildStore();
     renderController();
 
@@ -290,7 +295,28 @@ describe("AnnotationsControl — JSON import", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await vi.waitFor(() => {
-      expect(store.getState().annotationSets).toHaveLength(0);
+      expect(screen.getByText(/"broken.json" is not valid JSON/)).toBeInTheDocument();
     });
+    expect(store.getState().annotationSets).toHaveLength(0);
+  });
+
+  test("a file with no valid features shows an error toast and adds no set", async () => {
+    const store = buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(
+      [JSON.stringify({ type: "FeatureCollection", features: [] })],
+      "empty.geojson",
+      { type: "application/geo+json" },
+    );
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(
+        screen.getByText(/"empty.geojson" contains no valid annotation features/),
+      ).toBeInTheDocument();
+    });
+    expect(store.getState().annotationSets).toHaveLength(0);
   });
 });

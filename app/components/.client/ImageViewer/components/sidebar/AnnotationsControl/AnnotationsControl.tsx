@@ -1,4 +1,4 @@
-import { Badge, IconButton, Switch } from "@cytario/design";
+import { Badge, IconButton, Switch, useToast } from "@cytario/design";
 import { useMemo, useRef, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
@@ -13,8 +13,8 @@ import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { SearchInput } from "~/components/SearchInput";
-import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
-import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
+import { parseAnnotationImportFile } from "~/utils/db/annotationImport";
+import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
 import { getSidecarKey } from "~/utils/sidecarKey";
 
@@ -76,6 +76,7 @@ const AnnotationFileBlock = ({
 
 /** Sidebar annotations control: list, group, toggle visibility, delete. */
 export const AnnotationsControl = () => {
+  const { toast } = useToast();
   const annotationSets = useViewerStore((s) => s.annotationSets);
   const annotationView = useViewerStore((s) => s.annotationView);
   const annotationsOpacity = useViewerStore(select.annotationsOpacity);
@@ -88,14 +89,13 @@ export const AnnotationsControl = () => {
 
   const onImportFile = async (file: File) => {
     try {
-      const text = await file.text();
-      const json = JSON.parse(text) as { features?: unknown };
-      const features = validAnnotationFeatures(json.features);
-      const id = crypto.randomUUID();
-      const set: AnnotationSet = { id, createdBy: undefined, features };
-      seedAnnotations([set]);
+      const features = await parseAnnotationImportFile(file);
+      seedAnnotations([{ id: crypto.randomUUID(), createdBy: undefined, features }]);
     } catch (e) {
-      console.error("[annotations] import failed:", e);
+      toast({
+        variant: "error",
+        message: e instanceof Error ? e.message : `Failed to import "${file.name}"`,
+      });
     }
   };
 
