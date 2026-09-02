@@ -20,6 +20,16 @@ import { buildConnectionPath } from "~/utils/resourceId";
  * IndexedDB, which OOMs the tab on large objects. */
 const MAX_DOWNLOADABLE_SIZE = 256 * 1024 * 1024;
 
+/** Download filename for a node: files from listings carry their extension in
+ *  `name`; the viewer's synthetic sidecar nodes carry a display label without
+ *  one — append the path's extension in that case ("Annotation Set 1" →
+ *  "Annotation Set 1.json"). Names already ending in the path's extension
+ *  (or extension-less paths) pass through unchanged. */
+export const downloadFilenameFor = (name: string, pathName: string): string => {
+  const ext = pathName.match(/(\.[a-z0-9]+)$/i)?.[1] ?? "";
+  return !ext || name.endsWith(ext) ? name : name + ext;
+};
+
 /**
  * Trailing context menu for a `TreeNode` (bucket, directory, file). All node
  * types share Open / Open in new tab / Copy S3 URI / favorite; buckets also
@@ -78,6 +88,10 @@ export const NodeContextMenu = ({
     }
   };
 
+  // Listing files already carry their extension; synthetic nodes get it from
+  // the path (see downloadFilenameFor).
+  const downloadName = downloadFilenameFor(node.name, node.pathName);
+
   const handleDownload = async () => {
     try {
       const data = await getUint8ArrayForResourceId(node.id);
@@ -85,12 +99,12 @@ export const NodeContextMenu = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = node.name;
+      a.download = downloadName;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toastBridge.emit({ variant: "success", message: `Downloaded ${node.name}` });
+      toastBridge.emit({ variant: "success", message: `Downloaded ${downloadName}` });
     } catch (error) {
       console.error("Download failed", error);
       toastBridge.emit({ variant: "error", message: `Could not download ${node.name}` });
