@@ -122,7 +122,7 @@ export const AnnotationsControl = () => {
         <>
           <IconButton
             icon="Plus"
-            label="Import annotations from JSON"
+            label="Import annotations from GeoJSON"
             onPress={() => fileInputRef.current?.click()}
             variant="ghost"
             size="xs"
@@ -130,7 +130,7 @@ export const AnnotationsControl = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json,application/json"
+            accept=".json,.geojson,application/json"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];

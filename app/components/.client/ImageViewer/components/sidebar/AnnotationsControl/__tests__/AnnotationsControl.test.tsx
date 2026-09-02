@@ -199,7 +199,7 @@ describe("AnnotationsControl — JSON import", () => {
     renderController();
 
     expect(
-      screen.getByRole("button", { name: "Import annotations from JSON" }),
+      screen.getByRole("button", { name: "Import annotations from GeoJSON" }),
     ).toBeInTheDocument();
   });
 
@@ -212,6 +212,27 @@ describe("AnnotationsControl — JSON import", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File([JSON.stringify(quPathExport)], "export.json", {
       type: "application/json",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(1);
+    });
+
+    const set = store.getState().annotationSets[0];
+    expect(set.features).toHaveLength(2);
+    expect(set.createdBy).toBeUndefined(); // unowned
+  });
+
+  test("importing a .geojson file adds an unowned set", async () => {
+    const store = buildStore();
+    expect(store.getState().annotationSets).toHaveLength(0);
+
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([JSON.stringify(quPathExport)], "export.geojson", {
+      type: "application/geo+json",
     });
     fireEvent.change(input, { target: { files: [file] } });
 
