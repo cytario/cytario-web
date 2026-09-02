@@ -277,7 +277,9 @@ export const AnnotationsControl = () => {
           <AnnotationFileBlock
             key={s.id}
             setId={s.id}
-            label={s.name ?? `Annotation Set ${i + 1}`}
+            // Legacy sets created before names existed fall back positionally
+            // (with .json, matching minted/imported names).
+            label={s.name ?? `Annotation Set ${i + 1}.json`}
             features={s.features}
             searchQuery={searchQuery}
             editable={canAnnotate}

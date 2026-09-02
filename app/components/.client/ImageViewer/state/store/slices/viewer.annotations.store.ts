@@ -42,6 +42,17 @@ export const generateAnnotationName = (features: AnnotationFeature[]): string =>
   }
 };
 
+/** The default name minted for a newly created set: the lowest
+ *  "Annotation Set N.json" not already taken (mirrors generateAnnotationName's
+ *  lowest-unused-index rule, so delete + re-draw never collides). */
+export const generateSetName = (sets: AnnotationSet[]): string => {
+  const taken = new Set(sets.map((s) => s.name).filter((n): n is string => !!n));
+  for (let n = 1; ; n++) {
+    const candidate = `Annotation Set ${n}.json`;
+    if (!taken.has(candidate)) return candidate;
+  }
+};
+
 /** The display name of a feature: its `properties.name` if set, else a
  *  fallback showing the ID (for legacy/imported features that predate
  *  auto-naming). Shared by the tooltip and the sidebar label so they agree. */
@@ -275,7 +286,12 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       const id = crypto.randomUUID();
       set(
         (s) => {
-          s.annotationSets.push({ id, createdBy: s.currentUserId, features: [], name: undefined });
+          s.annotationSets.push({
+            id,
+            createdBy: s.currentUserId,
+            features: [],
+            name: generateSetName(s.annotationSets),
+          });
           s.activeSetId = id;
         },
         false,

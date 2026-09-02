@@ -4,6 +4,7 @@ import { createViewerStore } from "../createViewerStore";
 import {
   classColor,
   generateAnnotationName,
+  generateSetName,
   selectSetFeatures,
   selectSetHiddenClasses,
 } from "../slices/viewer.annotations.store";
@@ -560,5 +561,29 @@ describe("renameAnnotationSet", () => {
     const store = createViewerStore("rename-3");
     store.getState().renameAnnotationSet("nope", "X");
     expect(store.getState().annotationSets).toHaveLength(0);
+  });
+});
+
+// generateSetName — default names minted at set creation (C-457): lowest
+// unused "Annotation Set N.json", so delete + re-draw never collides.
+describe("generateSetName", () => {
+  it("mints Annotation Set 1.json for an empty store", () => {
+    expect(generateSetName([])).toBe("Annotation Set 1.json");
+  });
+
+  it("skips taken numbers and finds the lowest free slot", () => {
+    const sets = [
+      { ...makeSet("set-a", "user-a", []), name: "Annotation Set 1.json" },
+      { ...makeSet("set-b", "user-b", []), name: "Annotation Set 2.json" },
+    ];
+    expect(generateSetName(sets)).toBe("Annotation Set 3.json");
+  });
+
+  it("fills gaps left by deletions", () => {
+    const sets = [
+      { ...makeSet("set-a", "user-a", []), name: "Annotation Set 2.json" },
+      { ...makeSet("set-b", "user-b", []), name: "Annotation Set 5.json" },
+    ];
+    expect(generateSetName(sets)).toBe("Annotation Set 1.json");
   });
 });

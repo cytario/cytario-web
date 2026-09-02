@@ -134,8 +134,8 @@ describe("AnnotationsControl — own-first ordering", () => {
     renderController();
 
     const blocks = screen.getAllByTestId(/^node-link-/);
-    // Own set is first → "Annotation Set 1"
-    expect(blocks[0]).toHaveTextContent("Annotation Set 1");
+    // Own set is first → "Annotation Set 1.json"
+    expect(blocks[0]).toHaveTextContent("Annotation Set 1.json");
   });
 
   test("own file block is labeled 'Annotation Set 1'", () => {
@@ -144,7 +144,7 @@ describe("AnnotationsControl — own-first ordering", () => {
 
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 1")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toBeInTheDocument();
   });
 
   test("peer file block is labeled 'Annotation Set 2' when own is first", () => {
@@ -154,7 +154,7 @@ describe("AnnotationsControl — own-first ordering", () => {
 
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 2")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 2.json")).toBeInTheDocument();
   });
 });
 
@@ -389,7 +389,7 @@ describe("AnnotationsControl — set deletion entry", () => {
     seedOwnSet(currentStore!, [makeFeature("f1")]);
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 1")).toHaveAttribute(
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toHaveAttribute(
       "data-context-menu",
       "true",
     );
@@ -400,7 +400,7 @@ describe("AnnotationsControl — set deletion entry", () => {
     seedOwnSet(currentStore!, [makeFeature("f1")]);
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 1")).toHaveAttribute(
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toHaveAttribute(
       "data-context-menu",
       "false",
     );
@@ -430,7 +430,7 @@ describe("AnnotationsControl — set naming", () => {
     seedOwnSet(currentStore!, [makeFeature("f1")]);
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 1")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toBeInTheDocument();
   });
 
   test("double-click opens an inline rename; Enter commits and the label updates", () => {
@@ -438,9 +438,9 @@ describe("AnnotationsControl — set naming", () => {
     seedOwnSet(currentStore!, [makeFeature("f1")]);
     renderController();
 
-    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1"));
+    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1.json"));
 
-    const input = screen.getByLabelText("Rename Annotation Set 1");
+    const input = screen.getByLabelText("Rename Annotation Set 1.json");
     fireEvent.change(input, { target: { value: "Tumor review" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -452,13 +452,14 @@ describe("AnnotationsControl — set naming", () => {
     seedOwnSet(currentStore!, [makeFeature("f1")]);
     renderController();
 
-    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1"));
+    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1.json"));
 
-    const input = screen.getByLabelText("Rename Annotation Set 1");
+    const input = screen.getByLabelText("Rename Annotation Set 1.json");
     fireEvent.change(input, { target: { value: "Discarded" } });
     fireEvent.keyDown(input, { key: "Escape" });
 
-    expect(currentStore!.getState().annotationSets[0].name).toBeUndefined();
+    // The minted name is untouched by the cancelled edit.
+    expect(currentStore!.getState().annotationSets[0].name).toBe("Annotation Set 1.json");
   });
 });
 
@@ -471,7 +472,7 @@ describe("AnnotationsControl — sidecar download gate", () => {
     // NodeContextMenu's download gate requires a known size (C-445); the
     // synthetic node ships a sentinel so the app-written sidecar is
     // downloadable (C-330's original scope).
-    expect(screen.getByTestId("node-link-Annotation Set 1")).toHaveAttribute(
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toHaveAttribute(
       "data-size-known",
       "true",
     );
