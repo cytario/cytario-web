@@ -471,3 +471,65 @@ describe("classColor", () => {
     expect(classColor([], [makeFeature({ className: "Other" })], "Tumor")).toBeUndefined();
   });
 });
+
+// deleteAnnotationSet — C-456: removes the set, its view state, reassigns the
+// active set, and drops selection entries pointing at the deleted features.
+describe("deleteAnnotationSet", () => {
+  it("removes the set and clears its view state", () => {
+    const store = createViewerStore("del-1");
+    store
+      .getState()
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [makeFeature()]),
+        makeSet("set-b", "user-b", [makeFeature()]),
+      ]);
+
+    store.getState().deleteAnnotationSet("set-a");
+
+    expect(store.getState().annotationSets.map((s) => s.id)).toEqual(["set-b"]);
+    expect(store.getState().annotationView["set-a"]).toBeUndefined();
+  });
+
+  it("reassigns activeSetId when the active set is deleted", () => {
+    const store = createViewerStore("del-2");
+    store
+      .getState()
+      .seedAnnotations([makeSet("set-a", "user-a", []), makeSet("set-b", "user-b", [])]);
+    // seedAnnotations makes the first seeded set active.
+    expect(store.getState().activeSetId).toBe("set-a");
+
+    store.getState().deleteAnnotationSet("set-a");
+
+    expect(store.getState().activeSetId).toBe("set-b");
+  });
+
+  it("clears activeSetId when the last set is deleted, and filters the selection", () => {
+    const store = createViewerStore("del-3");
+    const survivor = makeFeature({ id: "survivor" });
+    const doomed = makeFeature({ id: "doomed" });
+    store
+      .getState()
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [doomed]),
+        makeSet("set-b", "user-b", [survivor]),
+      ]);
+    expect(store.getState().activeSetId).toBe("set-a"); // first seeded set
+    store.getState().setAnnotationSelectedIds(["doomed", "survivor"]);
+
+    store.getState().deleteAnnotationSet("set-a");
+
+    expect(store.getState().annotationSets.map((s) => s.id)).toEqual(["set-b"]);
+    expect(store.getState().activeSetId).toBe("set-b");
+    // The surviving set's feature stays selected; the deleted one is dropped.
+    expect(store.getState().annotationSelectedIds).toEqual(["survivor"]);
+  });
+
+  it("is a no-op for an unknown set id", () => {
+    const store = createViewerStore("del-4");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
+
+    store.getState().deleteAnnotationSet("nope");
+
+    expect(store.getState().annotationSets).toHaveLength(1);
+  });
+});

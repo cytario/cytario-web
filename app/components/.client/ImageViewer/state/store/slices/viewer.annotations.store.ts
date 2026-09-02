@@ -154,6 +154,11 @@ export interface AnnotationsSlice {
   /** Replace one set's features (draw/move/delete). Immer gives that set a
    *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
   updateSetFeatures: (setId: string, features: AnnotationFeature[]) => void;
+  /** Delete an annotation set outright — removes the set, its view state, and
+   *  any selection into it. The sync middleware sees the set vanish from the
+   *  baseline and DELETEs its sidecar file; the mutation enters the undo
+   *  history (undo restores the set, and the sync re-writes the sidecar). */
+  deleteAnnotationSet: (setId: string) => void;
   /** Recolor every feature of a classification within one set. */
   setAnnotationClassColor: (setId: string, name: string, color: RGB) => void;
   /** Assign (or, with `name: null`, clear to unclassified) the classification of
@@ -288,6 +293,29 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "updateSetFeatures",
+    );
+  },
+
+  deleteAnnotationSet: (setId) => {
+    set(
+      (state) => {
+        const index = state.annotationSets.findIndex((s) => s.id === setId);
+        if (index === -1) return;
+        state.annotationSets.splice(index, 1);
+        delete state.annotationView[setId];
+        if (state.activeSetId === setId) {
+          state.activeSetId = state.annotationSets[0]?.id ?? null;
+        }
+        // Drop selection entries pointing at the deleted set's features.
+        const survivorIds = new Set(
+          state.annotationSets.flatMap((s) => s.features.flatMap((f) => (f.id ? [f.id] : []))),
+        );
+        state.annotationSelectedIds = state.annotationSelectedIds.filter((id) =>
+          survivorIds.has(id),
+        );
+      },
+      false,
+      "deleteAnnotationSet",
     );
   },
 

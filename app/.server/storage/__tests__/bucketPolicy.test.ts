@@ -108,7 +108,7 @@ describe("compileGrantStatements", () => {
     expect(actions).not.toContain("s3:PutBucketPolicy");
   });
 
-  test("annotate grant adds PutObject scoped to annotation and settings sidecar patterns", () => {
+  test("annotate grant adds PutObject scoped to annotation and settings sidecar patterns, DeleteObject scoped to annotation sidecars", () => {
     const statements = compileGrantStatements(grant({ accessLevel: "annotate" }));
 
     // GetObject still emitted on the full prefix (read is always allowed).
@@ -126,10 +126,17 @@ describe("compileGrantStatements", () => {
     expect(resources).toContain(`arn:aws:s3:::${BUCKET}/projects/alpha/*/settings.*.json`);
     // No whole-prefix write access.
     expect(resources).not.toContain(`arn:aws:s3:::${BUCKET}/projects/alpha/*`);
-    // No delete or multipart at annotate level.
+    // No multipart at annotate level.
     const allActions = statements.flatMap((s) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
-    expect(allActions).not.toContain("s3:DeleteObject");
     expect(allActions).not.toContain("s3:AbortMultipartUpload");
+
+    // Set deletion (C-456): DeleteObject scoped to the annotation pattern
+    // ONLY — settings sidecars stay put-only, no arbitrary-object delete.
+    const delStmt = statements.find((s) => s.Sid?.endsWith("AnnotateDelete"));
+    expect(delStmt).toBeDefined();
+    expect(delStmt!.Action).toBe("s3:DeleteObject");
+    expect(delStmt!.Resource).toBe(`arn:aws:s3:::${BUCKET}/projects/alpha/*.annotations.*.json`);
+    expect(allActions.filter((a) => a === "s3:DeleteObject")).toHaveLength(1);
   });
 
   test("annotate grant with empty prefix → sidecar patterns at bucket root and nested depth", () => {

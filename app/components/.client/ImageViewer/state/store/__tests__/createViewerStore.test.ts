@@ -121,6 +121,7 @@ describe("createViewerStore", () => {
       seedAnnotations: expect.any(Function),
       ensureOwnSet: expect.any(Function),
       updateSetFeatures: expect.any(Function),
+      deleteAnnotationSet: expect.any(Function),
       setAnnotationClassColor: expect.any(Function),
       setAnnotationClassForIds: expect.any(Function),
       renameAnnotationClass: expect.any(Function),

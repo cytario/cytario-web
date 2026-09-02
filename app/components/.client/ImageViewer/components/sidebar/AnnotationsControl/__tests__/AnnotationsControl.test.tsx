@@ -47,8 +47,21 @@ vi.mock("../AnnotationsList", () => ({
 // NodeLink needs a router (NavLink); stub it to the node label to keep these
 // tests focused on the controller's block layout.
 vi.mock("~/components/DirectoryView/NodeLink/NodeLink", () => ({
-  NodeLink: ({ node }: { node: { name: string } }) => (
-    <div data-testid={`node-link-${node.name}`}>{node.name}</div>
+  // Mirrors the contextMenuItems prop as a data attribute so the delete-set
+  // entry's pass-through is assertable without rendering a real menu.
+  NodeLink: ({
+    node,
+    contextMenuItems,
+  }: {
+    node: { name: string };
+    contextMenuItems?: unknown;
+  }) => (
+    <div
+      data-testid={`node-link-${node.name}`}
+      data-context-menu={String(Boolean(contextMenuItems))}
+    >
+      {node.name}
+    </div>
   ),
 }));
 
@@ -363,5 +376,31 @@ describe("AnnotationsControl — JSON import", () => {
       ).toBeInTheDocument();
     });
     expect(store.getState().annotationSets).toHaveLength(0);
+  });
+});
+
+// C-456: the set block's sidecar NodeLink carries a Delete-annotation-set
+// context-menu entry exactly when the connection grant permits annotating.
+describe("AnnotationsControl — set deletion entry", () => {
+  test("annotate connection passes the delete entry to the set block's context menu", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    expect(screen.getByTestId("node-link-Annotation Set 1")).toHaveAttribute(
+      "data-context-menu",
+      "true",
+    );
+  });
+
+  test("read-only connection passes no context-menu entry", () => {
+    buildStore("read-only");
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    expect(screen.getByTestId("node-link-Annotation Set 1")).toHaveAttribute(
+      "data-context-menu",
+      "false",
+    );
   });
 });

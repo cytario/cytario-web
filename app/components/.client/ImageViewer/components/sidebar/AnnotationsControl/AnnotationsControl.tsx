@@ -1,4 +1,4 @@
-import { Badge, IconButton, Switch, useToast } from "@cytario/design";
+import { Badge, Button, Dialog, IconButton, MenuItem, Switch, useToast } from "@cytario/design";
 import { useMemo, useRef, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
@@ -19,10 +19,12 @@ import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
 import { getSidecarKey } from "~/utils/sidecarKey";
 
-/** One user's annotation sidecar inside the Annotations section: the file as a
- *  NodeLink (label = user, node = the real sidecar object so Open / Copy S3 URI
- *  work) with a region count, and the user's class groups beneath. Clicking the
- *  name collapses the group list. Opacity is section-level (whole layer). */
+/** One annotation set's block inside the Annotations section: the sidecar as a
+ *  NodeLink (label = set name, node = the real sidecar object so Open / Copy
+ *  S3 URI work; when the grant permits annotating its context menu also offers
+ *  Delete annotation set) with a region count, and the set's class groups
+ *  beneath. Clicking the name collapses the group list. Opacity is
+ *  section-level (whole layer). */
 const AnnotationFileBlock = ({
   setId,
   label,
@@ -40,12 +42,14 @@ const AnnotationFileBlock = ({
   const imageResourceId = useViewerStore((s) => s.id);
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
   const setSetHidden = useViewerStore((s) => s.setAnnotationSetHidden);
+  const deleteAnnotationSet = useViewerStore((s) => s.deleteAnnotationSet);
   const [isOpen, setIsOpen] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // The file is "visible" while at least one of its regions' classes isn't hidden.
   const anyVisible = features.some((f) => !hiddenClasses.includes(classNameOf(f)));
 
-  // The user's sidecar as a TreeNode — a real, co-located S3 object.
+  // The set's sidecar as a TreeNode — a real, co-located S3 object.
   const node = useMemo<TreeNode>(() => {
     const { connectionId, pathName } = parseResourceId(imageResourceId);
     const sidecarPath = getSidecarKey(pathName, "annotations", setId);
@@ -63,7 +67,22 @@ const AnnotationFileBlock = ({
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
-        <NodeLink node={node} onClick={() => setIsOpen(!isOpen)} />
+        <NodeLink
+          node={node}
+          onClick={() => setIsOpen(!isOpen)}
+          contextMenuItems={
+            editable && (
+              <MenuItem
+                id="delete-set"
+                icon="Trash2"
+                isDanger
+                onAction={() => setConfirmDelete(true)}
+              >
+                Delete annotation set
+              </MenuItem>
+            )
+          }
+        />
         <Badge>{features.length}</Badge>
         <Switch
           isSelected={anyVisible}
@@ -72,6 +91,35 @@ const AnnotationFileBlock = ({
           aria-label={`Toggle ${label} annotations visibility`}
         />
       </div>
+
+      <Dialog
+        isOpen={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete ${label}?`}
+        size="sm"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            This removes the {features.length} region{features.length === 1 ? "" : "s"} and deletes
+            the annotation sidecar file from S3 for everyone on this bucket. It can be undone until
+            the page is left.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onPress={() => setConfirmDelete(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onPress={() => {
+                deleteAnnotationSet(setId);
+                setConfirmDelete(false);
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       {isOpen && (
         <AnnotationsList
