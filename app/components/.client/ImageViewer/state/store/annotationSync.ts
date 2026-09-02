@@ -14,7 +14,11 @@ const SAVE_DEBOUNCE_MS = 800;
  *  changed set's sidecar is written, debounced. A set present in the baseline
  *  but absent from the working copy was deleted — its sidecar file is DELETEd. */
 export function attachAnnotationSync(store: ViewerStoreApi): void {
-  let persisted: Record<string, AnnotationFeature[]> = {};
+  interface PersistedSet {
+    features: AnnotationFeature[];
+    name: string | undefined;
+  }
+  let persisted: Record<string, PersistedSet> = {};
   let timer: ReturnType<typeof setTimeout> | null = null;
   let flushing = false;
   let saveFailed = false;
@@ -22,8 +26,8 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
 
   readAllAnnotations(store.getState().id)
     .then((sets) => {
-      const baseline: Record<string, AnnotationFeature[]> = {};
-      for (const s of sets) baseline[s.id] = s.features;
+      const baseline: Record<string, PersistedSet> = {};
+      for (const s of sets) baseline[s.id] = { features: s.features, name: s.name };
       persisted = baseline;
       store.getState().seedAnnotations(sets);
     })
@@ -41,13 +45,19 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
     try {
       const { id, annotationSets } = store.getState();
       for (const set of annotationSets) {
-        if (set.features === persisted[set.id]) continue;
+        const base = persisted[set.id];
+        // A set diffs when its features array or its display name changed —
+        // immer gives the mutated set a fresh reference for either.
+        if (set.features === base?.features && set.name === base?.name) continue;
         const snapshot = set.features;
-        if (snapshot.length === 0 && persisted[set.id] === undefined) continue;
+        const snapshotName = set.name;
+        if (snapshot.length === 0 && base === undefined) continue;
         try {
-          await writeAnnotations(id, set.id, set.createdBy, snapshot);
-          if (store.getState().annotationSets.find((s) => s.id === set.id)?.features === snapshot)
-            persisted[set.id] = snapshot;
+          await writeAnnotations(id, set.id, set.createdBy, snapshot, snapshotName);
+          const current = store.getState().annotationSets.find((s) => s.id === set.id);
+          // Only advance the baseline if the set wasn't edited mid-flush.
+          if (current?.features === snapshot && current?.name === snapshotName)
+            persisted[set.id] = { features: snapshot, name: snapshotName };
           saveFailed = false;
         } catch (error) {
           console.error(`[annotations] save failed for ${set.id}:`, error);

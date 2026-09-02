@@ -27,7 +27,7 @@ const makeSet = (
   id: string,
   createdBy: string,
   features: AnnotationFeature[] = [],
-): AnnotationSet => ({ id, createdBy, features });
+): AnnotationSet => ({ id, createdBy, features, name: undefined });
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -120,7 +120,13 @@ describe("attachAnnotationSync", () => {
     // And it is written: the baseline (read result) had no matching ref for it,
     // so the per-set diff schedules the pre-seed draw for persistence.
     expect(writeMock).toHaveBeenCalledTimes(1);
-    expect(writeMock).toHaveBeenCalledWith("conn/slide.ome.tif", "set-1", "user-1", drawn);
+    expect(writeMock).toHaveBeenCalledWith(
+      "conn/slide.ome.tif",
+      "set-1",
+      "user-1",
+      drawn,
+      undefined,
+    );
   });
 
   it("debounces an edit and writes only the changed set's sidecar", async () => {
@@ -135,7 +141,13 @@ describe("attachAnnotationSync", () => {
     await vi.runAllTimersAsync();
 
     expect(writeMock).toHaveBeenCalledTimes(1);
-    expect(writeMock).toHaveBeenCalledWith("conn/slide.ome.tif", "set-1", "user-1", features);
+    expect(writeMock).toHaveBeenCalledWith(
+      "conn/slide.ome.tif",
+      "set-1",
+      "user-1",
+      features,
+      undefined,
+    );
   });
 
   it("does not create a file for a new set's empty features (lazy create)", async () => {
@@ -161,7 +173,7 @@ describe("attachAnnotationSync", () => {
     await vi.runAllTimersAsync();
 
     expect(writeMock).toHaveBeenCalledTimes(1);
-    expect(writeMock).toHaveBeenCalledWith("conn/slide.ome.tif", "set-1", "user-1", []);
+    expect(writeMock).toHaveBeenCalledWith("conn/slide.ome.tif", "set-1", "user-1", [], undefined);
   });
 
   it("leaves the baseline stale when a write fails, retrying on the next change", async () => {
@@ -270,6 +282,46 @@ describe("attachAnnotationSync — set deletion", () => {
       "set-1",
       "user-1",
       expect.anything(),
+      undefined,
+    );
+  });
+});
+
+// C-457: a display-name change alone (features ref unchanged) must still
+// diff → write the sidecar with cytario.name.
+describe("attachAnnotationSync — set rename", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    readMock.mockReset();
+    readMock.mockResolvedValue([]);
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+    deleteMock.mockReset();
+    deleteMock.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("writes the sidecar when only the name changed", async () => {
+    const seeded = [makeSet("set-1", "user-1", [feature()])];
+    seeded[0].name = "Old name";
+    readMock.mockResolvedValue(seeded);
+    const { store, state, fire } = makeFakeStore();
+    attachAnnotationSync(store);
+    await vi.runAllTimersAsync();
+
+    // Rename without touching the features array reference.
+    state.annotationSets[0].name = "New name";
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(writeMock).toHaveBeenCalledWith(
+      "conn/slide.ome.tif",
+      "set-1",
+      "user-1",
+      seeded[0].features,
+      "New name",
     );
   });
 });

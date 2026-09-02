@@ -7,6 +7,12 @@ export function isAnnotationImportFile(file: File): boolean {
   return /\.(json|geojson)$/i.test(file.name);
 }
 
+/** Display name for an imported set: the filename minus its extension
+ *  (e.g. "patient-12-tumor.geojson" → "patient-12-tumor"). */
+export function annotationSetNameFromFile(file: File): string {
+  return file.name.replace(/\.(json|geojson)$/i, "");
+}
+
 /**
  * Parse an annotation export into validated features; invalid features are
  * dropped. Throws on malformed JSON or when no valid feature remains.

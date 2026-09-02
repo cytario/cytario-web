@@ -1,5 +1,5 @@
 import { Badge, Button, Dialog, IconButton, MenuItem, Switch, useToast } from "@cytario/design";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
 import { select } from "../../../state/store/selectors";
@@ -14,7 +14,7 @@ import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { FeatureItemSlider } from "~/components/FeatureItem/FeatureItemSlider";
 import { SearchInput } from "~/components/SearchInput";
-import { parseAnnotationImportFile } from "~/utils/db/annotationImport";
+import { annotationSetNameFromFile, parseAnnotationImportFile } from "~/utils/db/annotationImport";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 import { parseResourceId } from "~/utils/resourceId";
 import { getSidecarKey } from "~/utils/sidecarKey";
@@ -22,9 +22,9 @@ import { getSidecarKey } from "~/utils/sidecarKey";
 /** One annotation set's block inside the Annotations section: the sidecar as a
  *  NodeLink (label = set name, node = the real sidecar object so Open / Copy
  *  S3 URI work; when the grant permits annotating its context menu also offers
- *  Delete annotation set) with a region count, and the set's class groups
- *  beneath. Clicking the name collapses the group list. Opacity is
- *  section-level (whole layer). */
+ *  Rename and Delete annotation set, and double-clicking the name opens an
+ *  inline edit) with a region count, and the set's class groups beneath.
+ *  Clicking the name collapses the group list. Opacity is section-level. */
 const AnnotationFileBlock = ({
   setId,
   label,
@@ -43,8 +43,11 @@ const AnnotationFileBlock = ({
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
   const setSetHidden = useViewerStore((s) => s.setAnnotationSetHidden);
   const deleteAnnotationSet = useViewerStore((s) => s.deleteAnnotationSet);
+  const renameAnnotationSet = useViewerStore((s) => s.renameAnnotationSet);
   const [isOpen, setIsOpen] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(label);
 
   // The file is "visible" while at least one of its regions' classes isn't hidden.
   const anyVisible = features.some((f) => !hiddenClasses.includes(classNameOf(f)));
@@ -64,25 +67,65 @@ const AnnotationFileBlock = ({
     };
   }, [imageResourceId, setId, label]);
 
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const startRename = () => {
+    setDraftName(label);
+    setIsRenaming(true);
+  };
+  useEffect(() => {
+    if (isRenaming) renameInputRef.current?.focus();
+  }, [isRenaming]);
+  const commitRename = () => {
+    setIsRenaming(false);
+    if (draftName.trim() !== label) renameAnnotationSet(setId, draftName);
+  };
+
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
-        <NodeLink
-          node={node}
-          onClick={() => setIsOpen(!isOpen)}
-          contextMenuItems={
-            editable && (
-              <MenuItem
-                id="delete-set"
-                icon="Trash2"
-                isDanger
-                onAction={() => setConfirmDelete(true)}
-              >
-                Delete annotation set
-              </MenuItem>
-            )
-          }
-        />
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") setIsRenaming(false);
+            }}
+            aria-label={`Rename ${label}`}
+            className="h-7 min-w-0 grow rounded-md border border-input bg-background px-2 font-medium text-sm outline-none focus-visible:outline focus-visible:outline-ring"
+          />
+        ) : (
+          <div
+            className="min-w-0 grow"
+            onDoubleClick={() => {
+              if (editable) startRename();
+            }}
+          >
+            <NodeLink
+              node={node}
+              onClick={() => setIsOpen(!isOpen)}
+              contextMenuItems={
+                editable && (
+                  <>
+                    <MenuItem id="rename-set" icon="Pencil" onAction={startRename}>
+                      Rename annotation set
+                    </MenuItem>
+                    <MenuItem
+                      id="delete-set"
+                      icon="Trash2"
+                      isDanger
+                      onAction={() => setConfirmDelete(true)}
+                    >
+                      Delete annotation set
+                    </MenuItem>
+                  </>
+                )
+              }
+            />
+          </div>
+        )}
         <Badge>{features.length}</Badge>
         <Switch
           isSelected={anyVisible}
@@ -150,7 +193,14 @@ export const AnnotationsControl = () => {
   const onImportFile = async (file: File) => {
     try {
       const features = await parseAnnotationImportFile(file);
-      seedAnnotations([{ id: crypto.randomUUID(), createdBy: undefined, features }]);
+      seedAnnotations([
+        {
+          id: crypto.randomUUID(),
+          createdBy: undefined,
+          name: annotationSetNameFromFile(file),
+          features,
+        },
+      ]);
     } catch (e) {
       toast({
         variant: "error",
@@ -222,7 +272,7 @@ export const AnnotationsControl = () => {
           <AnnotationFileBlock
             key={s.id}
             setId={s.id}
-            label={`Annotation Set ${i + 1}`}
+            label={s.name ?? `Annotation Set ${i + 1}`}
             features={s.features}
             searchQuery={searchQuery}
             editable={canAnnotate}

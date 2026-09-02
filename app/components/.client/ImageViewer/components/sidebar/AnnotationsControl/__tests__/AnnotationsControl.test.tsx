@@ -106,7 +106,7 @@ function seedPeerSet(
   features: AnnotationFeature[],
 ): string {
   const setId = crypto.randomUUID();
-  store.getState().seedAnnotations([{ id: setId, createdBy, features }]);
+  store.getState().seedAnnotations([{ id: setId, createdBy, features, name: undefined }]);
   return setId;
 }
 
@@ -402,5 +402,60 @@ describe("AnnotationsControl — set deletion entry", () => {
       "data-context-menu",
       "false",
     );
+  });
+});
+
+// C-457: set naming — import takes the filename minus extension; the block
+// label shows the name with a positional fallback; double-click renames inline.
+describe("AnnotationsControl — set naming", () => {
+  test("an imported set is labeled with the filename minus its extension", async () => {
+    buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([JSON.stringify(quPathExport)], "patient-12-tumor.geojson", {
+      type: "application/geo+json",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("node-link-patient-12-tumor")).toBeInTheDocument();
+    });
+  });
+
+  test("unnamed sets keep the positional fallback label", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    expect(screen.getByTestId("node-link-Annotation Set 1")).toBeInTheDocument();
+  });
+
+  test("double-click opens an inline rename; Enter commits and the label updates", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1"));
+
+    const input = screen.getByLabelText("Rename Annotation Set 1");
+    fireEvent.change(input, { target: { value: "Tumor review" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(currentStore!.getState().annotationSets[0].name).toBe("Tumor review");
+  });
+
+  test("Escape cancels the rename without touching the store", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1"));
+
+    const input = screen.getByLabelText("Rename Annotation Set 1");
+    fireEvent.change(input, { target: { value: "Discarded" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(currentStore!.getState().annotationSets[0].name).toBeUndefined();
   });
 });

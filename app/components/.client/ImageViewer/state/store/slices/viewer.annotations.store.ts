@@ -159,6 +159,10 @@ export interface AnnotationsSlice {
    *  baseline and DELETEs its sidecar file; the mutation enters the undo
    *  history (undo restores the set, and the sync re-writes the sidecar). */
   deleteAnnotationSet: (setId: string) => void;
+  /** Rename an annotation set (display name, persisted in `cytario.name`).
+   *  An empty/whitespace name clears it, falling back to the positional
+   *  "Annotation Set N" label. Enters the undo history. */
+  renameAnnotationSet: (setId: string, name: string) => void;
   /** Recolor every feature of a classification within one set. */
   setAnnotationClassColor: (setId: string, name: string, color: RGB) => void;
   /** Assign (or, with `name: null`, clear to unclassified) the classification of
@@ -271,7 +275,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       const id = crypto.randomUUID();
       set(
         (s) => {
-          s.annotationSets.push({ id, createdBy: s.currentUserId, features: [] });
+          s.annotationSets.push({ id, createdBy: s.currentUserId, features: [], name: undefined });
           s.activeSetId = id;
         },
         false,
@@ -316,6 +320,17 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "deleteAnnotationSet",
+    );
+  },
+
+  renameAnnotationSet: (setId, name) => {
+    set(
+      (state) => {
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (set) set.name = name.trim() || undefined;
+      },
+      false,
+      "renameAnnotationSet",
     );
   },
 

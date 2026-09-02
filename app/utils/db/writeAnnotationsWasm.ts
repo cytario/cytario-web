@@ -11,6 +11,7 @@ const SCHEMA_VERSION = "1.0";
  * (UUID for new sets); `createdBy` is the user id written into
  * `cytario.createdBy` (set-level) and stamped onto each feature's
  * `properties.createdBy` (feature-level provenance that survives merges/copies).
+ * `name` is the set's display name, written into `cytario.name` when defined.
  * Geometry is level-0 pixel coordinates, written verbatim.
  */
 export async function writeAnnotations(
@@ -18,6 +19,7 @@ export async function writeAnnotations(
   setId: string,
   createdBy: string | undefined,
   features: AnnotationFeature[],
+  name: string | undefined = undefined,
 ): Promise<void> {
   const { s3Uri } = resolveResourceId(resourceId);
 
@@ -36,6 +38,7 @@ export async function writeAnnotations(
       coordinateSpace: "pixel",
       pyramidLevel: 0,
       ...(createdBy ? { createdBy } : {}),
+      ...(name ? { name } : {}),
     },
     features: stamped,
   };

@@ -31,7 +31,7 @@ const makeSet = (
   id: string,
   createdBy: string,
   features: AnnotationFeature[] = [],
-): AnnotationSet => ({ id, createdBy, features });
+): AnnotationSet => ({ id, createdBy, features, name: undefined });
 
 // -----------------------------------------------------------------------
 // seedAnnotations
@@ -531,5 +531,34 @@ describe("deleteAnnotationSet", () => {
     store.getState().deleteAnnotationSet("nope");
 
     expect(store.getState().annotationSets).toHaveLength(1);
+  });
+});
+
+// renameAnnotationSet — C-457: display name, persisted in cytario.name;
+// empty clears back to the positional fallback label.
+describe("renameAnnotationSet", () => {
+  it("sets the name on the set", () => {
+    const store = createViewerStore("rename-1");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
+
+    store.getState().renameAnnotationSet("set-a", "Tumor review");
+
+    expect(store.getState().annotationSets[0].name).toBe("Tumor review");
+  });
+
+  it("trims and clears to undefined on an empty name", () => {
+    const store = createViewerStore("rename-2");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
+    store.getState().renameAnnotationSet("set-a", "Tumor review");
+
+    store.getState().renameAnnotationSet("set-a", "   ");
+
+    expect(store.getState().annotationSets[0].name).toBeUndefined();
+  });
+
+  it("is a no-op for an unknown set id", () => {
+    const store = createViewerStore("rename-3");
+    store.getState().renameAnnotationSet("nope", "X");
+    expect(store.getState().annotationSets).toHaveLength(0);
   });
 });
