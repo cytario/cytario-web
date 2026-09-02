@@ -77,6 +77,26 @@ describe("filterHiddenNodes", () => {
     expect(result[0].name).toBe("visible-dir");
   });
 
+  test("removes sidecar files (dot or not) when showHidden is false", () => {
+    const nodes = [
+      makeNode({ name: "slide.ome.tif" }),
+      makeNode({ name: "slide.ome.annotations.set-uuid.json" }),
+      makeNode({ name: "settings.u1.json" }),
+      makeNode({ name: "data.json" }), // plain JSON stays visible
+    ];
+    const result = filterHiddenNodes(nodes, false);
+    expect(result.map((n) => n.name)).toEqual(["slide.ome.tif", "data.json"]);
+  });
+
+  test("keeps sidecar files when showHidden is true", () => {
+    const nodes = [
+      makeNode({ name: "slide.ome.annotations.set-uuid.json" }),
+      makeNode({ name: "settings.u1.json" }),
+    ];
+    const result = filterHiddenNodes(nodes, true);
+    expect(result).toHaveLength(2);
+  });
+
   test("recursively filters hidden children inside visible directories", () => {
     const nodes = [
       makeNode({

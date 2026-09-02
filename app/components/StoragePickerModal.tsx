@@ -8,7 +8,9 @@ import type {
 } from "@cytario/plugin-api";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
+import { isHiddenFilename } from "~/components/DirectoryView/filterNodes";
 import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ConnectionSwitcherChip } from "~/components/Sidebar/ConnectionSwitcherChip";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -85,17 +87,25 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
 
   const glob = globFilter.trim();
 
+  // Files "Add all matching" may offer: what's loaded minus hidden files the
+  // tree isn't showing (same toggle, same predicate).
+  const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
+  const selectableFiles = useMemo(
+    () => [...loadedFiles.values()].filter((n) => showHiddenFiles || !isHiddenFilename(n.name)),
+    [loadedFiles, showHiddenFiles],
+  );
+
   const addAllMatching = useCallback(() => {
     setSelectedNodes((prev) => {
       const next = new Map(prev);
-      for (const [id, node] of loadedFiles) {
+      for (const node of selectableFiles) {
         if (!glob || matchGlob(node.name, glob)) {
-          next.set(id, node);
+          next.set(node.id, node);
         }
       }
       return next;
     });
-  }, [glob]);
+  }, [glob, selectableFiles]);
 
   const handleConfirm = useCallback(() => {
     const results: StoragePickerResult[] = [];
@@ -114,13 +124,13 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   const showGlob = options.globFilter ?? false;
   const showGroupBy = options.groupBy ?? false;
   const matchingCount = useMemo(() => {
-    if (!glob) return loadedFiles.size;
+    if (!glob) return selectableFiles.length;
     let count = 0;
-    for (const node of loadedFiles.values()) {
+    for (const node of selectableFiles) {
       if (matchGlob(node.name, glob)) count++;
     }
     return count;
-  }, [glob, loadedFiles]);
+  }, [glob, selectableFiles]);
 
   const selectionSummary = useMemo(() => {
     if (selectedNodes.size === 0) return "No files selected";

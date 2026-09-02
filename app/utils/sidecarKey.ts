@@ -51,3 +51,14 @@ export function getSidecarKey(imageKey: string, kind: SidecarKind, owner = "*"):
 export function parseOwnerFromKey(filename: string, kind: SidecarKind): string | undefined {
   return filename.match(new RegExp(`(?:^|[/.])${kind}\\.(.+)\\.json$`))?.[1];
 }
+
+/** Filename is an annotation or settings sidecar — machinery, hidden from every
+ *  directory view. Reuses the `parseOwnerFromKey` grammar so the two can't
+ *  drift; a user file that happens to match is hidden too (same accepted
+ *  exposure as the wildcard read). */
+export function isSidecarFilename(name: string): boolean {
+  return (
+    parseOwnerFromKey(name, "annotations") !== undefined ||
+    parseOwnerFromKey(name, "settings") !== undefined
+  );
+}

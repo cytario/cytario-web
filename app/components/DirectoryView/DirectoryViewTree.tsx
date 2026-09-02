@@ -7,6 +7,8 @@ import { twMerge } from "tailwind-merge";
 import { type TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
+import { isHiddenFilename } from "./filterNodes";
+import { useLayoutStore } from "./useLayoutStore";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 
 interface DirectoryViewTreeProps {
@@ -44,6 +46,10 @@ export function DirectoryViewTree({
 }: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems ?? []);
+  // Global "show hidden files" toggle — hides dot-files and sidecar machinery
+  // files at render (lazily-loaded children included), so every tree view
+  // (browser, search, picker, sidebar, viewer overlays) hides the same set.
+  const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
 
   // Reveal a deep-linked path on navigation: when `revealItems` changes, union
   // the requested ancestor ids into the expanded set without disturbing manual
@@ -106,9 +112,10 @@ export function DirectoryViewTree({
       {tree
         .getItems()
         .filter((item) => {
-          if (!nodeFilter) return true;
           const node = item.getItemData();
-          return !node || nodeFilter(node);
+          if (!node) return true;
+          if (!showHiddenFiles && isHiddenFilename(node.name)) return false;
+          return nodeFilter ? nodeFilter(node) : true;
         })
         .map((item) => {
           const node = item.getItemData();
