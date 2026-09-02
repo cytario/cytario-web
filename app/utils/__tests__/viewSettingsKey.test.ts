@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getSidecarKey, parseOwnerFromKey } from "~/utils/sidecarKey";
+import { getSidecarKey, isSidecarFilename, parseOwnerFromKey } from "~/utils/sidecarKey";
 
 describe("getSidecarKey (settings)", () => {
   it("derives directory-level settings key for an OME-TIFF", () => {
@@ -71,5 +71,21 @@ describe("parseOwnerFromKey (annotations)", () => {
   it("returns undefined for a plain image filename", () => {
     expect(parseOwnerFromKey("s3://bucket/data/slide.ome.tif", "settings")).toBe(undefined);
     expect(parseOwnerFromKey("s3://bucket/data/slide.ome.tif", "annotations")).toBe(undefined);
+  });
+});
+
+describe("isSidecarFilename", () => {
+  it.each([
+    ["slide.ome.annotations.set-uuid.json", true], // arbitrary owner segment (setId or userId)
+    ["slide.ome.annotations.43f251e8-5a5a-4a54-96b2-c64cd2ced695.json", true],
+    ["settings.u1.json", true],
+    ["settings.abc.def.123.json", true], // dotted owner (federated IdP subject)
+    ["slide.ome.tif", false],
+    ["data.json", false],
+    ["slide.annotations.json", false], // no owner segment — not a sidecar
+    ["mysettings.u1.json", false], // "settings" must not be embedded in the base
+    ["export.geojson", false],
+  ])("%s → %s", (name, expected) => {
+    expect(isSidecarFilename(name)).toBe(expected);
   });
 });

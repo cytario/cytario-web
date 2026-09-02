@@ -5,6 +5,7 @@ import type { DirectoryKind } from "./DirectoryView";
 import type { ColumnConfig } from "~/components/Table/types";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
+import { isSidecarFilename } from "~/utils/sidecarKey";
 
 type NodeAccessor = (node: TreeNode) => string;
 
@@ -33,12 +34,21 @@ export function getNodeAccessors(
   return kind === "connections" ? makeConnectionAccessors(connections) : fileAccessors;
 }
 
-/** Filter hidden files (names starting with ".") recursively. */
+/**
+ * Hidden from every directory view unless "show hidden files" is on:
+ * dot-files and sidecar machinery files (annotations/settings). One
+ * predicate for both, so every view hides the same set.
+ */
+export function isHiddenFilename(name: string): boolean {
+  return name.startsWith(".") || isSidecarFilename(name);
+}
+
+/** Filter hidden files (dot-files, sidecars) recursively. */
 export function filterHiddenNodes(nodes: TreeNode[], showHidden: boolean): TreeNode[] {
   if (showHidden) return nodes;
 
   return nodes
-    .filter((node) => !node.name.startsWith("."))
+    .filter((node) => !isHiddenFilename(node.name))
     .map((node) =>
       node.children && node.children.length > 0
         ? { ...node, children: filterHiddenNodes(node.children, false) }
