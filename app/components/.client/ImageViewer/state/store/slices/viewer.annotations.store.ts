@@ -162,6 +162,10 @@ export interface AnnotationsSlice {
    *  already points to a live own set, returns it. If no own set exists, creates
    *  one (UUID) and activates it. Called at draw time before `updateSetFeatures`. */
   ensureOwnSet: () => string;
+  /** Create an empty annotation set outright (minted default name,
+   *  `generateSetName`), make it the active set, and return its id — the
+   *  Add-set control's "New annotation set" entry. Enters the undo history. */
+  createAnnotationSet: () => string;
   /** Replace one set's features (draw/move/delete). Immer gives that set a
    *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
   updateSetFeatures: (setId: string, features: AnnotationFeature[]) => void;
@@ -301,6 +305,24 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     } finally {
       temporalStore?.getState().resume();
     }
+  },
+
+  createAnnotationSet: () => {
+    const id = crypto.randomUUID();
+    set(
+      (s) => {
+        s.annotationSets.push({
+          id,
+          createdBy: s.currentUserId,
+          features: [],
+          name: generateSetName(s.annotationSets),
+        });
+        s.activeSetId = id;
+      },
+      false,
+      "createAnnotationSet",
+    );
+    return id;
   },
 
   updateSetFeatures: (setId, features) => {

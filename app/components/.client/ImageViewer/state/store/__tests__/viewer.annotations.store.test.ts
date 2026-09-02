@@ -587,3 +587,40 @@ describe("generateSetName", () => {
     expect(generateSetName(sets)).toBe("Annotation Set 1.json");
   });
 });
+
+// createAnnotationSet — the Add-set menu's explicit creation (C-458).
+describe("createAnnotationSet", () => {
+  it("creates an empty set with a minted name and makes it active", () => {
+    const store = createViewerStore("create-1");
+
+    const id = store.getState().createAnnotationSet();
+
+    const state = store.getState();
+    expect(state.annotationSets).toHaveLength(1);
+    expect(state.annotationSets[0]).toMatchObject({
+      id,
+      features: [],
+      name: "Annotation Set 1.json",
+    });
+    expect(state.activeSetId).toBe(id);
+  });
+
+  it("mints sequential names across calls and fills gaps after deletion", () => {
+    const store = createViewerStore("create-2");
+    const a = store.getState().createAnnotationSet();
+    const b = store.getState().createAnnotationSet();
+    expect(store.getState().annotationSets.map((s) => s.name)).toEqual([
+      "Annotation Set 1.json",
+      "Annotation Set 2.json",
+    ]);
+
+    store.getState().deleteAnnotationSet(a);
+    const c = store.getState().createAnnotationSet();
+    expect(store.getState().annotationSets.find((s) => s.id === c)?.name).toBe(
+      "Annotation Set 1.json",
+    );
+    expect(store.getState().annotationSets.find((s) => s.id === b)?.name).toBe(
+      "Annotation Set 2.json",
+    );
+  });
+});

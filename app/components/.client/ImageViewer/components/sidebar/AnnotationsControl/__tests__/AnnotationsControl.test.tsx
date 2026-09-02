@@ -231,22 +231,20 @@ const quPathExport = {
 };
 
 describe("AnnotationsControl — JSON import", () => {
-  test("Plus button is rendered in header", () => {
+  test("Add-set button is rendered in header", () => {
     buildStore();
     renderController();
 
-    expect(
-      screen.getByRole("button", { name: "Import annotations from GeoJSON" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add annotation set" })).toBeInTheDocument();
   });
 
-  test("read-only connection hides the Import control and gates the list", () => {
+  test("read-only connection hides the Add-set control and gates the list", () => {
     buildStore("read-only");
     seedOwnSet(currentStore!, [makeFeature("f1")]);
     renderController();
 
-    // No import affordance…
-    expect(screen.queryByRole("button", { name: "Import annotations from GeoJSON" })).toBeNull();
+    // No add-set affordance…
+    expect(screen.queryByRole("button", { name: "Add annotation set" })).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
     // …and the set's list is read-only.
     const setId = currentStore!.getState().annotationSets[0].id;
@@ -476,5 +474,45 @@ describe("AnnotationsControl — sidecar download gate", () => {
       "data-size-known",
       "true",
     );
+  });
+});
+
+// C-458: the + opens a menu — New annotation set (explicit creation) and
+// Import from file… (the previous direct-acting button).
+describe("AnnotationsControl — Add-set menu", () => {
+  test("opens a menu offering New annotation set and Import from file…", () => {
+    buildStore();
+    renderController();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add annotation set" }));
+
+    expect(screen.getByRole("menuitem", { name: "New annotation set" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Import from file…" })).toBeInTheDocument();
+  });
+
+  test("New annotation set creates an empty, named, active set", () => {
+    buildStore();
+    renderController();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add annotation set" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New annotation set" }));
+
+    const state = currentStore!.getState();
+    expect(state.annotationSets).toHaveLength(1);
+    expect(state.annotationSets[0].name).toBe("Annotation Set 1.json");
+    expect(state.annotationSets[0].features).toHaveLength(0);
+    expect(state.activeSetId).toBe(state.annotationSets[0].id);
+  });
+
+  test("Import from file… opens the hidden file picker", () => {
+    buildStore();
+    renderController();
+
+    const clickSpy = vi.spyOn(HTMLInputElement.prototype, "click");
+    fireEvent.click(screen.getByRole("button", { name: "Add annotation set" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Import from file…" }));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    clickSpy.mockRestore();
   });
 });

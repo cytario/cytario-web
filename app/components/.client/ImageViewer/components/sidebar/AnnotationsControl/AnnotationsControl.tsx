@@ -1,4 +1,13 @@
-import { Badge, Button, Dialog, IconButton, MenuItem, Switch, useToast } from "@cytario/design";
+import {
+  Badge,
+  Button,
+  Dialog,
+  IconButton,
+  Menu,
+  MenuItem,
+  Switch,
+  useToast,
+} from "@cytario/design";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
@@ -192,6 +201,7 @@ export const AnnotationsControl = () => {
   const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
   const [searchQuery, setSearchQuery] = useState("");
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
+  const createAnnotationSet = useViewerStore((s) => s.createAnnotationSet);
   const canAnnotate = useCanAnnotate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -236,13 +246,24 @@ export const AnnotationsControl = () => {
       actions={
         <>
           {canAnnotate && (
-            <IconButton
-              icon="Plus"
-              label="Import annotations from GeoJSON"
-              onPress={() => fileInputRef.current?.click()}
-              variant="ghost"
-              size="xs"
-            />
+            <Menu
+              content={
+                <>
+                  <MenuItem id="new-set" icon="Plus" onAction={() => createAnnotationSet()}>
+                    New annotation set
+                  </MenuItem>
+                  <MenuItem
+                    id="import-set"
+                    icon="File"
+                    onAction={() => fileInputRef.current?.click()}
+                  >
+                    Import from file…
+                  </MenuItem>
+                </>
+              }
+            >
+              <IconButton icon="Plus" label="Add annotation set" variant="ghost" size="xs" />
+            </Menu>
           )}
           {canAnnotate && (
             <input
