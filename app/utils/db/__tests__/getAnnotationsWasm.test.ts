@@ -28,15 +28,6 @@ const featureCollection = (
   ...(createdBy ? { cytario: { createdBy } } : {}),
 });
 
-const legacyFeatureCollection = (
-  features: AnnotationFeature[],
-  author?: string,
-): FeatureCollection & { cytario?: { author?: string } } => ({
-  type: "FeatureCollection",
-  features,
-  ...(author ? { cytario: { author } } : {}),
-});
-
 describe("readAllAnnotations", () => {
   it("maps each set's FeatureCollection to an AnnotationSet", async () => {
     const f1 = makeFeature();
@@ -93,25 +84,14 @@ describe("readAllAnnotations", () => {
     expect(readAllMock).toHaveBeenCalledWith("conn/slide.ome.tif", "annotations");
   });
 
-  it("falls back to cytario.author when cytario.createdBy is absent (legacy)", async () => {
+  it("leaves createdBy undefined when cytario envelope is absent (QuPath export)", async () => {
     const f1 = makeFeature();
     readAllMock.mockResolvedValue({
-      "legacy-set": legacyFeatureCollection([f1], "legacy-user"),
+      "qupath-set": featureCollection([f1]),
     });
 
     const result = await readAllAnnotations("conn/slide.ome.tif");
 
-    expect(result[0].createdBy).toBe("legacy-user");
-  });
-
-  it("falls back to setId as createdBy when both cytario fields are absent", async () => {
-    const f1 = makeFeature();
-    readAllMock.mockResolvedValue({
-      "legacy-user-id": featureCollection([f1]),
-    });
-
-    const result = await readAllAnnotations("conn/slide.ome.tif");
-
-    expect(result[0].createdBy).toBe("legacy-user-id");
+    expect(result[0].createdBy).toBeUndefined();
   });
 });

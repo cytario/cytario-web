@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { ToastProvider } from "@cytario/design";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { useStore } from "zustand";
 
@@ -23,20 +24,8 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
 vi.mock("../AnnotationsList", () => ({
-  AnnotationsList: ({
-    setId,
-    editable,
-    searchQuery,
-  }: {
-    setId: string;
-    editable: boolean;
-    searchQuery: string;
-  }) => (
-    <div
-      data-testid={`annotations-list-${setId}`}
-      data-editable={String(editable)}
-      data-search={searchQuery}
-    />
+  AnnotationsList: ({ setId, searchQuery }: { setId: string; searchQuery: string }) => (
+    <div data-testid={`annotations-list-${setId}`} data-search={searchQuery} />
   ),
 }));
 
@@ -92,7 +81,11 @@ function seedPeerSet(
 }
 
 function renderController() {
-  return render(<AnnotationsControl />);
+  return render(
+    <ToastProvider>
+      <AnnotationsControl />
+    </ToastProvider>,
+  );
 }
 
 // -----------------------------------------------------------------------
@@ -162,27 +155,168 @@ describe("AnnotationsControl — empty own block", () => {
 });
 
 // -----------------------------------------------------------------------
-// Editable gating — own vs peers
+// Import from JSON file (QuPath export)
 // -----------------------------------------------------------------------
 
-describe("AnnotationsControl — editable gating", () => {
-  test("own AnnotationsList is rendered with editable=true", () => {
-    const store = buildStore();
-    const setId = seedOwnSet(store, [makeFeature("f1")]);
+const quPathExport = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      id: "qph-1",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [10, 0],
+            [10, 10],
+            [0, 10],
+            [0, 0],
+          ],
+        ],
+      },
+      properties: { name: "Tumor" },
+    },
+    {
+      type: "Feature",
+      id: "qph-2",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [20, 20],
+            [30, 20],
+            [30, 30],
+            [20, 30],
+            [20, 20],
+          ],
+        ],
+      },
+      properties: { classification: { name: "Stroma", color: [255, 0, 0] } },
+    },
+  ],
+};
 
+describe("AnnotationsControl — JSON import", () => {
+  test("Plus button is rendered in header", () => {
+    buildStore();
     renderController();
 
-    const ownList = screen.getByTestId(`annotations-list-${setId}`);
-    expect(ownList).toHaveAttribute("data-editable", "true");
+    expect(
+      screen.getByRole("button", { name: "Import annotations from GeoJSON" }),
+    ).toBeInTheDocument();
   });
 
-  test("peer AnnotationsList is rendered with editable=false", () => {
+  test("importing a valid QuPath JSON adds an unowned set", async () => {
     const store = buildStore();
-    const peerSetId = seedPeerSet(store, "peer-a", [makeFeature("f1")]);
+    expect(store.getState().annotationSets).toHaveLength(0);
 
     renderController();
 
-    const peerList = screen.getByTestId(`annotations-list-${peerSetId}`);
-    expect(peerList).toHaveAttribute("data-editable", "false");
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([JSON.stringify(quPathExport)], "export.json", {
+      type: "application/json",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(1);
+    });
+
+    const set = store.getState().annotationSets[0];
+    expect(set.features).toHaveLength(2);
+    expect(set.createdBy).toBeUndefined(); // unowned
+  });
+
+  test("importing a .geojson file adds an unowned set", async () => {
+    const store = buildStore();
+    expect(store.getState().annotationSets).toHaveLength(0);
+
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([JSON.stringify(quPathExport)], "export.geojson", {
+      type: "application/geo+json",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(1);
+    });
+
+    const set = store.getState().annotationSets[0];
+    expect(set.features).toHaveLength(2);
+    expect(set.createdBy).toBeUndefined(); // unowned
+  });
+
+  test("invalid features are dropped, valid ones kept", async () => {
+    const store = buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(
+      [
+        JSON.stringify({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              id: "good",
+              geometry: { type: "Point", coordinates: [1, 2] },
+              properties: {},
+            },
+            {
+              type: "Feature",
+              id: "bad",
+              geometry: { type: "Point", coordinates: "not-coords" },
+              properties: {},
+            },
+          ],
+        }),
+      ],
+      "mixed.json",
+      { type: "application/json" },
+    );
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(store.getState().annotationSets).toHaveLength(1);
+    });
+    expect(store.getState().annotationSets[0].features).toHaveLength(1);
+  });
+
+  test("malformed JSON shows an error toast and adds no set", async () => {
+    const store = buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["{not json}"], "broken.json", { type: "application/json" });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/"broken.json" is not valid JSON/)).toBeInTheDocument();
+    });
+    expect(store.getState().annotationSets).toHaveLength(0);
+  });
+
+  test("a file with no valid features shows an error toast and adds no set", async () => {
+    const store = buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(
+      [JSON.stringify({ type: "FeatureCollection", features: [] })],
+      "empty.geojson",
+      { type: "application/geo+json" },
+    );
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(
+        screen.getByText(/"empty.geojson" contains no valid annotation features/),
+      ).toBeInTheDocument();
+    });
+    expect(store.getState().annotationSets).toHaveLength(0);
   });
 });

@@ -68,12 +68,10 @@ function buildStore(userId = "user-a", features: AnnotationFeature[] = []) {
 /** Renders AnnotationsList against the pre-configured currentStore. */
 function renderList(
   features: AnnotationFeature[],
-  { userId = "user-a", editable = true }: { userId?: string; editable?: boolean } = {},
+  { userId = "user-a" }: { userId?: string } = {},
 ) {
   buildStore(userId, features);
-  return render(
-    <AnnotationsList setId={currentSetId} features={features} editable={editable} searchQuery="" />,
-  );
+  return render(<AnnotationsList setId={currentSetId} features={features} searchQuery="" />);
 }
 
 /** Returns the thumbnail buttons in DOM order (grouped order = the Shift-range axis). */
@@ -339,17 +337,5 @@ describe("AnnotationsList — classification grouping", () => {
     const countValues = counts.map((el) => el.textContent);
     expect(countValues).toContain("2");
     expect(countValues).toContain("1");
-  });
-
-  test("Delete is disabled on peer (non-editable) thumbnails", () => {
-    const features = [makeFeature("f1")];
-    renderList(features, { editable: false });
-
-    fireEvent.click(screen.getByRole("button", { name: /^Actions for / }));
-
-    expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
   });
 });

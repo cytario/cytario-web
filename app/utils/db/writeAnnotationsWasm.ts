@@ -16,14 +16,14 @@ const SCHEMA_VERSION = "1.0";
 export async function writeAnnotations(
   resourceId: string,
   setId: string,
-  createdBy: string,
+  createdBy: string | undefined,
   features: AnnotationFeature[],
 ): Promise<void> {
   const { s3Uri } = resolveResourceId(resourceId);
 
   const stamped = features.map((f) => ({
     ...f,
-    properties: { ...f.properties, createdBy },
+    properties: { ...f.properties, ...(createdBy ? { createdBy } : {}) },
   }));
 
   const document = {
@@ -35,7 +35,7 @@ export async function writeAnnotations(
       series: 0,
       coordinateSpace: "pixel",
       pyramidLevel: 0,
-      createdBy,
+      ...(createdBy ? { createdBy } : {}),
     },
     features: stamped,
   };

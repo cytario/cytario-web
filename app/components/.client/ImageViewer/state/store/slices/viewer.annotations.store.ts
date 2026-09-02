@@ -96,11 +96,6 @@ export interface AnnotationClass {
 const NO_FEATURES: AnnotationFeature[] = [];
 const NO_HIDDEN: string[] = [];
 
-/** A set is editable if the current user owns it or it's unowned (no
- *  `cytario` envelope on read → `createdBy` fell back to `setId`). */
-export const isEditableSet = (s: AnnotationSet, userId: string) =>
-  s.createdBy === userId || s.createdBy === s.id;
-
 /** Active set's features — the set that receives drawings. */
 export const selectActiveSetFeatures = (state: ViewerStore): AnnotationFeature[] =>
   state.annotationSets.find((s) => s.id === state.activeSetId)?.features ?? NO_FEATURES;
@@ -233,10 +228,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
             }
           }
           if (!state.activeSetId) {
-            const editable = state.annotationSets.find((s) =>
-              isEditableSet(s, state.currentUserId),
-            );
-            if (editable) state.activeSetId = editable.id;
+            const first = state.annotationSets[0];
+            if (first) state.activeSetId = first.id;
           }
         },
         false,
@@ -249,15 +242,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   ensureOwnSet: () => {
     const state = get();
-    if (
-      state.activeSetId &&
-      state.annotationSets.some(
-        (s) => s.id === state.activeSetId && isEditableSet(s, state.currentUserId),
-      )
-    ) {
+    if (state.activeSetId) {
       return state.activeSetId;
     }
-    const editable = state.annotationSets.find((s) => isEditableSet(s, state.currentUserId));
+    const first = state.annotationSets[0];
     const temporalStore = (
       store as unknown as {
         temporal?: { getState: () => { pause: () => void; resume: () => void } };
@@ -265,15 +253,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     ).temporal;
     temporalStore?.getState().pause();
     try {
-      if (editable) {
+      if (first) {
         set(
           (s) => {
-            s.activeSetId = editable.id;
+            s.activeSetId = first.id;
           },
           false,
           "ensureOwnSet",
         );
-        return editable.id;
+        return first.id;
       }
       const id = crypto.randomUUID();
       set(
@@ -296,7 +284,6 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         const set = state.annotationSets.find((s) => s.id === setId);
         if (set) {
           set.features = features;
-          if (set.createdBy === set.id) set.createdBy = state.currentUserId;
         }
       },
       false,
@@ -327,7 +314,6 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       (state) => {
         const set = state.annotationSets.find((s) => s.id === setId);
         if (!set) return;
-        if (set.createdBy === set.id) set.createdBy = state.currentUserId;
         const idSet = new Set(ids);
         // A reserved/empty name clears to unclassified (absence, not a named class).
         const target = name && !isReservedClassName(name) ? name : null;
@@ -358,7 +344,6 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       (state) => {
         if (isReservedClassName(newName) || isReservedClassName(oldName)) return;
         const set = state.annotationSets.find((s) => s.id === setId);
-        if (set && set.createdBy === set.id) set.createdBy = state.currentUserId;
         const features = set?.features ?? [];
         // Adopt the target class's color when renaming merges into an existing class.
         const mergeColor = classColor(state.annotationClasses, features, newName);
@@ -387,7 +372,6 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       (state) => {
         const set = state.annotationSets.find((s) => s.id === setId);
         if (!set) return;
-        if (set.createdBy === set.id) set.createdBy = state.currentUserId;
         const feature = set.features.find((f) => f.id === id);
         if (!feature) return;
         const trimmed = name.trim();
