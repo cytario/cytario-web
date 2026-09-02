@@ -1,3 +1,6 @@
+# betterleaks: block commits containing staged secrets
+command -v betterleaks >/dev/null 2>&1 || { echo "betterleaks not installed — brew install betterleaks"; exit 1; }
+betterleaks git --pre-commit --redact --staged --verbose
 npm run lint -- --no-color
 npm run typecheck
 npm run format:check
