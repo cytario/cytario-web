@@ -6,6 +6,7 @@ import { useStore } from "zustand";
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../../state/store/types";
 import { AnnotationsControl } from "../AnnotationsControl";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 // Inject a real store instance without the image-loading side-effects.
@@ -23,9 +24,23 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 }));
 
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
+// It mirrors the editable prop as data-editable so the access-level
+// pass-through is assertable without rendering the real list.
 vi.mock("../AnnotationsList", () => ({
-  AnnotationsList: ({ setId, searchQuery }: { setId: string; searchQuery: string }) => (
-    <div data-testid={`annotations-list-${setId}`} data-search={searchQuery} />
+  AnnotationsList: ({
+    setId,
+    editable,
+    searchQuery,
+  }: {
+    setId: string;
+    editable: boolean;
+    searchQuery: string;
+  }) => (
+    <div
+      data-testid={`annotations-list-${setId}`}
+      data-editable={String(editable)}
+      data-search={searchQuery}
+    />
   ),
 }));
 
@@ -48,9 +63,11 @@ const makeFeature = (id: string): AnnotationFeature => ({
   properties: {},
 });
 
-function buildStore() {
+function buildStore(accessLevel: "annotate" | "read-only" = "annotate") {
   // A valid resourceId (connectionName/pathName) — the controller derives each
-  // set's sidecar TreeNode from the image's resourceId.
+  // set's sidecar TreeNode from the image's resourceId. The connection's
+  // access level drives useCanAnnotate (defaults to read-only when absent).
+  seedViewerConnection("test-conn", accessLevel);
   const store = createViewerStore(
     `test-conn/images/slide-${Math.random()}.ome.tif`,
     currentUserId ?? "",
@@ -206,6 +223,34 @@ describe("AnnotationsControl — JSON import", () => {
     expect(
       screen.getByRole("button", { name: "Import annotations from GeoJSON" }),
     ).toBeInTheDocument();
+  });
+
+  test("read-only connection hides the Import control and gates the list", () => {
+    buildStore("read-only");
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    // No import affordance…
+    expect(screen.queryByRole("button", { name: "Import annotations from GeoJSON" })).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    // …and the set's list is read-only.
+    const setId = currentStore!.getState().annotationSets[0].id;
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toHaveAttribute(
+      "data-editable",
+      "false",
+    );
+  });
+
+  test("annotate connection passes editable through to the list", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    const setId = currentStore!.getState().annotationSets[0].id;
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toHaveAttribute(
+      "data-editable",
+      "true",
+    );
   });
 
   test("importing a valid QuPath JSON adds an unowned set", async () => {

@@ -10,6 +10,8 @@ interface AnnotationThumbProps {
   selected: boolean;
   /** Classification color for the glyph, or undefined for the unclassified fallback. */
   color?: string;
+  /** Connection grant permits annotating; destructive actions stay enabled. */
+  editable: boolean;
   /** Existing class names offered as move targets. */
   classNames?: string[];
   onSelect: (event: React.MouseEvent) => void;
@@ -30,6 +32,7 @@ export const AnnotationThumb = ({
   feature,
   selected,
   color,
+  editable,
   classNames,
   onSelect,
   onZoom,
@@ -102,12 +105,12 @@ export const AnnotationThumb = ({
             <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
               Zoom to annotation
             </MenuItem>
-            {onRename && (
+            {editable && onRename && (
               <MenuItem id="rename" icon="Pencil" onAction={startEdit}>
                 Rename annotation
               </MenuItem>
             )}
-            {onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
+            {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
               <>
                 <MenuSeparator />
                 {(classNames ?? []).map((name) => (
@@ -128,7 +131,7 @@ export const AnnotationThumb = ({
               </>
             )}
             <MenuSeparator />
-            <MenuItem id="delete" icon="Trash2" isDanger onAction={onDelete}>
+            <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
               Delete annotation
             </MenuItem>
           </>

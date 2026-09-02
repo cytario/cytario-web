@@ -5,6 +5,7 @@ import { useStore } from "zustand";
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../../state/store/types";
 import { AnnotationsList } from "../AnnotationsList";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 // Mock the ViewerStoreContext so we can inject a real store without the
@@ -55,7 +56,8 @@ const makeIdlessFeature = (): AnnotationFeature =>
   }) as unknown as AnnotationFeature;
 
 function buildStore(userId = "user-a", features: AnnotationFeature[] = []) {
-  const store = createViewerStore(`test-${Math.random()}`, userId);
+  seedViewerConnection("test-conn");
+  const store = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`, userId);
   const setId = store.getState().ensureOwnSet();
   if (features.length > 0) {
     store.getState().updateSetFeatures(setId, features);
@@ -68,10 +70,12 @@ function buildStore(userId = "user-a", features: AnnotationFeature[] = []) {
 /** Renders AnnotationsList against the pre-configured currentStore. */
 function renderList(
   features: AnnotationFeature[],
-  { userId = "user-a" }: { userId?: string } = {},
+  { userId = "user-a", editable = true }: { userId?: string; editable?: boolean } = {},
 ) {
   buildStore(userId, features);
-  return render(<AnnotationsList setId={currentSetId} features={features} searchQuery="" />);
+  return render(
+    <AnnotationsList setId={currentSetId} features={features} editable={editable} searchQuery="" />,
+  );
 }
 
 /** Returns the thumbnail buttons in DOM order (grouped order = the Shift-range axis). */
@@ -337,5 +341,36 @@ describe("AnnotationsList — classification grouping", () => {
     const countValues = counts.map((el) => el.textContent);
     expect(countValues).toContain("2");
     expect(countValues).toContain("1");
+  });
+});
+
+describe("AnnotationsList — read-only connection (editable=false)", () => {
+  test("class authoring affordances are absent", () => {
+    const features = [
+      makeFeature("f1", "Tumor", [224, 90, 90]),
+      makeFeature("f2", "Stroma", [90, 140, 224]),
+    ];
+    renderList(features, { editable: false });
+
+    // No Add-class control…
+    expect(screen.queryByRole("button", { name: /Add class/i })).toBeNull();
+    // …no empty-class scaffolding (only groups with members render).
+    expect(screen.getByText("Tumor")).toBeInTheDocument();
+    expect(screen.getByText("Stroma")).toBeInTheDocument();
+  });
+
+  test("feature rows offer zoom but no rename or delete", () => {
+    const features = [makeFeature("f1", "Tumor", [224, 90, 90])];
+    renderList(features, { editable: false });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Actions for / }));
+
+    // Zoom stays (view-state); the destructive entries are gone or disabled.
+    expect(screen.getByRole("menuitem", { name: "Zoom to annotation" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Rename annotation" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 });

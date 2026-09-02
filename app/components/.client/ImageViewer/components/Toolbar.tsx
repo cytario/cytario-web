@@ -7,6 +7,7 @@ import { type AnnotationMode } from "../state/store/types";
 import { useUndoRedo } from "../state/store/useUndoRedo";
 import { useUndoRedoShortcuts } from "../state/store/useUndoRedoShortcuts";
 import { useViewerStore } from "../state/store/ViewerStoreContext";
+import { useCanAnnotate } from "../utils/useCanAnnotate";
 import { ScaleBar } from "./canvas/Measurements/ScaleBar";
 
 const tools = [
@@ -17,11 +18,13 @@ const tools = [
   { mode: "draw-point", icon: "MapPin", label: "Draw point" },
 ] as const;
 
-/** Floating canvas toolbar: interaction modes + undo/redo + keyboard shortcuts. */
+/** Floating canvas toolbar: interaction modes + undo/redo + keyboard shortcuts.
+ *  Draw tools appear only when the connection grant permits annotating. */
 export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const canAnnotate = useCanAnnotate();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useUndoRedoShortcuts();
   useAnnotationModeKeyboard();
@@ -42,35 +45,41 @@ export const Toolbar = () => {
         aria-label="Annotation tools"
         className="bottom-8 left-1/2 -translate-x-1/2"
       >
-        {tools.map(({ mode, icon, label }) => {
-          const isActive = activeMode === mode;
-          return (
+        {tools
+          .filter(({ mode }) => canAnnotate || !mode.startsWith("draw-"))
+          .map(({ mode, icon, label }) => {
+            const isActive = activeMode === mode;
+            return (
+              <IconButton
+                key={mode}
+                icon={icon}
+                label={label}
+                aria-pressed={isActive}
+                variant={isActive ? "primary" : "ghost"}
+                onPress={() => activate(mode)}
+              />
+            );
+          })}
+
+        {canAnnotate && (
+          <>
             <IconButton
-              key={mode}
-              icon={icon}
-              label={label}
-              aria-pressed={isActive}
-              variant={isActive ? "primary" : "ghost"}
-              onPress={() => activate(mode)}
+              icon="RotateCcw"
+              label="Undo"
+              variant="ghost"
+              isDisabled={!canUndo}
+              onPress={undo}
             />
-          );
-        })}
 
-        <IconButton
-          icon="RotateCcw"
-          label="Undo"
-          variant="ghost"
-          isDisabled={!canUndo}
-          onPress={undo}
-        />
-
-        <IconButton
-          icon="RotateCw"
-          label="Redo"
-          variant="ghost"
-          isDisabled={!canRedo}
-          onPress={redo}
-        />
+            <IconButton
+              icon="RotateCw"
+              label="Redo"
+              variant="ghost"
+              isDisabled={!canRedo}
+              onPress={redo}
+            />
+          </>
+        )}
       </FloatingBar>
     </>
   );

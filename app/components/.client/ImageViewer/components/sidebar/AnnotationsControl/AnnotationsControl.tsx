@@ -8,6 +8,7 @@ import {
   selectSetHiddenClasses,
 } from "../../../state/store/slices/viewer.annotations.store";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
@@ -27,11 +28,14 @@ const AnnotationFileBlock = ({
   label,
   features,
   searchQuery,
+  editable,
 }: {
   setId: string;
   label: string;
   features: AnnotationFeature[];
   searchQuery: string;
+  /** Connection grant permits annotating — edit affordances stay available. */
+  editable: boolean;
 }) => {
   const imageResourceId = useViewerStore((s) => s.id);
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
@@ -69,7 +73,14 @@ const AnnotationFileBlock = ({
         />
       </div>
 
-      {isOpen && <AnnotationsList setId={setId} features={features} searchQuery={searchQuery} />}
+      {isOpen && (
+        <AnnotationsList
+          setId={setId}
+          features={features}
+          editable={editable}
+          searchQuery={searchQuery}
+        />
+      )}
     </div>
   );
 };
@@ -85,6 +96,7 @@ export const AnnotationsControl = () => {
   const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
   const [searchQuery, setSearchQuery] = useState("");
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
+  const canAnnotate = useCanAnnotate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onImportFile = async (file: File) => {
@@ -120,24 +132,28 @@ export const AnnotationsControl = () => {
       }
       actions={
         <>
-          <IconButton
-            icon="Plus"
-            label="Import annotations from GeoJSON"
-            onPress={() => fileInputRef.current?.click()}
-            variant="ghost"
-            size="xs"
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.geojson,application/json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImportFile(f);
-              e.target.value = "";
-            }}
-          />
+          {canAnnotate && (
+            <IconButton
+              icon="Plus"
+              label="Import annotations from GeoJSON"
+              onPress={() => fileInputRef.current?.click()}
+              variant="ghost"
+              size="xs"
+            />
+          )}
+          {canAnnotate && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,.geojson,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onImportFile(f);
+                e.target.value = "";
+              }}
+            />
+          )}
           <IconButton
             icon={showOutline ? "CircleDot" : "Circle"}
             label={showOutline ? "Hide outlines" : "Show outlines"}
@@ -161,6 +177,7 @@ export const AnnotationsControl = () => {
             label={`Annotation Set ${i + 1}`}
             features={s.features}
             searchQuery={searchQuery}
+            editable={canAnnotate}
           />
         ))}
       </div>

@@ -7,6 +7,7 @@ import { type CytarioSession, SessionData, SessionFlashData } from "~/.server/au
 import { Channel, Image } from "~/components/.client/ImageViewer/state/store/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { BucketCatalog, BucketLookupRow } from "~/utils/bucketCatalog.schema";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import type {
   ProviderCatalog,
   ProviderConnection,
@@ -181,6 +182,31 @@ const mock = {
 
     return `${encodedHeader}.${encodedPayload}.${signature}`;
   },
+};
+
+/** Seed the viewer's connection in the connections store with an access level
+ *  — `useCanAnnotate` gates authoring UI on it and resolves to read-only when
+ *  the connection is absent, so viewer tests that author annotations must call
+ *  this (annotate by default) or expect the gated UI. */
+export const seedViewerConnection = (
+  connectionId: string,
+  accessLevel: "read-only" | "annotate" | "read-write" | "admin" = "annotate",
+) => {
+  useConnectionsStore.setState({
+    connections: {
+      [connectionId]: {
+        connectionConfig: mock.connectionConfig() as never,
+        credentials: null,
+        provider: {
+          region: "eu-central-1",
+          endpoint: null,
+          allowsSharing: false,
+          accessLevel,
+        },
+        status: "connected",
+      },
+    },
+  });
 };
 
 export default mock;

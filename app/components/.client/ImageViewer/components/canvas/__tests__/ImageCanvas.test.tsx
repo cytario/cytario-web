@@ -5,6 +5,7 @@ import { useStore } from "zustand";
 import { createViewerStore } from "../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../state/store/types";
 import { ImageCanvas } from "../ImageCanvas";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 
 let currentStore: ReturnType<typeof createViewerStore>;
 
@@ -28,7 +29,8 @@ const quPathExport = {
   ],
 };
 
-function renderCanvas() {
+function renderCanvas(accessLevel: "annotate" | "read-only" = "annotate") {
+  seedViewerConnection("test-conn", accessLevel);
   currentStore = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`, "");
   const { container } = render(
     <ToastProvider>
@@ -93,5 +95,30 @@ describe("ImageCanvas — annotation drag-and-drop import", () => {
       expect(currentStore.getState().annotationSets).toHaveLength(0);
     });
     expect(screen.queryByText(/is not valid JSON/)).toBeNull();
+  });
+});
+
+describe("ImageCanvas — read-only connection", () => {
+  test("shows no drop overlay while files are dragged over", () => {
+    const { canvas } = renderCanvas("read-only");
+
+    fireEvent.dragEnter(canvas, { dataTransfer: { types: ["Files"], files: [] } });
+    expect(screen.queryByText(/Drop annotation files to import/i)).toBeNull();
+  });
+
+  test("dropping an annotation file surfaces a read-only error and seeds nothing", async () => {
+    const { canvas } = renderCanvas("read-only");
+
+    drop(
+      canvas,
+      new File([JSON.stringify(quPathExport)], "export.geojson", { type: "application/geo+json" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/This connection is read-only — annotations cannot be imported/),
+      ).toBeInTheDocument();
+    });
+    expect(currentStore.getState().annotationSets).toHaveLength(0);
   });
 });
