@@ -47,18 +47,20 @@ vi.mock("../AnnotationsList", () => ({
 // NodeLink needs a router (NavLink); stub it to the node label to keep these
 // tests focused on the controller's block layout.
 vi.mock("~/components/DirectoryView/NodeLink/NodeLink", () => ({
-  // Mirrors the contextMenuItems prop as a data attribute so the delete-set
-  // entry's pass-through is assertable without rendering a real menu.
+  // Mirrors the contextMenuItems prop and the node's Size sentinel as data
+  // attributes so the delete/rename pass-through and the download gate are
+  // assertable without rendering the real menu.
   NodeLink: ({
     node,
     contextMenuItems,
   }: {
-    node: { name: string };
+    node: { name: string; _Object?: { Size?: number } };
     contextMenuItems?: unknown;
   }) => (
     <div
       data-testid={`node-link-${node.name}`}
       data-context-menu={String(Boolean(contextMenuItems))}
+      data-size-known={String(node._Object?.Size !== undefined)}
     >
       {node.name}
     </div>
@@ -457,5 +459,21 @@ describe("AnnotationsControl — set naming", () => {
     fireEvent.keyDown(input, { key: "Escape" });
 
     expect(currentStore!.getState().annotationSets[0].name).toBeUndefined();
+  });
+});
+
+describe("AnnotationsControl — sidecar download gate", () => {
+  test("the synthetic sidecar node carries a Size so the generic Download entry is offered", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    // NodeContextMenu's download gate requires a known size (C-445); the
+    // synthetic node ships a sentinel so the app-written sidecar is
+    // downloadable (C-330's original scope).
+    expect(screen.getByTestId("node-link-Annotation Set 1")).toHaveAttribute(
+      "data-size-known",
+      "true",
+    );
   });
 });

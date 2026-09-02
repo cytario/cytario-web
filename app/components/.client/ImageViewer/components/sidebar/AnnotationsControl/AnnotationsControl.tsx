@@ -64,6 +64,11 @@ const AnnotationFileBlock = ({
       name: label,
       type: "file",
       isLeaf: true,
+      // Sentinel Size passes NodeContextMenu's known-size download gate —
+      // sidecars are app-written small JSON, so the 256 MB OOM guard doesn't
+      // apply (C-330's original sidecar-download scope, via C-445's path).
+      // Never displayed; the real size lives on S3.
+      _Object: { Key: sidecarPath, Size: 0 },
     };
   }, [imageResourceId, setId, label]);
 
