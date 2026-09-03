@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { downloadFilenameFor } from "../NodeContextMenu";
+import { downloadFilenameFor } from "../downloadFilenameFor";
 
 describe("downloadFilenameFor", () => {
   test("listing files pass through unchanged (name already has the path's extension)", () => {
