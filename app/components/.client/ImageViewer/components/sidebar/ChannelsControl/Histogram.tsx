@@ -47,7 +47,7 @@ export function Histogram() {
 
   return (
     <div ref={ref} className="relative top-0 overflow-hidden px-3 pt-3">
-      <div className="relative p-2 pb-2 bg-card rounded overflow-visible">
+      <div className="relative p-2 pb-2 bg-card rounded-sm overflow-visible">
         <div className="absolute right-2 top-2 z-10">
           <ToggleButton
             size="xs"

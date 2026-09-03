@@ -10,9 +10,13 @@ vi.mock("~/routes/favorites/useFavorite", () => ({
 }));
 
 const credentials = mock.credentials();
+
+// Production-realistic keys: the store is keyed by config.id (UUID), which is
+// never the human name — a name-keyed lookup silently drops every row.
 const connections = {
-  "aws-my-aws-bucket": {
+  "conn-uuid-1": {
     connectionConfig: mock.connectionConfig({
+      id: "conn-uuid-1",
       name: "aws-my-aws-bucket",
       bucketName: "my-aws-bucket",
       grants: [mock.connectionGrant({ scope: "cytario" })],
@@ -21,8 +25,9 @@ const connections = {
     }),
     credentials,
   },
-  "second-bucket": {
+  "conn-uuid-2": {
     connectionConfig: mock.connectionConfig({
+      id: "conn-uuid-2",
       name: "second-bucket",
       bucketName: "other-bucket",
       grants: [mock.connectionGrant({ scope: "cytario/lab" })],
@@ -57,8 +62,8 @@ vi.mock("~/utils/connectionsStore/selectors", () => ({
 describe("DirectoryViewTableConnection", () => {
   const mockBucketNodes: TreeNode[] = [
     {
-      id: "aws-my-aws-bucket/",
-      connectionId: "aws-my-aws-bucket",
+      id: "conn-uuid-1/",
+      connectionId: "conn-uuid-1",
       connectionName: "aws-my-aws-bucket",
       type: "bucket",
       name: "aws-my-aws-bucket",
@@ -66,8 +71,8 @@ describe("DirectoryViewTableConnection", () => {
       children: [],
     },
     {
-      id: "second-bucket/",
-      connectionId: "second-bucket",
+      id: "conn-uuid-2/",
+      connectionId: "conn-uuid-2",
       connectionName: "second-bucket",
       type: "bucket",
       name: "second-bucket",

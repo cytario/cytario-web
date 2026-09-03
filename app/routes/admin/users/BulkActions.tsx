@@ -59,7 +59,7 @@ function GroupSelector({
   onChange: (value: string) => void;
 }) {
   if (options.length === 0) {
-    return <p className="text-sm text-rose-600 mt-2">No groups available.</p>;
+    return <p className="text-sm text-destructive mt-2">No groups available.</p>;
   }
   return (
     <div className="mt-3">

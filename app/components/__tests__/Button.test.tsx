@@ -28,6 +28,8 @@ describe("Button component", () => {
 
   test("applies additional class names", () => {
     render(
+      // Deliberately not a Tailwind class — asserts custom className passthrough.
+      // eslint-disable-next-line tailwindcss/no-custom-classname
       <Button onPress={() => {}} className="extra-class">
         Click me
       </Button>,

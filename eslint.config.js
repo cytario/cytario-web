@@ -2,10 +2,11 @@ import js from "@eslint/js";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import prettierConfig from "eslint-config-prettier";
-import importPlugin from "eslint-plugin-import";
+import eslintPluginImport from "eslint-plugin-import";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
+import eslintPluginTailwindcss from "eslint-plugin-tailwindcss";
 import globals from "globals";
 
 export default [
@@ -51,14 +52,14 @@ export default [
       react: reactPlugin,
       "react-hooks": reactHooksPlugin,
       "jsx-a11y": jsxA11yPlugin,
-      import: importPlugin,
+      import: eslintPluginImport,
     },
     rules: {
       ...reactPlugin.configs.recommended.rules,
       ...reactPlugin.configs["jsx-runtime"].rules,
       ...reactHooksPlugin.configs.recommended.rules,
       ...jsxA11yPlugin.configs.recommended.rules,
-      ...importPlugin.configs.recommended.rules,
+      ...eslintPluginImport.configs.recommended.rules,
       // Enforce organized imports: external, then internal, alphabetically
       "import/order": [
         "error",
@@ -74,22 +75,44 @@ export default [
           },
         },
       ],
-      // Chrome must use design tokens (bg-(--color-*)), never raw Tailwind
-      // gray-family utilities or the retired cytario-* brand palette. Genuine
-      // shades go through the slate CSS var: e.g. bg-(--color-slate-300).
+      // Apps consume semantic design tokens only — raw palette scales (incl.
+      // grays) and the retired cytario-* brand palette are banned. Token
+      // existence (incl. namespace resets) is enforced by
+      // tailwindcss/no-custom-classname — but that rule only parses JSX
+      // attributes and class-function calls (twMerge, clsx, …), so the
+      // off-catalog radius ban below also covers bare string/template class
+      // constants, which the plugin does not scan.
       "no-restricted-syntax": [
         "error",
         {
-          selector:
-            "Literal[value=/(?:text|bg|border|ring|divide|fill|stroke|from|via|to|outline|placeholder|shadow)-(?:slate|gray|neutral|zinc|stone)-[0-9]|cytario-(?:purple|turquoise)/]",
+          selector: "Literal[value=/\\brounded(?:-[a-z]+)*-(?:xs|2xl|3xl|4xl)\\b/]",
           message:
-            "Use design tokens (e.g. text-(--color-text-secondary), bg-(--color-surface-subtle)) instead of raw Tailwind gray/cytario color utilities.",
+            "The design radii catalog is sm/md/lg/xl — the default radius namespace is reset, so this class silently no-ops.",
+        },
+        {
+          selector: "TemplateElement[value.cooked=/\\brounded(?:-[a-z]+)*-(?:xs|2xl|3xl|4xl)\\b/]",
+          message:
+            "The design radii catalog is sm/md/lg/xl — the default radius namespace is reset, so this class silently no-ops.",
         },
         {
           selector:
-            "TemplateElement[value.cooked=/(?:text|bg|border|ring|divide|fill|stroke|from|via|to|outline|placeholder|shadow)-(?:slate|gray|neutral|zinc|stone)-[0-9]|cytario-(?:purple|turquoise)/]",
+            "Literal[value=/(?:text|bg|border|ring|outline|fill|stroke|from|via|to|shadow|decoration|divide|accent|caret|placeholder)-[a-z]+-(?:50|100|200|300|400|500|600|700|800|900|950)\\b/]",
           message:
-            "Use design tokens (e.g. text-(--color-text-secondary), bg-(--color-surface-subtle)) instead of raw Tailwind gray/cytario color utilities.",
+            "Raw palette scales are design-system-internal — use semantic tokens (e.g. bg-destructive, bg-success, bg-warning-surface, border-warning-border).",
+        },
+        {
+          selector:
+            "TemplateElement[value.cooked=/(?:text|bg|border|ring|outline|fill|stroke|from|via|to|shadow|decoration|divide|accent|caret|placeholder)-[a-z]+-(?:50|100|200|300|400|500|600|700|800|900|950)\\b/]",
+          message:
+            "Raw palette scales are design-system-internal — use semantic tokens (e.g. bg-destructive, bg-success, bg-warning-surface, border-warning-border).",
+        },
+        {
+          selector: "Literal[value=/cytario-(?:purple|turquoise)/]",
+          message: "The cytario-* brand palette is retired — use design tokens.",
+        },
+        {
+          selector: "TemplateElement[value.cooked=/cytario-(?:purple|turquoise)/]",
+          message: "The cytario-* brand palette is retired — use design tokens.",
         },
       ],
     },
@@ -128,11 +151,11 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tseslint,
-      import: importPlugin,
+      import: eslintPluginImport,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      ...importPlugin.configs.typescript.rules,
+      ...eslintPluginImport.configs.typescript.rules,
     },
     settings: {
       // Treat imports starting with ~/ as internal
@@ -145,6 +168,23 @@ export default [
           alwaysTryTypes: true,
         },
       },
+    },
+  },
+
+  // Tailwind token validity — resolved against the actual app theme
+  // (app/styles.css incl. the design catalog and namespace resets), so
+  // classes whose tokens don't exist (e.g. rounded-2xl after the radius
+  // reset, bg-emerald-500 after the color reset) are flagged.
+  {
+    files: ["app/**/*.{ts,tsx}"],
+    plugins: { tailwindcss: eslintPluginTailwindcss },
+    settings: {
+      tailwindcss: {
+        cssConfigPath: "./app/styles.css",
+      },
+    },
+    rules: {
+      "tailwindcss/no-custom-classname": "error",
     },
   },
 

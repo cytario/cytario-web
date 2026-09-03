@@ -17,7 +17,7 @@ const fileAccessors: Record<string, NodeAccessor> = {
 function makeConnectionAccessors(
   connections: Record<string, Connection>,
 ): Record<string, NodeAccessor> {
-  const config = (node: TreeNode) => connections[node.connectionName]?.connectionConfig;
+  const config = (node: TreeNode) => connections[node.connectionId]?.connectionConfig;
   return {
     name: (node) => node.name,
     bucketName: (node) => config(node)?.bucketName ?? "",

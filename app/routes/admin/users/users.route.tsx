@@ -263,7 +263,7 @@ export default function AdminUsersRoute() {
                     to={`/connections/${encodeURIComponent(conn.name)}`}
                     className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:border-border hover:bg-white transition-colors"
                   >
-                    <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                    <span className="h-2 w-2 rounded-full bg-success shrink-0" />
                     <span className="font-medium text-secondary hover:underline">{conn.name}</span>
                     <BucketPolicyStatusPill status={conn.bucketPolicyStatus} />
                   </Link>

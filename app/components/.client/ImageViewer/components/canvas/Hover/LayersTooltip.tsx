@@ -91,7 +91,7 @@ export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => {
   const cx = `
     absolute z-50
     w-60
-    rounded shadow-lg
+    rounded-sm shadow-lg
     bg-card text-foreground
     border border-border
     text-sm

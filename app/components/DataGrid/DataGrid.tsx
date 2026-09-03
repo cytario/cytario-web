@@ -152,13 +152,13 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   }
 
   if (error) {
-    return <div className="p-4 text-rose-500">Error: {error}</div>;
+    return <div className="p-4 text-destructive">Error: {error}</div>;
   }
 
   return (
     <div className="flex flex-col h-full">
       {isCsv && (
-        <header className="flex items-center justify-between p-4 bg-amber-100 border-b border-amber-300 text-amber-900">
+        <header className="flex items-center justify-between p-4 bg-warning-surface border-b border-warning-border text-warning-surface-foreground">
           <div className="flex items-center gap-2">
             <span className="text-sm">
               CSV files are slow to query. Convert to Parquet for better performance.

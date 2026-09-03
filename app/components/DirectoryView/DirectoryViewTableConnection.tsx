@@ -60,16 +60,16 @@ export const connectionColumns: ColumnConfig[] = [
 /**
  * Builds the cell renderer map for the connections table. Captured here as a
  * factory so the `name` renderer can close over the `nodes` array and look up
- * the TreeNode by `connectionName` (NodeLink needs the full node for status
+ * the TreeNode by connection id (NodeLink needs the full node for status
  * + context menu wiring).
  */
 function buildConnectionCellRenderers(
   nodes: TreeNode[],
 ): CellRenderers<ConnectionConfigWithGrants> {
-  const nodesByName = new Map(nodes.map((n) => [n.connectionName, n]));
+  const nodesById = new Map(nodes.map((n) => [n.connectionId, n]));
   return {
     name: (row) => {
-      const node = nodesByName.get(row.name);
+      const node = nodesById.get(row.id);
       return node ? <NodeLink node={node} /> : row.name;
     },
     bucketPolicyStatus: (row) => <BucketPolicyStatusPill status={row.bucketPolicyStatus} />,
@@ -88,7 +88,7 @@ export function DirectoryViewTableConnection({
   const connections = useConnectionsStore(select.connections);
 
   const data = useMemo(
-    () => nodes.map((n) => connections[n.connectionName]?.connectionConfig).filter(Boolean),
+    () => nodes.map((n) => connections[n.connectionId]?.connectionConfig).filter(Boolean),
     [nodes, connections],
   );
 
@@ -98,7 +98,7 @@ export function DirectoryViewTableConnection({
     <Table
       columns={connectionColumns}
       data={data}
-      getRowId={(row) => row.name}
+      getRowId={(row) => row.id}
       cellRenderers={cellRenderers}
       tableId="connections"
       ariaLabel="Connections"
