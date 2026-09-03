@@ -4,6 +4,7 @@ import { useParams } from "react-router";
 
 import { ConnectionSwitcherChip } from "../ConnectionSwitcherChip";
 import { ConnectionTree } from "../ConnectionTree";
+import { ShowHiddenFilesToggleButton } from "./ShowHiddenFilesToggleButton";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { SearchInput } from "~/components/SearchInput";
 import { select } from "~/utils/connectionsStore/selectors";
@@ -38,13 +39,16 @@ export function FeatureItemConnections() {
       title="Connections"
       badge={String(connectionIds.length)}
       actions={
-        <IconButtonLink
-          href="/connections"
-          icon="ArrowRight"
-          label="View all connections"
-          variant="ghost"
-          size="sm"
-        />
+        <>
+          <ShowHiddenFilesToggleButton />
+          <IconButtonLink
+            href="/connections"
+            icon="ArrowRight"
+            label="View all connections"
+            variant="ghost"
+            size="sm"
+          />
+        </>
       }
       header={
         <div className="flex flex-col gap-1 px-2 pb-2">
