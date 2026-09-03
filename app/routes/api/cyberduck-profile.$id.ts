@@ -1,6 +1,7 @@
 import { ActionFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
 import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
@@ -29,20 +30,33 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { auth, endpoints } = cytarioConfig;
 
   // The concrete role/endpoint/region live on the referenced provider connection +
-  // provider role, resolved from the org catalog, not on the connection.
+  // provider role, resolved from the org catalog, not on the connection. The
+  // embedded role is the downloading user's most permissive applicable grant
+  // (SRS-CY-43111) — the same rule the browser credential mint applies.
   let connectionProvider;
+  let noApplicableGrant = false;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
     const resolvedWithGrants = resolveConnectionProviderWithGrants(catalog, connectionConfig);
-    if (resolvedWithGrants && resolvedWithGrants.grants.length > 0) {
-      connectionProvider = {
-        region: resolvedWithGrants.region,
-        endpoint: resolvedWithGrants.endpoint,
-        roleArn: resolvedWithGrants.grants[0].roleArn,
-      };
+    if (resolvedWithGrants) {
+      const grant = pickGrantForUser(resolvedWithGrants, user, connectionConfig.organization);
+      if (grant) {
+        connectionProvider = {
+          region: resolvedWithGrants.region,
+          endpoint: resolvedWithGrants.endpoint,
+          roleArn: grant.roleArn,
+        };
+      } else {
+        noApplicableGrant = true;
+      }
     }
   } catch {
     connectionProvider = undefined;
+  }
+  if (noApplicableGrant) {
+    return new Response("You are not a member of any group granted access to this connection.", {
+      status: 403,
+    });
   }
   if (!connectionProvider) {
     return new Response("Provider connection or role is unavailable for this connection", {
