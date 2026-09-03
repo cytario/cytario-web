@@ -16,6 +16,7 @@ const defaultProps = {
   feature: makeFeature(),
   selected: false,
   color: "rgba(255, 0, 0, 255)",
+  editable: true,
   onSelect: vi.fn(),
   onZoom: vi.fn(),
   onDelete: vi.fn(),
@@ -55,6 +56,17 @@ describe("AnnotationThumb", () => {
     fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 
     expect(screen.getByRole("menuitem", { name: "Delete annotation" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  test("Delete menu item is disabled on a read-only connection", () => {
+    render(<AnnotationThumb {...defaultProps} editable={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+
+    expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
@@ -100,8 +112,8 @@ describe("AnnotationThumb", () => {
     expect(screen.getByRole("menuitem", { name: "Rename annotation" })).toBeInTheDocument();
   });
 
-  test("Rename menu item is absent when onRename is not provided", () => {
-    render(<AnnotationThumb {...defaultProps} />);
+  test("Rename menu item is absent when the connection is read-only", () => {
+    render(<AnnotationThumb {...defaultProps} editable={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
 

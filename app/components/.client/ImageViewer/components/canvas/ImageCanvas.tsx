@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 
 import { ImagePanel } from "./ImagePanel";
 import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { useCanAnnotate } from "../../utils/useCanAnnotate";
 import { Toolbar } from "../Toolbar";
 import { isAnnotationImportFile, parseAnnotationImportFile } from "~/utils/db/annotationImport";
 
@@ -12,6 +13,7 @@ import { isAnnotationImportFile, parseAnnotationImportFile } from "~/utils/db/an
 export const ImageCanvas = () => {
   const imagePanels = useViewerStore((state) => state.imagePanels);
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
+  const canAnnotate = useCanAnnotate();
   const { toast } = useToast();
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -27,10 +29,27 @@ export const ImageCanvas = () => {
     if (files.length === 0) return;
     e.preventDefault();
 
+    // Read-only grants can never persist an import — reject visibly instead
+    // of seeding a set that would silently vanish on reload.
+    if (!canAnnotate) {
+      toast({
+        variant: "error",
+        message: "This connection is read-only — annotations cannot be imported.",
+      });
+      return;
+    }
+
     for (const file of files) {
       try {
         const features = await parseAnnotationImportFile(file);
-        seedAnnotations([{ id: crypto.randomUUID(), createdBy: undefined, features }]);
+        seedAnnotations([
+          {
+            id: crypto.randomUUID(),
+            createdBy: undefined,
+            name: file.name,
+            features,
+          },
+        ]);
       } catch (err) {
         toast({
           variant: "error",
@@ -44,7 +63,7 @@ export const ImageCanvas = () => {
     <div
       className="relative flex w-full h-full"
       onDragEnter={(e) => {
-        if (!hasFiles(e)) return;
+        if (!hasFiles(e) || !canAnnotate) return; // no drop-zone hint when it can't land
         e.preventDefault();
         dragDepth.current += 1;
         setIsDragOver(true);

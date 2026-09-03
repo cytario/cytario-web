@@ -22,10 +22,13 @@ const makeFeature = (): AnnotationFeature => ({
 const featureCollection = (
   features: AnnotationFeature[],
   createdBy?: string,
-): FeatureCollection & { cytario?: { createdBy?: string } } => ({
+  name?: string,
+): FeatureCollection & { cytario?: { createdBy?: string; name?: string } } => ({
   type: "FeatureCollection",
   features,
-  ...(createdBy ? { cytario: { createdBy } } : {}),
+  ...(createdBy || name
+    ? { cytario: { ...(createdBy ? { createdBy } : {}), ...(name ? { name } : {}) } }
+    : {}),
 });
 
 describe("readAllAnnotations", () => {
@@ -40,8 +43,31 @@ describe("readAllAnnotations", () => {
     const result = await readAllAnnotations("conn/slide.ome.tif");
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ id: "set-a", createdBy: "user-a", features: [f1] });
-    expect(result[1]).toEqual({ id: "set-b", createdBy: "user-b", features: [f2] });
+    expect(result[0]).toEqual({
+      id: "set-a",
+      createdBy: "user-a",
+      features: [f1],
+      name: undefined,
+    });
+    expect(result[1]).toEqual({
+      id: "set-b",
+      createdBy: "user-b",
+      features: [f2],
+      name: undefined,
+    });
+  });
+
+  it("reads the set's display name from cytario.name", async () => {
+    const f1 = makeFeature();
+    readAllMock.mockResolvedValue({
+      "set-named": featureCollection([f1], "user-a", "Tumor review"),
+      "set-unnamed": featureCollection([makeFeature()], "user-b"),
+    });
+
+    const result = await readAllAnnotations("conn/slide.ome.tif");
+
+    expect(result[0].name).toBe("Tumor review");
+    expect(result[1].name).toBeUndefined();
   });
 
   it("drops sets whose feature array is empty (lazy-create semantics)", async () => {

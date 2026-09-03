@@ -224,7 +224,8 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
   // Object-level actions depend on the access level. Read Only → GetObject
   // only. Annotate → GetObject + PutObject scoped to sidecar files
   // (*.annotations.*.json and settings.*.json at any directory depth —
-  // separate statements with narrower Resources). Read Write / Admin →
+  // separate statements with narrower Resources) + DeleteObject scoped to
+  // annotation sidecars (set deletion). Read Write / Admin →
   // GetObject + the full write + multipart action set on the whole prefix.
   if (grant.accessLevel === "annotate") {
     statements.push({
@@ -250,6 +251,16 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
       Principal: { AWS: grant.roleArn },
       Action: "s3:PutObject",
       Resource: [annotationResource, settingsBaseResource, settingsNestedResource],
+      Condition: condition,
+    });
+    // Annotation-set deletion: the viewer deletes a set's whole sidecar file.
+    // Scoped to the annotation pattern — settings sidecars stay put-only.
+    statements.push({
+      Sid: `${sidStem}AnnotateDelete`,
+      Effect: "Allow",
+      Principal: { AWS: grant.roleArn },
+      Action: "s3:DeleteObject",
+      Resource: annotationResource,
       Condition: condition,
     });
   } else {

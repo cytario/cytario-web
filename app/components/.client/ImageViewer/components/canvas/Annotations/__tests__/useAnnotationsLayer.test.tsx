@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import { useAnnotationsLayer } from "../useAnnotationsLayer";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 
 let store: ReturnType<typeof createViewerStore>;
 
@@ -36,7 +37,8 @@ const activeSetFeatures = () => {
 
 describe("useAnnotationsLayer onEdit", () => {
   it("stamps a freshly created class with zero members onto a new draw (C-328)", () => {
-    store = createViewerStore("c328-empty-class", "me");
+    seedViewerConnection("test-conn");
+    store = createViewerStore("test-conn/images/c328-empty-class.ome.tif", "me");
     const name = store.getState().createAnnotationClass("Tumor");
     const { color } = store.getState().annotationClasses[0];
 
@@ -49,7 +51,8 @@ describe("useAnnotationsLayer onEdit", () => {
   });
 
   it("leaves a draw unclassified when no class is active", () => {
-    store = createViewerStore("c328-no-active", "me");
+    seedViewerConnection("test-conn");
+    store = createViewerStore("test-conn/images/c328-no-active.ome.tif", "me");
 
     const { result } = renderHook(() => useAnnotationsLayer(0));
     editableOnEdit(result.current.layers)(addFeatureEdit);

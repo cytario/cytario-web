@@ -117,7 +117,7 @@ function getObjectStatement(bucketArn: string, prefix: string) {
  * `PutObject` for annotation and settings sidecar files under the connection
  * prefix. The wildcard segment (`*`) allows writing any annotation set —
  * per-user scoping is by filename convention (the UUID in the key identifies
- * the set), not IAM enforcement. No `DeleteObject` is granted.
+ * the set), not IAM enforcement.
  *
  * Two sidecar kinds are covered:
  * - **Annotations** (`*.annotations.*.json`) — per-image.
@@ -141,13 +141,33 @@ function getPutOwnSidecarStatement(bucketArn: string, prefix: string) {
 }
 
 /**
+ * `DeleteObject` for annotation sidecars only — the viewer's "delete
+ * annotation set" action removes a set's whole sidecar file. Scoped to the
+ * annotation pattern (never settings sidecars, never arbitrary objects) and
+ * emitted for every level that can write sidecars (`annotate`, `read-write`,
+ * `admin`); the `read-write`/`admin` prefix grant carries PutObject only, so
+ * they need this statement for annotation deletion too.
+ */
+function getDeleteSidecarStatement(bucketArn: string, prefix: string) {
+  const annotationArn = [bucketArn, prefix, `*.annotations.*.json`].filter(Boolean).join("/");
+
+  return {
+    Sid: "DeleteAnnotationSidecars",
+    Effect: "Allow",
+    Action: "s3:DeleteObject",
+    Resource: annotationArn,
+  };
+}
+
+/**
  * `PutObject` scoped to a prefix via the Resource ARN —
  * `bucket/<prefix>/*`, or the whole bucket when no prefix is set.
  *
  * Included only when the caller's grant `accessLevel` is `"read-write"` or
  * `"admin"` — defense-in-depth so a `"read-only"` or `"annotate"` user's STS
  * session itself denies writes to the connection data plane, not just the UI.
- * Overwrite is `PutObject` (full-file write) — no `DeleteObject`.
+ * Overwrite is `PutObject` (full-file write); object deletion stays scoped to
+ * annotation sidecars (see `getDeleteSidecarStatement`).
  */
 function getPutObjectStatement(bucketArn: string, prefix: string) {
   return {
@@ -228,6 +248,11 @@ export const buildSessionPolicy = ({
   // narrower sidecar statement only when the session cannot write the prefix.
   if (permitsSidecarWrite(accessLevel) && !permitsPrefixWrite(accessLevel)) {
     statements.push(getPutOwnSidecarStatement(bucketArn, prefix));
+  }
+
+  // Annotation-set deletion for every level that can write sidecars.
+  if (permitsSidecarWrite(accessLevel)) {
+    statements.push(getDeleteSidecarStatement(bucketArn, prefix));
   }
 
   if (permitsPrefixWrite(accessLevel)) {

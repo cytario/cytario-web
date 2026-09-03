@@ -26,6 +26,7 @@ import {
 } from "../../../state/store/slices/viewer.view.store";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import {
   type AnnotationClassification,
@@ -146,6 +147,7 @@ export const useAnnotationsLayer = (
   interactive = true,
 ): CytarioLayerResult<GeoJsonLayer | EditableGeoJsonLayer> => {
   const ownUserId = useCurrentUser()?.sub;
+  const canAnnotate = useCanAnnotate();
   const activeSetId = useViewerStore((s) => s.activeSetId);
   const features = useViewerStore(selectActiveSetFeatures);
   const annotationSets = useViewerStore((s) => s.annotationSets);
@@ -226,58 +228,59 @@ export const useAnnotationsLayer = (
       };
     };
 
-    // Preview decks render the own set read-only, styled like the editable
-    // layer but without edit modes or picking.
+    // Preview decks and read-only grants render the active set read-only,
+    // styled like the editable layer but without edit modes or picking.
     const ownFill = Math.round(annotationsOpacity * 255);
     const ownLine = showOutline ? 255 : 0;
-    const ownLayer = !interactive
-      ? new GeoJsonLayer({
-          id: `annotations-${imagePanelId}`,
-          data,
-          ...paint(ownView?.hiddenClasses, ownFill, ownLine),
-          stroked: true,
-          filled: true,
-          pointType: "circle",
-          getPointRadius: 4,
-          pointRadiusUnits: "pixels",
-        })
-      : new EditableGeoJsonLayer({
-          id: `annotations-${imagePanelId}`,
-          data,
-          mode: MODE_CLASSES[mode],
-          selectedFeatureIndexes,
-          ...paint(ownView?.hiddenClasses, ownFill, ownLine),
+    const ownLayer =
+      !interactive || !canAnnotate
+        ? new GeoJsonLayer({
+            id: `annotations-${imagePanelId}`,
+            data,
+            ...paint(ownView?.hiddenClasses, ownFill, ownLine),
+            stroked: true,
+            filled: true,
+            pointType: "circle",
+            getPointRadius: 4,
+            pointRadiusUnits: "pixels",
+          })
+        : new EditableGeoJsonLayer({
+            id: `annotations-${imagePanelId}`,
+            data,
+            mode: MODE_CLASSES[mode],
+            selectedFeatureIndexes,
+            ...paint(ownView?.hiddenClasses, ownFill, ownLine),
 
-          onEdit: ({ updatedData, editType, editContext }) => {
-            // Persist only committing edits — anything else (tentative draw events,
-            // cancel/invalid) carries unchanged data; persisting it would rebuild
-            // this layer mid-stroke and drop the active draw.
-            if (!COMMITTING_EDITS.has(editType)) return;
+            onEdit: ({ updatedData, editType, editContext }) => {
+              // Persist only committing edits — anything else (tentative draw events,
+              // cancel/invalid) carries unchanged data; persisting it would rebuild
+              // this layer mid-stroke and drop the active draw.
+              if (!COMMITTING_EDITS.has(editType)) return;
 
-            if (!ownUserId) return; // edits route to the current user's own key
-            const changed: number[] | undefined = editContext?.featureIndexes;
-            const stamped = stampEdit(
-              updatedData.features as AnnotationFeature[],
-              changed,
-              activeClassification,
-            );
-            // Validate before persist: a degenerate/aborted draw (empty ring,
-            // `[[null]]`) is dropped and never written to S3 — the store is valid by
-            // construction.
-            const valid = validAnnotationFeatures(stamped);
-            const setId = ensureOwnSet();
-            updateSetFeatures(setId, valid);
-            if (editType === "addFeature") {
-              // Select the new feature only if it survived validation.
-              const newId = stamped[stamped.length - 1]?.id;
-              if (newId && valid.some((f) => f.id === newId)) {
-                setSelectedIds([newId]);
-                // Never draw into a hidden class — reveal the class the region landed in.
-                showAnnotationClass(setId, activeClassification?.name ?? UNCLASSIFIED);
+              if (!ownUserId) return; // edits route to the current user's own key
+              const changed: number[] | undefined = editContext?.featureIndexes;
+              const stamped = stampEdit(
+                updatedData.features as AnnotationFeature[],
+                changed,
+                activeClassification,
+              );
+              // Validate before persist: a degenerate/aborted draw (empty ring,
+              // `[[null]]`) is dropped and never written to S3 — the store is valid by
+              // construction.
+              const valid = validAnnotationFeatures(stamped);
+              const setId = ensureOwnSet();
+              updateSetFeatures(setId, valid);
+              if (editType === "addFeature") {
+                // Select the new feature only if it survived validation.
+                const newId = stamped[stamped.length - 1]?.id;
+                if (newId && valid.some((f) => f.id === newId)) {
+                  setSelectedIds([newId]);
+                  // Never draw into a hidden class — reveal the class the region landed in.
+                  showAnnotationClass(setId, activeClassification?.name ?? UNCLASSIFIED);
+                }
               }
-            }
-          },
-        });
+            },
+          });
 
     // Other users' sets: one layer each, read-only (selectable + hoverable, not
     // editable), dimmer than own, drawn beneath the editable layer. Hidden
@@ -400,6 +403,7 @@ export const useAnnotationsLayer = (
     selectedIds,
     imagePanelId,
     ownUserId,
+    canAnnotate,
     ensureOwnSet,
     updateSetFeatures,
     setSelectedIds,

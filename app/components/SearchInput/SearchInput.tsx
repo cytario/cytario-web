@@ -4,15 +4,10 @@ import { useEffect, useRef, useState } from "react";
 const DEBOUNCE_MS = 300;
 
 export interface SearchInputProps {
-  /** Debounced query sink (owned by the parent). */
   onQueryChange: (query: string) => void;
-  /** Accessible label for the input element. */
   "aria-label": string;
-  /** Placeholder text (defaults to "Search…"). */
   placeholder?: string;
-  /** Optional id for focus-shortcut wiring. */
   id?: string;
-  /** Optional className for the wrapper div (defaults to "flex items-center gap-1"). */
   className?: string;
 }
 
@@ -46,7 +41,6 @@ export function SearchInput({
 
   return (
     <div className={className}>
-      <Icon icon="Search" size="sm" className="text-muted-foreground" />
       <Input
         size="sm"
         id={id}
@@ -54,10 +48,13 @@ export function SearchInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        prefix={<Icon icon="Search" size="sm" className="text-muted-foreground" />}
+        suffix={
+          value ? (
+            <IconButton icon="X" size="xs" variant="ghost" onPress={onClear} label="Clear search" />
+          ) : null
+        }
       />
-      {value ? (
-        <IconButton icon="X" size="sm" variant="ghost" onPress={onClear} label="Clear search" />
-      ) : null}
     </div>
   );
 }

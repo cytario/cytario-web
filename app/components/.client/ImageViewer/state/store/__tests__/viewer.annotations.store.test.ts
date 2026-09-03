@@ -4,6 +4,7 @@ import { createViewerStore } from "../createViewerStore";
 import {
   classColor,
   generateAnnotationName,
+  generateSetName,
   selectSetFeatures,
   selectSetHiddenClasses,
 } from "../slices/viewer.annotations.store";
@@ -31,7 +32,7 @@ const makeSet = (
   id: string,
   createdBy: string,
   features: AnnotationFeature[] = [],
-): AnnotationSet => ({ id, createdBy, features });
+): AnnotationSet => ({ id, createdBy, features, name: undefined });
 
 // -----------------------------------------------------------------------
 // seedAnnotations
@@ -469,5 +470,157 @@ describe("classColor", () => {
 
   it("returns undefined when neither registry nor features know the name", () => {
     expect(classColor([], [makeFeature({ className: "Other" })], "Tumor")).toBeUndefined();
+  });
+});
+
+// deleteAnnotationSet — C-456: removes the set, its view state, reassigns the
+// active set, and drops selection entries pointing at the deleted features.
+describe("deleteAnnotationSet", () => {
+  it("removes the set and clears its view state", () => {
+    const store = createViewerStore("del-1");
+    store
+      .getState()
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [makeFeature()]),
+        makeSet("set-b", "user-b", [makeFeature()]),
+      ]);
+
+    store.getState().deleteAnnotationSet("set-a");
+
+    expect(store.getState().annotationSets.map((s) => s.id)).toEqual(["set-b"]);
+    expect(store.getState().annotationView["set-a"]).toBeUndefined();
+  });
+
+  it("reassigns activeSetId when the active set is deleted", () => {
+    const store = createViewerStore("del-2");
+    store
+      .getState()
+      .seedAnnotations([makeSet("set-a", "user-a", []), makeSet("set-b", "user-b", [])]);
+    // seedAnnotations makes the first seeded set active.
+    expect(store.getState().activeSetId).toBe("set-a");
+
+    store.getState().deleteAnnotationSet("set-a");
+
+    expect(store.getState().activeSetId).toBe("set-b");
+  });
+
+  it("clears activeSetId when the last set is deleted, and filters the selection", () => {
+    const store = createViewerStore("del-3");
+    const survivor = makeFeature({ id: "survivor" });
+    const doomed = makeFeature({ id: "doomed" });
+    store
+      .getState()
+      .seedAnnotations([
+        makeSet("set-a", "user-a", [doomed]),
+        makeSet("set-b", "user-b", [survivor]),
+      ]);
+    expect(store.getState().activeSetId).toBe("set-a"); // first seeded set
+    store.getState().setAnnotationSelectedIds(["doomed", "survivor"]);
+
+    store.getState().deleteAnnotationSet("set-a");
+
+    expect(store.getState().annotationSets.map((s) => s.id)).toEqual(["set-b"]);
+    expect(store.getState().activeSetId).toBe("set-b");
+    // The surviving set's feature stays selected; the deleted one is dropped.
+    expect(store.getState().annotationSelectedIds).toEqual(["survivor"]);
+  });
+
+  it("is a no-op for an unknown set id", () => {
+    const store = createViewerStore("del-4");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
+
+    store.getState().deleteAnnotationSet("nope");
+
+    expect(store.getState().annotationSets).toHaveLength(1);
+  });
+});
+
+// renameAnnotationSet — C-457: display name, persisted in cytario.name;
+// empty clears back to the positional fallback label.
+describe("renameAnnotationSet", () => {
+  it("sets the name on the set", () => {
+    const store = createViewerStore("rename-1");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
+
+    store.getState().renameAnnotationSet("set-a", "Tumor review");
+
+    expect(store.getState().annotationSets[0].name).toBe("Tumor review");
+  });
+
+  it("trims and clears to undefined on an empty name", () => {
+    const store = createViewerStore("rename-2");
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [makeFeature()])]);
+    store.getState().renameAnnotationSet("set-a", "Tumor review");
+
+    store.getState().renameAnnotationSet("set-a", "   ");
+
+    expect(store.getState().annotationSets[0].name).toBeUndefined();
+  });
+
+  it("is a no-op for an unknown set id", () => {
+    const store = createViewerStore("rename-3");
+    store.getState().renameAnnotationSet("nope", "X");
+    expect(store.getState().annotationSets).toHaveLength(0);
+  });
+});
+
+// generateSetName — default names minted at set creation (C-457): lowest
+// unused "Annotation Set N.json", so delete + re-draw never collides.
+describe("generateSetName", () => {
+  it("mints Annotation Set 1.json for an empty store", () => {
+    expect(generateSetName([])).toBe("Annotation Set 1.json");
+  });
+
+  it("skips taken numbers and finds the lowest free slot", () => {
+    const sets = [
+      { ...makeSet("set-a", "user-a", []), name: "Annotation Set 1.json" },
+      { ...makeSet("set-b", "user-b", []), name: "Annotation Set 2.json" },
+    ];
+    expect(generateSetName(sets)).toBe("Annotation Set 3.json");
+  });
+
+  it("fills gaps left by deletions", () => {
+    const sets = [
+      { ...makeSet("set-a", "user-a", []), name: "Annotation Set 2.json" },
+      { ...makeSet("set-b", "user-b", []), name: "Annotation Set 5.json" },
+    ];
+    expect(generateSetName(sets)).toBe("Annotation Set 1.json");
+  });
+});
+
+// createAnnotationSet — the Add-set menu's explicit creation (C-458).
+describe("createAnnotationSet", () => {
+  it("creates an empty set with a minted name and makes it active", () => {
+    const store = createViewerStore("create-1");
+
+    const id = store.getState().createAnnotationSet();
+
+    const state = store.getState();
+    expect(state.annotationSets).toHaveLength(1);
+    expect(state.annotationSets[0]).toMatchObject({
+      id,
+      features: [],
+      name: "Annotation Set 1.json",
+    });
+    expect(state.activeSetId).toBe(id);
+  });
+
+  it("mints sequential names across calls and fills gaps after deletion", () => {
+    const store = createViewerStore("create-2");
+    const a = store.getState().createAnnotationSet();
+    const b = store.getState().createAnnotationSet();
+    expect(store.getState().annotationSets.map((s) => s.name)).toEqual([
+      "Annotation Set 1.json",
+      "Annotation Set 2.json",
+    ]);
+
+    store.getState().deleteAnnotationSet(a);
+    const c = store.getState().createAnnotationSet();
+    expect(store.getState().annotationSets.find((s) => s.id === c)?.name).toBe(
+      "Annotation Set 1.json",
+    );
+    expect(store.getState().annotationSets.find((s) => s.id === b)?.name).toBe(
+      "Annotation Set 2.json",
+    );
   });
 });

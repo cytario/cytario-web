@@ -42,6 +42,17 @@ export const generateAnnotationName = (features: AnnotationFeature[]): string =>
   }
 };
 
+/** The default name minted for a newly created set: the lowest
+ *  "Annotation Set N.json" not already taken (mirrors generateAnnotationName's
+ *  lowest-unused-index rule, so delete + re-draw never collides). */
+export const generateSetName = (sets: AnnotationSet[]): string => {
+  const taken = new Set(sets.map((s) => s.name).filter((n): n is string => !!n));
+  for (let n = 1; ; n++) {
+    const candidate = `Annotation Set ${n}.json`;
+    if (!taken.has(candidate)) return candidate;
+  }
+};
+
 /** The display name of a feature: its `properties.name` if set, else a
  *  fallback showing the ID (for legacy/imported features that predate
  *  auto-naming). Shared by the tooltip and the sidebar label so they agree. */
@@ -151,9 +162,22 @@ export interface AnnotationsSlice {
    *  already points to a live own set, returns it. If no own set exists, creates
    *  one (UUID) and activates it. Called at draw time before `updateSetFeatures`. */
   ensureOwnSet: () => string;
+  /** Create an empty annotation set outright (minted default name,
+   *  `generateSetName`), make it the active set, and return its id — the
+   *  Add-set control's "New annotation set" entry. Enters the undo history. */
+  createAnnotationSet: () => string;
   /** Replace one set's features (draw/move/delete). Immer gives that set a
    *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
   updateSetFeatures: (setId: string, features: AnnotationFeature[]) => void;
+  /** Delete an annotation set outright — removes the set, its view state, and
+   *  any selection into it. The sync middleware sees the set vanish from the
+   *  baseline and DELETEs its sidecar file; the mutation enters the undo
+   *  history (undo restores the set, and the sync re-writes the sidecar). */
+  deleteAnnotationSet: (setId: string) => void;
+  /** Rename an annotation set (display name, persisted in `cytario.name`).
+   *  An empty/whitespace name clears it, falling back to the positional
+   *  "Annotation Set N" label. Enters the undo history. */
+  renameAnnotationSet: (setId: string, name: string) => void;
   /** Recolor every feature of a classification within one set. */
   setAnnotationClassColor: (setId: string, name: string, color: RGB) => void;
   /** Assign (or, with `name: null`, clear to unclassified) the classification of
@@ -266,7 +290,12 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       const id = crypto.randomUUID();
       set(
         (s) => {
-          s.annotationSets.push({ id, createdBy: s.currentUserId, features: [] });
+          s.annotationSets.push({
+            id,
+            createdBy: s.currentUserId,
+            features: [],
+            name: generateSetName(s.annotationSets),
+          });
           s.activeSetId = id;
         },
         false,
@@ -276,6 +305,24 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     } finally {
       temporalStore?.getState().resume();
     }
+  },
+
+  createAnnotationSet: () => {
+    const id = crypto.randomUUID();
+    set(
+      (s) => {
+        s.annotationSets.push({
+          id,
+          createdBy: s.currentUserId,
+          features: [],
+          name: generateSetName(s.annotationSets),
+        });
+        s.activeSetId = id;
+      },
+      false,
+      "createAnnotationSet",
+    );
+    return id;
   },
 
   updateSetFeatures: (setId, features) => {
@@ -288,6 +335,40 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "updateSetFeatures",
+    );
+  },
+
+  deleteAnnotationSet: (setId) => {
+    set(
+      (state) => {
+        const index = state.annotationSets.findIndex((s) => s.id === setId);
+        if (index === -1) return;
+        state.annotationSets.splice(index, 1);
+        delete state.annotationView[setId];
+        if (state.activeSetId === setId) {
+          state.activeSetId = state.annotationSets[0]?.id ?? null;
+        }
+        // Drop selection entries pointing at the deleted set's features.
+        const survivorIds = new Set(
+          state.annotationSets.flatMap((s) => s.features.flatMap((f) => (f.id ? [f.id] : []))),
+        );
+        state.annotationSelectedIds = state.annotationSelectedIds.filter((id) =>
+          survivorIds.has(id),
+        );
+      },
+      false,
+      "deleteAnnotationSet",
+    );
+  },
+
+  renameAnnotationSet: (setId, name) => {
+    set(
+      (state) => {
+        const set = state.annotationSets.find((s) => s.id === setId);
+        if (set) set.name = name.trim() || undefined;
+      },
+      false,
+      "renameAnnotationSet",
     );
   },
 

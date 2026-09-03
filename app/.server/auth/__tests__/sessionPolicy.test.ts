@@ -281,6 +281,8 @@ describe("buildSessionPolicy", () => {
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
     // A read-only session may not write sidecars either.
     expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
+    // Nor delete annotation sidecars (C-456: set deletion is annotate+).
+    expect(policy.Statement.some((s) => s.Sid === "DeleteAnnotationSidecars")).toBe(false);
     // No writes → no key generation needed.
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
   });
@@ -291,6 +293,17 @@ describe("buildSessionPolicy", () => {
     expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(true);
     // Sidecars are small JSON files, not SSE-KMS-encrypted.
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
+  });
+
+  test("every sidecar-writing level includes DeleteAnnotationSidecars scoped to annotation sidecars (C-456)", () => {
+    for (const accessLevel of ["annotate", "read-write", "admin"] as const) {
+      const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel })));
+      const stmt = findBySid(policy, "DeleteAnnotationSidecars");
+      expect(stmt.Effect).toBe("Allow");
+      expect(stmt.Action).toBe("s3:DeleteObject");
+      // Annotation pattern only — never settings sidecars, never the prefix.
+      expect(stmt.Resource).toBe("arn:aws:s3:::my-bucket/foo/*.annotations.*.json");
+    }
   });
 });
 

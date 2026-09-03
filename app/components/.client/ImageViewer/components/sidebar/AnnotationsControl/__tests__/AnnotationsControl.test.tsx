@@ -6,6 +6,7 @@ import { useStore } from "zustand";
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../../state/store/types";
 import { AnnotationsControl } from "../AnnotationsControl";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 // Inject a real store instance without the image-loading side-effects.
@@ -23,17 +24,46 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 }));
 
 // AnnotationsList has its own tests; stub it here to isolate layout behaviour.
+// It mirrors the editable prop as data-editable so the access-level
+// pass-through is assertable without rendering the real list.
 vi.mock("../AnnotationsList", () => ({
-  AnnotationsList: ({ setId, searchQuery }: { setId: string; searchQuery: string }) => (
-    <div data-testid={`annotations-list-${setId}`} data-search={searchQuery} />
+  AnnotationsList: ({
+    setId,
+    editable,
+    searchQuery,
+  }: {
+    setId: string;
+    editable: boolean;
+    searchQuery: string;
+  }) => (
+    <div
+      data-testid={`annotations-list-${setId}`}
+      data-editable={String(editable)}
+      data-search={searchQuery}
+    />
   ),
 }));
 
 // NodeLink needs a router (NavLink); stub it to the node label to keep these
 // tests focused on the controller's block layout.
 vi.mock("~/components/DirectoryView/NodeLink/NodeLink", () => ({
-  NodeLink: ({ node }: { node: { name: string } }) => (
-    <div data-testid={`node-link-${node.name}`}>{node.name}</div>
+  // Mirrors the contextMenuItems prop and the node's Size sentinel as data
+  // attributes so the delete/rename pass-through and the download gate are
+  // assertable without rendering the real menu.
+  NodeLink: ({
+    node,
+    contextMenuItems,
+  }: {
+    node: { name: string; _Object?: { Size?: number } };
+    contextMenuItems?: unknown;
+  }) => (
+    <div
+      data-testid={`node-link-${node.name}`}
+      data-context-menu={String(Boolean(contextMenuItems))}
+      data-size-known={String(node._Object?.Size !== undefined)}
+    >
+      {node.name}
+    </div>
   ),
 }));
 
@@ -48,9 +78,11 @@ const makeFeature = (id: string): AnnotationFeature => ({
   properties: {},
 });
 
-function buildStore() {
+function buildStore(accessLevel: "annotate" | "read-only" = "annotate") {
   // A valid resourceId (connectionName/pathName) — the controller derives each
-  // set's sidecar TreeNode from the image's resourceId.
+  // set's sidecar TreeNode from the image's resourceId. The connection's
+  // access level drives useCanAnnotate (defaults to read-only when absent).
+  seedViewerConnection("test-conn", accessLevel);
   const store = createViewerStore(
     `test-conn/images/slide-${Math.random()}.ome.tif`,
     currentUserId ?? "",
@@ -76,7 +108,7 @@ function seedPeerSet(
   features: AnnotationFeature[],
 ): string {
   const setId = crypto.randomUUID();
-  store.getState().seedAnnotations([{ id: setId, createdBy, features }]);
+  store.getState().seedAnnotations([{ id: setId, createdBy, features, name: undefined }]);
   return setId;
 }
 
@@ -102,8 +134,8 @@ describe("AnnotationsControl — own-first ordering", () => {
     renderController();
 
     const blocks = screen.getAllByTestId(/^node-link-/);
-    // Own set is first → "Annotation Set 1"
-    expect(blocks[0]).toHaveTextContent("Annotation Set 1");
+    // Own set is first → "Annotation Set 1.json"
+    expect(blocks[0]).toHaveTextContent("Annotation Set 1.json");
   });
 
   test("own file block is labeled 'Annotation Set 1'", () => {
@@ -112,7 +144,7 @@ describe("AnnotationsControl — own-first ordering", () => {
 
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 1")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toBeInTheDocument();
   });
 
   test("peer file block is labeled 'Annotation Set 2' when own is first", () => {
@@ -122,7 +154,7 @@ describe("AnnotationsControl — own-first ordering", () => {
 
     renderController();
 
-    expect(screen.getByTestId("node-link-Annotation Set 2")).toBeInTheDocument();
+    expect(screen.getByTestId("node-link-Annotation Set 2.json")).toBeInTheDocument();
   });
 });
 
@@ -199,13 +231,39 @@ const quPathExport = {
 };
 
 describe("AnnotationsControl — JSON import", () => {
-  test("Plus button is rendered in header", () => {
+  test("Add-set button is rendered in header", () => {
     buildStore();
     renderController();
 
-    expect(
-      screen.getByRole("button", { name: "Import annotations from GeoJSON" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add annotation set" })).toBeInTheDocument();
+  });
+
+  test("read-only connection hides the Add-set control and gates the list", () => {
+    buildStore("read-only");
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    // No add-set affordance…
+    expect(screen.queryByRole("button", { name: "Add annotation set" })).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    // …and the set's list is read-only.
+    const setId = currentStore!.getState().annotationSets[0].id;
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toHaveAttribute(
+      "data-editable",
+      "false",
+    );
+  });
+
+  test("annotate connection passes editable through to the list", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    const setId = currentStore!.getState().annotationSets[0].id;
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toHaveAttribute(
+      "data-editable",
+      "true",
+    );
   });
 
   test("importing a valid QuPath JSON adds an unowned set", async () => {
@@ -320,3 +378,174 @@ describe("AnnotationsControl — JSON import", () => {
     expect(store.getState().annotationSets).toHaveLength(0);
   });
 });
+
+// C-456: the set block's sidecar NodeLink carries a Delete-annotation-set
+// context-menu entry exactly when the connection grant permits annotating.
+describe("AnnotationsControl — set deletion entry", () => {
+  test("annotate connection passes the delete entry to the set block's context menu", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toHaveAttribute(
+      "data-context-menu",
+      "true",
+    );
+  });
+
+  test("read-only connection passes no context-menu entry", () => {
+    buildStore("read-only");
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toHaveAttribute(
+      "data-context-menu",
+      "false",
+    );
+  });
+});
+
+// C-457: set naming — import takes the filename minus extension; the block
+// label shows the name with a positional fallback; double-click renames inline.
+describe("AnnotationsControl — set naming", () => {
+  test("an imported set is labeled with the full filename, extension kept", async () => {
+    buildStore();
+    renderController();
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([JSON.stringify(quPathExport)], "patient-12-tumor.geojson", {
+      type: "application/geo+json",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("node-link-patient-12-tumor.geojson")).toBeInTheDocument();
+    });
+  });
+
+  test("unnamed sets keep the positional fallback label", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toBeInTheDocument();
+  });
+
+  test("double-click opens an inline rename; Enter commits and the label updates", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1.json"));
+
+    const input = screen.getByLabelText("Rename Annotation Set 1.json");
+    fireEvent.change(input, { target: { value: "Tumor review" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(currentStore!.getState().annotationSets[0].name).toBe("Tumor review");
+  });
+
+  test("Escape cancels the rename without touching the store", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    fireEvent.doubleClick(screen.getByTestId("node-link-Annotation Set 1.json"));
+
+    const input = screen.getByLabelText("Rename Annotation Set 1.json");
+    fireEvent.change(input, { target: { value: "Discarded" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    // The minted name is untouched by the cancelled edit.
+    expect(currentStore!.getState().annotationSets[0].name).toBe("Annotation Set 1.json");
+  });
+});
+
+describe("AnnotationsControl — sidecar download gate", () => {
+  test("the synthetic sidecar node carries a Size so the generic Download entry is offered", () => {
+    buildStore();
+    seedOwnSet(currentStore!, [makeFeature("f1")]);
+    renderController();
+
+    // NodeContextMenu's download gate requires a known size (C-445); the
+    // synthetic node ships a sentinel so the app-written sidecar is
+    // downloadable (C-330's original scope).
+    expect(screen.getByTestId("node-link-Annotation Set 1.json")).toHaveAttribute(
+      "data-size-known",
+      "true",
+    );
+  });
+});
+
+// C-458: the + opens a menu — New annotation set (explicit creation) and
+// Import from file… (the previous direct-acting button).
+describe("AnnotationsControl — Add-set menu", () => {
+  test("opens a menu offering New annotation set and Import from file…", () => {
+    buildStore();
+    renderController();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add annotation set" }));
+
+    expect(screen.getByRole("menuitem", { name: "New annotation set" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Import from file…" })).toBeInTheDocument();
+  });
+
+  test("New annotation set creates an empty, named, active set", () => {
+    buildStore();
+    renderController();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add annotation set" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New annotation set" }));
+
+    const state = currentStore!.getState();
+    expect(state.annotationSets).toHaveLength(1);
+    expect(state.annotationSets[0].name).toBe("Annotation Set 1.json");
+    expect(state.annotationSets[0].features).toHaveLength(0);
+    expect(state.activeSetId).toBe(state.annotationSets[0].id);
+  });
+
+  test("Import from file… opens the hidden file picker", () => {
+    buildStore();
+    renderController();
+
+    const clickSpy = vi.spyOn(HTMLInputElement.prototype, "click");
+    fireEvent.click(screen.getByRole("button", { name: "Add annotation set" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Import from file…" }));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    clickSpy.mockRestore();
+  });
+});
+
+// C-458 polish: the set block carries a leading accordion chevron (mirroring
+// the tree views) alongside the click-on-name toggle.
+describe("AnnotationsControl — set block chevron", () => {
+  test("renders a chevron whose label reflects the expansion state, and toggling collapses the group list", () => {
+    buildStore();
+    const { setId } = seedOwnSetBlock();
+    renderController();
+
+    const chevron = screen.getByRole("button", {
+      name: "Collapse Annotation Set 1.json",
+    });
+    expect(chevron).toBeInTheDocument();
+    // The block starts expanded — its list is rendered.
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toBeInTheDocument();
+
+    fireEvent.click(chevron);
+
+    expect(screen.queryByTestId(`annotations-list-${setId}`)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Expand Annotation Set 1.json" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand Annotation Set 1.json" }));
+    expect(screen.getByTestId(`annotations-list-${setId}`)).toBeInTheDocument();
+  });
+});
+
+/** Seeds an own set and returns its id, for tests that need the block rendered. */
+function seedOwnSetBlock(): { setId: string } {
+  const setId = seedOwnSet(currentStore!, [makeFeature("f1")]);
+  return { setId };
+}

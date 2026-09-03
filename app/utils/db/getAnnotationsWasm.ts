@@ -16,11 +16,14 @@ export type {
 /** A set of annotations. `id` is the sidecar key segment (UUID).
  *  `createdBy` is the author from the sidecar's `cytario.createdBy` field.
  *  `undefined` means unowned (e.g. imported QuPath export with no cytario
- *  envelope) — editable by anyone, first edit claims ownership. */
+ *  envelope) — editable by anyone.
+ *  `name` is the set's display name from `cytario.name` — undefined falls
+ *  back to the positional "Annotation Set N" label. */
 export type AnnotationSet = {
   id: string;
   createdBy: string | undefined;
   features: AnnotationFeature[];
+  name: string | undefined;
 };
 
 /**
@@ -29,12 +32,12 @@ export type AnnotationSet = {
  * to its feature array; sets with no features are dropped (lazy-create semantics).
  * The `createdBy` field is extracted from the sidecar's `cytario.createdBy`
  * body field — absent for QuPath exports (no `cytario` envelope), leaving
- * `createdBy` undefined (unowned).
+ * `createdBy` undefined (unowned). `name` comes from `cytario.name`.
  */
 export async function readAllAnnotations(resourceId: string): Promise<AnnotationSet[]> {
   const documents = await SidecarRepository.readAll<
     FeatureCollection & {
-      cytario?: { createdBy?: string };
+      cytario?: { createdBy?: string; name?: string };
     }
   >(resourceId, "annotations");
   const sets: AnnotationSet[] = [];
@@ -46,6 +49,7 @@ export async function readAllAnnotations(resourceId: string): Promise<Annotation
     sets.push({
       id: setId,
       createdBy: collection?.cytario?.createdBy,
+      name: collection?.cytario?.name,
       features,
     });
   }
