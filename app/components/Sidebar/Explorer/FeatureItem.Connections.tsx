@@ -1,9 +1,10 @@
-import { EmptyState, IconButtonLink } from "@cytario/design";
+import { EmptyState, IconButton, IconButtonLink } from "@cytario/design";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
 import { ConnectionSwitcherChip } from "../ConnectionSwitcherChip";
 import { ConnectionTree } from "../ConnectionTree";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { SearchInput } from "~/components/SearchInput";
 import { select } from "~/utils/connectionsStore/selectors";
@@ -11,6 +12,8 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 
 export function FeatureItemConnections() {
   const connections = useConnectionsStore(select.connections);
+  const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
+  const toggleShowHiddenFiles = useLayoutStore((s) => s.toggleShowHiddenFiles);
   const params = useParams();
   const routeId = params.id;
   const connectionIds = useMemo(() => Object.keys(connections), [connections]);
@@ -38,13 +41,23 @@ export function FeatureItemConnections() {
       title="Connections"
       badge={String(connectionIds.length)}
       actions={
-        <IconButtonLink
-          href="/connections"
-          icon="ArrowRight"
-          label="View all connections"
-          variant="ghost"
-          size="sm"
-        />
+        <>
+          <IconButton
+            icon={showHiddenFiles ? "Eye" : "EyeOff"}
+            label="Show hidden files"
+            aria-pressed={showHiddenFiles}
+            onPress={toggleShowHiddenFiles}
+            variant="ghost"
+            size="sm"
+          />
+          <IconButtonLink
+            href="/connections"
+            icon="ArrowRight"
+            label="View all connections"
+            variant="ghost"
+            size="sm"
+          />
+        </>
       }
       header={
         <div className="flex flex-col gap-1 px-2 pb-2">
