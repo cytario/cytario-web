@@ -218,4 +218,30 @@ describe("filterNodes", () => {
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("production-data");
   });
+
+  test("connection accessors resolve via connectionId, not connectionName", () => {
+    const bucketNode = (id: string, name: string): TreeNode => ({
+      id: `${id}/`,
+      connectionId: id,
+      connectionName: name,
+      name,
+      type: "bucket",
+      pathName: "",
+      children: [],
+    });
+    const nodes = [bucketNode("conn-uuid-1", "my-conn"), bucketNode("conn-uuid-2", "other-conn")];
+    // Store keyed by config.id (UUID) — a name-keyed lookup would miss.
+    const connections = {
+      "conn-uuid-1": {
+        connectionConfig: { bucketName: "data-bucket" },
+      },
+      "conn-uuid-2": {
+        connectionConfig: { bucketName: "log-bucket" },
+      },
+    } as never;
+    const filters: ColumnFiltersState = [{ id: "bucketName", value: "data-bucket" }];
+    const result = filterNodes(nodes, filters, bucketColumns, "connections", connections);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("my-conn");
+  });
 });
