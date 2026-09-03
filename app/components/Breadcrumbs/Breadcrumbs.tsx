@@ -34,7 +34,7 @@ export function Breadcrumbs() {
               {index > 0 && (
                 <Icon icon="ChevronRight" size="sm" className="text-muted-foreground" />
               )}
-              <NodeLink node={node} contextMenu={isLeaf} />
+              <NodeLink node={node} />
             </li>
           );
         })}

@@ -1,4 +1,4 @@
-import { Checkbox, TruncatedText } from "@cytario/design";
+import { Checkbox, TruncatedText, IconButton } from "@cytario/design";
 import { type MouseEventHandler, type ReactNode } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
@@ -11,7 +11,6 @@ import { buildConnectionPath } from "~/utils/resourceId";
 export interface NodeLinkProps {
   node: TreeNode;
   onClick?: (node: TreeNode) => void;
-  contextMenu?: boolean;
   /** Caller-specific `MenuItem`s appended to the context menu. */
   contextMenuItems?: ReactNode;
   isClickable?: (node: TreeNode) => boolean;
@@ -26,63 +25,33 @@ export interface NodeLinkProps {
   onContextMenuTarget?: (handler: ((event: React.MouseEvent) => void) | null) => void;
 }
 
-export function NodeLink(props: NodeLinkProps) {
-  if (props.contextMenu === false) {
-    return <NodeLinkPlain {...props} />;
-  }
-  return <NodeLinkWithMenu {...props} />;
-}
+const ROW_CX = `
+  flex items-center grow
+  font-medium text-sm
+  min-w-0 h-7
+  rounded-full
+  gap-1
+  px-1 group-hover:pe-7 group-focus-within:pe-7
 
-function NodeLinkPlain({
-  node,
-  onClick,
-  isClickable = () => true,
-  className,
-  isSelected,
-  onToggleSelect,
-}: NodeLinkProps) {
-  const to = buildConnectionPath(node.connectionId, node.pathName);
-  const isCurrent = Boolean(useMatch({ path: to, end: true }));
-  const clickable = isClickable(node) && !isCurrent;
+  [transition:padding-inline-end_150ms_0ms,background-color_150ms_0ms,color_150ms_0ms]
+  hover:[transition:padding-inline-end_150ms_300ms,background-color_150ms_0ms,color_150ms_0ms]
+  focus-within:[transition:padding-inline-end_150ms_300ms,background-color_150ms_0ms,color_150ms_0ms]
+`;
 
-  const rowCx = "flex items-center grow font-medium text-sm min-w-0 h-7 px-1 gap-0.5 rounded-full";
-  const clickAbleCx =
-    "hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-ring";
-  const activeCx = "bg-muted text-foreground";
+const FOCUS_CX = `
+  focus-visible:outline-none
+  focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+`;
 
-  const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
-    if (!onClick) return;
-    event.preventDefault();
-    event.stopPropagation();
-    onClick(node);
-  };
+const CLICKABLE_CX = `
+  hover:bg-muted
+  hover:text-foreground
+  ${FOCUS_CX}
+`;
 
-  return (
-    <div className={twMerge(rowCx, className, "px-0")}>
-      {onToggleSelect && isSelected && node.type === "file" && (
-        <Checkbox isSelected={isSelected(node)} onChange={() => onToggleSelect(node)} />
-      )}
-      {clickable ? (
-        <NavLink
-          to={to}
-          end
-          className={({ isActive }) => twMerge(rowCx, clickAbleCx, isActive && activeCx)}
-          onClick={handleClick}
-        >
-          <NodeIndicator node={node} />
-          <TruncatedText>{node.name}</TruncatedText>
-        </NavLink>
-      ) : (
-        <div className={twMerge(rowCx, isCurrent && activeCx)}>
-          <NodeIndicator node={node} />
-          <TruncatedText>{node.name}</TruncatedText>
-        </div>
-      )}
-    </div>
-  );
-}
+const ACTIVE_CX = `bg-muted text-foreground ${FOCUS_CX}`;
 
-function NodeLinkWithMenu({
+export function NodeLink({
   node,
   onClick,
   contextMenuItems,
@@ -95,19 +64,15 @@ function NodeLinkWithMenu({
   const to = buildConnectionPath(node.connectionId, node.pathName);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
   const clickable = isClickable(node) && !isCurrent;
-
   const ctx = useNodeContextMenu({ node, isCurrent, extraItems: contextMenuItems });
 
   // Lift right-click handler to parent's ref (no state round-trip).
   onContextMenuTarget?.(ctx?.targetProps.onContextMenu ?? null);
 
-  const rowCx = "flex items-center grow font-medium text-sm min-w-0 h-7 px-1 gap-0.5 rounded-full";
-  const clickAbleCx =
-    "hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-ring";
-  const activeCx = "bg-muted text-foreground";
-
   // When parent owns right-click, don't add `group` — parent's group controls hover.
-  const containerCx = onContextMenuTarget ? "relative" : "group relative";
+  const containerCx = onContextMenuTarget ? "" : "group ";
+
+  const targetProps = onContextMenuTarget ? {} : (ctx?.targetProps ?? {});
 
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (!onClick) return;
@@ -116,37 +81,42 @@ function NodeLinkWithMenu({
     onClick(node);
   };
 
-  // Spread targetProps on the row when parent doesn't own them
-  const targetProps = onContextMenuTarget ? {} : (ctx?.targetProps ?? {});
-
   return (
-    <div className={twMerge(containerCx, rowCx, className, "px-0")}>
+    <div className={twMerge(containerCx, "flex items-center grow min-w-0 relative", className)}>
       {onToggleSelect && isSelected && node.type === "file" && (
         <Checkbox isSelected={isSelected(node)} onChange={() => onToggleSelect(node)} />
       )}
-      {clickable ? (
-        <NavLink
-          to={to}
-          end
-          className={({ isActive }) => twMerge(rowCx, clickAbleCx, isActive && activeCx)}
-          onClick={handleClick}
-          {...targetProps}
-        >
-          <NodeIndicator node={node} />
-          <TruncatedText>{node.name}</TruncatedText>
-        </NavLink>
-      ) : (
-        <div className={twMerge(rowCx, isCurrent && activeCx)} {...targetProps}>
-          <NodeIndicator node={node} />
-          <TruncatedText>{node.name}</TruncatedText>
-        </div>
-      )}
 
-      {ctx && (
-        <div className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
-          {ctx.kebab}
-        </div>
-      )}
+      <NavLink
+        to={to}
+        end
+        tabIndex={onContextMenuTarget ? -1 : undefined}
+        className={twMerge(ROW_CX, clickable && CLICKABLE_CX, isCurrent && ACTIVE_CX)}
+        onClick={clickable ? handleClick : (e) => e.preventDefault()}
+        {...targetProps}
+      >
+        {/* Icon or Connection Status */}
+        <NodeIndicator node={node} />
+
+        {/* Node Name */}
+        <TruncatedText>{node.name}</TruncatedText>
+
+        {/* Context Menu Trigger */}
+        <IconButton
+          icon="EllipsisVertical"
+          label="More actions"
+          size="xs"
+          variant="neutral"
+          className={`
+            absolute right-0 top-0 
+            opacity-0 group-hover:opacity-100 group-focus-within:opacity-100
+            transition-opacity delay-0 group-hover:delay-200
+          `}
+          {...ctx?.triggerProps}
+        />
+      </NavLink>
+
+      {/* Context Menu */}
       {ctx?.menu}
     </div>
   );

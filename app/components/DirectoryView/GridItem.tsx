@@ -1,4 +1,4 @@
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { twMerge } from "tailwind-merge";
 
@@ -19,6 +19,13 @@ interface GridItemProps {
 export function GridItem({ node, preview, children, className }: GridItemProps) {
   const to = buildConnectionPath(node.connectionId, node.pathName);
   const contextMenuRef = useRef<((event: React.MouseEvent) => void) | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    previewRef.current?.querySelectorAll("[tabindex]").forEach((el) => {
+      (el as HTMLElement).tabIndex = -1;
+    });
+  }, [node]);
 
   const cx = `
     group flex flex-col overflow-hidden rounded-xl
@@ -26,6 +33,8 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
     border border-border
     transition-all
     hover:border-ring
+    focus-visible:outline-none
+    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
   `;
 
   return (
@@ -34,7 +43,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
       className={twMerge(cx, className)}
       onContextMenu={(e) => contextMenuRef.current?.(e)}
     >
-      <div className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
+      <div ref={previewRef} className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
             <NodeIcon node={node} size="xl" />

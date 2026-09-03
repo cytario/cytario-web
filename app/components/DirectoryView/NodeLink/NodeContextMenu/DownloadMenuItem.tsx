@@ -1,11 +1,15 @@
 import { Icon, MenuItem, Tooltip } from "@cytario/design";
 
-import { downloadFilenameFor } from "./downloadFilenameFor";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { toastBridge } from "~/toast-bridge";
 import { getUint8ArrayForResourceId } from "~/utils/db/getBlobFromObjectNode";
 
 const MAX_DOWNLOADABLE_SIZE = 256 * 1024 * 1024;
+
+export function downloadFilenameFor(name: string, pathName: string): string {
+  const ext = pathName.match(/(\.[a-z0-9]+)$/i)?.[1] ?? "";
+  return !ext || name.endsWith(ext) ? name : name + ext;
+}
 
 export function DownloadMenuItem({ node }: { node: TreeNode }) {
   if (node.type !== "file") return null;

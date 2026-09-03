@@ -150,7 +150,6 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         defaultExpandedItems={isSearching ? defaultExpandedItems : undefined}
         nodeLinkProps={{
           onClick: handleSelect,
-          contextMenu: false,
           isClickable: (node) => node.type === "file",
         }}
       />

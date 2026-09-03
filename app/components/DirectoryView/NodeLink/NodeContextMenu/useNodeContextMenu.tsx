@@ -1,4 +1,4 @@
-import { IconButton, MenuSeparator, useContextMenu } from "@cytario/design";
+import { MenuSeparator, useContextMenu, UseContextMenuResult } from "@cytario/design";
 import { type ReactNode } from "react";
 
 import { BucketAdminItems } from "./BucketAdminItems";
@@ -13,12 +13,6 @@ import { PluginContextMenuItems } from "~/components/DirectoryView/NodeLink/Plug
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
-export interface UseNodeContextMenuResult {
-  targetProps: { onContextMenu: (event: React.MouseEvent) => void };
-  kebab: ReactNode;
-  menu: ReactNode;
-}
-
 export function useNodeContextMenu({
   node,
   isCurrent = false,
@@ -27,7 +21,7 @@ export function useNodeContextMenu({
   node: TreeNode;
   isCurrent?: boolean;
   extraItems?: ReactNode;
-}): UseNodeContextMenuResult | null {
+}): UseContextMenuResult | null {
   const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
 
@@ -54,15 +48,5 @@ export function useNodeContextMenu({
 
   if (!connectionConfig) return null;
 
-  const kebab = (
-    <IconButton
-      icon="EllipsisVertical"
-      label={`Actions for ${node.name}`}
-      variant="ghost"
-      size="xs"
-      {...ctx.triggerProps}
-    />
-  );
-
-  return { targetProps: ctx.targetProps, kebab, menu: ctx.menu };
+  return ctx;
 }
