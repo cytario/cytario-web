@@ -130,7 +130,7 @@ export function BulkInviteForm({ onNonEmptyCountChange }: BulkInviteFormProps) {
       </Description>
 
       {formError && (
-        <p role="alert" className="text-sm text-rose-600 mb-4">
+        <p role="alert" className="text-sm text-destructive mb-4">
           {formError}
         </p>
       )}

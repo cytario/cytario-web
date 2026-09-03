@@ -96,7 +96,7 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
   if (error && !content) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
         <Button
           onPress={() => {
             setError(null);
@@ -125,7 +125,7 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
           {dirty ? "Unsaved changes" : "All changes saved"}
         </span>
         <div className="flex items-center gap-2">
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {error && <span className="text-sm text-destructive">{error}</span>}
           <Button onPress={handleSave} isDisabled={!dirty || saving} variant="secondary">
             {saving ? "Saving…" : "Save"}
           </Button>

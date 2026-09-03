@@ -59,9 +59,10 @@ export function ChannelsControlBrightfieldItem({
             aria-hidden
             className="flex h-5 w-5 shrink-0 overflow-hidden rounded-full border-2 border-border"
           >
-            <span className="grow h-full bg-red-500" />
-            <span className="grow h-full bg-green-500" />
-            <span className="grow h-full bg-blue-500" />
+            {/* Literal RGB channel colors — content, not UI state; deliberately not design tokens. */}
+            <span className="grow h-full bg-[#ef4444]" />
+            <span className="grow h-full bg-[#22c55e]" />
+            <span className="grow h-full bg-[#3b82f6]" />
           </span>
         }
         title="Brightfield"
