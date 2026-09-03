@@ -1,6 +1,17 @@
-@reference "@cytario/design/styles/tokens.css";
+/**
+ * Tailwind entry. Import order matters, twice over:
+ * 1. The design package's compiled css (styles.css → dist) must come BEFORE
+ *    tailwindcss: it is a full compiled stylesheet whose own @layer utilities
+ *    duplicate common utility classes (.grid-cols-1, …) — imported after
+ *    tailwind, those duplicates would out-rank our own (container-variant)
+ *    utilities within the shared utilities layer.
+ * 2. The design catalog (tokens.css, including the namespace resets that
+ *    kill off-catalog default utilities) must merge AFTER the default theme
+ *    so its declarations win. It contains only @theme blocks — no CSS output.
+ */
 @import "@cytario/design/styles.css";
 @import "tailwindcss";
+@import "@cytario/design/styles/tokens.css";
 /**
  * Scan the compiled design library so Tailwind discovers utility classes
  * embedded in design components (e.g. {@code bg-badge-purple-bg},

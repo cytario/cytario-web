@@ -122,7 +122,7 @@ const AnnotationFileBlock = ({
               if (e.key === "Escape") setIsRenaming(false);
             }}
             aria-label={`Rename ${label}`}
-            className="h-7 min-w-0 grow rounded-md border border-input bg-background px-2 font-medium text-sm outline-none focus-visible:outline focus-visible:outline-ring"
+            className="h-7 min-w-0 grow rounded-md border border-border bg-background px-2 font-medium text-sm outline-none focus-visible:outline focus-visible:outline-ring"
           />
         ) : (
           <div

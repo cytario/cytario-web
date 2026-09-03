@@ -187,7 +187,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto rounded border border-border">
+          <div className="max-h-80 overflow-y-auto rounded-sm border border-border">
             <DirectoryViewTree
               key={activeConnectionId}
               nodes={rootNodes}
