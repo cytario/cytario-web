@@ -33,36 +33,32 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   // provider role, resolved from the org catalog, not on the connection. The
   // embedded role is the downloading user's most permissive applicable grant
   // (SRS-CY-43111) — the same rule the browser credential mint applies.
-  let connectionProvider;
-  let noApplicableGrant = false;
+  let resolvedConnectionProvider;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
-    const resolvedWithGrants = resolveConnectionProviderWithGrants(catalog, connectionConfig);
-    if (resolvedWithGrants) {
-      const grant = pickGrantForUser(resolvedWithGrants, user, connectionConfig.organization);
-      if (grant) {
-        connectionProvider = {
-          region: resolvedWithGrants.region,
-          endpoint: resolvedWithGrants.endpoint,
-          roleArn: grant.roleArn,
-        };
-      } else {
-        noApplicableGrant = true;
-      }
+    const resolved = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+    if (!resolved) {
+      return new Response("Provider connection or role is unavailable for this connection", {
+        status: 502,
+      });
     }
+    const grant = pickGrantForUser(resolved, user, connectionConfig.organization);
+    if (!grant) {
+      return new Response("You are not a member of any group granted access to this connection.", {
+        status: 403,
+      });
+    }
+    resolvedConnectionProvider = {
+      region: resolved.region,
+      endpoint: resolved.endpoint,
+      roleArn: grant.roleArn,
+    };
   } catch {
-    connectionProvider = undefined;
-  }
-  if (noApplicableGrant) {
-    return new Response("You are not a member of any group granted access to this connection.", {
-      status: 403,
-    });
-  }
-  if (!connectionProvider) {
     return new Response("Provider connection or role is unavailable for this connection", {
       status: 502,
     });
   }
+  const connectionProvider = resolvedConnectionProvider;
 
   const actualRegion = connectionProvider.region;
   const providerConfig = getS3ProviderConfig(connectionProvider.endpoint, actualRegion);
