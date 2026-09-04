@@ -26,6 +26,7 @@ export function useNodeContextMenu({
   const connectionConfig = connection?.connectionConfig;
 
   const ctx = useContextMenu({
+    label: `Actions for ${node.name}`,
     content: connectionConfig ? (
       <>
         <NavigationMenuItems node={node} isCurrent={isCurrent} />

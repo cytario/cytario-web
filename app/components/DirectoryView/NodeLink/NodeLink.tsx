@@ -104,7 +104,7 @@ export function NodeLink({
         {/* Context Menu Trigger */}
         <IconButton
           icon="EllipsisVertical"
-          label="More actions"
+          label={`Actions for ${node.name}`}
           size="xs"
           variant="neutral"
           className={`
