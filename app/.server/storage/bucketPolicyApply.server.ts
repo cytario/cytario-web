@@ -135,15 +135,16 @@ export const applyBucketPolicy = async (
   idToken: string,
   actingUserName: string,
 ): Promise<ApplyResult> => {
-  // Inject the write-session role ARN into every grant so compileGrantStatements
-  // can set the correct Principal on each bucket-policy statement.
-  const enrichedGrants = grants.map((grant) => ({ ...grant, roleArn: target.roleArn }));
+  // Each grant carries its own catalog-resolved `roleArn` (SRS-CY-43110 / C-438):
+  // the statement `Principal` is the role the GRANT names, never the write
+  // session's role. `target.roleArn` mints the write session only (SRS-CY-413106).
+  // A grant without a `roleArn` is rejected fail-closed by `compileGrantStatements`.
 
   // Generate first (outside the lock) so a generation/size fault fails closed
   // before we mint a write session or touch the live policy. The merged document
   // is regenerated inside the lock against the freshly-read live policy; this
   // pre-check just short-circuits obvious faults.
-  buildMergedPolicy(parseBucketPolicy(null), enrichedGrants);
+  buildMergedPolicy(parseBucketPolicy(null), grants);
 
   const accountId = accountIdFromRoleArn(target.roleArn);
   const roleSessionName = sanitizeRoleSessionName(actingUserName);
@@ -155,7 +156,7 @@ export const applyBucketPolicy = async (
       const liveRaw = await getLivePolicy(client, target.bucketName);
       const live = parseBucketPolicy(liveRaw);
 
-      const merged = buildMergedPolicy(live, enrichedGrants);
+      const merged = buildMergedPolicy(live, grants);
 
       await client.send(
         new PutBucketPolicyCommand({ Bucket: target.bucketName, Policy: merged.serialized }),

@@ -43,12 +43,20 @@ const WRITE_CREDS = {
 };
 
 const ORG = "vericura";
+
+// C-438: the write-session role and the grant's own provider role are DELIBERATELY
+// distinct so any future overwrite of the grant's `roleArn` with the write
+// session's role fails loudly (the original bug was invisible because the two
+// fixture ARNs were identical).
+const WRITE_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-admin";
+const GRANT_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-ro";
+
 const target: ApplyTarget = {
   organization: ORG,
   bucketName: "customer-bucket",
   region: "eu-central-1",
   endpoint: null,
-  roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw",
+  roleArn: WRITE_ROLE_ARN,
 };
 
 const grant = (overrides: Partial<BucketPolicyGrant> = {}): BucketPolicyGrant => ({
@@ -57,6 +65,7 @@ const grant = (overrides: Partial<BucketPolicyGrant> = {}): BucketPolicyGrant =>
   groupPath: "Lab/TeamX",
   prefix: "projects/alpha",
   accessLevel: "read-only",
+  roleArn: GRANT_ROLE_ARN,
   ...overrides,
 });
 
@@ -137,7 +146,66 @@ describe("applyBucketPolicy — happy path", () => {
     for (const stmt of managed) {
       expect(stmt.Condition.StringEquals["aws:PrincipalTag/ORG"]).toBe(ORG);
       expect(stmt.Condition.StringEquals["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
+      // C-438: the Principal is the grant's own role, never the write session's role.
+      expect(stmt.Principal.AWS).toBe(GRANT_ROLE_ARN);
     }
+  });
+
+  test("C-438: each grant's statements name that grant's own provider-role ARN as Principal — never the write-session role", async () => {
+    const readOnly = grant({
+      groupPath: "*",
+      prefix: null,
+      accessLevel: "read-only",
+      roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/org-ro",
+    });
+    const admin = grant({
+      groupPath: "internal",
+      prefix: null,
+      accessLevel: "admin",
+      roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/org-admin",
+    });
+
+    await applyBucketPolicy(target, [readOnly, admin], "id-token", "Alice Admin");
+
+    const putInput = vi.mocked(PutBucketPolicyCommand).mock.calls[0][0];
+    const applied = JSON.parse(putInput.Policy as string);
+    const managed = applied.Statement.filter(isManagedStatement);
+    expect(managed.length).toBeGreaterThan(0);
+
+    const writeActions = new Set(["s3:PutObject", "s3:DeleteObject"]);
+    for (const stmt of managed) {
+      const actions = Array.isArray(stmt.Action) ? stmt.Action : [stmt.Action];
+      const principals = Array.isArray(stmt.Principal.AWS)
+        ? stmt.Principal.AWS
+        : [stmt.Principal.AWS];
+
+      // The write-session role is never a statement Principal.
+      expect(principals).not.toContain(WRITE_ROLE_ARN);
+
+      // Read-only statements (GetObject-only) → the read-only grant's role.
+      if (actions.every((a: string) => a === "s3:GetObject")) {
+        expect(principals).toContain(
+          "arn:aws:iam::123456789012:role/cytario/provider-roles/org-ro",
+        );
+      }
+
+      // Admin statements (carry write actions) → the admin grant's role.
+      if (actions.some((a: string) => writeActions.has(a))) {
+        expect(principals).toEqual([
+          "arn:aws:iam::123456789012:role/cytario/provider-roles/org-admin",
+        ]);
+      }
+    }
+  });
+
+  test("FAIL CLOSED: a grant without a roleArn is rejected with no PutBucketPolicy", async () => {
+    const withoutRole: BucketPolicyGrant = { ...grant(), roleArn: undefined };
+    await expect(
+      applyBucketPolicy(target, [withoutRole], "id-token", "Alice Admin"),
+    ).rejects.toThrow(/roleArn/i);
+
+    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
+    expect(PutBucketPolicyCommand).not.toHaveBeenCalled();
   });
 
   test("PRESERVES foreign statements on read-merge-write", async () => {

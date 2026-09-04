@@ -7,7 +7,6 @@ import { compileGrantStatements } from "~/.server/storage/bucketPolicy";
 import { applyBucketPolicy } from "~/.server/storage/bucketPolicyApply.server";
 import {
   applyBucketGrantSet,
-  applyConnectionGrants,
   assembleBucketGrants,
   grantForConnection,
   resolveApplyTarget,
@@ -335,42 +334,54 @@ describe("applyBucketGrantSet", () => {
       "arn:aws:iam::123456789012:role/admin",
     );
   });
-});
 
-describe("applyConnectionGrants — advisory degradation", () => {
-  test("returns an error outcome (never throws, never blocks) when the catalog is unavailable", async () => {
-    vi.mocked(getProviderCatalog).mockRejectedValueOnce(new Error("catalog down"));
+  test("C-438: the grants handed to applyBucketPolicy keep each grant's OWN catalog-resolved roleArn (read-only `*` + internal admin), and the write session uses the admin role", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(shareableCatalog);
+    vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue([
+      mock.connectionConfig({
+        name: "conn",
+        bucketName: "b",
+        providerConnectionId: "pc-mock",
+        grants: [
+          mock.connectionGrant({ scope: "*", providerRoleId: "pr-ro" }),
+          mock.connectionGrant({ scope: "internal", providerRoleId: "pr-rw" }),
+        ],
+      }),
+    ]);
+    vi.mocked(applyBucketPolicy).mockResolvedValue({ status: "applied" });
+
+    const bucket = { organization: "org1", providerConnectionId: "pc-mock", bucketName: "b" };
     const config = mock.connectionConfig({
+      name: "conn",
       bucketName: "b",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-mock" })],
+      providerConnectionId: "pc-mock",
+      grants: [
+        mock.connectionGrant({ scope: "*", providerRoleId: "pr-ro" }),
+        mock.connectionGrant({ scope: "internal", providerRoleId: "pr-rw" }),
+      ],
     });
-    const outcome = await applyConnectionGrants(config, [], {
+    const outcome = await applyBucketGrantSet(bucket, config, {
       user: mock.user(),
       idToken: "tok",
       accessToken: "acc",
     });
-    expect(outcome.status).toBe("error");
-    if (outcome.status === "error") expect(outcome.warning).toMatch(/catalog down/i);
-  });
 
-  test("returns an error outcome when the connection's provider reference is stale", async () => {
-    vi.mocked(getProviderCatalog).mockResolvedValueOnce({
-      providerConnections: [],
-      providerRoles: [],
-      computeProviders: [],
-      computeRoles: [],
-      appCatalogs: [],
-    });
-    const config = mock.connectionConfig({
-      bucketName: "b",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-mock" })],
-    });
-    const outcome = await applyConnectionGrants(config, [], {
-      user: mock.user(),
-      idToken: "tok",
-      accessToken: "acc",
-    });
-    expect(outcome.status).toBe("error");
+    expect(outcome.status).toBe("applied");
+
+    // Write session (ApplyTarget) is minted under the Admin-level role.
+    expect(vi.mocked(applyBucketPolicy).mock.calls[0][0].roleArn).toBe(
+      "arn:aws:iam::123456789012:role/admin",
+    );
+
+    // Grants keep their OWN role ARNs — they are NOT overwritten with the
+    // write-session role (C-438 regression: the org-root read-only grant must
+    // contribute the read-only role as its bucket-policy Principal).
+    const appliedGrants = vi.mocked(applyBucketPolicy).mock.calls[0][1];
+    const byScope = new Map(appliedGrants.map((g) => [g.groupPath, g]));
+    expect(byScope.get("*")?.roleArn).toBe("arn:aws:iam::123456789012:role/read-only");
+    expect(byScope.get("*")?.accessLevel).toBe("read-only");
+    expect(byScope.get("internal")?.roleArn).toBe("arn:aws:iam::123456789012:role/admin");
+    expect(byScope.get("internal")?.accessLevel).toBe("admin");
   });
 });
 
