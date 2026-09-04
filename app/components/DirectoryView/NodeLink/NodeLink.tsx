@@ -87,36 +87,39 @@ export function NodeLink({
         <Checkbox isSelected={isSelected(node)} onChange={() => onToggleSelect(node)} />
       )}
 
-      <NavLink
-        to={to}
-        end
-        tabIndex={onContextMenuTarget ? -1 : undefined}
-        className={twMerge(ROW_CX, clickable && CLICKABLE_CX, isCurrent && ACTIVE_CX)}
-        onClick={clickable ? handleClick : (e) => e.preventDefault()}
-        {...targetProps}
-      >
-        {/* Icon or Connection Status */}
-        <NodeIndicator node={node} />
+      {clickable ? (
+        <NavLink
+          to={to}
+          end
+          className={twMerge(ROW_CX, CLICKABLE_CX, isCurrent && ACTIVE_CX)}
+          onClick={handleClick}
+          {...targetProps}
+        >
+          <NodeIndicator node={node} />
+          <TruncatedText>{node.name}</TruncatedText>
+        </NavLink>
+      ) : (
+        <div className={twMerge(ROW_CX, isCurrent && ACTIVE_CX)} {...targetProps}>
+          <NodeIndicator node={node} />
+          <TruncatedText>{node.name}</TruncatedText>
+        </div>
+      )}
 
-        {/* Node Name */}
-        <TruncatedText>{node.name}</TruncatedText>
-
-        {/* Context Menu Trigger */}
+      {ctx && (
         <IconButton
           icon="EllipsisVertical"
           label={`Actions for ${node.name}`}
           size="xs"
           variant="neutral"
           className={`
-            absolute right-0 top-0 
+            absolute right-0 top-0
             opacity-0 group-hover:opacity-100 group-focus-within:opacity-100
             transition-opacity delay-0 group-hover:delay-200
           `}
-          {...ctx?.triggerProps}
+          {...ctx.triggerProps}
         />
-      </NavLink>
+      )}
 
-      {/* Context Menu */}
       {ctx?.menu}
     </div>
   );
