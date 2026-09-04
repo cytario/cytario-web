@@ -24,9 +24,7 @@ vi.mock("@cytario/design", async (importOriginal) => {
 
 // Stand-in so the test exercises trail-building, not NodeLink's router/store deps.
 vi.mock("../../DirectoryView/NodeLink/NodeLink", () => ({
-  NodeLink: ({ node, contextMenu }: { node: TreeNode; contextMenu?: boolean }) => (
-    <span data-menu={contextMenu ? "true" : "false"}>{node.name}</span>
-  ),
+  NodeLink: ({ node }: { node: TreeNode }) => <span data-menu="true">{node.name}</span>,
 }));
 
 const staticNode = (name: string): TreeNode => ({
@@ -67,7 +65,7 @@ describe("Breadcrumbs", () => {
     );
   });
 
-  test("only the leaf crumb gets a context menu", () => {
+  test("every crumb gets a context menu", () => {
     (useMatches as Mock).mockReturnValue([
       {
         pathname: "/connections/bucket/a/b",
@@ -78,8 +76,8 @@ describe("Breadcrumbs", () => {
     const { getByText } = renderBreadcrumbs();
 
     expect(getByText("b").getAttribute("data-menu")).toBe("true");
-    expect(getByText("bucket").getAttribute("data-menu")).toBe("false");
-    expect(getByText("a").getAttribute("data-menu")).toBe("false");
+    expect(getByText("bucket").getAttribute("data-menu")).toBe("true");
+    expect(getByText("a").getAttribute("data-menu")).toBe("true");
   });
 
   test("renders only the Logo when no match carries a node handle", () => {

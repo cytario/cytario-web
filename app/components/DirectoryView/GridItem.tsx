@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { twMerge } from "tailwind-merge";
 
@@ -14,15 +14,18 @@ interface GridItemProps {
   className?: string;
 }
 
-/**
- * Generic grid item composed of a preview slot on top, a `NodeLink` row in the
- * middle, and an optional meta row at the bottom. Replaces type-specific
- * `StorageConnectionCard` / `FileCard` usages from `@cytario/design`; the card
- * chrome (border, shadow, hover) lives here so we can iterate without
- * round-tripping through the design-system package.
- */
+/** Grid card: preview slot + NodeLink row + optional meta. Card-wide right-click
+ *  delegates to NodeLink's context menu via `onContextMenuTarget`. */
 export function GridItem({ node, preview, children, className }: GridItemProps) {
   const to = buildConnectionPath(node.connectionId, node.pathName);
+  const contextMenuRef = useRef<((event: React.MouseEvent) => void) | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    previewRef.current?.querySelectorAll("[tabindex]").forEach((el) => {
+      (el as HTMLElement).tabIndex = -1;
+    });
+  }, [node]);
 
   const cx = `
     group flex flex-col overflow-hidden rounded-xl
@@ -30,11 +33,17 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
     border border-border
     transition-all
     hover:border-ring
+    focus-visible:outline-none
+    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
   `;
 
   return (
-    <Link to={to} className={twMerge(cx, className)}>
-      <div className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
+    <Link
+      to={to}
+      className={twMerge(cx, className)}
+      onContextMenu={(e) => contextMenuRef.current?.(e)}
+    >
+      <div ref={previewRef} className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
             <NodeIcon node={node} size="xl" />
@@ -49,7 +58,13 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
           border-t border-border
         `}
       >
-        <NodeLink node={node} isClickable={() => false} />
+        <NodeLink
+          node={node}
+          isClickable={() => false}
+          onContextMenuTarget={(handler) => {
+            contextMenuRef.current = handler;
+          }}
+        />
         {children && <div className="flex items-center gap-2">{children}</div>}
       </div>
     </Link>

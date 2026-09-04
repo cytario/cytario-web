@@ -130,7 +130,7 @@ export function DirectoryViewTree({
             <div
               key={item.getKey()}
               {...itemProps}
-              style={{ paddingLeft: `${level * 28}px` }}
+              style={{ paddingLeft: `${level * 12}px` }}
               className="flex items-center mx-2"
             >
               {isFolder ? (

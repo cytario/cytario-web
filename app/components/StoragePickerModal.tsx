@@ -205,7 +205,6 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
                     toggleNode(node);
                   }
                 },
-                contextMenu: false,
                 isSelected,
                 onToggleSelect: toggleNode,
               }}

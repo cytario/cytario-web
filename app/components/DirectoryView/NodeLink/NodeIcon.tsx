@@ -20,5 +20,5 @@ export function getNodeIcon(node: { type: string; name: string }): IconName {
 }
 
 export function NodeIcon({ node, size = "sm", className }: NodeIconProps) {
-  return <Icon icon={getNodeIcon(node)} size={size} strokeWidth={1.5} className={className} />;
+  return <Icon icon={getNodeIcon(node)} size={size} strokeWidth={2} className={className} />;
 }

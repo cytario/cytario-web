@@ -1,9 +1,9 @@
-import { Checkbox, TruncatedText } from "@cytario/design";
-import { MouseEventHandler, ReactNode } from "react";
+import { Checkbox, TruncatedText, IconButton } from "@cytario/design";
+import { type MouseEventHandler, type ReactNode } from "react";
 import { NavLink, useMatch } from "react-router";
 import { twMerge } from "tailwind-merge";
 
-import { NodeContextMenu } from "./NodeContextMenu";
+import { useNodeContextMenu } from "./NodeContextMenu/useNodeContextMenu";
 import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { buildConnectionPath } from "~/utils/resourceId";
@@ -11,8 +11,7 @@ import { buildConnectionPath } from "~/utils/resourceId";
 export interface NodeLinkProps {
   node: TreeNode;
   onClick?: (node: TreeNode) => void;
-  contextMenu?: boolean;
-  /** Caller-specific `MenuItem`s appended to the context menu (see `NodeContextMenu`). */
+  /** Caller-specific `MenuItem`s appended to the context menu. */
   contextMenuItems?: ReactNode;
   isClickable?: (node: TreeNode) => boolean;
   className?: string;
@@ -20,44 +19,60 @@ export interface NodeLinkProps {
   isSelected?: (node: TreeNode) => boolean;
   /** Called when the checkbox is toggled. Only rendered when `isSelected` is also provided. */
   onToggleSelect?: (node: TreeNode) => void;
+  /** When provided, the context menu's right-click handler is delegated to the
+   *  parent (e.g. GridItem spreads it on its card). NodeLink does not spread
+   *  `targetProps` on its own row in this case. */
+  onContextMenuTarget?: (handler: ((event: React.MouseEvent) => void) | null) => void;
 }
 
-/**
- * Single visual representation of a `TreeNode` shared across list, grid and
- * tree views. Renders an appropriate leading visual (connection status dot for
- * buckets, file-type icon otherwise), the node name, and an optional trailing
- * context menu trigger. Pass `isClickable={() => false}` to render the row as
- * a non-navigating block (e.g. when an outer element already owns navigation).
- * A node whose path matches the current URL is treated as the current location:
- * non-navigating, active-styled, and flagged `isCurrent` to its context menu.
- */
+const ROW_CX = `
+  flex items-center grow
+  font-medium text-sm
+  min-w-0 h-7
+  rounded-full
+  gap-1
+  px-1 group-hover:pe-7 group-focus-within:pe-7
+
+  [transition:padding-inline-end_150ms_0ms,background-color_150ms_0ms,color_150ms_0ms]
+  hover:[transition:padding-inline-end_150ms_300ms,background-color_150ms_0ms,color_150ms_0ms]
+  focus-within:[transition:padding-inline-end_150ms_300ms,background-color_150ms_0ms,color_150ms_0ms]
+`;
+
+const FOCUS_CX = `
+  focus-visible:outline-none
+  focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+`;
+
+const CLICKABLE_CX = `
+  hover:bg-muted
+  hover:text-foreground
+  ${FOCUS_CX}
+`;
+
+const ACTIVE_CX = `bg-muted text-foreground ${FOCUS_CX}`;
+
 export function NodeLink({
   node,
   onClick,
-  contextMenu = true,
   contextMenuItems,
   isClickable = () => true,
   className,
   isSelected,
   onToggleSelect,
+  onContextMenuTarget,
 }: NodeLinkProps) {
   const to = buildConnectionPath(node.connectionId, node.pathName);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
   const clickable = isClickable(node) && !isCurrent;
+  const ctx = useNodeContextMenu({ node, isCurrent, extraItems: contextMenuItems });
 
-  const rowCx = `
-    flex items-center grow 
-    font-medium text-sm
-    min-w-0 h-7 px-1 gap-0.5
-    rounded-full
-  `;
+  // Lift right-click handler to parent's ref (no state round-trip).
+  onContextMenuTarget?.(ctx?.targetProps.onContextMenu ?? null);
 
-  const clickAbleCx = `
-    hover:bg-muted hover:text-foreground
-    focus-visible:outline focus-visible:outline-ring
-  `;
+  // When parent owns right-click, don't add `group` — parent's group controls hover.
+  const containerCx = onContextMenuTarget ? "" : "group ";
 
-  const activeCx = "bg-muted text-foreground";
+  const targetProps = onContextMenuTarget ? {} : (ctx?.targetProps ?? {});
 
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (!onClick) return;
@@ -67,30 +82,46 @@ export function NodeLink({
   };
 
   return (
-    <div className={twMerge(rowCx, className, "px-0")}>
+    <div className={twMerge(containerCx, "flex items-center grow min-w-0 relative", className)}>
       {onToggleSelect && isSelected && node.type === "file" && (
         <Checkbox isSelected={isSelected(node)} onChange={() => onToggleSelect(node)} />
       )}
+
       {clickable ? (
         <NavLink
           to={to}
           end
-          className={({ isActive }) => twMerge(rowCx, clickAbleCx, isActive && activeCx)}
+          className={twMerge(ROW_CX, CLICKABLE_CX, isCurrent && ACTIVE_CX)}
           onClick={handleClick}
+          {...targetProps}
         >
           <NodeIndicator node={node} />
           <TruncatedText>{node.name}</TruncatedText>
         </NavLink>
       ) : (
-        <div className={twMerge(rowCx, isCurrent && activeCx)}>
+        <div className={twMerge(ROW_CX, isCurrent && ACTIVE_CX)} {...targetProps}>
           <NodeIndicator node={node} />
           <TruncatedText>{node.name}</TruncatedText>
         </div>
       )}
 
-      {contextMenu && (
-        <NodeContextMenu node={node} isCurrent={isCurrent} extraItems={contextMenuItems} />
+      {ctx && (
+        <IconButton
+          icon="EllipsisVertical"
+          label={`Actions for ${node.name}`}
+          size="xs"
+          variant="neutral"
+          className={`
+            absolute right-0 top-0
+            opacity-0 group-hover:opacity-100 group-focus-within:opacity-100
+            transition-opacity delay-0 group-hover:delay-200
+          `}
+          {...ctx.triggerProps}
+        />
       )}
+
+      {ctx?.menu}
+      {ctx?.dialogs}
     </div>
   );
 }
