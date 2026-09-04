@@ -1,8 +1,6 @@
-import { MenuItem, MenuSeparator } from "@cytario/design";
-import { useRef, useState } from "react";
-import { Form } from "react-router";
+import { MenuSeparator, MenuItem } from "@cytario/design";
+import { type RefObject } from "react";
 
-import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useModal } from "~/hooks/useModal";
@@ -10,16 +8,28 @@ import { canModify } from "~/utils/authorization";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
-export function BucketAdminItems({ node }: { node: TreeNode }) {
+/**
+ * Bucket admin menu items (Re-apply / Edit / Delete). Menu items only — the
+ * hidden forms and the delete ConfirmDialog live in `useNodeContextMenu`'s
+ * `dialogs` slot, OUTSIDE the popover: React-Aria unmounts menu content on
+ * close, so anything that must outlive the selection (forms, dialogs, the
+ * confirm state) cannot live here.
+ */
+export function BucketAdminItems({
+  node,
+  onOpenConfirm,
+  reapplyFormRef,
+}: {
+  node: TreeNode;
+  /** Captures the trigger's focus and opens the delete confirm dialog. */
+  onOpenConfirm: () => void;
+  /** Re-apply form rendered outside the popover; submitted imperatively. */
+  reapplyFormRef: RefObject<HTMLFormElement | null>;
+}) {
   const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
   const user = useCurrentUser();
   const { openModal } = useModal();
-
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
-  const reapplyFormRef = useRef<HTMLFormElement>(null);
-  const focusReturnRef = useRef<HTMLElement | null>(null);
 
   if (node.type !== "bucket") return null;
 
@@ -54,36 +64,10 @@ export function BucketAdminItems({ node }: { node: TreeNode }) {
         icon="Trash2"
         isDanger
         textValue="Delete connection"
-        onAction={() => {
-          focusReturnRef.current = document.activeElement as HTMLElement | null;
-          setConfirmOpen(true);
-        }}
+        onAction={onOpenConfirm}
       >
         Delete
       </MenuItem>
-
-      <Form method="delete" action="/connections" ref={formRef} className="hidden">
-        <input type="hidden" name="connectionId" value={connectionConfig.id} />
-      </Form>
-      <Form method="post" action="/connections" ref={reapplyFormRef} className="hidden">
-        <input type="hidden" name="_intent" value="reapply" />
-        <input type="hidden" name="connectionId" value={connectionConfig.id} />
-      </Form>
-      <ConfirmDialog
-        open={confirmOpen}
-        onCancel={() => {
-          setConfirmOpen(false);
-          requestAnimationFrame(() => focusReturnRef.current?.focus());
-        }}
-        onConfirm={() => formRef.current?.requestSubmit()}
-        title="Remove connection?"
-        confirmLabel="Remove"
-      >
-        <p>
-          This will remove <strong>{node.name}</strong> and its associated recents and pins. The
-          underlying storage is not affected.
-        </p>
-      </ConfirmDialog>
     </>
   );
 }

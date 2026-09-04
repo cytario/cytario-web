@@ -121,6 +121,7 @@ export function NodeLink({
       )}
 
       {ctx?.menu}
+      {ctx?.dialogs}
     </div>
   );
 }
