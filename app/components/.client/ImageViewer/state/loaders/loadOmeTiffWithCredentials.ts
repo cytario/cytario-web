@@ -111,6 +111,32 @@ export function stripUnsupportedSubImages(omexml: string): string {
   return result;
 }
 
+// A stripped (non-tiled) TIFF with far more strips than a single tile can
+// aggregate makes every tile render issue thousands of single-row range
+// requests + decodes, saturating the main thread. Refuse such files instead
+// of freezing the tab; small stripped files stay well under this.
+const MAX_RENDERABLE_STRIPS = 512;
+
+export class NonTiledOmeTiffError extends Error {
+  constructor(stripCount: number) {
+    super(
+      `OME-TIFF is not tile-based: ${stripCount} strips (single-strip rows) — ` +
+        "re-encode it as a tiled pyramidal OME-TIFF (e.g. 512×512 tiles) to view it here.",
+    );
+    this.name = "NonTiledOmeTiffError";
+  }
+}
+
+/** Whether the IFD is stripped with more strips than tile rendering can bear. */
+export function isStrippedBeyondRenderBudget(fileDirectory: {
+  TileOffsets?: unknown;
+  StripOffsets?: unknown[];
+}): boolean {
+  return (
+    !fileDirectory.TileOffsets && (fileDirectory.StripOffsets?.length ?? 0) > MAX_RENDERABLE_STRIPS
+  );
+}
+
 /** Load an OME-TIFF via SigV4-signed S3 requests; delegates to viv. */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
@@ -158,6 +184,9 @@ export async function loadOmeTiffWithCredentials(
   // to viv's subsequent getImage(0) call — no extra network round-trip.
   try {
     const firstImage = await source.getImage(0);
+    if (isStrippedBeyondRenderBudget(firstImage.fileDirectory)) {
+      throw new NonTiledOmeTiffError(firstImage.fileDirectory.StripOffsets!.length);
+    }
     const omexml = firstImage.fileDirectory.ImageDescription;
     if (typeof omexml === "string") {
       const stripped = stripUnsupportedSubImages(omexml);
@@ -170,8 +199,10 @@ export async function loadOmeTiffWithCredentials(
         firstImage.fileDirectory.ImageDescription = stripped;
       }
     }
-  } catch {
-    // If pre-read fails, let viv's loadOmeTiff surface the real error.
+  } catch (error) {
+    // A deliberate refusal must reach the viewer's error state; anything else
+    // falls through so viv's loadOmeTiff surfaces the real error.
+    if (error instanceof NonTiledOmeTiffError) throw error;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
