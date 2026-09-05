@@ -1,5 +1,5 @@
 import { animate, motion, useMotionValue } from "motion/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { SIDEBAR_MIN_WIDTH, type SidebarStoreApi } from "./createSidebarStore";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
@@ -54,6 +54,24 @@ export function Sidebar({
   const isOpen = store((s) => s.isOpen);
   const width = store((s) => s.width);
   const motionWidth = useMotionValue(isOpen ? width : 0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      // Firefox/macOS momentum copies: after a trackpad gesture that ends on
+      // a preventDefault target (the deck.gl canvas), the async-pan scroll
+      // stays bound to that original target, so non-cancelable momentum
+      // events dispatched over the sidebar scroll nothing. Apply the deltas
+      // manually; cancelable events keep their native scrolling.
+      if (e.cancelable || (!e.deltaY && !e.deltaX)) return;
+      el.scrollTop += e.deltaY;
+      el.scrollLeft += e.deltaX;
+    };
+    el.addEventListener("wheel", onWheel, { passive: true });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   useEffect(() => {
     // rehydrate() applies persisted state in a microtask, so force-open and the
@@ -105,6 +123,7 @@ export function Sidebar({
           stays interactive and unclipped when the panel is closed. */}
       <div className="h-full w-full overflow-hidden" inert={!isOpen || undefined}>
         <div
+          ref={scrollRef}
           className="flex h-full flex-col overflow-auto pb-60"
           style={{ minWidth: SIDEBAR_MIN_WIDTH }}
         >

@@ -78,6 +78,7 @@ export function ImageContainer({
           >
             <Icon icon="ImageOff" size={isPreview ? "md" : "xl"} strokeWidth={1.5} />
             <div className="text-xs">Preview unavailable</div>
+            {error.message && <div className="text-xs line-clamp-3">{error.message}</div>}
           </div>
         ) : (
           <>
