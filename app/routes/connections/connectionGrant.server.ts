@@ -310,53 +310,6 @@ export type ApplyGrantOutcome =
   | { status: "drifted"; warning: string; result: ApplyResult }
   | { status: "error"; warning: string };
 
-/**
- * Apply the desired managed grant set for the bucket a connection lives on, under
- * the acting user's connection provider-role write session. `bucketGrants` is the
- * full desired managed set for that bucket. Degradation is two-level and never
- * blocks the connection/share record:
- *  - `drifted`: the write itself was refused (`s3:PutBucketPolicy` denied) — the
- *    live policy is known to diverge from the intended grant set;
- *  - `error`: the apply could not run at all (catalog unavailable, generation
- *    fault, lock or STS failure).
- * Neither outcome ever claims the grant was enforced.
- */
-export async function applyConnectionGrants(
-  config: ConnectionConfigWithGrants,
-  bucketGrants: BucketPolicyGrant[],
-  acting: ActingContext,
-): Promise<ApplyGrantOutcome> {
-  const targetResult = await resolveApplyTarget(config, acting.accessToken);
-  if (!targetResult.ok) {
-    return { status: "error", warning: targetResult.error };
-  }
-
-  try {
-    const result = await applyBucketPolicy(
-      targetResult.target,
-      bucketGrants,
-      acting.idToken,
-      acting.user.name,
-    );
-    if (result.status === "warning") {
-      return {
-        status: "drifted",
-        warning: result.warning ?? "Bucket policy could not be applied.",
-        result,
-      };
-    }
-    return { status: "applied", result };
-  } catch (error) {
-    return {
-      status: "error",
-      warning:
-        error instanceof Error
-          ? error.message
-          : "The bucket policy could not be applied. Access remains governed by the existing bucket policy.",
-    };
-  }
-}
-
 /** The bucket a managed grant set is assembled over. */
 export interface BucketRef {
   organization: string;
