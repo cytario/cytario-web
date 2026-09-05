@@ -1,4 +1,7 @@
-import { stripUnsupportedSubImages } from "../loadOmeTiffWithCredentials";
+import {
+  stripUnsupportedSubImages,
+  isStrippedBeyondRenderBudget,
+} from "../loadOmeTiffWithCredentials";
 
 function omeImage(
   id: string,
@@ -116,5 +119,22 @@ describe("stripUnsupportedSubImages", () => {
   test("returns single-image OME-XML unchanged, even when mis-declared", () => {
     const omexml = wrap(omeImage("0", { sizeC: 3, tiffData: [`<TiffData IFD="0"/>`] }));
     expect(stripUnsupportedSubImages(omexml)).toBe(omexml);
+  });
+});
+
+describe("isStrippedBeyondRenderBudget", () => {
+  test("flags a non-tiled IFD with thousands of single-row strips", () => {
+    expect(isStrippedBeyondRenderBudget({ StripOffsets: new Array(14004) })).toBe(true);
+  });
+
+  test("allows tiled IFDs regardless of strip layout", () => {
+    expect(isStrippedBeyondRenderBudget({ TileOffsets: [0], StripOffsets: new Array(14004) })).toBe(
+      false,
+    );
+  });
+
+  test("allows small stripped IFDs", () => {
+    expect(isStrippedBeyondRenderBudget({ StripOffsets: new Array(64) })).toBe(false);
+    expect(isStrippedBeyondRenderBudget({})).toBe(false);
   });
 });
