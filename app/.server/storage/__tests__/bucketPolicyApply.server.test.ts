@@ -44,10 +44,8 @@ const WRITE_CREDS = {
 
 const ORG = "vericura";
 
-// C-438: the write-session role and the grant's own provider role are DELIBERATELY
-// distinct so any future overwrite of the grant's `roleArn` with the write
-// session's role fails loudly (the original bug was invisible because the two
-// fixture ARNs were identical).
+// The write-session role and the grant's own provider role are deliberately
+// distinct so an overwrite of the grant's `roleArn` fails loudly.
 const WRITE_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-admin";
 const GRANT_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-ro";
 
@@ -146,12 +144,12 @@ describe("applyBucketPolicy — happy path", () => {
     for (const stmt of managed) {
       expect(stmt.Condition.StringEquals["aws:PrincipalTag/ORG"]).toBe(ORG);
       expect(stmt.Condition.StringEquals["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
-      // C-438: the Principal is the grant's own role, never the write session's role.
+      // The Principal is the grant's own role, never the write session's role.
       expect(stmt.Principal.AWS).toBe(GRANT_ROLE_ARN);
     }
   });
 
-  test("C-438: each grant's statements name that grant's own provider-role ARN as Principal — never the write-session role", async () => {
+  test("each grant's statements name that grant's own provider-role ARN as Principal — never the write-session role", async () => {
     const readOnly = grant({
       groupPath: "*",
       prefix: null,

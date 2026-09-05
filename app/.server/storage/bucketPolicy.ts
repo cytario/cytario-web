@@ -48,10 +48,8 @@ export interface BucketPolicyGrant {
   prefix: string | null | undefined;
   accessLevel: AccessLevel;
   /** The IAM role ARN that is the Principal in the grant's S3 bucket-policy
-   *  statements (SRS-CY-43110) — the role the GRANT names, never the apply
-   *  write-session's role (C-438). Resolved per-grant from the provider
-   *  catalog by the caller (`grantForConnection` / `assembleBucketGrants`);
-   *  never modified by `applyBucketPolicy`. */
+   *  statements — the role the grant names, resolved from the provider catalog
+   *  by the caller; never the apply write-session's role. */
   roleArn?: string;
 }
 

@@ -335,7 +335,7 @@ describe("applyBucketGrantSet", () => {
     );
   });
 
-  test("C-438: the grants handed to applyBucketPolicy keep each grant's OWN catalog-resolved roleArn (read-only `*` + internal admin), and the write session uses the admin role", async () => {
+  test("the grants handed to applyBucketPolicy keep each grant's OWN catalog-resolved roleArn (read-only `*` + internal admin), and the write session uses the admin role", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(shareableCatalog);
     vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue([
       mock.connectionConfig({
@@ -373,9 +373,8 @@ describe("applyBucketGrantSet", () => {
       "arn:aws:iam::123456789012:role/admin",
     );
 
-    // Grants keep their OWN role ARNs — they are NOT overwritten with the
-    // write-session role (C-438 regression: the org-root read-only grant must
-    // contribute the read-only role as its bucket-policy Principal).
+    // Grants keep their own role ARNs — the write-session role never leaks
+    // into the bucket-policy Principals.
     const appliedGrants = vi.mocked(applyBucketPolicy).mock.calls[0][1];
     const byScope = new Map(appliedGrants.map((g) => [g.groupPath, g]));
     expect(byScope.get("*")?.roleArn).toBe("arn:aws:iam::123456789012:role/read-only");

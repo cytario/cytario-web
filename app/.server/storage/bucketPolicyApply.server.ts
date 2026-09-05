@@ -135,10 +135,9 @@ export const applyBucketPolicy = async (
   idToken: string,
   actingUserName: string,
 ): Promise<ApplyResult> => {
-  // Each grant carries its own catalog-resolved `roleArn` (SRS-CY-43110 / C-438):
-  // the statement `Principal` is the role the GRANT names, never the write
-  // session's role. `target.roleArn` mints the write session only (SRS-CY-413106).
-  // A grant without a `roleArn` is rejected fail-closed by `compileGrantStatements`.
+  // The write-session role (`target.roleArn`) signs the PutBucketPolicy; each
+  // grant's own `roleArn` is the statement Principal. A grant without a
+  // `roleArn` is rejected fail-closed by `compileGrantStatements`.
 
   // Generate first (outside the lock) so a generation/size fault fails closed
   // before we mint a write session or touch the live policy. The merged document

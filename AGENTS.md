@@ -148,8 +148,10 @@ import { cytarioConfig } from "~/config";
 
 - Default to **no comments**. Well-named identifiers should carry the meaning. Only add a comment when the _why_ is non-obvious (a hidden constraint, a subtle invariant, a workaround for a specific bug, behavior that would surprise a reader).
 - **Keep comments concise.** One short line in most cases. Never write multi-paragraph commentary or restate what the code already says.
-- **Do not reference ticket numbers** (e.g. `C-205`, `WEB-344`, `OWASP A05:2021`) in code comments or JSDoc. Ticket IDs rot — the issue gets renamed, closed, or migrated, and the comment becomes a dangling reference. The PR description, commit message, and `git blame` already carry that context; let them.
+- **Do not reference ticket numbers** (e.g. `C-205`, `WEB-344`, `OWASP A05:2021`) in code comments, JSDoc, or **test names**. Ticket IDs rot — the issue gets renamed, closed, or migrated, and the comment becomes a dangling reference. The PR description, commit message, and `git blame` already carry that context; let them.
+- **Do not reference requirement IDs** (e.g. `SRS-CY-43110`, `SDS-CY-011102`) in code comments or JSDoc either — same failure mode. The requirement documents live in `cytario-docs`; traceability is their job, not the code's. (Test files may keep requirement-ID references where they are the linkage to the spec suite — follow the existing pattern of each test file.)
 - Do not reference the current task, fix, or callers (`used by X`, `added for the Y flow`, `handles the case from issue #123`) — that context belongs in the PR description and rots as the codebase evolves.
+- Comments must state only what is important about the code at hand. Never replicate information from other sources — git history ("originally", "before the fix", "used to"), requirement docs, or ticket discussion — such duplication goes stale as those sources change and the comment silently lies.
 
 ### File Colocation
 
