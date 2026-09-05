@@ -228,7 +228,7 @@ describe("ViewerStoreContext", () => {
         <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
           <div>Back again</div>
         </ViewerStoreProvider>,
-      );;
+      );
 
       await waitFor(() => {
         expect(handlerLoad).toHaveBeenCalledTimes(2);
