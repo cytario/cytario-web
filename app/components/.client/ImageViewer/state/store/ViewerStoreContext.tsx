@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode, useMemo } from "react";
+import { createContext, useContext, useEffect, type ReactNode, useMemo } from "react";
 import { useStore, create } from "zustand";
 import { devtools } from "zustand/middleware";
 
@@ -20,6 +20,67 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 interface ViewerRegistryStore {
   viewers: Record<string, ViewerStoreApi>;
   registerViewer: (resourceId: string, signedFetch: SignedFetch, userId: string) => ViewerStoreApi;
+}
+
+// Mounted-provider refcounts per resourceId, plus the AbortController of the
+// most recent load. Loaders pin the geotiff source (its block cache is
+// unbounded by design) and the decode pool, so keeping them for every image
+// ever viewed — viewer pages and grid/bucket preview slots alike — accumulates
+// until the tab OOMs. The registry instead keeps only the lightweight state
+// (channels, view, annotations) and reloads pixels when the image comes back
+// into view.
+const mountedProviders = new Map<string, number>();
+const loadAborters = new Map<string, AbortController>();
+
+function startViewerLoad(
+  viewerStore: ViewerStoreApi,
+  resourceId: string,
+  signedFetch: SignedFetch,
+) {
+  const abortController = new AbortController();
+  loadAborters.set(resourceId, abortController);
+  const viewerState = viewerStore.getState();
+  viewerState.setIsViewerLoading(true);
+
+  const loadImage = async () => {
+    const { httpsUrl } = resolveResourceId(resourceId);
+    const { handler } = formatRegistry.resolve(httpsUrl);
+    return handler.load(httpsUrl, {
+      signedFetch,
+      signal: abortController.signal,
+    });
+  };
+
+  loadImage()
+    .then(({ data: loader, metadata }) => {
+      viewerState.setLoader(loader);
+      viewerState.setMetadata(metadata);
+    })
+    .catch((error: Error) => {
+      // A deliberate release aborts the load; don't surface that as an error.
+      if (abortController.signal.aborted) return;
+      viewerState.setError(error);
+    })
+    .finally(() => {
+      if (loadAborters.get(resourceId) === abortController) {
+        loadAborters.delete(resourceId);
+      }
+      if (!abortController.signal.aborted) {
+        viewerState.setIsViewerLoading(false);
+      }
+    });
+}
+
+function releaseViewer(resourceId: string) {
+  loadAborters.get(resourceId)?.abort();
+  loadAborters.delete(resourceId);
+  const viewerStore = useViewerRegistryStore.getState().viewers[resourceId];
+  if (!viewerStore) return;
+  const viewerState = viewerStore.getState();
+  if (viewerState.loader?.length) {
+    viewerState.setLoader([]);
+  }
+  viewerState.setIsViewerLoading(true);
 }
 
 /**
@@ -44,12 +105,15 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
               }
             });
           }
+          // The store survived a release (last provider unmounted); reload.
+          const state = existingStore.getState();
+          if (!state.loader?.length && !state.error && !loadAborters.has(resourceId)) {
+            startViewerLoad(existingStore, resourceId, signedFetch);
+          }
           return existingStore;
         }
 
         const viewerStore = createViewerStore(resourceId, userId);
-        const viewerState = viewerStore.getState();
-        const abortController = new AbortController();
 
         // Annotation ↔ S3 sync (read+seed+debounced per-user write), bound to
         // the store (not a component) so it loads once per image and pending
@@ -57,26 +121,7 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
         attachAnnotationSync(viewerStore);
         attachViewSync(viewerStore);
 
-        const loadImage = async () => {
-          const { httpsUrl } = resolveResourceId(resourceId);
-          const { handler } = formatRegistry.resolve(httpsUrl);
-          return handler.load(httpsUrl, {
-            signedFetch,
-            signal: abortController.signal,
-          });
-        };
-
-        loadImage()
-          .then(({ data: loader, metadata }) => {
-            viewerState.setLoader(loader);
-            viewerState.setMetadata(metadata);
-          })
-          .catch((error: Error) => {
-            viewerState.setError(error);
-          })
-          .finally(() => {
-            viewerState.setIsViewerLoading(false);
-          });
+        startViewerLoad(viewerStore, resourceId, signedFetch);
 
         set(
           (registryState) => ({
@@ -123,6 +168,22 @@ export const ViewerStoreProvider = ({
     () => registerViewer(resourceId, signedFetch, userId),
     [resourceId, signedFetch, userId, registerViewer],
   );
+
+  // The last provider for a resourceId releases its loader (geotiff source,
+  // block cache, decode pool) so navigating across many large images can't
+  // accumulate them for the lifetime of the tab.
+  useEffect(() => {
+    mountedProviders.set(resourceId, (mountedProviders.get(resourceId) ?? 0) + 1);
+    return () => {
+      const remaining = (mountedProviders.get(resourceId) ?? 1) - 1;
+      if (remaining <= 0) {
+        mountedProviders.delete(resourceId);
+        releaseViewer(resourceId);
+      } else {
+        mountedProviders.set(resourceId, remaining);
+      }
+    };
+  }, [resourceId]);
 
   return <ViewerStoreContext.Provider value={store}>{children}</ViewerStoreContext.Provider>;
 };
