@@ -164,7 +164,12 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   const isAutoUpdatingName = useRef(false);
 
   useEffect(() => {
-    if (!userEditedName.current && bucketName) {
+    // Skip while the name input is focused: a state write here races an
+    // in-progress edit (React restores the DOM value mid-keystroke, so the
+    // typed text ends up appended to the suggestion).
+    const el = document.activeElement;
+    const nameFocused = el instanceof HTMLInputElement && el.name === "name";
+    if (!userEditedName.current && bucketName && !nameFocused) {
       isAutoUpdatingName.current = true;
       setValue("name", suggestName(bucketName, prefix ?? ""));
       isAutoUpdatingName.current = false;
