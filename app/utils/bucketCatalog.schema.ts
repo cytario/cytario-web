@@ -14,6 +14,7 @@ export const bucketLookupRowSchema = z.object({
   providerConnectionId: z.string().min(1),
   bucketName: z.string().min(1),
   region: z.string().min(1),
+  kmsKeyArn: z.string().nullable().optional(),
 });
 
 export const bucketCatalogSchema = z.object({

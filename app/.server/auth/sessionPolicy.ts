@@ -257,7 +257,10 @@ export const buildSessionPolicy = ({
 
   if (permitsPrefixWrite(accessLevel)) {
     statements.push(getPutObjectStatement(bucketArn, prefix));
-    // Writing to an SSE-KMS-encrypted bucket requires kms:GenerateDataKey.
+  }
+
+  // Sidecar writes to an SSE-KMS-encrypted bucket require data-key generation.
+  if (permitsSidecarWrite(accessLevel)) {
     statements.push(getKmsStatement("kms:GenerateDataKey", region));
   }
 

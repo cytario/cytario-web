@@ -287,12 +287,27 @@ describe("buildSessionPolicy", () => {
     expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
   });
 
-  test("accessLevel annotate → includes PutOwnSidecars, omits PutObjectScopedToPrefix and kms:GenerateDataKey", () => {
+  test("accessLevel annotate → includes PutOwnSidecars and kms:GenerateDataKey, omits PutObjectScopedToPrefix", () => {
     const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel: "annotate" })));
     expect(policy.Statement.some((s) => s.Sid === "PutObjectScopedToPrefix")).toBe(false);
     expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(true);
-    // Sidecars are small JSON files, not SSE-KMS-encrypted.
-    expect(policy.Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(false);
+    // Sidecar PutObject on an SSE-KMS bucket needs data-key generation too.
+    const generate = findBySid(policy, "KmsGenerateDataKeyViaS3");
+    expect(generate.Effect).toBe("Allow");
+    expect(generate.Resource).toBe("*");
+    expect(generate.Condition?.StringEquals?.["kms:ViaService"]).toBe(`s3.${REGION}.amazonaws.com`);
+  });
+
+  test("annotate policy with a max-realistic prefix (64 chars) stays within the 2048-char ceiling", () => {
+    const json = buildSessionPolicy(
+      args({
+        bucketName: "my-bucket-with-some-length",
+        prefix: "a".repeat(64),
+        accessLevel: "annotate",
+      }),
+    );
+    expect(json.length).toBeLessThanOrEqual(POLICY_SIZE_CEILING);
+    expect(parse(json).Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(true);
   });
 
   test("every sidecar-writing level includes DeleteAnnotationSidecars scoped to annotation sidecars (C-456)", () => {
