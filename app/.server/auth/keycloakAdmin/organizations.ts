@@ -6,6 +6,7 @@ import {
   type KeycloakGroup,
   type KeycloakUser,
 } from "./client";
+import { cytarioConfig } from "~/config";
 
 export interface KeycloakOrganization {
   id: string;
@@ -118,5 +119,12 @@ export async function inviteOrganizationUser(
   body.set("email", email);
   if (firstName) body.set("firstName", firstName);
   if (lastName) body.set("lastName", lastName);
-  return adminFormMutate("POST", `/organizations/${orgId}/members/invite-user`, body);
+  // client_id targets the invitation link at the web client, so KC resolves the
+  // post-acceptance redirect from its root/base URL instead of the account console (C-439).
+  const clientId = encodeURIComponent(cytarioConfig.auth.clientId);
+  return adminFormMutate(
+    "POST",
+    `/organizations/${orgId}/members/invite-user?client_id=${clientId}`,
+    body,
+  );
 }
