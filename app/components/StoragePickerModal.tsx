@@ -194,6 +194,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
               kind="entries"
               onExpand={onExpand}
               defaultExpandedItems={rootNodes.map((n) => n.id)}
+              filters={{ showHiddenFiles }}
               nodeFilter={
                 glob ? (node) => node.type !== "file" || matchGlob(node.name, glob) : undefined
               }

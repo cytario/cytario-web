@@ -2,13 +2,9 @@ import { _Object } from "@aws-sdk/client-s3";
 import { describe, expect, test } from "vitest";
 
 import { filterObjects } from "../filterObjects";
+import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
 
-const testCases: [
-  string,
-  _Object[],
-  { prefix?: string; query?: string; extension?: string },
-  _Object[],
-][] = [
+const testCases: [string, _Object[], { query?: string; filters?: TreeFilters }, _Object[]][] = [
   [
     "filter objects by query",
     [{ Key: "folder1/file1.tif" }, { Key: "folder2/file2.tif" }],
@@ -37,26 +33,55 @@ const testCases: [
   [
     "filter objects by extension",
     [{ Key: "a/data.parquet" }, { Key: "a/data.csv" }, { Key: "a/parquet/readme.txt" }],
-    { extension: "parquet" },
+    { filters: { extensions: ["parquet"] } },
     [{ Key: "a/data.parquet" }],
+  ],
+  [
+    "match any of several extensions",
+    [{ Key: "a/data.parquet" }, { Key: "a/data.csv" }, { Key: "a/readme.txt" }],
+    { filters: { extensions: ["parquet", "csv"] } },
+    [{ Key: "a/data.csv" }, { Key: "a/data.parquet" }],
   ],
   [
     "match extension case-insensitively",
     [{ Key: "a/data.PARQUET" }],
-    { extension: "parquet" },
+    { filters: { extensions: ["parquet"] } },
     [{ Key: "a/data.PARQUET" }],
   ],
   [
-    "combine query and extension",
-    [{ Key: "a/foo.parquet" }, { Key: "a/bar.parquet" }],
-    { query: "foo", extension: "parquet" },
+    "hide dot-files and sidecars when filters are given and toggle is off",
+    [
+      { Key: "a/slide.ome.tif" },
+      { Key: "a/.DS_Store" },
+      { Key: "a/settings.u1.json" },
+      { Key: "a/slide.ome.annotations.set-1.json" },
+    ],
+    { filters: {} },
+    [{ Key: "a/slide.ome.tif" }],
+  ],
+  [
+    "keep hidden files when no filters object is passed",
+    [{ Key: "a/slide.ome.tif" }, { Key: "a/.DS_Store" }],
+    {},
+    [{ Key: "a/.DS_Store" }, { Key: "a/slide.ome.tif" }],
+  ],
+  [
+    "show hidden files when toggled on",
+    [{ Key: "a/slide.ome.tif" }, { Key: "a/.DS_Store" }],
+    { filters: { showHiddenFiles: true } },
+    [{ Key: "a/.DS_Store" }, { Key: "a/slide.ome.tif" }],
+  ],
+  [
+    "combine query, extension, and hidden",
+    [{ Key: "a/foo.parquet" }, { Key: "a/bar.parquet" }, { Key: "a/.foo.parquet" }],
+    { query: "foo", filters: { extensions: ["parquet"] } },
     [{ Key: "a/foo.parquet" }],
   ],
 ];
 
 describe("filterObjects", () => {
-  test.each(testCases)("%s", (_, objects, filters, expected) => {
-    const result = filterObjects(objects, filters);
+  test.each(testCases)("%s", (_, objects, args, expected) => {
+    const result = filterObjects(objects, args);
     expect(result).toEqual(expected);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { searchConnection } from "~/utils/searchConnection";
 
@@ -19,12 +20,12 @@ interface SearchResult {
 }
 
 // Recursive search of one connection. `query` is already debounced by
-// SearchInput. Results are keyed by connection+query+extension so
+// SearchInput. Results are keyed by connection+query+filters so
 // isSearching/nodes derive cleanly without resetting state in the effect.
 export function useConnectionSearch(
   connectionId: string,
   query: string,
-  extension?: string,
+  filters?: TreeFilters,
 ): ConnectionSearch {
   const hasCreds = useConnectionsStore((s) => !!s.connections[connectionId]?.credentials);
   const [result, setResult] = useState<SearchResult>({
@@ -33,7 +34,7 @@ export function useConnectionSearch(
     error: false,
     corsBlocked: false,
   });
-  const key = `${connectionId} ${query} ${extension ?? ""}`;
+  const key = `${connectionId} ${query} ${JSON.stringify(filters ?? {})}`;
 
   useEffect(() => {
     if (!query || !hasCreds) return;
@@ -41,13 +42,13 @@ export function useConnectionSearch(
     if (!connection) return;
 
     const controller = new AbortController();
-    searchConnection({ connection, query, extension, signal: controller.signal }).then((r) => {
+    searchConnection({ connection, query, filters, signal: controller.signal }).then((r) => {
       if (controller.signal.aborted) return;
       setResult({ key, nodes: r.node.children ?? [], error: r.error, corsBlocked: r.corsBlocked });
     });
 
     return () => controller.abort();
-  }, [key, query, extension, connectionId, hasCreds]);
+  }, [key, query, filters, connectionId, hasCreds]);
 
   const matched = !!query && result.key === key;
   return {

@@ -3,7 +3,6 @@ import { createRoutesStub } from "react-router";
 
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryViewTree } from "../DirectoryViewTree";
-import { useLayoutStore } from "../useLayoutStore";
 
 vi.mock("~/routes/favorites/useFavorite", () => ({
   useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
@@ -69,9 +68,7 @@ describe("DirectoryViewTree", () => {
   });
 });
 
-describe("DirectoryViewTree — hidden files (global toggle)", () => {
-  beforeEach(() => useLayoutStore.setState({ showHiddenFiles: false }));
-
+describe("DirectoryViewTree — hidden files (filters prop)", () => {
   const hiddenNodes: TreeNode[] = [
     {
       id: "data/",
@@ -126,7 +123,12 @@ describe("DirectoryViewTree — hidden files (global toggle)", () => {
       {
         path: "/",
         Component: () => (
-          <DirectoryViewTree nodes={hiddenNodes} kind="entries" defaultExpandedItems={["data/"]} />
+          <DirectoryViewTree
+            nodes={hiddenNodes}
+            kind="entries"
+            filters={{ showHiddenFiles: false }}
+            defaultExpandedItems={["data/"]}
+          />
         ),
       },
     ]);
@@ -140,12 +142,16 @@ describe("DirectoryViewTree — hidden files (global toggle)", () => {
   });
 
   test("reveals hidden files when toggle is on", async () => {
-    useLayoutStore.setState({ showHiddenFiles: true });
     const RemixStub = createRoutesStub([
       {
         path: "/",
         Component: () => (
-          <DirectoryViewTree nodes={hiddenNodes} kind="entries" defaultExpandedItems={["data/"]} />
+          <DirectoryViewTree
+            nodes={hiddenNodes}
+            kind="entries"
+            filters={{ showHiddenFiles: true }}
+            defaultExpandedItems={["data/"]}
+          />
         ),
       },
     ]);
@@ -198,6 +204,7 @@ describe("DirectoryViewTree — hidden files (global toggle)", () => {
           <DirectoryViewTree
             nodes={lazyParent}
             kind="entries"
+            filters={{ showHiddenFiles: false }}
             onExpand={onExpand}
             defaultExpandedItems={["data/"]}
           />

@@ -6,6 +6,8 @@ import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/bu
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import type { NodeLinkProps } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { onExpand } from "~/components/DirectoryView/onExpand";
+import { type TreeFilters } from "~/components/DirectoryView/treeFilters";
+import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { Divider } from "~/components/Divider/Divider";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { ancestorDirIds } from "~/utils/resourceId";
@@ -21,8 +23,9 @@ interface ConnectionTreeProps {
    * collapsed root.
    */
   activePathName?: string;
-  /** Restrict search matches and visible files to one extension (e.g. "parquet"). Directories always pass. */
-  extension?: string;
+  /** Visibility filters (extensions, …) merged over the sidebar's show-hidden
+   * toggle. Applied at both scan time (search) and render time. */
+  filters?: TreeFilters;
   /** Extra NodeLink props, merged after the internal highlightQuery. */
   nodeLinkProps?: Omit<NodeLinkProps, "node">;
 }
@@ -35,19 +38,26 @@ export function ConnectionTree({
   selectedConnection,
   query,
   activePathName,
-  extension,
+  filters,
   nodeLinkProps,
 }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
   const connectionName =
     useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
     selectedConnection;
+  const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
+  // Sidebar toggle is the default; caller filters (e.g. AddOverlay's
+  // extensions) are merged on top.
+  const effectiveFilters = useMemo(
+    () => ({ showHiddenFiles, ...filters }),
+    [showHiddenFiles, filters],
+  );
   const {
     nodes: searchNodes,
     isSearching,
     error,
     corsBlocked,
-  } = useConnectionSearch(selectedConnection, query, extension);
+  } = useConnectionSearch(selectedConnection, query, effectiveFilters);
 
   const rootNodes = useMemo<TreeNode[]>(
     () => [
@@ -72,15 +82,6 @@ export function ConnectionTree({
   const browseExpanded = useMemo(
     () => (activePathName ? ancestorDirIds(selectedConnection, activePathName) : [rootId]),
     [activePathName, selectedConnection, rootId],
-  );
-
-  const nodeFilter = useMemo(
-    () =>
-      extension
-        ? (n: TreeNode) =>
-            n.type !== "file" || n.name.toLowerCase().endsWith(`.${extension.toLowerCase()}`)
-        : undefined,
-    [extension],
   );
 
   if (query) {
@@ -117,7 +118,7 @@ export function ConnectionTree({
           kind="entries"
           defaultExpandedItems={searchExpanded}
           nodeLinkProps={{ highlightQuery: query, ...nodeLinkProps }}
-          nodeFilter={nodeFilter}
+          filters={effectiveFilters}
         />
       </div>
     );
@@ -133,7 +134,7 @@ export function ConnectionTree({
       defaultExpandedItems={browseExpanded}
       revealItems={browseExpanded}
       nodeLinkProps={nodeLinkProps}
-      nodeFilter={nodeFilter}
+      filters={effectiveFilters}
     />
   );
 }

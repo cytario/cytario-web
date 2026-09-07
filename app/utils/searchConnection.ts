@@ -2,6 +2,8 @@ import type { _Object } from "@aws-sdk/client-s3";
 import type { Credentials } from "@aws-sdk/client-sts";
 
 import { buildDirectoryTree, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
+import { namePassesFilters } from "~/components/DirectoryView/treeFilters";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { companionDirectoryPrefixes, isLeafDirectory } from "~/utils/leafDirectory";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
@@ -27,19 +29,18 @@ export interface SearchConnectionResult {
  * companion directories are skipped entirely. All directories at the same
  * depth are listed in parallel.
  *
- * With `extension`, only files matching the extension are results; directories
- * (matching or not) are traversed, not collected.
+ * With `filters.extensions`, only files matching an extension are results;
+ * directories (matching or not) are traversed, not collected.
  */
 export async function searchConnection({
   connection,
   query,
-  extension,
+  filters,
   signal,
 }: {
   connection: Connection;
   query: string;
-  /** Restrict matches to one file extension (e.g. "parquet"). */
-  extension?: string;
+  filters?: TreeFilters;
   signal?: AbortSignal;
 }): Promise<SearchConnectionResult> {
   const { connectionConfig: config, credentials, provider } = connection;
@@ -75,7 +76,7 @@ export async function searchConnection({
       credentials,
       rootPrefix,
       query,
-      extension,
+      filters,
       signal,
     );
     const q = query.toLowerCase();
@@ -116,10 +117,11 @@ async function bfsSearch(
   credentials: Credentials,
   rootPrefix: string,
   query: string,
-  extension: string | undefined,
+  filters: TreeFilters | undefined,
   signal?: AbortSignal,
 ): Promise<{ matched: _Object[]; isCapped: boolean }> {
   const matched: _Object[] = [];
+  const extensionMode = !!filters?.extensions?.length;
   let level: string[] = [rootPrefix];
   let isCapped = false;
   let dirsVisited = 0;
@@ -141,7 +143,7 @@ async function bfsSearch(
       } = await listObjectsClient(address, credentials, { prefix, signal });
       if (levelCapped) isCapped = true;
 
-      const fileMatches = filterObjects(contents, { query, extension });
+      const fileMatches = filterObjects(contents, { query, filters });
 
       const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
       const subDirs: string[] = [];
@@ -153,11 +155,11 @@ async function bfsSearch(
         const name = cp.slice(prefix.length).replace(/\/$/, "");
         if (!name) continue;
         if (search(query, name)) {
-          if (extension) {
+          if (extensionMode) {
             // Extension mode: directories are never results (only files are
             // selectable) — descend so matching files beneath are found.
             if (!isLeafDirectory(name)) subDirs.push(cp);
-          } else {
+          } else if (namePassesFilters(name, false, filters)) {
             dirMatches.push({ Key: cp });
           }
         } else if (!isLeafDirectory(name)) {

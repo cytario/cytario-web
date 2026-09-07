@@ -87,7 +87,7 @@ export function AddOverlay({
       <ConnectionTree
         selectedConnection={selectedConnection}
         query={searchTerm}
-        extension={extension}
+        filters={{ extensions: [extension] }}
         nodeLinkProps={{ onClick: handleSelect, isClickable: (node) => node.type === "file" }}
       />
       {callback && (
