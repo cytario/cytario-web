@@ -5,10 +5,10 @@ import { buildDirectoryTree, type TreeNode } from "~/components/DirectoryView/bu
 import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
 import { namePassesFilters } from "~/components/DirectoryView/treeFilters";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
+import { useConnectionTreeStore } from "~/utils/connectionsStore/useConnectionTreeStore";
 import { companionDirectoryPrefixes, isLeafDirectory } from "~/utils/leafDirectory";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
 import { filterObjects } from "~/utils/listObjects/filterObjects";
-import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
 import { search } from "~/utils/listObjects/search";
 import { getPrefix } from "~/utils/pathUtils";
 import { CorsLikelyError } from "~/utils/signedFetch";
@@ -22,12 +22,13 @@ export interface SearchConnectionResult {
 }
 
 /**
- * Per-connection BFS search. Walks the tree level-by-level (one `ListObjectsV2`
- * per directory with `Delimiter /`), filtering at each level with the same
- * `search()` logic the flat listing used. Leaf directories (`.zarr`, `.mrxs`,
- * …) are matched by name without descending into their interiors, and
- * companion directories are skipped entirely. All directories at the same
- * depth are listed in parallel.
+ * Per-connection BFS search. Walks the tree level-by-level (one cached
+ * `ListObjectsV2` per directory with `Delimiter /`, read through the shared
+ * level cache so search and browse share fetches), filtering at each level
+ * with the same `search()` logic the flat listing used. Leaf directories
+ * (`.zarr`, `.mrxs`, …) are matched by name without descending into their
+ * interiors, and companion directories are skipped entirely. All directories
+ * at the same depth are listed in parallel.
  *
  * With `filters.extensions`, only files matching an extension are results;
  * directories (matching or not) are traversed, not collected.
@@ -43,7 +44,7 @@ export async function searchConnection({
   filters?: TreeFilters;
   signal?: AbortSignal;
 }): Promise<SearchConnectionResult> {
-  const { connectionConfig: config, credentials, provider } = connection;
+  const { connectionConfig: config, credentials } = connection;
   const rootPrefix = getPrefix(config.prefix) ?? "";
   const bucketBase: TreeNode = {
     id: `${config.id}/`,
@@ -63,16 +64,9 @@ export async function searchConnection({
     };
   }
 
-  const address = {
-    id: config.id,
-    bucketName: config.bucketName,
-    region: provider?.region,
-    endpoint: provider?.endpoint ?? undefined,
-  };
-
   try {
     const { matched, isCapped } = await bfsSearch(
-      address,
+      connection,
       credentials,
       rootPrefix,
       query,
@@ -113,13 +107,15 @@ export async function searchConnection({
 
 /** BFS walk collecting `_Object`s whose key (or leaf-directory name) matches `query`. */
 async function bfsSearch(
-  address: { id: string; bucketName: string; region?: string; endpoint?: string },
+  connection: Connection,
   credentials: Credentials,
   rootPrefix: string,
   query: string,
   filters: TreeFilters | undefined,
   signal?: AbortSignal,
 ): Promise<{ matched: _Object[]; isCapped: boolean }> {
+  const { connectionConfig: config, provider } = connection;
+  const loadLevelRaw = useConnectionTreeStore.getState().loadLevelRaw;
   const matched: _Object[] = [];
   const extensionMode = !!filters?.extensions?.length;
   let level: string[] = [rootPrefix];
@@ -140,7 +136,14 @@ async function bfsSearch(
         contents,
         commonPrefixes,
         isCapped: levelCapped,
-      } = await listObjectsClient(address, credentials, { prefix, signal });
+      } = await loadLevelRaw({
+        connectionId: config.id,
+        connectionConfig: config,
+        credentials,
+        provider,
+        prefix,
+        signal,
+      });
       if (levelCapped) isCapped = true;
 
       const fileMatches = filterObjects(contents, { query, filters });

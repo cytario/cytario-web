@@ -1,7 +1,7 @@
 import type { _Object } from "@aws-sdk/client-s3";
 
 import { search } from "./search";
-import { isHiddenFilename } from "~/components/DirectoryView/filterNodes";
+import { isHiddenFilename } from "~/components/DirectoryView/treeFilters";
 import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
 
 /**

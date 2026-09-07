@@ -61,8 +61,10 @@ export function DirectoryViewTree({
   );
   useEffect(() => {
     if (!cachedLevels) return;
-    for (const { nodes } of cachedLevels.values()) {
-      for (const n of nodes) nodesById.current.set(n.id, n);
+    for (const entry of cachedLevels.values()) {
+      // Raw-only entries (warmed by the search walk) have no nodes yet.
+      if (!entry.nodes) continue;
+      for (const n of entry.nodes) nodesById.current.set(n.id, n);
     }
   }, [cachedLevels]);
 

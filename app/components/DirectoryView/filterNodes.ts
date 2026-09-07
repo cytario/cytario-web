@@ -2,10 +2,10 @@ import type { ColumnFiltersState } from "@tanstack/react-table";
 
 import type { TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
+import { namePassesFilters } from "./treeFilters";
 import type { ColumnConfig } from "~/components/Table/types";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
-import { isSidecarFilename } from "~/utils/sidecarKey";
 
 type NodeAccessor = (node: TreeNode) => string;
 
@@ -34,21 +34,14 @@ export function getNodeAccessors(
   return kind === "connections" ? makeConnectionAccessors(connections) : fileAccessors;
 }
 
-/**
- * Hidden from every directory view unless "show hidden files" is on:
- * dot-files and sidecar machinery files (annotations/settings). One
- * predicate for both, so every view hides the same set.
- */
-export function isHiddenFilename(name: string): boolean {
-  return name.startsWith(".") || isSidecarFilename(name);
-}
-
-/** Filter hidden files (dot-files, sidecars) recursively. */
+/** Filter hidden files (dot-files, sidecars) recursively — shared predicate from treeFilters. */
 export function filterHiddenNodes(nodes: TreeNode[], showHidden: boolean): TreeNode[] {
   if (showHidden) return nodes;
 
   return nodes
-    .filter((node) => !isHiddenFilename(node.name))
+    .filter((node) =>
+      namePassesFilters(node.name, node.type === "file", { showHiddenFiles: showHidden }),
+    )
     .map((node) =>
       node.children && node.children.length > 0
         ? { ...node, children: filterHiddenNodes(node.children, false) }

@@ -1,3 +1,4 @@
+import type { _Object } from "@aws-sdk/client-s3";
 import type { Credentials } from "@aws-sdk/client-sts";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -25,22 +26,43 @@ export interface LoadConnectionLevelResult {
   isCapped: boolean;
 }
 
-interface LevelEntry {
-  nodes: TreeNode[];
-  fetchedAt: number;
+export interface RawLevel {
+  contents: _Object[];
+  commonPrefixes: string[];
   isCapped: boolean;
 }
 
+export interface LoadRawLevelArgs {
+  connectionId: string;
+  connectionConfig: ConnectionConfig;
+  credentials: Credentials;
+  provider?: { region?: string | null; endpoint?: string | null };
+  /** Resolved S3 prefix (connection prefix included). */
+  prefix: string;
+  signal?: AbortSignal;
+}
+
+interface LevelEntry extends RawLevel {
+  fetchedAt: number;
+  /** Built lazily by loadLevel; raw-only readers (search walk) leave it unset. */
+  nodes?: TreeNode[];
+}
+
 /**
- * Per-connection level cache. Keys are resolved S3 prefixes so node ids
+ * Per-connection raw-listing cache. Keys are resolved S3 prefixes so node ids
  * (`${connectionId}/${pathName}`) stay deterministic — a cache hit returns
- * the identical node references a previous navigation rendered.
- * In-memory only; entries expire after `TREE_CACHE_TTL_MS`.
+ * the identical node references a previous navigation rendered. Both browse
+ * (loadLevel) and search (loadLevelRaw, via bfsSearch) read and write the
+ * same entries: one fetch per prefix per TTL regardless of who asks, and a
+ * search warms the levels browse expands later. In-memory only; entries
+ * expire after `TREE_CACHE_TTL_MS`.
  */
 interface ConnectionTreeStore {
   levels: Record<string, Map<string, LevelEntry>>;
-  /** Cache-first single-level load; parallel callers share one S3 request. */
+  /** Cache-first single-level load returning built TreeNodes; parallel callers share one S3 request. */
   loadLevel(args: LoadConnectionLevelArgs): Promise<LoadConnectionLevelResult>;
+  /** Cache-first raw listing by resolved S3 prefix — the search walk's read path. */
+  loadLevelRaw(args: LoadRawLevelArgs): Promise<LevelEntry>;
   /**
    * Drop cached levels. With `prefix` (resolved S3 prefix): that entry plus
    * its descendants. Without: the whole connection.
@@ -49,7 +71,7 @@ interface ConnectionTreeStore {
 }
 
 /** In-flight loads outside state — transient, no subscribers. */
-const inflight = new Map<string, Promise<LoadConnectionLevelResult>>();
+const inflight = new Map<string, Promise<LevelEntry>>();
 
 const name = "ConnectionTreeStore";
 
@@ -58,25 +80,20 @@ export const useConnectionTreeStore = create<ConnectionTreeStore>()(
     (set, get) => ({
       levels: {},
 
-      loadLevel: async ({
+      loadLevelRaw: async ({
+        connectionId,
         connectionConfig,
         credentials,
-        connectionId,
-        connectionName,
         provider,
-        urlPath: rawUrlPath,
+        prefix,
         signal,
       }) => {
-        const { urlPath, prefix } = resolveConnectionPrefix(connectionConfig.prefix, rawUrlPath);
-        // Cache key: bucket root (`prefix === undefined`) maps to "".
-        const cacheKey = prefix ?? "";
-
-        const existing = get().levels[connectionId]?.get(cacheKey);
+        const existing = get().levels[connectionId]?.get(prefix);
         if (existing && Date.now() - existing.fetchedAt < TREE_CACHE_TTL_MS) {
-          return { nodes: existing.nodes, isCapped: existing.isCapped };
+          return existing;
         }
 
-        const key = `${connectionId}\u0000${cacheKey}`;
+        const key = `${connectionId}\u0000${prefix}`;
         const pending = inflight.get(key);
         if (pending) return pending;
 
@@ -91,20 +108,13 @@ export const useConnectionTreeStore = create<ConnectionTreeStore>()(
             credentials,
             { prefix, signal },
           );
-          const nodes = buildLevelTree({
-            contents,
-            commonPrefixes,
-            connectionId,
-            connectionName,
-            prefix,
-            urlPath,
-          });
+          const entry: LevelEntry = { contents, commonPrefixes, isCapped, fetchedAt: Date.now() };
           set((state) => {
             const perConnection = new Map(state.levels[connectionId] ?? []);
-            perConnection.set(cacheKey, { nodes, fetchedAt: Date.now(), isCapped });
+            perConnection.set(prefix, entry);
             return { levels: { ...state.levels, [connectionId]: perConnection } };
           });
-          return { nodes, isCapped };
+          return entry;
         })();
 
         inflight.set(key, promise);
@@ -113,6 +123,55 @@ export const useConnectionTreeStore = create<ConnectionTreeStore>()(
         } finally {
           inflight.delete(key);
         }
+      },
+
+      loadLevel: async ({
+        connectionConfig,
+        credentials,
+        connectionId,
+        connectionName,
+        provider,
+        urlPath: rawUrlPath,
+        signal,
+      }) => {
+        const { urlPath, prefix: resolved } = resolveConnectionPrefix(
+          connectionConfig.prefix,
+          rawUrlPath,
+        );
+        // Cache key: bucket root (`prefix === undefined`) maps to "".
+        const cacheKey = resolved ?? "";
+
+        const entry = await get().loadLevelRaw({
+          connectionId,
+          connectionConfig,
+          credentials,
+          provider,
+          prefix: cacheKey,
+          signal,
+        });
+
+        // Fast path: nodes were built by a previous loadLevel.
+        if (entry.nodes) {
+          return { nodes: entry.nodes, isCapped: entry.isCapped };
+        }
+
+        const nodes = buildLevelTree({
+          contents: entry.contents,
+          commonPrefixes: entry.commonPrefixes,
+          connectionId,
+          connectionName,
+          prefix: resolved,
+          urlPath,
+        });
+        set((state) => {
+          const current = state.levels[connectionId]?.get(cacheKey);
+          // Lost a race with a refresh or another build — keep whatever is current.
+          if (!current || current.nodes) return state;
+          const perConnection = new Map(state.levels[connectionId] ?? []);
+          perConnection.set(cacheKey, { ...current, nodes });
+          return { levels: { ...state.levels, [connectionId]: perConnection } };
+        });
+        return { nodes, isCapped: entry.isCapped };
       },
 
       invalidate: (connectionId, prefix) =>

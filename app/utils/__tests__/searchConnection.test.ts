@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import mock from "./__mocks__";
 import { searchConnection } from "../searchConnection";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
+import {
+  __resetConnectionTreeStore,
+  useConnectionTreeStore,
+} from "~/utils/connectionsStore/useConnectionTreeStore";
 
 const listObjectsClient = vi.fn();
 vi.mock("../listObjects/listObjectsClient", () => ({
@@ -35,6 +39,7 @@ function connection(overrides: Record<string, unknown> = {}) {
 describe("searchConnection (BFS)", () => {
   beforeEach(() => {
     listObjectsClient.mockReset();
+    __resetConnectionTreeStore();
   });
 
   test("returns empty tree when credentials are missing", async () => {
@@ -172,5 +177,30 @@ describe("searchConnection (BFS)", () => {
     const result = await searchConnection({ connection: connection(), query: "x" });
 
     expect(result.isCapped).toBe(true);
+  });
+
+  test("reads levels through the shared cache — repeated search fetches once", async () => {
+    listObjectsClient.mockResolvedValue(listing([obj("scope/data.tif")], []));
+
+    await searchConnection({ connection: connection(), query: "data" });
+    await searchConnection({ connection: connection(), query: "data" });
+
+    expect(listObjectsClient).toHaveBeenCalledTimes(1);
+  });
+
+  test("search warm-up serves a later browse loadLevel without refetching", async () => {
+    listObjectsClient.mockResolvedValue(listing([obj("scope/data.tif")], []));
+
+    await searchConnection({ connection: connection(), query: "data" });
+    const { nodes } = await useConnectionTreeStore.getState().loadLevel({
+      connectionConfig: connection().connectionConfig,
+      credentials: mock.credentials(),
+      connectionId: "c1",
+      connectionName: "conn",
+      urlPath: "",
+    });
+
+    expect(listObjectsClient).toHaveBeenCalledTimes(1);
+    expect(nodes.map((n) => n.name)).toEqual(["data.tif"]);
   });
 });

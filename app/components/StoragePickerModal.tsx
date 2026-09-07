@@ -8,8 +8,8 @@ import type {
 } from "@cytario/plugin-api";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { isHiddenFilename } from "~/components/DirectoryView/filterNodes";
 import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
+import { namePassesFilters } from "~/components/DirectoryView/treeFilters";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { ConnectionSwitcherChip } from "~/components/Sidebar/ConnectionSwitcherChip";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -91,7 +91,10 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   // tree isn't showing (same toggle, same predicate).
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const selectableFiles = useMemo(
-    () => [...loadedFiles.values()].filter((n) => showHiddenFiles || !isHiddenFilename(n.name)),
+    () =>
+      [...loadedFiles.values()].filter((n) =>
+        namePassesFilters(n.name, n.type === "file", { showHiddenFiles }),
+      ),
     [loadedFiles, showHiddenFiles],
   );
 

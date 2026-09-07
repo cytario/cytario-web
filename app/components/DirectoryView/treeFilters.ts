@@ -1,5 +1,14 @@
 import type { TreeNode } from "./buildDirectoryTree";
-import { isHiddenFilename } from "./filterNodes";
+import { isSidecarFilename } from "~/utils/sidecarKey";
+
+/**
+ * Hidden from every directory view unless "show hidden files" is on:
+ * dot-files and sidecar machinery files (annotations/settings). One
+ * predicate for both, so every view hides the same set.
+ */
+export function isHiddenFilename(name: string): boolean {
+  return name.startsWith(".") || isSidecarFilename(name);
+}
 
 /**
  * Declarative visibility filters for tree views — one object, one predicate,
