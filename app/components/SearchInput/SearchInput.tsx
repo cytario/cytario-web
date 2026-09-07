@@ -42,6 +42,13 @@ export function SearchInput({
     onQueryChange("");
   };
 
+  const onReset = () => {
+    const next = defaultValue ?? "";
+    setValue(next);
+    if (timeout.current) clearTimeout(timeout.current);
+    onQueryChange(next);
+  };
+
   return (
     <div className={className}>
       <Input
@@ -53,9 +60,26 @@ export function SearchInput({
         placeholder={placeholder}
         prefix={<Icon icon="Search" size="sm" className="text-muted-foreground" />}
         suffix={
-          value ? (
-            <IconButton icon="X" size="xs" variant="ghost" onPress={onClear} label="Clear search" />
-          ) : null
+          <>
+            {defaultValue !== undefined && value !== defaultValue && (
+              <IconButton
+                icon="RotateCcw"
+                size="xs"
+                variant="ghost"
+                onPress={onReset}
+                label="Reset search"
+              />
+            )}
+            {value ? (
+              <IconButton
+                icon="X"
+                size="xs"
+                variant="ghost"
+                onPress={onClear}
+                label="Clear search"
+              />
+            ) : null}
+          </>
         }
       />
     </div>
