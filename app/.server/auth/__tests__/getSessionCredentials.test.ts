@@ -7,6 +7,7 @@ import {
 } from "../getSessionCredentials";
 import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
+import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
 import type { AccessLevel } from "~/utils/providerCatalog.schema";
@@ -34,6 +35,25 @@ vi.mock("~/.server/providers/providerCatalog.server", async (importOriginal) => 
   const actual =
     await importOriginal<typeof import("~/.server/providers/providerCatalog.server")>();
   return { ...actual, getProviderCatalog: vi.fn() };
+});
+
+vi.mock("~/.server/providers/bucketCatalog.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/.server/providers/bucketCatalog.server")>();
+  return {
+    ...actual,
+    getBucketCatalog: vi.fn(),
+    findBucketByName: actual.findBucketByName,
+  };
+});
+
+vi.mock("~/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/config")>();
+  return {
+    cytarioConfig: {
+      ...actual.cytarioConfig,
+      providers: { ...actual.cytarioConfig.providers, source: "portal" },
+    },
+  };
 });
 
 describe("isValidCredentials", () => {
@@ -202,6 +222,44 @@ describe("getAllSessionCredentials", () => {
 
     expect(result.credentials).toEqual({ "expired-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses the bucket's registered region over the connection's", async () => {
+    vi.mocked(getBucketCatalog).mockResolvedValue(
+      mock.bucketCatalog({
+        buckets: [
+          mock.bucketLookupRow({
+            providerConnectionId: "pc-mock",
+            bucketName: "mock-bucket",
+            region: "us-west-2",
+          }),
+        ],
+      }),
+    );
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ id: "region-conn", name: "region-conn" }),
+    ]);
+
+    expect(result.credentials["region-conn"]).toEqual(mockCredentials);
+    // The session policy (inline in the STS command) and the client both
+    // receive the bucket's region; the provider projection ships it too.
+    expect(result.providers["region-conn"]?.region).toBe("us-west-2");
+    const policyArg = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls.at(-1)?.[0];
+    const policy = JSON.parse(String((policyArg as { Policy?: string }).Policy));
+    const kms = policy.Statement.find((s: { Sid?: string }) => s.Sid?.includes("KmsDecrypt"));
+    expect(kms.Condition.StringEquals["kms:ViaService"]).toBe("s3.us-west-2.amazonaws.com");
+  });
+
+  test("falls back to the connection region when the bucket catalog is unavailable", async () => {
+    vi.mocked(getBucketCatalog).mockRejectedValue(new Error("lookup unavailable"));
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ id: "fallback-conn", name: "fallback-conn" }),
+    ]);
+
+    expect(result.credentials["fallback-conn"]).toEqual(mockCredentials);
+    expect(result.providers["fallback-conn"]?.region).toBe("us-east-1");
   });
 
   test("mints separately for connections resolving to different roles", async () => {

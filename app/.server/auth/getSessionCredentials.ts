@@ -5,6 +5,7 @@ import { type ConnectionsCredentials, type SessionData } from "./sessionStorage"
 import type { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { createLabel } from "~/.server/logging";
+import { findBucketByName, getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import {
   type ResolvedConnectionGrant,
   type ResolvedConnectionProviderWithGrants,
@@ -12,6 +13,7 @@ import {
   resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
 import { sanitizeRoleSessionName } from "~/.server/stsSession";
+import { cytarioConfig } from "~/config";
 import { canSee } from "~/utils/authorization";
 import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
 import {
@@ -36,6 +38,10 @@ interface SessionCredentialRequest {
   connectionConfig: ConnectionConfig;
   grant: ResolvedConnectionGrant;
   connectionProvider: ResolvedConnectionProviderWithGrants;
+  /** The bucket's registered region when known (portal builds); the bucket
+   *  catalog is the per-bucket source — a bucket may live in a different
+   *  region than its provider connection's default. */
+  bucketRegion?: string;
   sessionData: SessionData;
   roleSessionName: string;
 }
@@ -44,12 +50,14 @@ const fetchTemporaryCredentials = async ({
   connectionConfig,
   grant,
   connectionProvider,
+  bucketRegion,
   sessionData,
   roleSessionName,
 }: SessionCredentialRequest): Promise<Credentials> => {
   const { bucketName, prefix } = connectionConfig;
   const { roleArn, accessLevel } = grant;
-  const { region, endpoint } = connectionProvider;
+  const region = bucketRegion ?? connectionProvider.region;
+  const { endpoint } = connectionProvider;
   const { idToken } = sessionData.authTokens;
 
   const providerConfig = getS3ProviderConfig(endpoint, region);
@@ -192,6 +200,28 @@ export const getAllSessionCredentials = async (
     console.warn(`${label} Provider catalog lookup failed: ${catalogError}`);
   }
 
+  // The bucket catalog carries each bucket's registered region — a bucket can
+  // live in a different region than its provider connection's default, and the
+  // session policy's kms:ViaService condition must name the bucket's region.
+  // Portal builds only; unavailability degrades to the connection region.
+  let bucketCatalog: Awaited<ReturnType<typeof getBucketCatalog>> | undefined;
+  if (cytarioConfig.providers.source === "portal") {
+    try {
+      bucketCatalog = await getBucketCatalog(organization, sessionData.authTokens.accessToken);
+    } catch {
+      bucketCatalog = undefined;
+    }
+  }
+
+  const bucketRegionOf = (connectionConfig: ConnectionConfig): string | undefined =>
+    bucketCatalog
+      ? (findBucketByName(
+          bucketCatalog,
+          connectionConfig.providerConnectionId,
+          connectionConfig.bucketName,
+        )?.region ?? undefined)
+      : undefined;
+
   // Resolve the non-secret provider attributes (region/endpoint) for every
   // connection so the client data-plane can address the bucket even when the STS
   // credential is still cached and no mint runs this request.
@@ -202,7 +232,7 @@ export const getAllSessionCredentials = async (
       if (connectionProvider) {
         const grant = pickGrantForUser(connectionProvider, sessionData.user, organization);
         providers[connectionConfig.id] = {
-          region: connectionProvider.region,
+          region: bucketRegionOf(connectionConfig) ?? connectionProvider.region,
           endpoint: connectionProvider.endpoint,
           allowsSharing: connectionProvider.allowsSharing,
           accessLevel: grant?.accessLevel ?? "read-only",
@@ -245,6 +275,7 @@ export const getAllSessionCredentials = async (
           connectionConfig,
           grant,
           connectionProvider,
+          bucketRegion: bucketRegionOf(connectionConfig),
           sessionData,
           roleSessionName,
         }),
