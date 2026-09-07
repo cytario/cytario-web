@@ -1,10 +1,9 @@
-import { _Object } from "@aws-sdk/client-s3";
-import { Credentials } from "@aws-sdk/client-sts";
+import type { _Object } from "@aws-sdk/client-s3";
+import type { Credentials } from "@aws-sdk/client-sts";
 
 import type { ConnectionConfig } from "~/.generated/client";
-import { getFileCategory } from "~/utils/fileType";
-import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
-import { getPrefix } from "~/utils/pathUtils";
+import { findFirstImage } from "~/utils/findFirstImage";
+import type { BucketAddress } from "~/utils/resourceId";
 import { CorsLikelyError } from "~/utils/signedFetch";
 
 /** Non-secret provider address (region/endpoint) resolved from the catalog. */
@@ -12,8 +11,6 @@ export interface ProbeProvider {
   region?: string | null;
   endpoint?: string | null;
 }
-
-const isImagePreview = (obj: _Object) => getFileCategory(obj.Key ?? "") === "image";
 
 export interface ConnectionProbeResult {
   previewObj?: _Object;
@@ -36,26 +33,14 @@ export async function probeConnection(
   signal?: AbortSignal,
 ): Promise<ConnectionProbeResult> {
   try {
-    const { contents } = await listObjectsClient(
-      {
-        id: config.id,
-        bucketName: config.bucketName,
-        region: provider?.region,
-        endpoint: provider?.endpoint,
-      },
-      credentials,
-      {
-        // Trailing slash required: the session policy only allows `<prefix>/`
-        // and `<prefix>/*`, so a bare `<prefix>` value 403s.
-        prefix: getPrefix(config.prefix),
-        recursive: true,
-        maxKeys: 100,
-        maxTotal: 100,
-        findFirst: isImagePreview,
-        signal,
-      },
-    );
-    return { previewObj: contents.find(isImagePreview), status: "connected" };
+    const address: BucketAddress & { id: string } = {
+      id: config.id,
+      bucketName: config.bucketName,
+      region: provider?.region,
+      endpoint: provider?.endpoint,
+    };
+    const previewObj = await findFirstImage(address, credentials, config.prefix ?? "", signal);
+    return { previewObj, status: "connected" };
   } catch (error) {
     if (error instanceof CorsLikelyError) {
       return {

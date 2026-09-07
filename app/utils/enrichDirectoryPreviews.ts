@@ -1,18 +1,13 @@
 import type { _Object } from "@aws-sdk/client-s3";
 import type { Credentials } from "@aws-sdk/client-sts";
 
+import { findFirstImage } from "./findFirstImage";
 import { mapWithConcurrency } from "./limitConcurrency";
-import { listObjectsClient } from "./listObjects/listObjectsClient";
-import { getPrefix, resolveConnectionPrefix } from "./pathUtils";
+import { resolveConnectionPrefix } from "./pathUtils";
 import type { ConnectionConfig } from "~/.generated/client";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { getFileCategory } from "~/utils/fileType";
 
 const PREVIEW_CONCURRENCY = 4;
-const PREVIEW_MAX_KEYS = 100;
-const PREVIEW_MAX_TOTAL = 100;
-
-const isImagePreview = (obj: _Object) => getFileCategory(obj.Key ?? "") === "image";
 
 export interface EnrichDirectoryPreviewsArgs {
   connectionConfig: ConnectionConfig;
@@ -37,28 +32,18 @@ export async function enrichDirectoryPreviews(
   const directories = nodes.filter((n) => n.type === "directory" && !n._Object);
   if (directories.length === 0) return {};
 
+  const address = {
+    id: connectionId,
+    bucketName: connectionConfig.bucketName,
+    region: provider?.region,
+    endpoint: provider?.endpoint,
+  };
+
   const previews = await mapWithConcurrency(directories, PREVIEW_CONCURRENCY, async (node) => {
     if (signal?.aborted) return null;
+    const { prefix: dirPrefix } = resolveConnectionPrefix(connectionConfig.prefix, node.pathName);
     try {
-      const { prefix: dirPrefix } = resolveConnectionPrefix(connectionConfig.prefix, node.pathName);
-      const { contents } = await listObjectsClient(
-        {
-          id: connectionId,
-          bucketName: connectionConfig.bucketName,
-          region: provider?.region,
-          endpoint: provider?.endpoint,
-        },
-        credentials,
-        {
-          prefix: getPrefix(dirPrefix),
-          recursive: true,
-          maxKeys: PREVIEW_MAX_KEYS,
-          maxTotal: PREVIEW_MAX_TOTAL,
-          findFirst: isImagePreview,
-          signal,
-        },
-      );
-      return contents.find(isImagePreview) ?? null;
+      return (await findFirstImage(address, credentials, dirPrefix, signal)) ?? null;
     } catch {
       return null;
     }
