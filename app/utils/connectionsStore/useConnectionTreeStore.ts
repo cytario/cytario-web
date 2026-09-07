@@ -171,7 +171,10 @@ export const useConnectionTreeStore = create<ConnectionTreeStore>()(
           perConnection.set(cacheKey, { ...current, nodes });
           return { levels: { ...state.levels, [connectionId]: perConnection } };
         });
-        return { nodes, isCapped: entry.isCapped };
+        // Parallel first loads may each build; converge on the stored nodes.
+        // ponytail: builds aren't deduped (only the S3 call is) — dedupe if profiling ever cares.
+        const stored = get().levels[connectionId]?.get(cacheKey)?.nodes ?? nodes;
+        return { nodes: stored, isCapped: entry.isCapped };
       },
 
       invalidate: (connectionId, prefix) =>
