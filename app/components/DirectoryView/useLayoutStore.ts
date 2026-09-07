@@ -3,7 +3,7 @@ import { devtools, persist } from "zustand/middleware";
 
 import { createMigrate } from "~/utils/persistMigration";
 
-export type ViewMode = "list" | "grid" | "tree";
+export type ViewMode = "list" | "grid";
 
 interface LayoutStore {
   viewMode: ViewMode;
@@ -52,7 +52,7 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
-      version: 5,
+      version: 6,
       migrate: createMigrate<PersistedLayoutState>(
         {
           0: (state) => {
@@ -111,6 +111,19 @@ export const useLayoutStore = create<LayoutStore>()(
               viewMode: (s?.viewMode === "grid-compact"
                 ? "grid"
                 : (s?.viewMode ?? "grid")) as ViewMode,
+              showHiddenFiles: s?.showHiddenFiles ?? false,
+              showFilters: s?.showFilters ?? false,
+            };
+          },
+          5: (state) => {
+            const s = state as {
+              viewMode?: string;
+              showHiddenFiles?: boolean;
+              showFilters?: boolean;
+            };
+            // Tree view mode removed — coerce to grid.
+            return {
+              viewMode: (s?.viewMode === "tree" ? "grid" : (s?.viewMode ?? "grid")) as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
               showFilters: s?.showFilters ?? false,
             };

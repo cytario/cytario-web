@@ -111,16 +111,6 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("Folder1")).toBeInTheDocument();
   });
 
-  test("renders the DirectoryViewTree in tree mode", () => {
-    renderDirectoryView({
-      viewMode: "tree",
-      nodes: mockNodes,
-      name: "Test Directory",
-    });
-
-    expect(screen.getByRole("tree", { name: /Directory tree/i })).toBeInTheDocument();
-  });
-
   test("renders FilterBar when showFilters is true (non-list mode)", () => {
     useLayoutStore.setState({ showFilters: true });
     renderDirectoryView({
