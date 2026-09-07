@@ -123,25 +123,27 @@ async function bfsSearch(
       const leafMatches: _Object[] = [];
       const subDirs: string[] = [];
 
+      const dirMatches: _Object[] = [];
+
       for (const cp of commonPrefixes) {
         if (hidden.has(cp)) continue;
         const name = cp.slice(prefix.length).replace(/\/$/, "");
         if (!name) continue;
-        if (isLeafDirectory(name)) {
-          if (search(query, name)) leafMatches.push({ Key: cp.replace(/\/$/, "") });
-        } else {
+        if (search(query, name)) {
+          dirMatches.push({ Key: cp });
+        } else if (!isLeafDirectory(name)) {
           subDirs.push(cp);
         }
       }
 
-      return { fileMatches, leafMatches, subDirs };
+      return { fileMatches, leafMatches, dirMatches, subDirs };
     });
 
     dirsVisited += level.length;
 
     const next: string[] = [];
     for (const r of results) {
-      matched.push(...r.fileMatches, ...r.leafMatches);
+      matched.push(...r.fileMatches, ...r.leafMatches, ...r.dirMatches);
       next.push(...r.subDirs);
     }
     level = next;

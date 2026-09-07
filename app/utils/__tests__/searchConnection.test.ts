@@ -82,6 +82,17 @@ describe("searchConnection (BFS)", () => {
     expect(leaf?.type).toBe("file");
   });
 
+  test("matches regular directory name without descending into it", async () => {
+    listObjectsClient.mockResolvedValueOnce(listing([], ["scope/omero-annotation-migration/"]));
+
+    const result = await searchConnection({ connection: connection(), query: "omero" });
+
+    expect(listObjectsClient).toHaveBeenCalledTimes(1);
+    const dir = result.node.children?.find((c) => c.name === "omero-annotation-migration");
+    expect(dir).toBeDefined();
+    expect(dir?.type).toBe("directory");
+  });
+
   test("does not descend into leaf directories", async () => {
     listObjectsClient.mockResolvedValueOnce(listing([], ["scope/data.zarr/", "scope/sub/"]));
 
