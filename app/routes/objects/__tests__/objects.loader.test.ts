@@ -133,7 +133,7 @@ describe("objects loader (C-193)", () => {
       serverLoader,
     } as never);
 
-    expect(result.nodes.map((n) => n.name)).toEqual(["image.zarr", "czi", "results"]);
+    expect(result.nodes.map((n) => n.name)).toEqual(["czi", "results", "image.zarr"]);
     expect(result.isSingleFile).toBeFalsy();
     expect(result.notification).toBeUndefined();
   });

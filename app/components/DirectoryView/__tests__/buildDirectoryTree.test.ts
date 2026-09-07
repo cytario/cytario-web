@@ -58,18 +58,6 @@ const testCases: [_Object[], TreeNode[]][] = [
 
         children: [
           {
-            id: "test-conn-id/folder2/file3.txt",
-            connectionId: "test-conn-id",
-            connectionName: "test-connection",
-            type: "file",
-            name: "file3.txt",
-
-            pathName: "folder2/file3.txt",
-
-            children: [],
-            _Object: { Key: "folder2/file3.txt" },
-          },
-          {
             id: "test-conn-id/folder2/subfolder1/",
             connectionId: "test-conn-id",
             connectionName: "test-connection",
@@ -92,6 +80,18 @@ const testCases: [_Object[], TreeNode[]][] = [
               },
             ],
             _Object: { Key: "folder2/subfolder1/file4.txt" },
+          },
+          {
+            id: "test-conn-id/folder2/file3.txt",
+            connectionId: "test-conn-id",
+            connectionName: "test-connection",
+            type: "file",
+            name: "file3.txt",
+
+            pathName: "folder2/file3.txt",
+
+            children: [],
+            _Object: { Key: "folder2/file3.txt" },
           },
         ],
         _Object: { Key: "folder2/file3.txt" },
@@ -175,23 +175,23 @@ describe("buildLevelTree", () => {
 
     expect(nodes).toEqual([
       {
-        id: "test-conn-id/subdir/",
-        connectionId: "test-conn-id",
-        connectionName: "test-connection",
-        type: "directory",
-        name: "subdir",
-        pathName: "subdir/",
-        children: [],
-        isLeaf: false,
-        loadState: "idle",
-      },
-      {
         id: "test-conn-id/czi/",
         connectionId: "test-conn-id",
         connectionName: "test-connection",
         type: "directory",
         name: "czi",
         pathName: "czi/",
+        children: [],
+        isLeaf: false,
+        loadState: "idle",
+      },
+      {
+        id: "test-conn-id/subdir/",
+        connectionId: "test-conn-id",
+        connectionName: "test-connection",
+        type: "directory",
+        name: "subdir",
+        pathName: "subdir/",
         children: [],
         isLeaf: false,
         loadState: "idle",
@@ -317,7 +317,7 @@ describe("companion directories (.mrxs)", () => {
       connectionName: "test-connection",
     });
 
-    expect(nodes.map((n) => n.name)).toEqual(["slide", "other"]);
+    expect(nodes.map((n) => n.name)).toEqual(["other", "slide"]);
   });
 
   test("buildDirectoryTree drops keys inside companion dirs, keeps the file", () => {
@@ -332,8 +332,8 @@ describe("companion directories (.mrxs)", () => {
       "test-connection",
     );
 
-    expect(nodes.map((n) => n.name)).toEqual(["slide.mrxs", "plain"]);
-    expect(nodes[1].children?.map((n) => n.name)).toEqual(["file.txt"]);
+    expect(nodes.map((n) => n.name)).toEqual(["plain", "slide.mrxs"]);
+    expect(nodes[0].children?.map((n) => n.name)).toEqual(["file.txt"]);
   });
 });
 
@@ -358,5 +358,16 @@ describe("vsi companion directories", () => {
     });
 
     expect(nodes.map((n) => n.name)).toEqual(["_OS-2_", "OS-1", "OS-1.vsi"]);
+  });
+
+  test("sorts .zarr leaf dirs with files, not with directories", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "alpha.ome.tif" }],
+      commonPrefixes: ["aaa-dir/", "bravo.zarr/", "zzz-dir/"],
+      connectionId: "test-conn-id",
+      connectionName: "test-connection",
+    });
+
+    expect(nodes.map((n) => n.name)).toEqual(["aaa-dir", "zzz-dir", "alpha.ome.tif", "bravo.zarr"]);
   });
 });

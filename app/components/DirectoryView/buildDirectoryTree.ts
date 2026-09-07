@@ -7,6 +7,18 @@ import {
   isLeafDirectory,
 } from "~/utils/leafDirectory";
 
+function compareTreeNodes(a: TreeNode, b: TreeNode): number {
+  const aFile = a.type === "file" ? 1 : 0;
+  const bFile = b.type === "file" ? 1 : 0;
+  if (aFile !== bFile) return aFile - bFile;
+  return a.name.localeCompare(b.name, undefined, { numeric: true });
+}
+
+function sortTreeNodes(nodes: TreeNode[]): void {
+  nodes.sort(compareTreeNodes);
+  for (const n of nodes) if (n.children) sortTreeNodes(n.children);
+}
+
 export type TreeNodeType = "bucket" | "directory" | "file";
 
 /**
@@ -218,6 +230,7 @@ export function buildLevelTree({
     });
   }
 
+  sortTreeNodes(nodes);
   return nodes;
 }
 
@@ -242,5 +255,6 @@ export function buildDirectoryTree(
     buildDirectoryTreeRecursive(root, pathSegments, obj, connectionId, connectionName, basePath);
   });
 
+  sortTreeNodes(root);
   return root;
 }
