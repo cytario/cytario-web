@@ -1,7 +1,11 @@
 import type { _Object } from "@aws-sdk/client-s3";
 
 import { getFileCategory } from "~/utils/fileType";
-import { isZarrPath } from "~/utils/zarrUtils";
+import {
+  companionDirectoryPrefixes,
+  isInsideHiddenPrefix,
+  isLeafDirectory,
+} from "~/utils/leafDirectory";
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
@@ -52,7 +56,7 @@ function buildDirectoryTreeRecursive(
       _Object: obj,
     });
   } else {
-    if (isZarrPath(name)) {
+    if (isLeafDirectory(name)) {
       if (!currentDir.find((child) => child.name === name)) {
         currentDir.push({
           id: `${connectionId}/${pathName}`,
@@ -171,24 +175,26 @@ export function buildLevelTree({
   const basePath = urlPath ? (urlPath.endsWith("/") ? urlPath : `${urlPath}/`) : "";
   const stripPrefix = prefix ?? "";
   const nodes: TreeNode[] = [];
+  const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
 
   for (const cp of commonPrefixes) {
+    if (hidden.has(cp)) continue;
     const relative = cp.startsWith(stripPrefix) ? cp.slice(stripPrefix.length) : cp;
     const name = relative.replace(/\/$/, "");
     if (!name) continue;
     const pathName = `${basePath}${name}/`;
-    const isZarr = isZarrPath(name);
+    const isLeaf = isLeafDirectory(name);
 
     nodes.push({
       id: `${connectionId}/${pathName}`,
       connectionId,
       connectionName,
-      type: isZarr ? "file" : "directory",
+      type: isLeaf ? "file" : "directory",
       name,
       pathName,
-      children: isZarr ? undefined : [],
-      isLeaf: isZarr,
-      loadState: isZarr ? undefined : "idle",
+      children: isLeaf ? undefined : [],
+      isLeaf,
+      loadState: isLeaf ? undefined : "idle",
     });
   }
 
@@ -224,9 +230,11 @@ export function buildDirectoryTree(
 ): TreeNode[] {
   const root: TreeNode[] = [];
   const basePath = urlPath ? (urlPath.endsWith("/") ? urlPath : `${urlPath}/`) : "";
+  const hidden = companionDirectoryPrefixes(objects.map((o) => o.Key ?? "").filter(Boolean));
 
   objects.forEach((obj) => {
     if (!obj.Key) return;
+    if (isInsideHiddenPrefix(obj.Key, hidden)) return;
 
     const pathName = obj.Key.replace(prefix || "", "");
     const pathSegments = pathName.split("/");

@@ -6,13 +6,13 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
+import { isLeafDirectoryPath } from "~/utils/leafDirectory";
 import {
   ConnectionPrefixError,
   getName,
   prefixSchema,
   resolveConnectionPrefix,
 } from "~/utils/pathUtils";
-import { isZarrPath } from "~/utils/zarrUtils";
 
 export interface BucketRouteServerLoaderResponse {
   connectionId: string;
@@ -72,7 +72,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   }
   const name = getName(pathName, bucketName);
 
-  const serverDeterminedSingleFile = isZarrPath(pathName);
+  const serverDeterminedSingleFile = isLeafDirectoryPath(pathName);
 
   const payload: BucketRouteLoaderResponse = {
     connectionId,

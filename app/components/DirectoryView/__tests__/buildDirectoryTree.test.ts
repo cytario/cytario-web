@@ -296,3 +296,67 @@ describe("buildLevelTree", () => {
     expect(nodes[0].name).toBe("actual.tif");
   });
 });
+
+describe("companion directories (.mrxs)", () => {
+  test("buildLevelTree hides the dir when the sibling file exists", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "slide.mrxs" }],
+      commonPrefixes: ["slide/", "other/"],
+      connectionId: "test-conn-id",
+      connectionName: "test-connection",
+    });
+
+    expect(nodes.map((n) => n.name)).toEqual(["other", "slide.mrxs"]);
+  });
+
+  test("buildLevelTree keeps the dir when no sibling file exists", () => {
+    const nodes = buildLevelTree({
+      contents: [],
+      commonPrefixes: ["slide/", "other/"],
+      connectionId: "test-conn-id",
+      connectionName: "test-connection",
+    });
+
+    expect(nodes.map((n) => n.name)).toEqual(["slide", "other"]);
+  });
+
+  test("buildDirectoryTree drops keys inside companion dirs, keeps the file", () => {
+    const nodes = buildDirectoryTree(
+      [
+        { Key: "slide.mrxs" },
+        { Key: "slide/subfolder/file.dat" },
+        { Key: "slide/other.bin" },
+        { Key: "plain/file.txt" },
+      ],
+      "test-conn-id",
+      "test-connection",
+    );
+
+    expect(nodes.map((n) => n.name)).toEqual(["slide.mrxs", "plain"]);
+    expect(nodes[1].children?.map((n) => n.name)).toEqual(["file.txt"]);
+  });
+});
+
+describe("vsi companion directories", () => {
+  test("buildLevelTree hides the _{stem}_ dir when the sibling file exists", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "OS-1.vsi" }],
+      commonPrefixes: ["_OS-1_/", "other/"],
+      connectionId: "test-conn-id",
+      connectionName: "test-connection",
+    });
+
+    expect(nodes.map((n) => n.name)).toEqual(["other", "OS-1.vsi"]);
+  });
+
+  test("buildLevelTree keeps unrelated underscore dirs", () => {
+    const nodes = buildLevelTree({
+      contents: [{ Key: "OS-1.vsi" }],
+      commonPrefixes: ["_OS-2_/", "OS-1/"],
+      connectionId: "test-conn-id",
+      connectionName: "test-connection",
+    });
+
+    expect(nodes.map((n) => n.name)).toEqual(["_OS-2_", "OS-1", "OS-1.vsi"]);
+  });
+});

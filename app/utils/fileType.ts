@@ -23,7 +23,13 @@ interface FileTypeEntry {
   label: string;
   icon: IconName;
   category: FileCategory;
+  /** `leaf`: the prefix is the image. `companion`: hide the same-named sibling dir. */
+  storageLayout?: StorageLayout;
+  /** Companion-dir name template, `{stem}` = file name minus extension. Default `"{stem}"`. */
+  companionDir?: string;
 }
+
+export type StorageLayout = "leaf" | "companion";
 
 // Matched top-to-bottom — OME-TIFF must precede TIFF so `.ome.tif` hits the
 // specific pattern. Built-ins stay hardcoded (not auto-derived from the
@@ -42,6 +48,24 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     label: "OME-Zarr",
     icon: "Microscope",
     category: "image",
+    storageLayout: "leaf",
+  },
+  {
+    pattern: /\.mrxs$/i,
+    type: "MRXS",
+    label: "MRXS",
+    icon: "Microscope",
+    category: "none",
+    storageLayout: "companion",
+  },
+  {
+    pattern: /\.vsi$/i,
+    type: "VSI",
+    label: "VSI",
+    icon: "Microscope",
+    category: "none",
+    storageLayout: "companion",
+    companionDir: "_{stem}_",
   },
   {
     pattern: /\.parquet$/i,
@@ -108,6 +132,14 @@ function pluginFileTypes(): FileTypeEntry[] {
         label,
         icon,
         category: "image",
+        ...(handler.fileTypeMeta?.storageLayout
+          ? {
+              storageLayout: handler.fileTypeMeta.storageLayout,
+              ...(handler.fileTypeMeta.companionDir
+                ? { companionDir: handler.fileTypeMeta.companionDir }
+                : {}),
+            }
+          : {}),
       });
     }
   }
@@ -157,10 +189,20 @@ export function stripUrlSuffix(path: string): string {
   return path.slice(0, end);
 }
 
-/** Returns the first matching {@link FileTypeEntry} for a file path or key. */
+/**
+ * Returns the first matching {@link FileTypeEntry} for a file path or key.
+ * A plugin entry that shadows a static entry but omits `storageLayout`
+ * inherits it from the static one, so layout semantics survive plugin
+ * injection; an explicit plugin value always wins.
+ */
 export function getFileTypeEntry(nameOrKey: string): FileTypeEntry | undefined {
   const cleaned = stripUrlSuffix(nameOrKey);
-  return allFileTypes().find((entry) => entry.pattern.test(cleaned));
+  const entry = allFileTypes().find((e) => e.pattern.test(cleaned));
+  if (!entry || entry.storageLayout) return entry;
+  const fallback = STATIC_FILE_TYPES.find((e) => e.storageLayout && e.pattern.test(cleaned));
+  return fallback
+    ? { ...entry, storageLayout: fallback.storageLayout, companionDir: fallback.companionDir }
+    : entry;
 }
 
 /** Returns a human-readable file type label from a file path or key. */

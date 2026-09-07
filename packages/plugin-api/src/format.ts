@@ -12,7 +12,16 @@ export interface LoadOptions {
 export interface FileTypeMeta {
   label?: string;
   icon?: string;
+  /** `leaf`: the prefix is the image (.zarr). `companion`: hide the same-named sibling dir (.mrxs). */
+  storageLayout?: StorageLayout;
+  /**
+   * Companion-dir name template, `{stem}` = file name minus extension.
+   * Default `"{stem}"`; VSI uses `"_{stem}_"` (file `OS-1.vsi`, dir `_OS-1_/`).
+   */
+  companionDir?: string;
 }
+
+export type StorageLayout = "leaf" | "companion";
 
 /**
  * Extension declaration shape for a `FormatHandler`. Accepts:
