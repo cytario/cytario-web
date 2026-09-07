@@ -23,6 +23,23 @@ export interface NodeLinkProps {
    *  parent (e.g. GridItem spreads it on its card). NodeLink does not spread
    *  `targetProps` on its own row in this case. */
   onContextMenuTarget?: (handler: ((event: React.MouseEvent) => void) | null) => void;
+  /** When provided, highlights case-insensitive substring matches in the node name. */
+  highlightQuery?: string;
+}
+
+function HighlightedName({ name, query }: { name: string; query?: string }) {
+  if (!query || query.trim() === "") return name;
+  const idx = name.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return name;
+  return (
+    <>
+      {name.slice(0, idx)}
+      <mark className="bg-transparent font-semibold text-foreground">
+        {name.slice(idx, idx + query.length)}
+      </mark>
+      {name.slice(idx + query.length)}
+    </>
+  );
 }
 
 const ROW_CX = `
@@ -60,6 +77,7 @@ export function NodeLink({
   isSelected,
   onToggleSelect,
   onContextMenuTarget,
+  highlightQuery,
 }: NodeLinkProps) {
   const to = buildConnectionPath(node.connectionId, node.pathName);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
@@ -96,12 +114,16 @@ export function NodeLink({
           {...targetProps}
         >
           <NodeIndicator node={node} />
-          <TruncatedText>{node.name}</TruncatedText>
+          <TruncatedText>
+            <HighlightedName name={node.name} query={highlightQuery} />
+          </TruncatedText>
         </NavLink>
       ) : (
         <div className={twMerge(ROW_CX, isCurrent && ACTIVE_CX)} {...targetProps}>
           <NodeIndicator node={node} />
-          <TruncatedText>{node.name}</TruncatedText>
+          <TruncatedText>
+            <HighlightedName name={node.name} query={highlightQuery} />
+          </TruncatedText>
         </div>
       )}
 

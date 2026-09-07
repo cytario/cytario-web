@@ -139,6 +139,7 @@ export default function SearchRoute() {
           nodes={nodes}
           kind="entries"
           defaultExpandedItems={defaultExpandedItems}
+          nodeLinkProps={{ highlightQuery: searchQuery }}
         />
       </div>
     </Section>

@@ -85,6 +85,7 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
         nodes={searchNodes}
         kind="entries"
         defaultExpandedItems={searchExpanded}
+        nodeLinkProps={{ highlightQuery: query }}
       />
     );
   }
