@@ -6,6 +6,8 @@ export type {
   FormatHandler,
   FormatExtension,
   FileTypeMeta,
+  StorageLayout,
+  CompanionDirNaming,
   LoadOptions,
   SignedFetch,
 } from "./format";

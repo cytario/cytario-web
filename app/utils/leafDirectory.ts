@@ -36,7 +36,7 @@ export function companionDirectoryPrefixes(keys: readonly string[]): Set<string>
     if (dot <= slash) continue;
     const stem = path.slice(slash + 1, dot);
     if (!stem) continue;
-    const dir = (entry.companionDir ?? "{stem}").replace("{stem}", stem);
+    const dir = entry.companionDir === "underscore-wrapped" ? `_${stem}_` : stem;
     hidden.add(`${path.slice(0, slash + 1)}${dir}/`);
   }
   return hidden;

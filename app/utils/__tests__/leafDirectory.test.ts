@@ -1,6 +1,7 @@
 import {
   companionDirectoryPrefixes,
   hasCompanionDirectory,
+  isInsideHiddenPrefix,
   isInsideLeafDirectory,
   isLeafDirectory,
   isLeafDirectoryPath,
@@ -147,6 +148,32 @@ describe("companion directories (.mrxs)", () => {
     expect(companionDirectoryPrefixes(["OS-1.vsi"])).toEqual(new Set(["_OS-1_/"]));
     expect(companionDirectoryPrefixes(["vsi/OS-1.vsi"])).toEqual(new Set(["vsi/_OS-1_/"]));
     expect(companionDirectoryPrefixes(["OS-2.vsi", "OS-2/"])).toEqual(new Set(["_OS-2_/"]));
+  });
+});
+
+describe("isInsideHiddenPrefix", () => {
+  test("true for keys inside a companion dir prefix", () => {
+    const hidden = new Set(["scope/slide/"]);
+    expect(isInsideHiddenPrefix("scope/slide/thumbnail.jpg", hidden)).toBe(true);
+    expect(isInsideHiddenPrefix("scope/slide/sub/data.dat", hidden)).toBe(true);
+  });
+
+  test("false for the companion dir prefix itself and unrelated keys", () => {
+    const hidden = new Set(["scope/slide/"]);
+    expect(isInsideHiddenPrefix("scope/slide/", hidden)).toBe(true);
+    expect(isInsideHiddenPrefix("scope/other/file.tif", hidden)).toBe(false);
+    expect(isInsideHiddenPrefix("scope/slide", hidden)).toBe(false);
+  });
+
+  test("empty set matches nothing", () => {
+    expect(isInsideHiddenPrefix("scope/anything", new Set())).toBe(false);
+  });
+
+  test("handles multiple prefixes", () => {
+    const hidden = new Set(["a/b/", "x/y/"]);
+    expect(isInsideHiddenPrefix("a/b/c", hidden)).toBe(true);
+    expect(isInsideHiddenPrefix("x/y/z", hidden)).toBe(true);
+    expect(isInsideHiddenPrefix("a/c", hidden)).toBe(false);
   });
 });
 

@@ -142,4 +142,24 @@ describe("searchConnection (BFS)", () => {
     const opts = listObjectsClient.mock.calls[0][2] as { signal?: AbortSignal };
     expect(opts.signal).toBe(controller.signal);
   });
+
+  test("propagates isCapped when BFS exceeds MAX_DIRS", async () => {
+    const dirs = Array.from({ length: 600 }, (_, i) => `scope/d${i}/`);
+    listObjectsClient.mockResolvedValueOnce(listing([], dirs));
+    listObjectsClient.mockResolvedValue(listing([], []));
+
+    const result = await searchConnection({ connection: connection(), query: "x" });
+
+    expect(result.isCapped).toBe(true);
+  });
+
+  test("propagates isCapped when S3 listing returns isCapped", async () => {
+    listObjectsClient
+      .mockResolvedValueOnce(listing([], ["scope/sub/"]))
+      .mockResolvedValueOnce({ contents: [], commonPrefixes: [], isCapped: true });
+
+    const result = await searchConnection({ connection: connection(), query: "x" });
+
+    expect(result.isCapped).toBe(true);
+  });
 });

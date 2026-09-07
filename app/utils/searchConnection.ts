@@ -4,6 +4,7 @@ import type { Credentials } from "@aws-sdk/client-sts";
 import { buildDirectoryTree, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { companionDirectoryPrefixes, isLeafDirectory } from "~/utils/leafDirectory";
+import { mapWithConcurrency } from "~/utils/limitConcurrency";
 import { filterObjects } from "~/utils/listObjects/filterObjects";
 import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
 import { search } from "~/utils/listObjects/search";
@@ -95,45 +96,48 @@ async function bfsSearch(
   signal?: AbortSignal,
 ): Promise<{ matched: _Object[]; isCapped: boolean }> {
   const matched: _Object[] = [];
-  const visited = new Set<string>();
   let level: string[] = [rootPrefix];
   let isCapped = false;
+  let dirsVisited = 0;
+  const MAX_DIRS = 500;
 
   while (level.length > 0) {
     if (signal?.aborted) throw signal.reason ?? new Error("Search aborted");
 
-    const pending = level.filter((p) => !visited.has(p));
-    for (const p of pending) visited.add(p);
+    if (dirsVisited + level.length > MAX_DIRS) {
+      level = level.slice(0, MAX_DIRS - dirsVisited);
+      isCapped = true;
+    }
 
-    const results = await Promise.all(
-      pending.map(async (prefix) => {
-        const {
-          contents,
-          commonPrefixes,
-          isCapped: levelCapped,
-        } = await listObjectsClient(address, credentials, { prefix, signal });
-        if (levelCapped) isCapped = true;
+    const results = await mapWithConcurrency(level, 4, async (prefix) => {
+      const {
+        contents,
+        commonPrefixes,
+        isCapped: levelCapped,
+      } = await listObjectsClient(address, credentials, { prefix, signal });
+      if (levelCapped) isCapped = true;
 
-        const fileMatches = filterObjects(contents, { query });
+      const fileMatches = filterObjects(contents, { query });
 
-        const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
-        const leafMatches: _Object[] = [];
-        const subDirs: string[] = [];
+      const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
+      const leafMatches: _Object[] = [];
+      const subDirs: string[] = [];
 
-        for (const cp of commonPrefixes) {
-          if (hidden.has(cp)) continue;
-          const name = cp.slice(prefix.length).replace(/\/$/, "");
-          if (!name) continue;
-          if (isLeafDirectory(name)) {
-            if (search(query, name)) leafMatches.push({ Key: cp.replace(/\/$/, "") });
-          } else {
-            subDirs.push(cp);
-          }
+      for (const cp of commonPrefixes) {
+        if (hidden.has(cp)) continue;
+        const name = cp.slice(prefix.length).replace(/\/$/, "");
+        if (!name) continue;
+        if (isLeafDirectory(name)) {
+          if (search(query, name)) leafMatches.push({ Key: cp.replace(/\/$/, "") });
+        } else {
+          subDirs.push(cp);
         }
+      }
 
-        return { fileMatches, leafMatches, subDirs };
-      }),
-    );
+      return { fileMatches, leafMatches, subDirs };
+    });
+
+    dirsVisited += level.length;
 
     const next: string[] = [];
     for (const r of results) {

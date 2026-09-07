@@ -15,13 +15,16 @@ export interface FileTypeMeta {
   /** `leaf`: the prefix is the image (.zarr). `companion`: hide the same-named sibling dir (.mrxs). */
   storageLayout?: StorageLayout;
   /**
-   * Companion-dir name template, `{stem}` = file name minus extension.
-   * Default `"{stem}"`; VSI uses `"_{stem}_"` (file `OS-1.vsi`, dir `_OS-1_/`).
+   * Companion-dir naming convention.
+   * `"same-name"` (default): `slide.mrxs` → `slide/`.
+   * `"underscore-wrapped"`: `OS-1.vsi` → `_OS-1_/`.
    */
-  companionDir?: string;
+  companionDir?: CompanionDirNaming;
 }
 
 export type StorageLayout = "leaf" | "companion";
+
+export type CompanionDirNaming = "same-name" | "underscore-wrapped";
 
 /**
  * Extension declaration shape for a `FormatHandler`. Accepts:

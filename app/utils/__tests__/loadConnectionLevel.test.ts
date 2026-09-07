@@ -5,6 +5,7 @@ import {
   __resetConnectionTreeStore,
   useConnectionTreeStore,
 } from "../connectionsStore/useConnectionTreeStore";
+import { TREE_CACHE_TTL_MS } from "../listingLimits";
 import { loadConnectionLevel } from "../loadConnectionLevel";
 
 const listObjectsClient = vi.fn();
@@ -91,7 +92,7 @@ describe("loadConnectionLevel (cached)", () => {
     listObjectsClient.mockResolvedValue({ contents: [], commonPrefixes: [], isCapped: false });
 
     await loadConnectionLevel(args());
-    vi.setSystemTime(new Date(Date.now() + 5 * 60_000 + 1));
+    vi.setSystemTime(new Date(Date.now() + TREE_CACHE_TTL_MS + 1));
     await loadConnectionLevel(args());
 
     expect(listObjectsClient).toHaveBeenCalledTimes(2);

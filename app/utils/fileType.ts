@@ -1,5 +1,6 @@
 import { iconRegistry, type IconName } from "@cytario/design";
 
+import type { CompanionDirNaming } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
 export type FileType =
@@ -25,8 +26,8 @@ interface FileTypeEntry {
   category: FileCategory;
   /** `leaf`: the prefix is the image. `companion`: hide the same-named sibling dir. */
   storageLayout?: StorageLayout;
-  /** Companion-dir name template, `{stem}` = file name minus extension. Default `"{stem}"`. */
-  companionDir?: string;
+  /** Companion-dir naming convention. Default `"same-name"`. */
+  companionDir?: CompanionDirNaming;
 }
 
 export type StorageLayout = "leaf" | "companion";
@@ -65,7 +66,7 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     icon: "Microscope",
     category: "none",
     storageLayout: "companion",
-    companionDir: "_{stem}_",
+    companionDir: "underscore-wrapped",
   },
   {
     pattern: /\.parquet$/i,
@@ -147,9 +148,18 @@ function pluginFileTypes(): FileTypeEntry[] {
 }
 
 // Plugin entries first so a plugin can shadow a static type for the same
-// extension (rare but supported).
+// extension (rare but supported). Memoized — formatRegistry doesn't change
+// after bootstrap.
+let _allFileTypes: FileTypeEntry[] | undefined;
 export function allFileTypes(): FileTypeEntry[] {
-  return [...pluginFileTypes(), ...STATIC_FILE_TYPES];
+  if (_allFileTypes) return _allFileTypes;
+  _allFileTypes = [...pluginFileTypes(), ...STATIC_FILE_TYPES];
+  return _allFileTypes;
+}
+
+/** Test-only: clears the memoized file-type list so registry changes are picked up. */
+export function __resetFileTypeCache(): void {
+  _allFileTypes = undefined;
 }
 
 /**
