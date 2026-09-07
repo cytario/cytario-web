@@ -6,6 +6,7 @@ import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/bu
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import type { NodeLinkProps } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { onExpand } from "~/components/DirectoryView/onExpand";
+import { Divider } from "~/components/Divider/Divider";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { ancestorDirIds } from "~/utils/resourceId";
 import { useConnectionSearch } from "~/utils/useConnectionSearch";
@@ -106,10 +107,10 @@ export function ConnectionTree({
     }
     return (
       <div className="flex flex-col gap-1">
-        <p className="px-2 text-xs text-muted-foreground" aria-live="polite">
+        <Divider aria-live="polite">
           {resultCount} {resultCount === 1 ? "result" : "results"}
           {isSearching ? " — searching…" : ""}
-        </p>
+        </Divider>
         <DirectoryViewTree
           key={`search:${selectedConnection}`}
           nodes={searchNodes}

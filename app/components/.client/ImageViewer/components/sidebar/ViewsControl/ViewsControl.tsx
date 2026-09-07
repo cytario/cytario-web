@@ -5,6 +5,7 @@ import { SplitViewToggle } from "./SplitViewToggle";
 import { ViewRadioButton } from "./ViewRadioButton";
 import { select } from "../../../state/store/selectors";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { Divider } from "~/components/Divider/Divider";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 
 /** Sidebar views control: split-panel layout (add/remove panels, assign VCS). */
@@ -57,19 +58,19 @@ export function ViewsControl() {
       >
         {localViews.length > 0 && (
           <section className="flex flex-col gap-2">
-            <span className="text-sm">My views</span>
+            <Divider>My views</Divider>
             {localViews.map(renderItem)}
           </section>
         )}
         {ownSharedViews.length > 0 && (
           <section className="flex flex-col gap-2">
-            <span className="text-sm text-muted-foreground px-1">Shared by me</span>
+            <Divider>Shared by me</Divider>
             {ownSharedViews.map(renderItem)}
           </section>
         )}
         {peerSharedViews.length > 0 && (
           <section className="flex flex-col gap-2">
-            <span className="text-sm text-muted-foreground px-1">Shared with me</span>
+            <Divider>Shared with me</Divider>
             {peerSharedViews.map(renderItem)}
           </section>
         )}
