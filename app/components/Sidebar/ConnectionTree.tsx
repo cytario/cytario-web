@@ -1,13 +1,14 @@
 import { EmptyState } from "@cytario/design";
 import { useMemo } from "react";
 
-import { useSidebarSearch } from "./Explorer/useSidebarSearch";
 import { LoaderView } from "../Loader/LoaderView";
 import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
+import type { NodeLinkProps } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { onExpand } from "~/components/DirectoryView/onExpand";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { ancestorDirIds } from "~/utils/resourceId";
+import { useConnectionSearch } from "~/utils/useConnectionSearch";
 
 interface ConnectionTreeProps {
   selectedConnection: string;
@@ -19,9 +20,19 @@ interface ConnectionTreeProps {
    * collapsed root.
    */
   activePathName?: string;
+  /** Restrict search matches and visible files to one extension (e.g. "parquet"). Directories always pass. */
+  extension?: string;
+  /** Extra NodeLink props, merged after the internal highlightQuery. */
+  nodeLinkProps?: Omit<NodeLinkProps, "node">;
 }
 
-export function ConnectionTree({ selectedConnection, query, activePathName }: ConnectionTreeProps) {
+export function ConnectionTree({
+  selectedConnection,
+  query,
+  activePathName,
+  extension,
+  nodeLinkProps,
+}: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
   const connectionName =
     useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
@@ -31,7 +42,7 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
     isSearching,
     error,
     corsBlocked,
-  } = useSidebarSearch(selectedConnection, query);
+  } = useConnectionSearch(selectedConnection, query, extension);
 
   const rootNodes = useMemo<TreeNode[]>(
     () => [
@@ -57,9 +68,18 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
     [activePathName, selectedConnection, rootId],
   );
 
+  const nodeFilter = useMemo(
+    () =>
+      extension
+        ? (n: TreeNode) =>
+            n.type !== "file" || n.name.toLowerCase().endsWith(`.${extension.toLowerCase()}`)
+        : undefined,
+    [extension],
+  );
+
   if (query) {
     if (isSearching && searchNodes.length === 0) {
-      return <LoaderView label="Searching…" />;
+      return <LoaderView label={`Searching for “${query}”…`} />;
     }
     if (error) {
       return (
@@ -85,7 +105,8 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
         nodes={searchNodes}
         kind="entries"
         defaultExpandedItems={searchExpanded}
-        nodeLinkProps={{ highlightQuery: query }}
+        nodeLinkProps={{ highlightQuery: query, ...nodeLinkProps }}
+        nodeFilter={nodeFilter}
       />
     );
   }
@@ -99,6 +120,8 @@ export function ConnectionTree({ selectedConnection, query, activePathName }: Co
       onExpand={onExpand}
       defaultExpandedItems={browseExpanded}
       revealItems={browseExpanded}
+      nodeLinkProps={nodeLinkProps}
+      nodeFilter={nodeFilter}
     />
   );
 }

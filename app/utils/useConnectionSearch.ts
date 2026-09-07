@@ -4,7 +4,7 @@ import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { searchConnection } from "~/utils/searchConnection";
 
-interface SidebarSearch {
+interface ConnectionSearch {
   nodes: TreeNode[];
   isSearching: boolean;
   error: boolean;
@@ -18,10 +18,14 @@ interface SearchResult {
   corsBlocked: boolean;
 }
 
-// Recursive search of the selected connection. `query` is already debounced by
-// SearchInput. Results are keyed by connection+query so isSearching/nodes
-// derive cleanly without resetting state in the effect.
-export function useSidebarSearch(connectionId: string, query: string): SidebarSearch {
+// Recursive search of one connection. `query` is already debounced by
+// SearchInput. Results are keyed by connection+query+extension so
+// isSearching/nodes derive cleanly without resetting state in the effect.
+export function useConnectionSearch(
+  connectionId: string,
+  query: string,
+  extension?: string,
+): ConnectionSearch {
   const hasCreds = useConnectionsStore((s) => !!s.connections[connectionId]?.credentials);
   const [result, setResult] = useState<SearchResult>({
     key: "",
@@ -29,7 +33,7 @@ export function useSidebarSearch(connectionId: string, query: string): SidebarSe
     error: false,
     corsBlocked: false,
   });
-  const key = `${connectionId} ${query}`;
+  const key = `${connectionId} ${query} ${extension ?? ""}`;
 
   useEffect(() => {
     if (!query || !hasCreds) return;
@@ -37,13 +41,13 @@ export function useSidebarSearch(connectionId: string, query: string): SidebarSe
     if (!connection) return;
 
     const controller = new AbortController();
-    searchConnection({ connection, query, signal: controller.signal }).then((r) => {
+    searchConnection({ connection, query, extension, signal: controller.signal }).then((r) => {
       if (controller.signal.aborted) return;
       setResult({ key, nodes: r.node.children ?? [], error: r.error, corsBlocked: r.corsBlocked });
     });
 
     return () => controller.abort();
-  }, [key, query, connectionId, hasCreds]);
+  }, [key, query, extension, connectionId, hasCreds]);
 
   const matched = !!query && result.key === key;
   return {

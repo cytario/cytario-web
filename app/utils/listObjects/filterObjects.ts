@@ -4,11 +4,16 @@ import { search } from "./search";
 
 export const filterObjects = (
   objects: Readonly<_Object>[] = [],
-  { query }: { query?: string | null },
+  { query, extension }: { query?: string | null; extension?: string },
 ): _Object[] => {
+  const suffix = extension ? `.${extension.toLowerCase()}` : null;
   return objects
     .reduce((acc, item) => {
       if (!item.Key) {
+        return acc;
+      }
+
+      if (suffix && !item.Key.toLowerCase().endsWith(suffix)) {
         return acc;
       }
 

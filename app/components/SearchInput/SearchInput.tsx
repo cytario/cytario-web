@@ -9,6 +9,8 @@ export interface SearchInputProps {
   placeholder?: string;
   id?: string;
   className?: string;
+  /** Initial text. Caller must also pass it to onQueryChange's consumer — the input does not fire on mount. */
+  defaultValue?: string;
 }
 
 export function SearchInput({
@@ -17,8 +19,9 @@ export function SearchInput({
   placeholder = "Search…",
   id,
   className = "flex items-center gap-1",
+  defaultValue,
 }: SearchInputProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(defaultValue ?? "");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

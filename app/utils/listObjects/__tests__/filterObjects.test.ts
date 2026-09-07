@@ -3,7 +3,12 @@ import { describe, expect, test } from "vitest";
 
 import { filterObjects } from "../filterObjects";
 
-const testCases: [string, _Object[], { prefix?: string; query?: string }, _Object[]][] = [
+const testCases: [
+  string,
+  _Object[],
+  { prefix?: string; query?: string; extension?: string },
+  _Object[],
+][] = [
   [
     "filter objects by query",
     [{ Key: "folder1/file1.tif" }, { Key: "folder2/file2.tif" }],
@@ -29,6 +34,24 @@ const testCases: [string, _Object[], { prefix?: string; query?: string }, _Objec
     [{ Key: "folder1/file1.tif" }, { Key: "folder2/file2.tif" }],
   ],
   ["drop objects with empty key", [{ Key: "" }], {}, []],
+  [
+    "filter objects by extension",
+    [{ Key: "a/data.parquet" }, { Key: "a/data.csv" }, { Key: "a/parquet/readme.txt" }],
+    { extension: "parquet" },
+    [{ Key: "a/data.parquet" }],
+  ],
+  [
+    "match extension case-insensitively",
+    [{ Key: "a/data.PARQUET" }],
+    { extension: "parquet" },
+    [{ Key: "a/data.PARQUET" }],
+  ],
+  [
+    "combine query and extension",
+    [{ Key: "a/foo.parquet" }, { Key: "a/bar.parquet" }],
+    { query: "foo", extension: "parquet" },
+    [{ Key: "a/foo.parquet" }],
+  ],
 ];
 
 describe("filterObjects", () => {

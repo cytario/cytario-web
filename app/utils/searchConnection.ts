@@ -30,10 +30,13 @@ export interface SearchConnectionResult {
 export async function searchConnection({
   connection,
   query,
+  extension,
   signal,
 }: {
   connection: Connection;
   query: string;
+  /** Restrict matches to one file extension (e.g. "parquet"). */
+  extension?: string;
   signal?: AbortSignal;
 }): Promise<SearchConnectionResult> {
   const { connectionConfig: config, credentials, provider } = connection;
@@ -64,7 +67,14 @@ export async function searchConnection({
   };
 
   try {
-    const { matched, isCapped } = await bfsSearch(address, credentials, rootPrefix, query, signal);
+    const { matched, isCapped } = await bfsSearch(
+      address,
+      credentials,
+      rootPrefix,
+      query,
+      extension,
+      signal,
+    );
     const q = query.toLowerCase();
     const rank = (key: string) => {
       const name = key.split("/").pop() ?? key;
@@ -103,6 +113,7 @@ async function bfsSearch(
   credentials: Credentials,
   rootPrefix: string,
   query: string,
+  extension: string | undefined,
   signal?: AbortSignal,
 ): Promise<{ matched: _Object[]; isCapped: boolean }> {
   const matched: _Object[] = [];
@@ -127,7 +138,7 @@ async function bfsSearch(
       } = await listObjectsClient(address, credentials, { prefix, signal });
       if (levelCapped) isCapped = true;
 
-      const fileMatches = filterObjects(contents, { query });
+      const fileMatches = filterObjects(contents, { query, extension });
 
       const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
       const leafMatches: _Object[] = [];
