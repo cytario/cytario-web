@@ -65,7 +65,17 @@ export async function searchConnection({
 
   try {
     const { matched, isCapped } = await bfsSearch(address, credentials, rootPrefix, query, signal);
-    matched.sort((a, b) => (a.Key ?? "").localeCompare(b.Key ?? ""));
+    const q = query.toLowerCase();
+    const rank = (key: string) => {
+      const name = key.split("/").pop() ?? key;
+      const lc = name.toLowerCase();
+      if (lc === q) return 0;
+      if (lc.startsWith(q)) return 1;
+      return 2;
+    };
+    matched.sort(
+      (a, b) => rank(a.Key ?? "") - rank(b.Key ?? "") || (a.Key ?? "").localeCompare(b.Key ?? ""),
+    );
 
     return {
       node: {
