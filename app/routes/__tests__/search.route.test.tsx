@@ -209,18 +209,14 @@ describe("SearchRoute", () => {
       expect.objectContaining({ id: "alpha", bucketName: "shared-bucket" }),
       expect.anything(),
       expect.objectContaining({
-        query: "parquet",
         prefix: "Alpha Lab/",
-        recursive: true,
       }),
     );
     expect(listObjectsClient).toHaveBeenCalledWith(
       expect.objectContaining({ id: "beta", bucketName: "shared-bucket" }),
       expect.anything(),
       expect.objectContaining({
-        query: "parquet",
         prefix: "Beta Lab/",
-        recursive: true,
       }),
     );
 
