@@ -26,6 +26,10 @@ interface ConnectionTreeProps {
   nodeLinkProps?: Omit<NodeLinkProps, "node">;
 }
 
+/** Number of search-result leaves (interior structure dirs don't count). */
+const countLeaves = (nodes: TreeNode[]): number =>
+  nodes.reduce((acc, n) => acc + (n.children?.length ? countLeaves(n.children) : 1), 0);
+
 export function ConnectionTree({
   selectedConnection,
   query,
@@ -62,6 +66,7 @@ export function ConnectionTree({
   );
 
   const searchExpanded = useMemo(() => collectInteriorIds(searchNodes), [searchNodes]);
+  const resultCount = useMemo(() => countLeaves(searchNodes), [searchNodes]);
 
   const browseExpanded = useMemo(
     () => (activePathName ? ancestorDirIds(selectedConnection, activePathName) : [rootId]),
@@ -100,14 +105,20 @@ export function ConnectionTree({
       );
     }
     return (
-      <DirectoryViewTree
-        key={`search:${selectedConnection}`}
-        nodes={searchNodes}
-        kind="entries"
-        defaultExpandedItems={searchExpanded}
-        nodeLinkProps={{ highlightQuery: query, ...nodeLinkProps }}
-        nodeFilter={nodeFilter}
-      />
+      <div className="flex flex-col gap-1">
+        <p className="px-2 text-xs text-muted-foreground" aria-live="polite">
+          {resultCount} {resultCount === 1 ? "result" : "results"}
+          {isSearching ? " — searching…" : ""}
+        </p>
+        <DirectoryViewTree
+          key={`search:${selectedConnection}`}
+          nodes={searchNodes}
+          kind="entries"
+          defaultExpandedItems={searchExpanded}
+          nodeLinkProps={{ highlightQuery: query, ...nodeLinkProps }}
+          nodeFilter={nodeFilter}
+        />
+      </div>
     );
   }
 
