@@ -1,5 +1,5 @@
 import { Icon, IconButton, Input } from "@cytario/design";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const DEBOUNCE_MS = 300;
 
@@ -11,6 +11,8 @@ export interface SearchInputProps {
   className?: string;
   /** Initial text. Caller must also pass it to onQueryChange's consumer — the input does not fire on mount. */
   defaultValue?: string;
+  /** Static content inside the input suffix (scope badge etc.), before the clear button. */
+  suffix?: ReactNode;
 }
 
 export function SearchInput({
@@ -20,6 +22,7 @@ export function SearchInput({
   id,
   className = "flex items-center gap-1",
   defaultValue,
+  suffix,
 }: SearchInputProps) {
   const [value, setValue] = useState(defaultValue ?? "");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +52,12 @@ export function SearchInput({
     onQueryChange(next);
   };
 
+  // Clear lives in the input suffix (universal clear-text affordance); reset
+  // is a deliberate restore-to-default, so it sits beside the input like
+  // every other reset in the codebase (FilterBar, MinMaxSettings).
+  const showReset = defaultValue !== undefined && value !== defaultValue;
+  const showClear = value !== "";
+
   return (
     <div className={className}>
       <Input
@@ -58,19 +67,12 @@ export function SearchInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        className="flex-1"
         prefix={<Icon icon="Search" size="sm" className="text-muted-foreground" />}
         suffix={
           <>
-            {defaultValue !== undefined && value !== defaultValue && (
-              <IconButton
-                icon="RotateCcw"
-                size="xs"
-                variant="ghost"
-                onPress={onReset}
-                label="Reset search"
-              />
-            )}
-            {value ? (
+            {suffix}
+            {showClear && (
               <IconButton
                 icon="X"
                 size="xs"
@@ -78,10 +80,19 @@ export function SearchInput({
                 onPress={onClear}
                 label="Clear search"
               />
-            ) : null}
+            )}
           </>
         }
       />
+      {showReset && (
+        <IconButton
+          icon="RotateCcw"
+          size="sm"
+          variant="ghost"
+          onPress={onReset}
+          label="Reset search"
+        />
+      )}
     </div>
   );
 }

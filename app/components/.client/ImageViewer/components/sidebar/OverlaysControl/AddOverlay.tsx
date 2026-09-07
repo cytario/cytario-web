@@ -78,21 +78,22 @@ export function AddOverlay({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <ConnectionSwitcherChip
-          selectedConnection={selectedConnection}
-          onSelect={(id) => setOverride(id || null)}
-        />
-        {/* Scope indicator — same badge file rows render, so the picker's
-            filter matches the rows it admits. */}
-        <Badge icon={scopeType?.icon}>{scopeType?.type ?? `.${extension}`}</Badge>
-      </div>
+      <ConnectionSwitcherChip
+        selectedConnection={selectedConnection}
+        onSelect={(id) => setOverride(id || null)}
+      />
       <SearchInput
         aria-label={`Search ${extension} files`}
-        placeholder={`Search .${extension} files...`}
+        placeholder="Search files..."
         onQueryChange={setSearchTerm}
         defaultValue={sourceName}
+        suffix={
+          // Scope indicator — the same badge file rows render, so what the
+          // picker admits matches what the rows show.
+          <Badge icon={scopeType?.icon}>{scopeType?.type ?? `.${extension}`}</Badge>
+        }
       />
+
       <ConnectionTree
         selectedConnection={selectedConnection}
         query={searchTerm}
