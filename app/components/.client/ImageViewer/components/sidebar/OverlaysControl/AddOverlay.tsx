@@ -1,4 +1,4 @@
-import { Button, EmptyState, useToast } from "@cytario/design";
+import { Badge, Button, EmptyState, useToast } from "@cytario/design";
 import { useCallback, useMemo, useState } from "react";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -8,6 +8,7 @@ import { ConnectionTree } from "~/components/Sidebar/ConnectionTree";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
+import { getFileTypeEntry } from "~/utils/fileType";
 import { parseResourceId } from "~/utils/resourceId";
 
 interface AddOverlayProps {
@@ -38,6 +39,9 @@ export function AddOverlay({
   const [override, setOverride] = useState<string | null>(sourceConnection || null);
   const [searchTerm, setSearchTerm] = useState(sourceName);
   const selectedConnection = override ?? connectionIds[0] ?? "";
+
+  // Registry entry for the picker's extension scope ("Parquet" / "CSV").
+  const scopeType = getFileTypeEntry(`file.${extension}`);
 
   const handleSelect = useCallback(
     (node: TreeNode) => {
@@ -74,10 +78,15 @@ export function AddOverlay({
 
   return (
     <div className="flex flex-col gap-3">
-      <ConnectionSwitcherChip
-        selectedConnection={selectedConnection}
-        onSelect={(id) => setOverride(id || null)}
-      />
+      <div className="flex items-center justify-between gap-2">
+        <ConnectionSwitcherChip
+          selectedConnection={selectedConnection}
+          onSelect={(id) => setOverride(id || null)}
+        />
+        {/* Scope indicator — same badge file rows render, so the picker's
+            filter matches the rows it admits. */}
+        <Badge icon={scopeType?.icon}>{scopeType?.type ?? `.${extension}`}</Badge>
+      </div>
       <SearchInput
         aria-label={`Search ${extension} files`}
         placeholder={`Search .${extension} files...`}
