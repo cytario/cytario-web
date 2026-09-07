@@ -5,6 +5,7 @@ import { type SessionData } from "~/.server/auth/sessionStorage";
 import { clientLoader } from "~/routes/objects/objects.clientLoader";
 import { loader } from "~/routes/objects/objects.loader";
 import mock from "~/utils/__tests__/__mocks__";
+import { __resetConnectionTreeStore } from "~/utils/connectionsStore/useConnectionTreeStore";
 import { CorsLikelyError } from "~/utils/signedFetch";
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
@@ -40,6 +41,7 @@ describe("objects loader (C-193)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listObjectsClient.mockReset();
+    __resetConnectionTreeStore();
     vi.mocked(getConnection).mockResolvedValue(
       mock.connectionConfig({ id: "test-conn", name: "test-conn", prefix: "" }),
     );

@@ -1,7 +1,7 @@
 import { IconButton } from "@cytario/design";
 import { asyncDataLoaderFeature, hotkeysCoreFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { type TreeNode } from "./buildDirectoryTree";
@@ -10,6 +10,7 @@ import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
 import { isHiddenFilename } from "./filterNodes";
 import { useLayoutStore } from "./useLayoutStore";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
+import { useConnectionTreeStore } from "~/utils/connectionsStore/useConnectionTreeStore";
 
 interface DirectoryViewTreeProps {
   nodes: TreeNode[];
@@ -46,6 +47,22 @@ export function DirectoryViewTree({
 }: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems ?? []);
+
+  // Lazy trees (level listings) prime their index from the tree cache so
+  // previously expanded levels resolve instantly after remount. Static trees
+  // (search results) build synthetic nodes that may collide with cached ids,
+  // so they rely on their props alone.
+  const isLazyTree = initialNodes.some((n) => n.loadState === "idle");
+  const connectionId = initialNodes[0]?.connectionId;
+  const cachedLevels = useConnectionTreeStore((s) =>
+    isLazyTree && connectionId ? s.levels[connectionId] : undefined,
+  );
+  useEffect(() => {
+    if (!cachedLevels) return;
+    for (const { nodes } of cachedLevels.values()) {
+      for (const n of nodes) nodesById.current.set(n.id, n);
+    }
+  }, [cachedLevels]);
   // Global "show hidden files" toggle — hides dot-files and sidecar machinery
   // files at render (lazily-loaded children included), so every tree view
   // (browser, search, picker, sidebar, viewer overlays) hides the same set.
