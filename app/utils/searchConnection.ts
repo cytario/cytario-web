@@ -26,6 +26,9 @@ export interface SearchConnectionResult {
  * …) are matched by name without descending into their interiors, and
  * companion directories are skipped entirely. All directories at the same
  * depth are listed in parallel.
+ *
+ * With `extension`, only files matching the extension are results; directories
+ * (matching or not) are traversed, not collected.
  */
 export async function searchConnection({
   connection,
@@ -141,7 +144,6 @@ async function bfsSearch(
       const fileMatches = filterObjects(contents, { query, extension });
 
       const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
-      const leafMatches: _Object[] = [];
       const subDirs: string[] = [];
 
       const dirMatches: _Object[] = [];
@@ -151,20 +153,26 @@ async function bfsSearch(
         const name = cp.slice(prefix.length).replace(/\/$/, "");
         if (!name) continue;
         if (search(query, name)) {
-          dirMatches.push({ Key: cp });
+          if (extension) {
+            // Extension mode: directories are never results (only files are
+            // selectable) — descend so matching files beneath are found.
+            if (!isLeafDirectory(name)) subDirs.push(cp);
+          } else {
+            dirMatches.push({ Key: cp });
+          }
         } else if (!isLeafDirectory(name)) {
           subDirs.push(cp);
         }
       }
 
-      return { fileMatches, leafMatches, dirMatches, subDirs };
+      return { fileMatches, dirMatches, subDirs };
     });
 
     dirsVisited += level.length;
 
     const next: string[] = [];
     for (const r of results) {
-      matched.push(...r.fileMatches, ...r.leafMatches, ...r.dirMatches);
+      matched.push(...r.fileMatches, ...r.dirMatches);
       next.push(...r.subDirs);
     }
     level = next;
