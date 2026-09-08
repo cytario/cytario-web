@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import mock from "./__mocks__";
 import { searchConnection } from "../searchConnection";
+import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import {
   __resetConnectionTreeStore,
@@ -202,5 +203,32 @@ describe("searchConnection (BFS)", () => {
 
     expect(listObjectsClient).toHaveBeenCalledTimes(1);
     expect(nodes.map((n) => n.name)).toEqual(["data.tif"]);
+  });
+
+  test("extension filter with empty query walks all dirs and returns pruned tree", async () => {
+    listObjectsClient
+      .mockResolvedValueOnce(listing([obj("scope/data.txt")], ["scope/sub/", "scope/empty/"]))
+      .mockResolvedValueOnce(listing([obj("scope/sub/match.parquet")], []))
+      .mockResolvedValueOnce(listing([obj("scope/empty/nothing.txt")], []));
+
+    const result = await searchConnection({
+      connection: connection(),
+      query: "",
+      filters: { extensions: ["parquet"] },
+    });
+
+    expect(listObjectsClient).toHaveBeenCalledTimes(3);
+    const allNames: string[] = [];
+    function collectNames(nodes: TreeNode[]) {
+      for (const n of nodes) {
+        allNames.push(n.name);
+        if (n.children) collectNames(n.children);
+      }
+    }
+    collectNames(result.node.children ?? []);
+    expect(allNames).toContain("match.parquet");
+    expect(allNames).not.toContain("data.txt");
+    expect(allNames).not.toContain("nothing.txt");
+    expect(allNames).not.toContain("empty");
   });
 });

@@ -84,9 +84,17 @@ export function ConnectionTree({
     [activePathName, selectedConnection, rootId],
   );
 
-  if (query) {
+  const hasExtensions = !!effectiveFilters.extensions?.length;
+  const searchOrFilterMode = !!query || hasExtensions;
+  const extLabel = effectiveFilters.extensions?.[0];
+
+  if (searchOrFilterMode) {
     if (isSearching && searchNodes.length === 0) {
-      return <LoaderView label={`Searching for “${query}”…`} />;
+      return (
+        <LoaderView
+          label={query ? `Searching for “${query}”…` : `Searching for .${extLabel} files…`}
+        />
+      );
     }
     if (error) {
       return (
@@ -103,7 +111,15 @@ export function ConnectionTree({
     }
     if (searchNodes.length === 0) {
       return (
-        <EmptyState icon="SearchX" title="No matches" description={`Nothing matches “${query}”.`} />
+        <EmptyState
+          icon="SearchX"
+          title="No matches"
+          description={
+            query
+              ? `Nothing matches “${query}”.`
+              : `No .${extLabel} files found in this connection.`
+          }
+        />
       );
     }
     return (
@@ -117,7 +133,7 @@ export function ConnectionTree({
           nodes={searchNodes}
           kind="entries"
           defaultExpandedItems={searchExpanded}
-          nodeLinkProps={{ highlightQuery: query, ...nodeLinkProps }}
+          nodeLinkProps={{ highlightQuery: query || undefined, ...nodeLinkProps }}
           filters={effectiveFilters}
         />
       </div>

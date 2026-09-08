@@ -28,6 +28,8 @@ export function useConnectionSearch(
   filters?: TreeFilters,
 ): ConnectionSearch {
   const hasCreds = useConnectionsStore((s) => !!s.connections[connectionId]?.credentials);
+  const hasExtensions = !!filters?.extensions?.length;
+  const active = !!query || hasExtensions;
   const [result, setResult] = useState<SearchResult>({
     key: "",
     nodes: [],
@@ -37,7 +39,7 @@ export function useConnectionSearch(
   const key = `${connectionId} ${query} ${JSON.stringify(filters ?? {})}`;
 
   useEffect(() => {
-    if (!query || !hasCreds) return;
+    if (!active || !hasCreds) return;
     const connection = useConnectionsStore.getState().connections[connectionId];
     if (!connection) return;
 
@@ -48,14 +50,14 @@ export function useConnectionSearch(
     });
 
     return () => controller.abort();
-  }, [key, query, filters, connectionId, hasCreds]);
+  }, [key, query, filters, connectionId, hasCreds, active]);
 
-  const matched = !!query && result.key === key;
+  const matched = active && result.key === key;
   return {
     nodes: matched ? result.nodes : [],
     // No credentials → immediate error (can't search), not a spinner.
-    isSearching: !!query && hasCreds && !matched,
-    error: !!query && (!hasCreds || (matched && result.error)),
+    isSearching: active && hasCreds && !matched,
+    error: active && (!hasCreds || (matched && result.error)),
     corsBlocked: matched && result.corsBlocked,
   };
 }
