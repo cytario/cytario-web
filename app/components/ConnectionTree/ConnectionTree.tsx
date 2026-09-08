@@ -11,6 +11,7 @@ import { type TreeFilters } from "~/components/DirectoryView/treeFilters";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { Divider } from "~/components/Divider/Divider";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { MAX_SEARCH_DIRS } from "~/utils/listingLimits";
 import { ancestorDirIds } from "~/utils/resourceId";
 
 interface ConnectionTreeProps {
@@ -57,6 +58,7 @@ export function ConnectionTree({
     isSearching,
     error,
     corsBlocked,
+    isCapped,
   } = useConnectionSearch(selectedConnection, query, effectiveFilters);
 
   const rootNodes = useMemo<TreeNode[]>(
@@ -115,9 +117,11 @@ export function ConnectionTree({
           icon="SearchX"
           title="No matches"
           description={
-            query
-              ? `Nothing matches “${query}”.`
-              : `No .${extLabel} files found in this connection.`
+            isCapped
+              ? `The scan stopped at the ${MAX_SEARCH_DIRS}-directory limit before covering the whole connection — matches may exist beyond it.`
+              : query
+                ? `Nothing matches “${query}”.`
+                : `No .${extLabel} files found in this connection.`
           }
         />
       );
@@ -127,6 +131,7 @@ export function ConnectionTree({
         <Divider aria-live="polite">
           {resultCount} {resultCount === 1 ? "result" : "results"}
           {isSearching ? " — searching…" : ""}
+          {isCapped ? ` — incomplete (scan stopped at ${MAX_SEARCH_DIRS} directories)` : ""}
         </Divider>
         <DirectoryViewTree
           key={`search:${selectedConnection}`}

@@ -8,6 +8,7 @@ import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { useConnectionTreeStore } from "~/utils/connectionsStore/useConnectionTreeStore";
 import { companionDirectoryPrefixes, isLeafDirectory } from "~/utils/leafDirectory";
 import { mapWithConcurrency } from "~/utils/limitConcurrency";
+import { MAX_SEARCH_DIRS } from "~/utils/listingLimits";
 import { filterObjects } from "~/utils/listObjects/filterObjects";
 import { search } from "~/utils/listObjects/search";
 import { getPrefix } from "~/utils/pathUtils";
@@ -121,13 +122,12 @@ async function bfsSearch(
   let level: string[] = [rootPrefix];
   let isCapped = false;
   let dirsVisited = 0;
-  const MAX_DIRS = 500;
 
   while (level.length > 0) {
     if (signal?.aborted) throw signal.reason ?? new Error("Search aborted");
 
-    if (dirsVisited + level.length > MAX_DIRS) {
-      level = level.slice(0, MAX_DIRS - dirsVisited);
+    if (dirsVisited + level.length > MAX_SEARCH_DIRS) {
+      level = level.slice(0, MAX_SEARCH_DIRS - dirsVisited);
       isCapped = true;
     }
 
