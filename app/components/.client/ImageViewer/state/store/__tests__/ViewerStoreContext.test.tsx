@@ -33,6 +33,10 @@ vi.mock("~/utils/resourceId", () => ({
   constructS3Url: vi.fn(
     (_config: unknown, s3Key: string) => `https://bucket.s3.amazonaws.com/${s3Key}`,
   ),
+  parseResourceId: vi.fn((resourceId: string) => {
+    const [connectionId, ...path] = resourceId.split("/");
+    return { connectionId, pathName: path.join("/") };
+  }),
 }));
 // registerViewer derives the load URL from the resourceId; identity mock keeps
 // the URL-shaped test inputs/assertions valid.
@@ -45,6 +49,7 @@ const mockSignedFetch = vi.fn();
 describe("ViewerStoreContext", () => {
   const mockViewerStore = {
     getState: vi.fn(() => ({
+      id: "conn/slide.ome.tif",
       setLoader: vi.fn(),
       setMetadata: vi.fn(),
       setError: vi.fn(),
@@ -151,6 +156,7 @@ describe("ViewerStoreContext", () => {
 
       vi.mocked(createViewerStore).mockReturnValue({
         getState: vi.fn(() => ({
+          id: "conn/slide.ome.tif",
           setLoader,
           setMetadata,
           setError: vi.fn(),
@@ -197,6 +203,7 @@ describe("ViewerStoreContext", () => {
 
       vi.mocked(createViewerStore).mockReturnValue({
         getState: vi.fn(() => ({
+          id: "conn/slide.ome.tif",
           setLoader,
           setMetadata,
           setError: vi.fn(),
@@ -233,6 +240,7 @@ describe("ViewerStoreContext", () => {
 
       vi.mocked(createViewerStore).mockReturnValue({
         getState: vi.fn(() => ({
+          id: "conn/slide.ome.tif",
           setLoader: vi.fn(),
           setMetadata: vi.fn(),
           setError,

@@ -1,5 +1,6 @@
 import type { createViewerStore } from "./createViewerStore";
 import type { LayersStateEntry } from "./types";
+import { connectionIsReadOnly } from "../../utils/useCanAnnotate";
 import { layersStateToSidecarEntry, type ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
 
@@ -42,10 +43,11 @@ export function attachViewSync(store: ViewerStoreApi): void {
     flushing = true;
     try {
       const { id, layersStates, currentUserId } = store.getState();
+      if (connectionIsReadOnly(id)) return;
       const sharedViews = ownSharedViewsOnly(layersStates, currentUserId);
       const currentEntries = sharedViews.map(layersStateToSidecarEntry);
       const currentJson = JSON.stringify(currentEntries);
-      const persistedJson = JSON.stringify(persisted);
+      const persistedJson = JSON.stringify(persisted.filter((p) => p.author === currentUserId));
       if (currentJson === persistedJson) return;
 
       await writeViewSettings(id, currentUserId, sharedViews);

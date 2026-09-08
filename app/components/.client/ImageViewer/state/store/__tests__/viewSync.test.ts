@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { connectionIsReadOnly } from "../../../utils/useCanAnnotate";
 import type { createViewerStore } from "../createViewerStore";
 import type { LayersStateEntry } from "../types";
 import { attachViewSync } from "../viewSync";
@@ -11,8 +12,13 @@ vi.mock("~/utils/db/writeViewSettings", () => ({
   writeViewSettings: vi.fn(),
 }));
 
+vi.mock("../../../utils/useCanAnnotate", () => ({
+  connectionIsReadOnly: vi.fn(),
+}));
+
 const readMock = vi.mocked(readViewSettings);
 const writeMock = vi.mocked(writeViewSettings);
+const readOnlyMock = vi.mocked(connectionIsReadOnly);
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -117,6 +123,8 @@ describe("attachViewSync", () => {
     readMock.mockResolvedValue([]);
     writeMock.mockReset();
     writeMock.mockResolvedValue(undefined);
+    readOnlyMock.mockReset();
+    readOnlyMock.mockReturnValue(false);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -143,6 +151,30 @@ describe("attachViewSync", () => {
     await vi.runAllTimersAsync();
 
     expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("recovers when the connections store hydrates after attach", async () => {
+    // On a hard reload the viewer renders before the layout's init effect
+    // populates the connections store, so early flushes may fail closed. The
+    // gate re-evaluates on every flush, so the next state change writes.
+    readOnlyMock.mockReturnValueOnce(true).mockReturnValue(false);
+
+    const { store, state, fire } = makeFakeStore();
+
+    attachViewSync(store);
+    await vi.runAllTimersAsync();
+
+    state.shareView(0);
+    fire();
+    await vi.runAllTimersAsync();
+    expect(writeMock).not.toHaveBeenCalled();
+
+    // A later state change re-flushes; the store has hydrated by then.
+    state.layersStates[0].channelsOpacity = 0.5;
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(writeMock).toHaveBeenCalledTimes(1);
   });
 
   it("writes shared views to S3 after debounce when a view is shared", async () => {
@@ -195,6 +227,24 @@ describe("attachViewSync", () => {
 
     // persisted is empty, so the subscriber does not schedule a flush —
     // nothing to clear on S3.
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing on a read-only connection and still loads shared views", async () => {
+    readOnlyMock.mockReturnValue(true);
+    const entries = [makeSidecarEntry("view-1", "Shared View")];
+    readMock.mockResolvedValue(entries);
+
+    const { store, state, fire } = makeFakeStore();
+
+    attachViewSync(store);
+    await vi.runAllTimersAsync();
+
+    state.shareView(0);
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(state.layersStates.some((ls) => ls.id === "view-1")).toBe(true);
     expect(writeMock).not.toHaveBeenCalled();
   });
 
