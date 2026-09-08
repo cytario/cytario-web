@@ -1,9 +1,8 @@
 import type { createViewerStore } from "./createViewerStore";
 import type { LayersStateEntry } from "./types";
-import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { connectionIsReadOnly } from "../../utils/useCanAnnotate";
 import { layersStateToSidecarEntry, type ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
-import { parseResourceId } from "~/utils/resourceId";
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -20,13 +19,6 @@ function ownSharedViewsOnly(
   return layersStates.filter((ls) => ls.shared && ls.author === currentUserId);
 }
 
-function isReadOnly(resourceId: string): boolean {
-  const { connectionId } = parseResourceId(resourceId);
-  const accessLevel =
-    useConnectionsStore.getState().connections[connectionId]?.provider?.accessLevel ?? "read-only";
-  return accessLevel === "read-only";
-}
-
 export function attachViewSync(store: ViewerStoreApi): void {
   let persisted: ViewSettingsEntry[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -40,8 +32,6 @@ export function attachViewSync(store: ViewerStoreApi): void {
     })
     .catch((error) => console.error("[viewSettings] load failed:", error));
 
-  if (isReadOnly(store.getState().id)) return;
-
   const schedule = () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
@@ -53,6 +43,7 @@ export function attachViewSync(store: ViewerStoreApi): void {
     flushing = true;
     try {
       const { id, layersStates, currentUserId } = store.getState();
+      if (connectionIsReadOnly(id)) return;
       const sharedViews = ownSharedViewsOnly(layersStates, currentUserId);
       const currentEntries = sharedViews.map(layersStateToSidecarEntry);
       const currentJson = JSON.stringify(currentEntries);
