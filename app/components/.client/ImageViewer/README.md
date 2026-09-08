@@ -20,11 +20,11 @@ ImageViewer (composition root: registers decoders, provides store)
 │   ├── Measurements/ (scale bar, tick marks)
 │   └── Overlays/ (overlay marker layers)
 ├── sidebar/
-│   ├── OverviewControl (ImagePreview + Magnifier presets)
-│   ├── ViewsControl (split-panel layout controls)
-│   ├── ChannelsControl (visibility, contrast, histogram per channel)
-│   ├── OverlaysControl (overlay toggles)
-│   └── AnnotationsControl (annotation list, groups, thumbnails)
+│   ├── OverviewSection (ImagePreview + Magnifier presets)
+│   ├── ViewsSection (split-panel layout controls)
+│   ├── ChannelsSection (visibility, contrast, histogram per channel)
+│   ├── OverlaysSection (overlay toggles)
+│   └── AnnotationsSection (annotation list, groups, thumbnails)
 └── state/
     ├── store/ (Zustand store, selectors, undo/redo)
     ├── decoders/ (JPEG2000, LZW)
@@ -42,20 +42,20 @@ The ImageViewer renders a canvas area with 1-N ImagePanels and a right-hand side
 ┌───────────────────────────────────────┬───────────────────────┐
 │ImageCanvas                            │Sidebar                │
 │┌──────────────────┬──────────────────┐│┌─────────────────────┐│
-││ImagePanel(0)     │ImagePanel(1)     │││OverviewControl      ││
+││ImagePanel(0)     │ImagePanel(1)     │││OverviewSection      ││
 ││{viewStateActive} │{viewStateActive} │││ ImagePreview +       ││
 ││{channelsState(n)}│{channelsState(n)}│││ Magnifier presets    ││
 ││                  │                  ││├─────────────────────┤│
-││                  │                  │││ViewsControl         ││
+││                  │                  │││ViewsSection         ││
 ││                  │                  │││ (split-panel layout) ││
 ││                  │                  ││├─────────────────────┤│
-││                  │                  │││ChannelsControl      ││
+││                  │                  │││ChannelsSection      ││
 │└──────────────────┴──────────────────┘│││ (per-channel: color,││
 │             [Floating Toolbar]        │││  contrast, histogram)│
 │                                       │├─────────────────────┤│
-│                                       ││OverlaysControl      ││
+│                                       ││OverlaysSection      ││
 │                                       │├─────────────────────┤│
-│                                       ││AnnotationsControl   ││
+│                                       ││AnnotationsSection   ││
 │                                       │└─────────────────────┘│
 └───────────────────────────────────────┴───────────────────────┘
 ```
@@ -259,8 +259,8 @@ Offsets are generated with [`generate-tiff-offsets`](https://github.com/hms-dbmi
 
 ### **Sidebar Controls**
 
-- **OverviewControl** — navigation thumbnail + magnification presets
-- **ViewsControl** — split-panel layout (add/remove panels, assign VCS)
-- **ChannelsControl** — per-channel visibility, color, contrast, histogram
-- **OverlaysControl** — overlay layer toggles
-- **AnnotationsControl** — annotation list, grouping, thumbnails
+- **OverviewSection** — navigation thumbnail + magnification presets
+- **ViewsSection** — split-panel layout (add/remove panels, assign VCS)
+- **ChannelsSection** — per-channel visibility, color, contrast, histogram
+- **OverlaysSection** — overlay layer toggles
+- **AnnotationsSection** — annotation list, grouping, thumbnails

@@ -1,0 +1,82 @@
+import { EmptyState, IconButtonLink } from "@cytario/design";
+import { useMemo, useState } from "react";
+import { useParams } from "react-router";
+
+import { ShowHiddenFilesToggleButton } from "./ShowHiddenFilesToggleButton";
+import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
+import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
+import { SearchInput } from "~/components/SearchInput";
+import { Section } from "~/components/Section/Section";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+
+export function ConnectionsSection() {
+  const connections = useConnectionsStore(select.connections);
+  const params = useParams();
+  const routeId = params.id;
+  const connectionIds = useMemo(() => Object.keys(connections), [connections]);
+
+  const [override, setOverride] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  // Reset the manual pick when the route's connection changes, so the tree
+  // follows navigation into a different connection (adjust-state-during-render).
+  const [prevRouteId, setPrevRouteId] = useState(routeId);
+  if (routeId !== prevRouteId) {
+    setPrevRouteId(routeId);
+    setOverride(null);
+  }
+
+  const selectedConnection =
+    override ?? (routeId && connectionIds.includes(routeId) ? routeId : connectionIds[0]);
+
+  // Reveal the active resource only when the tree shows the route's own
+  // connection — not when the user manually switched to a different one.
+  const activePathName = selectedConnection === routeId ? params["*"] : undefined;
+
+  return (
+    <Section
+      pillar="connections"
+      badge={String(connectionIds.length)}
+      actions={
+        <>
+          <ShowHiddenFilesToggleButton />
+          <IconButtonLink
+            href="/connections"
+            icon="ArrowRight"
+            label="View all connections"
+            variant="ghost"
+            size="sm"
+          />
+        </>
+      }
+      header={
+        <div className="flex flex-col gap-1 px-2 pb-2">
+          <ConnectionSwitcherChip
+            selectedConnection={selectedConnection ?? ""}
+            onSelect={setOverride}
+          />
+          <SearchInput
+            id="sidebar-search-input"
+            aria-label="Search connections"
+            onQueryChange={setQuery}
+          />
+        </div>
+      }
+    >
+      {selectedConnection ? (
+        <ConnectionTree
+          selectedConnection={selectedConnection}
+          query={query}
+          activePathName={activePathName}
+        />
+      ) : (
+        <EmptyState
+          icon="Unplug"
+          title="No connections"
+          description="No connections are available yet."
+        />
+      )}
+    </Section>
+  );
+}
