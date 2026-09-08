@@ -247,7 +247,7 @@ export const AnnotationsControl = () => {
 
   return (
     <FeatureItem
-      title="Annotations"
+      pillar="annotations"
       badge={`${visible}/${total}`}
       header={
         <SearchInput

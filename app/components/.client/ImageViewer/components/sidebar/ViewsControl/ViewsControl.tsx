@@ -44,7 +44,7 @@ export function ViewsControl() {
   );
 
   return (
-    <FeatureItem title="Views" actions={<SplitViewToggle />}>
+    <FeatureItem pillar="views" actions={<SplitViewToggle />}>
       <RadioGroup
         aria-label="Views"
         value={String(activePresetIndex)}

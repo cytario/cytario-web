@@ -46,7 +46,7 @@ export const OverlaysControl = () => {
 
   return (
     <FeatureItem
-      title="Overlays"
+      pillar="overlays"
       badge={badge}
       actions={
         <>

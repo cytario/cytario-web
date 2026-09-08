@@ -28,7 +28,7 @@ export function ChannelsControl() {
 
   return (
     <FeatureItem
-      title="Channels"
+      pillar="channels"
       badge={badge}
       header={<Histogram />}
       actions={

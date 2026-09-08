@@ -2,12 +2,14 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { create, StoreApi, UseBoundStore, useStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import type { PillarId } from "./pillars";
+
 interface FeatureItemStore {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }
 
-export function createFeatureItemStore(name: string) {
+export function createFeatureItemStore(pillarId: PillarId) {
   return create<FeatureItemStore>()(
     persist(
       devtools(
@@ -15,11 +17,11 @@ export function createFeatureItemStore(name: string) {
           isOpen: true,
           setIsOpen: (isOpen: boolean) => set({ isOpen }),
         }),
-        { name },
+        { name: pillarId },
       ),
       // SSR: render the default on server + first client paint, then rehydrate
       // from localStorage in an effect (same pattern as createSidebarStore).
-      { name, skipHydration: true },
+      { name: pillarId, skipHydration: true },
     ),
   );
 }
@@ -29,13 +31,13 @@ const FeatureItemStoreContext = createContext<UseBoundStore<StoreApi<FeatureItem
 );
 
 export function FeatureItemStoreProvider({
-  name,
+  pillarId,
   children,
 }: {
-  name: string;
+  pillarId: PillarId;
   children: React.ReactNode;
 }) {
-  const [store] = useState(() => createFeatureItemStore(name));
+  const [store] = useState(() => createFeatureItemStore(pillarId));
   useEffect(() => {
     void store.persist.rehydrate();
   }, [store]);

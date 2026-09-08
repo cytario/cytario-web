@@ -1,17 +1,19 @@
 import { Badge, Icon } from "@cytario/design";
 import { twMerge } from "tailwind-merge";
 
+import { PILLARS, type PillarId } from "./pillars";
 import { FeatureItemStoreProvider, useFeatureItemStore } from "./useFeatureItem";
 
 interface FeatureItemProps {
-  title: string;
+  pillar: PillarId;
   badge?: string;
   actions?: React.ReactNode;
   header?: React.ReactNode;
   children: React.ReactNode;
 }
 
-function FeatureItemInner({ title, badge, actions, header, children }: FeatureItemProps) {
+function FeatureItemInner({ pillar, badge, actions, header, children }: FeatureItemProps) {
+  const { title, icon } = PILLARS[pillar];
   const isOpen = useFeatureItemStore((s) => s.isOpen);
   const setIsOpen = useFeatureItemStore((s) => s.setIsOpen);
 
@@ -49,6 +51,8 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
               <Icon icon="ChevronRight" size="xs" />
             )}
 
+            <Icon icon={icon} size="xs" />
+
             {title}
           </button>
 
@@ -70,7 +74,7 @@ function FeatureItemInner({ title, badge, actions, header, children }: FeatureIt
 
 export function FeatureItem(props: FeatureItemProps) {
   return (
-    <FeatureItemStoreProvider name={props.title}>
+    <FeatureItemStoreProvider pillarId={props.pillar}>
       <FeatureItemInner {...props} />
     </FeatureItemStoreProvider>
   );

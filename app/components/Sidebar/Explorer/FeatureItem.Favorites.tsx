@@ -28,7 +28,7 @@ export function FeatureItemFavorites() {
 
   return (
     <FeatureItem
-      title="Favorites"
+      pillar="favorites"
       badge={String(nodes.length)}
       actions={
         <IconButtonLink

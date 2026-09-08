@@ -28,7 +28,7 @@ export function FeatureItemRecent() {
 
   return (
     <FeatureItem
-      title="Recent"
+      pillar="recent"
       badge={String(nodes.length)}
       actions={
         <IconButtonLink

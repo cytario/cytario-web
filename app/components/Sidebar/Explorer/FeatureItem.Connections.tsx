@@ -36,7 +36,7 @@ export function FeatureItemConnections() {
 
   return (
     <FeatureItem
-      title="Connections"
+      pillar="connections"
       badge={String(connectionIds.length)}
       actions={
         <>
