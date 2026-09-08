@@ -40,23 +40,31 @@ function resolveComputeRole(catalog: ProviderCatalog): {
 }
 
 /**
- * Creates a `SignedFetch` backed by STS credentials for the AWS Batch control
- * plane. The plugin calls `session.signedFetch(url, init)` and the host signs
- * the request with the minted credentials — the plugin never sees an access
- * key or session token (SDS-CY-010098).
+ * Creates a `SignedFetch` backed by STS credentials for AWS service
+ * endpoints. The plugin calls `session.signedFetch(url, init)` and the host
+ * signs the request with the minted credentials — the plugin never sees an
+ * access key or session token. CloudWatch Logs endpoints sign with the
+ * `logs` service; everything else signs as `batch` (SDS-CY-010098).
  */
-function createBatchSignedFetch(
+export function createBatchSignedFetch(
   credentials: { AccessKeyId: string; SecretAccessKey: string; SessionToken?: string },
   region: string,
 ): SignedFetch {
-  const signer = new SignatureV4({
-    credentials: {
-      accessKeyId: credentials.AccessKeyId,
-      secretAccessKey: credentials.SecretAccessKey,
-      sessionToken: credentials.SessionToken,
-    },
+  const signerCredentials = {
+    accessKeyId: credentials.AccessKeyId,
+    secretAccessKey: credentials.SecretAccessKey,
+    sessionToken: credentials.SessionToken,
+  };
+  const batchSigner = new SignatureV4({
+    credentials: signerCredentials,
     region,
     service: "batch",
+    sha256: Sha256,
+  });
+  const logsSigner = new SignatureV4({
+    credentials: signerCredentials,
+    region,
+    service: "logs",
     sha256: Sha256,
   });
 
@@ -66,6 +74,8 @@ function createBatchSignedFetch(
     const headers = new Headers(init?.headers ?? {});
     const body = init?.body;
 
+    // CloudWatch Logs endpoints need a different SigV4 service scope than Batch.
+    const signer = parsedUrl.hostname.startsWith("logs.") ? logsSigner : batchSigner;
     const signed = await signer.sign({
       method,
       hostname: parsedUrl.hostname,
