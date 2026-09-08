@@ -6,12 +6,12 @@ import type {
   StoragePickerResult,
   StoragePickerSelection,
 } from "@cytario/plugin-api";
+import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
 import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
 import { namePassesFilters } from "~/components/DirectoryView/treeFilters";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
-import { ConnectionSwitcherChip } from "~/components/Sidebar/ConnectionSwitcherChip";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 interface StoragePickerModalProps {

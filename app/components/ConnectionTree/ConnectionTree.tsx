@@ -1,6 +1,7 @@
 import { EmptyState } from "@cytario/design";
 import { useMemo } from "react";
 
+import { useConnectionSearch } from "./useConnectionSearch";
 import { LoaderView } from "../Loader/LoaderView";
 import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
@@ -11,7 +12,6 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { Divider } from "~/components/Divider/Divider";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { ancestorDirIds } from "~/utils/resourceId";
-import { useConnectionSearch } from "~/utils/useConnectionSearch";
 
 interface ConnectionTreeProps {
   selectedConnection: string;

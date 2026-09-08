@@ -1,10 +1,10 @@
 import { Badge, Button, EmptyState, useToast } from "@cytario/design";
 import { useCallback, useMemo, useState } from "react";
 
+import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
+import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { SearchInput } from "~/components/SearchInput";
-import { ConnectionSwitcherChip } from "~/components/Sidebar/ConnectionSwitcherChip";
-import { ConnectionTree } from "~/components/Sidebar/ConnectionTree";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";

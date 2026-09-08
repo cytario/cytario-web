@@ -2,9 +2,9 @@ import { EmptyState, IconButtonLink } from "@cytario/design";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 
-import { ConnectionSwitcherChip } from "../ConnectionSwitcherChip";
-import { ConnectionTree } from "../ConnectionTree";
 import { ShowHiddenFilesToggleButton } from "./ShowHiddenFilesToggleButton";
+import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
+import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
 import { FeatureItem } from "~/components/FeatureItem/FeatureItem";
 import { SearchInput } from "~/components/SearchInput";
 import { select } from "~/utils/connectionsStore/selectors";
