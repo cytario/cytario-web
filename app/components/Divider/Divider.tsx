@@ -1,7 +1,8 @@
+import { MetricText } from "@cytario/design";
 import type { HTMLAttributes, ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
-const BASE = "px-2 pb-1 text-xs text-muted-foreground border-b border-border";
+const BASE = "px-2 py-2 border-b border-border";
 
 /** Small muted label with a bottom border — group/section divider. */
 export function Divider({
@@ -10,8 +11,8 @@ export function Divider({
   ...rest
 }: { children?: ReactNode } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={twMerge(BASE, className)} {...rest}>
+    <MetricText className={twMerge(BASE, className)} {...rest}>
       {children}
-    </div>
+    </MetricText>
   );
 }
