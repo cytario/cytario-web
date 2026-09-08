@@ -7,6 +7,7 @@ import {
 } from "../getSessionCredentials";
 import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
+import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
 import type { AccessLevel } from "~/utils/providerCatalog.schema";
@@ -34,6 +35,25 @@ vi.mock("~/.server/providers/providerCatalog.server", async (importOriginal) => 
   const actual =
     await importOriginal<typeof import("~/.server/providers/providerCatalog.server")>();
   return { ...actual, getProviderCatalog: vi.fn() };
+});
+
+vi.mock("~/.server/providers/bucketCatalog.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/.server/providers/bucketCatalog.server")>();
+  return {
+    ...actual,
+    getBucketCatalog: vi.fn(),
+    findBucketByName: actual.findBucketByName,
+  };
+});
+
+vi.mock("~/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/config")>();
+  return {
+    cytarioConfig: {
+      ...actual.cytarioConfig,
+      providers: { ...actual.cytarioConfig.providers, source: "portal" },
+    },
+  };
 });
 
 describe("isValidCredentials", () => {
@@ -114,7 +134,6 @@ describe("getAllSessionCredentials", () => {
   const catalogFor = (
     overrides: {
       providerConnectionId?: string;
-      providerRoleId?: string;
       endpoint?: string | null;
       region?: string;
       roleArn?: string;
@@ -122,7 +141,6 @@ describe("getAllSessionCredentials", () => {
     } = {},
   ) => {
     const pcId = overrides.providerConnectionId ?? "pc-mock";
-    const prId = overrides.providerRoleId ?? "pr-mock";
     return mock.providerCatalog({
       providerConnections: [
         mock.providerConnection({
@@ -133,10 +151,10 @@ describe("getAllSessionCredentials", () => {
       ],
       providerRoles: [
         mock.providerRole({
-          id: prId,
           providerConnectionId: pcId,
           roleArn: overrides.roleArn ?? "arn:aws:iam::123456789012:role/mock-role",
           accessLevel: overrides.accessLevel ?? "read-write",
+          bucketIds: ["bucket-mock-id"],
         }),
       ],
     });
@@ -204,13 +222,57 @@ describe("getAllSessionCredentials", () => {
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
+  test("uses the bucket's registered region over the connection's", async () => {
+    vi.mocked(getBucketCatalog).mockResolvedValue(
+      mock.bucketCatalog({
+        buckets: [
+          mock.bucketLookupRow({
+            providerConnectionId: "pc-mock",
+            bucketName: "mock-bucket",
+            region: "us-west-2",
+          }),
+        ],
+      }),
+    );
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ id: "region-conn", name: "region-conn" }),
+    ]);
+
+    expect(result.credentials["region-conn"]).toEqual(mockCredentials);
+    // The session policy (inline in the STS command) and the client both
+    // receive the bucket's region; the provider projection ships it too.
+    expect(result.providers["region-conn"]?.region).toBe("us-west-2");
+    const policyArg = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls.at(-1)?.[0];
+    const policy = JSON.parse(String((policyArg as { Policy?: string }).Policy));
+    const kms = policy.Statement.find((s: { Sid?: string }) => s.Sid?.includes("KmsDecrypt"));
+    expect(kms.Condition.StringEquals["kms:ViaService"]).toBe("s3.us-west-2.amazonaws.com");
+  });
+
+  test("falls back to the connection region when the bucket catalog is unavailable", async () => {
+    vi.mocked(getBucketCatalog).mockRejectedValue(new Error("lookup unavailable"));
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ id: "fallback-conn", name: "fallback-conn" }),
+    ]);
+
+    expect(result.credentials["fallback-conn"]).toEqual(mockCredentials);
+    expect(result.providers["fallback-conn"]?.region).toBe("us-east-1");
+  });
+
   test("mints separately for connections resolving to different roles", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
         providerConnections: [mock.providerConnection({ id: "pc-mock" })],
         providerRoles: [
-          mock.providerRole({ id: "pr-internal", roleArn: "arn:aws:iam::123:role/internal" }),
-          mock.providerRole({ id: "pr-external", roleArn: "arn:aws:iam::123:role/external" }),
+          mock.providerRole({
+            roleArn: "arn:aws:iam::123:role/internal",
+            accessLevel: "annotate",
+          }),
+          mock.providerRole({
+            roleArn: "arn:aws:iam::123:role/external",
+            accessLevel: "read-write",
+          }),
         ],
       }),
     );
@@ -220,13 +282,13 @@ describe("getAllSessionCredentials", () => {
         name: "internal",
         id: "internal",
         bucketName: "shared-bucket",
-        grants: [mock.connectionGrant({ providerRoleId: "pr-internal" })],
+        grants: [mock.connectionGrant({ accessLevel: "annotate" })],
       }),
       mock.connectionConfig({
         name: "external",
         id: "external",
         bucketName: "shared-bucket",
-        grants: [mock.connectionGrant({ providerRoleId: "pr-external" })],
+        grants: [mock.connectionGrant({ accessLevel: "read-write" })],
       }),
     ];
 
@@ -407,19 +469,16 @@ describe("getAllSessionCredentials", () => {
         providerConnections: [mock.providerConnection({ id: providerId })],
         providerRoles: [
           mock.providerRole({
-            id: "pr-ro",
             providerConnectionId: providerId,
             roleArn: "arn:aws:iam::123:role/read-only",
             accessLevel: "read-only",
           }),
           mock.providerRole({
-            id: "pr-ann",
             providerConnectionId: providerId,
             roleArn: "arn:aws:iam::123:role/annotate",
             accessLevel: "annotate",
           }),
           mock.providerRole({
-            id: "pr-rw",
             providerConnectionId: providerId,
             roleArn: "arn:aws:iam::123:role/read-write",
             accessLevel: "read-write",
@@ -435,9 +494,9 @@ describe("getAllSessionCredentials", () => {
       grants: [
         // Grants are ordered least-permissive-first; the selector must rank by
         // access level rather than rely on insertion order.
-        mock.connectionGrant({ providerRoleId: "pr-ro", scope: "org1/lab" }),
-        mock.connectionGrant({ providerRoleId: "pr-ann", scope: "org1/lab" }),
-        mock.connectionGrant({ providerRoleId: "pr-rw", scope: "org1/lab" }),
+        mock.connectionGrant({ accessLevel: "read-only", scope: "org1/lab" }),
+        mock.connectionGrant({ accessLevel: "annotate", scope: "org1/lab" }),
+        mock.connectionGrant({ accessLevel: "read-write", scope: "org1/lab" }),
       ],
     });
 

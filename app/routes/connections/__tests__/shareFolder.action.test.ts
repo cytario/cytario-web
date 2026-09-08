@@ -58,7 +58,6 @@ function buildArgs(user: ReturnType<typeof mock.user>, form: Record<string, stri
 }
 
 const sharerRole = mock.providerRole({
-  id: "pr-share",
   providerConnectionId: "pc-1",
   allowedScopes: ["lab"],
   accessLevel: "admin",
@@ -75,7 +74,7 @@ const validForm = {
   providerConnectionId: "pc-1",
   prefix: "images",
   "grants[0].scope": "lab",
-  "grants[0].providerRoleId": "pr-share",
+  "grants[0].accessLevel": "admin",
 };
 
 describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109)", () => {
@@ -98,7 +97,6 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
         providerConnections: [mock.providerConnection({ id: "pc-1" })],
         providerRoles: [
           mock.providerRole({
-            id: "pr-ro",
             providerConnectionId: "pc-1",
             accessLevel: "read-only",
           }),
@@ -108,7 +106,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
     const created = mock.connectionConfig({
       id: "conn-uuid-5",
       name: "team-a-share",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" })],
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-only" })],
     });
     vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
     vi.mocked(applyGrantsAndRecordStatus).mockResolvedValue({
@@ -117,7 +115,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
     });
 
     const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
-    const args = buildArgs(user, { ...validForm, "grants[0].providerRoleId": "pr-ro" });
+    const args = buildArgs(user, { ...validForm, "grants[0].accessLevel": "read-only" });
 
     await shareAction(args);
 
@@ -130,7 +128,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
     const created = mock.connectionConfig({
       id: "conn-uuid-5",
       name: "team-a-share",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-share" })],
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "admin" })],
     });
     vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
 

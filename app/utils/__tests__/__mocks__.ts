@@ -19,7 +19,7 @@ const mock = {
     id: "grant-uuid-1",
     connectionId: "conn-uuid-1",
     scope: "org1/lab",
-    providerRoleId: "pr-mock",
+    accessLevel: "read-write",
     ...data,
   }),
   connectionConfig: (
@@ -46,10 +46,8 @@ const mock = {
     ...data,
   }),
   providerRole: (data: Partial<ProviderRole> = {}): ProviderRole => ({
-    id: "pr-mock",
     providerConnectionId: "pc-mock",
     roleArn: "arn:aws:iam::123456789012:role/mock-role",
-    name: "mock-role",
     allowedScopes: ["lab"],
     accessLevel: "read-only",
     bucketIds: [],

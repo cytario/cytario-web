@@ -18,7 +18,6 @@ import type {
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
 import {
   getProviderCatalog,
-  resolveConnectionProvider,
   resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
 import { listConnections } from "~/routes/connections/connections.server";
@@ -46,18 +45,15 @@ async function toConnectionProjection(
   accessToken: string,
 ): Promise<ConnectionProjection> {
   const catalog = await getProviderCatalog(config.organization, accessToken);
-  const connectionProvider = resolveConnectionProvider(catalog, {
-    providerConnectionId: config.providerConnectionId,
-    providerRoleId: config.grants[0]?.providerRoleId ?? "",
-  });
+  const resolved = resolveConnectionProviderWithGrants(catalog, config);
   return {
     id: config.id,
     name: config.name,
-    provider: connectionProvider?.providerType ?? "unknown",
+    provider: resolved?.providerType ?? "unknown",
     bucketName: config.bucketName,
     prefix: config.prefix,
-    endpoint: connectionProvider?.endpoint ?? undefined,
-    region: connectionProvider?.region,
+    endpoint: resolved?.endpoint ?? undefined,
+    region: resolved?.region,
   };
 }
 

@@ -4,6 +4,7 @@ import { ConnectionForm } from "./connection.form";
 import { RouteModal } from "~/components/RouteModal";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { isAccessLevel } from "~/utils/providerCatalog.schema";
 
 export default function UpdateConnectionModal({
   onClose,
@@ -31,7 +32,7 @@ export default function UpdateConnectionModal({
     prefix,
     grants: (grants ?? []).map((g) => ({
       scope: g.scope,
-      providerRoleId: g.providerRoleId,
+      accessLevel: isAccessLevel(g.accessLevel) ? g.accessLevel : "read-only",
     })),
   };
 

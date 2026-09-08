@@ -8,6 +8,14 @@ import { type ShareFolderFormData, shareFolderSchema } from "./shareFolder.schem
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { adminCovers } from "~/utils/authorization";
+import { ACCESS_LEVELS, type AccessLevel } from "~/utils/providerCatalog.schema";
+
+const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
+  "read-only": "Read Only",
+  annotate: "Annotate",
+  "read-write": "Read Write",
+  admin: "Admin",
+};
 
 interface ShareFolderFormProps {
   adminScopes: string[];
@@ -19,9 +27,10 @@ interface ShareFolderFormProps {
 
 /**
  * Share Folder form: a name plus a grants-list repeating group — each row a
- * group scope + provider role — over the fixed folder context
- * (bucket / provider connection / prefix, submitted as hidden fields). Role/group
- * selector filtering is advisory; the server re-authorizes every submitted scope.
+ * group scope + access level — over the fixed folder context
+ * (bucket / provider connection / prefix, submitted as hidden fields). The
+ * storage role for each level is resolved server-side; level selector filtering
+ * is advisory and the server re-validates every submitted value.
  */
 export const ShareFolderForm = ({
   adminScopes,
@@ -50,7 +59,7 @@ export const ShareFolderForm = ({
       bucketName,
       providerConnectionId,
       prefix,
-      grants: [{ scope: adminScopes[0] ?? "", providerRoleId: "" }],
+      grants: [{ scope: adminScopes[0] ?? "", accessLevel: "read-only" as const }],
     },
     mode: "onTouched",
   });
@@ -71,15 +80,19 @@ export const ShareFolderForm = ({
     [adminScopes],
   );
 
-  const roleItemsForGrant = (grantScope: string): SelectItem[] => {
-    const roles = (catalog?.providerRoles ?? []).filter(
-      (r) =>
-        r.providerConnectionId === providerConnectionId &&
-        (r.allowedScopes.length === 0 ||
-          !grantScope ||
-          r.allowedScopes.some((allowed) => adminCovers(allowed, grantScope))),
+  const levelsForGrant = (grantScope: string): AccessLevel[] => {
+    const roleLevels = new Set(
+      (catalog?.providerRoles ?? [])
+        .filter((r) => r.providerConnectionId === providerConnectionId)
+        .filter(
+          (r) =>
+            r.allowedScopes.length === 0 ||
+            !grantScope ||
+            r.allowedScopes.some((allowed) => adminCovers(allowed, grantScope)),
+        )
+        .map((r) => r.accessLevel),
     );
-    return roles.map((r) => ({ id: r.id, name: r.name }));
+    return ACCESS_LEVELS.filter((level) => roleLevels.has(level));
   };
 
   const onSubmit = (data: ShareFolderFormData) => {
@@ -91,7 +104,7 @@ export const ShareFolderForm = ({
     formData.append("prefix", data.prefix ?? "");
     data.grants.forEach((grant, index) => {
       formData.append(`grants[${index}].scope`, grant.scope);
-      formData.append(`grants[${index}].providerRoleId`, grant.providerRoleId);
+      formData.append(`grants[${index}].accessLevel`, grant.accessLevel);
     });
     submit(formData, { method: "post", action: "/connections" });
   };
@@ -137,9 +150,12 @@ export const ShareFolderForm = ({
           {fields.map((field, index) => {
             const grant = grantsValue?.[index];
             const grantScope = grant?.scope ?? "";
-            const grantRoleId = grant?.providerRoleId ?? "";
-            const roleItems = roleItemsForGrant(grantScope);
-            const grantError = serverErrors?.[`grants.${index}.providerRoleId`]?.[0];
+            const grantLevel = grant?.accessLevel ?? "";
+            const grantError = serverErrors?.[`grants.${index}.accessLevel`]?.[0];
+            const levelItems: SelectItem[] = levelsForGrant(grantScope).map((level) => ({
+              id: level,
+              name: ACCESS_LEVEL_LABELS[level],
+            }));
             return (
               <div
                 key={field.id}
@@ -164,17 +180,17 @@ export const ShareFolderForm = ({
                 />
 
                 <Controller
-                  name={`grants.${index}.providerRoleId` as const}
+                  name={`grants.${index}.accessLevel` as const}
                   control={control}
-                  render={({ field: roleField, fieldState: roleFieldState }) => (
+                  render={({ field: levelField, fieldState: levelFieldState }) => (
                     <Select
-                      label="Provider role"
-                      description="The role this group will assume to access the data."
-                      items={roleItems}
-                      isDisabled={roleItems.length === 0}
-                      selectedKey={grantRoleId || null}
-                      onSelectionChange={(key) => roleField.onChange(key)}
-                      errorMessage={roleFieldState.error?.message ?? grantError}
+                      label="Access level"
+                      description="The permissions this group gets on the data."
+                      items={levelItems}
+                      isDisabled={levelItems.length === 0}
+                      selectedKey={grantLevel || null}
+                      onSelectionChange={(key) => levelField.onChange(key)}
+                      errorMessage={levelFieldState.error?.message ?? grantError}
                     />
                   )}
                 />
@@ -196,7 +212,9 @@ export const ShareFolderForm = ({
           <Button
             variant="ghost"
             type="button"
-            onPress={() => append({ scope: adminScopes[0] ?? "", providerRoleId: "" })}
+            onPress={() =>
+              append({ scope: adminScopes[0] ?? "", accessLevel: "read-only" as const })
+            }
             className="self-start"
           >
             Add grant

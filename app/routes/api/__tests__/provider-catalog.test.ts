@@ -51,9 +51,7 @@ describe("provider-catalog loader", () => {
     };
 
     expect(catalog.providerRoles[0]).toEqual({
-      id: "pr-mock",
       providerConnectionId: "pc-mock",
-      name: "mock-role",
       allowedScopes: ["lab"],
       accessLevel: "read-only",
       bucketIds: [],

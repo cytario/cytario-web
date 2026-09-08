@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { ACCESS_LEVELS } from "~/utils/providerCatalog.schema";
 
 /**
  * A submitted owner scope: the org-root sentinel, a user sub, or a group path.
@@ -70,21 +71,22 @@ export const bucketNameSchema = z
   );
 
 /**
- * A single grant: a (group scope, provider role) pair. A connection carries one
- * or more grants; each grant binds a group to a provider role whose IAM role ARN
- * becomes the Principal of a managed bucket-policy statement.
+ * A single grant: a group scope paired with an access level. A connection
+ * carries one or more grants; the concrete storage role for the level on the
+ * connection's bucket is resolved server-side from the catalog — its IAM role
+ * ARN becomes the Principal of a managed bucket-policy statement.
  */
 export const grantSchema = z.object({
   scope: scopeSchema,
-  providerRoleId: z.string().min(1, "A provider role is required"),
+  accessLevel: z.enum(ACCESS_LEVELS, { error: "A valid access level is required" }),
 });
 
 /**
  * A storage connection is composed by SELECTING a provider connection and one or
- * more grants — each a (group scope, provider role) pair — never a free-text
- * cloud role identifier or endpoint. The concrete cloud role, endpoint, and
- * region are carried by the chosen provider connection + provider role (resolved
- * server-side from the catalog) and are never accepted from the form.
+ * more grants — each a group scope + access level — never a free-text cloud role
+ * identifier or endpoint. The concrete cloud role, endpoint, and region are
+ * carried by the chosen provider connection and resolved from its catalog
+ * (by access level) server-side, and are never accepted from the form.
  */
 export const connectionSchema = z
   .object({
@@ -107,7 +109,7 @@ export const defaultFormValues: ConnectBucketFormData = {
   providerConnectionId: "",
   bucketName: "",
   prefix: "",
-  grants: [{ scope: "", providerRoleId: "" }],
+  grants: [{ scope: "", accessLevel: "read-only" as const }],
 };
 
 /** Auto-suggest a connection name from a bucket + optional prefix. */

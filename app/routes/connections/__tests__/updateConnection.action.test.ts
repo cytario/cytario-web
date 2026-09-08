@@ -63,8 +63,16 @@ const catalog = mock.providerCatalog({
     mock.providerConnection({ id: "pc-new" }),
   ],
   providerRoles: [
-    mock.providerRole({ id: "pr-old", providerConnectionId: "pc-old", allowedScopes: ["*"] }),
-    mock.providerRole({ id: "pr-new", providerConnectionId: "pc-new", allowedScopes: ["*"] }),
+    mock.providerRole({
+      providerConnectionId: "pc-old",
+      allowedScopes: ["*"],
+      accessLevel: "read-write",
+    }),
+    mock.providerRole({
+      providerConnectionId: "pc-new",
+      allowedScopes: ["*"],
+      accessLevel: "read-write",
+    }),
   ],
 });
 
@@ -73,7 +81,7 @@ const existing = mock.connectionConfig({
   name: "conn",
   bucketName: "old-bucket",
   providerConnectionId: "pc-old",
-  grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-old" })],
+  grants: [mock.connectionGrant({ scope: "org1/lab", accessLevel: "read-only" })],
 });
 
 const form = {
@@ -83,7 +91,7 @@ const form = {
   prefix: "",
   providerConnectionId: "pc-new",
   "grants[0].scope": "org1/lab",
-  "grants[0].providerRoleId": "pr-new",
+  "grants[0].accessLevel": "read-write",
 };
 
 beforeEach(() => {
@@ -98,7 +106,7 @@ describe("updateAction — old-bucket revoke on move", () => {
       ...existing,
       bucketName: "new-bucket",
       providerConnectionId: "pc-new",
-      grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-new" })],
+      grants: [mock.connectionGrant({ scope: "org1/lab", accessLevel: "read-write" })],
     } as never);
 
     const user = mock.user({ adminScopes: ["org1/lab"] });
@@ -123,7 +131,7 @@ describe("updateAction — old-bucket revoke on move", () => {
   test("does NOT touch another bucket when only a grant changes (not the bucket)", async () => {
     vi.mocked(prisma.connectionConfig.update).mockResolvedValue({
       ...existing,
-      grants: [mock.connectionGrant({ scope: "org1/lab/team-a", providerRoleId: "pr-old" })],
+      grants: [mock.connectionGrant({ scope: "org1/lab/team-a", accessLevel: "read-write" })],
     } as never);
 
     const user = mock.user({ adminScopes: ["org1/lab"] });
@@ -133,7 +141,7 @@ describe("updateAction — old-bucket revoke on move", () => {
         bucketName: "old-bucket",
         providerConnectionId: "pc-old",
         "grants[0].scope": "org1/lab/team-a",
-        "grants[0].providerRoleId": "pr-old",
+        "grants[0].accessLevel": "read-write",
       }),
     );
 
@@ -146,7 +154,7 @@ describe("updateAction — old-bucket revoke on move", () => {
       ...existing,
       bucketName: "new-bucket",
       providerConnectionId: "pc-new",
-      grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-new" })],
+      grants: [mock.connectionGrant({ scope: "org1/lab", accessLevel: "read-write" })],
     } as never);
     vi.mocked(applyBucketGrantSet).mockResolvedValue({
       status: "error",

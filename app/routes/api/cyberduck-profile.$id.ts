@@ -2,6 +2,7 @@ import { ActionFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
+import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
@@ -29,14 +30,18 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { bucketName, prefix, name: connectionName } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
-  // The concrete role/endpoint/region live on the referenced provider connection +
-  // provider role, resolved from the org catalog, not on the connection. The
-  // embedded role is the downloading user's most permissive applicable grant
-  // (SRS-CY-43111) — the same rule the browser credential mint applies.
+  // The concrete role/endpoint/region live on the referenced provider connection
+  // and the grant-level storage roles resolved from the org catalog, not on the
+  // connection. The embedded role is the downloading user's most permissive
+  // applicable grant (SRS-CY-43111) — the same rule the browser credential mint
+  // applies.
   let resolvedConnectionProvider;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
-    const resolved = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+    const bucketCatalog = await getBucketCatalog(connectionConfig.organization).catch(
+      () => undefined,
+    );
+    const resolved = resolveConnectionProviderWithGrants(catalog, connectionConfig, bucketCatalog);
     if (!resolved) {
       return new Response("Provider connection or role is unavailable for this connection", {
         status: 502,

@@ -2,12 +2,15 @@ import { load as loadYaml } from "js-yaml";
 import { readFile } from "node:fs/promises";
 
 import { createLabel } from "~/.server/logging";
+import { findBucketByName } from "~/.server/providers/bucketCatalog.server";
 import { cytarioConfig } from "~/config";
+import type { BucketCatalog } from "~/utils/bucketCatalog.schema";
 import {
   type AccessLevel,
   type ProviderCatalog,
   type ProviderConnection,
   type ProviderRole,
+  isAccessLevel,
   providerCatalogSchema,
 } from "~/utils/providerCatalog.schema";
 
@@ -174,18 +177,31 @@ export function findProviderConnection(
   return catalog.providerConnections.find((c) => c.id === providerConnectionId);
 }
 
-/** Look up a provider role by id within a catalog. */
-export function findProviderRole(
+/**
+ * Look up the provider role that backs an access level on a storage connection:
+ * exactly one role is provisioned per (provider connection, bucket, level), so
+ * the level + connection pin the role. When the bucket catalog row id is known
+ * it must match (`bucketIds`), otherwise the first role with the level under
+ * the provider connection is used — with one role per (bucket, level) and
+ * per-bucket connections this is unambiguous, but prefer the exact bucket
+ * whenever the caller can supply the bucket catalog.
+ */
+export function findStorageRole(
   catalog: ProviderCatalog,
-  providerRoleId: string,
+  refs: { providerConnectionId: string; accessLevel: AccessLevel; bucketId?: string },
 ): ProviderRole | undefined {
-  return catalog.providerRoles.find((r) => r.id === providerRoleId);
+  return catalog.providerRoles.find(
+    (r) =>
+      r.providerConnectionId === refs.providerConnectionId &&
+      r.accessLevel === refs.accessLevel &&
+      (refs.bucketId === undefined || r.bucketIds.includes(refs.bucketId)),
+  );
 }
 
 /**
- * The concrete AWS attributes a stored connection references but does not store
- * itself. Resolved by joining the connection's `providerConnectionId` /
- * `providerRoleId` against the catalog.
+ * The concrete AWS attributes a resolved connection carries: the provider
+ * connection's type/endpoint/region plus the resolved storage role's ARN and
+ * level.
  */
 export interface ConnectionProvider {
   providerType: ProviderConnection["providerType"];
@@ -194,31 +210,6 @@ export interface ConnectionProvider {
   roleArn: string;
   allowedScopes: string[];
   accessLevel: AccessLevel;
-}
-
-/**
- * Resolve a stored connection's provider-connection / provider-role references to
- * their concrete AWS attributes, or `undefined` when either reference is absent
- * from the catalog (e.g. a stale lookup). Callers degrade to a clear error rather
- * than blocking an already-created connection.
- */
-export function resolveConnectionProvider(
-  catalog: ProviderCatalog,
-  connection: { providerConnectionId: string; providerRoleId: string },
-): ConnectionProvider | undefined {
-  const providerConnection = findProviderConnection(catalog, connection.providerConnectionId);
-  const providerRole = findProviderRole(catalog, connection.providerRoleId);
-  if (!providerConnection || !providerRole) return undefined;
-  if (providerRole.providerConnectionId !== providerConnection.id) return undefined;
-
-  return {
-    providerType: providerConnection.providerType,
-    endpoint: providerConnection.endpoint,
-    region: providerConnection.region,
-    roleArn: providerRole.roleArn,
-    allowedScopes: providerRole.allowedScopes,
-    accessLevel: providerRole.accessLevel,
-  };
 }
 
 /**
@@ -248,25 +239,44 @@ export interface ResolvedConnectionProviderWithGrants {
 
 /**
  * Resolve a connection's provider connection and ALL of its grants against the
- * catalog. Returns `undefined` when the provider connection itself is absent
- * (a stale lookup); grants whose provider role is absent are silently dropped
- * from the resolved set (they cannot contribute a Principal or a credential).
+ * catalog. Each grant carries an access level; the concrete storage role for
+ * that level on the connection's bucket is resolved here — the portal
+ * provisions exactly one role per (connection, bucket, level), so the level
+ * pins the role. When the bucket catalog is supplied the role is matched on
+ * the connection's bucket row id; otherwise the first role with the level
+ * under the provider connection is used.
+ *
+ * Returns `undefined` when the provider connection itself is absent
+ * (a stale lookup); grants whose level has no role for the bucket are
+ * silently dropped from the resolved set (they cannot contribute a
+ * Principal or a credential).
  */
 export function resolveConnectionProviderWithGrants(
   catalog: ProviderCatalog,
   connection: {
     providerConnectionId: string;
-    grants: Array<{ scope: string; providerRoleId: string }>;
+    bucketName: string;
+    grants: Array<{ scope: string; accessLevel: string }>;
   },
+  bucketCatalog?: BucketCatalog,
 ): ResolvedConnectionProviderWithGrants | undefined {
   const providerConnection = findProviderConnection(catalog, connection.providerConnectionId);
   if (!providerConnection) return undefined;
 
+  const bucketRow = bucketCatalog
+    ? findBucketByName(bucketCatalog, providerConnection.id, connection.bucketName)
+    : undefined;
+
   const grants: ResolvedConnectionGrant[] = [];
   let allowsSharing = false;
   for (const grant of connection.grants) {
-    const providerRole = findProviderRole(catalog, grant.providerRoleId);
-    if (!providerRole || providerRole.providerConnectionId !== providerConnection.id) continue;
+    if (!isAccessLevel(grant.accessLevel)) continue;
+    const providerRole = findStorageRole(catalog, {
+      providerConnectionId: providerConnection.id,
+      accessLevel: grant.accessLevel,
+      ...(bucketRow ? { bucketId: bucketRow.id } : {}),
+    });
+    if (!providerRole) continue;
     grants.push({
       scope: grant.scope,
       roleArn: providerRole.roleArn,

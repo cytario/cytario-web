@@ -5,9 +5,8 @@ import { findBucketByName, getBucketCatalog } from "~/.server/providers/bucketCa
 import {
   type ConnectionProvider,
   findProviderConnection,
-  findProviderRole,
+  findStorageRole,
   getProviderCatalog,
-  resolveConnectionProvider,
 } from "~/.server/providers/providerCatalog.server";
 import { type BucketPolicyGrant } from "~/.server/storage/bucketPolicy";
 import {
@@ -17,6 +16,7 @@ import {
 } from "~/.server/storage/bucketPolicyApply.server";
 import { cytarioConfig } from "~/config";
 import { ORG_ROOT_SCOPE, adminCovers } from "~/utils/authorization";
+import type { BucketCatalog } from "~/utils/bucketCatalog.schema";
 import {
   type ProviderCatalog,
   type ProviderConnection,
@@ -35,7 +35,7 @@ export interface ActingContext {
 
 /**
  * Build the managed bucket-policy grant a single grant row intends. The grant's
- * `providerRoleId` is resolved to a concrete role ARN (and access level) by the
+ * `accessLevel` is resolved to a concrete role ARN (and validated level) by the
  * caller (via the provider catalog) and injected onto the `BucketPolicyGrant` so
  * the fail-closed policy generator accepts it.
  */
@@ -66,30 +66,29 @@ export type ConnectionConfigWithGrants = ConnectionConfig & { grants: Connection
  * to `applyBucketPolicy` makes the write idempotent and makes un-share fall out
  * naturally — a removed connection is simply absent from the set.
  *
- * Each grant's `providerRoleId` is resolved against the catalog to a concrete role
- * ARN; grants whose role reference is stale (absent from the catalog) are skipped
- * — they cannot contribute a Principal and would fail the generator.
+ * Each grant's `accessLevel` is resolved against the catalog to a concrete role
+ * ARN for the connection's bucket; grants whose level has no role for the
+ * bucket (stale catalog / role deleted) are skipped — they cannot contribute a
+ * Principal and would fail the generator.
  */
 export function assembleBucketGrants(
   configs: ConnectionConfigWithGrants[],
   catalog: ProviderCatalog,
+  bucketCatalog?: BucketCatalog,
 ): BucketPolicyGrant[] {
   const grants: BucketPolicyGrant[] = [];
   for (const config of configs) {
+    const bucketRow = bucketCatalog
+      ? findBucketByName(bucketCatalog, config.providerConnectionId, config.bucketName)
+      : undefined;
     for (const grant of config.grants) {
-      const connectionProvider = resolveConnectionProvider(catalog, {
+      const storageRole = findStorageRole(catalog, {
         providerConnectionId: config.providerConnectionId,
-        providerRoleId: grant.providerRoleId,
+        accessLevel: grant.accessLevel as never,
+        ...(bucketRow ? { bucketId: bucketRow.id } : {}),
       });
-      if (!connectionProvider) continue;
-      grants.push(
-        grantForConnection(
-          config,
-          grant,
-          connectionProvider.roleArn,
-          connectionProvider.accessLevel,
-        ),
-      );
+      if (!storageRole) continue;
+      grants.push(grantForConnection(config, grant, storageRole.roleArn, storageRole.accessLevel));
     }
   }
   return grants;
@@ -100,42 +99,60 @@ export type ValidatedProviderRefs =
   | { ok: false; errors: Record<string, string[]> };
 
 /**
- * Validate submitted provider connection + grant references against the catalog:
- * the provider connection must exist, every grant's provider role must exist and
- * belong to that connection, a share must use Admin-level roles, and each
- * grant's role's allowed scopes must cover the grant's scope (an org-wide role
- * with empty `allowedScopes` covers any scope). The client-side selector filtering
- * is advisory only — this is the authoritative check on the submitted values.
+ * Validate submitted provider connection + grant access levels against the
+ * catalog: the provider connection must exist and every grant's access level
+ * must have a storage role for the connection's bucket in the catalog, and
+ * that role's allowed scopes must cover the grant's scope (an org-wide role
+ * with empty `allowedScopes` covers any scope). The client-side selector
+ * filtering is advisory only — this is the authoritative check on the submitted
+ * values.
  */
 export function validateProviderRefs(
   catalog: ProviderCatalog,
-  refs: { providerConnectionId: string; grants: Array<{ providerRoleId: string; scope: string }> },
+  refs: {
+    providerConnectionId: string;
+    bucketName: string;
+    grants: Array<{ accessLevel: string; scope: string }>;
+  },
+  bucketCatalog?: BucketCatalog,
 ): ValidatedProviderRefs {
   const providerConnection = findProviderConnection(catalog, refs.providerConnectionId);
   if (!providerConnection) {
     return { ok: false, errors: { providerConnectionId: ["Unknown provider connection"] } };
   }
 
+  const bucketRow = bucketCatalog
+    ? findBucketByName(bucketCatalog, providerConnection.id, refs.bucketName)
+    : undefined;
+
   const providerRoles: ProviderRole[] = [];
   const errors: Record<string, string[]> = {};
   for (const [index, grant] of refs.grants.entries()) {
-    const providerRole = findProviderRole(catalog, grant.providerRoleId);
-    if (!providerRole || providerRole.providerConnectionId !== providerConnection.id) {
-      errors[`grants.${index}.providerRoleId`] = ["Unknown provider role for this connection"];
+    const storageRole = findStorageRole(catalog, {
+      providerConnectionId: providerConnection.id,
+      accessLevel: grant.accessLevel as never,
+      ...(bucketRow ? { bucketId: bucketRow.id } : {}),
+    });
+    if (!storageRole) {
+      errors[`grants.${index}.accessLevel`] = [
+        `No storage role for access level "${grant.accessLevel}" on this bucket`,
+      ];
       continue;
     }
 
-    const isOrgWide = providerRole.allowedScopes.length === 0;
+    const isOrgWide = storageRole.allowedScopes.length === 0;
     if (
       grant.scope !== ORG_ROOT_SCOPE &&
       !isOrgWide &&
-      !providerRole.allowedScopes.some((allowed) => adminCovers(allowed, grant.scope))
+      !storageRole.allowedScopes.some((allowed) => adminCovers(allowed, grant.scope))
     ) {
-      errors[`grants.${index}.providerRoleId`] = ["This role does not cover the chosen scope"];
+      errors[`grants.${index}.accessLevel`] = [
+        `This access level does not cover the chosen scope on this bucket`,
+      ];
       continue;
     }
 
-    providerRoles.push(providerRole);
+    providerRoles.push(storageRole);
   }
 
   if (Object.keys(errors).length > 0) {
@@ -190,11 +207,11 @@ export async function validateBucketRef(
 
 /**
  * Resolve a connection to its `ApplyTarget` via the org provider catalog. The
- * write session runs under a grant whose provider role is an Admin-level role
- * (`accessLevel === "admin"` — the only level that permits `s3:PutBucketPolicy`);
- * when none of the grants' roles is Admin, the first resolvable grant's role is
- * used as a best-effort fallback. The acting user must administer the connection
- * (canModify) before this is called.
+ * write session runs under a grant whose resolved storage role is an Admin-level
+ * role (`accessLevel === "admin"` — the only level that permits
+ * `s3:PutBucketPolicy`); when none of the grants' roles is Admin, the first
+ * resolvable grant's role is used as a best-effort fallback. The acting user
+ * must administer the connection (canModify) before this is called.
  */
 export async function resolveApplyTarget(
   config: ConnectionConfigWithGrants,
@@ -213,7 +230,57 @@ export async function resolveApplyTarget(
     };
   }
 
-  return resolveApplyTargetFromCatalog(config, catalog);
+  const bucketCatalog = await bucketCatalogFor(config.organization, accessToken);
+
+  return resolveApplyTargetFromCatalog(config, catalog, bucketCatalog);
+}
+
+/** The org bucket catalog, or `undefined` in OSS builds / when the lookup fails. */
+async function bucketCatalogFor(
+  organization: string,
+  accessToken: string,
+): Promise<BucketCatalog | undefined> {
+  if (cytarioConfig.providers.source !== "portal") return undefined;
+  try {
+    return await getBucketCatalog(organization, accessToken);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Resolve the storage role backing a persisted grant, scoped to its connection's bucket. */
+function findStorageRoleForConfig(
+  catalog: ProviderCatalog,
+  config: { providerConnectionId: string; bucketName: string },
+  grant: { accessLevel: string },
+  bucketCatalog?: BucketCatalog,
+): ProviderRole | undefined {
+  const bucketRow = bucketCatalog
+    ? findBucketByName(bucketCatalog, config.providerConnectionId, config.bucketName)
+    : undefined;
+  return findStorageRole(catalog, {
+    providerConnectionId: config.providerConnectionId,
+    accessLevel: grant.accessLevel as never,
+    ...(bucketRow ? { bucketId: bucketRow.id } : {}),
+  });
+}
+
+/** The provider-connection attributes plus the resolved role's, as a `ConnectionProvider`. */
+function connectionProviderFor(
+  catalog: ProviderCatalog,
+  config: { providerConnectionId: string },
+  storageRole: ProviderRole,
+): ConnectionProvider {
+  const providerConnection = findProviderConnection(catalog, config.providerConnectionId);
+  if (!providerConnection) throw new Error("Provider connection is absent from the catalog");
+  return {
+    providerType: providerConnection.providerType,
+    endpoint: providerConnection.endpoint,
+    region: providerConnection.region,
+    roleArn: storageRole.roleArn,
+    allowedScopes: storageRole.allowedScopes,
+    accessLevel: storageRole.accessLevel,
+  };
 }
 
 /**
@@ -228,6 +295,7 @@ function resolveApplyTargetFromSet(
   configs: ConnectionConfigWithGrants[],
   fallback: ConnectionConfigWithGrants,
   catalog: ProviderCatalog,
+  bucketCatalog?: BucketCatalog,
 ):
   | { ok: true; target: ApplyTarget; connectionProvider: ConnectionProvider }
   | {
@@ -236,32 +304,30 @@ function resolveApplyTargetFromSet(
     } {
   for (const config of configs) {
     for (const grant of config.grants) {
-      const connectionProvider = resolveConnectionProvider(catalog, {
-        providerConnectionId: config.providerConnectionId,
-        providerRoleId: grant.providerRoleId,
-      });
-      if (connectionProvider?.accessLevel === "admin") {
-        return {
-          ok: true,
-          connectionProvider,
-          target: {
-            organization: config.organization,
-            bucketName: config.bucketName,
-            region: connectionProvider.region,
-            endpoint: connectionProvider.endpoint,
-            roleArn: connectionProvider.roleArn,
-          },
-        };
-      }
+      const storageRole = findStorageRoleForConfig(catalog, config, grant, bucketCatalog);
+      if (storageRole?.accessLevel !== "admin") continue;
+      const connectionProvider = connectionProviderFor(catalog, config, storageRole);
+      return {
+        ok: true,
+        connectionProvider,
+        target: {
+          organization: config.organization,
+          bucketName: config.bucketName,
+          region: connectionProvider.region,
+          endpoint: connectionProvider.endpoint,
+          roleArn: connectionProvider.roleArn,
+        },
+      };
     }
   }
 
-  return resolveApplyTargetFromCatalog(fallback, catalog);
+  return resolveApplyTargetFromCatalog(fallback, catalog, bucketCatalog);
 }
 
 function resolveApplyTargetFromCatalog(
   config: ConnectionConfigWithGrants,
   catalog: ProviderCatalog,
+  bucketCatalog?: BucketCatalog,
 ):
   | { ok: true; target: ApplyTarget; connectionProvider: ConnectionProvider }
   | {
@@ -271,13 +337,10 @@ function resolveApplyTargetFromCatalog(
   const resolvedGrants = config.grants
     .map((grant) => ({
       grant,
-      connectionProvider: resolveConnectionProvider(catalog, {
-        providerConnectionId: config.providerConnectionId,
-        providerRoleId: grant.providerRoleId,
-      }),
+      storageRole: findStorageRoleForConfig(catalog, config, grant, bucketCatalog),
     }))
-    .filter((g): g is { grant: ConnectionGrant; connectionProvider: ConnectionProvider } =>
-      Boolean(g.connectionProvider),
+    .filter((g): g is { grant: ConnectionGrant; storageRole: ProviderRole } =>
+      Boolean(g.storageRole),
     );
 
   if (resolvedGrants.length === 0) {
@@ -289,9 +352,9 @@ function resolveApplyTargetFromCatalog(
   }
 
   const chosen =
-    resolvedGrants.find((g) => g.connectionProvider.accessLevel === "admin") ?? resolvedGrants[0];
+    resolvedGrants.find((g) => g.storageRole.accessLevel === "admin") ?? resolvedGrants[0];
 
-  const { connectionProvider } = chosen;
+  const connectionProvider = connectionProviderFor(catalog, config, chosen.storageRole);
   return {
     ok: true,
     connectionProvider,
@@ -347,9 +410,10 @@ export async function applyBucketGrantSet(
     where: bucket,
     include: { grants: true },
   });
-  const grants = assembleBucketGrants(configs, catalog);
+  const bucketCatalog = await bucketCatalogFor(bucket.organization, acting.accessToken);
+  const grants = assembleBucketGrants(configs, catalog, bucketCatalog);
 
-  const targetResult = resolveApplyTargetFromSet(configs, applyVia, catalog);
+  const targetResult = resolveApplyTargetFromSet(configs, applyVia, catalog, bucketCatalog);
   if (!targetResult.ok) {
     return { status: "error", warning: targetResult.error };
   }

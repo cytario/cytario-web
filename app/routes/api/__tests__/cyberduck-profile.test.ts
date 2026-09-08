@@ -37,8 +37,8 @@ const READ_WRITE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/la
 function sharedCatalog() {
   return mock.providerCatalog({
     providerRoles: [
-      mock.providerRole({ id: "pr-ro", roleArn: READ_ONLY_ARN, accessLevel: "read-only" }),
-      mock.providerRole({ id: "pr-admin", roleArn: ADMIN_ARN, accessLevel: "admin" }),
+      mock.providerRole({ roleArn: READ_ONLY_ARN, accessLevel: "read-only" }),
+      mock.providerRole({ roleArn: ADMIN_ARN, accessLevel: "admin" }),
     ],
   });
 }
@@ -46,8 +46,8 @@ function sharedCatalog() {
 function sharedConnection() {
   return mock.connectionConfig({
     grants: [
-      mock.connectionGrant({ scope: "*", providerRoleId: "pr-ro" }),
-      mock.connectionGrant({ scope: "org1/internal", providerRoleId: "pr-admin" }),
+      mock.connectionGrant({ scope: "*", accessLevel: "read-only" }),
+      mock.connectionGrant({ scope: "org1/internal", accessLevel: "admin" }),
     ],
   });
 }
@@ -97,16 +97,16 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     vi.mocked(getConnection).mockResolvedValue(
       mock.connectionConfig({
         grants: [
-          mock.connectionGrant({ scope: "org1/annotate-team", providerRoleId: "pr-an" }),
-          mock.connectionGrant({ scope: "org1/rw-team", providerRoleId: "pr-rw" }),
+          mock.connectionGrant({ scope: "org1/annotate-team", accessLevel: "annotate" }),
+          mock.connectionGrant({ scope: "org1/rw-team", accessLevel: "read-write" }),
         ],
       }),
     );
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
         providerRoles: [
-          mock.providerRole({ id: "pr-an", roleArn: ANNOTATE_ARN, accessLevel: "annotate" }),
-          mock.providerRole({ id: "pr-rw", roleArn: READ_WRITE_ARN, accessLevel: "read-write" }),
+          mock.providerRole({ roleArn: ANNOTATE_ARN, accessLevel: "annotate" }),
+          mock.providerRole({ roleArn: READ_WRITE_ARN, accessLevel: "read-write" }),
         ],
       }),
     );
@@ -123,16 +123,16 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
 
   test("user with no applicable grant is refused with 403 and no XML", async () => {
     // The connection stays visible via its grant scope (getConnection canSee),
-    // but the only grant references a provider role absent from the catalog —
-    // it resolves to nothing, so no applicable grant remains for the user.
+    // but the only grant's level has no role in the catalog — it resolves to
+    // nothing, so no applicable grant remains for the user.
     vi.mocked(getConnection).mockResolvedValue(
       mock.connectionConfig({
-        grants: [mock.connectionGrant({ scope: "org1/internal", providerRoleId: "pr-stale" })],
+        grants: [mock.connectionGrant({ scope: "org1/internal", accessLevel: "annotate" })],
       }),
     );
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
-        providerRoles: [mock.providerRole({ id: "pr-ro", roleArn: READ_ONLY_ARN })],
+        providerRoles: [mock.providerRole({ roleArn: READ_ONLY_ARN })],
       }),
     );
     const user = mock.user({ groups: ["org1/internal"], adminScopes: [] });

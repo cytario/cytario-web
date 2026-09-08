@@ -26,7 +26,7 @@ vi.mock("~/.server/db/redis", () => ({ redis: {} }));
 
 const cytarioConfig = mock.connectionConfig({
   name: "test-connection",
-  grants: [mock.connectionGrant({ scope: "cytario", providerRoleId: "pr-1" })],
+  grants: [mock.connectionGrant({ scope: "cytario", accessLevel: "read-only" })],
 });
 
 const adminUser = mock.user({
@@ -47,7 +47,7 @@ const validUpdates = {
   bucketName: "updated-bucket",
   prefix: "",
   providerConnectionId: "pc-1",
-  grants: [{ scope: "cytario", providerRoleId: "pr-1" }],
+  grants: [{ scope: "cytario", accessLevel: "read-only" }],
 };
 
 beforeEach(() => {
@@ -113,7 +113,7 @@ describe("createConnection strictness", () => {
           providerConnectionId: "pc-1",
           prefix: "victim-prefix",
         },
-        [{ scope: "attacker-personal-scope", providerRoleId: "pr-1" }],
+        [{ scope: "attacker-personal-scope", accessLevel: "read-only" }],
       ),
     ).rejects.toBe(violation);
     expect(prisma.connectionConfig.update).not.toHaveBeenCalled();
@@ -173,7 +173,7 @@ describe("updateConnection authorization", () => {
     await expect(
       updateConnection(adminUser, "conn-uuid-1", {
         ...validUpdates,
-        grants: [{ scope: "ops", providerRoleId: "pr-1" }],
+        grants: [{ scope: "ops", accessLevel: "read-only" }],
       }),
     ).rejects.toThrow("Not authorized to create a grant");
   });
@@ -184,15 +184,15 @@ describe("updateConnection authorization", () => {
       ...cytarioConfig,
       ...validUpdates,
       grants: [
-        mock.connectionGrant({ scope: "cytario", providerRoleId: "pr-1" }),
-        mock.connectionGrant({ scope: "cytario/sub", providerRoleId: "pr-1" }),
+        mock.connectionGrant({ scope: "cytario", accessLevel: "read-only" }),
+        mock.connectionGrant({ scope: "cytario/sub", accessLevel: "read-only" }),
       ],
     } as never);
     await updateConnection(adminUser, "conn-uuid-1", {
       ...validUpdates,
       grants: [
-        { scope: "cytario", providerRoleId: "pr-1" },
-        { scope: "cytario/sub", providerRoleId: "pr-1" },
+        { scope: "cytario", accessLevel: "read-only" },
+        { scope: "cytario/sub", accessLevel: "read-only" },
       ],
     });
     expect(prisma.connectionConfig.update).toHaveBeenCalled();

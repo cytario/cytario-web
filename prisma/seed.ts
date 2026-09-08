@@ -40,7 +40,7 @@ async function seed() {
         name: TEST_CONNECTION_NAME,
         prefix: "",
         grants: {
-          create: [{ scope: "admins", providerRoleId: "sharer-lab" }],
+          create: [{ scope: "admins", accessLevel: "admin" }],
         },
       },
     });
@@ -56,7 +56,7 @@ async function seed() {
         name: TEST_PREFIX_CONNECTION_NAME,
         prefix: "Alpha Lab",
         grants: {
-          create: [{ scope: "admins", providerRoleId: "sharer-lab" }],
+          create: [{ scope: "admins", accessLevel: "admin" }],
         },
       },
     });

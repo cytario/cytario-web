@@ -9,9 +9,10 @@ import {
 
 /**
  * A folder share: the user supplies a name, one or more grants (each a group
- * scope + provider role); the bucket, provider connection, and prefix are
+ * scope + access level); the bucket, provider connection, and prefix are
  * carried from the folder context (validated identically to a connection). No
- * free-text role/endpoint is accepted.
+ * free-text role/endpoint is accepted — the storage role for each level is
+ * resolved server-side from the catalog.
  */
 export const shareFolderSchema = z
   .object({

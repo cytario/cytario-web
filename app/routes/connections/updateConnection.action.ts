@@ -81,7 +81,7 @@ export async function updateConnection(
         createMany: {
           data: updates.grants.map((g) => ({
             scope: g.scope,
-            providerRoleId: g.providerRoleId,
+            accessLevel: g.accessLevel,
           })),
         },
       },

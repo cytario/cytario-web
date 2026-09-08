@@ -53,7 +53,7 @@ beforeEach(() => {
 describe("reapplyAction", () => {
   test("re-applies a group-scoped connection the user administers", async () => {
     const config = mock.connectionConfig({
-      grants: [mock.connectionGrant({ scope: "org1/lab", providerRoleId: "pr-mock" })],
+      grants: [mock.connectionGrant({ scope: "org1/lab", accessLevel: "read-write" })],
     });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
@@ -71,7 +71,7 @@ describe("reapplyAction", () => {
 
   test("403s when the user cannot modify the connection", async () => {
     const config = mock.connectionConfig({
-      grants: [mock.connectionGrant({ scope: "org1/ops", providerRoleId: "pr-mock" })],
+      grants: [mock.connectionGrant({ scope: "org1/ops", accessLevel: "read-write" })],
     });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
@@ -87,7 +87,7 @@ describe("reapplyAction", () => {
 
   test("403s on a group-scoped connection whose scope the admin does not cover", async () => {
     const config = mock.connectionConfig({
-      grants: [mock.connectionGrant({ scope: "org1/ops", providerRoleId: "pr-mock" })],
+      grants: [mock.connectionGrant({ scope: "org1/ops", accessLevel: "read-write" })],
     });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 

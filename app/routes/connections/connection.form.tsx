@@ -26,9 +26,17 @@ import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { adminCovers } from "~/utils/authorization";
+import { ACCESS_LEVELS, type AccessLevel } from "~/utils/providerCatalog.schema";
 
 const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
+
+const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
+  "read-only": "Read Only",
+  annotate: "Annotate",
+  "read-write": "Read Write",
+  admin: "Admin",
+};
 
 const FIELD_TO_STEP: Record<string, number> = {
   providerConnectionId: 0,
@@ -112,7 +120,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
           grants: [
             {
               scope: defaultScope ?? "",
-              providerRoleId: "",
+              accessLevel: "read-only" as const,
             },
           ],
         },
@@ -164,7 +172,12 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   const isAutoUpdatingName = useRef(false);
 
   useEffect(() => {
-    if (!userEditedName.current && bucketName) {
+    // Skip while the name input is focused: a state write here races an
+    // in-progress edit (React restores the DOM value mid-keystroke, so the
+    // typed text ends up appended to the suggestion).
+    const el = document.activeElement;
+    const nameFocused = el instanceof HTMLInputElement && el.name === "name";
+    if (!userEditedName.current && bucketName && !nameFocused) {
       isAutoUpdatingName.current = true;
       setValue("name", suggestName(bucketName, prefix ?? ""));
       isAutoUpdatingName.current = false;
@@ -184,7 +197,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     formData.append("prefix", data.prefix ?? "");
     data.grants.forEach((grant, index) => {
       formData.append(`grants[${index}].scope`, grant.scope);
-      formData.append(`grants[${index}].providerRoleId`, grant.providerRoleId);
+      formData.append(`grants[${index}].accessLevel`, grant.accessLevel);
     });
     if (isEditMode) {
       formData.append("connectionId", String(initialData.connectionId));
@@ -217,30 +230,61 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     [adminScopes],
   );
 
+  const bucketRowId = useMemo(
+    () =>
+      (bucketCatalog?.buckets ?? []).find(
+        (b) => b.providerConnectionId === providerConnectionId && b.bucketName === bucketName,
+      )?.id,
+    [bucketCatalog, providerConnectionId, bucketName],
+  );
+
   /**
-   * Provider roles available for a given grant scope, filtered by:
-   * 1. matching the selected provider connection, and
-   * 2. the role's allowed-scopes — a role with no allowed scopes is unrestricted;
-   *    otherwise the scope must be covered by at least one allowed scope.
+   * Access levels offerable for a grant scope: the level must be backed by a
+   * provider role on the SELECTED bucket (filtered to the selected provider
+   * connection), and that role's allowed scopes must cover the grant scope —
+   * a role with no allowed scopes is unrestricted. Levels the bucket has no
+   * role for are simply not offered. In an OSS build there is no bucket
+   * registry, so the connection's roles match regardless of bucket.
    */
-  const roleItemsForGrant = (grantScope: string): SelectItem[] => {
-    const roles = (catalog?.providerRoles ?? []).filter((role) => {
-      if (role.providerConnectionId !== providerConnectionId) return false;
-      if (role.allowedScopes.length === 0 || !grantScope) return true;
-      return role.allowedScopes.some((allowed) => adminCovers(allowed, grantScope));
-    });
-    return roles.map((role) => ({ id: role.id, name: role.name }));
+  const levelsForGrant = (grantScope: string): AccessLevel[] => {
+    const roleLevels = new Set(
+      (catalog?.providerRoles ?? [])
+        .filter(
+          (role) =>
+            role.providerConnectionId === providerConnectionId &&
+            (bucketRowId === undefined || role.bucketIds.includes(bucketRowId)),
+        )
+        .filter(
+          (role) =>
+            role.allowedScopes.length === 0 ||
+            !grantScope ||
+            role.allowedScopes.some((allowed) => adminCovers(allowed, grantScope)),
+        )
+        .map((role) => role.accessLevel),
+    );
+    return ACCESS_LEVELS.filter((level) => roleLevels.has(level));
   };
+
+  const bucketHasRoles = useMemo(
+    () =>
+      bucketSource !== "portal" ||
+      (!!bucketRowId &&
+        (catalog?.providerRoles ?? []).some(
+          (role) =>
+            role.providerConnectionId === providerConnectionId &&
+            role.bucketIds.includes(bucketRowId),
+        )),
+    [catalog, providerConnectionId, bucketRowId, bucketSource],
+  );
 
   const grantSummary = useMemo(
     () =>
-      (grantsValue ?? []).map((grant) => {
-        const roleName =
-          catalog?.providerRoles.find((r) => r.id === grant.providerRoleId)?.name ??
-          grant.providerRoleId;
-        return grant.providerRoleId ? `${grant.scope} — ${roleName}` : grant.scope;
-      }),
-    [grantsValue, catalog],
+      (grantsValue ?? []).map((grant) =>
+        grant.accessLevel
+          ? `${grant.scope} — ${ACCESS_LEVEL_LABELS[grant.accessLevel]}`
+          : grant.scope,
+      ),
+    [grantsValue],
   );
 
   return (
@@ -378,9 +422,13 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                 {fields.map((field, index) => {
                   const grant = grantsValue?.[index];
                   const grantScope = grant?.scope ?? "";
-                  const grantRoleId = grant?.providerRoleId ?? "";
-                  const roleItems = roleItemsForGrant(grantScope);
-                  const grantError = serverErrors?.[`grants.${index}.providerRoleId`]?.[0];
+                  const grantLevel = grant?.accessLevel ?? "";
+                  const levels = levelsForGrant(grantScope);
+                  const grantError = serverErrors?.[`grants.${index}.accessLevel`]?.[0];
+                  const levelItems: SelectItem[] = levels.map((level) => ({
+                    id: level,
+                    name: ACCESS_LEVEL_LABELS[level],
+                  }));
 
                   return (
                     <div
@@ -405,21 +453,33 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                         )}
                       />
 
-                      <Controller
-                        name={`grants.${index}.providerRoleId` as const}
-                        control={control}
-                        render={({ field: roleField, fieldState: roleFieldState }) => (
-                          <Select
-                            label="Provider role"
-                            description="The role Cytario assumes to access your data."
-                            items={roleItems}
-                            isDisabled={!providerConnectionId || roleItems.length === 0}
-                            selectedKey={grantRoleId || null}
-                            onSelectionChange={(key) => roleField.onChange(key)}
-                            errorMessage={roleFieldState.error?.message ?? grantError}
-                          />
-                        )}
-                      />
+                      {bucketSource === "portal" && !bucketHasRoles && bucketName ? (
+                        <Banner variant="warning" title="No storage roles for this bucket">
+                          The provider catalog lists no storage roles for this bucket. Ask an
+                          administrator to complete the storage onboarding before granting access.
+                        </Banner>
+                      ) : (
+                        <Controller
+                          name={`grants.${index}.accessLevel` as const}
+                          control={control}
+                          render={({ field: levelField, fieldState: levelFieldState }) => (
+                            <Select
+                              label="Access level"
+                              description="The permissions this group gets on the data."
+                              items={levelItems}
+                              isDisabled={
+                                !providerConnectionId ||
+                                !bucketName ||
+                                (bucketSource === "portal" && !bucketHasRoles) ||
+                                levelItems.length === 0
+                              }
+                              selectedKey={grantLevel || null}
+                              onSelectionChange={(key) => levelField.onChange(key)}
+                              errorMessage={levelFieldState.error?.message ?? grantError}
+                            />
+                          )}
+                        />
+                      )}
 
                       {fields.length > 1 && (
                         <Button
@@ -438,7 +498,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                 <Button
                   variant="ghost"
                   type="button"
-                  onPress={() => append({ scope: "", providerRoleId: "" })}
+                  onPress={() => append({ scope: "", accessLevel: "read-only" as const })}
                   className="self-start"
                 >
                   Add grant

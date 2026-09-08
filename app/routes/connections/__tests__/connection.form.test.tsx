@@ -30,10 +30,8 @@ const catalog = {
   ],
   providerRoles: [
     {
-      id: "pr-1",
       providerConnectionId: "pc-1",
       roleArn: "arn:aws:iam::123456789012:role/reader",
-      name: "Reader",
       allowedScopes: ["lab"],
       accessLevel: "read-only",
     },
@@ -79,11 +77,11 @@ describe("ConnectionForm — FK selectors (SRS-CY-32118)", () => {
   test("surfaces a server field error", async () => {
     mockActionData = {
       status: "error",
-      errors: { "grants.0.providerRoleId": ["Unknown provider role"] },
+      errors: { "grants.0.accessLevel": ["Unknown access level"] },
     };
     renderForm();
     await waitFor(() => {
-      expect(screen.getByText("Unknown provider role")).toBeInTheDocument();
+      expect(screen.getByText("Unknown access level")).toBeInTheDocument();
     });
   });
 });

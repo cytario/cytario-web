@@ -97,7 +97,7 @@ describe("connectionConfig.server", () => {
         providerConnectionId: "pc-1",
         prefix: "data/",
       };
-      const grants = [{ scope: "lab", providerRoleId: "pr-1" }];
+      const grants = [{ scope: "lab", accessLevel: "read-only" }];
 
       vi.mocked(prisma.connectionConfig.create).mockResolvedValue(
         mock.connectionConfig({ ...newConfig }),
@@ -112,7 +112,7 @@ describe("connectionConfig.server", () => {
           ...newConfig,
           grants: {
             createMany: {
-              data: [{ scope: "lab", providerRoleId: "pr-1" }],
+              data: [{ scope: "lab", accessLevel: "read-only" }],
             },
           },
         },
