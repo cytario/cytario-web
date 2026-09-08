@@ -23,12 +23,12 @@ export interface CreateConnectionInput {
 
 export interface GrantInput {
   scope: string;
-  providerRoleId: string;
+  accessLevel: string;
 }
 
 /**
  * Parse the repeating grants group from the submitted formData. The form emits
- * `grants[<index>].scope` / `grants[<index>].providerRoleId` pairs.
+ * `grants[<index>].scope` / `grants[<index>].accessLevel` pairs.
  */
 export function parseGrants(formData: FormData): GrantInput[] {
   const indexSet = new Set<number>();
@@ -40,7 +40,7 @@ export function parseGrants(formData: FormData): GrantInput[] {
     .sort((a, b) => a - b)
     .map((index) => ({
       scope: String(formData.get(`grants[${index}].scope`) ?? ""),
-      providerRoleId: String(formData.get(`grants[${index}].providerRoleId`) ?? ""),
+      accessLevel: String(formData.get(`grants[${index}].accessLevel`) ?? ""),
     }));
 }
 
@@ -64,7 +64,7 @@ export async function createConnection(
       ...config,
       grants: {
         createMany: {
-          data: grants.map((g) => ({ scope: g.scope, providerRoleId: g.providerRoleId })),
+          data: grants.map((g) => ({ scope: g.scope, accessLevel: g.accessLevel })),
         },
       },
     },

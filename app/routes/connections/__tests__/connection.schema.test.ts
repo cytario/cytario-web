@@ -14,7 +14,7 @@ const validBase = {
   providerConnectionId: "pc-1",
   bucketName: "my-bucket",
   prefix: "data",
-  grants: [{ scope: "lab", providerRoleId: "pr-1" }],
+  grants: [{ scope: "lab", accessLevel: "read-only" }],
 };
 
 describe("connectionNameSchema", () => {
@@ -143,7 +143,7 @@ describe("connectionSchema (SRS-CY-32118 — FK selectors, no free text)", () =>
   test("rejects a missing provider role id in a grant", () => {
     const result = connectionSchema.safeParse({
       ...validBase,
-      grants: [{ scope: "lab", providerRoleId: "" }],
+      grants: [{ scope: "lab", accessLevel: "" }],
     });
     expect(result.success).toBe(false);
   });
@@ -157,8 +157,8 @@ describe("connectionSchema (SRS-CY-32118 — FK selectors, no free text)", () =>
     const result = connectionSchema.safeParse({
       ...validBase,
       grants: [
-        { scope: "lab", providerRoleId: "pr-1" },
-        { scope: "lab", providerRoleId: "pr-2" },
+        { scope: "lab", accessLevel: "read-only" },
+        { scope: "lab", accessLevel: "read-only" },
       ],
     });
     expect(result.success).toBe(false);
@@ -168,8 +168,8 @@ describe("connectionSchema (SRS-CY-32118 — FK selectors, no free text)", () =>
     const result = connectionSchema.safeParse({
       ...validBase,
       grants: [
-        { scope: "lab", providerRoleId: "pr-1" },
-        { scope: "ops", providerRoleId: "pr-2" },
+        { scope: "lab", accessLevel: "read-only" },
+        { scope: "ops", accessLevel: "read-only" },
       ],
     });
     expect(result.success).toBe(true);

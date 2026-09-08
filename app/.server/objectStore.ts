@@ -9,6 +9,7 @@ import {
 
 import type { ConnectionConfigWithGrants } from "./auth/authMiddleware";
 import { hostRequestStorage } from "./hostRequestContext";
+import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
@@ -67,7 +68,10 @@ async function resolveWritableConnection(
   }
 
   const catalog = await getProviderCatalog(user.organization!, authTokens.accessToken);
-  const connectionProvider = resolveConnectionProviderWithGrants(catalog, config);
+  const bucketCatalog = await getBucketCatalog(user.organization!, authTokens.accessToken).catch(
+    () => undefined,
+  );
+  const connectionProvider = resolveConnectionProviderWithGrants(catalog, config, bucketCatalog);
   if (!connectionProvider) {
     throw new Error(`Connection "${connectionId}" has a stale provider reference`);
   }

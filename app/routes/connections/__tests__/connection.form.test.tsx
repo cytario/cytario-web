@@ -79,11 +79,11 @@ describe("ConnectionForm — FK selectors (SRS-CY-32118)", () => {
   test("surfaces a server field error", async () => {
     mockActionData = {
       status: "error",
-      errors: { "grants.0.providerRoleId": ["Unknown provider role"] },
+      errors: { "grants.0.accessLevel": ["Unknown access level"] },
     };
     renderForm();
     await waitFor(() => {
-      expect(screen.getByText("Unknown provider role")).toBeInTheDocument();
+      expect(screen.getByText("Unknown access level")).toBeInTheDocument();
     });
   });
 });

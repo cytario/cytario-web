@@ -34,6 +34,11 @@ export type ProviderConnectionStatus = (typeof PROVIDER_CONNECTION_STATUSES)[num
 export const ACCESS_LEVELS = ["read-only", "annotate", "read-write", "admin"] as const;
 export type AccessLevel = (typeof ACCESS_LEVELS)[number];
 
+/** Whether a persisted grant's level string is one of the known access levels. */
+export function isAccessLevel(value: string): value is AccessLevel {
+  return (ACCESS_LEVELS as readonly string[]).includes(value);
+}
+
 export const providerConnectionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),

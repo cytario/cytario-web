@@ -438,7 +438,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
       id: "c1",
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-1" }],
+      grants: [{ accessLevel: "read-only" }],
     } as never);
     getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
     resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
@@ -496,7 +496,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
       id: "c1",
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-1" }],
+      grants: [{ accessLevel: "read-only" }],
     } as never);
     getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
     resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({

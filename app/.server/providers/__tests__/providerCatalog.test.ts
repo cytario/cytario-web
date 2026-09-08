@@ -3,10 +3,10 @@ import { readFile } from "node:fs/promises";
 import {
   clearProviderCatalogCache,
   findProviderConnection,
-  findProviderRole,
+  findStorageRole,
   getProviderCatalog,
   invalidateProviderCatalogCache,
-  resolveConnectionProvider,
+  resolveConnectionProviderWithGrants,
 } from "../providerCatalog.server";
 import { cytarioConfig } from "~/config";
 import { providerCatalogSchema } from "~/utils/providerCatalog.schema";
@@ -349,56 +349,103 @@ describe("getProviderCatalog (portal build)", () => {
 
 const PARSED_CATALOG = providerCatalogSchema.parse(CATALOG);
 
-describe("resolveConnectionProvider", () => {
-  test("resolves references to concrete AWS attributes", () => {
-    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
-      providerConnectionId: "pc-1",
-      providerRoleId: "pr-1",
-    });
-    expect(connectionProvider).toEqual({
-      providerType: "aws",
-      endpoint: null,
-      region: "eu-central-1",
-      roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
-      allowedScopes: ["lab/team-a"],
-      accessLevel: "read-only",
-    });
-  });
-
+describe("catalog payload defaults", () => {
   test("C-378: defaults accessLevel to read-only when the catalog payload omits it", () => {
     expect(PARSED_CATALOG.providerRoles[0].accessLevel).toBe("read-only");
-  });
-
-  test("returns undefined when the provider connection is missing", () => {
-    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
-      providerConnectionId: "pc-missing",
-      providerRoleId: "pr-1",
-    });
-    expect(connectionProvider).toBeUndefined();
-  });
-
-  test("returns undefined when the provider role is missing", () => {
-    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
-      providerConnectionId: "pc-1",
-      providerRoleId: "pr-missing",
-    });
-    expect(connectionProvider).toBeUndefined();
-  });
-
-  test("rejects a role whose providerConnectionId does not match the connection", () => {
-    const connectionProvider = resolveConnectionProvider(PARSED_CATALOG, {
-      providerConnectionId: "pc-1",
-      providerRoleId: "pr-orphan",
-    });
-    expect(connectionProvider).toBeUndefined();
   });
 });
 
 describe("catalog lookup helpers", () => {
-  test("findProviderConnection / findProviderRole locate by id", () => {
+  test("findProviderConnection locates by id", () => {
     expect(findProviderConnection(PARSED_CATALOG, "pc-1")?.region).toBe("eu-central-1");
     expect(findProviderConnection(PARSED_CATALOG, "nope")).toBeUndefined();
-    expect(findProviderRole(PARSED_CATALOG, "pr-1")?.name).toBe("Reader");
-    expect(findProviderRole(PARSED_CATALOG, "nope")).toBeUndefined();
+  });
+});
+
+describe("findStorageRole", () => {
+  test("matches a role by provider connection + access level", () => {
+    const role = findStorageRole(PARSED_CATALOG, {
+      providerConnectionId: "pc-1",
+      accessLevel: "read-only",
+    });
+    expect(role?.id).toBe("pr-1");
+  });
+
+  test("returns undefined when the connection has no role with the level", () => {
+    expect(
+      findStorageRole(PARSED_CATALOG, { providerConnectionId: "pc-1", accessLevel: "admin" }),
+    ).toBeUndefined();
+  });
+
+  test("returns undefined when the bucket row id does not match", () => {
+    expect(
+      findStorageRole(PARSED_CATALOG, {
+        providerConnectionId: "pc-1",
+        accessLevel: "read-only",
+        bucketId: "other-bucket",
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("resolveConnectionProviderWithGrants", () => {
+  const connection = {
+    providerConnectionId: "pc-1",
+    bucketName: "my-bucket",
+    grants: [
+      { scope: "lab/team-a", accessLevel: "read-only" },
+      { scope: "lab/team-b", accessLevel: "admin" },
+    ],
+  };
+
+  test("resolves each grant's level to a concrete role ARN and drops level-less grants", () => {
+    const resolved = resolveConnectionProviderWithGrants(PARSED_CATALOG, connection);
+    expect(resolved).toBeDefined();
+    expect(resolved?.region).toBe("eu-central-1");
+    expect(resolved?.grants).toEqual([
+      {
+        scope: "lab/team-a",
+        roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
+        accessLevel: "read-only",
+      },
+    ]);
+    expect(resolved?.allowsSharing).toBe(false);
+  });
+
+  test("drops grants whose level string is not a known access level", () => {
+    const resolved = resolveConnectionProviderWithGrants(PARSED_CATALOG, {
+      ...connection,
+      grants: [{ scope: "lab/team-a", accessLevel: "banana" }],
+    });
+    expect(resolved?.grants).toHaveLength(0);
+  });
+
+  test("returns undefined when the provider connection is absent", () => {
+    expect(
+      resolveConnectionProviderWithGrants(PARSED_CATALOG, {
+        ...connection,
+        providerConnectionId: "pc-missing",
+      }),
+    ).toBeUndefined();
+  });
+
+  test("marks allowsSharing when any grant resolves to an admin role", () => {
+    const adminCatalog = {
+      ...PARSED_CATALOG,
+      providerRoles: [
+        ...PARSED_CATALOG.providerRoles,
+        {
+          ...PARSED_CATALOG.providerRoles[0],
+          id: "pr-admin",
+          accessLevel: "admin" as const,
+          roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/admin",
+        },
+      ],
+    };
+    const resolved = resolveConnectionProviderWithGrants(adminCatalog, {
+      ...connection,
+      grants: [{ scope: "lab/team-a", accessLevel: "admin" }],
+    });
+    expect(resolved?.allowsSharing).toBe(true);
   });
 });

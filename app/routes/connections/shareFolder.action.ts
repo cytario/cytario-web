@@ -16,10 +16,10 @@ import { assertGrantScope } from "~/routes/admin/assertAdminScope";
  *   1. parse + validate the submitted grants (bucket/prefix validated by the schema);
  *   2. authorize every SUBMITTED target scope server-side — HTTP 403 with no mint and
  *      no bucket-policy write on failure;
- *   3. resolve every grant's provider role from the catalog and reject unknown or
- *      non-covering roles (any role is accepted — read-only or sharing-capable;
- *      the bucket-policy write picks a sharing-capable grant's role via
- *      resolveApplyTarget);
+ *   3. resolve every grant's access level to a storage role from the catalog and
+ *      reject unknown or non-covering levels (any level is accepted — read-only
+ *      or sharing-capable; the bucket-policy write picks a sharing-capable
+ *      grant's role via resolveApplyTarget);
  *   4. create the share connection;
  *   5. apply the desired managed grant set under a sharing-capable role borrowed
  *      from any connection on the same bucket, warning (never claiming enforced)
@@ -129,6 +129,6 @@ function parseShareGrants(formData: FormData) {
     .sort((a, b) => a - b)
     .map((index) => ({
       scope: String(formData.get(`grants[${index}].scope`) ?? ""),
-      providerRoleId: String(formData.get(`grants[${index}].providerRoleId`) ?? ""),
+      accessLevel: String(formData.get(`grants[${index}].accessLevel`) ?? ""),
     }));
 }

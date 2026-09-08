@@ -19,7 +19,7 @@ const mock = {
     id: "grant-uuid-1",
     connectionId: "conn-uuid-1",
     scope: "org1/lab",
-    providerRoleId: "pr-mock",
+    accessLevel: "read-write",
     ...data,
   }),
   connectionConfig: (

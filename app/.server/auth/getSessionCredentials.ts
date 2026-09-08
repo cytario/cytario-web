@@ -168,9 +168,10 @@ export interface SessionCredentialsResult {
  * Fetches credentials for all connection configs in parallel.
  *
  * A connection no longer carries its own provider/endpoint/roleArn/region — those
- * live on the portal-managed (or OSS-configured) provider connection + provider
- * role the connection references. We resolve each connection's concrete AWS
- * attributes from the organization's provider catalog before minting.
+ * live on the portal-managed (or OSS-configured) provider connection the
+ * connection references, and each grant's access level maps to a storage role
+ * resolved from the organization's provider catalog (bucket-scoped when the
+ * bucket catalog is available) before minting.
  *
  * Keys credentials by `config.name` so connections that share a bucket but resolve
  * to different roles each get their own STS mint. Only fetches for connections
@@ -228,7 +229,11 @@ export const getAllSessionCredentials = async (
   const providers: Record<string, ClientConnectionProvider> = {};
   if (catalog) {
     for (const connectionConfig of connectionConfigs) {
-      const connectionProvider = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+      const connectionProvider = resolveConnectionProviderWithGrants(
+        catalog,
+        connectionConfig,
+        bucketCatalog,
+      );
       if (connectionProvider) {
         const grant = pickGrantForUser(connectionProvider, sessionData.user, organization);
         providers[connectionConfig.id] = {
@@ -258,7 +263,11 @@ export const getAllSessionCredentials = async (
       if (!catalog) {
         throw new Error(catalogError ?? "Provider catalog is unavailable.");
       }
-      const connectionProvider = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+      const connectionProvider = resolveConnectionProviderWithGrants(
+        catalog,
+        connectionConfig,
+        bucketCatalog,
+      );
       if (!connectionProvider) {
         throw new Error(
           "This connection references a provider connection or role that is no longer available. Ask an administrator to check the storage onboarding.",

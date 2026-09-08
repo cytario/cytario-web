@@ -46,7 +46,18 @@ const roleArn = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw";
 
 const catalog = mock.providerCatalog({
   providerConnections: [mock.providerConnection({ id: "pc-mock" })],
-  providerRoles: [mock.providerRole({ id: "pr-mock", providerConnectionId: "pc-mock", roleArn })],
+  providerRoles: [
+    mock.providerRole({
+      providerConnectionId: "pc-mock",
+      roleArn,
+      accessLevel: "read-write",
+    }),
+    mock.providerRole({
+      providerConnectionId: "pc-mock",
+      roleArn: "arn:aws:iam::123456789012:role/read-only",
+      accessLevel: "read-only",
+    }),
+  ],
 });
 
 const shareableCatalog = mock.providerCatalog({
@@ -122,14 +133,14 @@ describe("assembleBucketGrants", () => {
       mock.connectionConfig({
         name: "a",
         bucketName: "b",
-        grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-mock" })],
+        grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-write" })],
       }),
       mock.connectionConfig({
         name: "d",
         bucketName: "b",
         grants: [
-          mock.connectionGrant({ scope: "lab/team-b", providerRoleId: "pr-mock" }),
-          mock.connectionGrant({ scope: "lab/team-c", providerRoleId: "pr-mock" }),
+          mock.connectionGrant({ scope: "lab/team-b", accessLevel: "read-write" }),
+          mock.connectionGrant({ scope: "lab/team-c", accessLevel: "read-write" }),
         ],
       }),
     ];
@@ -137,18 +148,18 @@ describe("assembleBucketGrants", () => {
     expect(grants.map((g) => g.groupPath).sort()).toEqual(["lab", "lab/team-b", "lab/team-c"]);
     for (const g of grants) {
       expect(g.roleArn).toBe(roleArn);
-      expect(g.accessLevel).toBe("read-only");
+      expect(g.accessLevel).toBe("read-write");
     }
   });
 
-  test("skips grants whose provider role is stale (absent from the catalog)", () => {
+  test("skips grants whose level has no role in the catalog", () => {
     const configs = [
       mock.connectionConfig({
         name: "a",
         bucketName: "b",
         grants: [
-          mock.connectionGrant({ scope: "lab", providerRoleId: "pr-mock" }),
-          mock.connectionGrant({ scope: "ops", providerRoleId: "pr-stale" }),
+          mock.connectionGrant({ scope: "lab", accessLevel: "read-write" }),
+          mock.connectionGrant({ scope: "ops", accessLevel: "admin" }),
         ],
       }),
     ];
@@ -176,20 +187,22 @@ describe("validateProviderRefs", () => {
     ],
   });
 
-  test("accepts a grant whose role covers the submitted scope", () => {
+  test("accepts a grant whose level's role covers the submitted scope", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-lab", scope: "lab/team-a" }],
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "admin", scope: "lab/team-a" }],
     });
     expect(result.ok).toBe(true);
   });
 
-  test("accepts multiple grants with different roles", () => {
+  test("accepts multiple grants with different levels", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-1",
+      bucketName: "mock-bucket",
       grants: [
-        { providerRoleId: "pr-lab", scope: "lab/team-a" },
-        { providerRoleId: "pr-ro", scope: "ops" },
+        { accessLevel: "admin", scope: "lab/team-a" },
+        { accessLevel: "read-only", scope: "ops" },
       ],
     });
     expect(result.ok).toBe(true);
@@ -198,7 +211,8 @@ describe("validateProviderRefs", () => {
   test("rejects an unknown provider connection", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-nope",
-      grants: [{ providerRoleId: "pr-lab", scope: "lab" }],
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "read-only", scope: "lab" }],
     });
     expect(result).toEqual({
       ok: false,
@@ -206,36 +220,39 @@ describe("validateProviderRefs", () => {
     });
   });
 
-  test("rejects a role bound to a different provider connection", () => {
+  test("rejects a level whose roles all live under a different provider connection", () => {
     const other = mock.providerCatalog({
       providerConnections: [
         mock.providerConnection({ id: "pc-1" }),
         mock.providerConnection({ id: "pc-2" }),
       ],
-      providerRoles: [mock.providerRole({ id: "pr-lab", providerConnectionId: "pc-2" })],
+      providerRoles: [mock.providerRole({ providerConnectionId: "pc-2", accessLevel: "admin" })],
     });
     const result = validateProviderRefs(other, {
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-lab", scope: "lab" }],
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "admin", scope: "lab" }],
     });
     expect(result.ok).toBe(false);
   });
 
-  test("SECURITY: rejects a role whose allowed scopes do not cover the submitted scope — client filtering is advisory only", () => {
+  test("SECURITY: rejects a level whose role's allowed scopes do not cover the submitted scope — client filtering is advisory only", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-lab", scope: "ops" }],
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "admin", scope: "ops" }],
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.errors["grants.0.providerRoleId"]).toBeDefined();
+      expect(result.errors["grants.0.accessLevel"]).toBeDefined();
     }
   });
 
   test("a `*` allowed scope covers every submitted scope", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-ro", scope: "anything/at/all" }],
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "read-only", scope: "anything/at/all" }],
     });
     expect(result.ok).toBe(true);
   });
@@ -253,23 +270,45 @@ describe("validateProviderRefs", () => {
     });
     const result = validateProviderRefs(orgWideCatalog, {
       providerConnectionId: "pc-1",
-      grants: [{ providerRoleId: "pr-org-wide", scope: "any/group/scope" }],
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "read-only", scope: "any/group/scope" }],
     });
     expect(result.ok).toBe(true);
   });
 
-  test("C-347: returns per-grant errors keyed by grants.<index>.providerRoleId", () => {
+  test("C-347: returns per-grant errors keyed by grants.<index>.accessLevel", () => {
     const result = validateProviderRefs(catalog, {
       providerConnectionId: "pc-1",
+      bucketName: "mock-bucket",
       grants: [
-        { providerRoleId: "pr-lab", scope: "lab" },
-        { providerRoleId: "pr-lab", scope: "ops" },
+        { accessLevel: "admin", scope: "lab" },
+        { accessLevel: "admin", scope: "ops" },
       ],
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.errors["grants.1.providerRoleId"]).toBeDefined();
-      expect(result.errors["grants.0.providerRoleId"]).toBeUndefined();
+      expect(result.errors["grants.1.accessLevel"]).toBeDefined();
+      expect(result.errors["grants.0.accessLevel"]).toBeUndefined();
+    }
+  });
+
+  test("rejects a level with no storage role on the connection", () => {
+    const noRoleForLevel = mock.providerCatalog({
+      providerConnections: [mock.providerConnection({ id: "pc-1" })],
+      providerRoles: [
+        mock.providerRole({ providerConnectionId: "pc-1", accessLevel: "read-only" }),
+      ],
+    });
+    const result = validateProviderRefs(noRoleForLevel, {
+      providerConnectionId: "pc-1",
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "read-write", scope: "lab" }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors["grants.0.accessLevel"]).toEqual([
+        'No storage role for access level "read-write" on this bucket',
+      ]);
     }
   });
 });
@@ -280,7 +319,7 @@ describe("applyBucketGrantSet", () => {
     vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue([
       mock.connectionConfig({
         bucketName: "b",
-        grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-mock" })],
+        grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-write" })],
       }),
     ]);
 
@@ -305,13 +344,13 @@ describe("applyBucketGrantSet", () => {
         name: "share",
         bucketName: "b",
         providerConnectionId: "pc-mock",
-        grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" })],
+        grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-only" })],
       }),
       mock.connectionConfig({
         name: "owner",
         bucketName: "b",
         providerConnectionId: "pc-mock",
-        grants: [mock.connectionGrant({ scope: "admin", providerRoleId: "pr-rw" })],
+        grants: [mock.connectionGrant({ scope: "admin", accessLevel: "admin" })],
       }),
     ]);
     vi.mocked(applyBucketPolicy).mockResolvedValue({ status: "applied" });
@@ -321,7 +360,7 @@ describe("applyBucketGrantSet", () => {
       name: "share",
       bucketName: "b",
       providerConnectionId: "pc-mock",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" })],
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-only" })],
     });
     const outcome = await applyBucketGrantSet(bucket, shareConfig, {
       user: mock.user(),
@@ -343,8 +382,8 @@ describe("applyBucketGrantSet", () => {
         bucketName: "b",
         providerConnectionId: "pc-mock",
         grants: [
-          mock.connectionGrant({ scope: "*", providerRoleId: "pr-ro" }),
-          mock.connectionGrant({ scope: "internal", providerRoleId: "pr-rw" }),
+          mock.connectionGrant({ scope: "*", accessLevel: "read-only" }),
+          mock.connectionGrant({ scope: "internal", accessLevel: "admin" }),
         ],
       }),
     ]);
@@ -356,8 +395,8 @@ describe("applyBucketGrantSet", () => {
       bucketName: "b",
       providerConnectionId: "pc-mock",
       grants: [
-        mock.connectionGrant({ scope: "*", providerRoleId: "pr-ro" }),
-        mock.connectionGrant({ scope: "internal", providerRoleId: "pr-rw" }),
+        mock.connectionGrant({ scope: "*", accessLevel: "read-only" }),
+        mock.connectionGrant({ scope: "internal", accessLevel: "admin" }),
       ],
     });
     const outcome = await applyBucketGrantSet(bucket, config, {
@@ -391,8 +430,8 @@ describe("resolveApplyTarget", () => {
       bucketName: "b",
       providerConnectionId: "pc-mock",
       grants: [
-        mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" }),
-        mock.connectionGrant({ scope: "ops", providerRoleId: "pr-rw" }),
+        mock.connectionGrant({ scope: "lab", accessLevel: "read-only" }),
+        mock.connectionGrant({ scope: "ops", accessLevel: "admin" }),
       ],
     });
     const result = await resolveApplyTarget(config, "tok");
@@ -407,7 +446,7 @@ describe("resolveApplyTarget", () => {
     const config = mock.connectionConfig({
       bucketName: "b",
       providerConnectionId: "pc-mock",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-ro" })],
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-only" })],
     });
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(true);
@@ -416,12 +455,12 @@ describe("resolveApplyTarget", () => {
     }
   });
 
-  test("returns an error when every grant's provider role is stale", async () => {
+  test("returns an error when every grant's level has no role in the catalog", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(shareableCatalog);
     const config = mock.connectionConfig({
       bucketName: "b",
       providerConnectionId: "pc-mock",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-stale" })],
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "annotate" })],
     });
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(false);
@@ -431,7 +470,7 @@ describe("resolveApplyTarget", () => {
     vi.mocked(getProviderCatalog).mockRejectedValueOnce(new Error("catalog down"));
     const config = mock.connectionConfig({
       bucketName: "b",
-      grants: [mock.connectionGrant({ scope: "lab", providerRoleId: "pr-rw" })],
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-write" })],
     });
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(false);

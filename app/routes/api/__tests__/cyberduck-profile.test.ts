@@ -46,8 +46,8 @@ function sharedCatalog() {
 function sharedConnection() {
   return mock.connectionConfig({
     grants: [
-      mock.connectionGrant({ scope: "*", providerRoleId: "pr-ro" }),
-      mock.connectionGrant({ scope: "org1/internal", providerRoleId: "pr-admin" }),
+      mock.connectionGrant({ scope: "*", accessLevel: "read-only" }),
+      mock.connectionGrant({ scope: "org1/internal", accessLevel: "admin" }),
     ],
   });
 }
@@ -97,8 +97,8 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     vi.mocked(getConnection).mockResolvedValue(
       mock.connectionConfig({
         grants: [
-          mock.connectionGrant({ scope: "org1/annotate-team", providerRoleId: "pr-an" }),
-          mock.connectionGrant({ scope: "org1/rw-team", providerRoleId: "pr-rw" }),
+          mock.connectionGrant({ scope: "org1/annotate-team", accessLevel: "annotate" }),
+          mock.connectionGrant({ scope: "org1/rw-team", accessLevel: "read-write" }),
         ],
       }),
     );
@@ -123,11 +123,11 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
 
   test("user with no applicable grant is refused with 403 and no XML", async () => {
     // The connection stays visible via its grant scope (getConnection canSee),
-    // but the only grant references a provider role absent from the catalog —
-    // it resolves to nothing, so no applicable grant remains for the user.
+    // but the only grant's level has no role in the catalog — it resolves to
+    // nothing, so no applicable grant remains for the user.
     vi.mocked(getConnection).mockResolvedValue(
       mock.connectionConfig({
-        grants: [mock.connectionGrant({ scope: "org1/internal", providerRoleId: "pr-stale" })],
+        grants: [mock.connectionGrant({ scope: "org1/internal", accessLevel: "annotate" })],
       }),
     );
     vi.mocked(getProviderCatalog).mockResolvedValue(

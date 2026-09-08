@@ -134,7 +134,6 @@ describe("getAllSessionCredentials", () => {
   const catalogFor = (
     overrides: {
       providerConnectionId?: string;
-      providerRoleId?: string;
       endpoint?: string | null;
       region?: string;
       roleArn?: string;
@@ -142,7 +141,6 @@ describe("getAllSessionCredentials", () => {
     } = {},
   ) => {
     const pcId = overrides.providerConnectionId ?? "pc-mock";
-    const prId = overrides.providerRoleId ?? "pr-mock";
     return mock.providerCatalog({
       providerConnections: [
         mock.providerConnection({
@@ -153,10 +151,10 @@ describe("getAllSessionCredentials", () => {
       ],
       providerRoles: [
         mock.providerRole({
-          id: prId,
           providerConnectionId: pcId,
           roleArn: overrides.roleArn ?? "arn:aws:iam::123456789012:role/mock-role",
           accessLevel: overrides.accessLevel ?? "read-write",
+          bucketIds: ["bucket-mock-id"],
         }),
       ],
     });
@@ -267,8 +265,16 @@ describe("getAllSessionCredentials", () => {
       mock.providerCatalog({
         providerConnections: [mock.providerConnection({ id: "pc-mock" })],
         providerRoles: [
-          mock.providerRole({ id: "pr-internal", roleArn: "arn:aws:iam::123:role/internal" }),
-          mock.providerRole({ id: "pr-external", roleArn: "arn:aws:iam::123:role/external" }),
+          mock.providerRole({
+            id: "pr-internal",
+            roleArn: "arn:aws:iam::123:role/internal",
+            accessLevel: "annotate",
+          }),
+          mock.providerRole({
+            id: "pr-external",
+            roleArn: "arn:aws:iam::123:role/external",
+            accessLevel: "read-write",
+          }),
         ],
       }),
     );
@@ -278,13 +284,13 @@ describe("getAllSessionCredentials", () => {
         name: "internal",
         id: "internal",
         bucketName: "shared-bucket",
-        grants: [mock.connectionGrant({ providerRoleId: "pr-internal" })],
+        grants: [mock.connectionGrant({ accessLevel: "annotate" })],
       }),
       mock.connectionConfig({
         name: "external",
         id: "external",
         bucketName: "shared-bucket",
-        grants: [mock.connectionGrant({ providerRoleId: "pr-external" })],
+        grants: [mock.connectionGrant({ accessLevel: "read-write" })],
       }),
     ];
 
@@ -493,9 +499,9 @@ describe("getAllSessionCredentials", () => {
       grants: [
         // Grants are ordered least-permissive-first; the selector must rank by
         // access level rather than rely on insertion order.
-        mock.connectionGrant({ providerRoleId: "pr-ro", scope: "org1/lab" }),
-        mock.connectionGrant({ providerRoleId: "pr-ann", scope: "org1/lab" }),
-        mock.connectionGrant({ providerRoleId: "pr-rw", scope: "org1/lab" }),
+        mock.connectionGrant({ accessLevel: "read-only", scope: "org1/lab" }),
+        mock.connectionGrant({ accessLevel: "annotate", scope: "org1/lab" }),
+        mock.connectionGrant({ accessLevel: "read-write", scope: "org1/lab" }),
       ],
     });
 
