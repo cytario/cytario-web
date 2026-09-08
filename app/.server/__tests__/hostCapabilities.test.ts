@@ -27,7 +27,6 @@ vi.mock("~/.server/providers/providerCatalog.server", () => ({
   invalidateProviderCatalogCache: vi.fn(),
   clearProviderCatalogCache: vi.fn(),
   findProviderConnection: vi.fn(),
-  findProviderRole: vi.fn(),
 }));
 
 vi.mock("~/.server/auth/getSessionCredentials", () => ({

@@ -266,12 +266,10 @@ describe("getAllSessionCredentials", () => {
         providerConnections: [mock.providerConnection({ id: "pc-mock" })],
         providerRoles: [
           mock.providerRole({
-            id: "pr-internal",
             roleArn: "arn:aws:iam::123:role/internal",
             accessLevel: "annotate",
           }),
           mock.providerRole({
-            id: "pr-external",
             roleArn: "arn:aws:iam::123:role/external",
             accessLevel: "read-write",
           }),
@@ -471,19 +469,16 @@ describe("getAllSessionCredentials", () => {
         providerConnections: [mock.providerConnection({ id: providerId })],
         providerRoles: [
           mock.providerRole({
-            id: "pr-ro",
             providerConnectionId: providerId,
             roleArn: "arn:aws:iam::123:role/read-only",
             accessLevel: "read-only",
           }),
           mock.providerRole({
-            id: "pr-ann",
             providerConnectionId: providerId,
             roleArn: "arn:aws:iam::123:role/annotate",
             accessLevel: "annotate",
           }),
           mock.providerRole({
-            id: "pr-rw",
             providerConnectionId: providerId,
             roleArn: "arn:aws:iam::123:role/read-write",
             accessLevel: "read-write",

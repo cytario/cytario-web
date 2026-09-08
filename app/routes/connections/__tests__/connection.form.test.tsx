@@ -30,10 +30,8 @@ const catalog = {
   ],
   providerRoles: [
     {
-      id: "pr-1",
       providerConnectionId: "pc-1",
       roleArn: "arn:aws:iam::123456789012:role/reader",
-      name: "Reader",
       allowedScopes: ["lab"],
       accessLevel: "read-only",
     },

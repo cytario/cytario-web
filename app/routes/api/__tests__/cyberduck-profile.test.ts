@@ -37,8 +37,8 @@ const READ_WRITE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/la
 function sharedCatalog() {
   return mock.providerCatalog({
     providerRoles: [
-      mock.providerRole({ id: "pr-ro", roleArn: READ_ONLY_ARN, accessLevel: "read-only" }),
-      mock.providerRole({ id: "pr-admin", roleArn: ADMIN_ARN, accessLevel: "admin" }),
+      mock.providerRole({ roleArn: READ_ONLY_ARN, accessLevel: "read-only" }),
+      mock.providerRole({ roleArn: ADMIN_ARN, accessLevel: "admin" }),
     ],
   });
 }
@@ -105,8 +105,8 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
         providerRoles: [
-          mock.providerRole({ id: "pr-an", roleArn: ANNOTATE_ARN, accessLevel: "annotate" }),
-          mock.providerRole({ id: "pr-rw", roleArn: READ_WRITE_ARN, accessLevel: "read-write" }),
+          mock.providerRole({ roleArn: ANNOTATE_ARN, accessLevel: "annotate" }),
+          mock.providerRole({ roleArn: READ_WRITE_ARN, accessLevel: "read-write" }),
         ],
       }),
     );
@@ -132,7 +132,7 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     );
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
-        providerRoles: [mock.providerRole({ id: "pr-ro", roleArn: READ_ONLY_ARN })],
+        providerRoles: [mock.providerRole({ roleArn: READ_ONLY_ARN })],
       }),
     );
     const user = mock.user({ groups: ["org1/internal"], adminScopes: [] });

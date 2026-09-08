@@ -64,13 +64,11 @@ const shareableCatalog = mock.providerCatalog({
   providerConnections: [mock.providerConnection({ id: "pc-mock" })],
   providerRoles: [
     mock.providerRole({
-      id: "pr-ro",
       providerConnectionId: "pc-mock",
       roleArn: "arn:aws:iam::123456789012:role/read-only",
       accessLevel: "read-only",
     }),
     mock.providerRole({
-      id: "pr-rw",
       providerConnectionId: "pc-mock",
       roleArn: "arn:aws:iam::123456789012:role/admin",
       accessLevel: "admin",
@@ -173,13 +171,11 @@ describe("validateProviderRefs", () => {
     providerConnections: [mock.providerConnection({ id: "pc-1" })],
     providerRoles: [
       mock.providerRole({
-        id: "pr-lab",
         providerConnectionId: "pc-1",
         allowedScopes: ["lab"],
         accessLevel: "admin",
       }),
       mock.providerRole({
-        id: "pr-ro",
         providerConnectionId: "pc-1",
         allowedScopes: ["*"],
         accessLevel: "read-only",
@@ -262,7 +258,6 @@ describe("validateProviderRefs", () => {
       providerConnections: [mock.providerConnection({ id: "pc-1" })],
       providerRoles: [
         mock.providerRole({
-          id: "pr-org-wide",
           providerConnectionId: "pc-1",
           allowedScopes: [],
         }),

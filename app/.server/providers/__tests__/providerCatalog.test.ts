@@ -48,19 +48,15 @@ const CATALOG = {
   ],
   providerRoles: [
     {
-      id: "pr-1",
       providerConnectionId: "pc-1",
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
-      name: "Reader",
       allowedScopes: ["lab/team-a"],
       accessLevel: "read-only",
       bucketIds: ["bucket-1"],
     },
     {
-      id: "pr-orphan",
       providerConnectionId: "pc-missing",
       roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/orphan",
-      name: "Orphan",
       allowedScopes: [],
       accessLevel: "admin",
       bucketIds: [],
@@ -179,10 +175,8 @@ describe("getProviderCatalog (OSS build)", () => {
         "    region: eu-central-1",
         "    status: connected",
         "providerRoles:",
-        "  - id: pr-1",
-        "    providerConnectionId: pc-1",
+        "  - providerConnectionId: pc-1",
         "    roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
-        "    name: Reader",
         "    allowedScopes:",
         "      - lab/team-a",
         "    accessLevel: read-only",
@@ -368,7 +362,7 @@ describe("findStorageRole", () => {
       providerConnectionId: "pc-1",
       accessLevel: "read-only",
     });
-    expect(role?.id).toBe("pr-1");
+    expect(role?.roleArn).toBe("arn:aws:iam::123456789012:role/cytario/provider-roles/reader");
   });
 
   test("returns undefined when the connection has no role with the level", () => {
@@ -436,7 +430,6 @@ describe("resolveConnectionProviderWithGrants", () => {
         ...PARSED_CATALOG.providerRoles,
         {
           ...PARSED_CATALOG.providerRoles[0],
-          id: "pr-admin",
           accessLevel: "admin" as const,
           roleArn: "arn:aws:iam::123456789012:role/cytario/provider-roles/admin",
         },

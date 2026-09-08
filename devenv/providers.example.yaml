@@ -19,18 +19,18 @@ providerConnections:
     status: connected # pending | connected | drifted | error
 
 providerRoles:
-  - id: reader-lab-team-a
-    providerConnectionId: aws-eu-central-1
+  # A role is identified by (provider connection, access level) — the portal
+  # provisions exactly one per (bucket, level), and grants reference the level;
+  # cytario-web resolves the role server-side. No id or display name: the level
+  # is what the user picks.
+  - providerConnectionId: aws-eu-central-1
     roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/reader
-    name: Reader (lab/team-a)
     allowedScopes:
       - lab/team-a
     accessLevel: read-only # read-only | annotate | read-write | admin
 
-  - id: admin-lab
-    providerConnectionId: aws-eu-central-1
+  - providerConnectionId: aws-eu-central-1
     roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/admin
-    name: Admin (lab)
     allowedScopes:
       - lab
     accessLevel: admin # the only level that permits s3:PutBucketPolicy

@@ -48,11 +48,17 @@ export const providerConnectionSchema = z.object({
   status: z.enum(PROVIDER_CONNECTION_STATUSES),
 });
 
+/**
+ * A provisioned storage role. Identified by (provider connection, bucket,
+ * access level) — exactly one is provisioned per (bucket, level) — so the row
+ * carries no id or display name: grants reference the access level and the
+ * concrete role is resolved server-side. `bucketIds` names the portal bucket
+ * row ids the role is scoped to (empty in an OSS catalog without a bucket
+ * registry).
+ */
 export const providerRoleSchema = z.object({
-  id: z.string().min(1),
   providerConnectionId: z.string().min(1),
   roleArn: z.string().min(1),
-  name: z.string().min(1),
   allowedScopes: z.array(z.string()),
   accessLevel: z.enum(ACCESS_LEVELS).default("read-only"),
   bucketIds: z.array(z.string()).default([]),
@@ -155,7 +161,7 @@ export const clientProviderRoleSchema = providerRoleSchema.omit({ roleArn: true 
 
 /**
  * The catalog projection the browser receives. Role ARNs stay server-side — the
- * selectors need only ids, names, scope coverage, and the access level.
+ * selectors need only the scope coverage, the access level, and the bucket ids.
  */
 export const clientProviderCatalogSchema = z.object({
   providerConnections: z.array(providerConnectionSchema),
@@ -170,9 +176,7 @@ export function toClientCatalog(catalog: ProviderCatalog): ClientProviderCatalog
   return {
     providerConnections: catalog.providerConnections,
     providerRoles: catalog.providerRoles.map((role) => ({
-      id: role.id,
       providerConnectionId: role.providerConnectionId,
-      name: role.name,
       allowedScopes: role.allowedScopes,
       accessLevel: role.accessLevel,
       bucketIds: role.bucketIds,
