@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { createViewerStore } from "../createViewerStore";
 import type { LayersStateEntry } from "../types";
 import { attachViewSync } from "../viewSync";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import type { ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
 
@@ -11,8 +12,13 @@ vi.mock("~/utils/db/writeViewSettings", () => ({
   writeViewSettings: vi.fn(),
 }));
 
+vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
+  useConnectionsStore: { getState: vi.fn() },
+}));
+
 const readMock = vi.mocked(readViewSettings);
 const writeMock = vi.mocked(writeViewSettings);
+const connectionsStateMock = vi.mocked(useConnectionsStore.getState);
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -117,6 +123,22 @@ describe("attachViewSync", () => {
     readMock.mockResolvedValue([]);
     writeMock.mockReset();
     writeMock.mockResolvedValue(undefined);
+    connectionsStateMock.mockReset();
+    connectionsStateMock.mockReturnValue({
+      connections: {
+        conn: {
+          connectionConfig: {},
+          credentials: {},
+          status: "connected",
+          provider: {
+            region: "eu-central-1",
+            endpoint: null,
+            allowsSharing: true,
+            accessLevel: "read-write",
+          },
+        },
+      },
+    } as unknown as ReturnType<typeof useConnectionsStore.getState>);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -195,6 +217,38 @@ describe("attachViewSync", () => {
 
     // persisted is empty, so the subscriber does not schedule a flush —
     // nothing to clear on S3.
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing on a read-only connection and still loads shared views", async () => {
+    connectionsStateMock.mockReturnValue({
+      connections: {
+        conn: {
+          connectionConfig: {},
+          credentials: {},
+          status: "connected",
+          provider: {
+            region: "eu-central-1",
+            endpoint: null,
+            allowsSharing: false,
+            accessLevel: "read-only",
+          },
+        },
+      },
+    } as unknown as ReturnType<typeof useConnectionsStore.getState>);
+    const entries = [makeSidecarEntry("view-1", "Shared View")];
+    readMock.mockResolvedValue(entries);
+
+    const { store, state, fire } = makeFakeStore();
+
+    attachViewSync(store);
+    await vi.runAllTimersAsync();
+
+    state.shareView(0);
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(state.layersStates.some((ls) => ls.id === "view-1")).toBe(true);
     expect(writeMock).not.toHaveBeenCalled();
   });
 
