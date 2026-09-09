@@ -1,6 +1,6 @@
 import { selectBundle, createWorker, AsyncDuckDB, ConsoleLogger } from "@duckdb/duckdb-wasm";
 
-import { applyS3Credentials } from "./createDatabase";
+import { applyS3Credentials, CSV_CONVERSION_MAX_BYTES } from "./csvCredentials";
 import { getLocalDuckDbBundles } from "./duckdbBundles";
 import { escapeSqlString } from "./escapeSqlString";
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
@@ -40,6 +40,11 @@ export async function convertCsvToParquet(resourceId: string) {
     await conn.query(`LOAD spatial;`);
 
     const csvBytes = await getUint8ArrayForResourceId(resourceId);
+    if (csvBytes.byteLength > CSV_CONVERSION_MAX_BYTES) {
+      throw new Error(
+        `CSV exceeds the in-browser conversion limit of 256 MB (${csvBytes.byteLength} bytes) — convert server-side instead.`,
+      );
+    }
     await db.registerFileBuffer(resourceId, csvBytes);
 
     const createTableSQL = buildCreateTableQuery(resourceId, "polygon");

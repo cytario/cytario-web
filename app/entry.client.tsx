@@ -9,6 +9,7 @@ import { storagePickerRegistry } from "./components/storagePickerRegistry";
 import { clientRouteRegistry } from "./lib/clientRouteRegistry";
 import { storagePicker } from "./lib/storagePicker";
 import { bootstrapPlugins } from "./plugins.generated";
+import { startMemoryWatchdog } from "./utils/memoryWatchdog";
 
 storagePickerRegistry.set(storagePicker);
 
@@ -39,4 +40,19 @@ await bootstrapPlugins(
 
 startTransition(() => {
   hydrateRoot(document, <HydratedRouter />);
+});
+
+// React before the renderer is OOM-killed (no JS survives the kill itself).
+// No-op on browsers without Chromium heap stats.
+startMemoryWatchdog({
+  onPressure: () => {
+    import("./toast-bridge").then(({ toastBridge }) => {
+      toastBridge.emit({
+        variant: "info",
+        message:
+          "Memory pressure detected — cached image data was released to keep the tab responsive. It will reload on demand.",
+      });
+      import("./utils/db/cacheTrim").then(({ trimCaches }) => trimCaches());
+    });
+  },
 });

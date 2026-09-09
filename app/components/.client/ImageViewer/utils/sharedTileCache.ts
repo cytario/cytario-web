@@ -12,9 +12,17 @@ import { LRUCache } from "lru-cache";
  * Keyed by a namespace object (the shared loader array for channels, a module
  * sentinel for overlays) via WeakMap, so entries are dropped when the loader is
  * replaced (image switch) and never collide across images.
+ *
+ * Bounded in BYTES, not entry count: decoded tiles and overlay Arrow tables
+ * vary from KB to tens of MB, so a count cap lets memory grow unbounded.
  */
 
-const MAX_ENTRIES_PER_NAMESPACE = 2000;
+/** Shared byte budget for all namespaces (~512 MB of resolved tile data). */
+const MAX_TOTAL_CACHE_BYTES = 512 * 1024 * 1024;
+/** One entry larger than this is not worth displacing the rest of the cache. */
+const MAX_ENTRY_BYTES = 64 * 1024 * 1024;
+/** Estimated footprint of a pending (unresolved) fetch — the compressed tile. */
+const PENDING_ENTRY_BYTES = 512 * 1024;
 
 type Cache = LRUCache<string, Promise<unknown>>;
 
@@ -26,7 +34,15 @@ export const OVERLAY_CACHE_NS: object = {};
 function cacheFor(namespace: object): Cache {
   let cache = caches.get(namespace);
   if (!cache) {
-    cache = new LRUCache<string, Promise<unknown>>({ max: MAX_ENTRIES_PER_NAMESPACE });
+    cache = new LRUCache<string, Promise<unknown>>({
+      maxSize: MAX_TOTAL_CACHE_BYTES,
+      maxEntrySize: MAX_ENTRY_BYTES,
+      // Resolved tiles carry decoded pixel data (large); pending promises only
+      // pin the compressed bytes until they settle. sizeCalculation runs on the
+      // stored value at set() time — the promise itself — so pending entries
+      // use the estimate and re-sizing happens on replacement.
+      sizeCalculation: () => PENDING_ENTRY_BYTES,
+    });
     caches.set(namespace, cache);
   }
   return cache;
@@ -55,4 +71,11 @@ export function getCachedTile<T>(
   cache.set(key, promise);
 
   return promise;
+}
+
+/** Drop all cached entries across every namespace (memory-pressure reaction). */
+export function trimSharedTileCaches(): void {
+  for (const ns of [OVERLAY_CACHE_NS]) {
+    caches.get(ns)?.clear();
+  }
 }

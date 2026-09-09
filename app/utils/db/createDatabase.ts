@@ -1,7 +1,7 @@
 import { Credentials } from "@aws-sdk/client-sts";
 import { selectBundle, createWorker, AsyncDuckDB, ConsoleLogger } from "@duckdb/duckdb-wasm";
 
-import { createSingleton } from "./createSingleton";
+import { applyS3Credentials } from "./csvCredentials";
 import { getLocalDuckDbBundles } from "./duckdbBundles";
 import { escapeSqlString } from "./escapeSqlString";
 import { shouldUseSSL, getEndpointHostname } from "../s3Provider";
@@ -12,7 +12,7 @@ export interface DatabaseProvider {
   endpoint?: string | null;
 }
 
-/** Initialize a DuckDB WASM connection with S3 support (singleton per resourceId). */
+/** Initialize a DuckDB WASM connection with S3 support (LRU-bounded per resourceId). */
 const createDatabaseInternal = async (resourceId: string, provider?: DatabaseProvider | null) => {
   console.info("[getTileDataWasm] Initializing DuckDB WASM with S3 support...");
 
@@ -60,28 +60,14 @@ const createDatabaseInternal = async (resourceId: string, provider?: DatabasePro
 
   console.info(`[createDatabase] DuckDB initialized (endpoint: ${hostname}, style: path)`);
 
-  return connection;
+  return { connection, db };
 };
 
-type DuckDbConnection = Awaited<ReturnType<typeof createDatabaseInternal>>;
-
-// Single-quote-escape every interpolated value — non-AWS providers may carry `'`.
-// Shared with `convertCsvToParquet`, which bootstraps its own WASM instance.
-export const applyS3Credentials = async (
-  connection: Pick<DuckDbConnection, "query">,
-  credentials: Credentials,
-) => {
-  const { AccessKeyId, SecretAccessKey, SessionToken } = credentials;
-  await connection.query(`SET s3_access_key_id='${escapeSqlString(AccessKeyId ?? "")}'`);
-  await connection.query(`SET s3_secret_access_key='${escapeSqlString(SecretAccessKey ?? "")}'`);
-  await connection.query(`SET s3_session_token='${escapeSqlString(SessionToken ?? "")}'`);
-};
-
-const getConnection = createSingleton(createDatabaseInternal);
+type DuckDbHandle = Awaited<ReturnType<typeof createDatabaseInternal>>;
 
 // Keyed by the connection itself so a rebuilt connection (singleton retries
 // after a failed init) can never inherit a stale "already applied" verdict.
-const appliedKeyIds = new WeakMap<DuckDbConnection, string | undefined>();
+const appliedKeyIds = new WeakMap<DuckDbHandle["connection"], string | undefined>();
 
 // Serialize `SET s3_*` per resourceId: two concurrent reads straddling a
 // rotation would otherwise interleave their SET trios on the shared
@@ -89,7 +75,35 @@ const appliedKeyIds = new WeakMap<DuckDbConnection, string | undefined>();
 const pendingApplications = new Map<string, Promise<void>>();
 
 /**
- * STS credentials rotate (~hourly, C-242) while the cached connection lives for
+ * Open DuckDB instances kept alive: each carries a WASM worker + heap, so one
+ * per viewed resource accumulates until the tab OOMs. LRU-bounded.
+ */
+const MAX_DUCKDB_INSTANCES = 3;
+
+const openHandles = new Map<string, Promise<DuckDbHandle>>();
+
+/** Insertion-order LRU: touch on use, evict + terminate the oldest beyond the cap. */
+function trackHandle(resourceId: string, handlePromise: Promise<DuckDbHandle>) {
+  openHandles.delete(resourceId);
+  openHandles.set(resourceId, handlePromise);
+
+  while (openHandles.size > MAX_DUCKDB_INSTANCES) {
+    const [evictId, evictPromise] = openHandles.entries().next().value!;
+    openHandles.delete(evictId);
+    void evictPromise
+      .then(async ({ connection, db }) => {
+        appliedKeyIds.delete(connection);
+        await connection.close();
+        await db.terminate();
+      })
+      .catch(() => {
+        // Termination best-effort; the worker dies with the tab anyway.
+      });
+  }
+}
+
+/**
+ * STS credentials rotate (~hourly, C-242) while a cached connection lives for
  * the whole viewer session — re-apply the `SET s3_*` trio whenever the caller
  * resolves a different `AccessKeyId` than the connection last saw.
  */
@@ -98,7 +112,19 @@ export const createDatabase = async (
   credentials: Credentials,
   provider?: DatabaseProvider | null,
 ) => {
-  const connection = await getConnection(resourceId, provider);
+  let handlePromise = openHandles.get(resourceId);
+  if (!handlePromise) {
+    handlePromise = createDatabaseInternal(resourceId, provider);
+    trackHandle(resourceId, handlePromise);
+
+    // A failed init must not stay cached (and must not be terminated as a
+    // live handle would).
+    handlePromise.catch(() => openHandles.delete(resourceId));
+  } else {
+    trackHandle(resourceId, handlePromise); // LRU touch
+  }
+
+  const { connection } = await handlePromise;
 
   const previous = pendingApplications.get(resourceId) ?? Promise.resolve();
   const application = previous.then(async () => {
@@ -116,3 +142,6 @@ export const createDatabase = async (
 
   return connection;
 };
+
+// Re-exported for `convertCsvToParquet`, which bootstraps its own WASM instance.
+export { applyS3Credentials } from "./csvCredentials";

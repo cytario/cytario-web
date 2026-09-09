@@ -6,6 +6,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { type TreeNode } from "./buildDirectoryTree";
 import { type DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
+import { useInView } from "./useInView";
 import { ClientOnly } from "~/components/ClientOnly";
 import { GridItem } from "~/components/DirectoryView/GridItem";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
@@ -48,14 +49,23 @@ function ImagePreviewSlot({
   signedFetch: ReturnType<typeof createSignedFetch>;
 }) {
   const userId = useCurrentUser()?.sub ?? "";
+  // Off-screen preview cards hold no store/loader — the last unmount of the
+  // provider releases the loader (ViewerStoreContext releaseViewer).
+  const { ref, isInView } = useInView<HTMLDivElement>();
   return (
-    <ClientOnly>
-      <Suspense fallback={<div className="animate-pulse w-full h-full bg-muted" />}>
-        <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
-          <ImagePreview />
-        </ViewerStoreProvider>
-      </Suspense>
-    </ClientOnly>
+    <div ref={ref} className="h-full w-full">
+      {isInView ? (
+        <ClientOnly>
+          <Suspense fallback={<div className="animate-pulse w-full h-full bg-muted" />}>
+            <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
+              <ImagePreview />
+            </ViewerStoreProvider>
+          </Suspense>
+        </ClientOnly>
+      ) : (
+        <div className="animate-pulse h-full w-full bg-muted" />
+      )}
+    </div>
   );
 }
 
