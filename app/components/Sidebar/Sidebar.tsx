@@ -1,5 +1,5 @@
 import { animate, motion, useMotionValue } from "motion/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { SIDEBAR_MIN_WIDTH, type SidebarStoreApi } from "./createSidebarStore";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
@@ -13,6 +13,16 @@ const focusById = (id: string) => requestAnimationFrame(() => document.getElemen
 const isEditable = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
   (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+
+// Firefox/macOS async-pan: a trackpad gesture that ends on a preventDefault
+// target (the deck.gl canvas) keeps its momentum bound to that original target,
+// so non-cancelable momentum events dispatched over the sidebar scroll nothing.
+// A gesture that starts on the sidebar, however, opens with cancelable wheel
+// events and its momentum keeps scrolling natively — applying those deltas too
+// would double the scroll. So classify by origin: cancelable events mark the
+// session native; non-cancelable sessions are hijacked and applied manually.
+// A quiet spell ends a session so the next event re-classifies.
+const WHEEL_SESSION_GAP_MS = 250;
 
 // combo e.g. "mod+b" (mod = Cmd/Ctrl) or "mod+shift+b".
 function matchesShortcut(e: KeyboardEvent, combo: string): boolean {
@@ -54,6 +64,32 @@ export function Sidebar({
   const isOpen = store((s) => s.isOpen);
   const width = store((s) => s.width);
   const motionWidth = useMotionValue(isOpen ? width : 0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let session: "native" | "hijacked" | null = null;
+    let lastEventAt = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.deltaY && !e.deltaX) return;
+      const now = performance.now();
+      if (now - lastEventAt > WHEEL_SESSION_GAP_MS) session = null;
+      lastEventAt = now;
+      if (e.cancelable) {
+        // Gesture is live on this element — native scrolling owns it, momentum
+        // phase included.
+        session = "native";
+        return;
+      }
+      if (session === "native") return; // native momentum — don't double it
+      session = "hijacked";
+      el.scrollTop += e.deltaY;
+      el.scrollLeft += e.deltaX;
+    };
+    el.addEventListener("wheel", onWheel, { passive: true });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   useEffect(() => {
     // rehydrate() applies persisted state in a microtask, so force-open and the
@@ -105,6 +141,7 @@ export function Sidebar({
           stays interactive and unclipped when the panel is closed. */}
       <div className="h-full w-full overflow-hidden" inert={!isOpen || undefined}>
         <div
+          ref={scrollRef}
           className="flex h-full flex-col overflow-auto pb-60"
           style={{ minWidth: SIDEBAR_MIN_WIDTH }}
         >

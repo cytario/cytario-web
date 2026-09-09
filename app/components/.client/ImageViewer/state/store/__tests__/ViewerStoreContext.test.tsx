@@ -1,4 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 
 import { createViewerStore } from "../createViewerStore";
 import { ViewerStoreProvider, useViewerStore } from "../ViewerStoreContext";
@@ -139,6 +141,198 @@ describe("ViewerStoreContext", () => {
       );
 
       expect(createViewerStore).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("loader release on unmount", () => {
+    /** getState must return the SAME mutable state object for release checks. */
+    function stableStoreMock() {
+      const state = {
+        currentUserId: "user-1",
+        loader: [] as unknown[],
+        error: null as Error | null,
+        setLoader: vi.fn((loader: unknown[]) => {
+          state.loader = loader;
+        }),
+        setMetadata: vi.fn(),
+        setError: vi.fn((error: Error) => {
+          state.error = error;
+        }),
+        setIsViewerLoading: vi.fn(),
+      };
+      const store = {
+        getState: () => state,
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      };
+      return { store, state };
+    }
+
+    test("clears the loader and flags loading when the last provider unmounts", async () => {
+      const { store, state } = stableStoreMock();
+      vi.mocked(createViewerStore).mockReturnValue(
+        store as unknown as ReturnType<typeof createViewerStore>,
+      );
+      const handlerLoad = vi
+        .fn()
+        .mockResolvedValue({ data: [{ type: "tiff" }], metadata: {} } as never);
+      resolveMock.mockReturnValue({
+        extension: "ome.tif",
+        pluginName: "cytario-web",
+        handler: { load: handlerLoad },
+      });
+
+      const url = `https://bucket.s3.amazonaws.com/release-${Date.now()}.ome.tif`;
+      const { unmount } = render(
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(state.setLoader).toHaveBeenCalledWith([{ type: "tiff" }]);
+      });
+
+      unmount();
+
+      expect(state.setLoader).toHaveBeenCalledWith([]);
+      expect(state.setIsViewerLoading).toHaveBeenCalledWith(true);
+      expect(state.loader).toEqual([]);
+    });
+
+    test("reloads the image when a released store is re-registered", async () => {
+      const { store, state } = stableStoreMock();
+      vi.mocked(createViewerStore).mockReturnValue(
+        store as unknown as ReturnType<typeof createViewerStore>,
+      );
+      const handlerLoad = vi
+        .fn()
+        .mockResolvedValue({ data: [{ type: "tiff" }], metadata: {} } as never);
+      resolveMock.mockReturnValue({
+        extension: "ome.tif",
+        pluginName: "cytario-web",
+        handler: { load: handlerLoad },
+      });
+
+      const url = `https://bucket.s3.amazonaws.com/reload-${Date.now()}.ome.tif`;
+      const { unmount } = render(
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(handlerLoad).toHaveBeenCalledTimes(1);
+      });
+      unmount();
+
+      render(
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
+          <div>Back again</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(handlerLoad).toHaveBeenCalledTimes(2);
+        expect(state.setLoader).toHaveBeenCalledTimes(3); // load, release, reload
+      });
+      expect(createViewerStore).toHaveBeenCalledTimes(1);
+    });
+
+    test("restarts the load when one provider unmounts and another mounts in the same commit", async () => {
+      // React runs every cleanup of a commit before any effect: the render-time
+      // registerViewer still sees the loader, the release cleanup then clears
+      // it, and only the mount effect (after all cleanups) can restart it.
+      const { store, state } = stableStoreMock();
+      vi.mocked(createViewerStore).mockReturnValue(
+        store as unknown as ReturnType<typeof createViewerStore>,
+      );
+      const handlerLoad = vi
+        .fn()
+        .mockResolvedValue({ data: [{ type: "tiff" }], metadata: {} } as never);
+      resolveMock.mockReturnValue({
+        extension: "ome.tif",
+        pluginName: "cytario-web",
+        handler: { load: handlerLoad },
+      });
+
+      const url = `https://bucket.s3.amazonaws.com/swap-${Date.now()}.ome.tif`;
+      const Slot = ({ slot }: { slot: "a" | "b" }) => (
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
+          <div>{slot}</div>
+        </ViewerStoreProvider>
+      );
+      // Distinct tree positions (div vs span): the old provider unmounts and
+      // the new one mounts in one commit — reconciling them as the same
+      // instance would never exercise the race.
+      const Swapper = () => {
+        const [first, setFirst] = useState(true);
+        return (
+          <div>
+            <button onClick={() => setFirst(false)}>swap</button>
+            {first ? (
+              <div key="a">
+                <Slot slot="a" />
+              </div>
+            ) : (
+              <span key="b">
+                <Slot slot="b" />
+              </span>
+            )}
+          </div>
+        );
+      };
+      const user = userEvent.setup();
+      render(<Swapper />);
+
+      await waitFor(() => {
+        expect(handlerLoad).toHaveBeenCalledTimes(1);
+      });
+      await user.click(screen.getByRole("button", { name: "swap" }));
+
+      await waitFor(() => {
+        expect(handlerLoad).toHaveBeenCalledTimes(2);
+      });
+      expect(createViewerStore).toHaveBeenCalledTimes(1);
+      expect(state.loader).toEqual([{ type: "tiff" }]);
+    });
+
+    test("does not surface an error when a release aborts an in-flight load", async () => {
+      const { store, state } = stableStoreMock();
+      vi.mocked(createViewerStore).mockReturnValue(
+        store as unknown as ReturnType<typeof createViewerStore>,
+      );
+      let rejectLoad: ((error: Error) => void) | undefined;
+      resolveMock.mockReturnValue({
+        extension: "ome.tif",
+        pluginName: "cytario-web",
+        handler: {
+          load: vi.fn(
+            () =>
+              new Promise((_resolve, reject) => {
+                rejectLoad = reject;
+              }),
+          ),
+        },
+      });
+
+      const url = `https://bucket.s3.amazonaws.com/abort-${Date.now()}.ome.tif`;
+      const { unmount } = render(
+        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
+          <div>Test</div>
+        </ViewerStoreProvider>,
+      );
+
+      await waitFor(() => {
+        expect(state.setIsViewerLoading).toHaveBeenCalledWith(true);
+      });
+      unmount();
+      rejectLoad?.(new Error("The operation was aborted"));
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(state.setError).not.toHaveBeenCalled();
+      expect(state.setIsViewerLoading).not.toHaveBeenCalledWith(false);
     });
   });
 
