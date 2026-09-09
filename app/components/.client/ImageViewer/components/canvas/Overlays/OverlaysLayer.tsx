@@ -1,8 +1,7 @@
 import { AccessorContext } from "@deck.gl/core";
-import { TileLayer } from "@deck.gl/geo-layers";
+import { type _TileLoadProps as TileLoadProps, TileLayer } from "@deck.gl/geo-layers";
 import { PolygonLayer } from "@deck.gl/layers";
 import { type Table } from "apache-arrow";
-import { TileLoadProps } from "node_modules/@deck.gl/geo-layers/dist/tileset-2d";
 
 import { AdditivePolygonLayer } from "./AdditivePolygonLayer";
 import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
