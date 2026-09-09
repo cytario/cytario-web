@@ -84,30 +84,43 @@ export const createViewerStore = (id: string, userId: string = "") => {
 /** Coalesces persist writes — pan/zoom produces a set per viewport frame. */
 const PERSIST_DEBOUNCE_MS = 500;
 
+// Pending writes across every viewer store (one per image ever viewed). Kept
+// module-scoped so the single pagehide flush covers them all; each store gets
+// its own debounced setItem over this shared map.
+const pendingWrites = new Map<string, string>();
+let flushRegistered = false;
+
+/** Flushes pending persist writes before the page unloads — reload and close. */
+function flushPendingWrites() {
+  for (const [name, value] of pendingWrites) {
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      // Quota errors surface via the persist middleware's own handler.
+    }
+  }
+  pendingWrites.clear();
+}
+
+if (typeof window !== "undefined" && !flushRegistered) {
+  flushRegistered = true;
+  window.addEventListener("pagehide", flushPendingWrites);
+}
+
 /** localStorage-backed StateStorage with a debounced write side. */
 function createDebouncedStorage(debounceMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let pendingName: string | null = null;
-  let pendingValue: string | null = null;
   return {
     getItem: (name: string) => localStorage.getItem(name),
     setItem: (name: string, value: string) => {
-      pendingName = name;
-      pendingValue = value;
+      pendingWrites.set(name, value);
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (pendingName === null || pendingValue === null) return;
-        try {
-          localStorage.setItem(pendingName, pendingValue);
-        } catch {
-          // Quota errors surface via the persist middleware's own handler.
-        }
-        pendingName = null;
-        pendingValue = null;
+        flushPendingWrites();
       }, debounceMs);
     },
     removeItem: (name: string) => {
-      pendingName = null;
+      pendingWrites.delete(name);
       localStorage.removeItem(name);
     },
   };
