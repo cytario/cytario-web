@@ -20,17 +20,28 @@ function requireRequestData() {
 
 /**
  * Resolves the compute provider and submit role from the provider catalog.
- * The submit role is the IAM role the host assumes via
- * `AssumeRoleWithWebIdentity` to make Batch API calls on behalf of the
- * plugin (SDS-CY-010098).
+ * When `providerId` is supplied, resolves that specific connected provider
+ * (the org's provider-selection surface); when omitted, the organization's
+ * first connected provider (legacy single-provider fallback). The submit
+ * role is the IAM role the host assumes via `AssumeRoleWithWebIdentity` to
+ * make Batch API calls on behalf of the plugin (SDS-CY-010098).
  */
-function resolveComputeRole(catalog: ProviderCatalog): {
+function resolveComputeRole(
+  catalog: ProviderCatalog,
+  providerId?: string,
+): {
   computeProvider: ComputeProvider;
   computeRole: ComputeRole;
 } {
-  const computeProvider = catalog.computeProviders.find((p) => p.status === "connected");
+  const computeProvider = providerId
+    ? catalog.computeProviders.find((p) => p.id === providerId && p.status === "connected")
+    : catalog.computeProviders.find((p) => p.status === "connected");
   if (!computeProvider) {
-    throw new Error("No connected compute provider found in the provider catalog");
+    throw new Error(
+      providerId
+        ? `Compute provider "${providerId}" is not a connected provider of this organization`
+        : "No connected compute provider found in the provider catalog",
+    );
   }
   const computeRole = catalog.computeRoles.find((r) => r.computeProviderId === computeProvider.id);
   if (!computeRole) {
@@ -113,6 +124,7 @@ export function createBatchSignedFetch(
  * surface invariant (§6.8).
  */
 export async function assumeComputeRole(
+  providerId?: string,
   organizationOverride?: string,
 ): Promise<ComputeRoleSession> {
   const { user, authTokens } = requireRequestData();
@@ -121,7 +133,7 @@ export async function assumeComputeRole(
     throw new Error("Active organization missing from request context");
   }
   const catalog = await getProviderCatalog(organization, authTokens.accessToken);
-  const { computeProvider, computeRole } = resolveComputeRole(catalog);
+  const { computeProvider, computeRole } = resolveComputeRole(catalog, providerId);
 
   const credentials = await assumeRoleWithWebIdentity({
     roleArn: computeRole.roleArn,

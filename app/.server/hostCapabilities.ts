@@ -116,8 +116,11 @@ class HostCapabilitiesImpl implements HostCapabilities {
     return createObjectStore();
   }
 
-  assumeComputeRole(organizationOverride?: string): Promise<ComputeRoleSession> {
-    return assumeComputeRoleImpl(organizationOverride);
+  assumeComputeRole(
+    providerId?: string,
+    organizationOverride?: string,
+  ): Promise<ComputeRoleSession> {
+    return assumeComputeRoleImpl(providerId, organizationOverride);
   }
 
   exchangeToken(): Promise<TokenGrant> {
@@ -181,6 +184,21 @@ class JobLedgerImpl implements JobLedger {
       throw new Error(`No grant the submitting user can see for connection ${job.connectionId}`);
     }
 
+    // Validate the compute provider the plugin names: it must be one of the
+    // active organization's connected providers (tenant boundary — a provider
+    // id from another org never resolves, mirroring the catalog lookup below).
+    const providerCatalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const computeProvider = job.providerId
+      ? providerCatalog.computeProviders.find(
+          (p) => p.id === job.providerId && p.status === "connected",
+        )
+      : undefined;
+    if (job.providerId && !computeProvider) {
+      throw new Error(
+        `Compute provider ${job.providerId} is not a connected provider of organization ${user.organization}`,
+      );
+    }
+
     await prisma.jobLedgerEntry.create({
       data: {
         batchId: job.batchId,
@@ -194,6 +212,7 @@ class JobLedgerImpl implements JobLedger {
         roleArn: grant.roleArn,
         region: provider.region,
         s3Endpoint: provider.endpoint,
+        providerId: job.providerId ?? null,
       },
     });
   }
@@ -249,6 +268,7 @@ function toJobRecord(entry: {
   offlineSessionId: string;
   organization: string;
   owner: string;
+  providerId?: string | null;
   inputS3Uris: string[];
   outputS3Uri: string;
   connectionId: string;
@@ -262,6 +282,7 @@ function toJobRecord(entry: {
     offlineSessionId: entry.offlineSessionId,
     organization: entry.organization,
     owner: entry.owner,
+    ...(entry.providerId ? { providerId: entry.providerId } : {}),
     inputS3Uris: entry.inputS3Uris ?? [],
     outputS3Uri: entry.outputS3Uri ?? "",
     connectionId: entry.connectionId ?? "",

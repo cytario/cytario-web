@@ -260,6 +260,14 @@ export interface JobRecord {
   batchId: string;
   offlineSessionId: string;
   /**
+   * The compute provider the job was submitted to. Host-injected on `record`
+   * (resolved from the org's connected providers; a caller-supplied value is
+   * validated against the active organization); populated from the ledger
+   * row on `lookup`/`list`/`listAll`. Null on rows that predate the column —
+   * consumers fall back to the org's first connected provider.
+   */
+  providerId?: string | null;
+  /**
    * The organization this job belongs to. Host-injected on `record` (the
    * caller-supplied value is discarded and the active session org is used);
    * populated from the ledger row on `lookup`.
@@ -379,13 +387,18 @@ export interface HostCapabilities {
    * Returns a credential-bearing signed request surface for the compute
    * submit role. Never raw keys.
    *
+   * @param providerId - when supplied, resolves that specific connected
+   *   provider of the organization (the id from `ComputeConnectionProjection`).
+   *   When omitted, the host resolves the organization's first connected
+   *   provider (legacy single-provider deployments, and the reconciler's
+   *   fallback for pre-migration ledger rows).
    * @param organization - when omitted, the active organization is resolved
    *   from the request context (the session path, or the job-token carve-out
    *   whose context carries the token's org claim). When provided, the host
    *   mints for that organization — used by the cross-org reconciler, which
    *   groups ledger rows by organization and mints per org.
    */
-  assumeComputeRole(organization?: string): Promise<ComputeRoleSession>;
+  assumeComputeRole(providerId?: string, organization?: string): Promise<ComputeRoleSession>;
   /**
    * Performs the offline-capable job token grant (SDS-CY-010098,
    * SRS-CY-41901).
