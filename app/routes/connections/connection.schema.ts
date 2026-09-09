@@ -104,6 +104,31 @@ export const connectionSchema = z
 export type ConnectBucketFormData = z.input<typeof connectionSchema>;
 export type ConnectionFormValues = z.output<typeof connectionSchema>;
 
+/**
+ * Payload of the service-to-service create endpoint `POST /api/connections`
+ * (admin-portal onboarding). Unlike the form schema, the organization
+ * is taken from the payload — the caller is a trusted service, not a browser
+ * session — and `managedExternally` marks the connection's bucket policy as
+ * owned by an outside system (the demo bucket, managed by Terraform), which
+ * cytario-web must never apply. The form action never sets it.
+ */
+export const serviceConnectionSchema = z
+  .object({
+    organization: z.string().min(1, "organization is required"),
+    name: connectionNameSchema,
+    providerConnectionId: z.string().min(1, "A provider connection is required"),
+    bucketName: bucketNameSchema,
+    prefix: prefixSchema.default(""),
+    grants: z.array(grantSchema).min(1, "At least one grant is required"),
+    managedExternally: z.boolean().default(false),
+  })
+  .refine((data) => new Set(data.grants.map((g) => g.scope)).size === data.grants.length, {
+    message: "Each group may appear at most once",
+    path: ["grants"],
+  });
+
+export type ServiceConnectionPayload = z.output<typeof serviceConnectionSchema>;
+
 export const defaultFormValues: ConnectBucketFormData = {
   name: "",
   providerConnectionId: "",

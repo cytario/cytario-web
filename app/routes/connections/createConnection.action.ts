@@ -1,30 +1,23 @@
 import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { connectionSchema } from "./connection.schema";
-import {
-  applyGrantsAndRecordStatus,
-  validateBucketRef,
-  validateProviderRefs,
-} from "./connectionGrant.server";
+import { applyGrantsAndRecordStatus } from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
-import { prisma } from "~/.server/db/prisma";
-import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
+import {
+  createConnectionRecord,
+  validateConnectionAgainstCatalogs,
+} from "~/.server/connections/createConnection.server";
+import type { GrantInput } from "~/.server/connections/createConnection.server";
 import { canCreate } from "~/utils/authorization";
 
-export interface CreateConnectionInput {
-  name: string;
-  bucketName: string;
-  providerConnectionId: string;
-  prefix: string;
-}
-
-export interface GrantInput {
-  scope: string;
-  accessLevel: string;
-}
+/** A connection config field set for `createConnectionRecord`. */
+export type {
+  CreateConnectionInput,
+  GrantInput,
+} from "~/.server/connections/createConnection.server";
 
 /**
  * Parse the repeating grants group from the submitted formData. The form emits
@@ -44,33 +37,7 @@ export function parseGrants(formData: FormData): GrantInput[] {
     }));
 }
 
-/**
- * Strictly creates — never updates an existing row. An existing
- * (organization, providerConnectionId, bucketName, prefix) tuple must surface
- * as a conflict: silently repointing the existing connection would let a
- * non-admin rewrite another scope's connection (and thereby shrink the
- * bucket's managed grant set) without any canModify check.
- */
-export async function createConnection(
-  organization: string,
-  createdBy: string,
-  config: CreateConnectionInput,
-  grants: GrantInput[],
-) {
-  return prisma.connectionConfig.create({
-    data: {
-      organization,
-      createdBy,
-      ...config,
-      grants: {
-        createMany: {
-          data: grants.map((g) => ({ scope: g.scope, accessLevel: g.accessLevel })),
-        },
-      },
-    },
-    include: { grants: true },
-  });
-}
+export const createConnection = createConnectionRecord;
 
 /** Field-level message for a P2002 unique violation on connection create. */
 export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestError) {
@@ -114,33 +81,26 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
     }
   }
 
-  let catalog;
-  try {
-    catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
-  } catch (error) {
+  const validated = await validateConnectionAgainstCatalogs(
+    user.organization,
+    authTokens.accessToken,
+    data,
+  );
+  if (!validated.ok) {
+    if (validated.error === "catalog") {
+      return { formError: validated.message, status: "error" as const };
+    }
     return {
-      formError:
-        error instanceof Error ? error.message : "Provider catalog is currently unavailable.",
+      errors: validated.errors ?? {},
+      formError: validated.formError || undefined,
       status: "error" as const,
     };
-  }
-  const refs = validateProviderRefs(catalog, data);
-  if (!refs.ok) {
-    return { errors: refs.errors, status: "error" as const };
-  }
-
-  const bucketRef = await validateBucketRef(user.organization, authTokens.accessToken, data);
-  if (!bucketRef.ok) {
-    if ("formError" in bucketRef) {
-      return { formError: bucketRef.formError, status: "error" as const };
-    }
-    return { errors: bucketRef.errors, status: "error" as const };
   }
 
   const session = context.get(sessionContext);
 
   try {
-    const created = await createConnection(
+    const created = await createConnectionRecord(
       user.organization,
       user.sub,
       {
