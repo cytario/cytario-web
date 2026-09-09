@@ -261,10 +261,8 @@ export interface JobRecord {
   offlineSessionId: string;
   /**
    * The compute provider the job was submitted to. Host-injected on `record`
-   * (resolved from the org's connected providers; a caller-supplied value is
-   * validated against the active organization); populated from the ledger
-   * row on `lookup`/`list`/`listAll`. Absent means "the org's first
-   * connected provider".
+   * and validated against the active organization's connected providers;
+   * absent means the org's first connected provider.
    */
   providerId?: string | null;
   /**

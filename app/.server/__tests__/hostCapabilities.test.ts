@@ -447,7 +447,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     await expect(
       withHostRequestContext(mockRequestData, () => hostCapabilities.assumeComputeRole("cp-9")),
     ).rejects.toThrow(/not a connected provider/);
-    // No caller-supplied fallback — the first connected provider still works.
+    // The first connected provider still resolves when no id is named.
     const session = await withHostRequestContext(mockRequestData, () =>
       hostCapabilities.assumeComputeRole(),
     );
@@ -734,7 +734,8 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       providerConnectionId: "pc-1",
       grants: [{ accessLevel: "read-only" }],
     } as never);
-    // First catalog read: the connection-provider lookup. Second: provider validation.
+    // Two catalog reads happen per record: the connection-provider lookup
+    // and the provider validation.
     getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
     getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
     resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({

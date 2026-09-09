@@ -19,11 +19,9 @@ function requireRequestData() {
 }
 
 /**
- * Resolves the compute provider and submit role from the provider catalog.
- * When `providerId` is supplied, resolves that specific connected provider;
- * when omitted, the organization's first connected provider. The submit
- * role is the IAM role the host assumes via `AssumeRoleWithWebIdentity` to
- * make Batch API calls on behalf of the plugin (SDS-CY-010098).
+ * Resolves the compute provider and submit role from the provider catalog —
+ * the named provider when `providerId` is supplied, else the organization's
+ * first connected provider.
  */
 function resolveComputeRole(
   catalog: ProviderCatalog,
@@ -116,7 +114,7 @@ export function createBatchSignedFetch(
  * submit role from the provider catalog, mints an STS session via
  * `AssumeRoleWithWebIdentity` with the user's id token, and returns a
  * `ComputeRoleSession` with a `signedFetch` that signs AWS Batch API
- * requests with the minted credentials (SDS-CY-010098).
+ * requests with the minted credentials.
  *
  * The plugin never sees an access key or a raw session token — the host
  * is the only actor that reads them, preserving the outbound-credential-
