@@ -1,9 +1,9 @@
 import { Sidebar } from "../Sidebar";
 import { useNavSidebarStore } from "../sidebarStores";
-import { FeatureItemConnections } from "./FeatureItem.Connections";
-import { FeatureItemFavorites } from "./FeatureItem.Favorites";
-import { FeatureItemRecent } from "./FeatureItem.Recent";
+import { ConnectionsSection } from "./ConnectionsSection/ConnectionsSection";
+import { FavoritesSection } from "./FavoritesSection/FavoritesSection";
 import { PluginNavSection } from "./PluginNavSection";
+import { RecentSection } from "./RecentSection/RecentSection";
 
 export const EXPLORER_SIDEBAR_NAME = "Navigation";
 
@@ -16,10 +16,10 @@ export function ExplorerSidebar() {
       toggleShortcut="mod+b"
       onOpen={() => document.getElementById("sidebar-search-input")?.focus()}
     >
-      <FeatureItemConnections />
+      <ConnectionsSection />
       <PluginNavSection />
-      <FeatureItemFavorites />
-      <FeatureItemRecent />
+      <FavoritesSection />
+      <RecentSection />
     </Sidebar>
   );
 }

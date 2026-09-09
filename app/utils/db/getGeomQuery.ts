@@ -1,6 +1,9 @@
-import { type TileIndex } from "node_modules/@deck.gl/geo-layers/dist/tileset-2d/types";
+import type { _TileLoadProps } from "@deck.gl/geo-layers";
 
 import { getTileBoundingBox } from "./getTileBoundingBox";
+
+/** TileIndex isn't re-exported from the package entry — derive it from the public props type. */
+type TileIndex = _TileLoadProps["index"];
 
 export const isPointMode = (z: number): boolean => z < -2;
 

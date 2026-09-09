@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router";
 
-import { AddOverlay } from "~/components/.client/ImageViewer/components/sidebar/OverlaysControl/AddOverlay";
+import { AddOverlay } from "~/components/.client/ImageViewer/components/sidebar/OverlaysSection/AddOverlay";
 import { RouteModal } from "~/components/RouteModal";
 
 /** CSV to Parquet conversion modal. */
