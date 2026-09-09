@@ -14,6 +14,16 @@ const isEditable = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
   (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
 
+// Firefox/macOS async-pan: a trackpad gesture that ends on a preventDefault
+// target (the deck.gl canvas) keeps its momentum bound to that original target,
+// so non-cancelable momentum events dispatched over the sidebar scroll nothing.
+// A gesture that starts on the sidebar, however, opens with cancelable wheel
+// events and its momentum keeps scrolling natively — applying those deltas too
+// would double the scroll. So classify by origin: cancelable events mark the
+// session native; non-cancelable sessions are hijacked and applied manually.
+// A quiet spell ends a session so the next event re-classifies.
+const WHEEL_SESSION_GAP_MS = 250;
+
 // combo e.g. "mod+b" (mod = Cmd/Ctrl) or "mod+shift+b".
 function matchesShortcut(e: KeyboardEvent, combo: string): boolean {
   const parts = combo.toLowerCase().split("+");
@@ -59,13 +69,21 @@ export function Sidebar({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    let session: "native" | "hijacked" | null = null;
+    let lastEventAt = 0;
     const onWheel = (e: WheelEvent) => {
-      // Firefox/macOS momentum copies: after a trackpad gesture that ends on
-      // a preventDefault target (the deck.gl canvas), the async-pan scroll
-      // stays bound to that original target, so non-cancelable momentum
-      // events dispatched over the sidebar scroll nothing. Apply the deltas
-      // manually; cancelable events keep their native scrolling.
-      if (e.cancelable || (!e.deltaY && !e.deltaX)) return;
+      if (!e.deltaY && !e.deltaX) return;
+      const now = performance.now();
+      if (now - lastEventAt > WHEEL_SESSION_GAP_MS) session = null;
+      lastEventAt = now;
+      if (e.cancelable) {
+        // Gesture is live on this element — native scrolling owns it, momentum
+        // phase included.
+        session = "native";
+        return;
+      }
+      if (session === "native") return; // native momentum — don't double it
+      session = "hijacked";
       el.scrollTop += e.deltaY;
       el.scrollLeft += e.deltaX;
     };

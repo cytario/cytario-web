@@ -43,4 +43,39 @@ describe("Sidebar momentum-wheel fallback", () => {
 
     expect(el.scrollTop).toBe(0);
   });
+
+  test("does not double-apply momentum of a gesture that started on the sidebar", () => {
+    // Firefox/macOS native momentum can arrive non-cancelable while the
+    // element still scrolls natively — applying its deltas manually too
+    // would double the scroll speed. A leading cancelable event marks the
+    // session native, so the trailing non-cancelable momentum is left alone.
+    renderSidebar();
+    const el = scrollContainer();
+
+    el.dispatchEvent(new WheelEvent("wheel", { cancelable: true, deltaY: 120 }));
+    el.scrollTop = 240; // native scroll from the first event
+    const before = el.scrollTop;
+    el.dispatchEvent(new WheelEvent("wheel", { cancelable: false, deltaY: 120 }));
+
+    expect(el.scrollTop).toBe(before);
+  });
+
+  test("re-classifies the session after a quiet spell", () => {
+    // A hijacked session (gesture that ended on the deck.gl canvas) must not
+    // stick: after the momentum settles, a fresh non-cancelable event scrolls
+    // again only if no cancelable event claimed the interim — and a fresh
+    // native gesture (cancelable first) is never manually scrolled.
+    renderSidebar();
+    const el = scrollContainer();
+
+    el.dispatchEvent(new WheelEvent("wheel", { cancelable: false, deltaY: 120 }));
+    const hijacked = el.scrollTop;
+    expect(hijacked).toBeGreaterThan(0);
+
+    el.scrollTop = 0;
+    el.dispatchEvent(new WheelEvent("wheel", { cancelable: true, deltaY: 120 }));
+    el.dispatchEvent(new WheelEvent("wheel", { cancelable: false, deltaY: 120 }));
+
+    expect(el.scrollTop).toBe(0);
+  });
 });
