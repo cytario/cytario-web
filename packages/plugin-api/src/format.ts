@@ -12,7 +12,19 @@ export interface LoadOptions {
 export interface FileTypeMeta {
   label?: string;
   icon?: string;
+  /** `leaf`: the prefix is the image (.zarr). `companion`: hide the same-named sibling dir (.mrxs). */
+  storageLayout?: StorageLayout;
+  /**
+   * Companion-dir naming convention.
+   * `"same-name"` (default): `slide.mrxs` → `slide/`.
+   * `"underscore-wrapped"`: `OS-1.vsi` → `_OS-1_/`.
+   */
+  companionDir?: CompanionDirNaming;
 }
+
+export type StorageLayout = "leaf" | "companion";
+
+export type CompanionDirNaming = "same-name" | "underscore-wrapped";
 
 /**
  * Extension declaration shape for a `FormatHandler`. Accepts:

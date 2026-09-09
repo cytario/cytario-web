@@ -1,5 +1,5 @@
 import { Icon, IconButton, Input } from "@cytario/design";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const DEBOUNCE_MS = 300;
 
@@ -9,6 +9,10 @@ export interface SearchInputProps {
   placeholder?: string;
   id?: string;
   className?: string;
+  /** Initial text. Caller must also pass it to onQueryChange's consumer — the input does not fire on mount. */
+  defaultValue?: string;
+  /** Static content inside the input suffix (scope badge etc.), before the clear button. */
+  suffix?: ReactNode;
 }
 
 export function SearchInput({
@@ -17,8 +21,10 @@ export function SearchInput({
   placeholder = "Search…",
   id,
   className = "flex items-center gap-1",
+  defaultValue,
+  suffix,
 }: SearchInputProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(defaultValue ?? "");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -39,6 +45,19 @@ export function SearchInput({
     onQueryChange("");
   };
 
+  const onReset = () => {
+    const next = defaultValue ?? "";
+    setValue(next);
+    if (timeout.current) clearTimeout(timeout.current);
+    onQueryChange(next);
+  };
+
+  // Clear lives in the input suffix (universal clear-text affordance); reset
+  // is a deliberate restore-to-default, so it sits beside the input like
+  // every other reset in the codebase (FilterBar, MinMaxSettings).
+  const showReset = defaultValue !== undefined && value !== defaultValue;
+  const showClear = value !== "";
+
   return (
     <div className={className}>
       <Input
@@ -48,13 +67,32 @@ export function SearchInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        className="flex-1"
         prefix={<Icon icon="Search" size="sm" className="text-muted-foreground" />}
         suffix={
-          value ? (
-            <IconButton icon="X" size="xs" variant="ghost" onPress={onClear} label="Clear search" />
-          ) : null
+          <>
+            {suffix}
+            {showClear && (
+              <IconButton
+                icon="X"
+                size="xs"
+                variant="ghost"
+                onPress={onClear}
+                label="Clear search"
+              />
+            )}
+          </>
         }
       />
+      {showReset && (
+        <IconButton
+          icon="RotateCcw"
+          size="sm"
+          variant="ghost"
+          onPress={onReset}
+          label="Reset search"
+        />
+      )}
     </div>
   );
 }

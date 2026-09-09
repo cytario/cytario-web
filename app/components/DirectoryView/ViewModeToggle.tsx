@@ -9,7 +9,6 @@ const modes: {
 }[] = [
   { id: "list", label: "List view", iconName: "List" },
   { id: "grid", label: "Grid view", iconName: "LayoutGrid" },
-  { id: "tree", label: "Tree view", iconName: "FolderTree" },
 ];
 
 export function ViewModeToggle() {

@@ -1,5 +1,5 @@
 import type { FormatExtension, FormatHandler, FormatRegistry } from "@cytario/plugin-api";
-import { getExtension } from "~/utils/fileType";
+import { getExtension, __resetFileTypeCache } from "~/utils/fileType";
 
 /**
  * Host-internal. `pluginName` is captured at register time so the public
@@ -104,6 +104,7 @@ class FormatRegistryImpl {
       );
     }
     this.registrations.push({ keys, handler, pluginName });
+    __resetFileTypeCache();
   }
 
   /**
@@ -132,9 +133,10 @@ class FormatRegistryImpl {
     return this.registrations;
   }
 
-  /** Test-only: drop all registrations. Not exposed via index re-export. */
+  /** Test-only: drop all registrations and clear derived caches. */
   __reset(): void {
     this.registrations.length = 0;
+    __resetFileTypeCache();
   }
 }
 

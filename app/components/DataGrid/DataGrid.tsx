@@ -164,7 +164,9 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
               CSV files are slow to query. Convert to Parquet for better performance.
             </span>
           </div>
-          <Button onPress={() => openModal("convert-overlay")}>Convert to Parquet</Button>
+          <Button onPress={() => openModal("convert-overlay", { source: resourceId })}>
+            Convert to Parquet
+          </Button>
         </header>
       )}
       <div ref={containerRef} className="h-full overflow-auto">

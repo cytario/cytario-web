@@ -74,4 +74,27 @@ describe("SearchInput", () => {
     render(<SearchInput onQueryChange={vi.fn()} aria-label="Search" />);
     expect(screen.queryByRole("button", { name: "Clear search" })).not.toBeInTheDocument();
   });
+
+  test("renders caller-provided suffix content inside the input", () => {
+    render(
+      <SearchInput onQueryChange={vi.fn()} aria-label="Search" suffix={<span>Parquet</span>} />,
+    );
+    expect(screen.getByText("Parquet")).toBeInTheDocument();
+  });
+
+  test("reset restores defaultValue and is hidden while value matches it", () => {
+    const onQueryChange = vi.fn();
+    render(
+      <SearchInput onQueryChange={onQueryChange} aria-label="Search" defaultValue="slide-1" />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reset search" })).not.toBeInTheDocument();
+
+    const input = screen.getByLabelText("Search") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "other" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reset search" }));
+
+    expect(input.value).toBe("slide-1");
+    expect(onQueryChange).toHaveBeenCalledWith("slide-1");
+  });
 });

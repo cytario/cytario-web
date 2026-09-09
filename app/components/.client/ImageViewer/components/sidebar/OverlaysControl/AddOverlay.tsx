@@ -1,118 +1,53 @@
-import { Button, Input, useToast } from "@cytario/design";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFetcher } from "react-router";
+import { Badge, Button, EmptyState, useToast } from "@cytario/design";
+import { useCallback, useMemo, useState } from "react";
 
-import { collectInteriorIds, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
-import { LoaderView } from "~/components/Loader/LoaderView";
-import { SearchRouteLoaderResponse } from "~/routes/search.route";
-import { toToastVariant } from "~/toast-bridge";
+import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
+import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
+import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { SearchInput } from "~/components/SearchInput";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
-
-/**
- * Prune file nodes that don't end in `.${ext}`. Lazy stubs (`loadState`
- * `"idle"`) are kept since their contents are unknown until expanded;
- * loaded directories are kept only when at least one descendant matches.
- */
-function filterByExtension(nodes: TreeNode[], ext: string): TreeNode[] {
-  const suffix = `.${ext.toLowerCase()}`;
-  return nodes.flatMap((n) => {
-    if (n.type === "file") return n.name.toLowerCase().endsWith(suffix) ? [n] : [];
-    if (n.loadState === "idle") return [n];
-    const children = n.children ? filterByExtension(n.children, ext) : [];
-    return children.length > 0 ? [{ ...n, children }] : [];
-  });
-}
+import { getFileTypeEntry } from "~/utils/fileType";
+import { parseResourceId } from "~/utils/resourceId";
 
 interface AddOverlayProps {
   callback?: () => void;
-  query: string;
+  /** File kind to surface: "parquet" adds overlays, "csv" starts a conversion. */
+  extension: "csv" | "parquet";
   /** Called with a resourceId when a parquet overlay is selected. Not needed for CSV conversion. */
   onOverlayAdd?: (overlay: Record<string, Record<string, never>>) => void;
+  /** Resource the user is coming from — preselects its connection and prefills search with its name. */
+  sourceResourceId?: string;
 }
 
-const SEARCH_DEBOUNCE_MS = 250;
-
-export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
+export function AddOverlay({
+  callback,
+  extension,
+  onOverlayAdd,
+  sourceResourceId,
+}: AddOverlayProps) {
   const { toast } = useToast();
-  const objectsFetcher = useFetcher<SearchRouteLoaderResponse>();
   const connections = useConnectionsStore(select.connections);
+  const connectionIds = useMemo(() => Object.keys(connections), [connections]);
 
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Fetch only when user types. Empty input → tree shows the collapsed
-  // bucket roots from the connections store.
-  useEffect(() => {
-    const trimmed = searchTerm.trim();
-    if (trimmed.length === 0) return;
-    const handle = setTimeout(() => {
-      objectsFetcher.load(`/search?query=${encodeURIComponent(trimmed)}`);
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher object ref changes every render; only re-run on input changes
-  }, [searchTerm]);
-
-  const initialBuckets = useMemo<TreeNode[]>(
-    () =>
-      Object.values(connections).map(({ connectionConfig }) => ({
-        id: `${connectionConfig.name}/`,
-        connectionId: connectionConfig.id,
-        connectionName: connectionConfig.name,
-        name: connectionConfig.name,
-        type: "bucket" as const,
-        pathName: "",
-        children: [],
-        loadState: "idle" as const,
-      })),
-    [connections],
+  const { connectionId: sourceConnection, name: sourceName } = useMemo(
+    () => (sourceResourceId ? parseResourceId(sourceResourceId) : { connectionId: "", name: "" }),
+    [sourceResourceId],
   );
 
-  const rawNodes =
-    searchTerm.trim().length > 0 && objectsFetcher.data
-      ? objectsFetcher.data.nodes
-      : initialBuckets;
+  const [override, setOverride] = useState<string | null>(sourceConnection || null);
+  const [searchTerm, setSearchTerm] = useState(sourceName);
+  const selectedConnection = override ?? connectionIds[0] ?? "";
 
-  // CSV path stays unfiltered (we'll split components later). For "parquet"
-  // the dialog only surfaces `.parquet` files.
-  const shouldFilter = query === "parquet";
-  const nodes = useMemo(
-    () => (shouldFilter ? filterByExtension(rawNodes, query) : rawNodes),
-    [rawNodes, query, shouldFilter],
-  );
-
-  const onExpand = useCallback(
-    async (parent: TreeNode) => {
-      const children = await defaultOnExpand(parent);
-      return shouldFilter ? filterByExtension(children, query) : children;
-    },
-    [query, shouldFilter],
-  );
-
-  const isLoading = objectsFetcher.state === "loading";
-
-  // Surface capped / failed / CORS-blocked connections from the search loader.
-  // Without this, users with broken buckets see "no results" silently.
-  const notification = objectsFetcher.data?.notification;
-  useEffect(() => {
-    if (notification) {
-      toast({
-        variant: toToastVariant(notification.status ?? "info"),
-        message: notification.message,
-      });
-    }
-  }, [notification, toast]);
-
-  const isSearching = searchTerm.trim().length > 0;
-  const defaultExpandedItems = useMemo(() => collectInteriorIds(nodes), [nodes]);
+  // Registry entry for the picker's extension scope ("Parquet" / "CSV").
+  const scopeType = getFileTypeEntry(`file.${extension}`);
 
   const handleSelect = useCallback(
     (node: TreeNode) => {
       if (node.type !== "file") return;
       try {
-        if (query === "csv") {
+        if (extension === "csv") {
           convertCsvToParquet(node.id);
           toast({ variant: "success", message: `Started conversion: ${node.name}` });
         } else {
@@ -128,32 +63,43 @@ export function AddOverlay({ callback, query, onOverlayAdd }: AddOverlayProps) {
         });
       }
     },
-    [query, onOverlayAdd, toast, callback],
+    [extension, onOverlayAdd, toast, callback],
   );
+
+  if (!selectedConnection) {
+    return (
+      <EmptyState
+        icon="Unplug"
+        title="No connections"
+        description="No connections are available yet."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <Input
-        aria-label={`Search ${query} files`}
-        placeholder={`Search .${query} files...`}
-        value={searchTerm}
-        onChange={setSearchTerm}
+      <ConnectionSwitcherChip
+        selectedConnection={selectedConnection}
+        onSelect={(id) => setOverride(id || null)}
+      />
+      <SearchInput
+        aria-label={`Search ${extension} files`}
+        placeholder="Search files..."
+        onQueryChange={setSearchTerm}
+        defaultValue={sourceName}
+        suffix={
+          // Scope indicator — the same badge file rows render, so what the
+          // picker admits matches what the rows show.
+          <Badge icon={scopeType?.icon}>{scopeType?.type ?? `.${extension}`}</Badge>
+        }
       />
 
-      {isLoading && <LoaderView label={isSearching ? "Searching…" : "Loading…"} />}
-
-      <DirectoryViewTree
-        key={isSearching ? `search:${objectsFetcher.data?.searchQuery ?? "loading"}` : "lazy"}
-        nodes={nodes}
-        kind="entries"
-        onExpand={onExpand}
-        defaultExpandedItems={isSearching ? defaultExpandedItems : undefined}
-        nodeLinkProps={{
-          onClick: handleSelect,
-          isClickable: (node) => node.type === "file",
-        }}
+      <ConnectionTree
+        selectedConnection={selectedConnection}
+        query={searchTerm}
+        filters={{ extensions: [extension] }}
+        nodeLinkProps={{ onClick: handleSelect, isClickable: (node) => node.type === "file" }}
       />
-
       {callback && (
         <div className="flex justify-end">
           <Button variant="ghost" onPress={callback}>

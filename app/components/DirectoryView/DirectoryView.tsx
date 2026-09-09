@@ -5,10 +5,8 @@ import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTableConnection, connectionColumns } from "./DirectoryViewTableConnection";
 import { DirectoryViewTableDirectory, fileColumns } from "./DirectoryViewTableDirectory";
-import { DirectoryViewTree } from "./DirectoryViewTree";
 import { FilterBar } from "./FilterBar";
 import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
-import { onExpand } from "./onExpand";
 import { useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { useColumnFilters } from "~/components/Table/useColumnFilters";
@@ -35,7 +33,6 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
   const viewMode = useLayoutStore((s) => s.viewMode);
   const columns = kind === "connections" ? connectionColumns : fileColumns;
   const isGrid = viewMode === "grid";
-  const isTree = viewMode === "tree";
 
   const connections = useConnectionsStore(select.connections);
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
@@ -43,7 +40,7 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
 
   const { columnFilters } = useColumnFilters({ tableId: kind });
 
-  // allNodes -> filteredNodes -> DirectoryView -> (Grid | Table | Tree)
+  // allNodes -> filteredNodes -> DirectoryView -> (Grid | Table)
   // Hidden-file filter first, then column filters. Same `filteredNodes`
   // feeds every view mode.
   const visibleNodes = useMemo(
@@ -80,16 +77,14 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
     <Section>
       <SectionHeader name={node.name}>{children}</SectionHeader>
 
-      {showFilters && viewMode !== "list" && (
+      {showFilters && isGrid && (
         <Container>
           <FilterBar columns={columns} tableId={kind} dynamicOptions={dynamicOptions} />
         </Container>
       )}
 
       <Container>
-        {isTree ? (
-          <DirectoryViewTree nodes={visibleNodes} kind={kind} onExpand={onExpand} />
-        ) : isGrid ? (
+        {isGrid ? (
           <DirectoryViewGrid nodes={filteredNodes} kind={kind} />
         ) : kind === "connections" ? (
           <DirectoryViewTableConnection nodes={filteredNodes} showFilters={showFilters} />

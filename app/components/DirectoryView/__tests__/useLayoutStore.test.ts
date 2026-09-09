@@ -16,7 +16,7 @@ describe("useLayoutStore", () => {
   });
 
   test("setViewMode accepts all valid modes", () => {
-    const modes = ["list", "grid", "tree"] as const;
+    const modes = ["list", "grid"] as const;
 
     for (const mode of modes) {
       useLayoutStore.getState().setViewMode(mode);
@@ -42,7 +42,7 @@ describe("useLayoutStore", () => {
 
 /**
  * The persist middleware invokes the migrate function when the stored version
- * is older than the current version (5). We recreate the same migration record
+ * is older than the current version (6). We recreate the same migration record
  * used by the store to test each step directly via createMigrate.
  */
 describe("useLayoutStore persist migrations", () => {
@@ -114,11 +114,24 @@ describe("useLayoutStore persist migrations", () => {
           showFilters: s?.showFilters ?? false,
         };
       },
+      5: (state) => {
+        const s = state as {
+          viewMode?: string;
+          showHiddenFiles?: boolean;
+          showFilters?: boolean;
+        };
+        // Tree view mode removed — coerce to grid.
+        return {
+          viewMode: (s?.viewMode === "tree" ? "grid" : (s?.viewMode ?? "grid")) as ViewMode,
+          showHiddenFiles: s?.showHiddenFiles ?? false,
+          showFilters: s?.showFilters ?? false,
+        };
+      },
     },
     fallback,
   );
 
-  describe("v0 -> v5 (full migration chain from earliest version)", () => {
+  describe("v0 -> v6 (full migration chain from earliest version)", () => {
     test("migrates list to list", () => {
       const result = migrate({ viewMode: "list" }, 0);
       expect(result).toEqual({ viewMode: "list", showHiddenFiles: false, showFilters: false });
@@ -160,19 +173,19 @@ describe("useLayoutStore persist migrations", () => {
     });
   });
 
-  describe("v3 -> v5 (grid-compact removal)", () => {
+  describe("v3 -> v6 (grid-compact removal)", () => {
     test("maps grid-compact to grid", () => {
       const result = migrate({ viewMode: "grid-compact", showHiddenFiles: false }, 3);
       expect(result).toEqual({ viewMode: "grid", showHiddenFiles: false, showFilters: false });
     });
 
     test("preserves existing modes through v3+", () => {
-      const result = migrate({ viewMode: "tree", showHiddenFiles: true }, 3);
-      expect(result).toEqual({ viewMode: "tree", showHiddenFiles: true, showFilters: false });
+      const result = migrate({ viewMode: "list", showHiddenFiles: true }, 3);
+      expect(result).toEqual({ viewMode: "list", showHiddenFiles: true, showFilters: false });
     });
   });
 
-  describe("v4 -> v5 (showFilters preserved, grid-compact still remapped)", () => {
+  describe("v4 -> v6 (showFilters preserved, grid-compact still remapped)", () => {
     test("maps grid-compact to grid", () => {
       const result = migrate(
         { viewMode: "grid-compact", showHiddenFiles: true, showFilters: true },
@@ -188,10 +201,22 @@ describe("useLayoutStore persist migrations", () => {
     });
   });
 
-  describe("already at v5 (no migration needed)", () => {
+  describe("v5 -> v6 (tree view mode removal)", () => {
+    test("coerces tree to grid", () => {
+      const result = migrate({ viewMode: "tree", showHiddenFiles: true, showFilters: false }, 5);
+      expect(result).toEqual({ viewMode: "grid", showHiddenFiles: true, showFilters: false });
+    });
+
+    test("preserves list and grid modes", () => {
+      const result = migrate({ viewMode: "list", showHiddenFiles: true, showFilters: true }, 5);
+      expect(result).toEqual({ viewMode: "list", showHiddenFiles: true, showFilters: true });
+    });
+  });
+
+  describe("already at v6 (no migration needed)", () => {
     test("returns state unchanged", () => {
-      const state = { viewMode: "tree" as const, showHiddenFiles: true, showFilters: false };
-      const result = migrate(state, 5);
+      const state = { viewMode: "grid" as const, showHiddenFiles: true, showFilters: false };
+      const result = migrate(state, 6);
       expect(result).toEqual(state);
     });
   });

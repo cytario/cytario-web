@@ -17,6 +17,11 @@ import {
 import type { ObjectStore, StorageEntry } from "@cytario/plugin-api";
 import { listConnections } from "~/routes/connections/connections.server";
 import { canSee } from "~/utils/authorization";
+import {
+  companionDirectoryPrefixes,
+  isInsideHiddenPrefix,
+  isInsideLeafDirectory,
+} from "~/utils/leafDirectory";
 import type { AccessLevel } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
@@ -340,6 +345,8 @@ class ObjectStoreImpl implements ObjectStore {
       );
       for (const obj of response.Contents ?? []) {
         if (!obj.Key) continue;
+        // Leaf interiors and companion directories are machinery, not entries.
+        if (isInsideLeafDirectory(obj.Key.slice(stripLen))) continue;
         entries.push({
           key: obj.Key.slice(stripLen),
           size: obj.Size ?? 0,
@@ -347,7 +354,8 @@ class ObjectStoreImpl implements ObjectStore {
       }
       continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
     } while (continuationToken);
-    return entries;
+    const hidden = companionDirectoryPrefixes(entries.map((e) => e.key));
+    return entries.filter((e) => !isInsideHiddenPrefix(e.key, hidden));
   }
 
   async size(connectionId: string, key: string): Promise<number | null> {

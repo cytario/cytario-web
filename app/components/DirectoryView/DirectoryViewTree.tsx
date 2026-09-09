@@ -1,15 +1,15 @@
 import { IconButton } from "@cytario/design";
 import { asyncDataLoaderFeature, hotkeysCoreFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { DirectoryViewEmptyState } from "./DirectoryViewEmptyState";
-import { isHiddenFilename } from "./filterNodes";
-import { useLayoutStore } from "./useLayoutStore";
+import { nodePassesFilters, type TreeFilters } from "./treeFilters";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
+import { useConnectionTreeStore } from "~/utils/connectionsStore/useConnectionTreeStore";
 
 interface DirectoryViewTreeProps {
   nodes: TreeNode[];
@@ -26,9 +26,11 @@ interface DirectoryViewTreeProps {
    * active route on client-side navigation. Omit for static trees.
    */
   revealItems?: string[];
-  /** Filter visible nodes at render time. Directories always pass; files are
-   * tested against the predicate. Changes to this prop re-filter without
-   * remounting. */
+  /** Standard visibility filters (hidden files, extensions) applied at render
+   * time. Directories pass the hidden check; extension filters test files only. */
+  filters?: TreeFilters;
+  /** Ad-hoc render-time predicate for one-off filters that don't fit TreeFilters.
+   * Composed after `filters`. */
   nodeFilter?: (node: TreeNode) => boolean;
 }
 
@@ -42,14 +44,29 @@ export function DirectoryViewTree({
   defaultExpandedItems,
   revealItems,
   nodeLinkProps,
+  filters,
   nodeFilter,
 }: DirectoryViewTreeProps) {
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems ?? []);
-  // Global "show hidden files" toggle — hides dot-files and sidecar machinery
-  // files at render (lazily-loaded children included), so every tree view
-  // (browser, search, picker, sidebar, viewer overlays) hides the same set.
-  const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
+
+  // Lazy trees (level listings) prime their index from the tree cache so
+  // previously expanded levels resolve instantly after remount. Static trees
+  // (search results) build synthetic nodes that may collide with cached ids,
+  // so they rely on their props alone.
+  const isLazyTree = initialNodes.some((n) => n.loadState === "idle");
+  const connectionId = initialNodes[0]?.connectionId;
+  const cachedLevels = useConnectionTreeStore((s) =>
+    isLazyTree && connectionId ? s.levels[connectionId] : undefined,
+  );
+  useEffect(() => {
+    if (!cachedLevels) return;
+    for (const entry of cachedLevels.values()) {
+      // Raw-only entries (warmed by the search walk) have no nodes yet.
+      if (!entry.nodes) continue;
+      for (const n of entry.nodes) nodesById.current.set(n.id, n);
+    }
+  }, [cachedLevels]);
 
   // Reveal a deep-linked path on navigation: when `revealItems` changes, union
   // the requested ancestor ids into the expanded set without disturbing manual
@@ -114,7 +131,7 @@ export function DirectoryViewTree({
         .filter((item) => {
           const node = item.getItemData();
           if (!node) return true;
-          if (!showHiddenFiles && isHiddenFilename(node.name)) return false;
+          if (filters && !nodePassesFilters(node, filters)) return false;
           return nodeFilter ? nodeFilter(node) : true;
         })
         .map((item) => {

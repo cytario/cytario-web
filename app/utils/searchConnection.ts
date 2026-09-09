@@ -1,6 +1,16 @@
+import type { _Object } from "@aws-sdk/client-s3";
+import type { Credentials } from "@aws-sdk/client-sts";
+
 import { buildDirectoryTree, type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
+import { namePassesFilters } from "~/components/DirectoryView/treeFilters";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
-import { listObjectsClient } from "~/utils/listObjects/listObjectsClient";
+import { useConnectionTreeStore } from "~/utils/connectionsStore/useConnectionTreeStore";
+import { companionDirectoryPrefixes, isLeafDirectory } from "~/utils/leafDirectory";
+import { mapWithConcurrency } from "~/utils/limitConcurrency";
+import { MAX_SEARCH_DIRS } from "~/utils/listingLimits";
+import { filterObjects } from "~/utils/listObjects/filterObjects";
+import { search } from "~/utils/listObjects/search";
 import { getPrefix } from "~/utils/pathUtils";
 import { CorsLikelyError } from "~/utils/signedFetch";
 
@@ -13,33 +23,39 @@ export interface SearchConnectionResult {
 }
 
 /**
- * Per-connection recursive search. Calls `listObjectsClient` with `query` +
- * `recursive: true`, then builds a `TreeNode` subtree from the matched keys so
- * matched files appear under their full ancestor path. Shared by the global
- * `/search` route and any in-place tree-search caller.
+ * Per-connection BFS search. Walks the tree level-by-level (one cached
+ * `ListObjectsV2` per directory with `Delimiter /`, read through the shared
+ * level cache so search and browse share fetches), filtering at each level
+ * with the same `search()` logic the flat listing used. Leaf directories
+ * (`.zarr`, `.mrxs`, …) are matched by name without descending into their
+ * interiors, and companion directories are skipped entirely. All directories
+ * at the same depth are listed in parallel.
+ *
+ * With `filters.extensions`, only files matching an extension are results;
+ * directories (matching or not) are traversed, not collected.
  */
 export async function searchConnection({
   connection,
   query,
+  filters,
   signal,
 }: {
   connection: Connection;
   query: string;
+  filters?: TreeFilters;
   signal?: AbortSignal;
 }): Promise<SearchConnectionResult> {
-  const { connectionConfig: config, credentials, provider } = connection;
-  const prefix = getPrefix(config.prefix);
-  const bucketBase = {
+  const { connectionConfig: config, credentials } = connection;
+  const rootPrefix = getPrefix(config.prefix) ?? "";
+  const bucketBase: TreeNode = {
     id: `${config.id}/`,
     connectionId: config.id,
     connectionName: config.name,
     name: config.name,
-    type: "bucket" as const,
+    type: "bucket",
     pathName: "",
   };
 
-  // A broken connection (no minted STS credentials) can't be searched; surface
-  // it as an errored result so the status dot stays red rather than spinning.
   if (!credentials) {
     return {
       node: { ...bucketBase, children: [] },
@@ -50,25 +66,30 @@ export async function searchConnection({
   }
 
   try {
-    const { contents, isCapped } = await listObjectsClient(
-      {
-        id: config.id,
-        bucketName: config.bucketName,
-        region: provider?.region,
-        endpoint: provider?.endpoint,
-      },
+    const { matched, isCapped } = await bfsSearch(
+      connection,
       credentials,
-      {
-        query,
-        prefix,
-        recursive: true,
-        signal,
-      },
+      rootPrefix,
+      query,
+      filters,
+      signal,
     );
+    const q = query.toLowerCase();
+    const rank = (key: string) => {
+      const name = key.split("/").pop() ?? key;
+      const lc = name.toLowerCase();
+      if (lc === q) return 0;
+      if (lc.startsWith(q)) return 1;
+      return 2;
+    };
+    matched.sort(
+      (a, b) => rank(a.Key ?? "") - rank(b.Key ?? "") || (a.Key ?? "").localeCompare(b.Key ?? ""),
+    );
+
     return {
       node: {
         ...bucketBase,
-        children: buildDirectoryTree(contents, config.id, config.name, prefix ?? ""),
+        children: buildDirectoryTree(matched, config.id, config.name, rootPrefix),
       },
       isCapped,
       error: false,
@@ -83,4 +104,84 @@ export async function searchConnection({
       corsBlocked: error instanceof CorsLikelyError,
     };
   }
+}
+
+/** BFS walk collecting `_Object`s whose key (or leaf-directory name) matches `query`. */
+async function bfsSearch(
+  connection: Connection,
+  credentials: Credentials,
+  rootPrefix: string,
+  query: string,
+  filters: TreeFilters | undefined,
+  signal?: AbortSignal,
+): Promise<{ matched: _Object[]; isCapped: boolean }> {
+  const { connectionConfig: config, provider } = connection;
+  const loadLevelRaw = useConnectionTreeStore.getState().loadLevelRaw;
+  const matched: _Object[] = [];
+  const extensionMode = !!filters?.extensions?.length;
+  let level: string[] = [rootPrefix];
+  let isCapped = false;
+  let dirsVisited = 0;
+
+  while (level.length > 0) {
+    if (signal?.aborted) throw signal.reason ?? new Error("Search aborted");
+
+    if (dirsVisited + level.length > MAX_SEARCH_DIRS) {
+      level = level.slice(0, MAX_SEARCH_DIRS - dirsVisited);
+      isCapped = true;
+    }
+
+    const results = await mapWithConcurrency(level, 4, async (prefix) => {
+      const {
+        contents,
+        commonPrefixes,
+        isCapped: levelCapped,
+      } = await loadLevelRaw({
+        connectionId: config.id,
+        connectionConfig: config,
+        credentials,
+        provider,
+        prefix,
+        signal,
+      });
+      if (levelCapped) isCapped = true;
+
+      const fileMatches = filterObjects(contents, { query, filters });
+
+      const hidden = companionDirectoryPrefixes(contents.map((o) => o.Key ?? "").filter(Boolean));
+      const subDirs: string[] = [];
+
+      const dirMatches: _Object[] = [];
+
+      for (const cp of commonPrefixes) {
+        if (hidden.has(cp)) continue;
+        const name = cp.slice(prefix.length).replace(/\/$/, "");
+        if (!name) continue;
+        if (search(query, name)) {
+          if (extensionMode) {
+            // Extension mode: directories are never results (only files are
+            // selectable) — descend so matching files beneath are found.
+            if (!isLeafDirectory(name)) subDirs.push(cp);
+          } else if (namePassesFilters(name, false, filters)) {
+            dirMatches.push({ Key: cp });
+          }
+        } else if (!isLeafDirectory(name)) {
+          subDirs.push(cp);
+        }
+      }
+
+      return { fileMatches, dirMatches, subDirs };
+    });
+
+    dirsVisited += level.length;
+
+    const next: string[] = [];
+    for (const r of results) {
+      matched.push(...r.fileMatches, ...r.dirMatches);
+      next.push(...r.subDirs);
+    }
+    level = next;
+  }
+
+  return { matched, isCapped };
 }

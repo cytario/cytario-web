@@ -6,12 +6,12 @@ import type {
   StoragePickerResult,
   StoragePickerSelection,
 } from "@cytario/plugin-api";
+import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryViewTree } from "~/components/DirectoryView/DirectoryViewTree";
-import { isHiddenFilename } from "~/components/DirectoryView/filterNodes";
 import { onExpand as defaultOnExpand } from "~/components/DirectoryView/onExpand";
+import { namePassesFilters } from "~/components/DirectoryView/treeFilters";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
-import { ConnectionSwitcherChip } from "~/components/Sidebar/ConnectionSwitcherChip";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 interface StoragePickerModalProps {
@@ -91,7 +91,10 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   // tree isn't showing (same toggle, same predicate).
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const selectableFiles = useMemo(
-    () => [...loadedFiles.values()].filter((n) => showHiddenFiles || !isHiddenFilename(n.name)),
+    () =>
+      [...loadedFiles.values()].filter((n) =>
+        namePassesFilters(n.name, n.type === "file", { showHiddenFiles }),
+      ),
     [loadedFiles, showHiddenFiles],
   );
 
@@ -194,6 +197,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
               kind="entries"
               onExpand={onExpand}
               defaultExpandedItems={rootNodes.map((n) => n.id)}
+              filters={{ showHiddenFiles }}
               nodeFilter={
                 glob ? (node) => node.type !== "file" || matchGlob(node.name, glob) : undefined
               }

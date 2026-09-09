@@ -19,7 +19,6 @@ describe("ViewModeToggle", () => {
 
     expect(screen.getByRole("radio", { name: "List view" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Grid view" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Tree view" })).toBeInTheDocument();
   });
 
   test("reflects the current view mode from the store", () => {
@@ -36,8 +35,8 @@ describe("ViewModeToggle", () => {
 
     render(<ViewModeToggle />);
 
-    await user.click(screen.getByRole("radio", { name: "Tree view" }));
+    await user.click(screen.getByRole("radio", { name: "List view" }));
 
-    expect(useLayoutStore.getState().viewMode).toBe("tree");
+    expect(useLayoutStore.getState().viewMode).toBe("list");
   });
 });
