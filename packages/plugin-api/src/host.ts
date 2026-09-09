@@ -263,8 +263,8 @@ export interface JobRecord {
    * The compute provider the job was submitted to. Host-injected on `record`
    * (resolved from the org's connected providers; a caller-supplied value is
    * validated against the active organization); populated from the ledger
-   * row on `lookup`/`list`/`listAll`. Null on rows that predate the column —
-   * consumers fall back to the org's first connected provider.
+   * row on `lookup`/`list`/`listAll`. Absent means "the org's first
+   * connected provider".
    */
   providerId?: string | null;
   /**
@@ -390,8 +390,7 @@ export interface HostCapabilities {
    * @param providerId - when supplied, resolves that specific connected
    *   provider of the organization (the id from `ComputeConnectionProjection`).
    *   When omitted, the host resolves the organization's first connected
-   *   provider (legacy single-provider deployments, and the reconciler's
-   *   fallback for pre-migration ledger rows).
+   *   provider.
    * @param organization - when omitted, the active organization is resolved
    *   from the request context (the session path, or the job-token carve-out
    *   whose context carries the token's org claim). When provided, the host

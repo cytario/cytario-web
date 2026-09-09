@@ -184,9 +184,9 @@ class JobLedgerImpl implements JobLedger {
       throw new Error(`No grant the submitting user can see for connection ${job.connectionId}`);
     }
 
-    // Validate the compute provider the plugin names: it must be one of the
-    // active organization's connected providers (tenant boundary — a provider
-    // id from another org never resolves, mirroring the catalog lookup below).
+    // The named compute provider must be one of the active organization's
+    // connected providers (tenant boundary — a provider id from another org
+    // never resolves).
     const providerCatalog = await getProviderCatalog(user.organization, authTokens.accessToken);
     const computeProvider = job.providerId
       ? providerCatalog.computeProviders.find(

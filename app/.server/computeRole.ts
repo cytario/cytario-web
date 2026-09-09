@@ -20,9 +20,8 @@ function requireRequestData() {
 
 /**
  * Resolves the compute provider and submit role from the provider catalog.
- * When `providerId` is supplied, resolves that specific connected provider
- * (the org's provider-selection surface); when omitted, the organization's
- * first connected provider (legacy single-provider fallback). The submit
+ * When `providerId` is supplied, resolves that specific connected provider;
+ * when omitted, the organization's first connected provider. The submit
  * role is the IAM role the host assumes via `AssumeRoleWithWebIdentity` to
  * make Batch API calls on behalf of the plugin (SDS-CY-010098).
  */

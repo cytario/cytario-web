@@ -778,7 +778,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  test("record persists a null providerId when the caller names none (legacy single-provider rows)", async () => {
+  test("record persists a null providerId when the caller names none", async () => {
     const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
     vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
       id: "c1",
