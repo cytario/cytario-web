@@ -174,6 +174,13 @@ export async function loadOmeTiffWithCredentials(
     cacheSize: Number.POSITIVE_INFINITY,
   });
 
+  // INTERIM WORKAROUND (root-cause-over-workaround rule): the in-place
+  // mutation below relies on geotiff.js caching the parsed IFD
+  // (ifdRequests[0]) and viv reading the same fileDirectory object reference
+  // — neither is guaranteed API. The upstream fix is for viv's singlefile
+  // loader to honor TiffData IFD/PlaneCount for offset accounting; until it
+  // lands (hms-dbmi/viv), remove this block and the stripUnsupportedSubImages
+  // helper once the upstream loader indexes such files natively.
   // Pre-read IFD 0 and strip sub-images viv cannot index (RGB thumbnail/
   // overview/label: all channels interleaved in one IFD). viv walks IFDs as
   // SizeZ*SizeT*SizeC blocks per OME Image and — without SubIFDs — uses the
