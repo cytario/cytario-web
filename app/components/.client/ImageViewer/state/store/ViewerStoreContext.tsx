@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useStore, create } from "zustand";
 import { devtools } from "zustand/middleware";
 
@@ -71,6 +71,16 @@ function startViewerLoad(
     });
 }
 
+/** Restarts a released store's load; no-op while a load is in flight. */
+function ensureViewerLoaded(resourceId: string, signedFetch: SignedFetch) {
+  const viewerStore = useViewerRegistryStore.getState().viewers[resourceId];
+  if (!viewerStore) return;
+  const state = viewerStore.getState();
+  if (!state.loader?.length && !state.error && !loadAborters.has(resourceId)) {
+    startViewerLoad(viewerStore, resourceId, signedFetch);
+  }
+}
+
 function releaseViewer(resourceId: string) {
   loadAborters.get(resourceId)?.abort();
   loadAborters.delete(resourceId);
@@ -106,10 +116,7 @@ const useViewerRegistryStore = create<ViewerRegistryStore>()(
             });
           }
           // The store survived a release (last provider unmounted); reload.
-          const state = existingStore.getState();
-          if (!state.loader?.length && !state.error && !loadAborters.has(resourceId)) {
-            startViewerLoad(existingStore, resourceId, signedFetch);
-          }
+          ensureViewerLoaded(resourceId, signedFetch);
           return existingStore;
         }
 
@@ -168,6 +175,17 @@ export const ViewerStoreProvider = ({
     () => registerViewer(resourceId, signedFetch, userId),
     [resourceId, signedFetch, userId, registerViewer],
   );
+
+  // React runs every cleanup of a commit before any effect, so a provider
+  // unmounting and a different provider for the same resourceId mounting in
+  // one commit releases the loader *after* the render-time registerViewer saw
+  // it. Restarting the load from the mount effect (which runs after all
+  // cleanups) closes the gap. ensureViewerLoaded reads no props, so the effect
+  // deps stay minimal.
+  const ensureLoaded = useRef(ensureViewerLoaded);
+  useEffect(() => {
+    ensureLoaded.current(resourceId, signedFetch);
+  }, [resourceId, signedFetch]);
 
   // The last provider for a resourceId releases its loader (geotiff source,
   // block cache, decode pool) so navigating across many large images can't
