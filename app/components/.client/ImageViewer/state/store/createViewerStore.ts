@@ -1,6 +1,6 @@
 import { temporal } from "zundo";
 import { createStore } from "zustand";
-import { devtools, persist, subscribeWithSelector } from "zustand/middleware";
+import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import { createAnnotationsSlice } from "./slices/viewer.annotations.store";
@@ -58,6 +58,11 @@ export const createViewerStore = (id: string, userId: string = "") => {
           version: 5,
           migrate: viewerStoreMigrate,
           partialize: viewerStorePartialize,
+          // Viewport-change frames would otherwise re-stringify the whole
+          // partialized state (all channels' histograms included) and write it
+          // to localStorage per frame — zustand persist has no debounce
+          // option, so the write side is debounced via the storage wrapper.
+          storage: createJSONStorage(() => createDebouncedStorage(PERSIST_DEBOUNCE_MS)),
           onRehydrateStorage: () => (_state, error) => {
             if (error) {
               console.error(`[ViewerStore-${id}] Rehydration failed:`, error);
@@ -69,9 +74,41 @@ export const createViewerStore = (id: string, userId: string = "") => {
   );
 
   // Attach the cool-off controller so the undo/redo hook can reset the
-  // gesture debounce before performing undo/redo (prevents a leftover
-  // cool-off from swallowing the first post-undo edit).
+  // gesture debounce before calling undo/redo (prevents a leftover cool-off
+  // from swallowing the first post-undo edit).
   (store as unknown as { __temporalState?: TemporalState }).__temporalState = temporalState;
 
   return store;
 };
+
+/** Coalesces persist writes — pan/zoom produces a set per viewport frame. */
+const PERSIST_DEBOUNCE_MS = 500;
+
+/** localStorage-backed StateStorage with a debounced write side. */
+function createDebouncedStorage(debounceMs: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let pendingName: string | null = null;
+  let pendingValue: string | null = null;
+  return {
+    getItem: (name: string) => localStorage.getItem(name),
+    setItem: (name: string, value: string) => {
+      pendingName = name;
+      pendingValue = value;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (pendingName === null || pendingValue === null) return;
+        try {
+          localStorage.setItem(pendingName, pendingValue);
+        } catch {
+          // Quota errors surface via the persist middleware's own handler.
+        }
+        pendingName = null;
+        pendingValue = null;
+      }, debounceMs);
+    },
+    removeItem: (name: string) => {
+      pendingName = null;
+      localStorage.removeItem(name);
+    },
+  };
+}
