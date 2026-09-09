@@ -9,6 +9,8 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
 const idbStore = createIdBStore("file-cache", "files");
+/** One record listing every cached file's size — hydrate reads this only. */
+const META_KEY = "__sizes__";
 
 export interface DownloadProgress {
   loaded: number;
@@ -33,6 +35,12 @@ interface FileStore {
 
 const name = "FileStore";
 
+/** Read the size record; absent record = empty cache. */
+const readSizes = async (): Promise<Record<string, number>> =>
+  (await idbGet<Record<string, number>>(META_KEY, idbStore)) ?? {};
+
+const writeSizes = (sizes: Record<string, number>) => idbSet(META_KEY, sizes, idbStore);
+
 export const useFileStore = create<FileStore>()(
   devtools(
     (set, get) => ({
@@ -45,6 +53,10 @@ export const useFileStore = create<FileStore>()(
 
       saveFile: async (id: string, data: Uint8Array) => {
         await idbSet(id, data, idbStore);
+
+        const sizes = await readSizes();
+        sizes[id] = data.byteLength;
+        await writeSizes(sizes);
 
         set(
           (state) => ({
@@ -89,6 +101,10 @@ export const useFileStore = create<FileStore>()(
       deleteFile: async (id: string) => {
         await idbDel(id, idbStore);
 
+        const sizes = await readSizes();
+        delete sizes[id];
+        await writeSizes(sizes);
+
         set(
           (state) => {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -100,47 +116,30 @@ export const useFileStore = create<FileStore>()(
         );
       },
 
+      // Metadata-only: reads the single size record, never the payloads. A
+      // payload-per-key read here pulled every cached download fully into RAM
+      // at startup — with a few 256 MB cached files that flooded the heap on
+      // first paint. Legacy caches predating the size record simply start
+      // empty; the next save of each file re-registers it.
       hydrate: async () => {
+        const sizes = await readSizes();
         const allKeys = await idbKeys<string>(idbStore);
+        const payloadKeys = allKeys.filter((k) => k !== META_KEY);
 
-        const filesWithSizes = await Promise.all(
-          allKeys.map(async (key) => {
-            const data = await idbGet<Uint8Array>(key, idbStore);
-            return {
-              key,
-              size: data?.length ?? 0,
-            };
-          }),
-        );
+        const files: Record<string, FileMetadata> = {};
+        for (const key of payloadKeys) {
+          if (!sizes[key]) continue;
+          files[key] = {
+            id: key,
+            progress: {
+              loaded: sizes[key],
+              total: sizes[key],
+              percentage: 100,
+            },
+          };
+        }
 
-        set(
-          (state) => {
-            const files = { ...state.files };
-
-            for (const { key, size } of filesWithSizes) {
-              if (!files[key]) {
-                files[key] = {
-                  id: key,
-                  progress: {
-                    loaded: size,
-                    total: size,
-                    percentage: 100,
-                  },
-                };
-              }
-            }
-
-            for (const key of Object.keys(files)) {
-              if (!allKeys.includes(key)) {
-                delete files[key];
-              }
-            }
-
-            return { files };
-          },
-          false,
-          "hydrate",
-        );
+        set({ files }, false, "hydrate");
       },
     }),
     { name, enabled: process.env.NODE_ENV !== "production" },
