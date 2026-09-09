@@ -3,6 +3,7 @@ export interface WorkerTaskData {
   maxUncompressedSize: number;
   decoderId: string;
 }
+
 export interface WorkerTaskEvent {
   taskId: string;
   result: ArrayBuffer;
@@ -15,6 +16,9 @@ export interface WorkerTask {
   resolve: (result: ArrayBuffer) => void;
   reject: (error: Error) => void;
 }
+
+/** Pending decode tasks per pool — bounds the buffers pinned by a queued storm. */
+const MAX_QUEUED_TASKS = 128;
 
 export class WorkerPool {
   private workers: Worker[] = [];
@@ -65,6 +69,12 @@ export class WorkerPool {
     const taskId = Math.random().toString(36).substring(2);
 
     return new Promise((resolve, reject) => {
+      if (this.taskQueue.length >= MAX_QUEUED_TASKS) {
+        // Fast pan/zoom storms enqueue thousands of decodes, each pinning its
+        // input buffer; drop new work instead of growing the queue unbounded.
+        reject(new Error("Decode queue full — tile skipped"));
+        return;
+      }
       const task: WorkerTask = { taskId, data, resolve, reject };
       this.taskQueue.push(task);
       this.processQueue();

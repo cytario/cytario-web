@@ -8,7 +8,9 @@ import { WorkerPool } from "./workerPool";
 
 // Constants
 const DEFAULT_WORKER_POOL_SIZE = 8;
-const CACHE_SIZE_LIMIT = 1000; // Limit cache to prevent memory leaks
+/** Cached decoded blocks per image: ~256 MB of decoded pixel data. */
+const MAX_CACHE_BYTES = 256 * 1024 * 1024;
+const MAX_CACHE_ENTRY_BYTES = 64 * 1024 * 1024;
 
 // Lazy worker pool — instantiated on first decode so module load stays
 // side-effect free (test environments without Web Workers can import this
@@ -21,15 +23,19 @@ const getWorkerPool = (): WorkerPool => {
   return workerPool;
 };
 
-// Cache for decoded blocks with LRU eviction
+// Cache for decoded blocks with LRU eviction, bounded in bytes — decoded
+// blocks scale with tile size (up to full frames for stripped TIFFs), so a
+// count cap cannot bound memory.
 const bufferCache = new LRUCache<number, ArrayBuffer>({
-  max: CACHE_SIZE_LIMIT,
+  maxSize: MAX_CACHE_BYTES,
+  maxEntrySize: MAX_CACHE_ENTRY_BYTES,
+  sizeCalculation: (buffer) => buffer.byteLength,
 });
 
 export interface FileDirectory {
   TileWidth?: number;
-  ImageWidth?: number;
   TileLength?: number;
+  ImageWidth?: number;
   ImageLength?: number;
   BitsPerSample: number[];
 }
@@ -118,9 +124,10 @@ export class GenericDecoder extends BaseDecoder {
 }
 
 /**
- * Clears the decoder cache
+ * Drops cached decoded blocks without tearing down the pool (idle workers are
+ * cheap; decoded pixel data is not). Memory-pressure reaction.
  */
-export function clearDecoderCache(): void {
+export function trimDecoderCache(): void {
   bufferCache.clear();
 }
 
@@ -132,3 +139,11 @@ export function shutdownDecoderPool(): void {
   workerPool = null;
   bufferCache.clear();
 }
+
+export const __testHooks = {
+  cacheSize: () => bufferCache.size,
+  cachedBytes: () => bufferCache.calculatedSize,
+  cacheGet: (hash: number) => bufferCache.get(hash),
+  cacheSet: (hash: number, buffer: ArrayBuffer) => bufferCache.set(hash, buffer),
+  reset: () => bufferCache.clear(),
+};
