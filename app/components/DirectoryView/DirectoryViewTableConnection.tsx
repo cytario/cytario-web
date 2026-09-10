@@ -1,9 +1,9 @@
+import { Table, type CellRenderers, type ColumnConfig } from "@cytario/design";
 import { useMemo } from "react";
 
 import { type TreeNode } from "./buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
-import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { select } from "~/utils/connectionsStore/selectors";
 import { type ConnectionConfigWithGrants } from "~/utils/connectionsStore/useConnectionsStore";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";

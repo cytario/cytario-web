@@ -1,5 +1,6 @@
+import { NoFilterResults } from "@cytario/design";
+
 import type { DirectoryKind } from "./DirectoryView";
-import { NoFilterResults } from "../Table/NoFilterResults";
 
 /**
  * Empty state shared across DirectoryView's child views (Grid, Tree, Table*).

@@ -1,9 +1,8 @@
+import { type ColumnConfig, useTableStore } from "@cytario/design";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { FilterBar } from "../FilterBar";
-import { useTableStore } from "~/components/Table/state/useTableStore";
-import type { ColumnConfig } from "~/components/Table/types";
 
 const textColumn: ColumnConfig = {
   id: "name",

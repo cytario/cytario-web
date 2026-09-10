@@ -1,8 +1,14 @@
-import { Badge, Button, IconButton, Input, Select, type SelectItem } from "@cytario/design";
+import {
+  Badge,
+  Button,
+  type ColumnConfig,
+  IconButton,
+  Input,
+  Select,
+  type SelectItem,
+  useColumnFilters,
+} from "@cytario/design";
 import { type ReactNode, useMemo } from "react";
-
-import type { ColumnConfig } from "~/components/Table/types";
-import { useColumnFilters } from "~/components/Table/useColumnFilters";
 
 const ALL_KEY = "__all__";
 const ALL_OPTION: SelectItem = { id: ALL_KEY, name: "All" };

@@ -1,9 +1,9 @@
+import type { ColumnConfig } from "@cytario/design";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 
 import type { TreeNode } from "./buildDirectoryTree";
 import type { DirectoryKind } from "./DirectoryView";
 import { namePassesFilters } from "./treeFilters";
-import type { ColumnConfig } from "~/components/Table/types";
 import type { Connection } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileType } from "~/utils/fileType";
 
