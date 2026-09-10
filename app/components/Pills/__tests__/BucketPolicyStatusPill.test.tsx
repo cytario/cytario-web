@@ -8,6 +8,7 @@ describe("BucketPolicyStatusPill", () => {
     ["applied", "Applied"],
     ["drifted", "Drifted"],
     ["error", "Error"],
+    ["externally_managed", "Managed externally"],
   ] as const)("renders %s as %s", (status, label) => {
     render(<BucketPolicyStatusPill status={status} />);
     expect(screen.getByText(label)).toBeTruthy();

@@ -13,6 +13,7 @@ none
 applied
 drifted
 error
+externally_managed @map("externally-managed")
 }
 
 model ConnectionConfig {

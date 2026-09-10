@@ -12,6 +12,7 @@ const statuses: Record<BucketPolicyStatus, StatusConfig> = {
   applied: { label: "Applied", color: "green" },
   drifted: { label: "Drifted", color: "amber" },
   error: { label: "Error", color: "rose" },
+  externally_managed: { label: "Managed externally", color: "purple" },
 };
 
 /**

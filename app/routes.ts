@@ -112,6 +112,10 @@ const apiRoutes = [
     path: "/api/job-grant/initiate",
     file: "routes/api/job-grant/initiate.ts",
   },
+  {
+    path: "/api/connections",
+    file: "routes/api/connections.ts",
+  },
 ];
 
 export default [
