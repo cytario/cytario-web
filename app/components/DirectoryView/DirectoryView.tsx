@@ -1,3 +1,4 @@
+import { useColumnFilters } from "@cytario/design";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 
@@ -9,7 +10,6 @@ import { FilterBar } from "./FilterBar";
 import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
 import { useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
-import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 

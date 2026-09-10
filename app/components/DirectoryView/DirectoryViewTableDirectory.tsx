@@ -1,10 +1,9 @@
-import { Badge } from "@cytario/design";
+import { Badge, Table, type CellRenderers, type ColumnConfig } from "@cytario/design";
 import { filesize } from "filesize";
 import { useMemo } from "react";
 
 import { TreeNode, computeDirectorySize, computeDirectoryLastModified } from "./buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
-import { CellRenderers, ColumnConfig, Table } from "~/components/Table/Table";
 import { getFileType } from "~/utils/fileType";
 import { formatHumanReadableDate } from "~/utils/formatHumanReadableDate";
 

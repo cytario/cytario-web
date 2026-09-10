@@ -1,4 +1,14 @@
-import { Badge, Banner, Button, ButtonLink, EmptyState } from "@cytario/design";
+import {
+  Badge,
+  Banner,
+  Button,
+  ButtonLink,
+  type CellRenderers,
+  type ColumnConfig,
+  Table,
+  EmptyState,
+  SelectionFooter,
+} from "@cytario/design";
 import { type RowSelectionState } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import {
@@ -15,8 +25,6 @@ import { type UserWithGroups, type GroupInfo } from "~/.server/auth/keycloakAdmi
 import { Container, Section, SectionHeader } from "~/components/Container";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { SelectionFooter } from "~/components/Table/SelectionFooter";
-import { type CellRenderers, type ColumnConfig, Table } from "~/components/Table/Table";
 import { useModal } from "~/hooks/useModal";
 import { compareGroupPaths } from "~/utils/groupPath";
 
