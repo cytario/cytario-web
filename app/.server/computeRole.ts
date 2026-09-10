@@ -19,18 +19,26 @@ function requireRequestData() {
 }
 
 /**
- * Resolves the compute provider and submit role from the provider catalog.
- * The submit role is the IAM role the host assumes via
- * `AssumeRoleWithWebIdentity` to make Batch API calls on behalf of the
- * plugin (SDS-CY-010098).
+ * Resolves the compute provider and submit role from the provider catalog —
+ * the named provider when `providerId` is supplied, else the organization's
+ * first connected provider.
  */
-function resolveComputeRole(catalog: ProviderCatalog): {
+function resolveComputeRole(
+  catalog: ProviderCatalog,
+  providerId?: string,
+): {
   computeProvider: ComputeProvider;
   computeRole: ComputeRole;
 } {
-  const computeProvider = catalog.computeProviders.find((p) => p.status === "connected");
+  const computeProvider = providerId
+    ? catalog.computeProviders.find((p) => p.id === providerId && p.status === "connected")
+    : catalog.computeProviders.find((p) => p.status === "connected");
   if (!computeProvider) {
-    throw new Error("No connected compute provider found in the provider catalog");
+    throw new Error(
+      providerId
+        ? `Compute provider "${providerId}" is not a connected provider of this organization`
+        : "No connected compute provider found in the provider catalog",
+    );
   }
   const computeRole = catalog.computeRoles.find((r) => r.computeProviderId === computeProvider.id);
   if (!computeRole) {
@@ -106,13 +114,14 @@ export function createBatchSignedFetch(
  * submit role from the provider catalog, mints an STS session via
  * `AssumeRoleWithWebIdentity` with the user's id token, and returns a
  * `ComputeRoleSession` with a `signedFetch` that signs AWS Batch API
- * requests with the minted credentials (SDS-CY-010098).
+ * requests with the minted credentials.
  *
  * The plugin never sees an access key or a raw session token — the host
  * is the only actor that reads them, preserving the outbound-credential-
  * surface invariant (§6.8).
  */
 export async function assumeComputeRole(
+  providerId?: string,
   organizationOverride?: string,
 ): Promise<ComputeRoleSession> {
   const { user, authTokens } = requireRequestData();
@@ -121,7 +130,7 @@ export async function assumeComputeRole(
     throw new Error("Active organization missing from request context");
   }
   const catalog = await getProviderCatalog(organization, authTokens.accessToken);
-  const { computeProvider, computeRole } = resolveComputeRole(catalog);
+  const { computeProvider, computeRole } = resolveComputeRole(catalog, providerId);
 
   const credentials = await assumeRoleWithWebIdentity({
     roleArn: computeRole.roleArn,

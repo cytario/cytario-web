@@ -281,6 +281,179 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     expect(session.jobQueueArn).toBe("arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue");
   });
 
+  test("assumeComputeRole resolves a named provider id among the org's connected providers (SRS-CY-37302)", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/cp-1",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+        {
+          id: "cp-2",
+          providerConnectionId: "pc-1",
+          displayName: "CPU Cluster",
+          region: "eu-west-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-west-1:825967678234:job-queue/cpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp2/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp2/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/cp-2",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+        {
+          id: "cp-3",
+          providerConnectionId: "pc-1",
+          displayName: "Drifted Cluster",
+          region: "eu-west-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-west-1:825967678234:job-queue/drifted-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp3/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp3/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/cp-3",
+            defaultResources: null,
+          },
+          status: "drifted",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+        {
+          id: "cr-2",
+          computeProviderId: "cp-2",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp2-submit",
+          name: "submit",
+        },
+        {
+          id: "cr-3",
+          computeProviderId: "cp-3",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp3-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+      },
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole("cp-2"),
+    );
+
+    expect(session.jobQueueArn).toBe("arn:aws:batch:eu-west-1:825967678234:job-queue/cpu-queue");
+    // The STS mint used the named provider's submit role, not the first one's.
+    expect(stsSendMock.mock.calls[0][0].input.RoleArn).toBe(
+      "arn:aws:iam::825967678234:role/cytario-cp2-submit",
+    );
+  });
+
+  test("assumeComputeRole rejects a provider id that is not a connected provider of the org (SRS-CY-44107 analog)", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+        // cp-9 exists but is drifted — not selectable.
+        {
+          id: "cp-9",
+          providerConnectionId: "pc-1",
+          displayName: "Drifted Cluster",
+          region: "eu-west-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-west-1:825967678234:job-queue/drifted",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp9/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp9/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/cp-9",
+            defaultResources: null,
+          },
+          status: "drifted",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+        {
+          id: "cr-9",
+          computeProviderId: "cp-9",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp9-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+      },
+    });
+
+    // Unknown id.
+    await expect(
+      withHostRequestContext(mockRequestData, () => hostCapabilities.assumeComputeRole("cp-404")),
+    ).rejects.toThrow(/not a connected provider/);
+    // Known id but not connected.
+    await expect(
+      withHostRequestContext(mockRequestData, () => hostCapabilities.assumeComputeRole("cp-9")),
+    ).rejects.toThrow(/not a connected provider/);
+    // The first connected provider still resolves when no id is named.
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+    expect(session.jobQueueArn).toBe("arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue");
+  });
+
   test("assumeComputeRole projects defaultResources and maxResources from the provider record (SRS-CY-415110)", async () => {
     getProviderCatalogMock.mockResolvedValue({
       providerConnections: [],
@@ -488,6 +661,167 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         region: "eu-central-1",
         s3Endpoint: null,
       },
+    });
+  });
+
+  test("record persists the named providerId after validating it against the org's connected providers (SRS-CY-37302)", async () => {
+    const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ accessLevel: "read-only" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    getProviderCatalogMock.mockResolvedValueOnce({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-2",
+          providerConnectionId: "pc-1",
+          displayName: "CPU Cluster",
+          region: "eu-west-1",
+          type: "AWS_BATCH",
+          typeSpecific: {},
+          status: "connected",
+        },
+      ],
+      computeRoles: [],
+      appCatalogs: [],
+    });
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "*",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
+      roleArn: "arn:aws:iam::123:role/storage",
+      accessLevel: "read-write",
+    });
+    await withHostRequestContext(mockRequestData, async () => {
+      await hostCapabilities.jobLedger().record({
+        batchId: "batch-1",
+        jobId: "job-1",
+        offlineSessionId: "sess-1",
+        organization: "testcorp",
+        owner: "user-123",
+        providerId: "cp-2",
+        inputS3Uris: [],
+        outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
+      });
+    });
+    expect(create.mock.calls[0]?.[0]).toMatchObject({
+      data: { providerId: "cp-2" },
+    });
+  });
+
+  test("record rejects a providerId that is not a connected provider of the org", async () => {
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ accessLevel: "read-only" }],
+    } as never);
+    // Two catalog reads happen per record: the connection-provider lookup
+    // and the provider validation.
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "*",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
+      roleArn: "arn:aws:iam::123:role/storage",
+      accessLevel: "read-write",
+    });
+    const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+
+    await withHostRequestContext(mockRequestData, async () => {
+      await expect(
+        hostCapabilities.jobLedger().record({
+          batchId: "batch-1",
+          jobId: "job-1",
+          offlineSessionId: "sess-1",
+          organization: "testcorp",
+          owner: "user-123",
+          providerId: "cp-404",
+          inputS3Uris: [],
+          outputS3Uri: "s3://bucket/output/",
+          connectionId: "c1",
+          roleArn: "",
+          region: "",
+          s3Endpoint: null,
+        }),
+      ).rejects.toThrow(/not a connected provider/i);
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  test("record persists a null providerId when the caller names none", async () => {
+    const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ accessLevel: "read-only" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "*",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
+      roleArn: "arn:aws:iam::123:role/storage",
+      accessLevel: "read-write",
+    });
+    await withHostRequestContext(mockRequestData, async () => {
+      await hostCapabilities.jobLedger().record({
+        batchId: "batch-1",
+        jobId: "job-1",
+        offlineSessionId: "sess-1",
+        organization: "testcorp",
+        owner: "user-123",
+        inputS3Uris: [],
+        outputS3Uri: "s3://bucket/output/",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
+      });
+    });
+    expect(create.mock.calls[0]?.[0]).toMatchObject({
+      data: { providerId: null },
     });
   });
 
@@ -720,7 +1054,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     });
 
     await withHostRequestContext(mockRequestData, async () => {
-      await hostCapabilities.assumeComputeRole("othercorp");
+      await hostCapabilities.assumeComputeRole(undefined, "othercorp");
     });
 
     expect(getProviderCatalogMock).toHaveBeenCalledWith("othercorp", "access");

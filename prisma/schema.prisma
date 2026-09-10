@@ -95,6 +95,7 @@ model JobLedgerEntry {
   roleArn          String
   region           String
   s3Endpoint       String?
+  providerId       String?
   createdAt        DateTime @default(now())
 
   @@unique([organization, jobId])
