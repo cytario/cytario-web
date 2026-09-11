@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { attachAnnotationSync } from "../annotationSync";
 import type { createViewerStore } from "../createViewerStore";
+import { toastBridge } from "~/toast-bridge";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 import { readAllAnnotations } from "~/utils/db/getAnnotationsWasm";
@@ -10,10 +11,12 @@ import { writeAnnotations } from "~/utils/db/writeAnnotationsWasm";
 vi.mock("~/utils/db/getAnnotationsWasm", () => ({ readAllAnnotations: vi.fn() }));
 vi.mock("~/utils/db/writeAnnotationsWasm", () => ({ writeAnnotations: vi.fn() }));
 vi.mock("~/utils/db/deleteAnnotations", () => ({ deleteAnnotations: vi.fn() }));
+vi.mock("~/toast-bridge", () => ({ toastBridge: { emit: vi.fn() } }));
 
 const readMock = vi.mocked(readAllAnnotations);
 const writeMock = vi.mocked(writeAnnotations);
 const deleteMock = vi.mocked(deleteAnnotations);
+const toastMock = vi.mocked(toastBridge.emit);
 
 let featureSeq = 0;
 const feature = (): AnnotationFeature => ({
@@ -94,6 +97,31 @@ describe("attachAnnotationSync", () => {
     fire(); // the seed's own subscription fire must diff to zero
     await vi.runAllTimersAsync();
     expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed read and seeds when a retry succeeds", async () => {
+    const seeded = [makeSet("set-1", "user-1", [feature()])];
+    readMock.mockRejectedValueOnce(new Error("transient")).mockResolvedValueOnce(seeded);
+    const { store, state } = makeFakeStore();
+
+    attachAnnotationSync(store);
+    await vi.advanceTimersByTimeAsync(5000); // past the first retry delay
+
+    expect(readMock).toHaveBeenCalledTimes(2);
+    expect(state.annotationSets.find((s) => s.id === "set-1")?.features).toBe(seeded[0].features);
+    expect(toastMock).not.toHaveBeenCalled(); // recovered — no toast
+  });
+
+  it("toasts the user after the retries are exhausted", async () => {
+    readMock.mockRejectedValue(new Error("persistent"));
+    const { store } = makeFakeStore();
+
+    attachAnnotationSync(store);
+    await vi.advanceTimersByTimeAsync(10000); // past the last retry delay
+
+    expect(readMock).toHaveBeenCalledTimes(3); // initial + 2 retries
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock.mock.calls[0][0]).toMatchObject({ variant: "error" });
   });
 
   it("keeps a pre-seed draw and schedules it for write (C-313 seed race)", async () => {

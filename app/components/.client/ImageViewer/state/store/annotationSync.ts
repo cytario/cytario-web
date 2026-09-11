@@ -8,8 +8,12 @@ import { writeAnnotations } from "~/utils/db/writeAnnotationsWasm";
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
 const SAVE_DEBOUNCE_MS = 800;
+const LOAD_RETRIES = 2;
+const LOAD_RETRY_DELAY_MS = 1500;
 
-/** Annotation ↔ S3 sync. One-time read seeds `annotationSets`; each change to
+/** Annotation ↔ S3 sync. Read seeds `annotationSets` with a bounded retry
+ *  (a transient failure — e.g. a network blip mid-read — surfaces a toast and
+ *  retries; the sets stay recoverable without a reload); each change to
  *  a set's `features` array is diffed against the persisted baseline and the
  *  changed set's sidecar is written, debounced. A set present in the baseline
  *  but absent from the working copy was deleted — its sidecar file is DELETEd. */
@@ -24,14 +28,31 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
   let saveFailed = false;
   let deleteFailed = false;
 
-  readAllAnnotations(store.getState().id)
-    .then((sets) => {
-      const baseline: Record<string, PersistedSet> = {};
-      for (const s of sets) baseline[s.id] = { features: s.features, name: s.name };
-      persisted = baseline;
-      store.getState().seedAnnotations(sets);
-    })
-    .catch((error) => console.error("[annotations] load failed:", error));
+  const loadFailedToast = () =>
+    toastBridge.emit({
+      variant: "error",
+      message:
+        "Annotations could not be loaded — retrying. If the problem persists, reload the page.",
+    });
+
+  const load = (attempt: number): Promise<void> =>
+    readAllAnnotations(store.getState().id)
+      .then((sets) => {
+        const baseline: Record<string, PersistedSet> = {};
+        for (const s of sets) baseline[s.id] = { features: s.features, name: s.name };
+        persisted = baseline;
+        store.getState().seedAnnotations(sets);
+      })
+      .catch((error) => {
+        console.error("[annotations] load failed:", error);
+        if (attempt >= LOAD_RETRIES) {
+          loadFailedToast();
+          return;
+        }
+        setTimeout(() => void load(attempt + 1), LOAD_RETRY_DELAY_MS * (attempt + 1));
+      });
+
+  void load(0);
 
   const schedule = () => {
     if (timer) clearTimeout(timer);
