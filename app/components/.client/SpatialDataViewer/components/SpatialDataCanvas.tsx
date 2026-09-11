@@ -1,10 +1,13 @@
 import type { RenderStack, ViewState } from "@spatialdata/vis";
 import { SpatialCanvasViewer } from "@spatialdata/vis";
+import { useCallback, useMemo } from "react";
 
 import { isZBearing } from "./useResolveZSizes";
 import { elementId } from "../state/createSpatialDataViewerStore";
 import { useSpatialDataStore } from "../state/SpatialDataStoreContext";
 import { LoaderView } from "~/components/Loader/LoaderView";
+
+const VIEWER_STYLE = { width: "100%", height: "100%" } as const;
 
 export interface RenderStackElementConfig {
   elementType: "image" | "labels" | "points" | "shapes";
@@ -52,6 +55,12 @@ export const SpatialDataCanvas = () => {
   const error = useSpatialDataStore((s) => s.error);
   const setViewState = useSpatialDataStore((s) => s.setViewState);
 
+  // The viewer diffs its layer config by prop identity: a fresh renderStack per
+  // render re-runs its reconcile effect on every store update, which loops with
+  // the loader's notify-driven re-renders (max update depth exceeded).
+  const renderStack = useMemo(() => buildRenderStack(elements), [elements]);
+  const handleViewStateChange = useCallback((vs: ViewState) => setViewState(vs), [setViewState]);
+
   if (error) {
     return (
       <div
@@ -68,17 +77,15 @@ export const SpatialDataCanvas = () => {
     return <LoaderView label="Loading spatial data…" />;
   }
 
-  const onViewStateChange = (vs: ViewState) => setViewState(vs);
-
   return (
     <div className="relative grow h-full w-full overflow-clip">
       <SpatialCanvasViewer
         spatialData={spatialData}
         coordinateSystem={coordinateSystem}
-        renderStack={buildRenderStack(elements)}
+        renderStack={renderStack}
         viewState={viewState}
-        onViewStateChange={onViewStateChange}
-        style={{ width: "100%", height: "100%" }}
+        onViewStateChange={handleViewStateChange}
+        style={VIEWER_STYLE}
       />
     </div>
   );
