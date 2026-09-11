@@ -139,16 +139,19 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
     addImagePanel: () =>
       set(
         (viewerStore) => {
-          const activePresetIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
-          const source =
-            activePresetIndex !== undefined
-              ? viewerStore.layersStates[activePresetIndex]
-              : undefined;
-          const newPresetIndex = viewerStore.layersStates.length;
-          viewerStore.layersStates.push(
-            source ? { ...source } : createDefaultLayersStateEntry(viewerStore.currentUserId),
+          const referencedIndices = new Set(viewerStore.imagePanels);
+          const availableIndex = viewerStore.layersStates.findIndex(
+            (layerState, index) =>
+              !referencedIndices.has(index) &&
+              layerState.author === viewerStore.currentUserId &&
+              !layerState.shared,
           );
-          viewerStore.imagePanels.push(newPresetIndex);
+          if (availableIndex >= 0) {
+            viewerStore.imagePanels.push(availableIndex);
+          } else {
+            viewerStore.layersStates.push(createDefaultLayersStateEntry(viewerStore.currentUserId));
+            viewerStore.imagePanels.push(viewerStore.layersStates.length - 1);
+          }
         },
         false,
         "addImagePanel",

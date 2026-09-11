@@ -310,53 +310,88 @@ describe("createViewerStore", () => {
     expect(store.getState().imagePanelIndex).toBe(-1);
   });
 
-  test("addImagePanel()", () => {
+  test("addImagePanel() creates default view when no available views exist", () => {
     const store = createViewerStore("test-viewer-11");
 
     expect(store.getState().imagePanels).toEqual([]);
 
     store.getState().addImagePanel();
     expect(store.getState().imagePanels).toEqual([0]);
+    expect(store.getState().layersStates).toHaveLength(1);
 
     store.getState().addImagePanel();
     expect(store.getState().imagePanels).toEqual([0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
 
     store.getState().addImagePanel();
     expect(store.getState().imagePanels).toEqual([0, 1, 2]);
+    expect(store.getState().layersStates).toHaveLength(3);
   });
 
-  test("addImagePanel() clones active panel's preset", () => {
+  test("addImagePanel() reuses available unreferenced own view", () => {
     const store = createViewerStore("test-viewer-11b");
 
     const preset0 = createMockLayersState();
     preset0.channelsOpacity = 0.3;
+    const unreferenced = createMockLayersState();
+    unreferenced.channelsOpacity = 0.5;
 
     store.setState({
       imagePanelIndex: 0,
       imagePanels: [0],
-      layersStates: [preset0, createMockLayersState()],
+      layersStates: [preset0, unreferenced],
+    });
+
+    store.getState().addImagePanel();
+
+    expect(store.getState().imagePanels).toEqual([0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().layersStates[1].channelsOpacity).toBe(0.5);
+  });
+
+  test("addImagePanel() creates new view when only peer views are available", () => {
+    const store = createViewerStore("test-viewer-11c", "user-a");
+
+    const ownPreset = createMockLayersState();
+    ownPreset.author = "user-a";
+    const peerView = createMockLayersState();
+    peerView.author = "user-b";
+    peerView.shared = true;
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [ownPreset, peerView],
     });
 
     store.getState().addImagePanel();
 
     expect(store.getState().imagePanels).toEqual([0, 2]);
     expect(store.getState().layersStates).toHaveLength(3);
-    expect(store.getState().layersStates[2].channelsOpacity).toBe(0.3);
+    expect(store.getState().layersStates[2].author).toBe("user-a");
+    expect(store.getState().layersStates[2].shared).toBeFalsy();
   });
 
-  test("addImagePanel() with shared presets clones the active panel's preset", () => {
-    const store = createViewerStore("test-viewer-11c");
+  test("addImagePanel() toggle on/off/on does not create duplicate views", () => {
+    const store = createViewerStore("test-viewer-11d");
 
     store.setState({
       imagePanelIndex: 0,
-      imagePanels: [0, 0],
+      imagePanels: [0],
       layersStates: [createMockLayersState()],
     });
 
     store.getState().addImagePanel();
-
-    expect(store.getState().imagePanels).toEqual([0, 0, 1]);
     expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 1]);
+
+    store.getState().removeImagePanel(1);
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0]);
+
+    store.getState().addImagePanel();
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 1]);
   });
 
   test("removeImagePanel()", () => {
