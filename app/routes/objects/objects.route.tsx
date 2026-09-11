@@ -113,6 +113,8 @@ function ZarrViewerRouter({
 
   useEffect(() => {
     let cancelled = false;
+    // The sniff resolves false on fetch failure (never rejects), so the OME-Zarr
+    // viewer's CORS error path takes over instead of a stuck loader.
     isSpatialDataStore(resourceId, httpsUrl, signedFetch).then((result) => {
       if (!cancelled) setIsSpatialData(result);
     });
