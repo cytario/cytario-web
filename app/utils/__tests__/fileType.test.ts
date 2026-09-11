@@ -10,6 +10,13 @@ describe("getFileType", () => {
     expect(getFileType("IMAGE.OME.TIFF")).toBe("OME-TIFF");
   });
 
+  test("identifies SpatialData files", () => {
+    expect(getFileType("dataset.sdata.zarr")).toBe("SpatialData");
+    expect(getFileType("dataset.spatialdata.zarr")).toBe("SpatialData");
+    expect(getFileType("DATASET.SDATA.ZARR")).toBe("SpatialData");
+    expect(getFileType("dataset.sdata.zarr/")).toBe("SpatialData");
+  });
+
   test("identifies Parquet files", () => {
     expect(getFileType("data.parquet")).toBe("Parquet");
     expect(getFileType("DATA.PARQUET")).toBe("Parquet");
@@ -53,11 +60,13 @@ describe("getFileType", () => {
 });
 
 describe("getFileCategory", () => {
-  test("returns image for OME-TIFF and OME-Zarr", () => {
+  test("returns image for OME-TIFF, OME-Zarr and SpatialData", () => {
     expect(getFileCategory("image.ome.tiff")).toBe("image");
     expect(getFileCategory("image.ome.tif")).toBe("image");
     expect(getFileCategory("image.ome.zarr")).toBe("image");
     expect(getFileCategory("image.zarr")).toBe("image");
+    expect(getFileCategory("dataset.sdata.zarr")).toBe("image");
+    expect(getFileCategory("dataset.spatialdata.zarr")).toBe("image");
   });
 
   test("returns tabular for CSV and Parquet", () => {
@@ -93,6 +102,14 @@ describe("getFileTypeEntry", () => {
 
   test("returns undefined for unknown types", () => {
     expect(getFileTypeEntry("file.xyz")).toBeUndefined();
+  });
+
+  test("distinguishes SpatialData from plain and OME Zarr", () => {
+    expect(getFileType("dataset.sdata.zarr")).toBe("SpatialData");
+    expect(getFileType("dataset.zarr")).toBe("OME-Zarr");
+    expect(getFileType("dataset.ome.zarr")).toBe("OME-Zarr");
+    const entry = getFileTypeEntry("dataset.sdata.zarr");
+    expect(entry?.storageLayout).toBe("leaf");
   });
 });
 
