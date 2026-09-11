@@ -37,7 +37,7 @@ export async function getTileDataWasm(
       // structurally different to TypeScript.
       return arrowTable as unknown as Table;
     } finally {
-      await releaseDatabase(resourceId);
+      releaseDatabase(resourceId);
     }
   } catch (error) {
     console.error(`[getTileDataWasm] Error fetching tile data:`, error);

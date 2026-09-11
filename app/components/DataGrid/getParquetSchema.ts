@@ -33,7 +33,7 @@ export async function getParquetSchema(resourceId: string): Promise<ParquetColum
       throw new Error(`Unsupported file type for schema extraction: ${fileType}`);
     }
   } finally {
-    await releaseDatabase(resourceId);
+    releaseDatabase(resourceId);
   }
 
   const columns: ParquetColumn[] = [];

@@ -69,7 +69,7 @@ export class SidecarRepository {
         await statement.close();
       }
     } finally {
-      await releaseDatabase(resourceId);
+      releaseDatabase(resourceId);
     }
   }
 
@@ -98,7 +98,7 @@ export class SidecarRepository {
         .join(", ");
       await connection.query(/*sql*/ `COPY (SELECT ${columns}) TO '${dest}' (FORMAT JSON);`);
     } finally {
-      await releaseDatabase(this.resourceId);
+      releaseDatabase(this.resourceId);
     }
   }
 }

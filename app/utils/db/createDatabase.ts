@@ -106,6 +106,12 @@ const terminateHandle = (tracked: TrackedHandle) =>
       // Termination best-effort; the worker dies with the tab anyway.
     });
 
+/** Drop a failed-init handle from whichever map holds it, guarded by identity. */
+function dropFailedHandle(resourceId: string, tracked: TrackedHandle) {
+  if (openHandles.get(resourceId) === tracked) openHandles.delete(resourceId);
+  if (evictedHandles.get(resourceId) === tracked) evictedHandles.delete(resourceId);
+}
+
 /** Insertion-order LRU: touch on use, evict the oldest beyond the cap. */
 function evictBeyondCap() {
   while (openHandles.size > MAX_DUCKDB_INSTANCES) {
@@ -125,6 +131,11 @@ function evictBeyondCap() {
  * STS credentials rotate (~hourly, C-242) while a cached connection lives for
  * the whole viewer session — re-apply the `SET s3_*` trio whenever the caller
  * resolves a different `AccessKeyId` than the connection last saw.
+ *
+ * Borrow contract: every successful call must be paired with exactly one
+ * `releaseDatabase(resourceId)` once the caller's work on the connection is
+ * done (a `try/finally` around all query work). A missing release pins the
+ * handle — and once it is evicted, its worker — in memory for the session.
  */
 export const createDatabase = async (
   resourceId: string,
@@ -149,16 +160,14 @@ export const createDatabase = async (
     openHandles.set(resourceId, tracked);
   } else {
     const handlePromise = createDatabaseInternal(resourceId, provider);
-    tracked = { promise: handlePromise, borrows: 0, evicted: false };
-    openHandles.set(resourceId, tracked);
+    const fresh: TrackedHandle = { promise: handlePromise, borrows: 0, evicted: false };
+    tracked = fresh;
+    openHandles.set(resourceId, fresh);
     evictBeyondCap();
 
-    // A failed init must not stay cached (and must not be terminated as a
-    // live handle would). The borrow taken below is undone on the same
-    // failure so a rejected create leaves the refcount untouched.
-    handlePromise.catch(() => {
-      if (openHandles.get(resourceId) === tracked) openHandles.delete(resourceId);
-    });
+    // A failed init must not stay cached in either map, whether eviction
+    // parked it or it still sits live in the LRU.
+    handlePromise.catch(() => dropFailedHandle(resourceId, fresh));
   }
 
   // Borrow before any await so an eviction triggered while this call is
@@ -170,6 +179,7 @@ export const createDatabase = async (
     ({ connection } = await tracked.promise);
   } catch (error) {
     tracked.borrows = Math.max(0, tracked.borrows - 1);
+    dropFailedHandle(resourceId, tracked);
     throw error;
   }
 
@@ -194,7 +204,7 @@ export const createDatabase = async (
  * Release a `createDatabase` borrow. The last release of an evicted handle
  * terminates it; a live (non-evicted) handle simply stays in the LRU.
  */
-export const releaseDatabase = async (resourceId: string): Promise<void> => {
+export const releaseDatabase = (resourceId: string): void => {
   let tracked = openHandles.get(resourceId);
   if (!tracked) tracked = evictedHandles.get(resourceId);
   if (!tracked) return;

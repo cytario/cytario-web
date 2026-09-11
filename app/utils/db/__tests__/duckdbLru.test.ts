@@ -38,10 +38,6 @@ describe("DuckDB instance LRU", () => {
     __resetDuckDbHandlesForTests();
     instances = [];
     terminated = [];
-    // The LRU is module state shared across tests in this file; evictions of
-    // handles created by earlier tests land on their (cleared) mocks, so every
-    // terminate is recorded here as well.
-    terminated = [];
 
     vi.mocked(getLocalDuckDbBundles).mockReturnValue({} as never);
     vi.mocked(selectBundle).mockResolvedValue({
@@ -173,6 +169,93 @@ describe("DuckDB instance LRU", () => {
     await releaseDatabase("multi-a");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(borrowed.connection.close).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed init under cap pressure does not poison the resourceId", async () => {
+    let created = 0;
+    let failFirst = true;
+    vi.mocked(AsyncDuckDB).mockImplementation(
+      () =>
+        ({
+          instantiate: vi.fn(async () => {
+            created += 1;
+            if (failFirst) {
+              failFirst = false;
+              throw new Error("init failed under pressure");
+            }
+            return undefined;
+          }),
+          open: vi.fn().mockResolvedValue(undefined),
+          connect: vi.fn().mockResolvedValue({ query: vi.fn().mockResolvedValue({}) }),
+          terminate: vi.fn(),
+        }) as never,
+    );
+
+    // Start the doomed create but do NOT await it yet.
+    const doomed = createDatabase("poison-a", credentials, undefined);
+    // Cap pressure while it is still initializing — evictBeyondCap parks
+    // poison-a (borrows > 0) into evictedHandles before the init rejects.
+    for (const id of ["poison-b", "poison-c", "poison-d"]) {
+      await createDatabase(id, credentials, undefined);
+      await releaseDatabase(id);
+    }
+    await expect(doomed).rejects.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The rejected handle must be gone from every map — a retry builds fresh.
+    await createDatabase("poison-a", credentials, undefined);
+    await releaseDatabase("poison-a");
+    expect(created).toBe(5); // poison-a(failed) + poison-b/c/d + poison-a(retry)
+  });
+
+  test("an eviction racing a create-in-flight defers termination past both borrows", async () => {
+    // Slow-init instances so the borrows are outstanding when eviction runs.
+    let initGate: Promise<void> = Promise.resolve();
+    vi.mocked(AsyncDuckDB).mockImplementation(() => {
+      const instance: Instance = {
+        terminate: vi.fn().mockImplementation(async () => {
+          terminated.push(instance);
+        }),
+        connection: {
+          query: vi.fn().mockResolvedValue({}),
+          close: vi.fn().mockResolvedValue(undefined),
+        },
+      };
+      instances.push(instance);
+      return {
+        instantiate: vi.fn().mockImplementation(async () => {
+          await initGate;
+        }),
+        open: vi.fn().mockResolvedValue(undefined),
+        connect: vi.fn().mockResolvedValue(instance.connection),
+        terminate: instance.terminate,
+      } as never;
+    });
+
+    let releaseGate!: () => void;
+    initGate = new Promise((resolve) => (releaseGate = resolve));
+
+    // Two concurrent creates on the same pending init + one on a second id.
+    const first = createDatabase("inter-a", credentials, undefined);
+    const second = createDatabase("inter-a", credentials, undefined);
+    const third = createDatabase("inter-b", credentials, undefined);
+    await new Promise((resolve) => setTimeout(resolve, 0)); // borrows taken, inits pending
+
+    releaseGate();
+    const [connA1, connA2, connB] = await Promise.all([first, second, third]);
+
+    // Same connection for both inter-a borrows; distinct for inter-b.
+    expect(connA1).toBe(connA2);
+    expect(connB).not.toBe(connA1);
+    releaseDatabase("inter-a");
+    releaseDatabase("inter-a");
+    releaseDatabase("inter-b");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // No termination fired while borrows were outstanding — cap never exceeded
+    // (2 < 3), and both creates resolved on a live connection.
+    expect(terminated).toHaveLength(0);
+    expect(instances).toHaveLength(2);
   });
 
   test("a failed init is not kept and not terminated as a live handle", async () => {

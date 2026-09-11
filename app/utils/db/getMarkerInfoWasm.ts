@@ -13,7 +13,7 @@ export async function getOverlayCellCount(resourceId: string): Promise<number> {
     const row = result.toArray()[0] as { n: bigint } | undefined;
     return Number(row?.n ?? 0);
   } finally {
-    await releaseDatabase(resourceId);
+    releaseDatabase(resourceId);
   }
 }
 
@@ -42,6 +42,6 @@ export async function getMarkerInfoWasm(resourceId: string): Promise<MarkerInfo>
     console.error(`Error extracting marker info:`, error);
     throw error;
   } finally {
-    await releaseDatabase(resourceId);
+    releaseDatabase(resourceId);
   }
 }

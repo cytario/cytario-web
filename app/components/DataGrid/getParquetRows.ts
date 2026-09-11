@@ -23,7 +23,7 @@ export async function getParquetRows(
       LIMIT ${limit} OFFSET ${offset}
     `);
   } finally {
-    await releaseDatabase(resourceId);
+    releaseDatabase(resourceId);
   }
 
   const rows: Record<string, unknown>[] = [];
