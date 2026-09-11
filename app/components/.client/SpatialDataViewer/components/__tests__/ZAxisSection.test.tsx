@@ -35,7 +35,7 @@ describe("ZAxisSection", () => {
   test("renders a slider bounded by the resolved zSize for a visible z-bearing element", () => {
     renderSection({ "image:z_image": element({ zIndex: 3, zSize: 16 }) });
 
-    const slider = screen.getByRole("slider", { name: "z_image z plane" });
+    const slider = screen.getByRole("slider", { name: "image z_image z plane" });
     expect(slider).toHaveAttribute("min", "0");
     expect(slider).toHaveAttribute("max", "15");
     expect(slider).toHaveAttribute("value", "3");
@@ -58,7 +58,9 @@ describe("ZAxisSection", () => {
   test("slider changes call the store action with the element id and plane", () => {
     renderSection({ "image:z_image": element({ zIndex: 0, zSize: 16 }) });
 
-    const slider = screen.getByRole("slider", { name: "z_image z plane" }) as HTMLInputElement;
+    const slider = screen.getByRole("slider", {
+      name: "image z_image z plane",
+    }) as HTMLInputElement;
     const setValue = Object.getOwnPropertyDescriptor(
       window.HTMLInputElement.prototype,
       "value",
