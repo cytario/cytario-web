@@ -52,11 +52,22 @@ export function elementsFromSpatialData(spatialData: SpatialData): SpatialElemen
     const collection = spatialData[elementType === "image" ? "images" : elementType];
     if (!collection) continue;
     for (const elementKey of Object.keys(collection)) {
+      const instance: unknown = collection[elementKey];
+      const hasStoreView =
+        (elementType === "image" || elementType === "labels") &&
+        typeof (instance as { getStore?: unknown }).getStore === "function";
       elements.push({
         elementType,
         elementKey,
         isVisible: true,
         opacity: DEFAULT_ELEMENT_OPACITY,
+        // Late binding: the element memoizes its store view, and the chunk
+        // cache downstream is keyed by store instance — the closure keeps one
+        // stable view per element for every caller. The method check lets
+        // store-less stand-ins (e.g. fixture objects) degrade to unresolved z.
+        ...(hasStoreView
+          ? { getStore: () => (instance as { getStore: () => unknown }).getStore() }
+          : {}),
       });
     }
   }
@@ -66,7 +77,7 @@ export function elementsFromSpatialData(spatialData: SpatialData): SpatialElemen
 export function createSpatialDataViewerStore() {
   return create<SpatialDataViewerState>()(
     devtools(
-      (set) => ({
+      (set, get) => ({
         spatialData: null,
         coordinateSystem: null,
         viewState: null,
@@ -76,10 +87,11 @@ export function createSpatialDataViewerStore() {
 
         setSpatialData: (spatialData) => {
           const elements = Object.fromEntries(
-            elementsFromSpatialData(spatialData).map((e) => [
-              elementId(e.elementType, e.elementKey),
-              e,
-            ]),
+            elementsFromSpatialData(spatialData).map((e) => {
+              const id = elementId(e.elementType, e.elementKey);
+              const previous = get().elements[id];
+              return [id, previous ? { ...e, zIndex: previous.zIndex, zSize: previous.zSize } : e];
+            }),
           );
           set(
             {

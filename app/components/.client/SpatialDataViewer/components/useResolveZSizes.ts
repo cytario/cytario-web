@@ -26,9 +26,11 @@ const zSizeFromLoader = (loader: unknown): number | undefined => {
 /**
  * Resolve each raster element's z plane count from its pixel source.
  *
- * Runs when the element key set changes; elements already resolved (store
- * re-seeds keep their value out of the work set) and non-raster kinds are
- * skipped. Per-element failures leave that element's zSize undefined without
+ * Runs when the element key set changes; elements already resolved and
+ * non-raster kinds are skipped. A store re-seed rebuilds the element configs
+ * from scratch but the setSpatialData carry-over preserves prior zSize values,
+ * so re-seeding does not re-load resolved elements unless their key set
+ * changed. Per-element failures leave that element's zSize undefined without
  * aborting the others.
  */
 export function useResolveZSizes(
