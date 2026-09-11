@@ -27,9 +27,9 @@ export interface OverlaysSlice {
 export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
   addOverlaysState: (overlaysState) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           Object.assign(layerState.overlays, overlaysState);
         }
@@ -40,9 +40,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
 
   updateOverlaysState: (overlayId, overlayState) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState?.overlays[overlayId]) {
           layerState.overlays[overlayId].markers = overlayState;
         }
@@ -71,9 +71,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
   // reported set cannot grow unboundedly across add/remove cycles.
   removeOverlaysState: (overlaysStateId) => {
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const overlays = viewerStore.layersStates[activeImagePanelIndex]?.overlays;
         if (overlays) {
           delete overlays[overlaysStateId];
         }
@@ -86,9 +86,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
 
   setOverlaysFillOpacity: (fillOpacity) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           layerState.overlaysFillOpacity = fillOpacity;
         }
@@ -99,9 +99,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
 
   setShowCellOutline: (showCellOutline) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           layerState.showCellOutline = showCellOutline;
         }
@@ -112,9 +112,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
 
   setMarkerVisibility: (fileName, markerName, isVisible) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const overlays = viewerStore.layersStates[activeImagePanelIndex]?.overlays;
         if (overlays?.[fileName]?.markers[markerName]) {
           overlays[fileName].markers[markerName].isVisible = isVisible;
         }
@@ -125,11 +125,13 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
 
   setMarkerColor: (fileName, markerName, color) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const overlays = viewerStore.layersStates[activeImagePanelIndex]?.overlays;
         if (overlays?.[fileName]?.markers[markerName]) {
           overlays[fileName].markers[markerName].color = color;
+        }
+      },
         }
       },
       false,
@@ -138,9 +140,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
 
   setIsOverlaysLoading: (imagePanelId, count) =>
     set(
-      (state) => {
-        const layersStateIndex = state.imagePanels[imagePanelId];
-        const layerState = state.layersStates[layersStateIndex];
+      (viewerStore) => {
+        const layersStateIndex = viewerStore.imagePanels[imagePanelId];
+        const layerState = viewerStore.layersStates[layersStateIndex];
         if (layerState) {
           layerState.isOverlaysLoading = count;
         }

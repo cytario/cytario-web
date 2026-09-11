@@ -3,6 +3,7 @@ import { createStore } from "zustand";
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import { withAutoFork } from "./autoFork";
 import { createAnnotationsSlice } from "./slices/viewer.annotations.store";
 import { createChannelsSlice } from "./slices/viewer.channels.store";
 import { createCoreSlice } from "./slices/viewer.core.store";
@@ -37,7 +38,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
         immer(
           devtools(
             temporal(
-              (set, get, storeApi) => ({
+              withAutoFork((set, get, storeApi) => ({
                 id,
                 currentUserId: userId,
                 ...createCoreSlice(set, get, storeApi),
@@ -45,7 +46,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
                 ...createChannelsSlice(set, get, storeApi),
                 ...createOverlaysSlice(set, get, storeApi),
                 ...createAnnotationsSlice(set, get, storeApi),
-              }),
+              })),
               temporalOptions,
             ),
             {

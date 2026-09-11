@@ -90,8 +90,8 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
 
   setViewStatePreview: (viewStatePreview) =>
     set(
-      (state) => {
-        state.viewStatePreview = viewStatePreview;
+      (viewerStore) => {
+        viewerStore.viewStatePreview = viewStatePreview;
       },
       false,
       "setViewStatePreview",
@@ -99,23 +99,23 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
 
   setViewStateActive: (viewStateActive) =>
     set(
-      (state) => {
-        state.viewStateActive = viewStateActive;
-        state.viewStateActive.minZoom = -(state.loader?.length ?? 0);
-        state.viewStateActive.maxZoom = 2;
+      (viewerStore) => {
+        viewerStore.viewStateActive = viewStateActive;
+        viewerStore.viewStateActive.minZoom = -(viewerStore.loader?.length ?? 0);
+        viewerStore.viewStateActive.maxZoom = 2;
       },
       false,
       "setViewStateActive",
     ),
 
   setCursorPosition: (cursorPosition) =>
-    set((state) => ({ ...state, cursorPosition }), false, "setCursorPosition"),
+    set((viewerStore) => ({ ...viewerStore, cursorPosition }), false, "setCursorPosition"),
 
   setPixelValues: (ids, values) =>
     set(
-      (state) => {
+      (viewerStore) => {
         ids.forEach((id, index) => {
-          state.pixelValues[id] = values[index];
+          viewerStore.pixelValues[id] = values[index];
         });
       },
       false,
@@ -124,8 +124,8 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
 
   setCompositeTooltip: (compositeTooltip) =>
     set(
-      (state) => {
-        state.compositeTooltip = compositeTooltip;
+      (viewerStore) => {
+        viewerStore.compositeTooltip = compositeTooltip;
       },
       false,
       "setCompositeTooltip",
@@ -133,8 +133,8 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
 
   setHoverMode: (hoverMode) =>
     set(
-      (state) => {
-        state.hoverMode = hoverMode;
+      (viewerStore) => {
+        viewerStore.hoverMode = hoverMode;
       },
       false,
       "setHoverMode",
@@ -142,9 +142,9 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
 
   pinTooltip: () =>
     set(
-      (state) => {
-        const current = state.compositeTooltip;
-        if (current) state.pinnedTooltip = current;
+      (viewerStore) => {
+        const current = viewerStore.compositeTooltip;
+        if (current) viewerStore.pinnedTooltip = current;
       },
       false,
       "pinTooltip",
@@ -152,8 +152,8 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
 
   unpinTooltip: () =>
     set(
-      (state) => {
-        state.pinnedTooltip = null;
+      (viewerStore) => {
+        viewerStore.pinnedTooltip = null;
       },
       false,
       "unpinTooltip",

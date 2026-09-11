@@ -245,15 +245,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     temporalStore?.getState().pause();
     try {
       set(
-        (state) => {
+        (viewerStore) => {
           for (const set of sets) {
-            if (!state.annotationSets.some((s) => s.id === set.id)) {
-              state.annotationSets.push(set);
+            if (!viewerStore.annotationSets.some((s) => s.id === set.id)) {
+              viewerStore.annotationSets.push(set);
             }
           }
-          if (!state.activeSetId) {
-            const first = state.annotationSets[0];
-            if (first) state.activeSetId = first.id;
+          if (!viewerStore.activeSetId) {
+            const first = viewerStore.annotationSets[0];
+            if (first) viewerStore.activeSetId = first.id;
           }
         },
         false,
@@ -279,8 +279,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     try {
       if (first) {
         set(
-          (s) => {
-            s.activeSetId = first.id;
+          (viewerStore) => {
+            viewerStore.activeSetId = first.id;
           },
           false,
           "ensureOwnSet",
@@ -289,14 +289,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       }
       const id = crypto.randomUUID();
       set(
-        (s) => {
-          s.annotationSets.push({
+        (viewerStore) => {
+          viewerStore.annotationSets.push({
             id,
-            createdBy: s.currentUserId,
+            createdBy: viewerStore.currentUserId,
             features: [],
-            name: generateSetName(s.annotationSets),
+            name: generateSetName(viewerStore.annotationSets),
           });
-          s.activeSetId = id;
+          viewerStore.activeSetId = id;
         },
         false,
         "ensureOwnSet",
@@ -310,14 +310,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   createAnnotationSet: () => {
     const id = crypto.randomUUID();
     set(
-      (s) => {
-        s.annotationSets.push({
+      (viewerStore) => {
+        viewerStore.annotationSets.push({
           id,
-          createdBy: s.currentUserId,
+          createdBy: viewerStore.currentUserId,
           features: [],
-          name: generateSetName(s.annotationSets),
+          name: generateSetName(viewerStore.annotationSets),
         });
-        s.activeSetId = id;
+        viewerStore.activeSetId = id;
       },
       false,
       "createAnnotationSet",
@@ -327,8 +327,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   updateSetFeatures: (setId, features) => {
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           set.features = features;
         }
@@ -340,19 +340,21 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   deleteAnnotationSet: (setId) => {
     set(
-      (state) => {
-        const index = state.annotationSets.findIndex((s) => s.id === setId);
+      (viewerStore) => {
+        const index = viewerStore.annotationSets.findIndex((s) => s.id === setId);
         if (index === -1) return;
-        state.annotationSets.splice(index, 1);
-        delete state.annotationView[setId];
-        if (state.activeSetId === setId) {
-          state.activeSetId = state.annotationSets[0]?.id ?? null;
+        viewerStore.annotationSets.splice(index, 1);
+        delete viewerStore.annotationView[setId];
+        if (viewerStore.activeSetId === setId) {
+          viewerStore.activeSetId = viewerStore.annotationSets[0]?.id ?? null;
         }
         // Drop selection entries pointing at the deleted set's features.
         const survivorIds = new Set(
-          state.annotationSets.flatMap((s) => s.features.flatMap((f) => (f.id ? [f.id] : []))),
+          viewerStore.annotationSets.flatMap((s) =>
+            s.features.flatMap((f) => (f.id ? [f.id] : [])),
+          ),
         );
-        state.annotationSelectedIds = state.annotationSelectedIds.filter((id) =>
+        viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
           survivorIds.has(id),
         );
       },
@@ -363,8 +365,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   renameAnnotationSet: (setId, name) => {
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) set.name = name.trim() || undefined;
       },
       false,
@@ -374,10 +376,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationClassColor: (setId, name, color) =>
     set(
-      (state) => {
-        const entry = state.annotationClasses.find((c) => c.name === name);
+      (viewerStore) => {
+        const entry = viewerStore.annotationClasses.find((c) => c.name === name);
         if (entry) entry.color = color;
-        const set = state.annotationSets.find((s) => s.id === setId);
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           for (const feature of set.features) {
             if (feature.properties?.classification?.name === name) {
@@ -392,20 +394,20 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationClassForIds: (setId, ids, name) =>
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (!set) return;
         const idSet = new Set(ids);
         // A reserved/empty name clears to unclassified (absence, not a named class).
         const target = name && !isReservedClassName(name) ? name : null;
         // One color for the whole batch: registry/existing color, else a fresh one.
         const color = target
-          ? (classColor(state.annotationClasses, set.features, target) ??
-            pickClassColor(state.annotationClasses, set.features))
+          ? (classColor(viewerStore.annotationClasses, set.features, target) ??
+            pickClassColor(viewerStore.annotationClasses, set.features))
           : null;
         // Assigning to a not-yet-registered name registers it (classified names are classes).
-        if (target && color && !state.annotationClasses.some((c) => c.name === target)) {
-          state.annotationClasses.push({ name: target, color });
+        if (target && color && !viewerStore.annotationClasses.some((c) => c.name === target)) {
+          viewerStore.annotationClasses.push({ name: target, color });
         }
         for (const feature of set.features) {
           if (!idSet.has(feature.id)) continue;
@@ -422,12 +424,12 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   renameAnnotationClass: (setId, oldName, newName) =>
     set(
-      (state) => {
+      (viewerStore) => {
         if (isReservedClassName(newName) || isReservedClassName(oldName)) return;
-        const set = state.annotationSets.find((s) => s.id === setId);
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         const features = set?.features ?? [];
         // Adopt the target class's color when renaming merges into an existing class.
-        const mergeColor = classColor(state.annotationClasses, features, newName);
+        const mergeColor = classColor(viewerStore.annotationClasses, features, newName);
         for (const feature of features) {
           const classification = feature.properties.classification;
           if (classification?.name === oldName) {
@@ -436,13 +438,16 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
           }
         }
         // Registry: merge into an existing target (drop old), else rename in place.
-        if (state.annotationClasses.some((c) => c.name === newName)) {
-          state.annotationClasses = state.annotationClasses.filter((c) => c.name !== oldName);
+        if (viewerStore.annotationClasses.some((c) => c.name === newName)) {
+          viewerStore.annotationClasses = viewerStore.annotationClasses.filter(
+            (c) => c.name !== oldName,
+          );
         } else {
-          const oldEntry = state.annotationClasses.find((c) => c.name === oldName);
+          const oldEntry = viewerStore.annotationClasses.find((c) => c.name === oldName);
           if (oldEntry) oldEntry.name = newName;
         }
-        if (state.annotationActiveClass === oldName) state.annotationActiveClass = newName;
+        if (viewerStore.annotationActiveClass === oldName)
+          viewerStore.annotationActiveClass = newName;
       },
       false,
       "renameAnnotationClass",
@@ -450,8 +455,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   renameAnnotation: (setId, id, name) =>
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (!set) return;
         const feature = set.features.find((f) => f.id === id);
         if (!feature) return;
@@ -468,8 +473,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationActiveClass: (name) =>
     set(
-      (state) => {
-        state.annotationActiveClass = name;
+      (viewerStore) => {
+        viewerStore.annotationActiveClass = name;
       },
       false,
       "setAnnotationActiveClass",
@@ -478,17 +483,17 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   createAnnotationClass: (name) => {
     let created = "";
     set(
-      (state) => {
+      (viewerStore) => {
         const base = (name ?? "New class").trim() || "New class";
         if (isReservedClassName(base)) return;
-        const taken = new Set(state.annotationClasses.map((c) => c.name.toLowerCase()));
+        const taken = new Set(viewerStore.annotationClasses.map((c) => c.name.toLowerCase()));
         let unique = base;
         for (let n = 2; taken.has(unique.toLowerCase()); n++) unique = `${base} ${n}`;
-        state.annotationClasses.push({
+        viewerStore.annotationClasses.push({
           name: unique,
-          color: pickClassColor(state.annotationClasses, []),
+          color: pickClassColor(viewerStore.annotationClasses, []),
         });
-        state.annotationActiveClass = unique;
+        viewerStore.annotationActiveClass = unique;
         created = unique;
       },
       false,
@@ -499,9 +504,11 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   deleteAnnotationClass: (setId, name) =>
     set(
-      (state) => {
-        state.annotationClasses = state.annotationClasses.filter((c) => c.name !== name);
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        viewerStore.annotationClasses = viewerStore.annotationClasses.filter(
+          (c) => c.name !== name,
+        );
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           for (const feature of set.features) {
             if (feature.properties?.classification?.name === name) {
@@ -509,7 +516,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
             }
           }
         }
-        if (state.annotationActiveClass === name) state.annotationActiveClass = null;
+        if (viewerStore.annotationActiveClass === name) viewerStore.annotationActiveClass = null;
       },
       false,
       "deleteAnnotationClass",
@@ -517,8 +524,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   toggleAnnotationClassVisibility: (setId, name) =>
     set(
-      (state) => {
-        const view = (state.annotationView[setId] ??= { hiddenClasses: [] });
+      (viewerStore) => {
+        const view = (viewerStore.annotationView[setId] ??= { hiddenClasses: [] });
         const index = view.hiddenClasses.indexOf(name);
         if (index === -1) view.hiddenClasses.push(name);
         else view.hiddenClasses.splice(index, 1);
@@ -529,8 +536,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   showAnnotationClass: (setId, name) =>
     set(
-      (state) => {
-        const hidden = state.annotationView[setId]?.hiddenClasses;
+      (viewerStore) => {
+        const hidden = viewerStore.annotationView[setId]?.hiddenClasses;
         const index = hidden?.indexOf(name) ?? -1;
         if (hidden && index !== -1) hidden.splice(index, 1);
       },
@@ -540,9 +547,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationsOpacity: (opacity) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           layerState.annotationsOpacity = opacity;
         }
@@ -553,9 +560,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setShowAnnotationOutline: (show) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           layerState.showAnnotationOutline = show;
         }
@@ -566,9 +573,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationSetHidden: (setId, hidden) =>
     set(
-      (state) => {
-        const view = (state.annotationView[setId] ??= { hiddenClasses: [] });
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const view = (viewerStore.annotationView[setId] ??= { hiddenClasses: [] });
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         view.hiddenClasses = hidden ? [...new Set((set?.features ?? []).map(classNameOf))] : [];
       },
       false,
@@ -577,8 +584,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationMode: (mode) =>
     set(
-      (state) => {
-        state.annotationMode = mode;
+      (viewerStore) => {
+        viewerStore.annotationMode = mode;
       },
       false,
       "setAnnotationMode",
@@ -586,8 +593,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationSelectedIds: (ids) =>
     set(
-      (state) => {
-        state.annotationSelectedIds = ids;
+      (viewerStore) => {
+        viewerStore.annotationSelectedIds = ids;
       },
       false,
       "setAnnotationSelectedIds",

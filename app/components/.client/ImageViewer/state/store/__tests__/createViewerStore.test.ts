@@ -1349,6 +1349,7 @@ describe("createViewerStore", () => {
       store.getState().forkView(0);
 
       expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().imagePanels[0]).toBe(1);
       const fork = store.getState().layersStates[1];
       expect(fork.id).not.toBe(source.id);
       expect(fork.author).toBe("user-a");
@@ -1587,6 +1588,146 @@ describe("createViewerStore", () => {
 
       store.getState().removeChannelsState(0);
       expect(store.getState().layersStates).toHaveLength(1);
+    });
+  });
+
+  describe("auto-fork on write to peer shared view", () => {
+    const setupPeerSharedStore = () => {
+      const store = createViewerStore("test-autofork-1", "user-a");
+      const peerView = {
+        ...createMockLayersState(),
+        id: "peer-view-id",
+        author: "user-b",
+        shared: true,
+        name: "Peer View",
+        channels: {
+          Red: {
+            contrastLimits: [10, 200] as [number, number],
+            isVisible: true,
+            color: [255, 0, 0] as [number, number, number],
+          },
+        },
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        selectedChannelId: "Red",
+        channels: createMockChannels(),
+        layersStates: [peerView],
+      });
+      return { store, peerView };
+    };
+
+    test("forks on setContrastLimits when active view is peer shared", () => {
+      const { store, peerView } = setupPeerSharedStore();
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().imagePanels[0]).toBe(1);
+      const fork = store.getState().layersStates[1];
+      expect(fork.id).not.toBe(peerView.id);
+      expect(fork.author).toBe("user-a");
+      expect(fork.shared).toBe(false);
+      expect(fork.name).toBe("Peer View (copy)");
+      expect(fork.channels["Red"]?.contrastLimits).toEqual([50, 150]);
+    });
+
+    test("does NOT fork when writing to own view", () => {
+      const store = createViewerStore("test-autofork-2", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        selectedChannelId: "Red",
+        channels: createMockChannels(),
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: false }],
+      });
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].channels["Red"]?.contrastLimits).toEqual([50, 150]);
+    });
+
+    test("does NOT fork when writing to own shared view", () => {
+      const store = createViewerStore("test-autofork-3", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        selectedChannelId: "Red",
+        channels: createMockChannels(),
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: true }],
+      });
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].channels["Red"]?.contrastLimits).toEqual([50, 150]);
+    });
+
+    test("does NOT double-fork on second write", () => {
+      const { store } = setupPeerSharedStore();
+      store.getState().setContrastLimits([50, 150]);
+      expect(store.getState().layersStates).toHaveLength(2);
+
+      store.getState().setContrastLimits([30, 170]);
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].channels["Red"]?.contrastLimits).toEqual([30, 170]);
+    });
+
+    test("original peer shared view is unchanged after fork", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates[0].channels["Red"]?.contrastLimits).toEqual([10, 200]);
+      expect(store.getState().layersStates[0].shared).toBe(true);
+      expect(store.getState().layersStates[0].author).toBe("user-b");
+    });
+
+    test("forks on setChannelColor", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setChannelColor("Red", [0, 128, 255, 255]);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].channels["Red"]?.color).toEqual([0, 128, 255]);
+    });
+
+    test("forks on setChannelsOpacity", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setChannelsOpacity(0.5);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].channelsOpacity).toBe(0.5);
+    });
+
+    test("forks on setAnnotationsOpacity", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setAnnotationsOpacity(0.3);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].annotationsOpacity).toBe(0.3);
+    });
+
+    test("forks on setShowAnnotationOutline", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setShowAnnotationOutline(false);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].showAnnotationOutline).toBe(false);
+    });
+
+    test("forks on setOverlaysFillOpacity", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setOverlaysFillOpacity(0.4);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].overlaysFillOpacity).toBe(0.4);
     });
   });
 

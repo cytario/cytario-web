@@ -34,8 +34,8 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
 
   setError: (error) =>
     set(
-      (state) => {
-        state.error = error;
+      (viewerStore) => {
+        viewerStore.error = error;
       },
       false,
       "setError",
@@ -43,8 +43,8 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
 
   setMetadata: (metadata) =>
     set(
-      (state) => {
-        state.metadata = metadata;
+      (viewerStore) => {
+        viewerStore.metadata = metadata;
       },
       false,
       "setMetadata",
@@ -52,10 +52,10 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
 
   setLoader: (loader) =>
     set(
-      (state) => {
-        state.loader = loader;
+      (viewerStore) => {
+        viewerStore.loader = loader;
         if (loader?.[0]) {
-          state.valueRange = [0, getDtypeMax(loader[0].dtype as SupportedDtype)];
+          viewerStore.valueRange = [0, getDtypeMax(loader[0].dtype as SupportedDtype)];
         }
       },
       false,
@@ -64,8 +64,8 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
 
   setIsViewerLoading: (isViewerLoading) =>
     set(
-      (state) => {
-        state.isViewerLoading = isViewerLoading;
+      (viewerStore) => {
+        viewerStore.isViewerLoading = isViewerLoading;
       },
       false,
       "setIsViewerLoading",
@@ -73,8 +73,8 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
 
   setSharedViewsLoaded: (val) =>
     set(
-      (state) => {
-        state.sharedViewsLoaded = val;
+      (viewerStore) => {
+        viewerStore.sharedViewsLoaded = val;
       },
       false,
       "setSharedViewsLoaded",
