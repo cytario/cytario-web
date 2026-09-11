@@ -1,7 +1,7 @@
 import { selectBundle, createWorker, AsyncDuckDB } from "@duckdb/duckdb-wasm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { createDatabase } from "../createDatabase";
+import { createDatabase, releaseDatabase, __resetDuckDbHandlesForTests } from "../createDatabase";
 import { getLocalDuckDbBundles } from "../duckdbBundles";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -35,7 +35,9 @@ describe("DuckDB instance LRU", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "info").mockImplementation(() => {});
+    __resetDuckDbHandlesForTests();
     instances = [];
+    terminated = [];
     // The LRU is module state shared across tests in this file; evictions of
     // handles created by earlier tests land on their (cleared) mocks, so every
     // terminate is recorded here as well.
@@ -73,16 +75,19 @@ describe("DuckDB instance LRU", () => {
   test("reuses one instance per resourceId", async () => {
     await createDatabase("lru-reuse", credentials, undefined);
     await createDatabase("lru-reuse", credentials, undefined);
+    await releaseDatabase("lru-reuse");
+    await releaseDatabase("lru-reuse");
 
     expect(instances).toHaveLength(1);
   });
 
   test("evicts and terminates the oldest instance beyond the LRU cap", async () => {
-    await createDatabase("lru-a", credentials, undefined);
-    await createDatabase("lru-b", credentials, undefined);
-    await createDatabase("lru-c", credentials, undefined);
-    terminated.length = 0; // evictions of prior tests' handles excluded
+    for (const id of ["lru-a", "lru-b", "lru-c"]) {
+      await createDatabase(id, credentials, undefined);
+      await releaseDatabase(id);
+    }
     await createDatabase("lru-d", credentials, undefined);
+    await releaseDatabase("lru-d");
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(terminated).toHaveLength(1);
@@ -91,17 +96,83 @@ describe("DuckDB instance LRU", () => {
   });
 
   test("an LRU touch keeps a recently used instance alive", async () => {
-    await createDatabase("lru-e", credentials, undefined);
-    await createDatabase("lru-f", credentials, undefined);
-    await createDatabase("lru-g", credentials, undefined);
+    for (const id of ["lru-e", "lru-f", "lru-g"]) {
+      await createDatabase(id, credentials, undefined);
+      await releaseDatabase(id);
+    }
     const touched = instances[0]; // lru-e
     await createDatabase("lru-e", credentials, undefined); // touch — lru-f is now oldest
-    terminated.length = 0;
+    await releaseDatabase("lru-e");
     await createDatabase("lru-h", credentials, undefined);
+    await releaseDatabase("lru-h");
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(terminated).toHaveLength(1);
     expect(terminated[0]).not.toBe(touched);
+  });
+
+  test("an in-flight borrow defers eviction: not terminated until released", async () => {
+    // Borrowed and held — mimics an in-flight sidecar read on the oldest entry.
+    await createDatabase("race-a", credentials, undefined);
+    for (const id of ["race-b", "race-c"]) {
+      await createDatabase(id, credentials, undefined);
+      await releaseDatabase(id);
+    }
+    const borrowed = instances[0]; // race-a's instance (LRU-oldest)
+    await createDatabase("race-d", credentials, undefined);
+    await releaseDatabase("race-d");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The borrowed instance was evicted from the LRU but NOT terminated.
+    expect(terminated).toHaveLength(0);
+    expect(borrowed.connection.close).not.toHaveBeenCalled();
+
+    // Last release drains the borrow — termination happens then.
+    await releaseDatabase("race-a");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(terminated).toHaveLength(1);
+    expect(terminated[0]).toBe(borrowed);
+  });
+
+  test("a re-requested evicted handle is resurrected, not duplicated", async () => {
+    // Borrow and hold, then fill the LRU so the next open evicts it.
+    await createDatabase("res-a", credentials, undefined);
+    for (const id of ["res-b", "res-c"]) {
+      await createDatabase(id, credentials, undefined);
+      await releaseDatabase(id);
+    }
+    const borrowed = instances[0]; // res-a's instance (LRU-oldest)
+    await createDatabase("res-d", credentials, undefined);
+    await releaseDatabase("res-d");
+    const before = instances.length;
+
+    // Request the evicted-but-borrowed resource again — resurrect, no new instance.
+    await createDatabase("res-a", credentials, undefined);
+    await releaseDatabase("res-a");
+    await releaseDatabase("res-a");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(instances).toHaveLength(before);
+    expect(borrowed.connection.close).not.toHaveBeenCalled();
+  });
+
+  test("an evicted handle with multiple borrows terminates after the last release", async () => {
+    await createDatabase("multi-a", credentials, undefined);
+    await createDatabase("multi-a", credentials, undefined); // second borrow
+    for (const id of ["multi-b", "multi-c"]) {
+      await createDatabase(id, credentials, undefined);
+      await releaseDatabase(id);
+    }
+    const borrowed = instances[0]; // multi-a's instance (LRU-oldest)
+    await createDatabase("multi-d", credentials, undefined);
+    await releaseDatabase("multi-d");
+
+    await releaseDatabase("multi-a");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(borrowed.connection.close).not.toHaveBeenCalled(); // one borrow still out
+
+    await releaseDatabase("multi-a");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(borrowed.connection.close).toHaveBeenCalledTimes(1);
   });
 
   test("a failed init is not kept and not terminated as a live handle", async () => {
