@@ -9,6 +9,8 @@ export const PILLAR_IDS = [
   "annotations",
   "views",
   "overview",
+  "spatial-elements",
+  "coordinate-systems",
 ] as const;
 
 export type PillarId = (typeof PILLAR_IDS)[number];
@@ -28,4 +30,10 @@ export const PILLARS: Record<PillarId, Pillar> = {
   annotations: { id: "annotations", title: "Annotations", icon: "Lasso" },
   views: { id: "views", title: "Views", icon: "Columns3" },
   overview: { id: "overview", title: "Overview", icon: "Image" },
+  "spatial-elements": { id: "spatial-elements", title: "Elements", icon: "Layers2" },
+  "coordinate-systems": {
+    id: "coordinate-systems",
+    title: "Coordinate systems",
+    icon: "Crosshair",
+  },
 };
