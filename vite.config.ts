@@ -16,10 +16,20 @@ export default defineConfig({
       "@codemirror/lang-yaml",
       "@uiw/react-codemirror",
       "@fideus-labs/worker-pool",
+      "@math.gl/core",
+      "anndata.js",
+      "apache-arrow",
+      "earcut",
+      "ol/format/WKB.js",
+      "zarrita",
+      "zod",
     ],
-    // zarrextra and fizarrita ship worker entries resolved via import.meta.url;
-    // flattening them into .vite/deps breaks those URLs, so serve them raw.
-    exclude: ["@cytario/design", "zarrextra", "@fideus-labs/fizarrita"],
+    // Served raw: these ship workers or wasm resolved via import.meta.url,
+    // which dep-optimizer flattening breaks (@spatialdata/core's vendored
+    // parquet wasm and the zarrextra/fizarrita codec workers would 404 into
+    // the SPA fallback). The include list pre-bundles @spatialdata/core's own
+    // dependencies so the raw package does not trigger mid-session re-optimizes.
+    exclude: ["@cytario/design", "zarrextra", "@fideus-labs/fizarrita", "@spatialdata/core"],
   },
   // Process the design system through Vite's pipeline during SSR
   // instead of letting Node resolve it (avoids dual-React issues).
