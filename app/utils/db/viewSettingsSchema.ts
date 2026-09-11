@@ -39,11 +39,8 @@ const overlayEntrySchema = z.object({
   config: overlayConfigSchema.nullable(),
 });
 
-/** Sidecar overlays are either the new entry shape or the legacy bare markers record. */
-const sidecarOverlaysSchema = z.union([
-  z.record(z.string(), overlayEntrySchema),
-  z.record(z.string(), z.unknown()),
-]);
+/** Sidecar overlays parse as an unknown record; migrateSidecarOverlays discriminates entries. */
+const sidecarOverlaysSchema = z.record(z.string(), z.unknown());
 
 export const viewSettingsChannelSchema = z.object({
   id: z.string(),
@@ -68,7 +65,7 @@ export const viewSettingsChannelSchema = z.object({
 
 export const viewSettingsDocumentSchema = z.object({
   cytario: z.object({
-    schemaVersion: z.string(),
+    schemaVersion: z.enum(["1.0", "1.1"]),
     kind: z.literal("settings"),
     image: z.string(),
     author: z.string(),
