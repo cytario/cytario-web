@@ -173,6 +173,29 @@ describe("validateOverlayConfig", () => {
     ).toBe(false);
   });
 
+  test("rejects a continuous-mode class until continuous rendering ships", () => {
+    const config = interpretOverlaySchema(canonicalSchema())!;
+    expect(
+      validateOverlayConfig(
+        {
+          ...config,
+          classes: [{ sourceColumn: "marker_positive_cd4", label: "cd4", mode: "continuous" }],
+        },
+        canonicalSchema(),
+      ),
+    ).toBe(false);
+  });
+
+  test("rejects a boolean-mode class on a VARCHAR column", () => {
+    const config = interpretOverlaySchema(canonicalSchema())!;
+    expect(
+      validateOverlayConfig(
+        { ...config, columns: { ...config.columns, id: "geom", x: "x", y: "y" } },
+        [],
+      ),
+    ).toBe(false);
+  });
+
   test("accepts an optional empty geometry mapping", () => {
     const config = interpretOverlaySchema(canonicalSchema())!;
     expect(

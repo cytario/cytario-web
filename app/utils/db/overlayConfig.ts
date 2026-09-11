@@ -32,7 +32,7 @@ export interface OverlayConfig {
 
 export const OVERLAY_CLASS_BIT_LIMIT = 32;
 
-const MARKER_POSITIVE_PREFIX = "marker_positive_";
+export const MARKER_POSITIVE_PREFIX = "marker_positive_";
 
 const ID_COLUMN_NAMES = ["object", "id", "cell_id", "label"];
 const GEOMETRY_COLUMN_NAMES = ["geom", "geometry", "polygon", "wkt", "boundary"];
@@ -126,7 +126,8 @@ export function interpretOverlaySchema(schema: ParquetColumn[]): OverlayConfig |
 /**
  * Validate that every config column exists in the schema with a compatible
  * type. Class threshold mode requires a numeric source column; boolean mode
- * accepts any column (DuckDB casts).
+ * accepts any column (DuckDB casts). Continuous mode is not implemented yet
+ * and is rejected.
  */
 export function validateOverlayConfig(config: OverlayConfig, schema: ParquetColumn[]): boolean {
   const byName = new Map(schema.map((col) => [col.name, col]));
@@ -145,6 +146,7 @@ export function validateOverlayConfig(config: OverlayConfig, schema: ParquetColu
   return config.classes.every((cls) => {
     const source = byName.get(cls.sourceColumn);
     if (!source) return false;
+    if (cls.mode === "continuous") return false;
     if (cls.mode === "threshold") {
       if (!isNumericType(source.type)) return false;
       if (cls.threshold === undefined || !OVERLAY_CLASS_OPERATORS.includes(cls.operator ?? ">")) {

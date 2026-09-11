@@ -1,4 +1,4 @@
-import { Banner, Button, Input, Select, type SelectItem, Tooltip } from "@cytario/design";
+import { Banner, Button, Input, Select, type SelectItem } from "@cytario/design";
 import { useEffect, useMemo, useState } from "react";
 
 import { getOverlayState, markerDisplayLabel } from "./getOverlayState";
@@ -13,12 +13,12 @@ import {
   OVERLAY_CLASS_BIT_LIMIT,
   type OverlayClassConfig,
   type OverlayClassOperator,
+  validateOverlayConfig,
 } from "~/utils/db/overlayConfig";
 
 const MODE_ITEMS: SelectItem[] = [
   { id: "boolean", name: "Boolean category" },
   { id: "threshold", name: "Intensity threshold" },
-  { id: "continuous", name: "Continuous intensity" },
 ];
 
 const OPERATOR_ITEMS: SelectItem[] = [
@@ -72,7 +72,7 @@ interface OverlayConfigModalProps {
 /**
  * Column-mapping editor for one overlay: cell id / geometry / x / y columns
  * plus per-classification source column, label, and interpretation mode.
- * Continuous-intensity coloring is a follow-up — the mode renders disabled.
+ * Continuous-intensity coloring is a follow-up — the mode stays non-selectable.
  */
 export function OverlayConfigModal({
   resourceId,
@@ -138,12 +138,21 @@ export function OverlayConfigModal({
     !yColumn ||
     classes.length === 0 ||
     classes.some((cls) => !cls.sourceColumn) ||
-    classes.some((cls) => cls.mode === "threshold" && Number.isNaN(cls.threshold));
+    classes.some((cls) => cls.mode === "threshold" && Number.isNaN(cls.threshold)) ||
+    (schema ? !validateOverlayConfig(buildConfig(), schema) : true);
 
   const handleApply = async () => {
+    if (!schema) return;
     setIsApplying(true);
     setApplyError(null);
     const nextConfig = buildConfig();
+    if (!validateOverlayConfig(nextConfig, schema)) {
+      setApplyError(
+        "The mapped columns are missing or incompatible with the file schema. Adjust the selection.",
+      );
+      setIsApplying(false);
+      return;
+    }
     try {
       const markerInfo = await getMarkerInfoWasm(resourceId, nextConfig);
       const markers = getOverlayState(markerInfo, nextConfig);
@@ -223,17 +232,16 @@ export function OverlayConfigModal({
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Tooltip content="Continuous intensity coloring is in development.">
-                  <Select
-                    label="Interpretation mode"
-                    items={MODE_ITEMS}
-                    selectedKey={cls.mode}
-                    onSelectionChange={(key) =>
-                      updateClass(index, { mode: String(key) as ClassDraft["mode"] })
-                    }
-                    isDisabled={!schema || cls.mode === "continuous"}
-                  />
-                </Tooltip>
+                <Select
+                  label="Interpretation mode"
+                  items={MODE_ITEMS}
+                  selectedKey={cls.mode}
+                  onSelectionChange={(key) =>
+                    updateClass(index, { mode: String(key) as ClassDraft["mode"] })
+                  }
+                  isDisabled={!schema}
+                  description="Continuous intensity coloring is in development."
+                />
                 {cls.mode === "threshold" && (
                   <div className="grid grid-cols-2 gap-3">
                     <Select

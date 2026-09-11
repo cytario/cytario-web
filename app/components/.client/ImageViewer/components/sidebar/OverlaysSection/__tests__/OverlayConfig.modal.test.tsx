@@ -44,20 +44,22 @@ const schema = [
   { name: "y", type: "DOUBLE" },
   { name: "geom", type: "VARCHAR" },
   { name: "marker_positive_cd4", type: "BOOLEAN" },
+  { name: "name", type: "VARCHAR" },
 ];
 
+const updateOverlayConfigMock = vi.fn();
+const updateOverlaysStateMock = vi.fn();
+
 function setup(overlay = makeOverlay()) {
-  const updateOverlayConfig = vi.fn();
-  const updateOverlaysState = vi.fn();
   (useViewerStore as unknown as ReturnType<typeof vi.fn>).mockImplementation((selector: unknown) =>
     (selector as (s: unknown) => unknown)({
-      updateOverlayConfig,
-      updateOverlaysState,
+      updateOverlayConfig: updateOverlayConfigMock,
+      updateOverlaysState: updateOverlaysStateMock,
     }),
   );
   const onClose = vi.fn();
   render(<OverlayConfigModal resourceId="conn/data.parquet" overlay={overlay} onClose={onClose} />);
-  return { updateOverlayConfig, updateOverlaysState, onClose };
+  return { updateOverlayConfig: updateOverlayConfigMock, onClose };
 }
 
 describe("OverlayConfigModal", () => {
@@ -148,6 +150,58 @@ describe("OverlayConfigModal", () => {
     });
   });
 
+  test("the continuous mode stays non-selectable", async () => {
+    setup();
+    await waitFor(() => expect(screen.getByText("Interpretation mode")).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Interpretation mode/ }));
+
+    expect(await screen.findByRole("option", { name: "Boolean category" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Intensity threshold" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Continuous intensity" })).toBeNull();
+  });
+
+  test("Apply is disabled and shows an inline error when the id column is missing from the schema", async () => {
+    setup({
+      markers: {},
+      config: {
+        version: 1,
+        columns: { id: "missing", geometry: "geom", x: "x", y: "y" },
+        classes: [{ sourceColumn: "marker_positive_cd4", label: "CD4", mode: "boolean" }],
+      },
+    });
+
+    const apply = await screen.findByRole("button", { name: "Apply" });
+    await waitFor(() => {
+      expect(apply).toBeDisabled();
+    });
+
+    // Apply is unreachable while invalid; a programmatic press is still a no-op.
+    apply.click();
+    await waitFor(() => {
+      expect(screen.getByText("Configure Overlay")).toBeInTheDocument();
+    });
+    expect(updateOverlayConfigMock).not.toHaveBeenCalled();
+    expect(getMarkerInfoWasm).not.toHaveBeenCalled();
+  });
+
+  test("Apply is disabled when the x column no longer exists in the schema", async () => {
+    setup({
+      markers: {},
+      config: {
+        version: 1,
+        columns: { id: "object", geometry: "geom", x: "renamed", y: "y" },
+        classes: [{ sourceColumn: "marker_positive_cd4", label: "CD4", mode: "boolean" }],
+      },
+    });
+
+    const apply = await screen.findByRole("button", { name: "Apply" });
+    await waitFor(() => {
+      expect(apply).toBeDisabled();
+    });
+  });
+
   test("Apply builds a threshold class from the operator and threshold inputs", async () => {
     const { updateOverlayConfig } = setup({
       markers: {},
@@ -156,7 +210,7 @@ describe("OverlayConfigModal", () => {
         columns: { id: "object", geometry: "geom", x: "x", y: "y" },
         classes: [
           {
-            sourceColumn: "intensity_cd8",
+            sourceColumn: "x",
             label: "CD8",
             mode: "threshold",
             operator: ">",
@@ -172,7 +226,7 @@ describe("OverlayConfigModal", () => {
     await waitFor(() => expect(updateOverlayConfig).toHaveBeenCalledTimes(1));
     const [, config] = vi.mocked(updateOverlayConfig).mock.calls[0];
     expect(config.classes[0]).toEqual({
-      sourceColumn: "intensity_cd8",
+      sourceColumn: "x",
       label: "CD8",
       mode: "threshold",
       operator: ">",
