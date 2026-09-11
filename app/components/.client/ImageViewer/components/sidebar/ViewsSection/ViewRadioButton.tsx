@@ -4,6 +4,7 @@ import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { ViewLabel } from "./ViewLabel";
+import { ViewStateIcon, type ViewKey } from "./ViewStateIcon";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ControlRow } from "../ControlRow";
@@ -13,12 +14,12 @@ import { parseResourceId } from "~/utils/resourceId";
 export function ViewRadioButton({
   index,
   canDelete,
-  isOwnView,
+  viewState,
   onDelete,
 }: {
   index: number;
   canDelete: boolean;
-  isOwnView: boolean;
+  viewState: ViewKey;
   onDelete: () => void;
 }) {
   const resourceId = useViewerStore((s) => s.id);
@@ -30,13 +31,15 @@ export function ViewRadioButton({
   const isActive = activePresetIndex === index;
   const viewName = useViewerStore(select.viewName(index));
   const setViewName = useViewerStore(select.setViewName);
-  const isShared = useViewerStore((s) => s.layersStates[index]?.shared ?? false);
   const shareView = useViewerStore((s) => s.shareView);
   const unshareView = useViewerStore((s) => s.unshareView);
   const forkView = useViewerStore((s) => s.forkView);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isOwnView = viewState !== "sharedByOthers";
+  const isShared = viewState === "sharedByMe";
 
   const startEditing = () => {
     setEditValue(viewName);
@@ -109,6 +112,7 @@ export function ViewRadioButton({
       <ControlRow
         selected={isActive}
         swatch={<ViewLabel index={index} />}
+
         titleTruncate={!isEditing}
         title={
           isEditing && isOwnView ? (
@@ -139,16 +143,19 @@ export function ViewRadioButton({
           )
         }
         actions={
-          <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/controlrow:opacity-100">
-            <Menu content={menuItems}>
-              <IconButton
-                icon="EllipsisVertical"
-                label={`Actions for view ${index + 1}`}
-                variant="ghost"
-                size="xs"
-              />
-            </Menu>
-          </span>
+          <>
+            <ViewStateIcon viewState={viewState} />
+            <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/controlrow:opacity-100">
+              <Menu content={menuItems}>
+                <IconButton
+                  icon="EllipsisVertical"
+                  label={`Actions for view ${index + 1}`}
+                  variant="ghost"
+                  size="xs"
+                />
+              </Menu>
+            </span>
+          </>
         }
       />
     </Radio>

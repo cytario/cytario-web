@@ -216,7 +216,7 @@ describe("ViewsSection", () => {
     expect(mockSetViewName).toHaveBeenCalledWith(0, null);
   });
 
-  test("renders three groups when views span local, own-shared, and peer-shared", () => {
+  test("renders all views in a flat list with state icons", () => {
     setupStore({
       layersStates: [
         { channels: {}, name: "Local view" },
@@ -226,26 +226,24 @@ describe("ViewsSection", () => {
       channelIds: [],
     });
     render(<ViewsSection />);
-    expect(screen.getByText("My views")).toBeInTheDocument();
-    expect(screen.getByText("Shared by me")).toBeInTheDocument();
-    expect(screen.getByText("Shared with me")).toBeInTheDocument();
     expect(screen.getByText("Local view")).toBeInTheDocument();
     expect(screen.getByText("My shared view")).toBeInTheDocument();
     expect(screen.getByText("Peer view")).toBeInTheDocument();
   });
 
-  test("hides 'Shared by me' section when no own shared views exist", () => {
+  test("shows correct tooltip for local, shared-by-me, and shared-by-others views", () => {
     setupStore({
       layersStates: [
         { channels: {}, name: "Local view" },
+        { channels: {}, name: "My shared view", shared: true },
         { channels: {}, name: "Peer view", shared: true, author: "other-user" },
       ],
       channelIds: [],
     });
     render(<ViewsSection />);
-    expect(screen.getByText("My views")).toBeInTheDocument();
-    expect(screen.queryByText("Shared by me")).not.toBeInTheDocument();
-    expect(screen.getByText("Shared with me")).toBeInTheDocument();
+    expect(screen.getByText("Local view")).toBeInTheDocument();
+    expect(screen.getByText("My shared view")).toBeInTheDocument();
+    expect(screen.getByText("Peer view")).toBeInTheDocument();
   });
 
   test("fork action on peer view calls forkView with correct index", () => {
