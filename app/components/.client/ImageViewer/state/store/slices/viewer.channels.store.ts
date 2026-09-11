@@ -162,18 +162,22 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
           state.loader,
         );
 
+        const sharedIdx = state.layersStates.findIndex(
+          (ls) => ls.shared && ls.author !== state.currentUserId,
+        );
         const defaultEntry = createDefaultLayersStateEntry(state.currentUserId);
 
         set(
           (state) => {
-            state.layersStates.push(defaultEntry);
-            const firstSharedIdx = state.layersStates.findIndex(
-              (ls) => ls.shared && ls.author !== state.currentUserId,
-            );
+            let activeIdx: number;
+            if (sharedIdx >= 0) {
+              activeIdx = sharedIdx;
+            } else {
+              state.layersStates.push(defaultEntry);
+              activeIdx = state.layersStates.length - 1;
+            }
             state.imagePanelIndex = 0;
-            state.imagePanels = [
-              firstSharedIdx >= 0 ? firstSharedIdx : state.layersStates.length - 1,
-            ];
+            state.imagePanels = [activeIdx];
             state.selectedChannelId = firstChannelKey;
             state.channels = castDraft(channelsState);
             state.channelIds = channelIds;
@@ -190,9 +194,10 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
         const initKey = bfGroup ? BRIGHTFIELD_GROUP_ID : firstChannelKey;
         state.setChannelVisibility(initKey as keyof ChannelsStateColumns, true);
 
-        const sharedIdx = get().imagePanels[0];
-        if (sharedIdx !== undefined && sharedIdx !== get().layersStates.length - 1) {
-          get().setActivePresetIndex(sharedIdx);
+        const activeIdx = get().imagePanels[0]!;
+        const ls = get().layersStates[activeIdx];
+        if (ls?.shared && ls.author !== state.currentUserId) {
+          get().setActivePresetIndex(activeIdx);
         }
         return;
       }

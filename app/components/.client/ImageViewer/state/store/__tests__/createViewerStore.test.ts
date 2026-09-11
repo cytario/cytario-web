@@ -1162,7 +1162,7 @@ describe("createViewerStore", () => {
       store.getState().addChannelsState();
 
       const state = store.getState();
-      expect(state.layersStates).toHaveLength(2);
+      expect(state.layersStates).toHaveLength(1);
       expect(state.imagePanels[0]).toBe(0);
     });
 
