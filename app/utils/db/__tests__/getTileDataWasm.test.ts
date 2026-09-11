@@ -9,6 +9,7 @@ import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("../createDatabase", () => ({
   createDatabase: vi.fn(),
+  releaseDatabase: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../ensureSpatialLoaded", () => ({

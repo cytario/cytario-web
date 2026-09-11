@@ -1,6 +1,6 @@
 import { type Table } from "apache-arrow";
 
-import { createDatabase } from "./createDatabase";
+import { createDatabase, releaseDatabase } from "./createDatabase";
 import { ensureSpatialLoaded } from "./ensureSpatialLoaded";
 import { getGeomQuery } from "./getGeomQuery";
 import { resolveResourceId } from "../connectionsStore/selectors";
@@ -24,17 +24,21 @@ export async function getTileDataWasm(
   try {
     const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
     const connection = await createDatabase(resourceId, credentials, { region, endpoint });
-    await ensureSpatialLoaded(connection);
-    const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns);
-    const arrowTable = await connection.query(tileQuery);
+    try {
+      await ensureSpatialLoaded(connection);
+      const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns);
+      const arrowTable = await connection.query(tileQuery);
 
-    if (arrowTable.numRows === 0) {
-      return null;
+      if (arrowTable.numRows === 0) {
+        return null;
+      }
+
+      // DuckDB-WASM bundles its own apache-arrow; runtime-compatible but
+      // structurally different to TypeScript.
+      return arrowTable as unknown as Table;
+    } finally {
+      releaseDatabase(resourceId);
     }
-
-    // DuckDB-WASM bundles its own apache-arrow; runtime-compatible but
-    // structurally different to TypeScript.
-    return arrowTable as unknown as Table;
   } catch (error) {
     console.error(`[getTileDataWasm] Error fetching tile data:`, error);
     throw error;

@@ -1,4 +1,4 @@
-import { createDatabase } from "./createDatabase";
+import { createDatabase, releaseDatabase } from "./createDatabase";
 import { resolveResourceId } from "../connectionsStore/selectors";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/sidebar/OverlaysSection/getOverlayState";
 
@@ -6,11 +6,15 @@ import { MarkerInfo } from "~/components/.client/ImageViewer/components/sidebar/
 export async function getOverlayCellCount(resourceId: string): Promise<number> {
   const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
   const connection = await createDatabase(resourceId, credentials, { region, endpoint });
-  const result = await connection.query(/*sql*/ `
-    SELECT count(*)::BIGINT AS n FROM read_parquet('${s3Uri}')
-  `);
-  const row = result.toArray()[0] as { n: bigint } | undefined;
-  return Number(row?.n ?? 0);
+  try {
+    const result = await connection.query(/*sql*/ `
+      SELECT count(*)::BIGINT AS n FROM read_parquet('${s3Uri}')
+    `);
+    const row = result.toArray()[0] as { n: bigint } | undefined;
+    return Number(row?.n ?? 0);
+  } finally {
+    releaseDatabase(resourceId);
+  }
 }
 
 /**
@@ -37,5 +41,7 @@ export async function getMarkerInfoWasm(resourceId: string): Promise<MarkerInfo>
   } catch (error) {
     console.error(`Error extracting marker info:`, error);
     throw error;
+  } finally {
+    releaseDatabase(resourceId);
   }
 }

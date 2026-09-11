@@ -1,4 +1,4 @@
-import { createDatabase } from "../../utils/db/createDatabase";
+import { createDatabase, releaseDatabase } from "../../utils/db/createDatabase";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import { getFileType } from "~/utils/fileType";
 
@@ -16,10 +16,15 @@ export async function getParquetRows(
   const isCsv = getFileType(resourceId) === "CSV";
   const readFn = isCsv ? `read_csv_auto('${s3Uri}', comment = '#')` : `read_parquet('${s3Uri}')`;
 
-  const result = await connection.query(/*sql*/ `
-    SELECT * FROM ${readFn}
-    LIMIT ${limit} OFFSET ${offset}
-  `);
+  let result;
+  try {
+    result = await connection.query(/*sql*/ `
+      SELECT * FROM ${readFn}
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+  } finally {
+    releaseDatabase(resourceId);
+  }
 
   const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < result.numRows; i++) {
