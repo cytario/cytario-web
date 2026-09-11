@@ -48,13 +48,11 @@ const schema = [
 ];
 
 const updateOverlayConfigMock = vi.fn();
-const updateOverlaysStateMock = vi.fn();
 
 function setup(overlay = makeOverlay()) {
   (useViewerStore as unknown as ReturnType<typeof vi.fn>).mockImplementation((selector: unknown) =>
     (selector as (s: unknown) => unknown)({
       updateOverlayConfig: updateOverlayConfigMock,
-      updateOverlaysState: updateOverlaysStateMock,
     }),
   );
   const onClose = vi.fn();

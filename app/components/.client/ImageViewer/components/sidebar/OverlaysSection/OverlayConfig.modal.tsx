@@ -81,7 +81,6 @@ export function OverlayConfigModal({
   onApplyError,
 }: OverlayConfigModalProps) {
   const updateOverlayConfig = useViewerStore(select.updateOverlayConfig);
-  const updateOverlaysState = useViewerStore(select.updateOverlaysState);
 
   const [schema, setSchema] = useState<ParquetColumn[] | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
@@ -156,7 +155,6 @@ export function OverlayConfigModal({
     try {
       const markerInfo = await getMarkerInfoWasm(resourceId, nextConfig);
       const markers = getOverlayState(markerInfo, nextConfig);
-      updateOverlaysState(resourceId, markers);
       updateOverlayConfig(resourceId, nextConfig, markers);
       applyOverlayReconfiguration(resourceId);
       onClose();
