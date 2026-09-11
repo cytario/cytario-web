@@ -33,10 +33,10 @@ interface FileTypeEntry {
 export type StorageLayout = "leaf" | "companion";
 
 // Matched top-to-bottom — OME-TIFF must precede TIFF so `.ome.tif` hits the
-// specific pattern, and SpatialData must precede OME-Zarr so `.sdata.zarr`
-// does not fall through to the generic `.zarr` pattern. Built-ins stay
-// hardcoded (not auto-derived from the registry) so labels are available
-// during SSR before bootstrap runs.
+// specific pattern, and SpatialData must precede OME-Zarr so neither
+// `.sdata.zarr` nor the bare `.sdata` extension falls through to the generic
+// `.zarr` pattern. Built-ins stay hardcoded (not auto-derived from the
+// registry) so labels are available during SSR before bootstrap runs.
 const STATIC_FILE_TYPES: FileTypeEntry[] = [
   {
     pattern: /\.ome\.tiff?$/i,
@@ -46,7 +46,7 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     category: "image",
   },
   {
-    pattern: /\.(sdata|spatialdata)\.zarr\/?$/i,
+    pattern: /\.(sdata|spatialdata)(?:\.zarr)?\/?$/i,
     type: "SpatialData",
     label: "SpatialData",
     icon: "Microscope",

@@ -84,11 +84,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl
   return false;
 };
 
-const SDATA_PATH_PATTERN = /\.(sdata|spatialdata)\.zarr\/?$/i;
+const SDATA_PATH_PATTERN = /\.(sdata|spatialdata)(?:\.zarr)?\/?$/i;
 const ZARR_PATH_PATTERN = /\.zarr\/?$/i;
 
-/** Picks the SpatialData viewer for `.sdata.zarr` paths by name; plain
- *  `.zarr` stores are sniffed client-side from root metadata. */
+/** Picks the SpatialData viewer for `.sdata` and `.sdata.zarr` paths by name;
+ *  plain `.zarr` stores are sniffed client-side from root metadata. */
 function isSpatialDataPath(resourceId: string): boolean {
   return SDATA_PATH_PATTERN.test(stripUrlSuffix(resourceId));
 }
