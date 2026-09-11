@@ -1,5 +1,6 @@
 import { CoordinateSystemSection } from "./CoordinateSystemSection";
 import { ElementsSection } from "./ElementsSection";
+import { ZAxisSection } from "./ZAxisSection";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 
@@ -9,7 +10,7 @@ export const useSpatialDataSidebarStore = createSidebarStore({
   name: "SpatialDataSidebar",
 });
 
-/** Viewer controls sidebar: element visibility/opacity, coordinate system. */
+/** Viewer controls sidebar: element visibility/opacity, z planes, coordinate system. */
 export const SpatialDataSidebar = () => (
   <Sidebar
     name={SPATIAL_DATA_SIDEBAR_NAME}
@@ -19,6 +20,7 @@ export const SpatialDataSidebar = () => (
     openOnMount
   >
     <ElementsSection />
+    <ZAxisSection />
     <CoordinateSystemSection />
   </Sidebar>
 );

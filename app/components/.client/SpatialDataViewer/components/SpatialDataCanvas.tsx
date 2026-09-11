@@ -5,30 +5,42 @@ import { elementId } from "../state/createSpatialDataViewerStore";
 import { useSpatialDataStore } from "../state/SpatialDataStoreContext";
 import { LoaderView } from "~/components/Loader/LoaderView";
 
-/** Build a render stack entry per visible element; opacity rides in props. */
-function buildRenderStack(
-  elements: Record<
-    string,
-    {
-      elementType: "image" | "labels" | "points" | "shapes";
-      elementKey: string;
-      isVisible: boolean;
-      opacity: number;
-    }
-  >,
-): RenderStack {
+export interface RenderStackElementConfig {
+  elementType: "image" | "labels" | "points" | "shapes";
+  elementKey: string;
+  isVisible: boolean;
+  opacity: number;
+  zIndex?: number;
+  zSize?: number;
+}
+
+/** Build a render stack entry per visible element; opacity and z ride in props. */
+export function buildRenderStack(elements: Record<string, RenderStackElementConfig>): RenderStack {
   const entries = Object.values(elements)
     .filter((element) => element.isVisible)
-    .map((element) => ({
-      kind: "spatial" as const,
-      id: elementId(element.elementType, element.elementKey),
-      visible: true,
-      source: {
-        elementType: element.elementType,
-        elementKey: element.elementKey,
-      },
-      props: { opacity: element.opacity },
-    }));
+    .map((element) => {
+      // Channel selections are clamped against the loader's axis sizes, so a z
+      // on a 2D element is dropped downstream — but omitting it here keeps
+      // single-plane layers on the no-channels default path unchanged.
+      const hasZAxis =
+        (element.elementType === "image" || element.elementType === "labels") &&
+        (element.zSize ?? 1) > 1;
+      return {
+        kind: "spatial" as const,
+        id: elementId(element.elementType, element.elementKey),
+        visible: true,
+        source: {
+          elementType: element.elementType,
+          elementKey: element.elementKey,
+        },
+        props: hasZAxis
+          ? {
+              opacity: element.opacity,
+              channels: { selections: [{ z: element.zIndex ?? 0 }] },
+            }
+          : { opacity: element.opacity },
+      };
+    });
   return { schemaVersion: 1, entries };
 }
 
