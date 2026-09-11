@@ -1,6 +1,7 @@
 import { Badge, Button, EmptyState, useToast } from "@cytario/design";
 import { useCallback, useMemo, useState } from "react";
 
+import { type OverlayEntry } from "~/components/.client/ImageViewer/state/store/types";
 import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
 import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
@@ -8,6 +9,7 @@ import { SearchInput } from "~/components/SearchInput";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
+import { getOverlaySchema } from "~/utils/db/getOverlaySchema";
 import { getFileTypeEntry } from "~/utils/fileType";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -15,8 +17,8 @@ interface AddOverlayProps {
   callback?: () => void;
   /** File kind to surface: "parquet" adds overlays, "csv" starts a conversion. */
   extension: "csv" | "parquet";
-  /** Called with a resourceId when a parquet overlay is selected. Not needed for CSV conversion. */
-  onOverlayAdd?: (overlay: Record<string, Record<string, never>>) => void;
+  /** Called with per-resource overlay entries when a parquet overlay is selected. Not needed for CSV conversion. */
+  onOverlayAdd?: (overlay: Record<string, OverlayEntry>) => void;
   /** Resource the user is coming from — preselects its connection and prefills search with its name. */
   sourceResourceId?: string;
 }
@@ -30,6 +32,7 @@ export function AddOverlay({
   const { toast } = useToast();
   const connections = useConnectionsStore(select.connections);
   const connectionIds = useMemo(() => Object.keys(connections), [connections]);
+  const [busy, setBusy] = useState(false);
 
   const { connectionId: sourceConnection, name: sourceName } = useMemo(
     () => (sourceResourceId ? parseResourceId(sourceResourceId) : { connectionId: "", name: "" }),
@@ -45,25 +48,53 @@ export function AddOverlay({
 
   const handleSelect = useCallback(
     (node: TreeNode) => {
-      if (node.type !== "file") return;
+      if (node.type !== "file" || busy) return;
+      setBusy(true);
+      const finish = () => {
+        setBusy(false);
+        callback?.();
+      };
       try {
         if (extension === "csv") {
           convertCsvToParquet(node.id);
           toast({ variant: "success", message: `Started conversion: ${node.name}` });
-        } else {
-          onOverlayAdd?.({ [node.id]: {} });
-          toast({ variant: "success", message: `Overlay added: ${node.name}` });
+          finish();
+          return;
         }
-        callback?.();
+        // Introspect the parquet so the overlay carries its column mapping from
+        // the start; a null config still adds the overlay entry and surfaces one
+        // actionable error (the item row's Configure action opens the editor).
+        void getOverlaySchema(node.id)
+          .then(({ config }) => {
+            onOverlayAdd?.({ [node.id]: { markers: {}, config } });
+            if (config) {
+              toast({ variant: "success", message: `Overlay added: ${node.name}` });
+            } else {
+              toast({
+                variant: "error",
+                message: `Could not interpret columns in ${node.name} — open Configure to map them manually`,
+              });
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Error reading overlay schema:", error);
+            onOverlayAdd?.({ [node.id]: { markers: {}, config: null } });
+            toast({
+              variant: "error",
+              message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
+            });
+          })
+          .finally(finish);
       } catch (error) {
         console.error("Error processing overlay:", error);
         toast({
           variant: "error",
           message: `Failed to process overlay: ${error instanceof Error ? error.message : "Unknown error"}`,
         });
+        finish();
       }
     },
-    [extension, onOverlayAdd, toast, callback],
+    [extension, onOverlayAdd, toast, callback, busy],
   );
 
   if (!selectedConnection) {
