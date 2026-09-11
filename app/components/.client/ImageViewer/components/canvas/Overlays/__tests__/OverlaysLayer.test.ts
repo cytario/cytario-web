@@ -1,8 +1,9 @@
 import { vi } from "vitest";
 
-import type { CellMarker } from "../../../../state/store/types";
+import type { CellMarker, OverlayConfig } from "../../../../state/store/types";
 import { createMarkerProps } from "../markerUniforms";
 import { OverlaysLayer } from "../OverlaysLayer";
+import { toastBridge } from "~/toast-bridge";
 
 // deck.gl's TileLayer constructor pulls in the whole runtime (luma.gl, gl
 // matrices, etc.) which happy-dom can't handle. We only care about the
@@ -29,6 +30,10 @@ vi.mock("../AdditiveScatterplotLayer", () => ({
   },
 }));
 
+vi.mock("~/toast-bridge", () => ({
+  toastBridge: { emit: vi.fn() },
+}));
+
 vi.mock("../AdditivePolygonLayer", () => ({
   AdditivePolygonLayer: class {
     constructor(public props: Record<string, unknown>) {}
@@ -49,6 +54,7 @@ const buildLayer = (overrides: Partial<Parameters<typeof OverlaysLayer>[0]> = {}
 
   const layer = OverlaysLayer({
     resourceId: "res-1",
+    overlayConfig: null,
     fileMarkers,
     enabledMarkers: ["marker_positive_CD3"],
     markerProps,
@@ -73,6 +79,47 @@ describe("OverlaysLayer", () => {
     expect(a.props.id).toBe("MarkersLayer-alpha");
     expect(b.props.id).toBe("MarkersLayer-beta");
     expect(a.props.id).not.toBe(b.props.id);
+  });
+
+  test("getTileData failures emit exactly one toast per resource+config", async () => {
+    vi.mocked(toastBridge.emit).mockClear();
+    const layer = buildLayer() as unknown as {
+      props: {
+        getTileData: (t: {
+          id: string;
+          index: { z: number; x: number; y: number };
+        }) => Promise<unknown>;
+      };
+    };
+
+    const tile = { id: "tile-1", index: { z: 0, x: 0, y: 0 } };
+    const results = await Promise.allSettled([
+      layer.props.getTileData(tile),
+      layer.props.getTileData(tile),
+      layer.props.getTileData(tile),
+    ]);
+    expect(results.every((r) => r.status === "fulfilled" || r.status === "rejected")).toBe(true);
+    // one failure per resource+config per store run — repeated tile errors stay silent
+    expect(toastBridge.emit).toHaveBeenCalledTimes(1);
+  });
+
+  test("reconfiguration changes the cache key and updateTriggers", () => {
+    const configA: OverlayConfig = {
+      version: 1,
+      columns: { id: "object", geometry: "geom", x: "x", y: "y" },
+      classes: [{ sourceColumn: "a", label: "A", mode: "boolean" }],
+    };
+    const configB: OverlayConfig = {
+      ...configA,
+      classes: [{ sourceColumn: "b", label: "B", mode: "boolean" }],
+    };
+
+    const withA = buildLayer({ overlayConfig: configA });
+    const withB = buildLayer({ overlayConfig: configB });
+
+    const triggerA = (withA.props.updateTriggers as { getTileData: unknown[] }).getTileData;
+    const triggerB = (withB.props.updateTriggers as { getTileData: unknown[] }).getTileData;
+    expect(triggerA).not.toEqual(triggerB);
   });
 
   test("updateTriggers.getTileData is unchanged when only markerProps changes (no tile reload)", () => {
