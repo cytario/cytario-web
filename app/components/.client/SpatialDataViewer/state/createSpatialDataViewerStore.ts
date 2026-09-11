@@ -10,6 +10,10 @@ export interface SpatialElementConfig {
   elementKey: string;
   isVisible: boolean;
   opacity: number;
+  /** Selected z plane for raster elements with a z axis (undefined = 2D element). */
+  zIndex?: number;
+  /** Plane count along z (from the first multiscale array); > 1 marks a z-bearing element. */
+  zSize?: number;
 }
 
 export interface SpatialDataViewerState {
@@ -27,6 +31,8 @@ export interface SpatialDataViewerState {
   setViewState: (viewState: ViewState) => void;
   setElementVisibility: (elementKey: string, isVisible: boolean) => void;
   setElementOpacity: (elementKey: string, opacity: number) => void;
+  setElementZIndex: (elementKey: string, zIndex: number) => void;
+  setElementZSize: (elementKey: string, zSize: number) => void;
 }
 
 const elementId = (elementType: string, elementKey: string) => `${elementType}:${elementKey}`;
@@ -109,6 +115,26 @@ export function createSpatialDataViewerStore() {
             },
             false,
             "setElementOpacity",
+          ),
+        setElementZIndex: (id, zIndex) =>
+          set(
+            (state) => {
+              const element = state.elements[id];
+              if (!element) return state;
+              return { elements: { ...state.elements, [id]: { ...element, zIndex } } };
+            },
+            false,
+            "setElementZIndex",
+          ),
+        setElementZSize: (id, zSize) =>
+          set(
+            (state) => {
+              const element = state.elements[id];
+              if (!element) return state;
+              return { elements: { ...state.elements, [id]: { ...element, zSize } } };
+            },
+            false,
+            "setElementZSize",
           ),
       }),
       { name: "SpatialDataViewerStore" },

@@ -10,6 +10,7 @@ export const PILLAR_IDS = [
   "views",
   "overview",
   "spatial-elements",
+  "z-planes",
   "coordinate-systems",
 ] as const;
 
@@ -31,6 +32,7 @@ export const PILLARS: Record<PillarId, Pillar> = {
   views: { id: "views", title: "Views", icon: "Columns3" },
   overview: { id: "overview", title: "Overview", icon: "Image" },
   "spatial-elements": { id: "spatial-elements", title: "Elements", icon: "Layers2" },
+  "z-planes": { id: "z-planes", title: "Z planes", icon: "Columns3" },
   "coordinate-systems": {
     id: "coordinate-systems",
     title: "Coordinate systems",
