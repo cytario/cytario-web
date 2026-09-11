@@ -2,14 +2,13 @@ import { Button } from "@cytario/design";
 import { type PDFDocumentProxy } from "pdfjs-dist";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { loadPdfDocument, renderPdfPage } from "./loadPdf";
+import { loadPdfDocument, MAX_ZOOM, MIN_ZOOM, renderPdfPage, type RenderHandle } from "./loadPdf";
 import { LoaderView } from "../Loader/LoaderView";
 import type { SignedFetch } from "~/utils/signedFetch";
 
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
 const FIT_WIDTH_PAGE_MARGIN = 48;
+const MIN_FIT_WIDTH_PX = 150;
 
 interface PdfViewerProps {
   resourceId: string;
@@ -23,18 +22,29 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Alive references so cleanup can tear down whatever resolved last, even
+  // after the effect's closure went stale.
+  const docRef = useRef<PDFDocumentProxy | null>(null);
+  const renderRef = useRef<RenderHandle | null>(null);
 
-  // Async load — state updates land in promise callbacks (TextEditor pattern);
-  // the route remounts the component via key={resourceId} on file change.
+  const handleRetry = useCallback(() => {
+    setDoc(null);
+    setError(null);
+    setLoading(true);
+    setReloadKey((key) => key + 1);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
+    docRef.current = null;
     loadPdfDocument(resourceId, signedFetch)
       .then((document) => {
-        if (cancelled) return;
-        setDoc(document);
+        docRef.current = document;
+        if (!cancelled) setDoc(document);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -45,19 +55,10 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
       });
     return () => {
       cancelled = true;
+      docRef.current?.loadingTask.destroy().catch(console.error);
+      docRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId]);
-
-  const handleRetry = useCallback(() => {
-    setDoc(null);
-    setError(null);
-    setLoading(true);
-    loadPdfDocument(resourceId, signedFetch)
-      .then(setDoc)
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-      .finally(() => setLoading(false));
-  }, [resourceId, signedFetch]);
+  }, [resourceId, signedFetch, reloadKey]);
 
   // Render the current page onto the canvas; re-renders on page/zoom change.
   useEffect(() => {
@@ -71,14 +72,19 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
       try {
         const container = containerRef.current;
         const fitWidth = container
-          ? Math.max(container.clientWidth - FIT_WIDTH_PAGE_MARGIN, MIN_ZOOM * 300)
+          ? Math.max(container.clientWidth - FIT_WIDTH_PAGE_MARGIN, MIN_FIT_WIDTH_PX)
           : undefined;
-        await renderPdfPage(doc, pageNumber, canvas, {
+        const handle = await renderPdfPage(doc, pageNumber, canvas, {
           scale: zoom ?? undefined,
           fitWidth,
         });
+        renderRef.current = handle;
+        await handle.done;
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        // Cancellation surfaces as a pdf.js error name, not a failure.
+        const name = (err as { name?: string }).name;
+        if (cancelled || name === "RenderingCancelledException") return;
+        setError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setRendering(false);
       }
@@ -87,6 +93,8 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
     void render();
     return () => {
       cancelled = true;
+      renderRef.current?.cancel();
+      renderRef.current = null;
     };
   }, [doc, pageNumber, zoom]);
 
@@ -101,7 +109,7 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
   if (error && !doc) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
-        <p className="text-sm text-destructive">Error: {error}</p>
+        <p className="text-sm text-destructive">{error}</p>
         <Button onPress={handleRetry}>Retry</Button>
       </div>
     );
@@ -120,7 +128,7 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
           >
             Previous
           </Button>
-          <span className="text-sm text-muted-foreground tabular-nums">
+          <span className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
             Page {pageNumber} of {totalPages}
           </span>
           <Button
@@ -151,10 +159,11 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
           </Button>
         </div>
       </header>
-      {error && <p className="px-4 py-2 text-sm text-destructive">Error: {error}</p>}
+      {error && <p className="px-4 py-2 text-sm text-destructive">{error}</p>}
       <div ref={containerRef} className="flex-1 overflow-auto bg-muted p-6">
         <canvas
           ref={canvasRef}
+          role="img"
           className="mx-auto bg-white shadow-md"
           aria-label={`PDF page ${pageNumber} of ${totalPages}`}
         />

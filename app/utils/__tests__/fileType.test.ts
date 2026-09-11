@@ -35,6 +35,7 @@ describe("getFileType", () => {
     expect(getFileType("photo.tiff")).toBe("Unknown");
     expect(getFileType("file.xyz")).toBe("Unknown");
     expect(getFileType("notes.doc")).toBe("Unknown");
+    expect(getFileType("readme.md")).toBe("Unknown");
   });
 
   test("identifies PDF files", () => {

@@ -6,7 +6,7 @@ vi.mock("pdfjs-dist", () => ({
   GlobalWorkerOptions: { workerSrc: "" },
 }));
 
-import { loadPdfDocument, renderPdfPage } from "../loadPdf";
+import { loadPdfDocument, MAX_PDF_BYTES, renderPdfPage } from "../loadPdf";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 const httpsUrl = "https://bucket.s3.eu-central-1.amazonaws.com/docs/report.pdf";
@@ -29,9 +29,10 @@ describe("loadPdfDocument", () => {
     const signedFetch: SignedFetch = (async () =>
       new Response(bytes, { status: 200 })) as SignedFetch;
     const getDocumentSpy = vi.mocked(getDocument);
-    getDocumentSpy.mockReturnValueOnce({
-      promise: Promise.resolve({} as never),
-    } as unknown as ReturnType<typeof getDocument>);
+    getDocumentSpy.mockImplementationOnce(
+      () =>
+        ({ promise: Promise.resolve({} as never) }) as unknown as ReturnType<typeof getDocument>,
+    );
 
     await loadPdfDocument("c1/docs/report.pdf", signedFetch);
 
@@ -46,64 +47,111 @@ describe("loadPdfDocument", () => {
       "HTTP 403 loading PDF",
     );
   });
+
+  test("rejects an object whose content-length exceeds the preview ceiling", async () => {
+    const signedFetch: SignedFetch = (async () =>
+      new Response(new ArrayBuffer(8), {
+        status: 200,
+        headers: { "content-length": String(MAX_PDF_BYTES + 1) },
+      })) as SignedFetch;
+
+    await expect(loadPdfDocument("c1/docs/report.pdf", signedFetch)).rejects.toThrow(
+      "PDF exceeds the 256 MB preview limit",
+    );
+  });
+
+  test("accepts a body under the ceiling when content-length is absent", async () => {
+    const signedFetch: SignedFetch = (async () =>
+      new Response(new ArrayBuffer(8), { status: 200 })) as SignedFetch;
+    const getDocumentSpy = vi.mocked(getDocument);
+    getDocumentSpy.mockImplementationOnce(
+      () =>
+        ({ promise: Promise.resolve({} as never) }) as unknown as ReturnType<typeof getDocument>,
+    );
+
+    await expect(loadPdfDocument("c1/docs/report.pdf", signedFetch)).resolves.toBeDefined();
+  });
 });
 
 describe("renderPdfPage", () => {
-  test("scales the viewport to fit the width when no scale is given", async () => {
-    const page = {
-      getViewport: vi.fn(({ scale }: { scale: number }) => ({
-        width: 600 * scale,
-        height: 800 * scale,
-      })),
-      render: () => ({ promise: Promise.resolve() }),
-    };
-    const doc = { getPage: vi.fn().mockResolvedValue(page) };
-    const canvas = {
+  const makePage = () => ({
+    getViewport: vi.fn(({ scale }: { scale: number }) => ({
+      width: 600 * scale,
+      height: 800 * scale,
+    })),
+    render: vi.fn(() => ({ promise: Promise.resolve() })),
+  });
+  const makeCanvas = () =>
+    ({
       width: 0,
       height: 0,
+      style: {} as CSSStyleDeclaration,
       getContext: () => ({}),
-    } as unknown as HTMLCanvasElement;
+    }) as unknown as HTMLCanvasElement;
 
-    await renderPdfPage(doc as never, 1, canvas, { fitWidth: 300 });
+  test("scales the viewport to fit the width when no scale is given", async () => {
+    const page = makePage();
+    const doc = { getPage: vi.fn().mockResolvedValue(page) };
+    const canvas = makeCanvas();
+
+    const handle = await renderPdfPage(doc as never, 1, canvas, { fitWidth: 300 });
+    await handle.done;
 
     // Base page is 600 CSS px wide; fitting into 300 px must halve the scale.
-    expect(page.getViewport).toHaveBeenCalledWith({ scale: 0.5 });
-    expect(canvas.width).toBe(300);
-    expect(canvas.height).toBe(400);
+    // Viewport calls carry the device pixel ratio, CSS sizing does not.
+    expect(page.getViewport).toHaveBeenCalledWith({ scale: 0.5 * (window.devicePixelRatio || 1) });
+    expect(canvas.style.width).toBe("300px");
+    expect(canvas.style.height).toBe("400px");
+  });
+
+  test("clamps fit-width scale to the 50% zoom floor", async () => {
+    const page = makePage();
+    const doc = { getPage: vi.fn().mockResolvedValue(page) };
+    const canvas = makeCanvas();
+
+    // 150 px floor against a 600 px page would be 25% — clamped to MIN_ZOOM.
+    const handle = await renderPdfPage(doc as never, 1, canvas, { fitWidth: 150 });
+    await handle.done;
+
+    expect(page.getViewport).toHaveBeenCalledWith({ scale: 0.5 * (window.devicePixelRatio || 1) });
+    expect(canvas.style.width).toBe("300px");
   });
 
   test("uses the explicit scale when provided", async () => {
-    const page = {
-      getViewport: vi.fn(({ scale }: { scale: number }) => ({
-        width: 600 * scale,
-        height: 800 * scale,
-      })),
-      render: () => ({ promise: Promise.resolve() }),
-    };
+    const page = makePage();
     const doc = { getPage: vi.fn().mockResolvedValue(page) };
-    const canvas = {
-      width: 0,
-      height: 0,
-      getContext: () => ({}),
-    } as unknown as HTMLCanvasElement;
+    const canvas = makeCanvas();
 
-    await renderPdfPage(doc as never, 2, canvas, { scale: 2 });
+    const handle = await renderPdfPage(doc as never, 2, canvas, { scale: 2 });
+    await handle.done;
 
     expect(doc.getPage).toHaveBeenCalledWith(2);
-    expect(page.getViewport).toHaveBeenCalledWith({ scale: 2 });
-    expect(canvas.width).toBe(1200);
+    expect(page.getViewport).toHaveBeenCalledWith({ scale: 2 * (window.devicePixelRatio || 1) });
+    expect(canvas.style.width).toBe("1200px");
+  });
+
+  test("exposes the render task for cancellation", async () => {
+    const cancel = vi.fn();
+    const page = {
+      getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
+      render: () => ({ promise: Promise.resolve(), cancel }),
+    };
+    const doc = { getPage: vi.fn().mockResolvedValue(page) };
+    const canvas = makeCanvas();
+
+    const handle = await renderPdfPage(doc as never, 1, canvas);
+    handle.cancel();
+
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
   test("throws when the canvas 2D context is unavailable", async () => {
-    const page = {
-      getViewport: ({ scale }: { scale: number }) => ({
-        width: 600 * scale,
-        height: 800 * scale,
-      }),
-      render: () => ({ promise: Promise.resolve() }),
-    };
+    const page = makePage();
     const doc = { getPage: vi.fn().mockResolvedValue(page) };
-    const canvas = { getContext: () => null } as unknown as HTMLCanvasElement;
+    const canvas = {
+      style: {} as CSSStyleDeclaration,
+      getContext: () => null,
+    } as unknown as HTMLCanvasElement;
 
     await expect(renderPdfPage(doc as never, 1, canvas)).rejects.toThrow(
       "Canvas 2D context unavailable",
