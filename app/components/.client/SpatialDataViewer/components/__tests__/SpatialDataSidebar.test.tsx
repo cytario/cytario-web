@@ -12,7 +12,12 @@ vi.mock("@spatialdata/core", () => ({
 }));
 
 vi.mock("@spatialdata/vis", () => ({
-  SpatialCanvasViewer: () => <div data-testid="spatial-canvas-stub" />,
+  SpatialCanvasViewer: ({ renderStack }: { renderStack: { entries: { id: string }[] } }) => (
+    <div
+      data-testid="spatial-canvas-stub"
+      data-entry-ids={renderStack.entries.map((e) => e.id).join(",")}
+    />
+  ),
 }));
 
 vi.mock("~/utils/connectionsStore/selectors", () => ({
@@ -62,15 +67,34 @@ describe("SpatialDataSidebar", () => {
     expect(screen.queryByLabelText("Coordinate system")).not.toBeInTheDocument();
   });
 
-  test("toggling element visibility updates the render stack entry visibility", async () => {
+  test("coordinate-system picker renders when more than one system exists", async () => {
+    vi.mocked(readZarr).mockResolvedValue(mockSpatialData(["global", "microns_1"]));
+    render(<SpatialDataViewer resourceId="conn/b.zarr" signedFetch={signedFetch} />);
+
+    const picker = await screen.findByLabelText("Coordinate system");
+    expect(picker).toBeInTheDocument();
+    expect(picker).toHaveTextContent("global");
+  });
+
+  test("toggling element visibility removes the element from the render stack", async () => {
     vi.mocked(readZarr).mockResolvedValue(mockSpatialData(["global"]));
     const user = userEvent.setup();
 
-    render(<SpatialDataViewer resourceId="conn/b.zarr" signedFetch={signedFetch} />);
+    render(<SpatialDataViewer resourceId="conn/c.zarr" signedFetch={signedFetch} />);
 
     const toggle = await screen.findByRole("checkbox", { name: "Toggle blobs_image" });
     expect(toggle).toBeChecked();
+    expect(screen.getByTestId("spatial-canvas-stub")).toHaveAttribute(
+      "data-entry-ids",
+      expect.stringContaining("image:blobs_image"),
+    );
+
     await user.click(toggle);
+
     expect(toggle).not.toBeChecked();
+    expect(screen.getByTestId("spatial-canvas-stub")).not.toHaveAttribute(
+      "data-entry-ids",
+      expect.stringContaining("image:blobs_image"),
+    );
   });
 });

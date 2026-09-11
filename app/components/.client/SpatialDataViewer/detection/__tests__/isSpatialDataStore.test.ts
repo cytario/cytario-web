@@ -157,4 +157,49 @@ describe("isSpatialDataStore", () => {
     );
     expect(result).toBe(true);
   });
+
+  test("detects a v3 store by top-level consolidated element groups without spatialdata_attrs", async () => {
+    signedFetch.mockResolvedValue(
+      jsonResponse({
+        zarr_format: 3,
+        node_type: "group",
+        attributes: {},
+        consolidated_metadata: {
+          kind: "inline",
+          must_understand: false,
+          metadata: {
+            images: { node_type: "group", attributes: {} },
+            points: { node_type: "group", attributes: {} },
+          },
+        },
+      }),
+    );
+    const result = await isSpatialDataStore(
+      "conn/no-attrs.sdata.zarr",
+      "https://bucket/no-attrs.sdata.zarr",
+      signedFetch,
+    );
+    expect(result).toBe(true);
+  });
+
+  test("resolves false on a thrown fetch without caching, so a retry can succeed", async () => {
+    const failingFetch = vi.fn<SignedFetch>().mockRejectedValue(new TypeError("Failed to fetch"));
+    const first = await isSpatialDataStore(
+      "conn/flaky.zarr",
+      "https://bucket/flaky.zarr",
+      failingFetch,
+    );
+    expect(first).toBe(false);
+    expect(failingFetch).toHaveBeenCalledTimes(1);
+
+    // No cache entry was written: a second call with a working fetch re-sniffs.
+    const workingFetch = vi.fn<SignedFetch>().mockResolvedValue(jsonResponse(blobsV3Root));
+    const second = await isSpatialDataStore(
+      "conn/flaky.zarr",
+      "https://bucket/flaky.zarr",
+      workingFetch,
+    );
+    expect(second).toBe(true);
+    expect(workingFetch).toHaveBeenCalledTimes(1);
+  });
 });
