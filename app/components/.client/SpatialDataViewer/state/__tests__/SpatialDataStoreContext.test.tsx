@@ -1,13 +1,18 @@
-import type { SpatialData } from "@spatialdata/core";
+import type { PointsElement, SpatialData } from "@spatialdata/core";
 import { readZarr } from "@spatialdata/core";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import { SpatialDataStoreProvider, useSpatialDataStore } from "../SpatialDataStoreContext";
+import { suppressPointsRowFeatureCodes } from "../transport/suppressPointsRowFeatureCodes";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 vi.mock("@spatialdata/core", () => ({
   readZarr: vi.fn(),
+}));
+
+vi.mock("../transport/suppressPointsRowFeatureCodes", () => ({
+  suppressPointsRowFeatureCodes: vi.fn((spatialData: SpatialData) => spatialData),
 }));
 
 vi.mock("~/utils/connectionsStore/selectors", () => ({
@@ -94,5 +99,29 @@ describe("SpatialDataStoreContext", () => {
     });
     expect(screen.getByTestId("data").textContent).toBe("empty");
     expect(screen.getByTestId("cs").textContent).toBe("none");
+  });
+
+  test("seeds the store with featureless points elements so codes reads cannot fail", async () => {
+    const failingCodes = {
+      kind: "points",
+      key: "blobs_points",
+      loadRowFeatureCodes: vi.fn(async () => {
+        throw new Error("parquet read failed");
+      }),
+    } as unknown as PointsElement;
+    const spatialData = mockSpatialData({ points: { blobs_points: failingCodes } });
+    vi.mocked(readZarr).mockResolvedValue(spatialData);
+
+    render(
+      <SpatialDataStoreProvider resourceId="conn/featureless.zarr" signedFetch={mockSignedFetch}>
+        <StoreProbe />
+      </SpatialDataStoreProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("data").textContent).toBe("loaded");
+    });
+    expect(suppressPointsRowFeatureCodes).toHaveBeenCalledTimes(1);
+    expect(suppressPointsRowFeatureCodes).toHaveBeenCalledWith(spatialData);
   });
 });
