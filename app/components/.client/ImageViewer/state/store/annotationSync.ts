@@ -32,7 +32,7 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
     toastBridge.emit({
       variant: "error",
       message:
-        "Annotations could not be loaded — retrying. If the problem persists, reload the page.",
+        "Annotations could not be loaded after several attempts — reload the page to try again.",
     });
 
   const load = (attempt: number): Promise<void> =>
