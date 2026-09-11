@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { getCachedTile, OVERLAY_CACHE_NS, trimSharedTileCaches } from "../sharedTileCache";
+import {
+  getCachedTile,
+  invalidateOverlayTiles,
+  OVERLAY_CACHE_NS,
+  trimSharedTileCaches,
+} from "../sharedTileCache";
 
 describe("sharedTileCache", () => {
   test("memoizes the fetcher result by key", async () => {
@@ -37,6 +42,37 @@ describe("sharedTileCache", () => {
     const result = await getCachedTile(OVERLAY_CACHE_NS, "k", fetcher);
     expect(result).toBe("overlay-2");
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  test("invalidateOverlayTiles drops only the targeted resource's entries", async () => {
+    await getCachedTile(OVERLAY_CACHE_NS, "res-1|0-0-0|cfg", async () => "res1");
+    await getCachedTile(OVERLAY_CACHE_NS, "res-1|1-0-0|cfg", async () => "res1");
+    await getCachedTile(OVERLAY_CACHE_NS, "res-2|0-0-0|cfg", async () => "res2");
+
+    invalidateOverlayTiles("res-1");
+
+    const refetch1 = vi.fn(async () => "res1-new");
+    const refetch2 = vi.fn(async () => "res2-new");
+    await getCachedTile(OVERLAY_CACHE_NS, "res-1|0-0-0|cfg", refetch1);
+    await getCachedTile(OVERLAY_CACHE_NS, "res-2|0-0-0|cfg", refetch2);
+
+    expect(refetch1).toHaveBeenCalledTimes(1);
+    expect(refetch2).not.toHaveBeenCalled();
+  });
+
+  test("invalidateOverlayTiles without a resource clears everything", async () => {
+    await getCachedTile(OVERLAY_CACHE_NS, "res-1|0-0-0|cfg", async () => "res1");
+    await getCachedTile(OVERLAY_CACHE_NS, "res-2|0-0-0|cfg", async () => "res2");
+
+    invalidateOverlayTiles();
+
+    const refetch1 = vi.fn(async () => "x");
+    const refetch2 = vi.fn(async () => "x");
+    await getCachedTile(OVERLAY_CACHE_NS, "res-1|0-0-0|cfg", refetch1);
+    await getCachedTile(OVERLAY_CACHE_NS, "res-2|0-0-0|cfg", refetch2);
+
+    expect(refetch1).toHaveBeenCalledTimes(1);
+    expect(refetch2).toHaveBeenCalledTimes(1);
   });
 
   test("namespaces never collide", async () => {

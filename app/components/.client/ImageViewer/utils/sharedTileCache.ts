@@ -79,3 +79,21 @@ export function trimSharedTileCaches(): void {
     caches.get(ns)?.clear();
   }
 }
+
+/**
+ * Drop overlay tile entries for one resource (or all when omitted) — used when
+ * an overlay's column mapping changes so tiles are re-queried instead of
+ * served from the stale cache.
+ */
+export function invalidateOverlayTiles(resourceId?: string): void {
+  const cache = caches.get(OVERLAY_CACHE_NS);
+  if (!cache) return;
+  if (!resourceId) {
+    cache.clear();
+    return;
+  }
+  const prefix = `${resourceId}|`;
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
+  }
+}
