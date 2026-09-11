@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionIsReadOnly } from "../../../utils/useCanAnnotate";
 import type { createViewerStore } from "../createViewerStore";
 import type { LayersStateEntry } from "../types";
-import { attachViewSync } from "../viewSync";
+import { attachViewSync } from "../views/viewSync";
 import type { ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
 

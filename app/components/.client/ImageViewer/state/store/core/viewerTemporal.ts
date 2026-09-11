@@ -1,7 +1,7 @@
 import type { ZundoOptions } from "zundo";
 
-import type { AnnotationClass } from "./slices/viewer.annotations.store";
-import type { ViewerStore } from "./types";
+import type { AnnotationClass } from "../annotations/annotations.store";
+import type { ViewerStore } from "../types";
 import type { AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
 export type TemporalPartial = {

@@ -1,7 +1,7 @@
 import { loadOmeTiff } from "@hms-dbmi/viv";
 import { fromCustomClient } from "geotiff";
 
-import type { Image, Loader } from "../store/ome.tif.types";
+import type { Image, Loader } from "../store/core/ome.tif.types";
 import { SigV4TiffClient } from "../transport/SigV4TiffClient";
 import type { LoadOptions } from "@cytario/plugin-api";
 

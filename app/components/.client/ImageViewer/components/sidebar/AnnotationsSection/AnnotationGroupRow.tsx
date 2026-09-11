@@ -2,7 +2,7 @@ import { IconButton, Input, Switch } from "@cytario/design";
 import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 
-import { UNCLASSIFIED_COLOR } from "../../../state/store/slices/viewer.annotations.store";
+import { UNCLASSIFIED_COLOR } from "../../../state/store/annotations/annotations.store";
 import { RGB } from "../../../state/store/types";
 import { ColorPicker, rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 import { ControlRow } from "../ControlRow";

@@ -1,11 +1,13 @@
-import { OrthographicViewState } from "@deck.gl/core";
+import type { Layer, OrthographicViewState, PickingInfo } from "@deck.gl/core";
+import type { Geometry } from "geojson";
 import type { StateCreator } from "zustand";
 
-import type { AnnotationsSlice } from "./slices/viewer.annotations.store";
-import type { ChannelsSlice } from "./slices/viewer.channels.store";
-import type { CoreSlice } from "./slices/viewer.core.store";
-import type { OverlaysSlice } from "./slices/viewer.overlays.store";
-import type { ViewSlice } from "./slices/viewer.view.store";
+import type { AnnotationsSlice } from "./annotations/annotations.store";
+import type { ChannelsSlice } from "./channels/channels.store";
+import type { CoreSlice } from "./core/core.store";
+import type { ViewSlice } from "./core/viewport.store";
+import type { OverlaysSlice } from "./overlays/overlays.store";
+import type { ViewsSlice } from "./views/views.store";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
 
 export type { OverlayConfig };
@@ -132,6 +134,28 @@ export type OverlaysState = Record<string, OverlayEntry>; // Datasets
 
 export type AnnotationMode = "view" | "inspect" | "draw-polygon" | "draw-freehand" | "draw-point";
 
+export type TooltipSection = "Channels" | "Overlays" | "Annotations";
+
+export interface LayerTooltipItem {
+  type: TooltipSection;
+  id?: string;
+  values: Record<string, { value: string; color?: number[] }>;
+  geometry?: Geometry | null;
+  geometryColor?: number[];
+}
+
+export interface CompositeTooltip {
+  cursor: { x: number; y: number };
+  coordinate: number[];
+  sections: Partial<Record<TooltipSection, LayerTooltipItem[]>>;
+  mode: "compact" | "verbose";
+}
+
+export interface CytarioLayerResult<T extends Layer = Layer> {
+  layers: T[];
+  getTooltipItems: (info: PickingInfo) => LayerTooltipItem[];
+}
+
 export interface ViewerStoreState {
   /** Image identity (`connectionName/pathName`) — keys persistence + devtools. */
   id: string;
@@ -143,6 +167,7 @@ export interface ViewerStoreState {
 export type ViewerStore = ViewerStoreState &
   AnnotationsSlice &
   ViewSlice &
+  ViewsSlice &
   CoreSlice &
   OverlaysSlice &
   ChannelsSlice;

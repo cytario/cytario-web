@@ -1,4 +1,4 @@
-import { useViewerStore } from "../state/store/ViewerStoreContext";
+import { useViewerStore } from "../state/store/core/ViewerStoreContext";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 

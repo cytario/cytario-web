@@ -11,9 +11,9 @@ import {
   selectSetHiddenClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
-} from "../../../state/store/slices/viewer.annotations.store";
+} from "../../../state/store/annotations/annotations.store";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { RGB } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 

@@ -1,4 +1,4 @@
-import { Image } from "../../../state/store/ome.tif.types";
+import { Image } from "../../../state/store/core/ome.tif.types";
 import { ViewPort, ViewState } from "../../../state/store/types";
 
 interface CalculateViewStateOptions {

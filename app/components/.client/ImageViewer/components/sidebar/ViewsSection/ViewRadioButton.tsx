@@ -4,8 +4,8 @@ import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { ViewLabel } from "./ViewLabel";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ControlRow } from "../ControlRow";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";

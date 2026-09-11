@@ -1,6 +1,6 @@
 import { loadOmeZarrFromStore, type RootAttrs } from "@hms-dbmi/viv";
 
-import type { Image, Loader } from "../store/ome.tif.types";
+import type { Image, Loader } from "../store/core/ome.tif.types";
 import { CredentialedHTTPStore } from "../transport/CredentialedHTTPStore";
 import { normalizePixelType } from "@cytario/plugin-api";
 import type { LoadOptions } from "@cytario/plugin-api";

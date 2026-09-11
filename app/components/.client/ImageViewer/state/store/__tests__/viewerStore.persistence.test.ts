@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { viewerStoreMigrate, viewerStorePartialize } from "../core/persistence";
 import type { ViewerStore } from "../types";
-import { viewerStoreMigrate, viewerStorePartialize } from "../viewerStore.persistence";
 
 function makeLayersState(author: string, overrides: Record<string, unknown> = {}) {
   return {

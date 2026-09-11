@@ -5,7 +5,7 @@ import type {
   CompositeTooltip,
   LayerTooltipItem,
   TooltipSection,
-} from "../../../state/store/slices/viewer.view.store";
+} from "../../../state/store/types";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
 const TOOLTIP_OFFSET = 12;

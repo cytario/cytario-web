@@ -10,9 +10,9 @@ import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit"
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
 import { useView } from "./useView";
 import { registerDecoders } from "../../state/decoders/registerDecoders";
+import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import { ViewPort } from "../../state/store/types";
-import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 // Register geotiff decoders so dashboard thumbnails and the full viewer
 // can decode the same set of TIFF compression methods.

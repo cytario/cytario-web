@@ -1,6 +1,6 @@
-import type { createViewerStore } from "./createViewerStore";
-import type { LayersStateEntry } from "./types";
-import { connectionIsReadOnly } from "../../utils/useCanAnnotate";
+import { connectionIsReadOnly } from "../../../utils/useCanAnnotate";
+import type { createViewerStore } from "../createViewerStore";
+import type { LayersStateEntry } from "../types";
 import { layersStateToSidecarEntry, type ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
 

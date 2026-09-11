@@ -3,8 +3,8 @@ import { useState } from "react";
 
 import { OverlayItem } from "./OverlayItem";
 import { LoadOverlayModal } from "./OverlayPicker.modal";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { Section } from "~/components/Section/Section";
 import { SectionSlider } from "~/components/Section/SectionSlider";
 import { isPointMode } from "~/utils/db/getGeomQuery";

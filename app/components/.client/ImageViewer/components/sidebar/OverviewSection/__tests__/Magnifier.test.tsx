@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Mock } from "vitest";
 
+import { useViewerStore } from "../../../../state/store/core/ViewerStoreContext";
 import { type ViewState } from "../../../../state/store/types";
-import { useViewerStore } from "../../../../state/store/ViewerStoreContext";
 import { magnificationFromZoom, zoomFromMagnification } from "../Magnifier";
 import { OverviewSection } from "../OverviewSection";
 
@@ -15,7 +15,7 @@ vi.mock("../../../canvas/ImagePreview", () => ({
   ImagePreview: () => <div data-testid="image-preview" />,
 }));
 
-vi.mock("../../../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 

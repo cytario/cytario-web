@@ -1,9 +1,9 @@
 import type { SupportedDtype } from "@vivjs/types";
 
-import { Channel, Image, Loader } from "./ome.tif.types";
-import { ChannelConfig, ChannelsState, RGB } from "./types";
-import { CATEGORICAL_COLORS } from "../../categoricalColors";
-import { getDtypeMax } from "../../utils/getDtypeMax";
+import { CATEGORICAL_COLORS } from "../../../categoricalColors";
+import { getDtypeMax } from "../../../utils/getDtypeMax";
+import { Channel, Image, Loader } from "../core/ome.tif.types";
+import { ChannelConfig, ChannelsState, RGB } from "../types";
 
 /** Returns the RGB color for a channel, falling back to CATEGORICAL_COLORS if metadata lacks a Color. */
 const getInitialColor = (channels: Channel[], index: number): RGB => {

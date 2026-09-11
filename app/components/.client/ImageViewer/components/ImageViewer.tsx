@@ -1,6 +1,6 @@
 import { ImageCanvas } from "./canvas/ImageCanvas";
 import { ImageSidebar } from "./sidebar/ImageSidebar";
-import { ViewerStoreProvider } from "../state/store/ViewerStoreContext";
+import { ViewerStoreProvider } from "../state/store/core/ViewerStoreContext";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import type { SignedFetch } from "~/utils/signedFetch";
 

@@ -6,8 +6,8 @@ import { rgb } from "./ColorPicker/ColorPicker";
 import { DomainSlider } from "./DomainSlider";
 import { HistogramChannel } from "./HistogramChannel";
 import { MinMaxSettings } from "./MinMaxSettings";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 export function Histogram() {
   const ref = useRef<HTMLDivElement>(null);

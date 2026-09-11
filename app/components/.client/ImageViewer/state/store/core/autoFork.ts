@@ -1,4 +1,4 @@
-import type { ViewerSlice, ViewerStore } from "./types";
+import type { ViewerSlice, ViewerStore } from "../types";
 import { toastBridge } from "~/toast-bridge";
 
 const FORK_ACTIONS = new Set([

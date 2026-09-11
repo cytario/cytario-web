@@ -1,6 +1,6 @@
 import type { RootAttrs } from "@hms-dbmi/viv";
 
-import type { Loader } from "../../store/ome.tif.types";
+import type { Loader } from "../../store/core/ome.tif.types";
 import {
   parseOmeroColor,
   extractPhysicalSizes,

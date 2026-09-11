@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 
+import { ViewerStoreProvider, useViewerStore } from "../core/ViewerStoreContext";
 import { createViewerStore } from "../createViewerStore";
-import { ViewerStoreProvider, useViewerStore } from "../ViewerStoreContext";
 
 // Stub the registry so module-load of ViewerStoreContext (which calls
 // registerBuiltinFormats at the top) does not pull viv/geotiff into the
@@ -45,10 +45,10 @@ vi.mock("~/utils/resourceId", () => ({
 vi.mock("~/utils/connectionsStore/selectors", () => ({
   resolveResourceId: vi.fn((resourceId: string) => ({ httpsUrl: resourceId })),
 }));
-vi.mock("../annotationSync", () => ({
+vi.mock("../annotations/annotationSync", () => ({
   attachAnnotationSync: vi.fn(),
 }));
-vi.mock("../viewSync", () => ({
+vi.mock("../views/viewSync", () => ({
   attachViewSync: vi.fn(),
 }));
 

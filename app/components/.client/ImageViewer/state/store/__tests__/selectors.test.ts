@@ -101,6 +101,7 @@ describe("selectors", () => {
     setMetadata: vi.fn(),
     setLoader: vi.fn(),
     setSelectedChannelId: vi.fn(),
+    initChannelStats: vi.fn(),
     setActiveImagePanelId: vi.fn(),
     addImagePanel: vi.fn(),
     addChannelsState: vi.fn(),

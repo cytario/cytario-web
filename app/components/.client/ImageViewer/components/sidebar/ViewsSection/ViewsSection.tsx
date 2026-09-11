@@ -3,8 +3,8 @@ import { RadioGroup } from "react-aria-components";
 
 import { SplitViewToggle } from "./SplitViewToggle";
 import { ViewRadioButton } from "./ViewRadioButton";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { Divider } from "~/components/Divider/Divider";
 import { Section } from "~/components/Section/Section";
 

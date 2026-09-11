@@ -1,7 +1,7 @@
 import type { SupportedDtype } from "@vivjs/types";
 
+import type { Image, Loader } from "./ome.tif.types";
 import { getDtypeMax } from "../../../utils/getDtypeMax";
-import type { Image, Loader } from "../ome.tif.types";
 import type { ByteDomain, ViewerSlice } from "../types";
 
 export interface CoreSlice {

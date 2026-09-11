@@ -2,12 +2,9 @@ import { PickingInfo } from "@deck.gl/core";
 import { MultiscaleImageLayer, ColorPaletteExtension } from "@hms-dbmi/viv";
 import { useCallback, useMemo } from "react";
 
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
-import {
-  type CytarioLayerResult,
-  type LayerTooltipItem,
-} from "../../../state/store/slices/viewer.view.store";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+import { type CytarioLayerResult, type LayerTooltipItem } from "../../../state/store/types";
 import { handleImageViewerHover } from "../../../utils/handleImageViewerHover";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
 import { getCachedTile } from "../../../utils/sharedTileCache";

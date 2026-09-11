@@ -2,7 +2,7 @@ import { useToast } from "@cytario/design";
 import { useRef, useState } from "react";
 
 import { ImagePanel } from "./ImagePanel";
-import { useViewerStore } from "../../state/store/ViewerStoreContext";
+import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { useCanAnnotate } from "../../utils/useCanAnnotate";
 import { Toolbar } from "../Toolbar";
 import { isAnnotationImportFile, parseAnnotationImportFile } from "~/utils/db/annotationImport";

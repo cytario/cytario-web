@@ -1,7 +1,7 @@
 import { getSelectionStats } from "../../../utils/getSelectionStats";
+import { getInitialChannelsState } from "../channels/getInitialChannelsState";
+import { Image, Loader } from "../core/ome.tif.types";
 import { createViewerStore } from "../createViewerStore";
-import { getInitialChannelsState } from "../getInitialChannelsState";
-import { Image, Loader } from "../ome.tif.types";
 import {
   ChannelConfig,
   ChannelsStateColumns,
@@ -12,7 +12,7 @@ import {
 import { createMigrate } from "~/utils/persistMigration";
 
 vi.mock("../../../utils/getSelectionStats");
-vi.mock("../getInitialChannelsState");
+vi.mock("../channels/getInitialChannelsState");
 
 const createMockLayersState = () => ({
   id: crypto.randomUUID(),
@@ -101,6 +101,7 @@ describe("createViewerStore", () => {
       setMetadata: expect.any(Function),
       setLoader: expect.any(Function),
       setSelectedChannelId: expect.any(Function),
+      initChannelStats: expect.any(Function),
       setActiveImagePanelId: expect.any(Function),
       addImagePanel: expect.any(Function),
       addChannelsState: expect.any(Function),

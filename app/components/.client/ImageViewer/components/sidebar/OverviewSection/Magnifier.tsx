@@ -1,7 +1,7 @@
 import { Input, SegmentedControl, SegmentedControlItem } from "@cytario/design";
 
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 const MAGNIFICATION_PRESETS = [1, 2, 5, 10, 20, 40, 80] as const;
 

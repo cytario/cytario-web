@@ -1,6 +1,6 @@
 import { AddOverlay } from "./AddOverlay";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { RouteModal } from "~/components/RouteModal";
 
 /** Overlay file selection modal for parquet files. */

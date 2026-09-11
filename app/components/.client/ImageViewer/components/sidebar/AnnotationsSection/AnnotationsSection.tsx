@@ -12,12 +12,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { AnnotationsList } from "./AnnotationsList";
-import { select } from "../../../state/store/selectors";
 import {
   classNameOf,
   selectSetHiddenClasses,
-} from "../../../state/store/slices/viewer.annotations.store";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+} from "../../../state/store/annotations/annotations.store";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";

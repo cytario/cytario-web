@@ -4,9 +4,9 @@ import { twMerge } from "tailwind-merge";
 
 import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
 import { MAX_VISIBLE_CHANNELS } from "./constants";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ControlRow } from "../ControlRow";
 
 interface ChannelItemProps {

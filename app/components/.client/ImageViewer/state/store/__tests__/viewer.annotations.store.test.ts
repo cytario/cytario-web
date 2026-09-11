@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { createViewerStore } from "../createViewerStore";
 import {
   classColor,
   generateAnnotationName,
   generateSetName,
   selectSetFeatures,
   selectSetHiddenClasses,
-} from "../slices/viewer.annotations.store";
+} from "../annotations/annotations.store";
+import { createViewerStore } from "../createViewerStore";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
 // Helpers ----------------------------------------------------------------
