@@ -1135,6 +1135,59 @@ describe("createViewerStore", () => {
       expect(newPreset.overlaysFillOpacity).toBe(0.8);
       expect(newPreset.annotationsOpacity).toBe(1);
     });
+
+    test("selects first shared view when shared views are preloaded", () => {
+      const store = createViewerStore("test-viewer-33c");
+
+      const sharedView = createMockLayersState();
+      sharedView.author = "other-user";
+      sharedView.shared = true;
+      sharedView.channels = {
+        Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+      };
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        layersStates: [sharedView],
+      });
+
+      vi.mocked(getInitialChannelsState).mockReturnValue({
+        channelsState: createMockChannels(),
+        channelIds: ["Red", "Green"],
+        firstChannelKey: "Red",
+      });
+
+      store.getState().addChannelsState();
+
+      const state = store.getState();
+      expect(state.layersStates).toHaveLength(2);
+      expect(state.imagePanels[0]).toBe(0);
+    });
+
+    test("selects default view when no shared views are preloaded", () => {
+      const store = createViewerStore("test-viewer-33d");
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        layersStates: [],
+      });
+
+      vi.mocked(getInitialChannelsState).mockReturnValue({
+        channelsState: createMockChannels(),
+        channelIds: ["Red", "Green"],
+        firstChannelKey: "Red",
+      });
+
+      store.getState().addChannelsState();
+
+      const state = store.getState();
+      expect(state.layersStates).toHaveLength(1);
+      expect(state.imagePanels[0]).toBe(0);
+    });
   });
 
   describe("setViewName()", () => {

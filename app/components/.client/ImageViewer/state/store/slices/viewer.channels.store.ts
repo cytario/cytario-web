@@ -162,14 +162,21 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
           state.loader,
         );
 
+        const defaultEntry = createDefaultLayersStateEntry(state.currentUserId);
+
         set(
           (state) => {
+            state.layersStates.push(defaultEntry);
+            const firstSharedIdx = state.layersStates.findIndex(
+              (ls) => ls.shared && ls.author !== state.currentUserId,
+            );
             state.imagePanelIndex = 0;
-            state.imagePanels = [0];
+            state.imagePanels = [
+              firstSharedIdx >= 0 ? firstSharedIdx : state.layersStates.length - 1,
+            ];
             state.selectedChannelId = firstChannelKey;
             state.channels = castDraft(channelsState);
             state.channelIds = channelIds;
-            state.layersStates = [createDefaultLayersStateEntry(state.currentUserId)];
           },
           false,
           "addChannelsStateInitial",
@@ -182,6 +189,11 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
         const bfGroup = detectBrightfieldGroup(channelIds);
         const initKey = bfGroup ? BRIGHTFIELD_GROUP_ID : firstChannelKey;
         state.setChannelVisibility(initKey as keyof ChannelsStateColumns, true);
+
+        const sharedIdx = get().imagePanels[0];
+        if (sharedIdx !== undefined && sharedIdx !== get().layersStates.length - 1) {
+          get().setActivePresetIndex(sharedIdx);
+        }
         return;
       }
 
