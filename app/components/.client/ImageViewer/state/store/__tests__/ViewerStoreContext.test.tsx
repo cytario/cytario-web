@@ -45,20 +45,34 @@ vi.mock("~/utils/resourceId", () => ({
 vi.mock("~/utils/connectionsStore/selectors", () => ({
   resolveResourceId: vi.fn((resourceId: string) => ({ httpsUrl: resourceId })),
 }));
+vi.mock("../annotationSync", () => ({
+  attachAnnotationSync: vi.fn(),
+}));
+vi.mock("../viewSync", () => ({
+  attachViewSync: vi.fn(),
+}));
 
 const mockSignedFetch = vi.fn();
 
 describe("ViewerStoreContext", () => {
+  const mockState = {
+    id: "conn/slide.ome.tif",
+    metadata: null,
+    imagePanels: [],
+    imagePanelIndex: -1,
+    layersStates: [],
+    channels: {},
+    addChannelsState: vi.fn(),
+    sharedViewsLoaded: false,
+    setLoader: vi.fn(),
+    setMetadata: vi.fn(),
+    setError: vi.fn(),
+    setIsViewerLoading: vi.fn(),
+  };
   const mockViewerStore = {
-    getState: vi.fn(() => ({
-      id: "conn/slide.ome.tif",
-      setLoader: vi.fn(),
-      setMetadata: vi.fn(),
-      setError: vi.fn(),
-      setIsViewerLoading: vi.fn(),
-    })),
+    getState: vi.fn(() => mockState),
     setState: vi.fn(),
-    subscribe: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
   };
 
   beforeEach(() => {
@@ -151,6 +165,13 @@ describe("ViewerStoreContext", () => {
         currentUserId: "user-1",
         loader: [] as unknown[],
         error: null as Error | null,
+        metadata: null,
+        imagePanels: [] as number[],
+        imagePanelIndex: -1,
+        layersStates: [] as unknown[],
+        channels: {},
+        addChannelsState: vi.fn(),
+        sharedViewsLoaded: false,
         setLoader: vi.fn((loader: unknown[]) => {
           state.loader = loader;
         }),
@@ -163,7 +184,7 @@ describe("ViewerStoreContext", () => {
       const store = {
         getState: () => state,
         setState: vi.fn(),
-        subscribe: vi.fn(),
+        subscribe: vi.fn(() => () => {}),
       };
       return { store, state };
     }
@@ -348,16 +369,24 @@ describe("ViewerStoreContext", () => {
         .fn()
         .mockResolvedValue({ data: mockLoader, metadata: mockMetadata } as never);
 
+      const mockStoreState = {
+        id: "conn/slide.ome.tif",
+        metadata: null,
+        imagePanels: [],
+        imagePanelIndex: -1,
+        layersStates: [],
+        channels: {},
+        addChannelsState: vi.fn(),
+        sharedViewsLoaded: false,
+        setLoader,
+        setMetadata,
+        setError: vi.fn(),
+        setIsViewerLoading,
+      };
       vi.mocked(createViewerStore).mockReturnValue({
-        getState: vi.fn(() => ({
-          id: "conn/slide.ome.tif",
-          setLoader,
-          setMetadata,
-          setError: vi.fn(),
-          setIsViewerLoading,
-        })),
+        getState: vi.fn(() => mockStoreState),
         setState: vi.fn(),
-        subscribe: vi.fn(),
+        subscribe: vi.fn(() => () => {}),
       } as unknown as ReturnType<typeof createViewerStore>);
 
       resolveMock.mockReturnValue({
@@ -395,16 +424,24 @@ describe("ViewerStoreContext", () => {
         .fn()
         .mockResolvedValue({ data: mockLoader, metadata: mockMetadata } as never);
 
+      const mockStoreState = {
+        id: "conn/slide.ome.tif",
+        metadata: null,
+        imagePanels: [],
+        imagePanelIndex: -1,
+        layersStates: [],
+        channels: {},
+        addChannelsState: vi.fn(),
+        sharedViewsLoaded: false,
+        setLoader,
+        setMetadata,
+        setError: vi.fn(),
+        setIsViewerLoading,
+      };
       vi.mocked(createViewerStore).mockReturnValue({
-        getState: vi.fn(() => ({
-          id: "conn/slide.ome.tif",
-          setLoader,
-          setMetadata,
-          setError: vi.fn(),
-          setIsViewerLoading,
-        })),
+        getState: vi.fn(() => mockStoreState),
         setState: vi.fn(),
-        subscribe: vi.fn(),
+        subscribe: vi.fn(() => () => {}),
       } as unknown as ReturnType<typeof createViewerStore>);
 
       resolveMock.mockReturnValue({
@@ -432,16 +469,24 @@ describe("ViewerStoreContext", () => {
       const setError = vi.fn();
       const setIsViewerLoading = vi.fn();
 
+      const mockStoreState = {
+        id: "conn/slide.ome.tif",
+        metadata: null,
+        imagePanels: [],
+        imagePanelIndex: -1,
+        layersStates: [],
+        channels: {},
+        addChannelsState: vi.fn(),
+        sharedViewsLoaded: false,
+        setLoader: vi.fn(),
+        setMetadata: vi.fn(),
+        setError,
+        setIsViewerLoading,
+      };
       vi.mocked(createViewerStore).mockReturnValue({
-        getState: vi.fn(() => ({
-          id: "conn/slide.ome.tif",
-          setLoader: vi.fn(),
-          setMetadata: vi.fn(),
-          setError,
-          setIsViewerLoading,
-        })),
+        getState: vi.fn(() => mockStoreState),
         setState: vi.fn(),
-        subscribe: vi.fn(),
+        subscribe: vi.fn(() => () => {}),
       } as unknown as ReturnType<typeof createViewerStore>);
 
       resolveMock.mockReturnValue({

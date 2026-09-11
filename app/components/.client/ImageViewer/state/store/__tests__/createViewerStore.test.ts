@@ -68,6 +68,7 @@ describe("createViewerStore", () => {
       loader: [],
       valueRange: [0, 0],
       isViewerLoading: true,
+      sharedViewsLoaded: false,
       metadata: null,
       viewStatePreview: null,
       viewStateActive: null,
@@ -94,6 +95,7 @@ describe("createViewerStore", () => {
       setViewStatePreview: expect.any(Function),
       setViewStateActive: expect.any(Function),
       setIsViewerLoading: expect.any(Function),
+      setSharedViewsLoaded: expect.any(Function),
       setIsChannelsLoading: expect.any(Function),
       setIsOverlaysLoading: expect.any(Function),
       setMetadata: expect.any(Function),
@@ -502,6 +504,165 @@ describe("createViewerStore", () => {
 
     store.getState().setActivePresetIndex(1);
     expect(store.getState().imagePanels[0]).toBe(1);
+  });
+
+  test("setActivePresetIndex() keeps selectedChannelId when visible in target view", () => {
+    const store = createViewerStore("test-viewer-17a");
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      selectedChannelId: "Green",
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    expect(store.getState().selectedChannelId).toBe("Green");
+  });
+
+  test("setActivePresetIndex() switches to first visible channel when selected not visible", () => {
+    const store = createViewerStore("test-viewer-17b");
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      selectedChannelId: "Red",
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    expect(store.getState().selectedChannelId).toBe("Green");
+  });
+
+  test("setActivePresetIndex() sets null when target view has no visible channels", () => {
+    const store = createViewerStore("test-viewer-17c");
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      selectedChannelId: "Red",
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    expect(store.getState().selectedChannelId).toBeNull();
+  });
+
+  test("setActivePresetIndex() initializes stats for visible-but-uninitialized channels", async () => {
+    const store = createViewerStore("test-viewer-17d");
+
+    vi.mocked(getSelectionStats).mockResolvedValue({
+      domain: [0, 1000],
+      contrastLimits: [50, 800],
+      histogram: new Array(256).fill(1),
+    });
+
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [10, 900], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    expect(store.getState().channels["Green"].isInitialized).toBe(false);
+
+    store.getState().setActivePresetIndex(1);
+    await vi.waitFor(() => {
+      expect(store.getState().channels["Green"].isInitialized).toBe(true);
+    });
+
+    expect(store.getState().channels["Green"].domain).toEqual([0, 1000]);
+    expect(store.getState().channels["Green"].histogram).toEqual(new Array(256).fill(1));
+    expect(store.getState().selectedChannelId).toBe("Green");
+  });
+
+  test("setActivePresetIndex() does not overwrite saved contrastLimits on init", async () => {
+    const store = createViewerStore("test-viewer-17e");
+
+    vi.mocked(getSelectionStats).mockResolvedValue({
+      domain: [0, 1000],
+      contrastLimits: [50, 800],
+      histogram: new Array(256).fill(1),
+    });
+
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [10, 900], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    await vi.waitFor(() => {
+      expect(store.getState().channels["Green"].isInitialized).toBe(true);
+    });
+
+    expect(store.getState().layersStates[1].channels["Green"].contrastLimits).toEqual([10, 900]);
+  });
+
+  test("setActivePresetIndex() does not re-init already-initialized channels", async () => {
+    const store = createViewerStore("test-viewer-17f");
+
+    vi.mocked(getSelectionStats).mockClear();
+
+    const channels = createMockChannels();
+    channels.Green.isInitialized = true;
+
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [10, 900], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels,
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    await vi.waitFor(() => {
+      expect(store.getState().selectedChannelId).toBe("Green");
+    });
+
+    expect(getSelectionStats).not.toHaveBeenCalled();
   });
 
   test("setContrastLimits()", () => {

@@ -11,11 +11,16 @@ export interface CoreSlice {
   valueRange: ByteDomain;
   error: Error | null;
   isViewerLoading: boolean;
+  /** Whether the async S3 settings-sidecar read has completed (success or
+   *  failure). Gates channel-state init so it doesn't fire before peer-shared
+   *  views have had a chance to arrive. Not persisted. */
+  sharedViewsLoaded: boolean;
 
   setError: (error: Error | null) => void;
   setMetadata: (metadata: Image) => void;
   setLoader: (loader: Loader) => void;
   setIsViewerLoading: (val: boolean) => void;
+  setSharedViewsLoaded: (val: boolean) => void;
 }
 
 /** Core image lifecycle: loader, metadata, dtype value range, load/error flags. */
@@ -25,6 +30,7 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
   valueRange: [0, 0],
   error: null,
   isViewerLoading: true,
+  sharedViewsLoaded: false,
 
   setError: (error) =>
     set(
@@ -48,8 +54,6 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
     set(
       (state) => {
         state.loader = loader;
-        // dtype is structurally `string` in @cytario/plugin-api; one of the
-        // canonical PixelType values is guaranteed at runtime.
         if (loader?.[0]) {
           state.valueRange = [0, getDtypeMax(loader[0].dtype as SupportedDtype)];
         }
@@ -65,5 +69,14 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
       },
       false,
       "setIsViewerLoading",
+    ),
+
+  setSharedViewsLoaded: (val) =>
+    set(
+      (state) => {
+        state.sharedViewsLoaded = val;
+      },
+      false,
+      "setSharedViewsLoaded",
     ),
 });

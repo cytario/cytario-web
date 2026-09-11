@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 
 import { attachAnnotationSync } from "./annotationSync";
 import { createViewerStore } from "./createViewerStore";
+import { select } from "./selectors";
 import type { ViewerStore } from "./types";
 import { attachViewSync } from "./viewSync";
 import { registerBuiltinFormats } from "../formats/builtins";
@@ -175,6 +176,17 @@ export const ViewerStoreProvider = ({
     () => registerViewer(resourceId, signedFetch, userId),
     [resourceId, signedFetch, userId, registerViewer],
   );
+
+  const metadata = useStore(store, select.metadata);
+  const channelsState = useStore(store, select.channelsState);
+  const addChannelsState = useStore(store, select.addChannelsState);
+  const sharedViewsLoaded = useStore(store, (s) => s.sharedViewsLoaded);
+
+  useEffect(() => {
+    if (!channelsState && metadata && sharedViewsLoaded) {
+      addChannelsState();
+    }
+  }, [metadata, channelsState, addChannelsState, sharedViewsLoaded]);
 
   // React runs every cleanup of a commit before any effect, so a provider
   // unmounting and a different provider for the same resourceId mounting in

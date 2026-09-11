@@ -26,11 +26,16 @@ export function attachViewSync(store: ViewerStoreApi): void {
 
   readViewSettings(store.getState().id)
     .then((views) => {
-      if (views.length === 0) return;
-      persisted = views;
-      store.getState().loadSharedViews(views);
+      if (views.length > 0) {
+        persisted = views;
+        store.getState().loadSharedViews(views);
+      }
+      store.getState().setSharedViewsLoaded(true);
     })
-    .catch((error) => console.error("[viewSettings] load failed:", error));
+    .catch((error) => {
+      console.error("[viewSettings] load failed:", error);
+      store.getState().setSharedViewsLoaded(true);
+    });
 
   const schedule = () => {
     if (timer) clearTimeout(timer);

@@ -29,6 +29,7 @@ interface FakeState {
   loadSharedViews: (entries: ViewSettingsEntry[]) => void;
   shareView: (index: number) => void;
   unshareView: (index: number) => void;
+  setSharedViewsLoaded: (val: boolean) => void;
 }
 
 function makeEntry(overrides: Partial<LayersStateEntry> = {}): LayersStateEntry {
@@ -85,6 +86,7 @@ function makeFakeStore(userId = "user-123") {
     unshareView: (index) => {
       if (state.layersStates[index]) state.layersStates[index].shared = false;
     },
+    setSharedViewsLoaded: () => {},
   };
   const store = {
     getState: () => state,

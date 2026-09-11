@@ -8,7 +8,6 @@ import { ImageContainer } from "./ImageContainer";
 import { ActiveViewStatePreview } from "./Measurements/ActiveViewStatePreview";
 import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
 import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
-import { useInitializeChannels } from "./useInitializeChannels";
 import { useView } from "./useView";
 import { registerDecoders } from "../../state/decoders/registerDecoders";
 import { select } from "../../state/store/selectors";
@@ -44,8 +43,6 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
 
   const viewStateActive = useViewerStore(select.viewStateActive);
   const setViewStateActive = useViewerStore(select.setViewStateActive);
-
-  useInitializeChannels();
 
   // Recompute the preview viewport whenever the container is resized.
   useEffect(() => {
