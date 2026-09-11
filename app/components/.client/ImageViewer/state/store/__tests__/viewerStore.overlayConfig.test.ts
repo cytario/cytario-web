@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { invalidateOverlayTiles } from "../../../utils/sharedTileCache";
 import { createViewerStore } from "../createViewerStore";
@@ -25,7 +25,7 @@ const makeEntry = (overlays: OverlaysState) => ({
 });
 
 describe("viewerStoreMigrate v5 → v6 (overlay entry shape)", () => {
-  it("wraps legacy bare marker records into { markers, config: null }", () => {
+  test("wraps legacy bare marker records into { markers, config: null }", () => {
     const v5State = {
       currentUserId: "user-a",
       imagePanelIndex: 0,
@@ -52,7 +52,7 @@ describe("viewerStoreMigrate v5 → v6 (overlay entry shape)", () => {
     });
   });
 
-  it("keeps new-shape entries intact", () => {
+  test("keeps new-shape entries intact", () => {
     const entry = {
       markers: { m1: { color: [9, 9, 9, 255], count: 1, isVisible: false } },
       config: {
@@ -74,7 +74,7 @@ describe("viewerStoreMigrate v5 → v6 (overlay entry shape)", () => {
     );
   });
 
-  it("drops unparseable overlay values", () => {
+  test("drops unparseable overlay values", () => {
     const v5State = {
       currentUserId: "user-a",
       imagePanelIndex: 0,
@@ -90,7 +90,7 @@ describe("viewerStoreMigrate v5 → v6 (overlay entry shape)", () => {
 });
 
 describe("updateOverlayConfig", () => {
-  it("replaces the entry's config and markers in place", () => {
+  test("replaces the entry's config and markers in place", () => {
     const store = createViewerStore("overlay-config-store");
     store.setState({
       imagePanelIndex: 0,
@@ -121,7 +121,7 @@ describe("updateOverlayConfig", () => {
     expect(entry.markers).toEqual(nextMarkers);
   });
 
-  it("is a no-op for an unknown resource", () => {
+  test("is a no-op for an unknown resource", () => {
     const store = createViewerStore("overlay-config-store-2");
     store.setState({
       imagePanelIndex: 0,
@@ -135,8 +135,34 @@ describe("updateOverlayConfig", () => {
   });
 });
 
+describe("removeOverlaysState", () => {
+  test("deletes the entry and re-arms error reporting for the resource", async () => {
+    const { shouldReportOverlayError } = await import("~/utils/db/overlayErrorOnce");
+    const store = createViewerStore("overlay-config-store-remove");
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [
+        makeEntry({
+          "res-1": {
+            markers: { m1: { color: [1, 1, 1, 255], count: 0, isVisible: false } },
+            config: null,
+          },
+        }),
+      ],
+    });
+
+    shouldReportOverlayError("res-1", "cfg");
+    store.getState().removeOverlaysState("res-1");
+
+    expect(store.getState().layersStates[0].overlays["res-1"]).toBeUndefined();
+    // removal releases the suppression set entry — the same config reports again
+    expect(shouldReportOverlayError("res-1", "cfg")).toBe(true);
+  });
+});
+
 describe("applyOverlayReconfiguration", () => {
-  it("invalidates tiles and re-arms error reporting for the resource", async () => {
+  test("invalidates tiles and re-arms error reporting for the resource", async () => {
     const { applyOverlayReconfiguration } = await import("../slices/viewer.overlays.store");
     const { shouldReportOverlayError } = await import("~/utils/db/overlayErrorOnce");
 

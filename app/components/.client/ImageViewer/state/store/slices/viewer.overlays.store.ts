@@ -66,7 +66,10 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
       false,
       "updateOverlayConfig",
     ),
-  removeOverlaysState: (overlaysStateId) =>
+
+  // Removing the overlay also releases its error-suppression entries so the
+  // reported set cannot grow unboundedly across add/remove cycles.
+  removeOverlaysState: (overlaysStateId) => {
     set(
       (state) => {
         const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
@@ -77,7 +80,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
       },
       false,
       "removeOverlaysState",
-    ),
+    );
+    resetOverlayErrorReporting(overlaysStateId);
+  },
 
   setOverlaysFillOpacity: (fillOpacity) =>
     set(
