@@ -8,6 +8,7 @@ import {
   type SpatialDataViewerStoreApi,
 } from "./createSpatialDataViewerStore";
 import { createSpatialDataStore } from "./transport/createSpatialDataStore";
+import { suppressPointsRowFeatureCodes } from "./transport/suppressPointsRowFeatureCodes";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import type { SignedFetch } from "~/utils/signedFetch";
 
@@ -27,7 +28,9 @@ const useSpatialDataRegistryStore = create<SpatialDataRegistryStore>()((set, get
     const { httpsUrl } = resolveResourceId(resourceId);
     const zarrStore = createSpatialDataStore(httpsUrl, signedFetch);
     readZarr(zarrStore)
-      .then((spatialData) => store.getState().setSpatialData(spatialData))
+      .then((spatialData) =>
+        store.getState().setSpatialData(suppressPointsRowFeatureCodes(spatialData)),
+      )
       .catch((error: Error) => store.getState().setError(error));
 
     set((state) => ({ stores: { ...state.stores, [resourceId]: store } }));
