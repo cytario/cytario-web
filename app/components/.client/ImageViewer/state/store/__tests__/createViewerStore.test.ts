@@ -114,6 +114,7 @@ describe("createViewerStore", () => {
       setMarkerVisibility: expect.any(Function),
       setMarkerColor: expect.any(Function),
       updateOverlaysState: expect.any(Function),
+      updateOverlayConfig: expect.any(Function),
       setOverlaysFillOpacity: expect.any(Function),
       setChannelsOpacity: expect.any(Function),
       setShowCellOutline: expect.any(Function),
@@ -654,7 +655,8 @@ describe("createViewerStore", () => {
     const layersState = createMockLayersState();
     layersState.overlays = {
       "file1.json": {
-        marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true },
+        markers: { marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true } },
+        config: null,
       },
     };
 
@@ -664,12 +666,14 @@ describe("createViewerStore", () => {
       layersStates: [layersState],
     });
 
-    expect(store.getState().layersStates[0].overlays["file1.json"]["marker1"].isVisible).toBe(true);
+    expect(
+      store.getState().layersStates[0].overlays["file1.json"].markers["marker1"].isVisible,
+    ).toBe(true);
 
     store.getState().setMarkerVisibility("file1.json", "marker1", false);
-    expect(store.getState().layersStates[0].overlays["file1.json"]["marker1"].isVisible).toBe(
-      false,
-    );
+    expect(
+      store.getState().layersStates[0].overlays["file1.json"].markers["marker1"].isVisible,
+    ).toBe(false);
   });
 
   test("setMarkerColor()", () => {
@@ -678,7 +682,8 @@ describe("createViewerStore", () => {
     const layersState = createMockLayersState();
     layersState.overlays = {
       "file1.json": {
-        marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true },
+        markers: { marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true } },
+        config: null,
       },
     };
 
@@ -689,9 +694,9 @@ describe("createViewerStore", () => {
     });
 
     store.getState().setMarkerColor("file1.json", "marker1", [0, 255, 0, 255]);
-    expect(store.getState().layersStates[0].overlays["file1.json"]["marker1"].color).toEqual([
-      0, 255, 0, 255,
-    ]);
+    expect(
+      store.getState().layersStates[0].overlays["file1.json"].markers["marker1"].color,
+    ).toEqual([0, 255, 0, 255]);
   });
 
   test("addOverlaysState()", () => {
@@ -705,13 +710,15 @@ describe("createViewerStore", () => {
 
     const newOverlay: OverlaysState = {
       "newFile.json": {
-        newMarker: { color: [0, 0, 255, 255], count: 5, isVisible: true },
+        markers: { newMarker: { color: [0, 0, 255, 255], count: 5, isVisible: true } },
+        config: null,
       },
     };
 
     store.getState().addOverlaysState(newOverlay);
     expect(store.getState().layersStates[0].overlays["newFile.json"]).toEqual({
-      newMarker: { color: [0, 0, 255, 255], count: 5, isVisible: true },
+      markers: { newMarker: { color: [0, 0, 255, 255], count: 5, isVisible: true } },
+      config: null,
     });
   });
 
@@ -721,7 +728,8 @@ describe("createViewerStore", () => {
     const layersState = createMockLayersState();
     layersState.overlays = {
       "file1.json": {
-        marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true },
+        markers: { marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true } },
+        config: null,
       },
     };
 
@@ -745,7 +753,7 @@ describe("createViewerStore", () => {
     };
 
     store.getState().updateOverlaysState("file1.json", updatedOverlay);
-    expect(store.getState().layersStates[0].overlays["file1.json"]).toEqual(updatedOverlay);
+    expect(store.getState().layersStates[0].overlays["file1.json"].markers).toEqual(updatedOverlay);
   });
 
   test("removeOverlaysState()", () => {
@@ -754,10 +762,12 @@ describe("createViewerStore", () => {
     const layersState = createMockLayersState();
     layersState.overlays = {
       "file1.json": {
-        marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true },
+        markers: { marker1: { color: [255, 0, 0, 255], count: 10, isVisible: true } },
+        config: null,
       },
       "file2.json": {
-        marker2: { color: [0, 255, 0, 255], count: 5, isVisible: true },
+        markers: { marker2: { color: [0, 255, 0, 255], count: 5, isVisible: true } },
+        config: null,
       },
     };
 

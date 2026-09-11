@@ -6,7 +6,44 @@ import type {
   RGB,
 } from "~/components/.client/ImageViewer/state/store/types";
 
-const SCHEMA_VERSION = "1.0";
+const SCHEMA_VERSION = "1.1";
+
+const overlayClassSchema = z.object({
+  sourceColumn: z.string(),
+  label: z.string(),
+  mode: z.enum(["boolean", "threshold", "continuous"]),
+  operator: z.enum([">", ">=", "<", "<=", "=", "!="]).optional(),
+  threshold: z.number().optional(),
+});
+
+const overlayConfigSchema = z.object({
+  version: z.literal(1),
+  columns: z.object({
+    id: z.string(),
+    geometry: z.string(),
+    x: z.string(),
+    y: z.string(),
+  }),
+  classes: z.array(overlayClassSchema),
+});
+
+const overlayMarkerSchema = z.object({
+  color: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  count: z.number(),
+  isVisible: z.boolean(),
+  label: z.string().optional(),
+});
+
+const overlayEntrySchema = z.object({
+  markers: z.record(z.string(), overlayMarkerSchema),
+  config: overlayConfigSchema.nullable(),
+});
+
+/** Sidecar overlays are either the new entry shape or the legacy bare markers record. */
+const sidecarOverlaysSchema = z.union([
+  z.record(z.string(), overlayEntrySchema),
+  z.record(z.string(), z.unknown()),
+]);
 
 export const viewSettingsChannelSchema = z.object({
   id: z.string(),
@@ -22,7 +59,7 @@ export const viewSettingsChannelSchema = z.object({
     }),
   ),
   channelsOpacity: z.number().default(1),
-  overlays: z.record(z.string(), z.unknown()).default({}),
+  overlays: sidecarOverlaysSchema.default({}),
   overlaysFillOpacity: z.number().default(0.8),
   showCellOutline: z.boolean().default(true),
   annotationsOpacity: z.number().default(1),
@@ -31,7 +68,7 @@ export const viewSettingsChannelSchema = z.object({
 
 export const viewSettingsDocumentSchema = z.object({
   cytario: z.object({
-    schemaVersion: z.literal(SCHEMA_VERSION),
+    schemaVersion: z.string(),
     kind: z.literal("settings"),
     image: z.string(),
     author: z.string(),
@@ -39,10 +76,38 @@ export const viewSettingsDocumentSchema = z.object({
   views: z.array(viewSettingsChannelSchema),
 });
 
+export type OverlayConfigSidecar = z.infer<typeof overlayConfigSchema>;
+export type OverlayEntrySidecar = z.infer<typeof overlayEntrySchema>;
 export type ViewSettingsDocument = z.infer<typeof viewSettingsDocumentSchema>;
 export type ViewSettingsEntry = z.infer<typeof viewSettingsChannelSchema>;
 
 export const VIEW_SETTINGS_SCHEMA_VERSION = SCHEMA_VERSION;
+
+/**
+ * Migrate a sidecar overlays record: legacy v1.0 sidecars stored bare marker
+ * records per resource (no config) — wrap them into the entry shape with a
+ * null config so old persisted state keeps working.
+ */
+export function migrateSidecarOverlays(overlays: unknown): Record<string, OverlayEntrySidecar> {
+  const entries = z.record(z.string(), z.unknown()).safeParse(overlays);
+  if (!entries.success) return {};
+  const out: Record<string, OverlayEntrySidecar> = {};
+  for (const [resourceId, value] of Object.entries(entries.data)) {
+    const parsed = overlayEntrySchema.safeParse(value);
+    if (parsed.success) {
+      out[resourceId] = parsed.data;
+      continue;
+    }
+    const legacy = z.record(z.string(), overlayMarkerSchema).safeParse(value);
+    if (legacy.success) {
+      // Pre-config sidecar: markers only. Config is re-derived on next load.
+      out[resourceId] = { markers: legacy.data, config: null };
+    }
+    // Unparseable entries are dropped — one corrupt resource must not break
+    // the rest of the view.
+  }
+  return out;
+}
 
 function rgbToHex(color: RGB): string {
   return color
@@ -95,7 +160,7 @@ export function sidecarEntryToLayersState(entry: ViewSettingsEntry): LayersState
     id: entry.id,
     author: entry.author,
     channels,
-    overlays: entry.overlays as LayersStateEntry["overlays"],
+    overlays: migrateSidecarOverlays(entry.overlays) as LayersStateEntry["overlays"],
     channelsOpacity: entry.channelsOpacity,
     overlaysFillOpacity: entry.overlaysFillOpacity,
     showCellOutline: entry.showCellOutline,

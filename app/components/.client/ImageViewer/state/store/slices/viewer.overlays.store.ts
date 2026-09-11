@@ -1,4 +1,7 @@
+import { invalidateOverlayTiles } from "../../../utils/sharedTileCache";
 import type { OverlaysState, OverlayState, RGBA, ViewerSlice } from "../types";
+import type { OverlayConfig } from "~/utils/db/overlayConfig";
+import { resetOverlayErrorReporting } from "~/utils/db/overlayErrorOnce";
 
 /**
  * Overlay (cell-segmentation) actions. The overlay state itself lives in the
@@ -8,6 +11,11 @@ import type { OverlaysState, OverlayState, RGBA, ViewerSlice } from "../types";
 export interface OverlaysSlice {
   addOverlaysState: (overlaysState: OverlaysState) => void;
   updateOverlaysState: (overlayId: string, overlayState: OverlayState) => void;
+  updateOverlayConfig: (
+    resourceId: string,
+    config: OverlayConfig | null,
+    markers: OverlayState,
+  ) => void;
   removeOverlaysState: (overlaysStateId: string) => void;
   setOverlaysFillOpacity: (fillOpacity: number) => void;
   setShowCellOutline: (show: boolean) => void;
@@ -36,13 +44,28 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
         const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
         const layerState = state.layersStates[activeImagePanelIndex];
         if (layerState?.overlays[overlayId]) {
-          layerState.overlays[overlayId] = overlayState;
+          layerState.overlays[overlayId].markers = overlayState;
         }
       },
       false,
       "updateOverlaysState",
     ),
 
+  // Callers precompute the rebuilt markers (counts need a DuckDB round-trip);
+  // the store stays synchronous. Reconfiguration invalidates cached tiles and
+  // re-arms error reporting for the resource.
+  updateOverlayConfig: (resourceId, config, markers) =>
+    set(
+      (state) => {
+        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
+        const entry = state.layersStates[activeImagePanelIndex]?.overlays[resourceId];
+        if (!entry) return;
+        entry.config = config;
+        entry.markers = markers;
+      },
+      false,
+      "updateOverlayConfig",
+    ),
   removeOverlaysState: (overlaysStateId) =>
     set(
       (state) => {
@@ -87,8 +110,8 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
       (state) => {
         const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
         const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
-        if (overlays?.[fileName]?.[markerName]) {
-          overlays[fileName][markerName].isVisible = isVisible;
+        if (overlays?.[fileName]?.markers[markerName]) {
+          overlays[fileName].markers[markerName].isVisible = isVisible;
         }
       },
       false,
@@ -100,8 +123,8 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
       (state) => {
         const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
         const overlays = state.layersStates[activeImagePanelIndex]?.overlays;
-        if (overlays?.[fileName]?.[markerName]) {
-          overlays[fileName][markerName].color = color;
+        if (overlays?.[fileName]?.markers[markerName]) {
+          overlays[fileName].markers[markerName].color = color;
         }
       },
       false,
@@ -121,3 +144,9 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
       "setIsOverlaysLoading",
     ),
 });
+
+/** Side effects for overlay reconfiguration — called by the UI action layer. */
+export function applyOverlayReconfiguration(resourceId: string): void {
+  invalidateOverlayTiles(resourceId);
+  resetOverlayErrorReporting(resourceId);
+}
