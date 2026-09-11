@@ -39,6 +39,20 @@ vi.mock("~/components/.client/SpatialDataViewer/components/SpatialDataViewer", (
   SpatialDataViewer: () => <div data-testid="spatialdata-viewer-stub"></div>,
 }));
 
+// resolveResourceId throws for connections missing from the store — the mock
+// preserves that so a render-time call in the .zarr branch would crash the
+// render (the SSR failure mode: the server-side connections store is empty).
+const resolveResourceIdMock = vi.fn((resourceId: string): never => {
+  throw new Error(`No connection found for ${resourceId}`);
+});
+vi.mock("~/utils/connectionsStore/selectors", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/utils/connectionsStore/selectors")>();
+  return {
+    ...actual,
+    resolveResourceId: (resourceId: string) => resolveResourceIdMock(resourceId),
+  };
+});
+
 vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
   getSelectionStats: vi.fn(
     () =>
@@ -176,5 +190,40 @@ describe("Bucket Route", () => {
     await waitFor(() => {
       expect(screen.getByTestId("spatialdata-viewer-stub")).toBeInTheDocument();
     });
+  });
+
+  test("renders a plain .zarr leaf without resolving the httpsUrl during render", async () => {
+    const RemixStub = createRoutesStub([
+      {
+        path: "/connections/:id/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: () => {
+          return {
+            connectionId: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
+            credentials: mock.credentials(),
+            connectionConfig: mock.connectionConfig(),
+            user: mock.user(),
+            nodes: [],
+            pathName: "store.zarr",
+            urlPath: "store.zarr",
+            bucketName: "test-bucket",
+            name: "store.zarr",
+            isSingleFile: true,
+          };
+        },
+      },
+    ]);
+
+    // resolveResourceId throws in this test (empty connections store, the SSR
+    // state); a render-time call would crash the render into an error boundary
+    // instead of the loading fallback — the exact e2e failure mode.
+    render(<RemixStub initialEntries={["/connections/aws-test-bucket/store.zarr"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Inspecting store…")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Unexpected Application Error/i)).not.toBeInTheDocument();
   });
 });

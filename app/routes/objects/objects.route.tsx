@@ -98,21 +98,29 @@ function isPlainZarrPath(resourceId: string): boolean {
   return ZARR_PATH_PATTERN.test(path) && !SDATA_PATH_PATTERN.test(path);
 }
 
-/** Client-side sniff wrapper for plain `.zarr` stores — resolves which lazy
- *  viewer renders, never loads in the loader. */
+/** Client-only sniff wrapper for plain `.zarr` stores — resolves which lazy
+ *  viewer renders, never loads in the loader. The httpsUrl is resolved in the
+ *  effect, not during render: the connections store is empty during SSR and
+ *  resolveResourceId throws for unknown connections. */
 function ZarrViewerRouter({
   resourceId,
   signedFetch,
-  httpsUrl,
 }: {
   resourceId: string;
   signedFetch: ReturnType<typeof createSignedFetch>;
-  httpsUrl: string;
 }) {
   const [isSpatialData, setIsSpatialData] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let httpsUrl: string;
+    try {
+      httpsUrl = resolveResourceId(resourceId).httpsUrl;
+    } catch {
+      // The connections store can be empty on first client mount (data not
+      // yet hydrated); stay on the loading fallback until a later effect run.
+      return;
+    }
     // The sniff resolves false on fetch failure (never rejects), so the OME-Zarr
     // viewer's CORS error path takes over instead of a stuck loader.
     isSpatialDataStore(resourceId, httpsUrl, signedFetch).then((result) => {
@@ -121,7 +129,7 @@ function ZarrViewerRouter({
     return () => {
       cancelled = true;
     };
-  }, [resourceId, httpsUrl, signedFetch]);
+  }, [resourceId, signedFetch]);
 
   if (isSpatialData === null) {
     return <LoaderView label="Inspecting store…" />;
@@ -241,15 +249,10 @@ export default function ObjectsRoute() {
       }
 
       if (isPlainZarrPath(resourceId)) {
-        const httpsUrl = resolveResourceId(resourceId).httpsUrl;
         return (
           <ClientOnly>
             <Suspense fallback={<LoaderView label="Loading viewer…" />}>
-              <ZarrViewerRouter
-                resourceId={resourceId}
-                signedFetch={signedFetch}
-                httpsUrl={httpsUrl}
-              />
+              <ZarrViewerRouter resourceId={resourceId} signedFetch={signedFetch} />
             </Suspense>
           </ClientOnly>
         );
