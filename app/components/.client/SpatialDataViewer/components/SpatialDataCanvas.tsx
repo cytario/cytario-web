@@ -1,6 +1,7 @@
 import type { RenderStack, ViewState } from "@spatialdata/vis";
 import { SpatialCanvasViewer } from "@spatialdata/vis";
 
+import { isZBearing } from "./useResolveZSizes";
 import { elementId } from "../state/createSpatialDataViewerStore";
 import { useSpatialDataStore } from "../state/SpatialDataStoreContext";
 import { LoaderView } from "~/components/Loader/LoaderView";
@@ -22,9 +23,7 @@ export function buildRenderStack(elements: Record<string, RenderStackElementConf
       // Channel selections are clamped against the loader's axis sizes, so a z
       // on a 2D element is dropped downstream — but omitting it here keeps
       // single-plane layers on the no-channels default path unchanged.
-      const hasZAxis =
-        (element.elementType === "image" || element.elementType === "labels") &&
-        (element.zSize ?? 1) > 1;
+      const hasZAxis = isZBearing(element);
       return {
         kind: "spatial" as const,
         id: elementId(element.elementType, element.elementKey),

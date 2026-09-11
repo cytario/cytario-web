@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
-import { elementId } from "../state/createSpatialDataViewerStore";
+import { isZBearing, useResolveZSizes } from "./useResolveZSizes";
+import { elementId, type SpatialElementConfig } from "../state/createSpatialDataViewerStore";
 import { useSpatialDataStore } from "../state/SpatialDataStoreContext";
 import { Section } from "~/components/Section/Section";
 
@@ -8,14 +9,15 @@ import { Section } from "~/components/Section/Section";
 export function ZAxisSection() {
   const elements = useSpatialDataStore((s) => s.elements);
   const setElementZIndex = useSpatialDataStore((s) => s.setElementZIndex);
+  const setElementZSize = useSpatialDataStore((s) => s.setElementZSize);
+
+  useResolveZSizes(elements, setElementZSize);
 
   const zElements = useMemo(
     () =>
       Object.values(elements).filter(
-        (config) =>
-          config.isVisible &&
-          (config.elementType === "image" || config.elementType === "labels") &&
-          (config.zSize ?? 1) > 1,
+        (config): config is SpatialElementConfig & { zSize: number } =>
+          config.isVisible && isZBearing(config),
       ),
     [elements],
   );
@@ -27,7 +29,7 @@ export function ZAxisSection() {
       <div className="flex flex-col gap-3 p-2">
         {zElements.map((config) => {
           const id = elementId(config.elementType, config.elementKey);
-          const zSize = config.zSize ?? 1;
+          const zSize = config.zSize;
           const zIndex = config.zIndex ?? 0;
           return (
             <div key={id} className="flex flex-col gap-1">
@@ -42,7 +44,7 @@ export function ZAxisSection() {
                 min={0}
                 max={zSize - 1}
                 step={1}
-                aria-label={`${config.elementKey} z plane`}
+                aria-label={`${config.elementType} ${config.elementKey} z plane`}
                 aria-valuetext={`plane ${zIndex} of ${zSize}`}
                 className="h-4 w-full cursor-pointer accent-primary"
                 value={zIndex}

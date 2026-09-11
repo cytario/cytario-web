@@ -14,6 +14,8 @@ export interface SpatialElementConfig {
   zIndex?: number;
   /** Plane count along z (from the first multiscale array); > 1 marks a z-bearing element. */
   zSize?: number;
+  /** Zarr store view rooted at this raster element; present on raster kinds. */
+  getStore?: () => unknown;
 }
 
 export interface SpatialDataViewerState {
