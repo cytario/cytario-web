@@ -16,7 +16,7 @@ export type FileType =
   | string;
 
 /** Broad rendering category — determines which viewer component handles a file. */
-export type FileCategory = "image" | "text" | "tabular" | "none";
+export type FileCategory = "image" | "text" | "tabular" | "document" | "none";
 
 interface FileTypeEntry {
   pattern: RegExp;
@@ -81,6 +81,13 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     label: "CSV",
     icon: "FileSpreadsheet",
     category: "tabular",
+  },
+  {
+    pattern: /\.pdf$/i,
+    type: "PDF",
+    label: "PDF",
+    icon: "ScrollText",
+    category: "document",
   },
   {
     pattern: /\.json$/i,

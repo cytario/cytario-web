@@ -41,6 +41,12 @@ const DataGrid = lazy(() =>
   })),
 );
 
+const PdfViewer = lazy(() =>
+  import("~/components/PdfViewer/PdfViewer").then((module) => ({
+    default: module.PdfViewer,
+  })),
+);
+
 export { clientLoader, loader };
 export type { BucketRouteLoaderResponse };
 
@@ -141,6 +147,22 @@ export default function ObjectsRoute() {
         <ClientOnly fallback={<LoaderView label="Loading data…" />}>
           <Suspense fallback={<LoaderView label="Loading data…" />}>
             <DataGrid resourceId={resourceId} />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    if (category === "document") {
+      const signedFetch = createSignedFetch(
+        liveCredentials(connectionId),
+        signingRegion,
+        connectionId,
+      );
+
+      return (
+        <ClientOnly>
+          <Suspense fallback={<LoaderView label="Loading viewer…" />}>
+            <PdfViewer key={resourceId} resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );
