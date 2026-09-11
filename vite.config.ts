@@ -11,8 +11,15 @@ export default defineConfig({
   // Local @cytario/design development:
   // Skip pre-bundling so Vite serves the latest dist on every request.
   optimizeDeps: {
-    include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],
-    exclude: ["@cytario/design"],
+    include: [
+      "@codemirror/lang-json",
+      "@codemirror/lang-yaml",
+      "@uiw/react-codemirror",
+      "@fideus-labs/worker-pool",
+    ],
+    // zarrextra and fizarrita ship worker entries resolved via import.meta.url;
+    // flattening them into .vite/deps breaks those URLs, so serve them raw.
+    exclude: ["@cytario/design", "zarrextra", "@fideus-labs/fizarrita"],
   },
   // Process the design system through Vite's pipeline during SSR
   // instead of letting Node resolve it (avoids dual-React issues).
