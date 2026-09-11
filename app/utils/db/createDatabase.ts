@@ -77,28 +77,47 @@ const pendingApplications = new Map<string, Promise<void>>();
 /**
  * Open DuckDB instances kept alive: each carries a WASM worker + heap, so one
  * per viewed resource accumulates until the tab OOMs. LRU-bounded.
+ *
+ * Eviction is borrow-safe: a handle with outstanding borrows is never
+ * terminated under in-flight queries — it is marked evicted and terminated
+ * once the last borrower releases it. A re-request of a drained-but-not-yet-
+ * terminated (or still-borrowed) evicted handle resurrects it instead of
+ * spinning up a fresh instance.
  */
 const MAX_DUCKDB_INSTANCES = 3;
 
-const openHandles = new Map<string, Promise<DuckDbHandle>>();
+interface TrackedHandle {
+  promise: Promise<DuckDbHandle>;
+  borrows: number;
+  evicted: boolean;
+}
 
-/** Insertion-order LRU: touch on use, evict + terminate the oldest beyond the cap. */
-function trackHandle(resourceId: string, handlePromise: Promise<DuckDbHandle>) {
-  openHandles.delete(resourceId);
-  openHandles.set(resourceId, handlePromise);
+const openHandles = new Map<string, TrackedHandle>();
+const evictedHandles = new Map<string, TrackedHandle>();
 
+const terminateHandle = (tracked: TrackedHandle) =>
+  void tracked.promise
+    .then(async ({ connection, db }) => {
+      appliedKeyIds.delete(connection);
+      await connection.close();
+      await db.terminate();
+    })
+    .catch(() => {
+      // Termination best-effort; the worker dies with the tab anyway.
+    });
+
+/** Insertion-order LRU: touch on use, evict the oldest beyond the cap. */
+function evictBeyondCap() {
   while (openHandles.size > MAX_DUCKDB_INSTANCES) {
-    const [evictId, evictPromise] = openHandles.entries().next().value!;
+    const [evictId, tracked] = openHandles.entries().next().value!;
     openHandles.delete(evictId);
-    void evictPromise
-      .then(async ({ connection, db }) => {
-        appliedKeyIds.delete(connection);
-        await connection.close();
-        await db.terminate();
-      })
-      .catch(() => {
-        // Termination best-effort; the worker dies with the tab anyway.
-      });
+    if (tracked.borrows > 0) {
+      // Queries are in flight — terminate on the last release instead.
+      tracked.evicted = true;
+      evictedHandles.set(evictId, tracked);
+    } else {
+      terminateHandle(tracked);
+    }
   }
 }
 
@@ -112,19 +131,47 @@ export const createDatabase = async (
   credentials: Credentials,
   provider?: DatabaseProvider | null,
 ) => {
-  let handlePromise = openHandles.get(resourceId);
-  if (!handlePromise) {
-    handlePromise = createDatabaseInternal(resourceId, provider);
-    trackHandle(resourceId, handlePromise);
-
-    // A failed init must not stay cached (and must not be terminated as a
-    // live handle would).
-    handlePromise.catch(() => openHandles.delete(resourceId));
-  } else {
-    trackHandle(resourceId, handlePromise); // LRU touch
+  // Resurrect an evicted-but-alive handle (still borrowed, or awaiting its
+  // deferred termination) rather than creating a duplicate instance whose
+  // sibling the evicted one would keep in memory until it drains.
+  let tracked = evictedHandles.get(resourceId);
+  if (tracked) {
+    evictedHandles.delete(resourceId);
+    tracked.evicted = false;
+    openHandles.set(resourceId, tracked);
+    evictBeyondCap();
   }
 
-  const { connection } = await handlePromise;
+  if (openHandles.has(resourceId)) {
+    // LRU touch — this resourceId moves to most-recent.
+    tracked = openHandles.get(resourceId)!;
+    openHandles.delete(resourceId);
+    openHandles.set(resourceId, tracked);
+  } else {
+    const handlePromise = createDatabaseInternal(resourceId, provider);
+    tracked = { promise: handlePromise, borrows: 0, evicted: false };
+    openHandles.set(resourceId, tracked);
+    evictBeyondCap();
+
+    // A failed init must not stay cached (and must not be terminated as a
+    // live handle would). The borrow taken below is undone on the same
+    // failure so a rejected create leaves the refcount untouched.
+    handlePromise.catch(() => {
+      if (openHandles.get(resourceId) === tracked) openHandles.delete(resourceId);
+    });
+  }
+
+  // Borrow before any await so an eviction triggered while this call is
+  // still resolving the handle defers termination past this call's release.
+  tracked.borrows += 1;
+
+  let connection: DuckDbHandle["connection"];
+  try {
+    ({ connection } = await tracked.promise);
+  } catch (error) {
+    tracked.borrows = Math.max(0, tracked.borrows - 1);
+    throw error;
+  }
 
   const previous = pendingApplications.get(resourceId) ?? Promise.resolve();
   const application = previous.then(async () => {
@@ -141,6 +188,29 @@ export const createDatabase = async (
   await application;
 
   return connection;
+};
+
+/**
+ * Release a `createDatabase` borrow. The last release of an evicted handle
+ * terminates it; a live (non-evicted) handle simply stays in the LRU.
+ */
+export const releaseDatabase = async (resourceId: string): Promise<void> => {
+  let tracked = openHandles.get(resourceId);
+  if (!tracked) tracked = evictedHandles.get(resourceId);
+  if (!tracked) return;
+
+  tracked.borrows = Math.max(0, tracked.borrows - 1);
+  if (tracked.evicted && tracked.borrows === 0 && !openHandles.has(resourceId)) {
+    evictedHandles.delete(resourceId);
+    terminateHandle(tracked);
+  }
+};
+
+/** Test-only: drop every tracked handle so each test starts from a clean LRU. */
+export const __resetDuckDbHandlesForTests = () => {
+  openHandles.clear();
+  evictedHandles.clear();
+  pendingApplications.clear();
 };
 
 // Re-exported for `convertCsvToParquet`, which bootstraps its own WASM instance.

@@ -1,5 +1,5 @@
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
-import { createDatabase } from "~/utils/db/createDatabase";
+import { createDatabase, releaseDatabase } from "~/utils/db/createDatabase";
 
 const readTextQuery = /*sql*/ `SELECT content FROM read_text(?)`;
 
@@ -20,5 +20,6 @@ export async function readTextFile(resourceId: string): Promise<string> {
     return rows[0].content;
   } finally {
     await statement.close();
+    await releaseDatabase(resourceId);
   }
 }

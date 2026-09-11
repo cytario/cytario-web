@@ -1,4 +1,4 @@
-import { createDatabase } from "./createDatabase";
+import { createDatabase, releaseDatabase } from "./createDatabase";
 import { escapeSqlString } from "./escapeSqlString";
 import { resolveResourceId } from "../connectionsStore/selectors";
 import { getSidecarKey, parseOwnerFromKey, type SidecarKind } from "../sidecarKey";
@@ -38,34 +38,38 @@ export class SidecarRepository {
     const connection = await createDatabase(resourceId, credentials, { region, endpoint });
     const glob = getSidecarKey(s3Uri, kind); // omit owner ⇒ `*` wildcard over all owners
 
-    const globStatement = await connection.prepare(sidecarFilesQuery);
     try {
-      if ((await globStatement.query(glob)).numRows === 0) return {};
-    } finally {
-      await globStatement.close();
-    }
-
-    const statement = await connection.prepare(readAllTextQuery);
-    try {
-      const rows = (await statement.query(glob)).toArray() as {
-        filename: string;
-        content: string;
-      }[];
-      const byOwner: Record<string, T> = {};
-      for (const { filename, content } of rows) {
-        const owner = parseOwnerFromKey(filename, kind);
-        if (!owner || !content) continue;
-        // One corrupt/truncated sidecar must not abort the whole union read —
-        // skip it (and log) so every other owner's annotations still load.
-        try {
-          byOwner[owner] = JSON.parse(content) as T;
-        } catch (error) {
-          console.error(`[sidecar] skipping unparseable ${kind} file for ${owner}:`, error);
-        }
+      const globStatement = await connection.prepare(sidecarFilesQuery);
+      try {
+        if ((await globStatement.query(glob)).numRows === 0) return {};
+      } finally {
+        await globStatement.close();
       }
-      return byOwner;
+
+      const statement = await connection.prepare(readAllTextQuery);
+      try {
+        const rows = (await statement.query(glob)).toArray() as {
+          filename: string;
+          content: string;
+        }[];
+        const byOwner: Record<string, T> = {};
+        for (const { filename, content } of rows) {
+          const owner = parseOwnerFromKey(filename, kind);
+          if (!owner || !content) continue;
+          // One corrupt/truncated sidecar must not abort the whole union read —
+          // skip it (and log) so every other owner's annotations still load.
+          try {
+            byOwner[owner] = JSON.parse(content) as T;
+          } catch (error) {
+            console.error(`[sidecar] skipping unparseable ${kind} file for ${owner}:`, error);
+          }
+        }
+        return byOwner;
+      } finally {
+        await statement.close();
+      }
     } finally {
-      await statement.close();
+      await releaseDatabase(resourceId);
     }
   }
 
@@ -84,13 +88,17 @@ export class SidecarRepository {
    */
   async write(kind: SidecarKind, document: Record<string, unknown>): Promise<void> {
     const { connection, key } = await this.target(kind);
-    const dest = escapeSqlString(key);
-    const columns = Object.entries(document)
-      .map(
-        ([name, value]) =>
-          `json('${escapeSqlString(JSON.stringify(value))}') AS "${name.replace(/"/g, '""')}"`,
-      )
-      .join(", ");
-    await connection.query(/*sql*/ `COPY (SELECT ${columns}) TO '${dest}' (FORMAT JSON);`);
+    try {
+      const dest = escapeSqlString(key);
+      const columns = Object.entries(document)
+        .map(
+          ([name, value]) =>
+            `json('${escapeSqlString(JSON.stringify(value))}') AS "${name.replace(/"/g, '""')}"`,
+        )
+        .join(", ");
+      await connection.query(/*sql*/ `COPY (SELECT ${columns}) TO '${dest}' (FORMAT JSON);`);
+    } finally {
+      await releaseDatabase(this.resourceId);
+    }
   }
 }
