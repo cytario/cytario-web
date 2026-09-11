@@ -3,14 +3,14 @@ import { escapeSqlString } from "./escapeSqlString";
 import { type OverlayClassConfig, type OverlayColumnsConfig } from "./overlayConfig";
 
 export function buildCreateTableQuery(id: string, geometryColumn: string = "polygon"): string {
-  // S3 keys may contain `'`. `geometryColumn` is an unquoted identifier — callers
-  // must keep it to known-safe values.
+  // S3 keys may contain `'`.
   const escapedId = escapeSqlString(id);
+  const escapedGeometryColumn = escapeSqlIdentifier(geometryColumn);
   return /*sql*/ `
     CREATE TABLE IF NOT EXISTS geometries AS
     SELECT
       *,
-      ST_GeomFromText(${geometryColumn}) AS geom,
+      ST_GeomFromText(${escapedGeometryColumn}) AS geom,
       -- Don't use centroid for indexing as it is expensive to compute
       ST_XMin(geom) as x,
       ST_YMin(geom) as y
