@@ -18,16 +18,15 @@ function classBitExpression(cls: OverlayClassConfig, bitIndex: number): string {
   const bit =
     cls.mode === "threshold"
       ? `(${source} ${cls.operator} ${cls.threshold})`
-      : `CAST(CAST(${source} AS BOOLEAN) AS BOOLEAN)`;
-  // Double cast ensures values are 0 or 1: cast the predicate to BOOLEAN, then to INTEGER
-  return `(CAST(CAST(${bit} AS BOOLEAN) AS INTEGER) << ${bitIndex})`;
+      : `CAST(${source} AS BOOLEAN)`;
+  return `(CAST(${bit} AS INTEGER) << ${bitIndex})`;
 }
 
 /**
  * Build SQL expression for computing marker bitmask.
  * Takes all marker classes and generates: (CAST(CAST("col1" AS BOOLEAN) AS INTEGER) << 0 | ...)
  * Column names are quoted to handle special characters (e.g., "marker_positive_pd-1")
- * Double cast ensures values are 0 or 1: first cast to BOOLEAN, then to INTEGER
+ * The boolean→integer cast ensures each bit is 0 or 1.
  */
 function buildBitmaskExpression(markerColumns: string[]): string {
   if (markerColumns.length === 0) return "0";

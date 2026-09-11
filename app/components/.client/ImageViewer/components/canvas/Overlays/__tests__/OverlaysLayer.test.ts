@@ -93,12 +93,11 @@ describe("OverlaysLayer", () => {
     };
 
     const tile = { id: "tile-1", index: { z: 0, x: 0, y: 0 } };
-    const results = await Promise.allSettled([
+    await Promise.allSettled([
       layer.props.getTileData(tile),
       layer.props.getTileData(tile),
       layer.props.getTileData(tile),
     ]);
-    expect(results.every((r) => r.status === "fulfilled" || r.status === "rejected")).toBe(true);
     // one failure per resource+config per store run — repeated tile errors stay silent
     expect(toastBridge.emit).toHaveBeenCalledTimes(1);
   });

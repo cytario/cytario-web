@@ -37,9 +37,7 @@ describe("getGeomQuery with config", () => {
       classes: [booleanClass("is_tumor"), booleanClass("we'ird col")],
     });
 
-    expect(sql).toContain(
-      `(CAST(CAST(CAST(CAST("is_tumor" AS BOOLEAN) AS BOOLEAN) AS BOOLEAN) AS INTEGER) << 0)`,
-    );
+    expect(sql).toContain(`(CAST(CAST("is_tumor" AS BOOLEAN) AS INTEGER) << 0)`);
     expect(sql).toContain(`"we'ird col"`);
     expect(sql).toContain(`"object" as id`);
     expect(sql).toContain(`ST_AsWKB(ST_GeomFromText("geom")) as geom`);
@@ -53,7 +51,7 @@ describe("getGeomQuery with config", () => {
       classes: [thresholdClass("cd8_intensity", ">", 3.5)],
     });
 
-    expect(sql).toContain(`(CAST(CAST(("cd8_intensity" > 3.5) AS BOOLEAN) AS INTEGER) << 0)`);
+    expect(sql).toContain(`(CAST(("cd8_intensity" > 3.5) AS INTEGER) << 0)`);
   });
 
   test.each([">", ">=", "<", "<=", "=", "!="] as const)(
