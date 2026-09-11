@@ -1,6 +1,10 @@
 import { createDatabase, releaseDatabase } from "./createDatabase";
 import { escapeSqlIdentifier } from "./escapeSqlIdentifier";
-import { type OverlayClassConfig, type OverlayConfig } from "./overlayConfig";
+import {
+  type OverlayClassConfig,
+  type OverlayConfig,
+  OVERLAY_CLASS_BIT_LIMIT,
+} from "./overlayConfig";
 import { resolveResourceId } from "../connectionsStore/selectors";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/sidebar/OverlaysSection/getOverlayState";
 
@@ -22,7 +26,7 @@ export async function getOverlayCellCount(resourceId: string): Promise<number> {
 function classCountExpression(cls: OverlayClassConfig): string {
   const source = escapeSqlIdentifier(cls.sourceColumn);
   if (cls.mode === "threshold") {
-    // NULL comparisons are false, so NULL-heavy columns count as 0, not NULL.
+    // NULL comparisons yield NULL, which SUM ignores — NULL-heavy columns count as 0.
     return `SUM(CAST((${source} ${cls.operator} ${cls.threshold}) AS INTEGER))`;
   }
   return `SUM(CAST(CAST(${source} AS BOOLEAN) AS INTEGER))`;
@@ -36,7 +40,7 @@ function buildMarkerCountsQuery(s3Uri: string, config: OverlayConfig | null): st
     `;
   }
   const projections = config.classes
-    .slice(0, 32)
+    .slice(0, OVERLAY_CLASS_BIT_LIMIT)
     .map((cls) => `${classCountExpression(cls)} AS ${escapeSqlIdentifier(cls.sourceColumn)}`);
   return /*sql*/ `
     SELECT ${projections.join(",\n")}

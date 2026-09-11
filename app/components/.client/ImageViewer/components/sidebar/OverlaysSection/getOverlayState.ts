@@ -1,10 +1,8 @@
 import { categoricalColorAt } from "../../../categoricalColors";
 import { OverlayState } from "../../../state/store/types";
-import type { OverlayConfig } from "~/utils/db/overlayConfig";
+import { type OverlayConfig, MARKER_POSITIVE_PREFIX } from "~/utils/db/overlayConfig";
 
 export type MarkerInfo = Record<string, { count: number }>;
-
-const MARKER_POSITIVE_PREFIX = "marker_positive_";
 
 /** Display label for a marker: config label wins, else the prefix-stripped key. */
 export function markerDisplayLabel(markerKey: string, config?: OverlayConfig | null): string {

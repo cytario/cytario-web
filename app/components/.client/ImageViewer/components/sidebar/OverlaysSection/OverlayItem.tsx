@@ -1,4 +1,4 @@
-import { Badge, Banner, MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
+import { Badge, Banner, Link, MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
 import { useEffect, useMemo, useState } from "react";
 
 import { getOverlayState } from "./getOverlayState";
@@ -14,6 +14,7 @@ import { LoaderView } from "~/components/Loader/LoaderView";
 import { select as connectionsSelect } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getMarkerInfoWasm, getOverlayCellCount } from "~/utils/db/getMarkerInfoWasm";
+import { MARKER_POSITIVE_PREFIX } from "~/utils/db/overlayConfig";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -174,9 +175,7 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
           <Banner variant="warning" title={`Could not load ${fileName}`}>
             {configError ??
               "The column layout could not be interpreted automatically — no markers loaded."}{" "}
-            <button className="underline underline-offset-2" onClick={openConfig}>
-              Configure
-            </button>
+            <Link onPress={openConfig}>Configure</Link>
           </Banner>
         </div>
       )}
@@ -196,7 +195,11 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
             </div>
           ) : hasMarkers ? (
             Object.entries(overlayState).map(([markerName, { color, count, isVisible, label }]) => {
-              const name = label ?? markerName.replace("marker_positive_", "");
+              const name =
+                label ??
+                (markerName.startsWith(MARKER_POSITIVE_PREFIX)
+                  ? markerName.slice(MARKER_POSITIVE_PREFIX.length)
+                  : markerName);
               return (
                 <ControlRow
                   key={markerName}
