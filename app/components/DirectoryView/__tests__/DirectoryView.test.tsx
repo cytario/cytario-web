@@ -1,3 +1,4 @@
+import { useTableStore } from "@cytario/design";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { createRoutesStub } from "react-router";
@@ -5,7 +6,6 @@ import { createRoutesStub } from "react-router";
 import { TreeNode } from "../buildDirectoryTree";
 import { DirectoryView } from "../DirectoryView";
 import { type ViewMode, useLayoutStore } from "../useLayoutStore";
-import { useTableStore } from "~/components/Table/state/useTableStore";
 import mock from "~/utils/__tests__/__mocks__";
 import { buildVirtualNode } from "~/utils/treeNodeFactories";
 
