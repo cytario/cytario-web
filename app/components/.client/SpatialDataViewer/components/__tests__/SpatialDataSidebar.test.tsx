@@ -12,10 +12,17 @@ vi.mock("@spatialdata/core", () => ({
 }));
 
 vi.mock("@spatialdata/vis", () => ({
-  SpatialCanvasViewer: ({ renderStack }: { renderStack: { entries: { id: string }[] } }) => (
+  SpatialCanvasViewer: ({
+    renderStack,
+  }: {
+    renderStack: {
+      entries: { id: string; props: Record<string, unknown> }[];
+    };
+  }) => (
     <div
       data-testid="spatial-canvas-stub"
       data-entry-ids={renderStack.entries.map((e) => e.id).join(",")}
+      data-entry-props={JSON.stringify(renderStack.entries.map((e) => e.props))}
     />
   ),
 }));
@@ -96,5 +103,14 @@ describe("SpatialDataSidebar", () => {
       "data-entry-ids",
       expect.stringContaining("image:blobs_image"),
     );
+  });
+
+  test("z slider is absent for 2D-only elements", async () => {
+    vi.mocked(readZarr).mockResolvedValue(mockSpatialData(["global"]));
+
+    render(<SpatialDataViewer resourceId="conn/d.zarr" signedFetch={signedFetch} />);
+
+    await screen.findByRole("checkbox", { name: "Toggle blobs_image" });
+    expect(screen.queryByRole("slider", { name: /z plane/ })).not.toBeInTheDocument();
   });
 });
