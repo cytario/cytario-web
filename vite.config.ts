@@ -34,4 +34,10 @@ export default defineConfig({
   build: {
     target: ["chrome89", "firefox89", "safari15", "edge89"],
   },
+
+  // @spatialdata's fizarrita codec worker is an ESM worker with dynamic
+  // imports; Vite's default iife worker format rejects code-split builds.
+  worker: {
+    format: "es",
+  },
 });
