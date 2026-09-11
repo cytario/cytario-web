@@ -35,6 +35,10 @@ vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   ImageViewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));
 
+vi.mock("~/components/.client/SpatialDataViewer/components/SpatialDataViewer", () => ({
+  SpatialDataViewer: () => <div data-testid="spatialdata-viewer-stub"></div>,
+}));
+
 vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
   getSelectionStats: vi.fn(
     () =>
@@ -140,6 +144,37 @@ describe("Bucket Route", () => {
 
     await waitFor(() => {
       expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
+    });
+  });
+
+  test("renders the SpatialData viewer for a bare .sdata store path", async () => {
+    const RemixStub = createRoutesStub([
+      {
+        path: "/connections/:id/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: () => {
+          return {
+            connectionId: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
+            credentials: mock.credentials(),
+            connectionConfig: mock.connectionConfig(),
+            user: mock.user(),
+            nodes: [],
+            pathName: "Xenium_Protein_HumanKidney_tiny.sdata",
+            urlPath: "Xenium_Protein_HumanKidney_tiny.sdata",
+            bucketName: "test-bucket",
+            name: "Xenium_Protein_HumanKidney_tiny.sdata",
+            isSingleFile: true,
+          };
+        },
+      },
+    ]);
+
+    render(<RemixStub initialEntries={["/connections/aws-test-bucket/store.sdata"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("spatialdata-viewer-stub")).toBeInTheDocument();
     });
   });
 });

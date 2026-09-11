@@ -15,6 +15,14 @@ describe("getFileType", () => {
     expect(getFileType("dataset.spatialdata.zarr")).toBe("SpatialData");
     expect(getFileType("DATASET.SDATA.ZARR")).toBe("SpatialData");
     expect(getFileType("dataset.sdata.zarr/")).toBe("SpatialData");
+    expect(getFileType("Xenium_Protein_HumanKidney_tiny.sdata")).toBe("SpatialData");
+    expect(getFileType("MIBI-TOF_CRC.sdata/")).toBe("SpatialData");
+    expect(getFileType("DATASET.SDATA")).toBe("SpatialData");
+    expect(getFileType("store.spatialdata")).toBe("SpatialData");
+  });
+
+  test("does not misclassify .sdata.zip archives as SpatialData stores", () => {
+    expect(getFileType("MIBI-TOF_CRC.sdata.zip")).toBe("Unknown");
   });
 
   test("identifies Parquet files", () => {
@@ -67,6 +75,7 @@ describe("getFileCategory", () => {
     expect(getFileCategory("image.zarr")).toBe("image");
     expect(getFileCategory("dataset.sdata.zarr")).toBe("image");
     expect(getFileCategory("dataset.spatialdata.zarr")).toBe("image");
+    expect(getFileCategory("Xenium_Protein_HumanKidney_tiny.sdata")).toBe("image");
   });
 
   test("returns tabular for CSV and Parquet", () => {
@@ -106,10 +115,13 @@ describe("getFileTypeEntry", () => {
 
   test("distinguishes SpatialData from plain and OME Zarr", () => {
     expect(getFileType("dataset.sdata.zarr")).toBe("SpatialData");
+    expect(getFileType("dataset.sdata")).toBe("SpatialData");
     expect(getFileType("dataset.zarr")).toBe("OME-Zarr");
     expect(getFileType("dataset.ome.zarr")).toBe("OME-Zarr");
-    const entry = getFileTypeEntry("dataset.sdata.zarr");
-    expect(entry?.storageLayout).toBe("leaf");
+    const bare = getFileTypeEntry("Xenium_Protein_HumanKidney_tiny.sdata");
+    expect(bare?.storageLayout).toBe("leaf");
+    const compound = getFileTypeEntry("dataset.sdata.zarr");
+    expect(compound?.storageLayout).toBe("leaf");
   });
 });
 
