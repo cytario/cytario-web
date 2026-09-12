@@ -34,7 +34,13 @@ describe("getFileType", () => {
     expect(getFileType("photo.jpg")).toBe("Unknown");
     expect(getFileType("photo.tiff")).toBe("Unknown");
     expect(getFileType("file.xyz")).toBe("Unknown");
+    expect(getFileType("notes.doc")).toBe("Unknown");
     expect(getFileType("readme.md")).toBe("Unknown");
+  });
+
+  test("identifies PDF files", () => {
+    expect(getFileType("report.pdf")).toBe("PDF");
+    expect(getFileType("REPORT.PDF")).toBe("PDF");
   });
 
   test("returns Unknown for empty string", () => {
@@ -64,6 +70,10 @@ describe("getFileCategory", () => {
     expect(getFileCategory("manifest.yaml")).toBe("text");
     expect(getFileCategory("manifest.yml")).toBe("text");
     expect(getFileCategory("notes.txt")).toBe("text");
+  });
+
+  test("returns document for PDF", () => {
+    expect(getFileCategory("report.pdf")).toBe("document");
   });
 
   test("returns none for unknown / removed types", () => {
