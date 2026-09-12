@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+
 import { resolveResourceId, select, selectHttpsUrl } from "../selectors";
 import { useConnectionsStore } from "../useConnectionsStore";
 import mock from "~/utils/__tests__/__mocks__";
@@ -37,6 +39,12 @@ describe("useConnectionsStore", () => {
   };
 
   beforeEach(() => {
+    useConnectionsStore.setState({ connections: {} });
+  });
+
+  // Seeded connections must not leak past this file — vitest reuses the
+  // worker across files, and the store is module-level state.
+  afterEach(() => {
     useConnectionsStore.setState({ connections: {} });
   });
 
