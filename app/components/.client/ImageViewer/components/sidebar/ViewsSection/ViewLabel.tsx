@@ -19,7 +19,7 @@ export function ViewLabel({ index }: { index: number }) {
     .map(([, config]) => rgb(config.color, presetChannelsOpacity));
 
   const visibleOverlays = Object.values(layersState?.overlays ?? EMPTY_CHANNELS)
-    .flatMap((overlayState) => Object.values(overlayState))
+    .flatMap((entry) => Object.values(entry.markers))
     .filter((marker) => marker.isVisible);
 
   const background =
