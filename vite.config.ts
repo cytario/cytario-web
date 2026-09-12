@@ -11,8 +11,25 @@ export default defineConfig({
   // Local @cytario/design development:
   // Skip pre-bundling so Vite serves the latest dist on every request.
   optimizeDeps: {
-    include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],
-    exclude: ["@cytario/design"],
+    include: [
+      "@codemirror/lang-json",
+      "@codemirror/lang-yaml",
+      "@uiw/react-codemirror",
+      "@fideus-labs/worker-pool",
+      "@math.gl/core",
+      "anndata.js",
+      "apache-arrow",
+      "earcut",
+      "ol/format/WKB.js",
+      "zarrita",
+      "zod",
+    ],
+    // Served raw: these ship workers or wasm resolved via import.meta.url,
+    // which dep-optimizer flattening breaks (@spatialdata/core's vendored
+    // parquet wasm and the zarrextra/fizarrita codec workers would 404 into
+    // the SPA fallback). The include list pre-bundles @spatialdata/core's own
+    // dependencies so the raw package does not trigger mid-session re-optimizes.
+    exclude: ["@cytario/design", "zarrextra", "@fideus-labs/fizarrita", "@spatialdata/core"],
   },
   // Process the design system through Vite's pipeline during SSR
   // instead of letting Node resolve it (avoids dual-React issues).
@@ -33,5 +50,11 @@ export default defineConfig({
 
   build: {
     target: ["chrome89", "firefox89", "safari15", "edge89"],
+  },
+
+  // @spatialdata's fizarrita codec worker is an ESM worker with dynamic
+  // imports; Vite's default iife worker format rejects code-split builds.
+  worker: {
+    format: "es",
   },
 });

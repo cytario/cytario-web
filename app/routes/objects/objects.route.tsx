@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
 import { clientLoader } from "./objects.clientLoader";
@@ -11,6 +11,7 @@ import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { buildCurrentNode } from "./objects.node";
 import { useRecordRecentView } from "../recent/useRecordRecentView";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
+import { isSpatialDataStore } from "~/components/.client/SpatialDataViewer/detection/isSpatialDataStore";
 import { ClientOnly } from "~/components/ClientOnly";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
@@ -18,14 +19,20 @@ import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle"
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { LoaderView } from "~/components/Loader/LoaderView";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { liveCredentials } from "~/utils/connectionsStore/selectors";
+import { liveCredentials, resolveResourceId } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
-import { getFileCategory } from "~/utils/fileType";
+import { getFileCategory, stripUrlSuffix } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ImageViewer = lazy(() =>
   import("~/components/.client/ImageViewer/components/ImageViewer").then((module) => ({
     default: module.ImageViewer,
+  })),
+);
+
+const SpatialDataViewer = lazy(() =>
+  import("~/components/.client/SpatialDataViewer/components/SpatialDataViewer").then((module) => ({
+    default: module.SpatialDataViewer,
   })),
 );
 
@@ -76,6 +83,62 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl
   if (currentUrl.search !== nextUrl.search) return true;
   return false;
 };
+
+const SDATA_PATH_PATTERN = /\.(sdata|spatialdata)(?:\.zarr)?\/?$/i;
+const ZARR_PATH_PATTERN = /\.zarr\/?$/i;
+
+/** Picks the SpatialData viewer for `.sdata` and `.sdata.zarr` paths by name;
+ *  plain `.zarr` stores are sniffed client-side from root metadata. */
+function isSpatialDataPath(resourceId: string): boolean {
+  return SDATA_PATH_PATTERN.test(stripUrlSuffix(resourceId));
+}
+
+function isPlainZarrPath(resourceId: string): boolean {
+  const path = stripUrlSuffix(resourceId);
+  return ZARR_PATH_PATTERN.test(path) && !SDATA_PATH_PATTERN.test(path);
+}
+
+/** Client-only sniff wrapper for plain `.zarr` stores — resolves which lazy
+ *  viewer renders, never loads in the loader. The httpsUrl is resolved in the
+ *  effect, not during render: the connections store is empty during SSR and
+ *  resolveResourceId throws for unknown connections. */
+function ZarrViewerRouter({
+  resourceId,
+  signedFetch,
+}: {
+  resourceId: string;
+  signedFetch: ReturnType<typeof createSignedFetch>;
+}) {
+  const [isSpatialData, setIsSpatialData] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let httpsUrl: string;
+    try {
+      httpsUrl = resolveResourceId(resourceId).httpsUrl;
+    } catch {
+      // The connections store can be empty on first client mount (data not
+      // yet hydrated); stay on the loading fallback until a later effect run.
+      return;
+    }
+    // The sniff resolves false on fetch failure (never rejects), so the OME-Zarr
+    // viewer's CORS error path takes over instead of a stuck loader.
+    isSpatialDataStore(resourceId, httpsUrl, signedFetch).then((result) => {
+      if (!cancelled) setIsSpatialData(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resourceId, signedFetch]);
+
+  if (isSpatialData === null) {
+    return <LoaderView label="Inspecting store…" />;
+  }
+  if (isSpatialData) {
+    return <SpatialDataViewer resourceId={resourceId} signedFetch={signedFetch} />;
+  }
+  return <ImageViewer resourceId={resourceId} signedFetch={signedFetch} />;
+}
 
 export default function ObjectsRoute() {
   const {
@@ -174,6 +237,26 @@ export default function ObjectsRoute() {
         signingRegion,
         connectionId,
       );
+
+      if (isSpatialDataPath(resourceId)) {
+        return (
+          <ClientOnly>
+            <Suspense fallback={<LoaderView label="Loading viewer…" />}>
+              <SpatialDataViewer resourceId={resourceId} signedFetch={signedFetch} />
+            </Suspense>
+          </ClientOnly>
+        );
+      }
+
+      if (isPlainZarrPath(resourceId)) {
+        return (
+          <ClientOnly>
+            <Suspense fallback={<LoaderView label="Loading viewer…" />}>
+              <ZarrViewerRouter resourceId={resourceId} signedFetch={signedFetch} />
+            </Suspense>
+          </ClientOnly>
+        );
+      }
 
       return (
         <ClientOnly>
