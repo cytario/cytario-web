@@ -85,6 +85,16 @@ describe("s3Provider utilities", () => {
       expect(config.s3Endpoint).toBe("https://rustfs-poc.cytar.io");
       expect(config.honorsInlineSessionPolicy).toBe(true);
     });
+
+    it("omits the inline session policy for an untyped non-AWS endpoint (heuristic fallback)", () => {
+      // A caller that resolves no provider type (pre-dating typed catalogs):
+      // the hostname heuristic classifies the endpoint as S3-compatible and the
+      // mint stays safe — no inline policy is attached to a provider that may
+      // ignore or reject the parameter.
+      const config = getS3ProviderConfig("https://minio.internal:9000", null, undefined);
+      expect(config.isAwsS3).toBe(false);
+      expect(config.honorsInlineSessionPolicy).toBe(false);
+    });
   });
 
   describe("shouldUseSSL", () => {
