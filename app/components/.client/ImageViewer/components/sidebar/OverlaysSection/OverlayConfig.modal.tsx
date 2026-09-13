@@ -6,7 +6,10 @@ import { select } from "../../../state/store/selectors";
 import { applyOverlayReconfiguration } from "../../../state/store/slices/viewer.overlays.store";
 import { type OverlayConfig, type OverlayEntry } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
-import { type ParquetColumn, getParquetSchema } from "~/components/DataGrid/getParquetSchema";
+import {
+  type ParquetColumn,
+  getParquetTopLevelSchema,
+} from "~/components/DataGrid/getParquetSchema";
 import { RouteModal } from "~/components/RouteModal";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 import {
@@ -99,7 +102,7 @@ export function OverlayConfigModal({
 
   useEffect(() => {
     let cancelled = false;
-    getParquetSchema(resourceId)
+    getParquetTopLevelSchema(resourceId)
       .then((cols) => !cancelled && setSchema(cols))
       .catch((error: unknown) => {
         if (cancelled) return;

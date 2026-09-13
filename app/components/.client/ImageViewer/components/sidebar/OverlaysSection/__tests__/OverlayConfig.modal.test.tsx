@@ -5,7 +5,7 @@ import React from "react";
 import type { OverlayEntry } from "../../../../state/store/types";
 import { useViewerStore } from "../../../../state/store/ViewerStoreContext";
 import { OverlayConfigModal } from "../OverlayConfig.modal";
-import { getParquetSchema } from "~/components/DataGrid/getParquetSchema";
+import { getParquetTopLevelSchema } from "~/components/DataGrid/getParquetSchema";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 
 vi.mock("../../../../state/store/ViewerStoreContext", () => ({
@@ -14,6 +14,7 @@ vi.mock("../../../../state/store/ViewerStoreContext", () => ({
 
 vi.mock("~/components/DataGrid/getParquetSchema", () => ({
   getParquetSchema: vi.fn(),
+  getParquetTopLevelSchema: vi.fn(),
 }));
 
 vi.mock("~/utils/db/getMarkerInfoWasm", () => ({
@@ -63,7 +64,7 @@ function setup(overlay = makeOverlay()) {
 describe("OverlayConfigModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getParquetSchema).mockResolvedValue(schema);
+    vi.mocked(getParquetTopLevelSchema).mockResolvedValue(schema);
     vi.mocked(getMarkerInfoWasm).mockResolvedValue({ marker_positive_cd4: { count: 7 } });
   });
 
@@ -104,7 +105,7 @@ describe("OverlayConfigModal", () => {
   });
 
   test("disables Apply while the schema is loading", async () => {
-    vi.mocked(getParquetSchema).mockReturnValue(new Promise(() => {}) as never);
+    vi.mocked(getParquetTopLevelSchema).mockReturnValue(new Promise(() => {}) as never);
     setup();
 
     const apply = await screen.findByRole("button", { name: "Apply" });
@@ -112,7 +113,7 @@ describe("OverlayConfigModal", () => {
   });
 
   test("shows a schema error banner when introspection fails", async () => {
-    vi.mocked(getParquetSchema).mockRejectedValue(new Error("boom"));
+    vi.mocked(getParquetTopLevelSchema).mockRejectedValue(new Error("boom"));
     setup();
 
     await waitFor(() => {

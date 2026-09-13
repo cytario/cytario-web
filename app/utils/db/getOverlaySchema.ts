@@ -1,5 +1,8 @@
 import { interpretOverlaySchema, type OverlayConfig } from "./overlayConfig";
-import { type ParquetColumn, getParquetSchema } from "~/components/DataGrid/getParquetSchema";
+import {
+  type ParquetColumn,
+  getParquetTopLevelSchema,
+} from "~/components/DataGrid/getParquetSchema";
 
 export interface OverlaySchemaInfo {
   schema: ParquetColumn[];
@@ -9,9 +12,10 @@ export interface OverlaySchemaInfo {
 /**
  * Introspect an overlay parquet's columns, then interpret them into an overlay
  * config. `config` is null when the schema admits no viable mapping — the
- * caller surfaces the configure-overlay path.
+ * caller surfaces the configure-overlay path. Struct-intact top-level columns
+ * so a GeoParquet covering resolves to its `bbox.xmin` access path.
  */
 export async function getOverlaySchema(resourceId: string): Promise<OverlaySchemaInfo> {
-  const schema = await getParquetSchema(resourceId);
+  const schema = await getParquetTopLevelSchema(resourceId);
   return { schema, config: interpretOverlaySchema(schema) };
 }

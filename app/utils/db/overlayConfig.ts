@@ -77,10 +77,12 @@ const COVERING_FLAT_COLUMNS: [keyof OverlayCoveringColumns, string[]][] = [
   ["ymax", ["ymax", "y_max", "maxy"]],
 ];
 
+// Types as either parquet_schema (INT32, BYTE_ARRAY, …) or DESCRIBE
+// (INTEGER, BLOB, …) spells them.
 const isNumericType = (type: string): boolean =>
-  /^(U?INT(8|16|32|64)?|FLOAT|DOUBLE|DECIMAL.*)$/.test(type.toUpperCase());
+  /^(U?INT(8|16|32|64|EGER)?|FLOAT|DOUBLE|DECIMAL.*)$/.test(type.toUpperCase());
 
-const isBooleanType = (type: string): boolean => type.toUpperCase() === "BOOLEAN";
+const isBooleanType = (type: string): boolean => /^BOOL(EAN)?$/.test(type.toUpperCase());
 
 const findColumn = (
   columns: ParquetColumn[],
@@ -93,7 +95,7 @@ const findColumn = (
   ) ?? columns.find((col) => names.includes(col.name.toLowerCase()) && typePredicate?.(col.type));
 
 const isIdLikeType = (type: string): boolean =>
-  /^(U?INT(8|16|32|64)?|VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
+  /^(U?INT(8|16|32|64|EGER)?|VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
 
 const isGeometryLikeType = (type: string): boolean =>
   /^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
@@ -159,18 +161,26 @@ export function interpretOverlaySchema(schema: ParquetColumn[]): OverlayConfig |
 
   const idColumn = findColumn(schema, ID_COLUMN_NAMES, isIdLikeType);
   const geomColumn = findColumn(schema, GEOMETRY_COLUMN_NAMES, isGeometryLikeType);
-  const xColumn = findColumn(schema, X_COLUMN_NAMES, isNumericType);
-  const yColumn = findColumn(schema, Y_COLUMN_NAMES, isNumericType);
   if (!idColumn) return null;
+
+  // The covering is resolved first: a covering column cannot double as an x/y
+  // position column, and files whose only x/y-like names are covering columns
+  // are geometry-anchored, not column-position layouts.
+  const covering = geomColumn ? findCoveringColumns(schema) : null;
+  const coveringNames = new Set(
+    covering ? Object.values(covering).map((path) => path.split(".")[0]) : [],
+  );
+  const nonCoveringColumns = schema.filter((col) => !coveringNames.has(col.name));
+
+  const xColumn = findColumn(nonCoveringColumns, X_COLUMN_NAMES, isNumericType);
+  const yColumn = findColumn(nonCoveringColumns, Y_COLUMN_NAMES, isNumericType);
 
   // Geometry-anchored layout: no x/y columns, but geometry + a covering to
   // filter tiles on. Without a covering the geometry column cannot be pruned
   // at read time — not a viable mapping.
   let anchor: OverlayGeometryAnchor | undefined;
   if (!xColumn || !yColumn) {
-    if (!geomColumn) return null;
-    const covering = findCoveringColumns(schema);
-    if (!covering) return null;
+    if (!geomColumn || !covering) return null;
     anchor = {
       encoding: isWkbType(geomColumn.type) ? "wkb" : "wkt",
       covering,
