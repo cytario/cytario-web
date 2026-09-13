@@ -237,6 +237,7 @@ export const select = {
 
   addOverlaysState: (state: ViewerStore) => state.addOverlaysState,
   updateOverlaysState: (state: ViewerStore) => state.updateOverlaysState,
+  updateOverlayConfig: (state: ViewerStore) => state.updateOverlayConfig,
   removeOverlaysState: (state: ViewerStore) => state.removeOverlaysState,
   setMarkerVisibility: (state: ViewerStore) => state.setMarkerVisibility,
   setMarkerColor: (state: ViewerStore) => state.setMarkerColor,

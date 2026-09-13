@@ -12,11 +12,9 @@ import {
   type CytarioLayerResult,
   type LayerTooltipItem,
 } from "../../../state/store/slices/viewer.view.store";
-import { RGBA } from "../../../state/store/types";
+import { type RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
-
-const MARKER_PREFIX = "marker_positive_";
 
 /**
  * Hook to create overlays layers for the image viewer.
@@ -43,8 +41,8 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const overlaysLayers = useMemo(() => {
     if (!overlayState) return [];
 
-    return Object.keys(overlayState).map((resourceId) => {
-      const fileMarkers = overlayState[resourceId];
+    return Object.entries(overlayState).map(([resourceId, entry]) => {
+      const fileMarkers = entry.markers;
 
       const enabledMarkers = Object.keys(fileMarkers).filter((key) => fileMarkers[key].isVisible);
 
@@ -53,6 +51,7 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
 
       return OverlaysLayer({
         resourceId,
+        overlayConfig: entry.config,
         enabledMarkers,
         fileMarkers,
         markerProps,
@@ -83,11 +82,11 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const tooltipCtx = useMemo(() => {
     if (!overlayState) return null;
     const entries = Object.entries(overlayState);
-    return entries.map(([resourceId, fileMarkers]) => ({
+    return entries.map(([resourceId, entry]) => ({
       resourceId,
-      fileMarkers,
-      enabledMarkers: Object.keys(fileMarkers).filter((key) => fileMarkers[key].isVisible),
-      allMarkerKeys: Object.keys(fileMarkers),
+      fileMarkers: entry.markers,
+      enabledMarkers: Object.keys(entry.markers).filter((key) => entry.markers[key].isVisible),
+      allMarkerKeys: Object.keys(entry.markers),
     }));
   }, [overlayState]);
 
@@ -141,7 +140,7 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
       const { values, geometryColor } = activeMarkers.reduce(
         (acc, marker) => {
           const color = ctx.fileMarkers[marker].color as RGBA;
-          const name = marker.replace(MARKER_PREFIX, "");
+          const name = ctx.fileMarkers[marker].label ?? marker;
           acc.values[name] = { value: "", color };
           acc.geometryColor[0] = Math.min(acc.geometryColor[0] + color[0], 255);
           acc.geometryColor[1] = Math.min(acc.geometryColor[1] + color[1], 255);

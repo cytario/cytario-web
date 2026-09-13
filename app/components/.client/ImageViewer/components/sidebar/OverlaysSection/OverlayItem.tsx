@@ -1,9 +1,10 @@
-import { Badge, MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
+import { Badge, Banner, Link, MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
 import { useEffect, useMemo, useState } from "react";
 
 import { getOverlayState } from "./getOverlayState";
+import { OverlayConfigModal } from "./OverlayConfig.modal";
 import { select } from "../../../state/store/selectors";
-import { OverlayState } from "../../../state/store/types";
+import { type OverlayEntry } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ColorPicker, rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 import { ControlRow } from "../ControlRow";
@@ -13,15 +14,16 @@ import { LoaderView } from "~/components/Loader/LoaderView";
 import { select as connectionsSelect } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getMarkerInfoWasm, getOverlayCellCount } from "~/utils/db/getMarkerInfoWasm";
+import { MARKER_POSITIVE_PREFIX } from "~/utils/db/overlayConfig";
 import { useFileStore } from "~/utils/localFilesStore/useFileStore";
 import { parseResourceId } from "~/utils/resourceId";
 
 interface OverlayItemProps {
   resourceId: string;
-  overlayState: OverlayState;
+  overlay: OverlayEntry;
 }
 
-export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
+export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
   const setMarkerVisibility = useViewerStore(select.setMarkerVisibility);
   const setMarkerColor = useViewerStore(select.setMarkerColor);
   const removeOverlaysState = useViewerStore(select.removeOverlaysState);
@@ -34,7 +36,10 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [cellCount, setCellCount] = useState<number | null>(null);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
 
+  const overlayState = overlay.markers;
   const { connectionId, pathName, fileName } = parseResourceId(resourceId);
   const markerEntries = Object.entries(overlayState);
   const hasMarkers = markerEntries.length > 0;
@@ -77,9 +82,9 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
     const fetchMarkers = async () => {
       setIsLoading(true);
       try {
-        const markerInfo = await getMarkerInfoWasm(resourceId);
+        const markerInfo = await getMarkerInfoWasm(resourceId, overlay.config);
         if (markerInfo && Object.keys(markerInfo).length > 0) {
-          const newOverlayState = getOverlayState(markerInfo);
+          const newOverlayState = getOverlayState(markerInfo, overlay.config);
           updateOverlaysState(resourceId, newOverlayState);
         } else {
           toast({
@@ -99,7 +104,15 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
     };
 
     fetchMarkers();
-  }, [hasMarkers, resourceId, connectionConfig, updateOverlaysState, toast, fileName]);
+  }, [
+    hasMarkers,
+    resourceId,
+    connectionConfig,
+    updateOverlaysState,
+    toast,
+    fileName,
+    overlay.config,
+  ]);
 
   // Total cell/object count for the file-level badge (rows in the parquet).
   useEffect(() => {
@@ -113,28 +126,38 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
     };
   }, [resourceId, connectionConfig]);
 
+  const openConfig = () => {
+    setConfigError(null);
+    setIsConfigOpen(true);
+  };
+
   return (
     <div className="flex flex-col">
-      {/* File row: clicking the name toggles the marker list; navigation and
-          removal live in the node's context menu. */}
+      {/* File row: clicking the name toggles the marker list; navigation,
+          reconfiguration and removal live in the node's context menu. */}
       <div className="flex items-center gap-2 p-2">
         <NodeLink
           node={node}
           onClick={() => setIsOpen(!isOpen)}
           contextMenuItems={
-            <MenuItem
-              id="remove-overlay"
-              icon="X"
-              isDanger
-              onAction={() => {
-                const confirmation = confirm(
-                  `Are you sure you want to remove overlay "${fileName}"?`,
-                );
-                if (confirmation) removeOverlaysState(resourceId);
-              }}
-            >
-              Remove overlay
-            </MenuItem>
+            <>
+              <MenuItem id="configure-overlay" icon="Settings" onAction={openConfig}>
+                Configure
+              </MenuItem>
+              <MenuItem
+                id="remove-overlay"
+                icon="X"
+                isDanger
+                onAction={() => {
+                  const confirmation = confirm(
+                    `Are you sure you want to remove overlay "${fileName}"?`,
+                  );
+                  if (confirmation) removeOverlaysState(resourceId);
+                }}
+              >
+                Remove overlay
+              </MenuItem>
+            </>
           }
         />
         {cellCount != null && <Badge>{cellCount}</Badge>}
@@ -146,6 +169,16 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
           />
         )}
       </div>
+
+      {(configError || (!overlay.config && !hasMarkers && !isLoading)) && (
+        <div className="px-2 pb-2">
+          <Banner variant="warning" title={`Could not load ${fileName}`}>
+            {configError ??
+              "The column layout could not be interpreted automatically — no markers loaded."}{" "}
+            <Link onPress={openConfig}>Configure</Link>
+          </Banner>
+        </div>
+      )}
 
       {/* Body: one ControlRow per marker. A labeled group (not radio semantics —
           markers have no selected-item concept) names the marker list for
@@ -161,8 +194,12 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
               )}
             </div>
           ) : hasMarkers ? (
-            Object.entries(overlayState).map(([markerName, { color, count, isVisible }]) => {
-              const name = markerName.replace("marker_positive_", "");
+            Object.entries(overlayState).map(([markerName, { color, count, isVisible, label }]) => {
+              const name =
+                label ??
+                (markerName.startsWith(MARKER_POSITIVE_PREFIX)
+                  ? markerName.slice(MARKER_POSITIVE_PREFIX.length)
+                  : markerName);
               return (
                 <ControlRow
                   key={markerName}
@@ -210,6 +247,15 @@ export const OverlayItem = ({ resourceId, overlayState }: OverlayItemProps) => {
             </div>
           )}
         </div>
+      )}
+
+      {isConfigOpen && (
+        <OverlayConfigModal
+          resourceId={resourceId}
+          overlay={overlay}
+          onClose={() => setIsConfigOpen(false)}
+          onApplyError={(message) => setConfigError(message)}
+        />
       )}
     </div>
   );

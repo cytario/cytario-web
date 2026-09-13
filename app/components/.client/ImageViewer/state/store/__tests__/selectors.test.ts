@@ -116,6 +116,7 @@ describe("selectors", () => {
     setMarkerColor: vi.fn(),
     addOverlaysState: vi.fn(),
     updateOverlaysState: vi.fn(),
+    updateOverlayConfig: vi.fn(),
     removeOverlaysState: vi.fn(),
     setOverlaysFillOpacity: vi.fn(),
     setChannelsOpacity: vi.fn(),

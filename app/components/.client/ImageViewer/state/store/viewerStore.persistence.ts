@@ -92,6 +92,30 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
     },
     // C-331: the persisted state shape changed to include a top-level `currentUserId` field, which is now used to filter layersStates for the current user. Migrate the old state by adding a default value for currentUserId and filtering layersStates to only include entries authored by that user.
     4: () => VIEWER_FALLBACK_STATE,
+    // Overlay entries changed shape: a resource's value used to be the bare
+    // marker record; it now carries { markers, config }. Wrap legacy values
+    // (config re-derives on next load) and drop unparseable ones.
+    5: (state) => {
+      const s = state as Record<string, unknown> & Partial<PersistedViewerState>;
+      const layersStates = (s.layersStates ?? []).map((ls) => {
+        const overlays = ls.overlays ?? {};
+        const migrated: Record<string, { markers: unknown; config: null }> = {};
+        for (const [resourceId, value] of Object.entries(overlays as Record<string, unknown>)) {
+          if (
+            value &&
+            typeof value === "object" &&
+            "markers" in (value as Record<string, unknown>) &&
+            (value as { config?: unknown }).config !== undefined
+          ) {
+            migrated[resourceId] = value as { markers: unknown; config: null };
+          } else if (value && typeof value === "object") {
+            migrated[resourceId] = { markers: value, config: null };
+          }
+        }
+        return { ...ls, overlays: migrated };
+      });
+      return { ...s, layersStates } as PersistedViewerState;
+    },
   },
   VIEWER_FALLBACK_STATE,
 );

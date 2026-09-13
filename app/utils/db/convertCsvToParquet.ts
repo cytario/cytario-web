@@ -4,10 +4,11 @@ import { applyS3Credentials, CSV_CONVERSION_MAX_BYTES } from "./csvCredentials";
 import { getLocalDuckDbBundles } from "./duckdbBundles";
 import { escapeSqlString } from "./escapeSqlString";
 import { getUint8ArrayForResourceId } from "./getBlobFromObjectNode";
-import { buildCreateTableQuery } from "./sqlQueries";
+import { type OverlayConfig } from "./overlayConfig";
+import { buildCreateTableQuery, buildOverlayCopyProjection } from "./sqlQueries";
 import { resolveResourceId } from "../connectionsStore/selectors";
 
-export async function convertCsvToParquet(resourceId: string) {
+export async function convertCsvToParquet(resourceId: string, config?: OverlayConfig | null) {
   console.log(`[CSV→Parquet] Starting conversion for: ${resourceId}`);
 
   let db: AsyncDuckDB | null = null;
@@ -47,7 +48,8 @@ export async function convertCsvToParquet(resourceId: string) {
     }
     await db.registerFileBuffer(resourceId, csvBytes);
 
-    const createTableSQL = buildCreateTableQuery(resourceId, "polygon");
+    // Without a config the geometry column is the legacy CSV default.
+    const createTableSQL = buildCreateTableQuery(resourceId, config?.columns.geometry ?? "polygon");
     await conn.query(createTableSQL);
 
     const { credentials, region, s3Uri } = resolveResourceId(resourceId);
@@ -64,14 +66,17 @@ export async function convertCsvToParquet(resourceId: string) {
 
     // Convert geometry to WKT (Well-Known Text) before writing to parquet
     // WKT is VARCHAR type which serializes better to Parquet than WKB BLOB
-    await conn.query(/*sql*/ `
-      COPY (
-        SELECT
-          object,
+    const projection = config
+      ? buildOverlayCopyProjection(config.columns, config.classes)
+      : `object,
           x,
           y,
           ST_AsText(geom) as geom,
-          COLUMNS('marker_positive_.*')
+          COLUMNS('marker_positive_.*')`;
+    await conn.query(/*sql*/ `
+      COPY (
+        SELECT
+          ${projection}
         FROM geometries
       )
       TO '${escapedParquetDestination}'

@@ -1,4 +1,10 @@
 import { createDatabase, releaseDatabase } from "./createDatabase";
+import { escapeSqlIdentifier } from "./escapeSqlIdentifier";
+import {
+  type OverlayClassConfig,
+  type OverlayConfig,
+  OVERLAY_CLASS_BIT_LIMIT,
+} from "./overlayConfig";
 import { resolveResourceId } from "../connectionsStore/selectors";
 import { MarkerInfo } from "~/components/.client/ImageViewer/components/sidebar/OverlaysSection/getOverlayState";
 
@@ -17,18 +23,45 @@ export async function getOverlayCellCount(resourceId: string): Promise<number> {
   }
 }
 
+function classCountExpression(cls: OverlayClassConfig): string {
+  const source = escapeSqlIdentifier(cls.sourceColumn);
+  if (cls.mode === "threshold") {
+    // NULL comparisons yield NULL, which SUM ignores — NULL-heavy columns count as 0.
+    return `SUM(CAST((${source} ${cls.operator} ${cls.threshold}) AS INTEGER))`;
+  }
+  return `SUM(CAST(CAST(${source} AS BOOLEAN) AS INTEGER))`;
+}
+
+function buildMarkerCountsQuery(s3Uri: string, config: OverlayConfig | null): string {
+  if (!config || config.classes.length === 0) {
+    return /*sql*/ `
+      SELECT SUM(COLUMNS('marker_positive_.*'))
+      FROM read_parquet('${s3Uri}')
+    `;
+  }
+  const projections = config.classes
+    .slice(0, OVERLAY_CLASS_BIT_LIMIT)
+    .map((cls) => `${classCountExpression(cls)} AS ${escapeSqlIdentifier(cls.sourceColumn)}`);
+  return /*sql*/ `
+    SELECT ${projections.join(",\n")}
+    FROM read_parquet('${s3Uri}')
+  `;
+}
+
 /**
- * Extract marker information from DuckDB-WASM database.
+ * Extract marker information from DuckDB-WASM database. Without a config this
+ * keeps the legacy marker_positive_ regex behavior; with one, counts derive
+ * from the configured class columns.
  */
-export async function getMarkerInfoWasm(resourceId: string): Promise<MarkerInfo> {
+export async function getMarkerInfoWasm(
+  resourceId: string,
+  config?: OverlayConfig | null,
+): Promise<MarkerInfo> {
   const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
   const connection = await createDatabase(resourceId, credentials, { region, endpoint });
 
   try {
-    const countResult = await connection.query(/*sql*/ `
-      SELECT SUM(COLUMNS('marker_positive_.*'))
-      FROM read_parquet('${s3Uri}')
-    `);
+    const countResult = await connection.query(buildMarkerCountsQuery(s3Uri, config ?? null));
 
     const row = countResult.toArray()[0] as Record<string, bigint>;
     const markerInfo: Record<string, { count: number }> = {};

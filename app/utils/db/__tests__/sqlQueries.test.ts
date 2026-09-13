@@ -10,12 +10,22 @@ describe("buildCreateTableQuery", () => {
 
   test("uses the default `polygon` geometry column when none is supplied", () => {
     const sql = buildCreateTableQuery("s3://my-bucket/data/cells.csv");
-    expect(sql).toContain("ST_GeomFromText(polygon)");
+    expect(sql).toContain('ST_GeomFromText("polygon")');
   });
 
   test("respects an explicit geometry column name", () => {
     const sql = buildCreateTableQuery("s3://my-bucket/data/cells.csv", "boundary");
-    expect(sql).toContain("ST_GeomFromText(boundary)");
+    expect(sql).toContain('ST_GeomFromText("boundary")');
+  });
+
+  test("quotes the geometry column so arbitrary names stay valid identifiers", () => {
+    const sql = buildCreateTableQuery("s3://my-bucket/data/cells.csv", 'geo "shape"');
+    expect(sql).toContain('ST_GeomFromText("geo ""shape""")');
+  });
+
+  test("quotes a geometry column with spaces", () => {
+    const sql = buildCreateTableQuery("s3://my-bucket/data/cells.csv", "cell boundary");
+    expect(sql).toContain('ST_GeomFromText("cell boundary")');
   });
 
   test("escapes single quotes in the resource id", () => {

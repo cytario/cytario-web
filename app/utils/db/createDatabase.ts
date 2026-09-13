@@ -47,6 +47,12 @@ const createDatabaseInternal = async (resourceId: string, provider?: DatabasePro
   await connection.query("SET enable_object_cache = true;");
   await connection.query("SET http_keep_alive = true;");
 
+  // GeoParquet files with a null CRS (geopandas emits `"crs": null` for
+  // slide-global pixel coordinates) fail DuckDB's geoparquet conversion
+  // outright; disabling it leaves the geometry column as the raw WKB blob
+  // the spatial SQL reads directly.
+  await connection.query("SET enable_geoparquet_conversion = false;");
+
   // Always path-style: dotted bucket names break the vhost wildcard cert.
   const endpoint = provider?.endpoint;
   const region = provider?.region ?? "eu-central-1";
