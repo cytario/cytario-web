@@ -84,13 +84,9 @@ function buildFileCellRenderers(nodes: TreeNode[]): CellRenderers<FileRow> {
 
 interface DirectoryViewTableDirectoryProps {
   nodes: TreeNode[];
-  showFilters?: boolean;
 }
 
-export function DirectoryViewTableDirectory({
-  nodes,
-  showFilters = false,
-}: DirectoryViewTableDirectoryProps) {
+export function DirectoryViewTableDirectory({ nodes }: DirectoryViewTableDirectoryProps) {
   const data: FileRow[] = useMemo(
     () =>
       nodes.map((node) => {
@@ -119,7 +115,6 @@ export function DirectoryViewTableDirectory({
       cellRenderers={cellRenderers}
       tableId="entries"
       ariaLabel="Files and folders"
-      showFilters={showFilters}
     />
   );
 }

@@ -78,13 +78,9 @@ function buildConnectionCellRenderers(
 
 interface DirectoryViewTableConnectionProps {
   nodes: TreeNode[];
-  showFilters?: boolean;
 }
 
-export function DirectoryViewTableConnection({
-  nodes,
-  showFilters = false,
-}: DirectoryViewTableConnectionProps) {
+export function DirectoryViewTableConnection({ nodes }: DirectoryViewTableConnectionProps) {
   const connections = useConnectionsStore(select.connections);
 
   const data = useMemo(
@@ -102,7 +98,6 @@ export function DirectoryViewTableConnection({
       cellRenderers={cellRenderers}
       tableId="connections"
       ariaLabel="Connections"
-      showFilters={showFilters}
     />
   );
 }

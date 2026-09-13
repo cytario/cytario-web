@@ -4,7 +4,6 @@ import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from 
 import type { LoaderData } from "./connections.loader";
 import { Section } from "~/components/Container";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { useModal } from "~/hooks/useModal";
 import { buildVirtualNode } from "~/utils/treeNodeFactories";
@@ -55,7 +54,6 @@ export default function ConnectionsListRoute() {
       <Button size="sm" variant="secondary" onPress={() => openModal("add-connection")}>
         <Icon icon="Plug" size="sm" /> Add Connection
       </Button>
-      <ShowFiltersToggle />
       <ViewModeToggle />
     </DirectoryView>
   );

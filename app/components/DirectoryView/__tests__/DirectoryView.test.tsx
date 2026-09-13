@@ -49,9 +49,8 @@ describe("DirectoryView Component", () => {
   ];
 
   beforeEach(() => {
-    useLayoutStore.setState({ showHiddenFiles: false, showFilters: false });
-    // Reset shared filter store between tests to avoid leakage from the
-    // FilterBar writes across tests.
+    useLayoutStore.setState({ showHiddenFiles: false });
+    // Reset shared filter store between tests.
     useTableStore("entries").getState().setColumnFilters([]);
     useTableStore("connections").getState().setColumnFilters([]);
   });
@@ -110,75 +109,6 @@ describe("DirectoryView Component", () => {
     expect(screen.getByText("File1.txt")).toBeInTheDocument();
     expect(screen.getByText("Folder1")).toBeInTheDocument();
   });
-
-  test("renders FilterBar when showFilters is true (non-list mode)", () => {
-    useLayoutStore.setState({ showFilters: true });
-    renderDirectoryView({
-      viewMode: "grid",
-      nodes: mockNodes,
-      name: "Test Directory",
-    });
-
-    expect(screen.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
-  });
-
-  test("hides FilterBar in list mode (table column filters take over)", () => {
-    useLayoutStore.setState({ showFilters: true });
-    renderDirectoryView({
-      viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
-    });
-
-    expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
-  });
-
-  test("does not render FilterBar when showFilters is false", () => {
-    renderDirectoryView({
-      viewMode: "list",
-      nodes: mockNodes,
-      name: "Test Directory",
-    });
-
-    expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Filter by Name" })).not.toBeInTheDocument();
-  });
-
-  test("name filter narrows displayed nodes in grid mode", async () => {
-    useLayoutStore.setState({ showFilters: true });
-    const { userEvent } = await import("@testing-library/user-event");
-    const user = userEvent.setup();
-
-    renderDirectoryView({
-      viewMode: "grid",
-      nodes: mockNodes,
-      name: "Test Directory",
-    });
-
-    const input = screen.getByRole("textbox", { name: "Name" });
-    await user.type(input, "Folder");
-
-    expect(screen.getByText("Folder1")).toBeInTheDocument();
-    expect(screen.queryByText("File1.txt")).not.toBeInTheDocument();
-  });
-
-  test("shows no-matches message in grid mode when filter excludes all nodes", async () => {
-    useLayoutStore.setState({ showFilters: true });
-    const { userEvent } = await import("@testing-library/user-event");
-    const user = userEvent.setup();
-
-    renderDirectoryView({
-      viewMode: "grid",
-      nodes: mockNodes,
-      name: "Test Directory",
-    });
-
-    const input = screen.getByRole("textbox", { name: "Name" });
-    await user.type(input, "zzz-no-match");
-
-    expect(screen.getByText("No results")).toBeInTheDocument();
-  });
-
   test("hidden files are excluded by default", () => {
     const nodesWithHidden = [...mockNodes, mock.treeNode({ name: ".hidden-file", type: "file" })];
 

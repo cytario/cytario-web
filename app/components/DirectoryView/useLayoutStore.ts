@@ -10,8 +10,6 @@ interface LayoutStore {
   setViewMode: (mode: ViewMode) => void;
   showHiddenFiles: boolean;
   toggleShowHiddenFiles: () => void;
-  showFilters: boolean;
-  toggleShowFilters: () => void;
   headerSlot: React.ReactNode;
   setHeaderSlot: (slot: React.ReactNode) => void;
 }
@@ -19,7 +17,6 @@ interface LayoutStore {
 interface PersistedLayoutState {
   viewMode: ViewMode;
   showHiddenFiles: boolean;
-  showFilters: boolean;
 }
 
 const name = "LayoutStore";
@@ -42,9 +39,6 @@ export const useLayoutStore = create<LayoutStore>()(
             false,
             "toggleShowHiddenFiles",
           ),
-        showFilters: false,
-        toggleShowFilters: () =>
-          set((state) => ({ showFilters: !state.showFilters }), false, "toggleShowFilters"),
         headerSlot: null,
         setHeaderSlot: (headerSlot) => set({ headerSlot }),
       }),
@@ -52,7 +46,7 @@ export const useLayoutStore = create<LayoutStore>()(
     ),
     {
       name,
-      version: 6,
+      version: 7,
       migrate: createMigrate<PersistedLayoutState>(
         {
           0: (state) => {
@@ -61,7 +55,6 @@ export const useLayoutStore = create<LayoutStore>()(
             return {
               viewMode: OLD_VALID.includes(s?.viewMode ?? "") ? (s.viewMode as string) : "grid",
               showHiddenFiles: false,
-              showFilters: false,
             };
           },
           1: (state) => {
@@ -70,7 +63,6 @@ export const useLayoutStore = create<LayoutStore>()(
             return {
               viewMode: OLD_VALID.includes(s?.viewMode ?? "") ? (s.viewMode as string) : "grid",
               showHiddenFiles: false,
-              showFilters: false,
             };
           },
           2: (state) => {
@@ -85,7 +77,6 @@ export const useLayoutStore = create<LayoutStore>()(
             return {
               viewMode: (modeMap[s?.viewMode ?? ""] ?? "grid") as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
-              showFilters: false,
             };
           },
           3: (state) => {
@@ -98,43 +89,40 @@ export const useLayoutStore = create<LayoutStore>()(
                 ? "grid"
                 : (s?.viewMode ?? "grid")) as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
-              showFilters: false,
             };
           },
           4: (state) => {
-            const s = state as {
-              viewMode?: string;
-              showHiddenFiles?: boolean;
-              showFilters?: boolean;
-            };
+            const s = state as { viewMode?: string; showHiddenFiles?: boolean };
             return {
               viewMode: (s?.viewMode === "grid-compact"
                 ? "grid"
                 : (s?.viewMode ?? "grid")) as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
-              showFilters: s?.showFilters ?? false,
             };
           },
           5: (state) => {
-            const s = state as {
-              viewMode?: string;
-              showHiddenFiles?: boolean;
-              showFilters?: boolean;
-            };
+            const s = state as { viewMode?: string; showHiddenFiles?: boolean };
             // Tree view mode removed — coerce to grid.
             return {
               viewMode: (s?.viewMode === "tree" ? "grid" : (s?.viewMode ?? "grid")) as ViewMode,
               showHiddenFiles: s?.showHiddenFiles ?? false,
-              showFilters: s?.showFilters ?? false,
+            };
+          },
+          // Column filters moved into per-column popover triggers — the
+          // show/hide toggle state is gone.
+          6: (state) => {
+            const s = state as { viewMode?: string; showHiddenFiles?: boolean };
+            return {
+              viewMode: (s?.viewMode ?? "grid") as ViewMode,
+              showHiddenFiles: s?.showHiddenFiles ?? false,
             };
           },
         },
-        { viewMode: "grid", showHiddenFiles: false, showFilters: false },
+        { viewMode: "grid", showHiddenFiles: false },
       ),
       partialize: (state) => ({
         viewMode: state.viewMode,
         showHiddenFiles: state.showHiddenFiles,
-        showFilters: state.showFilters,
       }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) console.error("[LayoutStore] Rehydration failed:", error);
