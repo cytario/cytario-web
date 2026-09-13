@@ -5,6 +5,7 @@ import { getTileBoundingBox } from "./getTileBoundingBox";
 import {
   type OverlayClassConfig,
   type OverlayColumnsConfig,
+  type OverlayGeometryAnchor,
   OVERLAY_CLASS_BIT_LIMIT,
 } from "./overlayConfig";
 
@@ -61,6 +62,76 @@ function selectColumns(columns: OverlayColumnsConfig): {
   };
 }
 
+type Config = {
+  columns: OverlayColumnsConfig;
+  anchor?: OverlayGeometryAnchor;
+  classes: OverlayClassConfig[];
+};
+
+/** Geometry parsed from its stored encoding into a GEOMETRY value. */
+function geomExpression(anchor: OverlayGeometryAnchor, geomColumn: string): string {
+  return anchor.encoding === "wkb"
+    ? `ST_GeomFromWKB(${geomColumn})`
+    : `ST_GeomFromText(${geomColumn})`;
+}
+
+/** Quote a possibly-dotted column path as separate identifiers — struct
+ * subfield access (`bbox.xmin`) must reach SQL as "bbox"."xmin", one quoted
+ * identifier per segment, not "bbox.xmin". */
+function escapeColumnPath(path: string): string {
+  return path
+    .split(".")
+    .map((segment) => escapeSqlIdentifier(segment))
+    .join(".");
+}
+
+/**
+ * Geometry-anchored tile predicate + position synthesis. The covering
+ * columns are plain numerics, so parquet row-group statistics prune the scan;
+ * x/y derive from the geometry via ST_Centroid for the rows that survive.
+ */
+function buildAnchoredSelect(
+  s3Uri: string,
+  config: Config,
+  anchor: OverlayGeometryAnchor,
+  geomColumn: string,
+  bitmaskExpression: string,
+  tileIndex: TileIndex,
+  idColumn: string,
+  isPointMode: boolean,
+): string {
+  const geom = geomExpression(anchor, geomColumn);
+  const [minX, minY, maxX, maxY] = getTileBoundingBox(tileIndex);
+  const c = anchor.covering;
+  const where = `
+      ${escapeColumnPath(c.xmax)} >= ${minX}
+      AND ${escapeColumnPath(c.xmin)} <= ${maxX}
+      AND ${escapeColumnPath(c.ymax)} >= ${minY}
+      AND ${escapeColumnPath(c.ymin)} <= ${maxY}`;
+
+  if (isPointMode) {
+    return /*sql*/ `
+      SELECT
+        ${idColumn} as id,
+        ST_X(ST_Centroid(${geom})) as x,
+        ST_Y(ST_Centroid(${geom})) as y,
+        ${bitmaskExpression} AS marker_bitmask
+      FROM read_parquet('${s3Uri}')
+      WHERE ${where}
+    `;
+  }
+
+  return /*sql*/ `
+    SELECT
+      ${idColumn} as id,
+      ST_AsWKB(${geom}) as geom,
+      ST_X(ST_Centroid(${geom})) as x,
+      ST_Y(ST_Centroid(${geom})) as y,
+      ${bitmaskExpression} AS marker_bitmask
+    FROM read_parquet('${s3Uri}')
+    WHERE ${where}
+  `;
+}
 /**
  * Get geometries query based on zoom level.
  * @param s3Uri - S3 URI for the parquet file (s3://bucketName/pathName)
@@ -71,13 +142,26 @@ export function getGeomQuery(
   s3Uri: string,
   tileIndex: TileIndex,
   markerColumns: string[] = [],
-  config?: { columns: OverlayColumnsConfig; classes: OverlayClassConfig[] } | null,
+  config?: Config | null,
 ): string {
   const [minX, minY, maxX, maxY] = getTileBoundingBox(tileIndex);
 
   if (config) {
     const bitmaskExpression = buildBitmaskExpressionFromClasses(config.classes);
     const { id, geom, x, y } = selectColumns(config.columns);
+
+    if (config.anchor && geom && !config.columns.x && !config.columns.y) {
+      return buildAnchoredSelect(
+        s3Uri,
+        config,
+        config.anchor,
+        geom,
+        bitmaskExpression,
+        tileIndex,
+        id,
+        isPointMode(tileIndex.z),
+      );
+    }
 
     if (isPointMode(tileIndex.z)) {
       return /*sql*/ `

@@ -16,6 +16,18 @@ const overlayClassSchema = z.object({
   threshold: z.number().optional(),
 });
 
+const overlayCoveringSchema = z.object({
+  xmin: z.string(),
+  xmax: z.string(),
+  ymin: z.string(),
+  ymax: z.string(),
+});
+
+const overlayAnchorSchema = z.object({
+  encoding: z.enum(["wkb", "wkt"]),
+  covering: overlayCoveringSchema,
+});
+
 const overlayConfigSchema = z.object({
   version: z.literal(1),
   columns: z.object({
@@ -24,6 +36,7 @@ const overlayConfigSchema = z.object({
     x: z.string(),
     y: z.string(),
   }),
+  anchor: overlayAnchorSchema.optional(),
   classes: z.array(overlayClassSchema),
 });
 

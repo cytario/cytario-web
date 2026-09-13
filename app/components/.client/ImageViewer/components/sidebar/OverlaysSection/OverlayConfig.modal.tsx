@@ -13,6 +13,8 @@ import {
   OVERLAY_CLASS_BIT_LIMIT,
   type OverlayClassConfig,
   type OverlayClassOperator,
+  type OverlayGeometryAnchor,
+  findCoveringColumns,
   validateOverlayConfig,
 } from "~/utils/db/overlayConfig";
 
@@ -113,6 +115,23 @@ export function OverlayConfigModal({
 
   const columnItems = useMemo(() => (schema ? toSelectItems(schema) : []), [schema]);
 
+  // The anchor is fully derived — no hand-editing. A covering from the schema
+  // anchors the config when no x/y column is chosen; picking x/y columns
+  // (or a geometry column without a matching covering) drops it.
+  const anchor: OverlayGeometryAnchor | undefined = useMemo(() => {
+    if (!schema || xColumn || yColumn) return undefined;
+    const derived = findCoveringColumns(schema);
+    if (!derived || !geomColumn) return undefined;
+    const geomCol = schema.find((col) => col.name === geomColumn);
+    if (!geomCol || !/^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(geomCol.type.toUpperCase())) {
+      return undefined;
+    }
+    return {
+      encoding: /^(BLOB|BYTE_ARRAY)$/.test(geomCol.type.toUpperCase()) ? "wkb" : "wkt",
+      covering: derived,
+    };
+  }, [schema, xColumn, yColumn, geomColumn]);
+
   const updateClass = (index: number, patch: Partial<ClassDraft>) =>
     setClasses((prev) => prev.map((cls, i) => (i === index ? { ...cls, ...patch } : cls)));
 
@@ -127,14 +146,15 @@ export function OverlayConfigModal({
   const buildConfig = (): OverlayConfig => ({
     version: 1,
     columns: { id: idColumn, geometry: geomColumn, x: xColumn, y: yColumn },
+    ...(anchor ? { anchor } : {}),
     classes: classes.map(draftToClass),
   });
 
   const isApplyDisabled =
     !schema ||
     !idColumn ||
-    !xColumn ||
-    !yColumn ||
+    (!anchor && (!xColumn || !yColumn)) ||
+    (anchor && !geomColumn) ||
     classes.length === 0 ||
     classes.some((cls) => !cls.sourceColumn) ||
     classes.some((cls) => cls.mode === "threshold" && Number.isNaN(cls.threshold)) ||
@@ -195,17 +215,19 @@ export function OverlayConfigModal({
           />
           <Select
             label="X column"
-            items={columnItems}
-            selectedKey={xColumn || null}
+            items={anchor ? [] : columnItems}
+            selectedKey={anchor ? "derived" : xColumn || null}
             onSelectionChange={(key) => setXColumn(String(key ?? ""))}
-            isDisabled={!schema}
+            isDisabled={!schema || !!anchor}
+            description={anchor ? "Derived from the geometry column via its covering." : undefined}
           />
           <Select
             label="Y column"
-            items={columnItems}
-            selectedKey={yColumn || null}
+            items={anchor ? [] : columnItems}
+            selectedKey={anchor ? "derived" : yColumn || null}
             onSelectionChange={(key) => setYColumn(String(key ?? ""))}
-            isDisabled={!schema}
+            isDisabled={!schema || !!anchor}
+            description={anchor ? "Derived from the geometry column via its covering." : undefined}
           />
         </div>
 
