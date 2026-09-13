@@ -5,10 +5,10 @@ import { createLabel } from "~/.server/logging";
 
 // `PutBucketPolicy` replaces the whole document with no conditional-write
 // primitive, so all writers (here and in the admin portal) must serialize on
-// the SAME lock key `bucketpolicy:<accountId>:<bucketName>` — a pinned
-// cross-repo contract. Single-Redis lease, no renewal: the TTL must exceed
-// the worst-case critical section by a wide margin, or an expired lease
-// readmits the read-merge-write clobber this lock exists to prevent.
+// the SAME lock key — a pinned cross-repo contract. Single-Redis lease, no
+// renewal: the TTL must exceed the worst-case critical section by a wide
+// margin, or an expired lease readmits the read-merge-write clobber this
+// lock exists to prevent.
 
 const label = createLabel("bucketpolicy-lock", "magenta");
 
@@ -27,7 +27,11 @@ const RELEASE_LOCK_SCRIPT = `
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Lock key is a pinned cross-repo contract shared with the admin portal. */
+/**
+ * The pinned lock key for a bucket in a given storage account namespace. The
+ * namespace is the AWS account id on AWS targets, or the S3-compatible
+ * endpoint host on a RustFS target (one instance serves one account).
+ */
 export const bucketPolicyLockKey = (accountId: string, bucketName: string): string =>
   `bucketpolicy:${accountId}:${bucketName}`;
 
