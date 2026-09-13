@@ -15,7 +15,7 @@ import { z } from "zod";
  * Cytario Admin Role ARN, an ExternalId, or any management credential.
  */
 
-export const PROVIDER_TYPES = ["aws"] as const;
+export const PROVIDER_TYPES = ["aws", "rustfs"] as const;
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
 
 export const PROVIDER_CONNECTION_STATUSES = ["pending", "connected", "drifted", "error"] as const;
@@ -55,6 +55,11 @@ export const providerConnectionSchema = z.object({
  * concrete role is resolved server-side. `bucketIds` names the portal bucket
  * row ids the role is scoped to (empty in an OSS catalog without a bucket
  * registry).
+ *
+ * `roleArn` is the AWS IAM role backing the level. A RustFS provider's roles
+ * have no ARN equivalent — the mapped per-org policies carry the entitlement —
+ * so the catalog may carry an opaque placeholder ARN there. It is never
+ * meaningful outside the AWS mint path.
  */
 export const providerRoleSchema = z.object({
   providerConnectionId: z.string().min(1),
