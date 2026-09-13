@@ -1,3 +1,4 @@
+import { useColumnFilters } from "@cytario/design";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 
@@ -5,11 +6,9 @@ import { TreeNode } from "./buildDirectoryTree";
 import { DirectoryViewGrid } from "./DirectoryViewGrid";
 import { DirectoryViewTableConnection, connectionColumns } from "./DirectoryViewTableConnection";
 import { DirectoryViewTableDirectory, fileColumns } from "./DirectoryViewTableDirectory";
-import { FilterBar } from "./FilterBar";
-import { filterHiddenNodes, filterNodes, getNodeAccessors } from "./filterNodes";
+import { filterHiddenNodes, filterNodes } from "./filterNodes";
 import { useLayoutStore } from "./useLayoutStore";
 import { Container, Section, SectionHeader } from "~/components/Container";
-import { useColumnFilters } from "~/components/Table/useColumnFilters";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -36,7 +35,6 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
 
   const connections = useConnectionsStore(select.connections);
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
-  const showFilters = useLayoutStore((s) => s.showFilters);
 
   const { columnFilters } = useColumnFilters({ tableId: kind });
 
@@ -53,43 +51,17 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
     [visibleNodes, columnFilters, columns, kind, connections],
   );
 
-  // Derive unique values per filterable select column so FilterBar's select
-  // inputs offer real options (mirrors tanstack's getFacetedUniqueValues used
-  // by the table column-header filter).
-  const dynamicOptions = useMemo(() => {
-    const accessors = getNodeAccessors(kind, connections);
-    const result: Record<string, { label: string; value: string }[]> = {};
-    for (const col of columns) {
-      if (col.filterType !== "select" || col.filterOptions) continue;
-      const accessor = accessors[col.id];
-      if (!accessor) continue;
-      const unique = new Set<string>();
-      for (const node of visibleNodes) {
-        const v = accessor(node);
-        if (v) unique.add(v);
-      }
-      result[col.id] = [...unique].sort().map((v) => ({ label: v, value: v }));
-    }
-    return result;
-  }, [visibleNodes, columns, kind, connections]);
-
   return (
     <Section>
       <SectionHeader name={node.name}>{children}</SectionHeader>
-
-      {showFilters && isGrid && (
-        <Container>
-          <FilterBar columns={columns} tableId={kind} dynamicOptions={dynamicOptions} />
-        </Container>
-      )}
 
       <Container>
         {isGrid ? (
           <DirectoryViewGrid nodes={filteredNodes} kind={kind} />
         ) : kind === "connections" ? (
-          <DirectoryViewTableConnection nodes={filteredNodes} showFilters={showFilters} />
+          <DirectoryViewTableConnection nodes={filteredNodes} />
         ) : (
-          <DirectoryViewTableDirectory nodes={filteredNodes} showFilters={showFilters} />
+          <DirectoryViewTableDirectory nodes={filteredNodes} />
         )}
       </Container>
     </Section>

@@ -1,9 +1,9 @@
+import type { ColumnConfig } from "@cytario/design";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import { describe, expect, test } from "vitest";
 
 import type { TreeNode } from "../buildDirectoryTree";
 import { filterHiddenNodes, filterNodes } from "../filterNodes";
-import type { ColumnConfig } from "~/components/Table/types";
 
 const makeNode = (overrides: Partial<TreeNode> = {}): TreeNode => ({
   id: "file.csv",

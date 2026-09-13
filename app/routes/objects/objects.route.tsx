@@ -14,7 +14,6 @@ import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { ClientOnly } from "~/components/ClientOnly";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { LoaderView } from "~/components/Loader/LoaderView";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
@@ -118,7 +117,6 @@ export default function ObjectsRoute() {
 
     return (
       <DirectoryView kind="entries" node={currentNode}>
-        <ShowFiltersToggle />
         <ViewModeToggle />
       </DirectoryView>
     );

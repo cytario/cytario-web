@@ -14,7 +14,6 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { Container, Section } from "~/components/Container";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
-import { ShowFiltersToggle } from "~/components/DirectoryView/ShowFiltersToggle";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import {
   buildVirtualNode,
@@ -74,7 +73,6 @@ export default function FavoritesRoute() {
 
   return (
     <DirectoryView kind="entries" node={buildVirtualNode("Favorites", allItems)}>
-      <ShowFiltersToggle />
       <ViewModeToggle />
     </DirectoryView>
   );
