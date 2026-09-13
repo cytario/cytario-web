@@ -78,9 +78,11 @@ const COVERING_FLAT_COLUMNS: [keyof OverlayCoveringColumns, string[]][] = [
 ];
 
 // Types as either parquet_schema (INT32, BYTE_ARRAY, …) or DESCRIBE
-// (INTEGER, BLOB, …) spells them.
+// (INTEGER, BIGINT, BLOB, …) spells them.
+const isIntegerType = (type: string): boolean =>
+  /^(U?INT(8|16|32|64)?|BIGINT|SMALLINT|TINYINT|INTEGER|HUGEINT)$/.test(type.toUpperCase());
 const isNumericType = (type: string): boolean =>
-  /^(U?INT(8|16|32|64|EGER)?|FLOAT|DOUBLE|DECIMAL.*)$/.test(type.toUpperCase());
+  isIntegerType(type) || /^(FLOAT|DOUBLE|REAL|DECIMAL.*)$/.test(type.toUpperCase());
 
 const isBooleanType = (type: string): boolean => /^BOOL(EAN)?$/.test(type.toUpperCase());
 
@@ -95,7 +97,7 @@ const findColumn = (
   ) ?? columns.find((col) => names.includes(col.name.toLowerCase()) && typePredicate?.(col.type));
 
 const isIdLikeType = (type: string): boolean =>
-  /^(U?INT(8|16|32|64|EGER)?|VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
+  isIntegerType(type) || /^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
 
 const isGeometryLikeType = (type: string): boolean =>
   /^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
