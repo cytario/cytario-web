@@ -3,6 +3,12 @@ import { AssumeRoleWithWebIdentityCommand, STSClient } from "@aws-sdk/client-sts
 
 import { type BucketPolicyGrant, buildMergedPolicy, parseBucketPolicy } from "./bucketPolicy";
 import { withBucketPolicyLock } from "./bucketPolicyLock";
+import {
+  type RustfsBucketPolicyGrant,
+  buildMergedPolicy as buildRustfsMergedPolicy,
+  parseBucketPolicy as parseRustfsBucketPolicy,
+} from "./rustfsBucketPolicy";
+import { buildRustfsWriteSessionPolicy } from "./rustfsWriteSessionPolicy";
 import { buildWriteSessionPolicy } from "./writeSessionPolicy";
 import { sanitizeRoleSessionName } from "~/.server/auth/getSessionCredentials";
 import { createLabel } from "~/.server/logging";
@@ -20,6 +26,12 @@ export interface ApplyTarget {
   endpoint: string | null;
   roleArn: string;
   kmsKeyArn?: string | null;
+  /**
+   * The provider type of the connection backing the apply. A `rustfs` target
+   * routes the generation, write-session policy, and lock key to the RustFS
+   * variants; `aws` (or a legacy catalog value) keeps the AWS path.
+   */
+  providerType?: "aws" | "rustfs";
 }
 
 // Carries NO credentials deliberately — this shape is what a server action
@@ -39,8 +51,26 @@ export const accountIdFromRoleArn = (roleArn: string): string => {
   return match[1];
 };
 
-// The write session's `s3:PutBucketPolicy` may be denied by the role's attached
-// policy even when `allowsSharing` was advisory-true — we WARN, never claim enforced.
+/**
+ * The per-bucket lock-key namespace: the AWS account id on AWS, or the
+ * endpoint host on an S3-compatible provider (one deployment serves one
+ * account; the host pins the instance).
+ */
+const lockNamespaceOf = (target: ApplyTarget): string => {
+  if (target.providerType === "rustfs") {
+    if (!target.endpoint) {
+      throw new Error("A RustFS apply target requires an endpoint (fail closed).");
+    }
+    return new URL(target.endpoint).host;
+  }
+  return accountIdFromRoleArn(target.roleArn);
+};
+
+/**
+ * Detect an AWS AccessDenied on either the STS mint or the S3 write. The write
+ * session's `s3:PutBucketPolicy` may be denied by the role's attached policy even
+ * when `allowsSharing` was advisory-true — we WARN, never claim enforced.
+ */
 const isAccessDenied = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const name = String((error as { name?: string }).name ?? "");
@@ -54,11 +84,14 @@ const mintWriteSession = async (
   idToken: string,
   roleSessionName: string,
 ): Promise<S3Client> => {
-  const { region, endpoint, roleArn, organization, bucketName, kmsKeyArn } = target;
-  const providerConfig = getS3ProviderConfig(endpoint, region);
+  const { region, endpoint, roleArn, organization, bucketName, kmsKeyArn, providerType } = target;
+  const providerConfig = getS3ProviderConfig(endpoint, region, providerType ?? null);
 
   const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
-  const Policy = buildWriteSessionPolicy({ organization, bucketName, kmsKeyArn });
+  const Policy =
+    providerType === "rustfs"
+      ? buildRustfsWriteSessionPolicy({ organization, bucketName })
+      : buildWriteSessionPolicy({ organization, bucketName, kmsKeyArn });
 
   const { Credentials } = await stsClient.send(
     new AssumeRoleWithWebIdentityCommand({
@@ -100,37 +133,62 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
   }
 };
 
-// `grants` is the FULL managed grant set the bucket should carry, so the apply
-// is idempotent and un-share is simply absence from `grants`. On AccessDenied it
-// returns a `warning` — never claims the grant was enforced.
+/**
+ * Apply the desired grant set to a bucket's policy. `grants` is the FULL managed
+ * grant set the bucket should carry — every live share/connection on that bucket
+ * the caller authorizes — so the operation is idempotent and naturally handles
+ * un-share (a removed share is simply absent from `grants`). All-or-nothing: any
+ * generation or size fault fails closed before the `PutBucketPolicy`.
+ *
+ * On an AWS target the write is serialized under the per-(account, bucket) lock;
+ * on a RustFS target under the per-(endpoint-host, bucket) lock — the same
+ * mutual exclusion the AWS lock provides, keyed to the S3-compatible instance.
+ *
+ * On an AccessDenied (the write session lacks `s3:PutBucketPolicy`) it returns a
+ * `warning` result — it never claims the grant was enforced.
+ *
+ * Server-only: the write-capable STS credentials never appear in the returned
+ * `ApplyResult`.
+ */
 export const applyBucketPolicy = async (
   target: ApplyTarget,
-  grants: BucketPolicyGrant[],
+  grants: Array<BucketPolicyGrant | RustfsBucketPolicyGrant>,
   idToken: string,
   actingUserName: string,
 ): Promise<ApplyResult> => {
   // The write-session role (`target.roleArn`) signs the PutBucketPolicy; each
-  // grant's own `roleArn` is the statement Principal.
+  // grant's own `roleArn` is the statement Principal on AWS. A grant without a
+  // `roleArn` is rejected fail-closed by `compileGrantStatements`.
 
-  // Generate outside the lock so a generation/size fault fails closed before we
-  // mint a write session; the real merge happens inside the lock against the
-  // freshly-read live policy.
-  buildMergedPolicy(parseBucketPolicy(null), grants);
+  // Generate first (outside the lock) so a generation/size fault fails closed
+  // before we mint a write session or touch the live policy. The merged document
+  // is regenerated inside the lock against the freshly-read live policy; this
+  // pre-check just short-circuits obvious faults.
+  if (target.providerType === "rustfs") {
+    buildRustfsMergedPolicy(parseRustfsBucketPolicy(null), grants as RustfsBucketPolicyGrant[]);
+  } else {
+    buildMergedPolicy(parseBucketPolicy(null), grants as BucketPolicyGrant[]);
+  }
 
-  const accountId = accountIdFromRoleArn(target.roleArn);
+  const lockNamespace = lockNamespaceOf(target);
   const roleSessionName = sanitizeRoleSessionName(actingUserName);
 
   try {
-    return await withBucketPolicyLock(accountId, target.bucketName, async () => {
+    return await withBucketPolicyLock(lockNamespace, target.bucketName, async () => {
       const client = await mintWriteSession(target, idToken, roleSessionName);
 
       const liveRaw = await getLivePolicy(client, target.bucketName);
-      const live = parseBucketPolicy(liveRaw);
 
-      const merged = buildMergedPolicy(live, grants);
+      const serialized =
+        target.providerType === "rustfs"
+          ? buildRustfsMergedPolicy(
+              parseRustfsBucketPolicy(liveRaw),
+              grants as RustfsBucketPolicyGrant[],
+            ).serialized
+          : buildMergedPolicy(parseBucketPolicy(liveRaw), grants as BucketPolicyGrant[]).serialized;
 
       await client.send(
-        new PutBucketPolicyCommand({ Bucket: target.bucketName, Policy: merged.serialized }),
+        new PutBucketPolicyCommand({ Bucket: target.bucketName, Policy: serialized }),
       );
 
       return { status: "applied" as const } satisfies ApplyResult;

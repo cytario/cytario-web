@@ -18,6 +18,19 @@ providerConnections:
     region: eu-central-1
     status: connected # pending | connected | drifted | error
 
+  # A RustFS provider connection. The operator pre-provisions the RustFS side
+  # out of band (see the user guide's RustFS storage-onboarding runbook): the
+  # OIDC trust against the Keycloak realm, the per-org IAM policies, and the
+  # marker-named IAM groups they attach to. `roleArn` carries an opaque
+  # placeholder — RustFS has no role ARNs; the per-org mapped policies carry
+  # the entitlement and the inline session policy scopes the connection.
+  - id: rustfs-selfhosted
+    name: RustFS (self-hosted)
+    providerType: rustfs
+    endpoint: https://s3.example.com
+    region: eu-central-1 # used for SigV4 signing against the RustFS endpoint
+    status: connected
+
 providerRoles:
   # A role is identified by (provider connection, access level) — the portal
   # provisions exactly one per (bucket, level), and grants reference the level;
@@ -34,3 +47,18 @@ providerRoles:
     allowedScopes:
       - lab
     accessLevel: admin # the only level that permits s3:PutBucketPolicy
+
+  # RustFS roles: one per access level under the RustFS connection; `roleArn` is
+  # an opaque placeholder (never resolved to cloud IAM), `allowedScopes` mirrors
+  # the buckets the operator attached the level's policy to.
+  - providerConnectionId: rustfs-selfhosted
+    roleArn: rustfs:read-only
+    allowedScopes: [] # empty = org-wide
+    accessLevel: read-only
+    bucketIds: [] # no bucket registry in an OSS catalog
+
+  - providerConnectionId: rustfs-selfhosted
+    roleArn: rustfs:admin
+    allowedScopes: []
+    accessLevel: admin
+    bucketIds: []

@@ -56,21 +56,28 @@ const fetchTemporaryCredentials = async ({
   const { bucketName, prefix } = connectionConfig;
   const { roleArn, accessLevel } = grant;
   const region = bucketRegion ?? connectionProvider.region;
-  const { endpoint } = connectionProvider;
+  const { endpoint, providerType } = connectionProvider;
   const { idToken } = sessionData.authTokens;
 
-  const providerConfig = getS3ProviderConfig(endpoint, region);
+  const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
 
   const stsClient = new STSClient({
     endpoint: providerConfig.stsEndpoint,
     region,
   });
 
-  // Inline session policy is AWS-specific: it filters the minted credential down
-  // to the configured prefix scope. S3-compatible providers whose STS
-  // ignores/rejects `Policy` (MinIO, signalled by a non-AWS endpoint) omit it —
-  // the role's attached policy is then the only bound.
-  const Policy = providerConfig.isAwsS3
+  // Inline session policy: STS applies it as a filter over the session's
+  // entitlement, so the minted credential cannot exceed the configured prefix
+  // scope even if the assumed identity is broader. It is a closed allowlist
+  // that grants no `s3:PutBucketPolicy`. On AWS it must enumerate
+  // `kms:Decrypt` so the role's per-key grants survive the STS intersection
+  // and `GetObject` works against SSE-KMS-encrypted objects (omitting
+  // `kms:Decrypt` denies it for the session regardless of the role policy).
+  // The ORG tenant binding is enforced by the role's trust policy (AWS) or the
+  // mapped per-org admission policy (RustFS), never repeated here. Providers
+  // whose STS ignores or rejects the `Policy` parameter omit it — the assumed
+  // identity's attached policy is then the only bound.
+  const Policy = providerConfig.honorsInlineSessionPolicy
     ? buildSessionPolicy({ bucketName, prefix, region, accessLevel })
     : undefined;
 

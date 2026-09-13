@@ -69,6 +69,22 @@ describe("s3Provider utilities", () => {
       expect(config.stsEndpoint).toBe("http://localhost:9000");
       expect(config.s3Endpoint).toBe("http://localhost:9000");
     });
+
+    it("returns AWS config when providerType is aws even with a non-AWS-looking endpoint", () => {
+      const config = getS3ProviderConfig("https://s3.cytar.io", "eu-central-1", "aws");
+      expect(config.isAwsS3).toBe(true);
+      expect(config.usePathStyle).toBe(false);
+      expect(config.honorsInlineSessionPolicy).toBe(true);
+    });
+
+    it("returns RustFS config: path style, STS on endpoint, inline policy honored", () => {
+      const config = getS3ProviderConfig("https://rustfs-poc.cytar.io", "eu-central-1", "rustfs");
+      expect(config.isAwsS3).toBe(false);
+      expect(config.usePathStyle).toBe(true);
+      expect(config.stsEndpoint).toBe("https://rustfs-poc.cytar.io");
+      expect(config.s3Endpoint).toBe("https://rustfs-poc.cytar.io");
+      expect(config.honorsInlineSessionPolicy).toBe(true);
+    });
   });
 
   describe("shouldUseSSL", () => {
