@@ -56,6 +56,34 @@ export const accountIdFromRoleArn = (roleArn: string): string => {
  * endpoint host on an S3-compatible provider (one deployment serves one
  * account; the host pins the instance).
  */
+
+/**
+ * A bucket's grant set must be homogeneous with the target's provider: a
+ * RustFS grant carries no `roleArn` (conditions are the binding) while an AWS
+ * grant requires one (the Principal) — a mixed set can never compile correctly
+ * through a single generator.
+ */
+const assertGrantSetHomogeneity = (
+  target: ApplyTarget,
+  grants: Array<BucketPolicyGrant | RustfsBucketPolicyGrant>,
+): void => {
+  if (target.providerType === "rustfs") {
+    const strayAwsGrant = grants.find((grant) => "roleArn" in grant);
+    if (strayAwsGrant) {
+      throw new Error(
+        "A RustFS bucket-policy apply received an AWS-shaped grant (mixed providers on one bucket) — refusing, fail closed.",
+      );
+    }
+  } else {
+    const strayRustfsGrant = grants.find((grant) => !("roleArn" in grant));
+    if (strayRustfsGrant) {
+      throw new Error(
+        "An AWS bucket-policy apply received a RustFS-shaped grant (mixed providers on one bucket) — refusing, fail closed.",
+      );
+    }
+  }
+};
+
 const lockNamespaceOf = (target: ApplyTarget): string => {
   if (target.providerType === "rustfs") {
     if (!target.endpoint) {
@@ -140,6 +168,10 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
  * un-share (a removed share is simply absent from `grants`). All-or-nothing: any
  * generation or size fault fails closed before the `PutBucketPolicy`.
  *
+ * A bucket is served by one provider connection, so the grant set must be
+ * homogeneous: a mixed AWS/RustFS set would compile through one generator and
+ * silently lose the other's binding vocabulary — rejected fail-closed here.
+ *
  * On an AWS target the write is serialized under the per-(account, bucket) lock;
  * on a RustFS target under the per-(endpoint-host, bucket) lock — the same
  * mutual exclusion the AWS lock provides, keyed to the S3-compatible instance.
@@ -159,6 +191,7 @@ export const applyBucketPolicy = async (
   // The write-session role (`target.roleArn`) signs the PutBucketPolicy; each
   // grant's own `roleArn` is the statement Principal on AWS. A grant without a
   // `roleArn` is rejected fail-closed by `compileGrantStatements`.
+  assertGrantSetHomogeneity(target, grants);
 
   // Generate first (outside the lock) so a generation/size fault fails closed
   // before we mint a write session or touch the live policy. The merged document
