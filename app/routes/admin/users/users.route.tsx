@@ -295,6 +295,7 @@ export default function AdminUsersRoute() {
             rowSelection={rowSelection}
             onRowSelectionChange={setRowSelection}
             getRowId={(row) => row.userId}
+            showIndex={false}
           />
         ) : (
           <EmptyState

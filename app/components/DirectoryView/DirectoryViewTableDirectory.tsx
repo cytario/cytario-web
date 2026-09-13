@@ -115,6 +115,7 @@ export function DirectoryViewTableDirectory({ nodes }: DirectoryViewTableDirecto
       cellRenderers={cellRenderers}
       tableId="entries"
       ariaLabel="Files and folders"
+      showIndex={false}
     />
   );
 }

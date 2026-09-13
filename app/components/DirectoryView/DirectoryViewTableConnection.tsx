@@ -98,6 +98,7 @@ export function DirectoryViewTableConnection({ nodes }: DirectoryViewTableConnec
       cellRenderers={cellRenderers}
       tableId="connections"
       ariaLabel="Connections"
+      showIndex={false}
     />
   );
 }
