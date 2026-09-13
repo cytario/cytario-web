@@ -58,6 +58,7 @@ describe("getTileDataWasm", () => {
       `s3://${connectionConfig.bucketName}/data/file.parquet`,
       defaultTileIndex,
       [],
+      undefined,
     );
   });
 
@@ -90,6 +91,7 @@ describe("getTileDataWasm", () => {
       `s3://${connectionConfig.bucketName}/data/file.parquet`,
       defaultTileIndex,
       markerColumns,
+      undefined,
     );
   });
 

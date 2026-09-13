@@ -29,7 +29,7 @@ export const OverlaysSection = () => {
 
   // visible/total markers across all loaded overlay files — the same badge
   // semantic as the Channels panel.
-  const markers = entries.flatMap(([, overlayState]) => Object.values(overlayState));
+  const markers = entries.flatMap(([, entry]) => Object.values(entry.markers));
   const badge = markers.length
     ? `${markers.filter((m) => m.isVisible).length}/${markers.length}`
     : undefined;
@@ -66,8 +66,8 @@ export const OverlaysSection = () => {
         </>
       }
     >
-      {entries.map(([resourceId, overlayState]) => (
-        <OverlayItem key={resourceId} resourceId={resourceId} overlayState={overlayState} />
+      {entries.map(([resourceId, entry]) => (
+        <OverlayItem key={resourceId} resourceId={resourceId} overlay={entry} />
       ))}
 
       <footer className="p-2 flex justify-center">

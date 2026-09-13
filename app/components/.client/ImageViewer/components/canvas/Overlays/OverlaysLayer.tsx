@@ -7,14 +7,17 @@ import { AdditivePolygonLayer } from "./AdditivePolygonLayer";
 import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
 import { getPolygon } from "./getPolygon";
 import { blendMarkerColor, MarkerProps } from "./markerUniforms";
-import { CellMarker } from "../../../state/store/types";
+import { type CellMarker, type OverlayConfig } from "../../../state/store/types";
 import { OVERLAY_CACHE_NS, getCachedTile } from "../../../utils/sharedTileCache";
 import { toastBridge } from "~/toast-bridge";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
+import { overlayConfigHash } from "~/utils/db/overlayConfig";
+import { shouldReportOverlayError } from "~/utils/db/overlayErrorOnce";
 
 interface OverlaysLayerProps {
   resourceId: string;
+  overlayConfig: OverlayConfig | null;
   fileMarkers: Record<string, CellMarker>;
   enabledMarkers: string[];
   markerProps: MarkerProps;
@@ -29,6 +32,7 @@ interface OverlaysLayerProps {
 
 export const OverlaysLayer = ({
   resourceId,
+  overlayConfig,
   fileMarkers,
   enabledMarkers,
   markerProps,
@@ -40,6 +44,15 @@ export const OverlaysLayer = ({
   loadTile,
   finishTile,
 }: OverlaysLayerProps) => {
+  // Config participates in cache/error identity: reconfiguring the overlay
+  // must invalidate cached tiles and re-arm the one-shot error toast.
+  const configHash = overlayConfigHash(overlayConfig);
+
+  const reportTileError = (message: string) => {
+    if (!shouldReportOverlayError(resourceId, configHash)) return;
+    toastBridge.emit({ variant: "error", message });
+  };
+
   const getTileData = async ({ id, index }: TileLoadProps): Promise<Table | null> => {
     loadTile(id);
 
@@ -49,10 +62,10 @@ export const OverlaysLayer = ({
 
       // Shared across panels: the 2nd ImagePanel reuses the 1st panel's DuckDB
       // result instead of re-running the query. Keyed by resource + tile index
-      // + marker columns; markers are part of the key because they shape the query.
-      const cacheKey = `${resourceId}|${index.z}-${index.x}-${index.y}|${allMarkerKeys.join(",")}`;
+      // + marker columns + config; both shape the query.
+      const cacheKey = `${resourceId}|${index.z}-${index.x}-${index.y}|${allMarkerKeys.join(",")}|${configHash}`;
       const data = await getCachedTile(OVERLAY_CACHE_NS, cacheKey, () =>
-        getTileDataWasm(resourceId, index, allMarkerKeys),
+        getTileDataWasm(resourceId, index, allMarkerKeys, overlayConfig),
       );
 
       return data;
@@ -60,10 +73,7 @@ export const OverlaysLayer = ({
       if (error instanceof Error && error.name === "AbortError") {
         return null;
       }
-      toastBridge.emit({
-        variant: "error",
-        message: `Error fetching tile data: ${(error as Error).message ?? error}`,
-      });
+      reportTileError(`Error fetching tile data: ${(error as Error).message ?? error}`);
       console.error("Error fetching tile data:", error);
       return null;
     } finally {
@@ -82,8 +92,8 @@ export const OverlaysLayer = ({
 
     // Only recalculate when relevant data changes.
     updateTriggers: {
-      // Tile data only changes when the dataset or markers change
-      getTileData: [resourceId, Object.keys(fileMarkers).join(",")],
+      // Tile data only changes when the dataset, markers, or config change
+      getTileData: [resourceId, Object.keys(fileMarkers).join(","), configHash],
       // Sublayer rendering updates
       getMarkerMask: [enabledMarkers, fileMarkers],
       getFillColor: [enabledMarkers, fileMarkers],
@@ -307,10 +317,7 @@ export const OverlaysLayer = ({
 
     onTileError: (error) => {
       if (error?.name === "AbortError") return;
-      toastBridge.emit({
-        variant: "error",
-        message: `Error loading tile: ${error.message}`,
-      });
+      reportTileError(`Error loading tile: ${error.message}`);
       console.error("Error loading tile:", error);
     },
   });

@@ -55,7 +55,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
         ),
         {
           name: "ViewerStore-" + id,
-          version: 5,
+          version: 6,
           migrate: viewerStoreMigrate,
           partialize: viewerStorePartialize,
           // Viewport-change frames would otherwise re-stringify the whole

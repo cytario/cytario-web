@@ -3,6 +3,7 @@ import { type Table } from "apache-arrow";
 import { createDatabase, releaseDatabase } from "./createDatabase";
 import { ensureSpatialLoaded } from "./ensureSpatialLoaded";
 import { getGeomQuery } from "./getGeomQuery";
+import { type OverlayConfig } from "./overlayConfig";
 import { resolveResourceId } from "../connectionsStore/selectors";
 
 interface TileIndex {
@@ -20,13 +21,14 @@ export async function getTileDataWasm(
   resourceId: string,
   tileIndex: TileIndex,
   markerColumns: string[] = [],
+  config?: OverlayConfig | null,
 ): Promise<Table | null> {
   try {
     const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
     const connection = await createDatabase(resourceId, credentials, { region, endpoint });
     try {
       await ensureSpatialLoaded(connection);
-      const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns);
+      const tileQuery = getGeomQuery(s3Uri, tileIndex, markerColumns, config);
       const arrowTable = await connection.query(tileQuery);
 
       if (arrowTable.numRows === 0) {

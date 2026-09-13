@@ -6,6 +6,9 @@ import type { ChannelsSlice } from "./slices/viewer.channels.store";
 import type { CoreSlice } from "./slices/viewer.core.store";
 import type { OverlaysSlice } from "./slices/viewer.overlays.store";
 import type { ViewSlice } from "./slices/viewer.view.store";
+import type { OverlayConfig } from "~/utils/db/overlayConfig";
+
+export type { OverlayConfig };
 
 export type RGBA = [number, number, number, number];
 export type RGB = [number, number, number];
@@ -113,10 +116,19 @@ export interface CellMarker {
   color: RGBA;
   count: number;
   isVisible: boolean;
+  /** Display label; falls back to the marker key when absent (legacy state). */
+  label?: string;
 }
 
-export type OverlayState = Record<string, CellMarker>; // Dateset ~ File
-export type OverlaysState = Record<string, OverlayState>; // Datasets
+export type OverlayState = Record<string, CellMarker>; // Dataset ~ File
+
+/** One loaded overlay file: its markers plus the column mapping they derive from. */
+export interface OverlayEntry {
+  markers: OverlayState;
+  config: OverlayConfig | null;
+}
+
+export type OverlaysState = Record<string, OverlayEntry>; // Datasets
 
 export type AnnotationMode = "view" | "inspect" | "draw-polygon" | "draw-freehand" | "draw-point";
 
