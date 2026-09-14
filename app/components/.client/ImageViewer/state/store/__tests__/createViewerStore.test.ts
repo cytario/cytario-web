@@ -1166,8 +1166,8 @@ describe("createViewerStore", () => {
       });
       expect(newPreset.channelsOpacity).toBe(1);
       expect(newPreset.showCellOutline).toBe(true);
-      expect(newPreset.overlaysFillOpacity).toBe(0.8);
-      expect(newPreset.annotationsOpacity).toBe(1);
+      expect(newPreset.overlaysFillOpacity).toBe(0.5);
+      expect(newPreset.annotationsOpacity).toBe(0.5);
     });
 
     test("selects first shared view when shared views are preloaded", () => {
