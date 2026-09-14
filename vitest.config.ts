@@ -35,6 +35,14 @@ export default defineConfig({
     globals: true,
     silent: true,
     environment: "happy-dom",
+    include: [
+      "app/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "bin/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "bin-src/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "scripts/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "packages/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+    ],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/**"],
     server: {
       deps: {
