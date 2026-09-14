@@ -143,12 +143,14 @@ describe("auth / gates / slots surface", () => {
     expect(plugin.name).toBe("surface-probe");
   });
 
-  test("ViewerProps carries resourceId and signedFetch", () => {
+  test("ViewerProps carries resourceId, resolved httpsUrl and signedFetch", () => {
     const props: ViewerProps = {
       resourceId: "conn/path/data.zarr",
+      httpsUrl: "https://bucket.s3.example.com/path/data.zarr",
       signedFetch: async () => new Response(),
     };
     expect(props.resourceId).toBe("conn/path/data.zarr");
+    expect(props.httpsUrl).toContain("data.zarr");
     expect(typeof props.signedFetch).toBe("function");
   });
 
@@ -164,13 +166,15 @@ describe("auth / gates / slots surface", () => {
     expect(registered[0].match("a/b.zarr")).toBe(true);
   });
 
-  test("ViewerContribution canHandle is optional and async", async () => {
+  test("ViewerContribution canHandle receives id, url and signedFetch", async () => {
     const contribution: ViewerContribution = {
       match: () => false,
       component: () => null,
-      canHandle: async () => true,
+      canHandle: async (resourceId, httpsUrl) => httpsUrl.includes(resourceId),
     };
-    await expect(contribution.canHandle?.("id", async () => new Response())).resolves.toBe(true);
+    await expect(
+      contribution.canHandle?.("id", "https://bucket/id", async () => new Response()),
+    ).resolves.toBe(true);
   });
 
   test("a CytarioPlugin can register a viewer via PluginContext", () => {

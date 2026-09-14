@@ -5,6 +5,25 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { viewerRegistry } from "~/components/viewerRegistry";
 import ObjectsRoute, { handle } from "~/routes/objects/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+
+function seedConnection(connectionId: string) {
+  useConnectionsStore.setState({
+    connections: {
+      [connectionId]: {
+        connectionConfig: mock.connectionConfig() as never,
+        credentials: mock.credentials(),
+        provider: {
+          region: "eu-central-1",
+          endpoint: null,
+          allowsSharing: false,
+          accessLevel: "annotate",
+        },
+        status: "connected",
+      },
+    },
+  });
+}
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
   authContext: {},
@@ -22,6 +41,9 @@ vi.mock("~/utils/listObjectsClient", () => ({
 
 vi.mock("~/routes/favorites/useFavorite", () => ({
   useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
+}));
+vi.mock("~/routes/recent/useRecordRecentView", () => ({
+  useRecordRecentView: vi.fn(),
 }));
 
 vi.mock("@cytario/design", async (importOriginal) => {
@@ -58,6 +80,7 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
 describe("Bucket Route", () => {
   afterEach(() => {
     viewerRegistry.__reset();
+    useConnectionsStore.setState({ connections: {} });
   });
 
   test("handle.node builds the current TreeNode from params + data", () => {
@@ -173,7 +196,77 @@ describe("Bucket Route", () => {
     ]);
   }
 
-  test("renders a plugin viewer claiming the resource synchronously", async () => {
+  test("renders a plugin viewer claiming the resource synchronously with the resolved url", async () => {
+    seedConnection("aws-test-bucket");
+    let receivedProps: { resourceId: string; httpsUrl: string } | undefined;
+    viewerRegistry.scopedFor("spatialdata-plugin").register({
+      match: (id) => id.endsWith("data.zarr"),
+      component: (props: { resourceId: string; httpsUrl: string }) => {
+        receivedProps = props;
+        return <div data-testid="plugin-viewer" />;
+      },
+    });
+
+    const StubZarr = stubSingleFile("test/path/to/data.zarr");
+    const { container } = render(
+      <StubZarr initialEntries={["/connections/aws-test-bucket/test/path/to/data.zarr"]} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+    });
+    expect(receivedProps).toMatchObject({
+      resourceId: "aws-test-bucket/test/path/to/data.zarr",
+    });
+    expect(receivedProps?.httpsUrl).toContain("mock-bucket");
+    expect(container.querySelector("canvas#deckgl-overlay")).not.toBeInTheDocument();
+  });
+
+  test("shows the Opening loader until the store populates, then renders the plugin viewer", async () => {
+    let receivedUrl: string | null = null;
+    viewerRegistry.scopedFor("spatialdata-plugin").register({
+      match: (id) => id.endsWith("data.zarr"),
+      component: (props: { httpsUrl: string }) => {
+        receivedUrl = props.httpsUrl;
+        return <div data-testid="plugin-viewer" />;
+      },
+    });
+
+    const StubZarr = stubSingleFile("test/path/to/data.zarr");
+    const { container } = render(
+      <StubZarr initialEntries={["/connections/aws-test-bucket/test/path/to/data.zarr"]} />,
+    );
+
+    // Store lags the route render: the loader holds while resolution fails
+    // with the connection absent.
+    expect(container.querySelector("canvas#deckgl-overlay")).not.toBeInTheDocument();
+
+    seedConnection("aws-test-bucket");
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+    });
+    expect(receivedUrl).toContain("mock-bucket");
+  });
+
+  test("persistent url-resolution failure falls back to the built-in viewer", async () => {
+    // Connection present but without credentials: resolveResourceId keeps
+    // failing even after the store populates — the dead-loader case.
+    useConnectionsStore.setState({
+      connections: {
+        "aws-test-bucket": {
+          connectionConfig: mock.connectionConfig() as never,
+          credentials: null,
+          provider: {
+            region: "eu-central-1",
+            endpoint: null,
+            allowsSharing: false,
+            accessLevel: "annotate",
+          },
+          status: "connected",
+        },
+      },
+    });
     viewerRegistry.scopedFor("spatialdata-plugin").register({
       match: (id) => id.endsWith("data.zarr"),
       component: () => <div data-testid="plugin-viewer" />,
@@ -185,16 +278,18 @@ describe("Bucket Route", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+      expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
     });
-    expect(container.querySelector("canvas#deckgl-overlay")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("plugin-viewer")).not.toBeInTheDocument();
   });
 
   test("falls back to the built-in viewer when a plugin's canHandle resolves false", async () => {
+    seedConnection("aws-test-bucket");
+    const canHandle = vi.fn().mockResolvedValue(false);
     viewerRegistry.scopedFor("sniffing-plugin").register({
       match: () => false,
       component: () => <div data-testid="plugin-viewer" />,
-      canHandle: vi.fn().mockResolvedValue(false),
+      canHandle,
     });
 
     const StubTiff = stubSingleFile("test/path/to/file.ome.tiff");
@@ -209,6 +304,11 @@ describe("Bucket Route", () => {
       expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("plugin-viewer")).not.toBeInTheDocument();
+    expect(canHandle).toHaveBeenCalledWith(
+      "aws-test-bucket/test/path/to/file.ome.tiff",
+      expect.stringContaining("mock-bucket"),
+      expect.any(Function),
+    );
   });
 
   test("empty registry renders the built-in viewer directly", async () => {
