@@ -5,6 +5,12 @@ interface CytarioConfig {
     webapp: string;
     /** Customer portal base URL. Unset on deployments without a portal (e.g. OSS). */
     portal?: string;
+    /** External user documentation base URL. Unset on deployments without docs. */
+    docsUrl?: string;
+  };
+  /** Contact address for user support, shown in the help menu. Unset = hidden. */
+  support?: {
+    email?: string;
   };
   auth: {
     baseUrl: string;
@@ -83,6 +89,8 @@ const {
   NODE_ENV,
   WEB_HOST,
   PORTAL_HOST,
+  DOCS_URL,
+  SUPPORT_EMAIL,
   PORTAL_INTERNAL_URL,
   PROVIDERS_LOOKUP_SECRET,
   PROVIDERS_OSS_CONFIG_PATH,
@@ -97,6 +105,10 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
   endpoints: {
     webapp: WEB_HOST!,
     portal: PORTAL_HOST,
+    docsUrl: DOCS_URL,
+  },
+  support: {
+    email: SUPPORT_EMAIL,
   },
   auth: {
     baseUrl: BASE_URL!,
