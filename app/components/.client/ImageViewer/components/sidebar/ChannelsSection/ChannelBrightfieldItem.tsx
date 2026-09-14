@@ -2,15 +2,11 @@ import { Switch, Tooltip } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
+import { BRIGHTFIELD_CHANNEL_COUNT, MAX_VISIBLE_CHANNELS } from "./constants";
 import { select } from "../../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ControlRow } from "../ControlRow";
-
-// viv library only supports 6 channels
-// Brightfield uses 3 of those slots
-const MAX_VISIBLE_CHANNELS = 6;
-const BRIGHTFIELD_CHANNEL_COUNT = 3;
 
 interface ChannelBrightfieldItemProps {
   isVisible: boolean;
