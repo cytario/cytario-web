@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
+import { profileFromTokenClaims } from "~/.server/auth/getUserInfo";
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
 import { jsonError } from "~/.server/httpResponse";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -44,30 +45,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return jsonError(401, "The presented token is invalid or expired.");
   }
 
-  const organizationClaim = payload.organization;
-  if (
-    !organizationClaim ||
-    typeof organizationClaim !== "object" ||
-    Object.keys(organizationClaim).length !== 1
-  ) {
+  const user = profileFromTokenClaims(payload);
+  if (!user?.organization) {
     return jsonError(401, "The token carries no single active organization.");
   }
-  const organization = Object.keys(organizationClaim)[0];
-
-  const user = {
-    sub: payload.sub,
-    email: "",
-    email_verified: false,
-    name: "",
-    preferred_username: "",
-    given_name: "",
-    family_name: "",
-    policy: [],
-    organization,
-    organizationAttributes: Object.freeze({}),
-    groups: (payload.groups as string[] | undefined) ?? [],
-    adminScopes: [],
-  };
+  const organization = user.organization;
 
   const connections = await listConnections(user);
 
