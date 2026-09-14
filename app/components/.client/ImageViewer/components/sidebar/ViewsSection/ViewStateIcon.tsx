@@ -14,7 +14,9 @@ export function ViewStateIcon({ viewState }: { viewState: ViewKey }) {
 
   return (
     <Tooltip content={label}>
-      <Icon icon={icon} size="xs" className="text-muted-foreground" />
+      <span role="img" aria-label={label}>
+        <Icon icon={icon} size="xs" className="text-muted-foreground" />
+      </span>
     </Tooltip>
   );
 }
