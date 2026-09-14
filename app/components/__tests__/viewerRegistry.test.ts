@@ -50,7 +50,9 @@ describe("viewerRegistry", () => {
     viewerRegistry.scopedFor("b").register(winner);
     viewerRegistry.scopedFor("c").register(neverAsked);
 
-    await expect(viewerRegistry.resolveAsync("res", signedFetch)).resolves.toBe(winner);
+    await expect(
+      viewerRegistry.resolveAsync("res", "https://bucket/res", signedFetch),
+    ).resolves.toBe(winner);
     expect(neverAsked.canHandle).not.toHaveBeenCalled();
   });
 
@@ -63,8 +65,10 @@ describe("viewerRegistry", () => {
     };
     viewerRegistry.scopedFor("b").register(declined);
 
-    await expect(viewerRegistry.resolveAsync("res", signedFetch)).resolves.toBeNull();
-    expect(declined.canHandle).toHaveBeenCalledWith("res", signedFetch);
+    await expect(
+      viewerRegistry.resolveAsync("res", "https://bucket/res", signedFetch),
+    ).resolves.toBeNull();
+    expect(declined.canHandle).toHaveBeenCalledWith("res", "https://bucket/res", signedFetch);
   });
 
   test("resolveAsync treats a rejected canHandle as false", async () => {
@@ -81,7 +85,9 @@ describe("viewerRegistry", () => {
     viewerRegistry.scopedFor("a").register(failing);
     viewerRegistry.scopedFor("b").register(fallback);
 
-    await expect(viewerRegistry.resolveAsync("res", signedFetch)).resolves.toBe(fallback);
+    await expect(
+      viewerRegistry.resolveAsync("res", "https://bucket/res", signedFetch),
+    ).resolves.toBe(fallback);
   });
 
   test("hasAsync is true only when a contribution offers canHandle", () => {

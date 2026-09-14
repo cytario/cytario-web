@@ -60,13 +60,14 @@ class ViewerRegistryImpl {
    */
   async resolveAsync(
     resourceId: string,
+    httpsUrl: string,
     signedFetch: SignedFetch,
   ): Promise<ViewerContribution | null> {
     for (const { contribution } of this.entries) {
       if (!contribution.canHandle) continue;
       let capable = false;
       try {
-        capable = await contribution.canHandle(resourceId, signedFetch);
+        capable = await contribution.canHandle(resourceId, httpsUrl, signedFetch);
       } catch {
         capable = false;
       }

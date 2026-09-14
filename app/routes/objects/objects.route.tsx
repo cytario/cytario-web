@@ -19,7 +19,7 @@ import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { LoaderView } from "~/components/Loader/LoaderView";
 import { viewerRegistry } from "~/components/viewerRegistry";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
-import { liveCredentials } from "~/utils/connectionsStore/selectors";
+import { liveCredentials, resolveResourceId } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileCategory } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
@@ -54,34 +54,85 @@ interface PluginViewerRouterProps {
 }
 
 function PluginViewer({ resourceId, signedFetch }: PluginViewerRouterProps) {
-  const [resolved, setResolved] = useState<ViewerContribution | null>(() =>
-    viewerRegistry.resolve(resourceId),
+  // Deep-link edge: the connections store may lag the route render. The
+  // connection-presence selector re-runs resolution when the store populates.
+  const connectionId = resourceId.slice(0, resourceId.indexOf("/"));
+  const connectionPresent = useConnectionsStore(
+    (state) => state.connections[connectionId] !== undefined,
   );
-  const [sniffing, setSniffing] = useState(resolved === null && viewerRegistry.hasAsync());
 
-  // No sync match claimed the resource: sniff the content. Rejected canHandle
-  // counts as false inside resolveAsync, so this settles exactly once on the
-  // winner or null (fall through to the built-in viewer).
+  // The host resolves the HTTPS URL client-side — plugins never read the
+  // connection store. Retries while the store lags; once the connection is
+  // present but still unresolvable, falls back to the built-in viewer (its
+  // own error surface) rather than a dead loader.
+  const [resolution, setResolution] = useState<{ url: string | null; failed: boolean }>(() => {
+    try {
+      return { url: resolveResourceId(resourceId).httpsUrl, failed: false };
+    } catch {
+      return { url: null, failed: false };
+    }
+  });
+  const [resolved, setResolved] = useState<ViewerContribution | null>(null);
+  const [sniffed, setSniffed] = useState(false);
+
   useEffect(() => {
-    if (!sniffing) return;
+    if (resolution.url !== null || resolution.failed) return;
     let cancelled = false;
-    viewerRegistry.resolveAsync(resourceId, signedFetch).then((found) => {
+    // Deferred out of the effect body so a failed attempt cannot cascade
+    // synchronously.
+    queueMicrotask(() => {
       if (cancelled) return;
-      setResolved(found);
-      setSniffing(false);
+      try {
+        const url = resolveResourceId(resourceId).httpsUrl;
+        if (!cancelled) setResolution({ url, failed: false });
+      } catch {
+        if (!cancelled && connectionPresent) setResolution({ url: null, failed: true });
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [sniffing, resourceId, signedFetch]);
+  }, [resolution, resourceId, connectionPresent]);
 
-  if (sniffing) {
+  const httpsUrl = resolution.url;
+
+  // The sync match is only meaningful once the URL is resolved — the render
+  // contract hands the plugin a resolved httpsUrl.
+  const syncMatch = httpsUrl === null ? null : viewerRegistry.resolve(resourceId);
+
+  // No sync match claimed the resource: sniff the content when a canHandle is
+  // on offer. Rejected canHandle counts as false inside resolveAsync, so this
+  // settles exactly once on the winner or null (fall through to the built-in
+  // viewer).
+  const sniff = httpsUrl !== null && syncMatch === null && viewerRegistry.hasAsync();
+
+  useEffect(() => {
+    if (!sniff || httpsUrl === null) return;
+    let cancelled = false;
+    viewerRegistry.resolveAsync(resourceId, httpsUrl, signedFetch).then((found) => {
+      if (cancelled) return;
+      setResolved(found);
+      setSniffed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sniff, httpsUrl, resourceId, signedFetch]);
+
+  if ((httpsUrl === null && !resolution.failed) || (sniff && !sniffed)) {
     return <LoaderView label="Opening…" />;
   }
 
-  if (resolved) {
-    const PluginViewerComponent = resolved.component as ComponentType<ViewerProps>;
-    return <PluginViewerComponent resourceId={resourceId} signedFetch={signedFetch} />;
+  const match = resolved ?? syncMatch;
+  if (match && httpsUrl !== null) {
+    const PluginViewerComponent = match.component as ComponentType<ViewerProps>;
+    return (
+      <PluginViewerComponent
+        resourceId={resourceId}
+        httpsUrl={httpsUrl}
+        signedFetch={signedFetch}
+      />
+    );
   }
 
   return <ImageViewer resourceId={resourceId} signedFetch={signedFetch} />;
