@@ -35,7 +35,7 @@ export default defineConfig({
     globals: true,
     silent: true,
     environment: "happy-dom",
-    exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/**", "**/wt/**", "**/worktrees/**"],
     server: {
       deps: {
         inline: ["@cornerstonejs/codec-openjpeg", "@cytario/design"],
