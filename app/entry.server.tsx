@@ -36,6 +36,12 @@ const bootstrapPromise: Promise<void> = bootstrapPlugins(
   console.error("[plugin-bootstrap] unexpected bootstrap failure:", err);
 });
 
+// React Router v7 swallows uncaught loader/action errors in production
+// (plain-text 500, nothing on the server console) unless this is exported.
+export function handleError(error: unknown, { request }: { request: Request }) {
+  console.error(`[handleError] ${request.method} ${new URL(request.url).pathname}`, error);
+}
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
