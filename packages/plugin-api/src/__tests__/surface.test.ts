@@ -63,6 +63,7 @@ describe("public surface", () => {
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
       slots: { register: () => {} },
+      viewers: { register: () => {} },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
       userMgmtGate: { register: () => {} },
@@ -149,6 +150,7 @@ describe("public surface", () => {
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
       slots: { register: () => {} },
+      viewers: { register: () => {} },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
       storagePicker: { get: () => null },
@@ -231,6 +233,7 @@ describe("public surface", () => {
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
       slots: { register: () => {} },
+      viewers: { register: () => {} },
       serverEndpoints: { register: () => {} },
       userMgmtGate: { register: () => {} },
       host: {
@@ -305,6 +308,7 @@ describe("public surface", () => {
       serverEndpoints: {
         register: (c) => calls.push({ path: c.path, auth: c.auth }),
       },
+      viewers: { register: () => {} },
       routes: { register: () => {} },
       sidebarNav: { register: () => {} },
       storagePicker: { get: () => null },

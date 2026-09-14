@@ -9,6 +9,9 @@ import type {
   SlotName,
   SlotProps,
   SlotRegistry,
+  ViewerContribution,
+  ViewerProps,
+  ViewerRegistry,
 } from "../index";
 
 describe("auth / gates / slots surface", () => {
@@ -138,5 +141,46 @@ describe("auth / gates / slots surface", () => {
       },
     } satisfies CytarioPlugin;
     expect(plugin.name).toBe("surface-probe");
+  });
+
+  test("ViewerProps carries resourceId and signedFetch", () => {
+    const props: ViewerProps = {
+      resourceId: "conn/path/data.zarr",
+      signedFetch: async () => new Response(),
+    };
+    expect(props.resourceId).toBe("conn/path/data.zarr");
+    expect(typeof props.signedFetch).toBe("function");
+  });
+
+  test("ViewerRegistry accepts a sync-only contribution", () => {
+    const registered: ViewerContribution[] = [];
+    const registry: ViewerRegistry = {
+      register(contribution) {
+        registered.push(contribution);
+      },
+    };
+    registry.register({ match: (id) => id.endsWith(".zarr"), component: () => null });
+    expect(registered).toHaveLength(1);
+    expect(registered[0].match("a/b.zarr")).toBe(true);
+  });
+
+  test("ViewerContribution canHandle is optional and async", async () => {
+    const contribution: ViewerContribution = {
+      match: () => false,
+      component: () => null,
+      canHandle: async () => true,
+    };
+    await expect(contribution.canHandle?.("id", async () => new Response())).resolves.toBe(true);
+  });
+
+  test("a CytarioPlugin can register a viewer via PluginContext", () => {
+    const plugin = {
+      name: "viewer-probe",
+      apiVersion: "^6.3.0",
+      register(ctx: PluginContext) {
+        ctx.viewers.register({ match: (id) => id.endsWith(".zarr"), component: () => null });
+      },
+    } satisfies CytarioPlugin;
+    expect(plugin.name).toBe("viewer-probe");
   });
 });
