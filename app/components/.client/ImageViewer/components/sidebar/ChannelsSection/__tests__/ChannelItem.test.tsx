@@ -6,6 +6,7 @@ import { select } from "../../../../state/store/selectors";
 import { ChannelsStateColumns } from "../../../../state/store/types";
 import { useViewerStore } from "../../../../state/store/ViewerStoreContext";
 import { ChannelItem } from "../ChannelItem";
+import { MAX_VISIBLE_CHANNELS } from "../constants";
 
 vi.mock("../../../../state/store/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
@@ -85,11 +86,11 @@ describe("ChannelItem", () => {
     expect(mockToggleChannelVisibility).toHaveBeenCalled();
   });
 
-  describe("MAX_VISIBLE_CHANNELS limit (6 channels)", () => {
+  describe(`MAX_VISIBLE_CHANNELS limit (${MAX_VISIBLE_CHANNELS} channels)`, () => {
     test("switch is not disabled when visible channel count is below limit", () => {
       renderWithRadioGroup({
         isVisible: false,
-        visibleChannelCount: 5,
+        visibleChannelCount: MAX_VISIBLE_CHANNELS - 1,
       });
       const switchElement = screen.getByRole("switch");
       expect(switchElement).not.toBeDisabled();
@@ -98,7 +99,7 @@ describe("ChannelItem", () => {
     test("switch is disabled when visible channel count reaches limit and channel is not visible", () => {
       renderWithRadioGroup({
         isVisible: false,
-        visibleChannelCount: 6,
+        visibleChannelCount: MAX_VISIBLE_CHANNELS,
       });
       const switchElement = screen.getByRole("switch");
       expect(switchElement).toBeDisabled();
@@ -107,7 +108,7 @@ describe("ChannelItem", () => {
     test("switch is not disabled for visible channels even when limit is reached", () => {
       renderWithRadioGroup({
         isVisible: true,
-        visibleChannelCount: 6,
+        visibleChannelCount: MAX_VISIBLE_CHANNELS,
       });
       const switchElement = screen.getByRole("switch");
       expect(switchElement).not.toBeDisabled();
@@ -116,7 +117,7 @@ describe("ChannelItem", () => {
     test("switch is disabled when visible channel count exceeds limit and channel is not visible", () => {
       renderWithRadioGroup({
         isVisible: false,
-        visibleChannelCount: 7,
+        visibleChannelCount: MAX_VISIBLE_CHANNELS + 1,
       });
       const switchElement = screen.getByRole("switch");
       expect(switchElement).toBeDisabled();

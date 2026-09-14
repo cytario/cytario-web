@@ -3,14 +3,11 @@ import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
+import { MAX_VISIBLE_CHANNELS } from "./constants";
 import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../../state/store/types";
 import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ControlRow } from "../ControlRow";
-
-// viv library only supports 6 channels
-// See: https://github.com/hms-dbmi/viv/issues/687
-const MAX_VISIBLE_CHANNELS = 6;
 
 interface ChannelItemProps {
   name: keyof ChannelsStateColumns;
