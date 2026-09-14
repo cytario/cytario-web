@@ -2,10 +2,10 @@ import { Banner, Button, Input, Select, type SelectItem } from "@cytario/design"
 import { useEffect, useMemo, useState } from "react";
 
 import { getOverlayState, markerDisplayLabel } from "./getOverlayState";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { applyOverlayReconfiguration } from "../../../state/store/overlays/overlays.store";
 import { select } from "../../../state/store/selectors";
-import { applyOverlayReconfiguration } from "../../../state/store/slices/viewer.overlays.store";
 import { type OverlayConfig, type OverlayEntry } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import {
   type ParquetColumn,
   getParquetTopLevelSchema,

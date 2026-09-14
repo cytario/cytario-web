@@ -1,6 +1,7 @@
 import type { LayersStateEntry, ViewerSlice } from "../types";
 import {
   BRIGHTFIELD_GROUP_ID,
+  ChannelsStateColumns,
   createDefaultLayersStateEntry,
   detectBrightfieldGroup,
   ChannelsState,
@@ -52,15 +53,12 @@ export const createViewsSlice: ViewerSlice<ViewsSlice> = (set, get) => ({
       "setActiveImagePanelId",
     ),
 
-  addImagePanel: () =>
+  addImagePanel: () => {
     set(
       (viewerStore) => {
         const referencedIndices = new Set(viewerStore.imagePanels);
         const availableIndex = viewerStore.layersStates.findIndex(
-          (layerState, index) =>
-            !referencedIndices.has(index) &&
-            layerState.author === viewerStore.currentUserId &&
-            !layerState.shared,
+          (_, index) => !referencedIndices.has(index),
         );
         if (availableIndex >= 0) {
           viewerStore.imagePanels.push(availableIndex);
@@ -71,7 +69,23 @@ export const createViewsSlice: ViewerSlice<ViewsSlice> = (set, get) => ({
       },
       false,
       "addImagePanel",
-    ),
+    );
+
+    const newPanelSlot = get().imagePanels.length - 1;
+    const newPresetIndex = get().imagePanels[newPanelSlot];
+    const hasChannels = Object.keys(get().layersStates[newPresetIndex]?.channels ?? {}).length > 0;
+    if (hasChannels) return;
+
+    const savedPanelIndex = get().imagePanelIndex;
+    get().setActiveImagePanelId(newPanelSlot);
+
+    const firstChannelKey = get().channelIds[0] as keyof ChannelsStateColumns | undefined;
+    if (firstChannelKey) {
+      void get().setChannelVisibility(firstChannelKey, true);
+    }
+
+    get().setActiveImagePanelId(savedPanelIndex);
+  },
 
   removeChannelsState: (i) =>
     set(

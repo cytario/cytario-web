@@ -9,8 +9,11 @@ import { createMarkerProps } from "./markerUniforms";
 import { OverlaysLayer } from "./OverlaysLayer";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { type CytarioLayerResult, type LayerTooltipItem } from "../../../state/store/types";
-import { type RGBA } from "../../../state/store/types";
+import {
+  type CytarioLayerResult,
+  type LayerTooltipItem,
+  type RGBA,
+} from "../../../state/store/types";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 /**

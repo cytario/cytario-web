@@ -350,7 +350,7 @@ describe("createViewerStore", () => {
     expect(store.getState().layersStates[1].channelsOpacity).toBe(0.5);
   });
 
-  test("addImagePanel() creates new view when only peer views are available", () => {
+  test("addImagePanel() reuses available unreferenced peer view", () => {
     const store = createViewerStore("test-viewer-11c", "user-a");
 
     const ownPreset = createMockLayersState();
@@ -367,10 +367,8 @@ describe("createViewerStore", () => {
 
     store.getState().addImagePanel();
 
-    expect(store.getState().imagePanels).toEqual([0, 2]);
-    expect(store.getState().layersStates).toHaveLength(3);
-    expect(store.getState().layersStates[2].author).toBe("user-a");
-    expect(store.getState().layersStates[2].shared).toBeFalsy();
+    expect(store.getState().imagePanels).toEqual([0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
   });
 
   test("addImagePanel() toggle on/off/on does not create duplicate views", () => {

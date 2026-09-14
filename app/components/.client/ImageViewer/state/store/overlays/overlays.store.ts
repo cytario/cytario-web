@@ -132,8 +132,6 @@ export const createOverlaysSlice: ViewerSlice<OverlaysSlice> = (set) => ({
           overlays[fileName].markers[markerName].color = color;
         }
       },
-        }
-      },
       false,
       "setMarkerColor",
     ),
