@@ -79,7 +79,10 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
     vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
 
-    const response = (await loader(buildArgs("token"))) as Response;
+    const response = (await loader(buildArgs("the-access-token"))) as Response;
+    // The presented token is forwarded to the portal catalog lookup — the
+    // portal exchanges it to resolve the org (a tokenless call 401s).
+    expect(getProviderCatalog).toHaveBeenCalledWith("org1", "the-access-token");
     const body = (await response.json()) as {
       connections: Array<{ roleArn: string | null; accessLevel: string | null }>;
     };
@@ -104,6 +107,15 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
 
   test("401 when the token carries no single active organization", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(cliToken({ organization: undefined }) as never);
+    const response = (await loader(buildArgs("token"))) as Response;
+    expect(response.status).toBe(401);
+    expect(listConnections).not.toHaveBeenCalled();
+  });
+
+  test("401 when the token carries multiple organizations", async () => {
+    vi.mocked(verifyCliToken).mockResolvedValue(
+      cliToken({ organization: { org1: { groups: [] }, org2: { groups: [] } } }) as never,
+    );
     const response = (await loader(buildArgs("token"))) as Response;
     expect(response.status).toBe(401);
     expect(listConnections).not.toHaveBeenCalled();
