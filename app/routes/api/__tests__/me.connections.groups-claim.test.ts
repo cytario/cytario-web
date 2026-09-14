@@ -57,15 +57,15 @@ function buildArgs(token: string) {
   } as unknown as Parameters<typeof loader>[0];
 }
 
-describe("me.connections loader — SRS-CY-419103 groups claim", () => {
-  test("a token without a groups claim yields no visible grant", async () => {
-    // The Keycloak client must carry the groups membership mapper; without
-    // it the token's groups claim is absent and every connection resolves to
-    // no applicable grant.
+describe("me.connections loader — SRS-CY-419103 nested organization groups", () => {
+  test("groups nested under the organization claim drive grant resolution", async () => {
+    // Keycloak Organizations nests group membership under the organization
+    // claim — there is no top-level groups claim on the CLI token. The
+    // regression (C-545): reading a top-level claim resolved no grants.
     vi.mocked(verifyCliToken).mockResolvedValue({
       sub: "user-123",
-      organization: { org1: { groups: ["org1/lab"] } },
-      // no `groups` claim on the token
+      organization: { org1: { groups: ["/org1/lab"] } },
+      // deliberately NO top-level `groups` claim
     } as never);
     vi.mocked(listConnections).mockResolvedValue([orgScopedConnection()]);
     vi.mocked(getProviderCatalog).mockResolvedValue(orgScopedCatalog());
@@ -77,6 +77,6 @@ describe("me.connections loader — SRS-CY-419103 groups claim", () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.connections[0]?.roleArn).toBeNull();
+    expect(body.connections[0]?.roleArn).toBe(READ_ONLY_ARN);
   });
 });

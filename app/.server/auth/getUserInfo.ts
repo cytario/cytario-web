@@ -1,3 +1,4 @@
+import type { JWTPayload } from "jose";
 import { z } from "zod";
 
 import { getWellKnownEndpoints } from "./wellKnownEndpoints";
@@ -131,6 +132,29 @@ export function toIdentity(user: UserProfile): Identity {
     groups: user.groups,
     adminScopes: user.adminScopes,
   });
+}
+
+/**
+ * Builds a {@link UserProfile} from a verified token's raw claims — the same
+ * derivation {@link getUserInfo} applies to the userinfo response: group
+ * membership arrives nested under the organization claim (Keycloak
+ * Organizations), not as a top-level `groups` claim. Identity-display fields
+ * the userinfo endpoint supplies are absent on a token-only path and default;
+ * authorization derives from `sub` + the organization claim alone. Returns
+ * null when the claims do not parse.
+ */
+export function profileFromTokenClaims(claims: JWTPayload): UserProfile | null {
+  const tokenClaimsSchema = userProfileSchema.extend({
+    email_verified: z.boolean().default(false),
+    name: z.string().default(""),
+    preferred_username: z.string().default(""),
+    given_name: z.string().default(""),
+    family_name: z.string().default(""),
+    email: z.string().default(""),
+  });
+  const parsed = tokenClaimsSchema.safeParse(claims);
+  if (!parsed.success) return null;
+  return enrichUserProfile(parsed.data);
 }
 
 /** Retrieves and enriches user profile data from Keycloak. */

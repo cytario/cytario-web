@@ -110,7 +110,9 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
   });
 
   test("connection with no applicable grant is listed without a role", async () => {
-    vi.mocked(verifyCliToken).mockResolvedValue(cliToken({ groups: ["org1/unrelated"] }) as never);
+    vi.mocked(verifyCliToken).mockResolvedValue(
+      cliToken({ organization: { org1: { groups: ["org1/unrelated"] } } }) as never,
+    );
     vi.mocked(listConnections).mockResolvedValue([
       mock.connectionConfig({
         grants: [mock.connectionGrant({ scope: "org1/internal", accessLevel: "admin" })],
