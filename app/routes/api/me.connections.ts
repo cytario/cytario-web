@@ -30,14 +30,17 @@ interface MeConnection {
  * Read endpoint for the cytario CLI: lists the token user's visible
  * connections with the resolved grant (role ARN, access level, region,
  * S3/STS endpoints) the workstation's AWS CLI profile needs. Authenticated
- * by a Bearer ID token on the CLI client — no browser session, no STS mint;
- * the CLI's own tooling performs AssumeRoleWithWebIdentity with the profile.
+ * by a Bearer access token on the CLI client — no browser session, no STS
+ * mint; the CLI's own tooling performs AssumeRoleWithWebIdentity with the
+ * profile. The same token is forwarded to the portal catalog lookups, which
+ * exchange it (RFC 8693) to resolve the organization — the portal's two-gate
+ * lookup cannot resolve an org from a tokenless call.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const authHeader = request.headers.get("Authorization") ?? "";
   const [scheme, token] = authHeader.split(" ", 2);
   if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return jsonError(401, "A Bearer ID token on the cytario CLI client is required.");
+    return jsonError(401, "A Bearer access token on the cytario CLI client is required.");
   }
 
   const payload = await verifyCliToken(token);
@@ -46,19 +49,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const user = profileFromTokenClaims(payload);
-  if (!user?.organization) {
+  const organizationClaim = payload.organization;
+  const organizationCount =
+    organizationClaim && typeof organizationClaim === "object"
+      ? Object.keys(organizationClaim).length
+      : 0;
+  if (!user?.organization || organizationCount !== 1) {
     return jsonError(401, "The token carries no single active organization.");
   }
   const organization = user.organization;
 
   const connections = await listConnections(user);
 
-  const catalog = await getProviderCatalog(organization).catch(() => undefined);
-  const bucketCatalog = await getBucketCatalog(organization).catch(() => undefined);
+  const catalog = await getProviderCatalog(organization, token).catch((error: unknown) => {
+    console.error("[me/connections] provider catalog lookup failed", error);
+    return undefined;
+  });
+  const bucketCatalog = await getBucketCatalog(organization, token).catch(() => undefined);
+
+  // The provider-catalog lookup is advisory for stale entries, but a full
+  // lookup failure must surface as a clear error (SRS-CY-45106), never as an
+  // empty connection list.
+  if (!catalog) {
+    return jsonError(
+      502,
+      "The storage provider catalog is currently unavailable — try again shortly.",
+    );
+  }
 
   const rows = await Promise.all(
     connections.map(async (connection): Promise<MeConnection | null> => {
-      if (!catalog) return null;
       const resolved = resolveConnectionProviderWithGrants(catalog, connection, bucketCatalog);
       if (!resolved) return null;
       const grant = pickGrantForUser(resolved, user, organization);
