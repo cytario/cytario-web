@@ -4,9 +4,9 @@ import { RadioGroup } from "react-aria-components";
 import { ChannelBrightfieldItem } from "./ChannelBrightfieldItem";
 import { ChannelItem } from "./ChannelItem";
 import { MAX_VISIBLE_CHANNELS } from "./constants";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 export function ChannelItemList() {
   const channelsState = useViewerStore(select.channelsState);

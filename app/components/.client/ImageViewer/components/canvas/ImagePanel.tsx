@@ -11,9 +11,9 @@ import { Measurements } from "./Measurements/Measurements";
 import { SlideCarrier } from "./Measurements/SlideCarrier";
 import { TileLoaderIndicator } from "./TileLoaderIndicator";
 import { useView } from "./useView";
+import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import type { ViewPort, ViewState } from "../../state/store/types";
-import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 export interface ViewProps {
   viewPort: ViewPort;

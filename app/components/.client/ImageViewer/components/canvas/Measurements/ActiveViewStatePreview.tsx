@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 
 import { useMeasurements } from "./useMeasurements";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 export function ActiveViewStatePreview() {
   const viewStateActive = useViewerStore(select.viewStateActive);

@@ -137,6 +137,11 @@ import { Button } from "~/components/Controls";
 import { cytarioConfig } from "~/config";
 ```
 
+### Naming
+
+- **No abbreviated variable or parameter names.** Use full descriptive names: `viewerStore` not `s`, `layerState` not `ls`, `activeImagePanelIndex` not `activeIdx`.
+- Exception: single-letter names in short-scope array callbacks (`.find((s) => s.id === ...)`) are fine.
+
 ### TypeScript
 
 - **Strict mode** — no `any` without justification

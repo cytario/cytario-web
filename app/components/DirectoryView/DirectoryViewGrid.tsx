@@ -18,7 +18,7 @@ import { getFileCategory } from "~/utils/fileType";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ViewerStoreProvider = lazy(() =>
-  import("~/components/.client/ImageViewer/state/store/ViewerStoreContext").then((mod) => ({
+  import("~/components/.client/ImageViewer/state/store/core/ViewerStoreContext").then((mod) => ({
     default: mod.ViewerStoreProvider,
   })),
 );

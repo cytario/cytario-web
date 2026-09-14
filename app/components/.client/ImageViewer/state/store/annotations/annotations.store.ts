@@ -1,104 +1,32 @@
-import { CATEGORICAL_COLORS } from "../../../categoricalColors";
 import type { AnnotationMode, RGB, ViewerSlice, ViewerStore } from "../types";
+import {
+  type AnnotationClass,
+  classNameOf,
+  classColor,
+  generateSetName,
+  isReservedClassName,
+  pickClassColor,
+} from "./annotationHelpers";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
-/** Group name for features without a classification.
- *
- *  Invariant: a feature is unclassified iff `properties.classification` is
- *  absent — we never persist a synthetic class named "Unclassified" (that keeps
- *  the on-disk shape aligned with the QuPath/RFC-7946 "absence = unclassified"
- *  convention the read/write schema relies on). The "Unclassified" group is a
- *  view-model construct only: grouping collapses the null case to this name via
- *  `classNameOf`, and the name is reserved so it can't become a real class. */
-export const UNCLASSIFIED = "Unclassified";
-
-/** Fallback color for features/groups without a classification — a neutral gray,
- *  shared by the canvas layer, the group-row dot, and the sidebar thumbnail so
- *  "Unclassified" looks identical everywhere. */
-export const UNCLASSIFIED_COLOR: RGB = [120, 120, 120];
-
-/** A feature's classification name, or the `Unclassified` fallback. Shared by
- *  the list grouping and the layer's visibility check so they agree on keys. */
-export const classNameOf = (feature: AnnotationFeature): string =>
-  feature.properties?.classification?.name ?? UNCLASSIFIED;
-
-/** "Unclassified" is the reserved view-model bucket, never a real class name. */
-export const isReservedClassName = (name: string): boolean =>
-  name.trim().toLowerCase() === UNCLASSIFIED.toLowerCase();
-
-/** Generates the next auto-incrementing annotation name as a zero-padded
- *  4-digit index ("0001", "0002", …, "0242", "22358") skipping any already
- *  taken by an existing feature. Called at draw time so every new region is
- *  born with a unique name. */
-export const generateAnnotationName = (features: AnnotationFeature[]): string => {
-  const taken = new Set(
-    features
-      .map((f) => f.properties?.name)
-      .filter((n): n is string => typeof n === "string" && n.length > 0),
-  );
-  for (let n = 1; ; n++) {
-    const candidate = String(n).padStart(4, "0");
-    if (!taken.has(candidate)) return candidate;
-  }
-};
-
-/** The default name minted for a newly created set: the lowest
- *  "Annotation Set N.json" not already taken (mirrors generateAnnotationName's
- *  lowest-unused-index rule, so delete + re-draw never collides). */
-export const generateSetName = (sets: AnnotationSet[]): string => {
-  const taken = new Set(sets.map((s) => s.name).filter((n): n is string => !!n));
-  for (let n = 1; ; n++) {
-    const candidate = `Annotation Set ${n}.json`;
-    if (!taken.has(candidate)) return candidate;
-  }
-};
-
-/** The display name of a feature: its `properties.name` if set, else a
- *  fallback showing the ID (for legacy/imported features that predate
- *  auto-naming). Shared by the tooltip and the sidebar label so they agree. */
-export const annotationNameOf = (feature: AnnotationFeature): string =>
-  feature.properties?.name ?? `ID: ${feature.id}`;
-
-/** RGB view of the shared categorical palette (drops the palette's alpha). */
-const PALETTE: RGB[] = CATEGORICAL_COLORS.map(([r, g, b]): RGB => [r, g, b]);
-
-const colorKey = (c: RGB): string => c.join(",");
-
-/** The color already assigned to a class of this name — the registry first (so
- *  an empty defined class keeps its color), then any member feature. */
-export const classColor = (
-  classes: AnnotationClass[],
-  features: AnnotationFeature[],
-  name: string,
-): RGB | undefined =>
-  classes.find((c) => c.name === name)?.color ??
-  features.find((f) => f.properties?.classification?.name === name)?.properties?.classification
-    ?.color;
-
-/** A palette color not used by any class (registry or feature), cycling once
- *  exhausted, skipping the unclassified gray so a class never looks unclassified. */
-const pickClassColor = (classes: AnnotationClass[], features: AnnotationFeature[]): RGB => {
-  const used = new Set<string>();
-  for (const c of classes) used.add(colorKey(c.color));
-  for (const f of features) {
-    const c = f.properties?.classification?.color;
-    if (c) used.add(colorKey(c));
-  }
-  return PALETTE.find((c) => !used.has(colorKey(c))) ?? PALETTE[used.size % PALETTE.length];
-};
+export {
+  annotationNameOf,
+  classNameOf,
+  classColor,
+  generateAnnotationName,
+  generateSetName,
+  isReservedClassName,
+  pickClassColor,
+  UNCLASSIFIED,
+  UNCLASSIFIED_COLOR,
+} from "./annotationHelpers";
+export type { AnnotationClass } from "./annotationHelpers";
 
 /** Per-set view state — ephemeral, never persisted (lives apart from the
  *  S3-backed `annotationSets` so a view change can't trigger a sidecar write). */
 export interface SetAnnotationView {
   /** Classification names hidden for THIS set. */
   hiddenClasses: string[];
-}
-
-/** A defined classification for the own set: a name + color that exists
- *  independently of any feature, so a class can be pre-created and kept empty. */
-export interface AnnotationClass {
-  name: string;
-  color: RGB;
 }
 
 /** Stable empty references so selectors never return a fresh value (zustand
@@ -245,15 +173,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     temporalStore?.getState().pause();
     try {
       set(
-        (state) => {
+        (viewerStore) => {
           for (const set of sets) {
-            if (!state.annotationSets.some((s) => s.id === set.id)) {
-              state.annotationSets.push(set);
+            if (!viewerStore.annotationSets.some((s) => s.id === set.id)) {
+              viewerStore.annotationSets.push(set);
             }
           }
-          if (!state.activeSetId) {
-            const first = state.annotationSets[0];
-            if (first) state.activeSetId = first.id;
+          if (!viewerStore.activeSetId) {
+            const first = viewerStore.annotationSets[0];
+            if (first) viewerStore.activeSetId = first.id;
           }
         },
         false,
@@ -279,8 +207,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
     try {
       if (first) {
         set(
-          (s) => {
-            s.activeSetId = first.id;
+          (viewerStore) => {
+            viewerStore.activeSetId = first.id;
           },
           false,
           "ensureOwnSet",
@@ -289,14 +217,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       }
       const id = crypto.randomUUID();
       set(
-        (s) => {
-          s.annotationSets.push({
+        (viewerStore) => {
+          viewerStore.annotationSets.push({
             id,
-            createdBy: s.currentUserId,
+            createdBy: viewerStore.currentUserId,
             features: [],
-            name: generateSetName(s.annotationSets),
+            name: generateSetName(viewerStore.annotationSets),
           });
-          s.activeSetId = id;
+          viewerStore.activeSetId = id;
         },
         false,
         "ensureOwnSet",
@@ -310,14 +238,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   createAnnotationSet: () => {
     const id = crypto.randomUUID();
     set(
-      (s) => {
-        s.annotationSets.push({
+      (viewerStore) => {
+        viewerStore.annotationSets.push({
           id,
-          createdBy: s.currentUserId,
+          createdBy: viewerStore.currentUserId,
           features: [],
-          name: generateSetName(s.annotationSets),
+          name: generateSetName(viewerStore.annotationSets),
         });
-        s.activeSetId = id;
+        viewerStore.activeSetId = id;
       },
       false,
       "createAnnotationSet",
@@ -327,8 +255,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   updateSetFeatures: (setId, features) => {
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           set.features = features;
         }
@@ -340,19 +268,21 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   deleteAnnotationSet: (setId) => {
     set(
-      (state) => {
-        const index = state.annotationSets.findIndex((s) => s.id === setId);
+      (viewerStore) => {
+        const index = viewerStore.annotationSets.findIndex((s) => s.id === setId);
         if (index === -1) return;
-        state.annotationSets.splice(index, 1);
-        delete state.annotationView[setId];
-        if (state.activeSetId === setId) {
-          state.activeSetId = state.annotationSets[0]?.id ?? null;
+        viewerStore.annotationSets.splice(index, 1);
+        delete viewerStore.annotationView[setId];
+        if (viewerStore.activeSetId === setId) {
+          viewerStore.activeSetId = viewerStore.annotationSets[0]?.id ?? null;
         }
         // Drop selection entries pointing at the deleted set's features.
         const survivorIds = new Set(
-          state.annotationSets.flatMap((s) => s.features.flatMap((f) => (f.id ? [f.id] : []))),
+          viewerStore.annotationSets.flatMap((s) =>
+            s.features.flatMap((f) => (f.id ? [f.id] : [])),
+          ),
         );
-        state.annotationSelectedIds = state.annotationSelectedIds.filter((id) =>
+        viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
           survivorIds.has(id),
         );
       },
@@ -363,8 +293,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   renameAnnotationSet: (setId, name) => {
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) set.name = name.trim() || undefined;
       },
       false,
@@ -374,10 +304,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationClassColor: (setId, name, color) =>
     set(
-      (state) => {
-        const entry = state.annotationClasses.find((c) => c.name === name);
+      (viewerStore) => {
+        const entry = viewerStore.annotationClasses.find((c) => c.name === name);
         if (entry) entry.color = color;
-        const set = state.annotationSets.find((s) => s.id === setId);
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           for (const feature of set.features) {
             if (feature.properties?.classification?.name === name) {
@@ -392,20 +322,20 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationClassForIds: (setId, ids, name) =>
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (!set) return;
         const idSet = new Set(ids);
         // A reserved/empty name clears to unclassified (absence, not a named class).
         const target = name && !isReservedClassName(name) ? name : null;
         // One color for the whole batch: registry/existing color, else a fresh one.
         const color = target
-          ? (classColor(state.annotationClasses, set.features, target) ??
-            pickClassColor(state.annotationClasses, set.features))
+          ? (classColor(viewerStore.annotationClasses, set.features, target) ??
+            pickClassColor(viewerStore.annotationClasses, set.features))
           : null;
         // Assigning to a not-yet-registered name registers it (classified names are classes).
-        if (target && color && !state.annotationClasses.some((c) => c.name === target)) {
-          state.annotationClasses.push({ name: target, color });
+        if (target && color && !viewerStore.annotationClasses.some((c) => c.name === target)) {
+          viewerStore.annotationClasses.push({ name: target, color });
         }
         for (const feature of set.features) {
           if (!idSet.has(feature.id)) continue;
@@ -422,12 +352,12 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   renameAnnotationClass: (setId, oldName, newName) =>
     set(
-      (state) => {
+      (viewerStore) => {
         if (isReservedClassName(newName) || isReservedClassName(oldName)) return;
-        const set = state.annotationSets.find((s) => s.id === setId);
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         const features = set?.features ?? [];
         // Adopt the target class's color when renaming merges into an existing class.
-        const mergeColor = classColor(state.annotationClasses, features, newName);
+        const mergeColor = classColor(viewerStore.annotationClasses, features, newName);
         for (const feature of features) {
           const classification = feature.properties.classification;
           if (classification?.name === oldName) {
@@ -436,13 +366,16 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
           }
         }
         // Registry: merge into an existing target (drop old), else rename in place.
-        if (state.annotationClasses.some((c) => c.name === newName)) {
-          state.annotationClasses = state.annotationClasses.filter((c) => c.name !== oldName);
+        if (viewerStore.annotationClasses.some((c) => c.name === newName)) {
+          viewerStore.annotationClasses = viewerStore.annotationClasses.filter(
+            (c) => c.name !== oldName,
+          );
         } else {
-          const oldEntry = state.annotationClasses.find((c) => c.name === oldName);
+          const oldEntry = viewerStore.annotationClasses.find((c) => c.name === oldName);
           if (oldEntry) oldEntry.name = newName;
         }
-        if (state.annotationActiveClass === oldName) state.annotationActiveClass = newName;
+        if (viewerStore.annotationActiveClass === oldName)
+          viewerStore.annotationActiveClass = newName;
       },
       false,
       "renameAnnotationClass",
@@ -450,8 +383,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   renameAnnotation: (setId, id, name) =>
     set(
-      (state) => {
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (!set) return;
         const feature = set.features.find((f) => f.id === id);
         if (!feature) return;
@@ -468,8 +401,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationActiveClass: (name) =>
     set(
-      (state) => {
-        state.annotationActiveClass = name;
+      (viewerStore) => {
+        viewerStore.annotationActiveClass = name;
       },
       false,
       "setAnnotationActiveClass",
@@ -478,17 +411,17 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   createAnnotationClass: (name) => {
     let created = "";
     set(
-      (state) => {
+      (viewerStore) => {
         const base = (name ?? "New class").trim() || "New class";
         if (isReservedClassName(base)) return;
-        const taken = new Set(state.annotationClasses.map((c) => c.name.toLowerCase()));
+        const taken = new Set(viewerStore.annotationClasses.map((c) => c.name.toLowerCase()));
         let unique = base;
         for (let n = 2; taken.has(unique.toLowerCase()); n++) unique = `${base} ${n}`;
-        state.annotationClasses.push({
+        viewerStore.annotationClasses.push({
           name: unique,
-          color: pickClassColor(state.annotationClasses, []),
+          color: pickClassColor(viewerStore.annotationClasses, []),
         });
-        state.annotationActiveClass = unique;
+        viewerStore.annotationActiveClass = unique;
         created = unique;
       },
       false,
@@ -499,9 +432,11 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   deleteAnnotationClass: (setId, name) =>
     set(
-      (state) => {
-        state.annotationClasses = state.annotationClasses.filter((c) => c.name !== name);
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        viewerStore.annotationClasses = viewerStore.annotationClasses.filter(
+          (c) => c.name !== name,
+        );
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           for (const feature of set.features) {
             if (feature.properties?.classification?.name === name) {
@@ -509,7 +444,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
             }
           }
         }
-        if (state.annotationActiveClass === name) state.annotationActiveClass = null;
+        if (viewerStore.annotationActiveClass === name) viewerStore.annotationActiveClass = null;
       },
       false,
       "deleteAnnotationClass",
@@ -517,8 +452,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   toggleAnnotationClassVisibility: (setId, name) =>
     set(
-      (state) => {
-        const view = (state.annotationView[setId] ??= { hiddenClasses: [] });
+      (viewerStore) => {
+        const view = (viewerStore.annotationView[setId] ??= { hiddenClasses: [] });
         const index = view.hiddenClasses.indexOf(name);
         if (index === -1) view.hiddenClasses.push(name);
         else view.hiddenClasses.splice(index, 1);
@@ -529,8 +464,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   showAnnotationClass: (setId, name) =>
     set(
-      (state) => {
-        const hidden = state.annotationView[setId]?.hiddenClasses;
+      (viewerStore) => {
+        const hidden = viewerStore.annotationView[setId]?.hiddenClasses;
         const index = hidden?.indexOf(name) ?? -1;
         if (hidden && index !== -1) hidden.splice(index, 1);
       },
@@ -540,9 +475,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationsOpacity: (opacity) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           layerState.annotationsOpacity = opacity;
         }
@@ -553,9 +488,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setShowAnnotationOutline: (show) =>
     set(
-      (state) => {
-        const activeImagePanelIndex = state.imagePanels[state.imagePanelIndex];
-        const layerState = state.layersStates[activeImagePanelIndex];
+      (viewerStore) => {
+        const activeImagePanelIndex = viewerStore.imagePanels[viewerStore.imagePanelIndex];
+        const layerState = viewerStore.layersStates[activeImagePanelIndex];
         if (layerState) {
           layerState.showAnnotationOutline = show;
         }
@@ -566,9 +501,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationSetHidden: (setId, hidden) =>
     set(
-      (state) => {
-        const view = (state.annotationView[setId] ??= { hiddenClasses: [] });
-        const set = state.annotationSets.find((s) => s.id === setId);
+      (viewerStore) => {
+        const view = (viewerStore.annotationView[setId] ??= { hiddenClasses: [] });
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
         view.hiddenClasses = hidden ? [...new Set((set?.features ?? []).map(classNameOf))] : [];
       },
       false,
@@ -577,8 +512,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationMode: (mode) =>
     set(
-      (state) => {
-        state.annotationMode = mode;
+      (viewerStore) => {
+        viewerStore.annotationMode = mode;
       },
       false,
       "setAnnotationMode",
@@ -586,8 +521,8 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
 
   setAnnotationSelectedIds: (ids) =>
     set(
-      (state) => {
-        state.annotationSelectedIds = ids;
+      (viewerStore) => {
+        viewerStore.annotationSelectedIds = ids;
       },
       false,
       "setAnnotationSelectedIds",

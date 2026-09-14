@@ -1,7 +1,7 @@
 import { ChannelItemList } from "./ChannelItemList";
 import { Histogram } from "./Histogram";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { Section } from "~/components/Section/Section";
 import { SectionSlider } from "~/components/Section/SectionSlider";
 

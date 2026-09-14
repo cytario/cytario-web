@@ -14,7 +14,7 @@ import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 let currentStore: ReturnType<typeof createViewerStore>;
 let currentSetId: string;
 
-vi.mock("../../../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
 }));
 

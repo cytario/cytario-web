@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { attachAnnotationSync } from "../annotationSync";
+import { attachAnnotationSync } from "../annotations/annotationSync";
 import type { createViewerStore } from "../createViewerStore";
 import { toastBridge } from "~/toast-bridge";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";

@@ -10,7 +10,6 @@ import type { Feature, FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
-import { select } from "../../../state/store/selectors";
 import {
   annotationNameOf,
   classColor as registeredClassColor,
@@ -19,13 +18,11 @@ import {
   selectActiveSetFeatures,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
-} from "../../../state/store/slices/viewer.annotations.store";
-import {
-  type CytarioLayerResult,
-  type LayerTooltipItem,
-} from "../../../state/store/slices/viewer.view.store";
+} from "../../../state/store/annotations/annotations.store";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { type CytarioLayerResult, type LayerTooltipItem } from "../../../state/store/types";
 import { RGB, RGBA } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import {

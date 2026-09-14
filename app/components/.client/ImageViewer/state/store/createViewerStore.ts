@@ -1,21 +1,23 @@
 import { temporal } from "zundo";
 import { createStore } from "zustand";
-import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
+import { devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import { createAnnotationsSlice } from "./slices/viewer.annotations.store";
-import { createChannelsSlice } from "./slices/viewer.channels.store";
-import { createCoreSlice } from "./slices/viewer.core.store";
-import { createOverlaysSlice } from "./slices/viewer.overlays.store";
-import { createViewSlice } from "./slices/viewer.view.store";
+import { createAnnotationsSlice } from "./annotations/annotations.store";
+import { createChannelsSlice } from "./channels/channels.store";
+import { withAutoFork } from "./core/autoFork";
+import { createCoreSlice } from "./core/core.store";
+import { debouncedStorage, viewerStoreMigrate, viewerStorePartialize } from "./core/persistence";
+import { createTemporalOptions, type TemporalState } from "./core/viewerTemporal";
+import { createViewSlice } from "./core/viewport.store";
+import { createOverlaysSlice } from "./overlays/overlays.store";
 import type { ViewerStore } from "./types";
-import { viewerStoreMigrate, viewerStorePartialize } from "./viewerStore.persistence";
-import { createTemporalOptions, type TemporalState } from "./viewerTemporal";
+import { createViewsSlice } from "./views/views.store";
 
 /**
  * Creates a Zustand store for one image-viewer instance. State + actions are
- * composed from domain slices (`slices/viewer.*.store.ts`) — core, view,
- * channels, overlays, annotations — over the
+ * composed from domain slices — core, viewport, views, channels, overlays,
+ * annotations — over the
  * `subscribeWithSelector → persist → immer → devtools → temporal` middleware
  * stack. `subscribeWithSelector` lets the annotation autosave writer
  * subscribe to a single slice of state. `temporal` (zundo) is innermost so
@@ -37,15 +39,16 @@ export const createViewerStore = (id: string, userId: string = "") => {
         immer(
           devtools(
             temporal(
-              (set, get, storeApi) => ({
+              withAutoFork((set, get, storeApi) => ({
                 id,
                 currentUserId: userId,
                 ...createCoreSlice(set, get, storeApi),
                 ...createViewSlice(set, get, storeApi),
+                ...createViewsSlice(set, get, storeApi),
                 ...createChannelsSlice(set, get, storeApi),
                 ...createOverlaysSlice(set, get, storeApi),
                 ...createAnnotationsSlice(set, get, storeApi),
-              }),
+              })),
               temporalOptions,
             ),
             {
@@ -58,11 +61,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
           version: 6,
           migrate: viewerStoreMigrate,
           partialize: viewerStorePartialize,
-          // Viewport-change frames would otherwise re-stringify the whole
-          // partialized state (all channels' histograms included) and write it
-          // to localStorage per frame — zustand persist has no debounce
-          // option, so the write side is debounced via the storage wrapper.
-          storage: createJSONStorage(() => createDebouncedStorage(PERSIST_DEBOUNCE_MS)),
+          storage: debouncedStorage,
           onRehydrateStorage: () => (_state, error) => {
             if (error) {
               console.error(`[ViewerStore-${id}] Rehydration failed:`, error);
@@ -73,55 +72,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
     ),
   );
 
-  // Attach the cool-off controller so the undo/redo hook can reset the
-  // gesture debounce before calling undo/redo (prevents a leftover cool-off
-  // from swallowing the first post-undo edit).
   (store as unknown as { __temporalState?: TemporalState }).__temporalState = temporalState;
 
   return store;
 };
-
-/** Coalesces persist writes — pan/zoom produces a set per viewport frame. */
-const PERSIST_DEBOUNCE_MS = 500;
-
-// Pending writes across every viewer store (one per image ever viewed). Kept
-// module-scoped so the single pagehide flush covers them all; each store gets
-// its own debounced setItem over this shared map.
-const pendingWrites = new Map<string, string>();
-let flushRegistered = false;
-
-/** Flushes pending persist writes before the page unloads — reload and close. */
-function flushPendingWrites() {
-  for (const [name, value] of pendingWrites) {
-    try {
-      localStorage.setItem(name, value);
-    } catch {
-      // Quota errors surface via the persist middleware's own handler.
-    }
-  }
-  pendingWrites.clear();
-}
-
-if (typeof window !== "undefined" && !flushRegistered) {
-  flushRegistered = true;
-  window.addEventListener("pagehide", flushPendingWrites);
-}
-
-/** localStorage-backed StateStorage with a debounced write side. */
-function createDebouncedStorage(debounceMs: number) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return {
-    getItem: (name: string) => localStorage.getItem(name),
-    setItem: (name: string, value: string) => {
-      pendingWrites.set(name, value);
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        flushPendingWrites();
-      }, debounceMs);
-    },
-    removeItem: (name: string) => {
-      pendingWrites.delete(name);
-      localStorage.removeItem(name);
-    },
-  };
-}

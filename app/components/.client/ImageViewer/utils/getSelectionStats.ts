@@ -4,7 +4,7 @@ import { getContrastLimits } from "./getContrastLimits";
 import { getDomain } from "./getDomain";
 import { getDtypeBitDepth } from "./getDtypeMax";
 import { getHistogram } from "./getHistogram";
-import { Loader } from "../state/store/ome.tif.types";
+import { Loader } from "../state/store/core/ome.tif.types";
 import { ByteDomain, Selection } from "../state/store/types";
 
 export async function getSelectionStats({

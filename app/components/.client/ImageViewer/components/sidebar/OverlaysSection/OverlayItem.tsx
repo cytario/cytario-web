@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getOverlayState } from "./getOverlayState";
 import { OverlayConfigModal } from "./OverlayConfig.modal";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { type OverlayEntry } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { ColorPicker, rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 import { ControlRow } from "../ControlRow";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";

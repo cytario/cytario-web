@@ -1,9 +1,9 @@
 import { IconButton } from "@cytario/design";
 import { useState } from "react";
 
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ByteDomain } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 export function MinMaxSettings() {
   const selectedChannel = useViewerStore(select.selectedChannel);

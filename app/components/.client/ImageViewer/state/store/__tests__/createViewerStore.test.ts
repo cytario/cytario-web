@@ -1,7 +1,7 @@
 import { getSelectionStats } from "../../../utils/getSelectionStats";
+import { getInitialChannelsState } from "../channels/getInitialChannelsState";
+import { Image, Loader } from "../core/ome.tif.types";
 import { createViewerStore } from "../createViewerStore";
-import { getInitialChannelsState } from "../getInitialChannelsState";
-import { Image, Loader } from "../ome.tif.types";
 import {
   ChannelConfig,
   ChannelsStateColumns,
@@ -12,7 +12,7 @@ import {
 import { createMigrate } from "~/utils/persistMigration";
 
 vi.mock("../../../utils/getSelectionStats");
-vi.mock("../getInitialChannelsState");
+vi.mock("../channels/getInitialChannelsState");
 
 const createMockLayersState = () => ({
   id: crypto.randomUUID(),
@@ -68,6 +68,7 @@ describe("createViewerStore", () => {
       loader: [],
       valueRange: [0, 0],
       isViewerLoading: true,
+      sharedViewsLoaded: false,
       metadata: null,
       viewStatePreview: null,
       viewStateActive: null,
@@ -94,11 +95,13 @@ describe("createViewerStore", () => {
       setViewStatePreview: expect.any(Function),
       setViewStateActive: expect.any(Function),
       setIsViewerLoading: expect.any(Function),
+      setSharedViewsLoaded: expect.any(Function),
       setIsChannelsLoading: expect.any(Function),
       setIsOverlaysLoading: expect.any(Function),
       setMetadata: expect.any(Function),
       setLoader: expect.any(Function),
       setSelectedChannelId: expect.any(Function),
+      initChannelStats: expect.any(Function),
       setActiveImagePanelId: expect.any(Function),
       addImagePanel: expect.any(Function),
       addChannelsState: expect.any(Function),
@@ -308,53 +311,86 @@ describe("createViewerStore", () => {
     expect(store.getState().imagePanelIndex).toBe(-1);
   });
 
-  test("addImagePanel()", () => {
+  test("addImagePanel() creates default view when no available views exist", () => {
     const store = createViewerStore("test-viewer-11");
 
     expect(store.getState().imagePanels).toEqual([]);
 
     store.getState().addImagePanel();
     expect(store.getState().imagePanels).toEqual([0]);
+    expect(store.getState().layersStates).toHaveLength(1);
 
     store.getState().addImagePanel();
     expect(store.getState().imagePanels).toEqual([0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
 
     store.getState().addImagePanel();
     expect(store.getState().imagePanels).toEqual([0, 1, 2]);
+    expect(store.getState().layersStates).toHaveLength(3);
   });
 
-  test("addImagePanel() clones active panel's preset", () => {
+  test("addImagePanel() reuses available unreferenced own view", () => {
     const store = createViewerStore("test-viewer-11b");
 
     const preset0 = createMockLayersState();
     preset0.channelsOpacity = 0.3;
+    const unreferenced = createMockLayersState();
+    unreferenced.channelsOpacity = 0.5;
 
     store.setState({
       imagePanelIndex: 0,
       imagePanels: [0],
-      layersStates: [preset0, createMockLayersState()],
+      layersStates: [preset0, unreferenced],
     });
 
     store.getState().addImagePanel();
 
-    expect(store.getState().imagePanels).toEqual([0, 2]);
-    expect(store.getState().layersStates).toHaveLength(3);
-    expect(store.getState().layersStates[2].channelsOpacity).toBe(0.3);
+    expect(store.getState().imagePanels).toEqual([0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().layersStates[1].channelsOpacity).toBe(0.5);
   });
 
-  test("addImagePanel() with shared presets clones the active panel's preset", () => {
-    const store = createViewerStore("test-viewer-11c");
+  test("addImagePanel() reuses available unreferenced peer view", () => {
+    const store = createViewerStore("test-viewer-11c", "user-a");
+
+    const ownPreset = createMockLayersState();
+    ownPreset.author = "user-a";
+    const peerView = createMockLayersState();
+    peerView.author = "user-b";
+    peerView.shared = true;
 
     store.setState({
       imagePanelIndex: 0,
-      imagePanels: [0, 0],
+      imagePanels: [0],
+      layersStates: [ownPreset, peerView],
+    });
+
+    store.getState().addImagePanel();
+
+    expect(store.getState().imagePanels).toEqual([0, 1]);
+    expect(store.getState().layersStates).toHaveLength(2);
+  });
+
+  test("addImagePanel() toggle on/off/on does not create duplicate views", () => {
+    const store = createViewerStore("test-viewer-11d");
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
       layersStates: [createMockLayersState()],
     });
 
     store.getState().addImagePanel();
-
-    expect(store.getState().imagePanels).toEqual([0, 0, 1]);
     expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 1]);
+
+    store.getState().removeImagePanel(1);
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0]);
+
+    store.getState().addImagePanel();
+    expect(store.getState().layersStates).toHaveLength(2);
+    expect(store.getState().imagePanels).toEqual([0, 1]);
   });
 
   test("removeImagePanel()", () => {
@@ -502,6 +538,165 @@ describe("createViewerStore", () => {
 
     store.getState().setActivePresetIndex(1);
     expect(store.getState().imagePanels[0]).toBe(1);
+  });
+
+  test("setActivePresetIndex() keeps selectedChannelId when visible in target view", () => {
+    const store = createViewerStore("test-viewer-17a");
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      selectedChannelId: "Green",
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    expect(store.getState().selectedChannelId).toBe("Green");
+  });
+
+  test("setActivePresetIndex() switches to first visible channel when selected not visible", () => {
+    const store = createViewerStore("test-viewer-17b");
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      selectedChannelId: "Red",
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    expect(store.getState().selectedChannelId).toBe("Green");
+  });
+
+  test("setActivePresetIndex() sets null when target view has no visible channels", () => {
+    const store = createViewerStore("test-viewer-17c");
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      selectedChannelId: "Red",
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    expect(store.getState().selectedChannelId).toBeNull();
+  });
+
+  test("setActivePresetIndex() initializes stats for visible-but-uninitialized channels", async () => {
+    const store = createViewerStore("test-viewer-17d");
+
+    vi.mocked(getSelectionStats).mockResolvedValue({
+      domain: [0, 1000],
+      contrastLimits: [50, 800],
+      histogram: new Array(256).fill(1),
+    });
+
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [10, 900], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    expect(store.getState().channels["Green"].isInitialized).toBe(false);
+
+    store.getState().setActivePresetIndex(1);
+    await vi.waitFor(() => {
+      expect(store.getState().channels["Green"].isInitialized).toBe(true);
+    });
+
+    expect(store.getState().channels["Green"].domain).toEqual([0, 1000]);
+    expect(store.getState().channels["Green"].histogram).toEqual(new Array(256).fill(1));
+    expect(store.getState().selectedChannelId).toBe("Green");
+  });
+
+  test("setActivePresetIndex() does not overwrite saved contrastLimits on init", async () => {
+    const store = createViewerStore("test-viewer-17e");
+
+    vi.mocked(getSelectionStats).mockResolvedValue({
+      domain: [0, 1000],
+      contrastLimits: [50, 800],
+      histogram: new Array(256).fill(1),
+    });
+
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [10, 900], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    await vi.waitFor(() => {
+      expect(store.getState().channels["Green"].isInitialized).toBe(true);
+    });
+
+    expect(store.getState().layersStates[1].channels["Green"].contrastLimits).toEqual([10, 900]);
+  });
+
+  test("setActivePresetIndex() does not re-init already-initialized channels", async () => {
+    const store = createViewerStore("test-viewer-17f");
+
+    vi.mocked(getSelectionStats).mockClear();
+
+    const channels = createMockChannels();
+    channels.Green.isInitialized = true;
+
+    const ls1 = createMockLayersState();
+    const ls2 = createMockLayersState();
+    ls2.channels = {
+      Green: { isVisible: true, contrastLimits: [10, 900], color: [0, 255, 0] },
+    };
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels,
+      channelIds: ["Red", "Green"],
+      layersStates: [ls1, ls2],
+    });
+
+    store.getState().setActivePresetIndex(1);
+    await vi.waitFor(() => {
+      expect(store.getState().selectedChannelId).toBe("Green");
+    });
+
+    expect(getSelectionStats).not.toHaveBeenCalled();
   });
 
   test("setContrastLimits()", () => {
@@ -971,8 +1166,61 @@ describe("createViewerStore", () => {
       });
       expect(newPreset.channelsOpacity).toBe(1);
       expect(newPreset.showCellOutline).toBe(true);
-      expect(newPreset.overlaysFillOpacity).toBe(0.8);
-      expect(newPreset.annotationsOpacity).toBe(1);
+      expect(newPreset.overlaysFillOpacity).toBe(0.5);
+      expect(newPreset.annotationsOpacity).toBe(0.5);
+    });
+
+    test("selects first shared view when shared views are preloaded", () => {
+      const store = createViewerStore("test-viewer-33c");
+
+      const sharedView = createMockLayersState();
+      sharedView.author = "other-user";
+      sharedView.shared = true;
+      sharedView.channels = {
+        Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+      };
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        layersStates: [sharedView],
+      });
+
+      vi.mocked(getInitialChannelsState).mockReturnValue({
+        channelsState: createMockChannels(),
+        channelIds: ["Red", "Green"],
+        firstChannelKey: "Red",
+      });
+
+      store.getState().addChannelsState();
+
+      const state = store.getState();
+      expect(state.layersStates).toHaveLength(1);
+      expect(state.imagePanels[0]).toBe(0);
+    });
+
+    test("selects default view when no shared views are preloaded", () => {
+      const store = createViewerStore("test-viewer-33d");
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        layersStates: [],
+      });
+
+      vi.mocked(getInitialChannelsState).mockReturnValue({
+        channelsState: createMockChannels(),
+        channelIds: ["Red", "Green"],
+        firstChannelKey: "Red",
+      });
+
+      store.getState().addChannelsState();
+
+      const state = store.getState();
+      expect(state.layersStates).toHaveLength(1);
+      expect(state.imagePanels[0]).toBe(0);
     });
   });
 
@@ -1135,6 +1383,7 @@ describe("createViewerStore", () => {
       store.getState().forkView(0);
 
       expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().imagePanels[0]).toBe(1);
       const fork = store.getState().layersStates[1];
       expect(fork.id).not.toBe(source.id);
       expect(fork.author).toBe("user-a");
@@ -1373,6 +1622,146 @@ describe("createViewerStore", () => {
 
       store.getState().removeChannelsState(0);
       expect(store.getState().layersStates).toHaveLength(1);
+    });
+  });
+
+  describe("auto-fork on write to peer shared view", () => {
+    const setupPeerSharedStore = () => {
+      const store = createViewerStore("test-autofork-1", "user-a");
+      const peerView = {
+        ...createMockLayersState(),
+        id: "peer-view-id",
+        author: "user-b",
+        shared: true,
+        name: "Peer View",
+        channels: {
+          Red: {
+            contrastLimits: [10, 200] as [number, number],
+            isVisible: true,
+            color: [255, 0, 0] as [number, number, number],
+          },
+        },
+      };
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        selectedChannelId: "Red",
+        channels: createMockChannels(),
+        layersStates: [peerView],
+      });
+      return { store, peerView };
+    };
+
+    test("forks on setContrastLimits when active view is peer shared", () => {
+      const { store, peerView } = setupPeerSharedStore();
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().imagePanels[0]).toBe(1);
+      const fork = store.getState().layersStates[1];
+      expect(fork.id).not.toBe(peerView.id);
+      expect(fork.author).toBe("user-a");
+      expect(fork.shared).toBe(false);
+      expect(fork.name).toBe("Peer View (copy)");
+      expect(fork.channels["Red"]?.contrastLimits).toEqual([50, 150]);
+    });
+
+    test("does NOT fork when writing to own view", () => {
+      const store = createViewerStore("test-autofork-2", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        selectedChannelId: "Red",
+        channels: createMockChannels(),
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: false }],
+      });
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].channels["Red"]?.contrastLimits).toEqual([50, 150]);
+    });
+
+    test("does NOT fork when writing to own shared view", () => {
+      const store = createViewerStore("test-autofork-3", "user-a");
+      store.setState({
+        imagePanelIndex: 0,
+        imagePanels: [0],
+        selectedChannelId: "Red",
+        channels: createMockChannels(),
+        layersStates: [{ ...createMockLayersState(), author: "user-a", shared: true }],
+      });
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates).toHaveLength(1);
+      expect(store.getState().layersStates[0].channels["Red"]?.contrastLimits).toEqual([50, 150]);
+    });
+
+    test("does NOT double-fork on second write", () => {
+      const { store } = setupPeerSharedStore();
+      store.getState().setContrastLimits([50, 150]);
+      expect(store.getState().layersStates).toHaveLength(2);
+
+      store.getState().setContrastLimits([30, 170]);
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].channels["Red"]?.contrastLimits).toEqual([30, 170]);
+    });
+
+    test("original peer shared view is unchanged after fork", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setContrastLimits([50, 150]);
+
+      expect(store.getState().layersStates[0].channels["Red"]?.contrastLimits).toEqual([10, 200]);
+      expect(store.getState().layersStates[0].shared).toBe(true);
+      expect(store.getState().layersStates[0].author).toBe("user-b");
+    });
+
+    test("forks on setChannelColor", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setChannelColor("Red", [0, 128, 255, 255]);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].channels["Red"]?.color).toEqual([0, 128, 255]);
+    });
+
+    test("forks on setChannelsOpacity", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setChannelsOpacity(0.5);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].channelsOpacity).toBe(0.5);
+    });
+
+    test("forks on setAnnotationsOpacity", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setAnnotationsOpacity(0.3);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].annotationsOpacity).toBe(0.3);
+    });
+
+    test("forks on setShowAnnotationOutline", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setShowAnnotationOutline(false);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].showAnnotationOutline).toBe(false);
+    });
+
+    test("forks on setOverlaysFillOpacity", () => {
+      const { store } = setupPeerSharedStore();
+
+      store.getState().setOverlaysFillOpacity(0.4);
+
+      expect(store.getState().layersStates).toHaveLength(2);
+      expect(store.getState().layersStates[1].overlaysFillOpacity).toBe(0.4);
     });
   });
 

@@ -14,12 +14,12 @@ let mockSetAnnotationMode: ReturnType<typeof vi.fn>;
 let mockAnnotationMode: AnnotationMode;
 let mockStore: MockStore;
 
-vi.mock("../../../state/store/ViewerStoreContext", async () => {
+vi.mock("../../../state/store/core/ViewerStoreContext", async () => {
   const { createContext } = await import("react");
   return { ViewerStoreContext: createContext<MockStore | null>(null) };
 });
 
-import { ViewerStoreContext } from "../../../state/store/ViewerStoreContext";
+import { ViewerStoreContext } from "../../../state/store/core/ViewerStoreContext";
 import { useAnnotationModeKeyboard } from "../useAnnotationModeKeyboard";
 
 const wrapper = (store: MockStore) => {

@@ -1,7 +1,7 @@
 import { IconButton, Input, Menu, MenuItem, MenuSeparator } from "@cytario/design";
 import { useState } from "react";
 
-import { annotationNameOf } from "../../../state/store/slices/viewer.annotations.store";
+import { annotationNameOf } from "../../../state/store/annotations/annotations.store";
 import { GeometrySvg } from "~/components/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 

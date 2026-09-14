@@ -1,6 +1,6 @@
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForLayer, select } from "../../../state/store/selectors";
 import { ChannelsState } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 
 const EMPTY_CHANNELS: ChannelsState = Object.freeze({});

@@ -7,13 +7,13 @@ import { useCallback, useMemo } from "react";
 
 import { createMarkerProps } from "./markerUniforms";
 import { OverlaysLayer } from "./OverlaysLayer";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import {
   type CytarioLayerResult,
   type LayerTooltipItem,
-} from "../../../state/store/slices/viewer.view.store";
-import { type RGBA } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+  type RGBA,
+} from "../../../state/store/types";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 /**

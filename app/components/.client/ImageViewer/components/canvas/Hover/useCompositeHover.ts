@@ -3,13 +3,13 @@ import type { Layer } from "@deck.gl/core";
 import type { DeckGLRef } from "@deck.gl/react";
 import { useCallback, useMemo, useRef } from "react";
 
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import type {
   CompositeTooltip,
   LayerTooltipItem,
   TooltipSection,
-} from "../../../state/store/slices/viewer.view.store";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
+} from "../../../state/store/types";
 import { useAnnotationsLayer } from "../Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "../Channels/useChannelsLayer";
 import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";

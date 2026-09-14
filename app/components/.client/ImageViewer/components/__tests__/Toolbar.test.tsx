@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { useStore } from "zustand";
 
+import { ViewerStoreContext } from "../../state/store/core/ViewerStoreContext";
 import { createViewerStore } from "../../state/store/createViewerStore";
 import type { ViewerStore } from "../../state/store/types";
-import { ViewerStoreContext } from "../../state/store/ViewerStoreContext";
 import { Toolbar } from "../Toolbar";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 
 let currentStore: ReturnType<typeof createViewerStore>;
 
-vi.mock("../../state/store/ViewerStoreContext", async () => {
+vi.mock("../../state/store/core/ViewerStoreContext", async () => {
   const { createContext } = await import("react");
   return {
     useViewerStore: <T,>(selector: (state: ViewerStore) => T): T =>

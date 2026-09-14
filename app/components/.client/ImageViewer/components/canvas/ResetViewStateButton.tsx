@@ -2,9 +2,9 @@ import { IconButton } from "@cytario/design";
 import { useMemo } from "react";
 
 import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
+import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import { ViewPort } from "../../state/store/types";
-import { useViewerStore } from "../../state/store/ViewerStoreContext";
 
 /** Resets the active panel's view to fit the full image frame. */
 export const ResetViewStateButton = () => {

@@ -2,13 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
+import { useViewerStore } from "../../../../state/store/core/ViewerStoreContext";
 import type { OverlayEntry } from "../../../../state/store/types";
-import { useViewerStore } from "../../../../state/store/ViewerStoreContext";
 import { OverlayConfigModal } from "../OverlayConfig.modal";
 import { getParquetTopLevelSchema } from "~/components/DataGrid/getParquetSchema";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 
-vi.mock("../../../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 

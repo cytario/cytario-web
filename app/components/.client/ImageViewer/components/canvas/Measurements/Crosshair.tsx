@@ -1,6 +1,6 @@
 import { useMeasurements } from "./useMeasurements";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 export const Svg = ({ children }: { children: React.ReactNode }) => {
   const { viewPortWidth, viewPortHeight } = useMeasurements();

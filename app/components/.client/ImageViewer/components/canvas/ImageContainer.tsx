@@ -5,9 +5,9 @@ import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { useResizeObserver } from "./useResizeObserver";
+import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import { ViewPort } from "../../state/store/types";
-import { useViewerStore } from "../../state/store/ViewerStoreContext";
 import { LoaderView } from "~/components/Loader/LoaderView";
 
 interface ViewContainerProps {

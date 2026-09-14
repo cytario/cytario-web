@@ -1,4 +1,4 @@
-import type { createViewerStore } from "./createViewerStore";
+import type { createViewerStore } from "../createViewerStore";
 import { toastBridge } from "~/toast-bridge";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";

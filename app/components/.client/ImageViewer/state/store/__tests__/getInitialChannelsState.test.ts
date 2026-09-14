@@ -1,5 +1,5 @@
-import { getInitialChannelsState } from "../getInitialChannelsState";
-import { Image, Loader } from "../ome.tif.types";
+import { getInitialChannelsState } from "../channels/getInitialChannelsState";
+import { Image, Loader } from "../core/ome.tif.types";
 
 describe("getInitialChannelsState", () => {
   const createMockMetadata = (channels: { Name?: string; Color?: number[] }[]): Image =>

@@ -7,7 +7,7 @@ import { ImageContainer } from "../ImageContainer";
 
 let currentStore: ReturnType<typeof createViewerStore>;
 
-vi.mock("../../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
 }));
 

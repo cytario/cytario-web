@@ -4,7 +4,7 @@ import { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { AuthTokensResponse } from "~/.server/auth/refreshAuthTokens";
 import { type CytarioSession, SessionData, SessionFlashData } from "~/.server/auth/sessionStorage";
-import { Channel, Image } from "~/components/.client/ImageViewer/state/store/ome.tif.types";
+import { Channel, Image } from "~/components/.client/ImageViewer/state/store/core/ome.tif.types";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { BucketCatalog, BucketLookupRow } from "~/utils/bucketCatalog.schema";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";

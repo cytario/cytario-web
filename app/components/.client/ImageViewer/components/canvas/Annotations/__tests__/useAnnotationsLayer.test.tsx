@@ -7,7 +7,7 @@ import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 
 let store: ReturnType<typeof createViewerStore>;
 
-vi.mock("../../../../state/store/ViewerStoreContext", () => ({
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: (selector: (s: unknown) => unknown) => selector(store.getState()),
 }));
 vi.mock("~/hooks/useCurrentUser", () => ({

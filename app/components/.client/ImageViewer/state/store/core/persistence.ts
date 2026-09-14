@@ -1,4 +1,6 @@
-import { ViewerStore } from "./types";
+import { createJSONStorage } from "zustand/middleware";
+
+import type { ViewerStore } from "../types";
 import { createMigrate } from "~/utils/persistMigration";
 
 /** The subset of viewer state persisted to localStorage — the single source of
@@ -129,8 +131,50 @@ export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState 
   channels: state.channels,
   channelIds: state.channelIds,
   viewStateActive: state.viewStateActive,
-  // Per-image class registry + active class — browser-persisted for now; a
-  // "settings" sidecar is the eventual home.
   annotationClasses: state.annotationClasses,
   annotationActiveClass: state.annotationActiveClass,
 });
+
+const PERSIST_DEBOUNCE_MS = 500;
+
+const pendingWrites = new Map<string, string>();
+let flushRegistered = false;
+
+function flushPendingWrites() {
+  for (const [name, value] of pendingWrites) {
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      // Quota errors surface via the persist middleware's own handler.
+    }
+  }
+  pendingWrites.clear();
+}
+
+if (typeof window !== "undefined" && !flushRegistered) {
+  flushRegistered = true;
+  window.addEventListener("pagehide", flushPendingWrites);
+}
+
+/** localStorage-backed StateStorage with a debounced write side. */
+function createDebouncedStorage(debounceMs: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return {
+    getItem: (name: string) => localStorage.getItem(name),
+    setItem: (name: string, value: string) => {
+      pendingWrites.set(name, value);
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        flushPendingWrites();
+      }, debounceMs);
+    },
+    removeItem: (name: string) => {
+      pendingWrites.delete(name);
+      localStorage.removeItem(name);
+    },
+  };
+}
+
+export const debouncedStorage = createJSONStorage(() =>
+  createDebouncedStorage(PERSIST_DEBOUNCE_MS),
+);

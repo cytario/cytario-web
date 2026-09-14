@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 
 import { invalidateOverlayTiles } from "../../../utils/sharedTileCache";
+import { viewerStoreMigrate } from "../core/persistence";
 import { createViewerStore } from "../createViewerStore";
 import type { OverlaysState, OverlayState } from "../types";
-import { viewerStoreMigrate } from "../viewerStore.persistence";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
 
 vi.mock("../../../utils/sharedTileCache", () => ({
@@ -163,7 +163,7 @@ describe("removeOverlaysState", () => {
 
 describe("applyOverlayReconfiguration", () => {
   test("invalidates tiles and re-arms error reporting for the resource", async () => {
-    const { applyOverlayReconfiguration } = await import("../slices/viewer.overlays.store");
+    const { applyOverlayReconfiguration } = await import("../overlays/overlays.store");
     const { shouldReportOverlayError } = await import("~/utils/db/overlayErrorOnce");
 
     shouldReportOverlayError("res-1", "cfg");

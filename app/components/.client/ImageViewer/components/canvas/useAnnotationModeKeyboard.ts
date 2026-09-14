@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef } from "react";
 
+import { ViewerStoreContext } from "../../state/store/core/ViewerStoreContext";
 import { AnnotationMode } from "../../state/store/types";
-import { ViewerStoreContext } from "../../state/store/ViewerStoreContext";
 
 const DRAW_MODES: ReadonlySet<AnnotationMode> = new Set([
   "draw-polygon",

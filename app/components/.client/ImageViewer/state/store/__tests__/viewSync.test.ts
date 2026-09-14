@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionIsReadOnly } from "../../../utils/useCanAnnotate";
 import type { createViewerStore } from "../createViewerStore";
 import type { LayersStateEntry } from "../types";
-import { attachViewSync } from "../viewSync";
+import { attachViewSync } from "../views/viewSync";
 import type { ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
 
@@ -29,6 +29,7 @@ interface FakeState {
   loadSharedViews: (entries: ViewSettingsEntry[]) => void;
   shareView: (index: number) => void;
   unshareView: (index: number) => void;
+  setSharedViewsLoaded: (val: boolean) => void;
 }
 
 function makeEntry(overrides: Partial<LayersStateEntry> = {}): LayersStateEntry {
@@ -85,6 +86,7 @@ function makeFakeStore(userId = "user-123") {
     unshareView: (index) => {
       if (state.layersStates[index]) state.layersStates[index].shared = false;
     },
+    setSharedViewsLoaded: () => {},
   };
   const store = {
     getState: () => state,

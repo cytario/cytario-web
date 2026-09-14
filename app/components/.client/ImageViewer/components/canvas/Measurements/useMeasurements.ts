@@ -1,7 +1,7 @@
 import { absoluteToMetricFactory, metricToAbsoluteFactory } from "./utils";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ViewState } from "../../../state/store/types";
-import { useViewerStore } from "../../../state/store/ViewerStoreContext";
 
 export interface UseMeasurementsData {
   /** Image width in mm */
