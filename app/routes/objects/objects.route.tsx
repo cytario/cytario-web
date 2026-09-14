@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
 import { clientLoader } from "./objects.clientLoader";
@@ -10,12 +10,14 @@ import {
 import { type BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { buildCurrentNode } from "./objects.node";
 import { useRecordRecentView } from "../recent/useRecordRecentView";
+import type { SignedFetch, ViewerContribution, ViewerProps } from "@cytario/plugin-api";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { ClientOnly } from "~/components/ClientOnly";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { LoaderView } from "~/components/Loader/LoaderView";
+import { viewerRegistry } from "~/components/viewerRegistry";
 import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -45,6 +47,55 @@ const PdfViewer = lazy(() =>
     default: module.PdfViewer,
   })),
 );
+
+interface PluginViewerRouterProps {
+  resourceId: string;
+  signedFetch: SignedFetch;
+}
+
+function PluginViewer({ resourceId, signedFetch }: PluginViewerRouterProps) {
+  const [resolved, setResolved] = useState<ViewerContribution | null>(() =>
+    viewerRegistry.resolve(resourceId),
+  );
+  const [sniffing, setSniffing] = useState(resolved === null && viewerRegistry.hasAsync());
+
+  // No sync match claimed the resource: sniff the content. Rejected canHandle
+  // counts as false inside resolveAsync, so this settles exactly once on the
+  // winner or null (fall through to the built-in viewer).
+  useEffect(() => {
+    if (!sniffing) return;
+    let cancelled = false;
+    viewerRegistry.resolveAsync(resourceId, signedFetch).then((found) => {
+      if (cancelled) return;
+      setResolved(found);
+      setSniffing(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sniffing, resourceId, signedFetch]);
+
+  if (sniffing) {
+    return <LoaderView label="Opening…" />;
+  }
+
+  if (resolved) {
+    const PluginViewerComponent = resolved.component as ComponentType<ViewerProps>;
+    return <PluginViewerComponent resourceId={resourceId} signedFetch={signedFetch} />;
+  }
+
+  return <ImageViewer resourceId={resourceId} signedFetch={signedFetch} />;
+}
+
+function PluginViewerRouter(props: PluginViewerRouterProps) {
+  // Zero overhead when no plugin contributes a viewer: skip straight to the
+  // built-in image viewer. Plugin components arrive as static imports (the
+  // plugin package is in the bundle), so they render directly — no lazy().
+  if (viewerRegistry.isEmpty()) {
+    return <ImageViewer resourceId={props.resourceId} signedFetch={props.signedFetch} />;
+  }
+  return <PluginViewer {...props} />;
+}
 
 export { clientLoader, loader };
 export type { BucketRouteLoaderResponse };
@@ -176,7 +227,11 @@ export default function ObjectsRoute() {
       return (
         <ClientOnly>
           <Suspense fallback={<LoaderView label="Loading viewer…" />}>
-            <ImageViewer resourceId={resourceId} signedFetch={signedFetch} />
+            <PluginViewerRouter
+              key={resourceId}
+              resourceId={resourceId}
+              signedFetch={signedFetch}
+            />
           </Suspense>
         </ClientOnly>
       );

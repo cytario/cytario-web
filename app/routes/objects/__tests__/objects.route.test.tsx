@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { ActionFunctionArgs, createRoutesStub } from "react-router";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { viewerRegistry } from "~/components/viewerRegistry";
 import ObjectsRoute, { handle } from "~/routes/objects/objects.route";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -55,6 +56,10 @@ vi.mock("~/components/.client/ImageViewer/state/fetchImage", () => ({
 }));
 
 describe("Bucket Route", () => {
+  afterEach(() => {
+    viewerRegistry.__reset();
+  });
+
   test("handle.node builds the current TreeNode from params + data", () => {
     const mockArgs = {
       params: {
@@ -136,6 +141,80 @@ describe("Bucket Route", () => {
 
     const { container } = render(
       <RemixStub initialEntries={["/connections/aws-test-bucket/test-file.ome.tiff"]} />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
+    });
+  });
+
+  function stubSingleFile(pathName: string) {
+    return createRoutesStub([
+      {
+        path: "/connections/:id/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: () => {
+          return {
+            connectionId: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
+            credentials: mock.credentials(),
+            connectionConfig: mock.connectionConfig(),
+            user: mock.user(),
+            nodes: [],
+            pathName,
+            urlPath: pathName,
+            bucketName: "test-bucket",
+            name: pathName.split("/").pop() ?? pathName,
+            isSingleFile: true,
+          };
+        },
+      },
+    ]);
+  }
+
+  test("renders a plugin viewer claiming the resource synchronously", async () => {
+    viewerRegistry.scopedFor("spatialdata-plugin").register({
+      match: (id) => id.endsWith("data.zarr"),
+      component: () => <div data-testid="plugin-viewer" />,
+    });
+
+    const StubZarr = stubSingleFile("test/path/to/data.zarr");
+    const { container } = render(
+      <StubZarr initialEntries={["/connections/aws-test-bucket/test/path/to/data.zarr"]} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+    });
+    expect(container.querySelector("canvas#deckgl-overlay")).not.toBeInTheDocument();
+  });
+
+  test("falls back to the built-in viewer when a plugin's canHandle resolves false", async () => {
+    viewerRegistry.scopedFor("sniffing-plugin").register({
+      match: () => false,
+      component: () => <div data-testid="plugin-viewer" />,
+      canHandle: vi.fn().mockResolvedValue(false),
+    });
+
+    const StubTiff = stubSingleFile("test/path/to/file.ome.tiff");
+    const { container } = render(
+      <StubTiff initialEntries={["/connections/aws-test-bucket/test/path/to/file.ome.tiff"]} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Opening…")).not.toBeNull();
+    });
+    await waitFor(() => {
+      expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("plugin-viewer")).not.toBeInTheDocument();
+  });
+
+  test("empty registry renders the built-in viewer directly", async () => {
+    const StubTiff = stubSingleFile("test/path/to/file.ome.tiff");
+    const { container } = render(
+      <StubTiff initialEntries={["/connections/aws-test-bucket/test/path/to/file.ome.tiff"]} />,
     );
 
     await waitFor(() => {
