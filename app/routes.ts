@@ -116,6 +116,10 @@ const apiRoutes = [
     path: "/api/connections",
     file: "routes/api/connections.ts",
   },
+  {
+    path: "/api/me/connections",
+    file: "routes/api/me.connections.ts",
+  },
 ];
 
 export default [
