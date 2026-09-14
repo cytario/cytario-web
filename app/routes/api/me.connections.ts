@@ -53,12 +53,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const connections = await listConnections(user);
 
-  const catalog = await getProviderCatalog(organization).catch(() => undefined);
+  const catalog = await getProviderCatalog(organization).catch((error: unknown) => {
+    console.error("[me/connections] provider catalog lookup failed", error);
+    return undefined;
+  });
   const bucketCatalog = await getBucketCatalog(organization).catch(() => undefined);
+
+  // The catalog lookup is advisory for listing, but silently dropping every
+  // connection on lookup failure reads as "no connections" to the CLI. A
+  // failed lookup surfaces as an explicit error instead (SRS-CY-412104).
+  if (!catalog) {
+    return jsonError(
+      502,
+      "The storage provider catalog is currently unavailable — try again shortly.",
+    );
+  }
 
   const rows = await Promise.all(
     connections.map(async (connection): Promise<MeConnection | null> => {
-      if (!catalog) return null;
       const resolved = resolveConnectionProviderWithGrants(catalog, connection, bucketCatalog);
       if (!resolved) return null;
       const grant = pickGrantForUser(resolved, user, organization);

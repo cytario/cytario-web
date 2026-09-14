@@ -148,6 +148,19 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(body.connections).toHaveLength(0);
   });
 
+  test("502 when the provider catalog lookup fails", async () => {
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockRejectedValue(new Error("portal down"));
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+
+    expect(response.status).toBe(502);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toContain("unavailable");
+  });
+
   test("uses the bucket-catalog region over the provider region", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
     vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
