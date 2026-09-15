@@ -26,7 +26,9 @@ export const Magnifier = () => {
         value={magnification.toFixed(1)}
         size="sm"
         aria-label="Current magnification"
-        className="w-12 shrink-0 text-xs text-right tabular-nums"
+        className="w-16 shrink-0 text-xs text-right tabular-nums"
+        suffix="x"
+        align="right"
       />
 
       <SegmentedControl
