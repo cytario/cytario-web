@@ -61,7 +61,7 @@ export function ChannelItem({
       <SectionRow
         isSelected={isSelected}
         isLoading={isLoading}
-        count={pixelValue > 0 ? pixelValue : undefined}
+        count={isVisible && pixelValue > 0 ? pixelValue : undefined}
         countMax={isVisible ? maxDomain : undefined}
         colors={[color]}
         onColorChange={onColorChange}

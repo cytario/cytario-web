@@ -123,6 +123,7 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
   const isChannelsLoading = layerState?.isChannelsLoading ?? 0;
   const isOverlaysLoading = layerState?.isOverlaysLoading ?? 0;
   const setCursorPosition = useViewerStore(select.setCursorPosition);
+  const clearPixelValues = useViewerStore(select.clearPixelValues);
   const setActiveImagePanelId = useViewerStore(select.setActiveImagePanelId);
   const isActivePanel = activeImagePanelId === imagePanelId;
 
@@ -142,6 +143,7 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
       }}
       onPointerLeave={() => {
         setCursorPosition(null);
+        clearPixelValues();
       }}
     >
       {(viewPort) => (
