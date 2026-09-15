@@ -48,6 +48,7 @@ describe("noop-plugin integration", () => {
         revokeGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
           lookup: () => Promise.resolve(null),
@@ -113,6 +114,7 @@ describe("noop-plugin integration", () => {
         revokeGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
           lookup: () => Promise.resolve(null),
