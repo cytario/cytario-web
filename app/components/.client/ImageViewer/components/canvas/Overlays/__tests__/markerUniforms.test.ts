@@ -37,12 +37,10 @@ describe("createMarkerProps", () => {
     });
   });
 
-  describe("cycling behavior for markers >= 8 (C-180 regression)", () => {
-    // The shader does color[i % 8] for marker bit i, so markers at indices
-    // 0 and 8 unavoidably share slot 0. The fix here is first-wins: slot 0's
-    // colour comes from marker 0, not marker 8. Editing marker 0's colour
-    // (the visible scenario for users) therefore propagates to the GPU.
-    test("first-wins: marker at index 0 owns slot 0 even when marker 8 exists", () => {
+  describe("independent slots for markers >= 8", () => {
+    // Each marker bit has its own color slot, so markers past index 7 no
+    // longer share a slot with 0-7; editing any marker's colour is independent.
+    test("marker at index 8 owns color8, not color0", () => {
       const markers: Record<string, { color: RGBA }> = {};
       for (let i = 0; i <= 8; i++) {
         markers[`marker${i}`] = { color: [i * 10, i * 10, i * 10, 1] };
@@ -51,19 +49,20 @@ describe("createMarkerProps", () => {
       const result = createMarkerProps(markers, 0.8);
 
       expect(result.color0).toEqual([0, 0, 0, 1.0]);
+      expect(result.color8).toEqual([80, 80, 80, 1.0]);
     });
 
-    test("first-wins: editing marker 0's colour propagates to color0 (C-180)", () => {
+    test("editing marker 8's colour does not affect marker 0's slot", () => {
       const markers: Record<string, { color: RGBA }> = {};
-      for (let i = 0; i <= 16; i++) {
+      for (let i = 0; i <= 8; i++) {
         markers[`marker${i}`] = { color: [255, 0, 0, 1] };
       }
-      // User flips marker 0 to magenta. Slot 0 must follow.
-      markers["marker0"] = { color: [255, 0, 255, 1] };
+      markers["marker8"] = { color: [0, 255, 0, 1] };
 
       const result = createMarkerProps(markers, 0.8);
 
-      expect(result.color0).toEqual([255, 0, 255, 1.0]);
+      expect(result.color0).toEqual([255, 0, 0, 1.0]);
+      expect(result.color8).toEqual([0, 255, 0, 1.0]);
     });
 
     test("slots beyond the marker count default to transparent black", () => {
@@ -75,7 +74,7 @@ describe("createMarkerProps", () => {
 
       expect(result.color0).toEqual([255, 0, 0, 1.0]);
       expect(result.color1).toEqual([0, 0, 0, 0]);
-      expect(result.color7).toEqual([0, 0, 0, 0]);
+      expect(result.color31).toEqual([0, 0, 0, 0]);
     });
   });
 
