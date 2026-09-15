@@ -37,7 +37,11 @@ const RELEASE_LOCK_SCRIPT = `
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** The pinned lock key for a bucket in a given AWS account. */
+/**
+ * The pinned lock key for a bucket in a given storage account namespace. The
+ * namespace is the AWS account id on AWS targets, or the S3-compatible
+ * endpoint host on a RustFS target (one instance serves one account).
+ */
 export const bucketPolicyLockKey = (accountId: string, bucketName: string): string =>
   `bucketpolicy:${accountId}:${bucketName}`;
 

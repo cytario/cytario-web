@@ -145,7 +145,7 @@ describe("assembleBucketGrants", () => {
     const grants = assembleBucketGrants(configs, catalog);
     expect(grants.map((g) => g.groupPath).sort()).toEqual(["lab", "lab/team-b", "lab/team-c"]);
     for (const g of grants) {
-      expect(g.roleArn).toBe(roleArn);
+      expect("roleArn" in g && g.roleArn).toBe(roleArn);
       expect(g.accessLevel).toBe("read-write");
     }
   });
@@ -411,9 +411,15 @@ describe("applyBucketGrantSet", () => {
     // into the bucket-policy Principals.
     const appliedGrants = vi.mocked(applyBucketPolicy).mock.calls[0][1];
     const byScope = new Map(appliedGrants.map((g) => [g.groupPath, g]));
-    expect(byScope.get("*")?.roleArn).toBe("arn:aws:iam::123456789012:role/read-only");
+    const rootGrant = byScope.get("*");
+    expect("roleArn" in rootGrant! && rootGrant.roleArn).toBe(
+      "arn:aws:iam::123456789012:role/read-only",
+    );
     expect(byScope.get("*")?.accessLevel).toBe("read-only");
-    expect(byScope.get("internal")?.roleArn).toBe("arn:aws:iam::123456789012:role/admin");
+    const internalGrant = byScope.get("internal");
+    expect("roleArn" in internalGrant! && internalGrant.roleArn).toBe(
+      "arn:aws:iam::123456789012:role/admin",
+    );
     expect(byScope.get("internal")?.accessLevel).toBe("admin");
   });
 });
