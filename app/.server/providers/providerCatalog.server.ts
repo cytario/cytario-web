@@ -21,7 +21,7 @@ const PROVIDERS_LOOKUP_HEADER = "X-Providers-Lookup-Secret";
 const PROVIDERS_LOOKUP_TIMEOUT_MS = 10_000;
 
 /** How long a resolved catalog is served from memory before re-reading its source. */
-const CATALOG_CACHE_TTL_MS = 30_000;
+const CATALOG_CACHE_TTL_MS = cytarioConfig.providers.catalogCacheTtlMs;
 const CATALOG_CACHE_MAX_ENTRIES = 100;
 
 interface CatalogCacheEntry {
@@ -77,7 +77,8 @@ export function invalidateProviderCatalogCache(
  *
  * Resolved catalogs are memoized per organization with a short TTL — the catalog
  * is consulted on every credential-bearing request, and neither the portal
- * round-trip nor the YAML read should run per request. Failures are never cached.
+ * round-trip nor the YAML read should run per request. The TTL is configurable
+ * via CATALOG_CACHE_TTL_MS (`0` disables the cache). Failures are never cached.
  */
 export async function getProviderCatalog(
   organization: string,

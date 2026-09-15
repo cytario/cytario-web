@@ -67,6 +67,11 @@ interface CytarioConfig {
      * Mirrors the lookup JSON shape.
      */
     ossConfigPath?: string;
+    /**
+     * How long a resolved provider/bucket catalog is served from memory before
+     * re-reading its source. `0` disables the cache (every call re-reads).
+     */
+    catalogCacheTtlMs: number;
   };
   cookie: CookieOptions;
 }
@@ -94,6 +99,7 @@ const {
   PORTAL_INTERNAL_URL,
   PROVIDERS_LOOKUP_SECRET,
   PROVIDERS_OSS_CONFIG_PATH,
+  CATALOG_CACHE_TTL_MS,
 } = process.env;
 
 // Admin-portal builds (EE/SaaS) resolve provider connections/roles from the
@@ -133,6 +139,10 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     portalInternalUrl: PORTAL_INTERNAL_URL,
     lookupSecret: PROVIDERS_LOOKUP_SECRET,
     ossConfigPath: PROVIDERS_OSS_CONFIG_PATH,
+    catalogCacheTtlMs:
+      CATALOG_CACHE_TTL_MS !== undefined && CATALOG_CACHE_TTL_MS !== ""
+        ? Number(CATALOG_CACHE_TTL_MS)
+        : 30_000,
   },
   cookie: {
     httpOnly: true,

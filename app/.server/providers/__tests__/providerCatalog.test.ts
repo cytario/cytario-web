@@ -23,6 +23,7 @@ vi.mock("~/config", () => ({
       portalInternalUrl: undefined,
       lookupSecret: undefined,
       ossConfigPath: undefined,
+      catalogCacheTtlMs: 30_000,
     },
   },
 }));
