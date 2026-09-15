@@ -12,6 +12,9 @@
 @import "@cytario/design/styles.css";
 @import "tailwindcss";
 @import "@cytario/design/styles/tokens.css";
+/* Height-step variant: Tailwind ships no height breakpoints, so register one
+   for viewport height (the sidebar span is viewport minus chrome). */
+@custom-variant tall (@media (min-height: 900px));
 /**
  * Scan the compiled design library so Tailwind discovers utility classes
  * embedded in design components (e.g. {@code bg-badge-purple-bg},
