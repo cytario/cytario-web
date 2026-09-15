@@ -1159,7 +1159,7 @@ describe("brokerPublicUrl (SRS-CY-416101)", () => {
     vi.stubEnv("WEB_HOST", "https://internal.example.com");
     vi.resetModules();
     const { hostCapabilities: fresh } = await import("../hostCapabilities");
-    expect(fresh.brokerPublicUrl()).toBe("https://public.example.com");
+    expect(fresh.brokerPublicUrl()).toBe("https://public.example.com/api/broker");
     vi.unstubAllEnvs();
   });
 
@@ -1168,7 +1168,7 @@ describe("brokerPublicUrl (SRS-CY-416101)", () => {
     vi.stubEnv("WEB_HOST", "https://internal.example.com");
     vi.resetModules();
     const { hostCapabilities: fresh } = await import("../hostCapabilities");
-    expect(fresh.brokerPublicUrl()).toBe("https://internal.example.com");
+    expect(fresh.brokerPublicUrl()).toBe("https://internal.example.com/api/broker");
     vi.unstubAllEnvs();
   });
 });

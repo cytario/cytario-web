@@ -135,7 +135,8 @@ class HostCapabilitiesImpl implements HostCapabilities {
   }
 
   brokerPublicUrl(): string {
-    return cytarioConfig.endpoints.brokerPublicUrl || cytarioConfig.endpoints.webapp;
+    const base = cytarioConfig.endpoints.brokerPublicUrl || cytarioConfig.endpoints.webapp;
+    return `${base}/api/broker`;
   }
 
   revokeGrant(offlineSessionId: string): Promise<void> {
