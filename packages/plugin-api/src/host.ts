@@ -401,6 +401,8 @@ export interface HostCapabilities {
    * SRS-CY-41901).
    */
   exchangeToken(): Promise<TokenGrant>;
+  /** Externally-reachable base URL of the host's broker route, for callers outside the browser origin. */
+  brokerPublicUrl(): string;
   /**
    * Revokes an offline grant at the identity service (SDS-CY-010098,
    * SDS-CY-080900). Called by the reconciler after a job reaches a terminal

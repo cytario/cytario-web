@@ -7,6 +7,12 @@ interface CytarioConfig {
     portal?: string;
     /** External user documentation base URL. Unset on deployments without docs. */
     docsUrl?: string;
+    /**
+     * Externally-reachable base URL of this deployment for callers outside
+     * the browser origin (compute jobs calling the credential broker back).
+     * Defaults to the browser origin.
+     */
+    brokerPublicUrl?: string;
   };
   /** Contact address for user support, shown in the help menu. Unset = hidden. */
   support?: {
@@ -97,6 +103,7 @@ const {
   DOCS_URL,
   SUPPORT_EMAIL,
   PORTAL_INTERNAL_URL,
+  BROKER_PUBLIC_URL,
   PROVIDERS_LOOKUP_SECRET,
   PROVIDERS_OSS_CONFIG_PATH,
   CATALOG_CACHE_TTL_MS,
@@ -112,6 +119,7 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     webapp: WEB_HOST!,
     portal: PORTAL_HOST,
     docsUrl: DOCS_URL,
+    brokerPublicUrl: BROKER_PUBLIC_URL,
   },
   support: {
     email: SUPPORT_EMAIL,

@@ -20,6 +20,7 @@ import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
 } from "~/.server/providers/providerCatalog.server";
+import { cytarioConfig } from "~/config";
 import { listConnections } from "~/routes/connections/connections.server";
 import type { ConnectionConfigWithGrants } from "~/routes/connections/connections.server";
 
@@ -131,6 +132,10 @@ class HostCapabilitiesImpl implements HostCapabilities {
       );
     }
     return Promise.resolve(data.jobGrant);
+  }
+
+  brokerPublicUrl(): string {
+    return cytarioConfig.endpoints.brokerPublicUrl || cytarioConfig.endpoints.webapp;
   }
 
   revokeGrant(offlineSessionId: string): Promise<void> {
