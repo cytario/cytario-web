@@ -1,11 +1,10 @@
-import { IconButton, Input, Switch } from "@cytario/design";
-import { useState } from "react";
-import { twMerge } from "tailwind-merge";
+import { IconButton, Menu, MenuItem, Switch } from "@cytario/design";
+import { useRef } from "react";
 
 import { UNCLASSIFIED_COLOR } from "../../../state/store/annotations/annotations.store";
 import { RGB } from "../../../state/store/types";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
-import { SectionRow } from "../SectionRow/SectionRow";
+import { SectionRow, type SectionRowHandle } from "../SectionRow/SectionRow";
 
 interface AnnotationGroupRowProps {
   name: string;
@@ -17,22 +16,17 @@ interface AnnotationGroupRowProps {
   onColorChange?: (color: RGB) => void;
   /** Own set only: this group is the active class new regions are drawn into. */
   isActive?: boolean;
-  /** Own set only: make this group the active class. */
-  onSelectActive?: () => void;
   /** Own set only: commit an edited class name. */
   onRename?: (newName: string) => void;
   /** Own set only: delete this class (drops the registry entry, unclassifies members). */
   onDelete?: () => void;
-  /** The unclassified bucket — rendered as a ghost/prompt, not a peer class. */
-  isUnclassified?: boolean;
 }
 
 /**
  * Classification group header composed of the shared SectionRow: color swatch,
- * name, count, and visibility toggle, plus (own set) active-class selection —
- * the name button carries the radio semantics, the row shows the selected
- * treatment — and hover-revealed rename/delete. The unclassified group shows a
- * dashed ghost swatch and a muted italic name.
+ * name, count, and visibility toggle, plus a hover-revealed actions menu
+ * (rename/delete, own set only). The unclassified group shows a dashed ghost
+ * swatch. Active-class selection is the caller's row-level radio wrapper.
  */
 export function AnnotationGroupRow({
   name,
@@ -42,98 +36,51 @@ export function AnnotationGroupRow({
   onToggleVisibility,
   onColorChange,
   isActive,
-  onSelectActive,
   onRename,
   onDelete,
-  isUnclassified,
 }: AnnotationGroupRowProps) {
   const swatch: RGB = color ?? UNCLASSIFIED_COLOR;
   const canRecolor = color !== null && onColorChange;
-
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(name);
-
-  const startEdit = () => {
-    setDraft(name);
-    setEditing(true);
-  };
-  const commit = () => {
-    setEditing(false);
-    const next = draft.trim();
-    if (next && next !== name) onRename?.(next);
-  };
-  const cancel = () => {
-    setEditing(false);
-    setDraft(name);
-  };
-
-  // Type scale comes from SectionRow (text-sm font-medium); only the deltas here.
-  const titleCx = twMerge(
-    "w-full truncate text-left text-foreground",
-    isUnclassified && "italic text-muted-foreground",
-  );
+  const sectionRowRef = useRef<SectionRowHandle>(null);
 
   return (
     <SectionRow
+      ref={sectionRowRef}
       selected={isActive}
-      titleTruncate={!editing}
       colors={[swatch]}
       onColorChange={canRecolor ? onColorChange : undefined}
-      colorLabel={`${name} color`}
-      title={
-        editing ? (
-          <Input
-            size="sm"
-            aria-label={`Rename ${name} class`}
-            placeholder="Name this class…"
-            value={draft}
-            onChange={setDraft}
-            // Focus the field the user just opened for rename.
-            // eslint-disable-next-line jsx-a11y/no-autofocus
-            autoFocus
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
-              else if (e.key === "Escape") cancel();
-            }}
-          />
-        ) : onSelectActive ? (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={isActive}
-            aria-label={`Draw new regions into ${name}`}
-            onClick={onSelectActive}
-            className={titleCx}
-          >
-            {name}
-          </button>
-        ) : (
-          <span className={titleCx}>{name}</span>
-        )
-      }
+      title={name}
+      onRename={onRename}
       actions={
-        !editing &&
         (onRename || onDelete) && (
           <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/controlrow:opacity-100">
-            {onRename && (
+            <Menu
+              content={
+                <>
+                  {onRename && (
+                    <MenuItem
+                      id="rename"
+                      icon="Pencil"
+                      onAction={() => sectionRowRef.current?.startRename()}
+                    >
+                      Rename
+                    </MenuItem>
+                  )}
+                  {onDelete && (
+                    <MenuItem id="delete" icon="Trash2" isDanger onAction={onDelete}>
+                      Delete
+                    </MenuItem>
+                  )}
+                </>
+              }
+            >
               <IconButton
-                icon="Pencil"
-                label={`Rename ${name}`}
+                icon="EllipsisVertical"
+                label={`Actions for ${name} class`}
                 variant="ghost"
                 size="xs"
-                onPress={startEdit}
               />
-            )}
-            {onDelete && (
-              <IconButton
-                icon="Trash2"
-                label={`Delete ${name} class`}
-                variant="ghost"
-                size="xs"
-                onPress={onDelete}
-              />
-            )}
+            </Menu>
           </span>
         )
       }

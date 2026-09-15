@@ -65,7 +65,6 @@ export function ChannelItem({
         countMax={isVisible ? maxDomain : undefined}
         colors={[color]}
         onColorChange={onColorChange}
-        colorLabel={`${name} color`}
         title={name}
         toggle={
           <Tooltip content={tooltip}>

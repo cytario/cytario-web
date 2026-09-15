@@ -59,7 +59,6 @@ export function ChannelBrightfieldItem({
         selected={isActive}
         isLoading={isLoading}
         colors={BRIGHTFIELD_RGB}
-        colorLabel="Brightfield channels"
         toggle={
           <Tooltip content={tooltip}>
             <Switch

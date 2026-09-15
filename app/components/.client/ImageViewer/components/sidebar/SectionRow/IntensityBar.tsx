@@ -3,7 +3,6 @@ import { RGB, RGBA } from "../../../state/store/types";
 
 interface IntensityBarProps {
   count?: number;
-  /** The scale maximum count is measured against. */
   countMax?: number;
   color?: RGB | RGBA;
 }

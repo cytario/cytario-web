@@ -1,64 +1,59 @@
 import { Badge } from "@cytario/design";
-import { ReactNode } from "react";
+import { forwardRef, ReactNode, useImperativeHandle, useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { ColorPicker } from "./ColorPicker/ColorPicker";
 import { IntensityBar } from "./IntensityBar";
+import { SectionRowTitle, SectionRowTitleHandle } from "./SectionRowTitle";
 import { RGB, RGBA } from "../../../state/store/types";
 import { LoaderDots } from "~/components/Loader/LoaderDots";
 
+export type SectionRowHandle = SectionRowTitleHandle;
+
 interface SectionRowProps {
-  title: ReactNode;
-  titleTruncate?: boolean;
+  title: string;
+  /** Rename commit; only fired when the new name is non-empty and different. */
+  onRename?: (next: string) => void;
   actions?: ReactNode;
   count?: number;
-  /** Scale maximum for count; with colors, count, and this set, renders the
-   *  bottom intensity bar. */
+  /** Scale maximum for the intensity bar. */
   countMax?: number;
-  /** Row colors: a single color renders the picker (or a static swatch when
-   *  onColorChange is absent); several colors render a static multi-segment
-   *  swatch. */
-  colors?: (RGB | RGBA)[];
-  /** Receives the same color shape given in colors — the picker's RGB choice
-   *  re-attached to the original alpha when there was one. Applies to a
-   *  single color only. */
+  /** Single → picker/static swatch; multiple → static multi-segment swatch. */
+  colors: (RGB | RGBA)[];
+  /** Picker's RGB choice, re-attached to the original alpha. */
   onColorChange?(color: RGB | RGBA): void;
-  /** Accessible name for the color control, e.g. "CD3 color". */
-  colorLabel?: string;
   toggle?: ReactNode;
   selected?: boolean;
   className?: string;
-
   isLoading?: boolean;
 }
 
-/**
- * The shared row shell of the viewer sidebar controls (channels, overlay
- * markers, annotation classes): color swatch (a picker when onColorChange is
- * set), title, optional actions/metric/toggle, in one consistent layout with
- * a common selected treatment. Interaction semantics (radio, click targets)
- * belong to the caller's wrapper.
- */
-export function SectionRow({
-  colors,
-  onColorChange,
-  colorLabel,
-  title,
-  titleTruncate = true,
-  actions,
-  count,
-  countMax,
-  toggle,
-  selected,
-  className,
-  isLoading = false,
-}: SectionRowProps) {
+/** Shared row shell of the viewer sidebar controls: swatch, title, actions, metric, toggle. */
+export const SectionRow = forwardRef<SectionRowHandle, SectionRowProps>(function SectionRow(
+  {
+    colors,
+    onColorChange,
+    title,
+    onRename,
+    actions,
+    count,
+    countMax,
+    toggle,
+    selected,
+    className,
+    isLoading = false,
+  },
+  ref,
+) {
+  const titleRef = useRef<SectionRowTitleHandle>(null);
+  useImperativeHandle(ref, () => ({ startRename: () => titleRef.current?.startRename() }));
+
   const cx = twMerge(
     `
       group/controlrow
       relative flex items-center
       gap-1 rounded-full
-      px-2 py-1
+      px-1 py-1
       font-medium text-sm
       hover:bg-muted
     `,
@@ -66,27 +61,28 @@ export function SectionRow({
     className,
   );
 
-  const [first] = colors ?? [];
-
   return (
     <div className={cx}>
-      <IntensityBar count={count} countMax={countMax} color={first} />
-      {colors && colors.length > 0 && (
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center">
-          <ColorPicker colors={colors} onColorChange={onColorChange} label={colorLabel} />
-        </span>
+      {/* Absolutely positioned intensity bar */}
+      <IntensityBar count={count} countMax={countMax} color={colors[0]} />
+
+      {colors.length > 0 && (
+        <ColorPicker colors={colors} onColorChange={onColorChange} label={`${title} color`} />
       )}
 
-      <span className={twMerge("min-w-0 flex-1", titleTruncate && "truncate")}>{title}</span>
+      <SectionRowTitle ref={titleRef} title={title} onRename={onRename} />
 
+      {/* Loading Indicator */}
       {isLoading && <LoaderDots rows={1} cols={6} />}
 
       {/* Custom Actions */}
       {actions}
 
+      {/* Count Badge */}
       {count != null && <Badge>{count}</Badge>}
 
+      {/* Visibility Toggle */}
       {toggle}
     </div>
   );
-}
+});

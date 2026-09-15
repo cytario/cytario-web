@@ -26,9 +26,9 @@ const COLOR_PALLETTE_WITH_WHITE: RGB[] = [
 
 interface ColorPickerProps {
   colors: (RGB | RGBA)[];
-  /** Absent: read-only — renders the swatch(es) statically, without the picker popover. */
+  /** Absent: read-only static swatch(es), no picker popover. */
   onColorChange?: (color: RGB | RGBA) => void;
-  /** Accessible name for the swatch/trigger (e.g. the class/channel it colors). */
+  /** Accessible name for the swatch/trigger. */
   label?: string;
 }
 
@@ -46,9 +46,8 @@ export function ColorPicker({ colors, onColorChange, label }: ColorPickerProps) 
     onColorChange(alpha != null ? [...rgbChoice, alpha] : rgbChoice);
 
   return (
-    // Isolate trigger events from any parent press target (e.g. RAC <Radio>):
-    // mousedown bubbling into the parent puts it in "press" state, whose global
-    // listener then preventDefaults nested input clicks (the hex field).
+    // Stop mousedown/pointerdown reaching a parent press target (RAC <Radio>),
+    // whose global listener would preventDefault the nested hex-field input.
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       onClick={(e) => e.stopPropagation()}

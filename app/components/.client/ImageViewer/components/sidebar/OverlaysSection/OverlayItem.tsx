@@ -208,7 +208,6 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
                   countMax={isVisible ? maxDomain : undefined}
                   colors={[color]}
                   onColorChange={(c: RGBA) => setMarkerColor(resourceId, markerName, c)}
-                  colorLabel={`${name} color`}
                   title={name}
                   toggle={
                     <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>

@@ -1,12 +1,12 @@
-import { IconButton, Menu, MenuItem, TruncatedText } from "@cytario/design";
-import { KeyboardEvent, useEffect, useRef, useState } from "react";
+import { IconButton, Menu, MenuItem } from "@cytario/design";
+import { useRef } from "react";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { ViewStateIcon, type ViewKey } from "./ViewStateIcon";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForLayer, select } from "../../../state/store/selectors";
-import { SectionRow } from "../SectionRow/SectionRow";
+import { SectionRow, type SectionRowHandle } from "../SectionRow/SectionRow";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -33,9 +33,7 @@ export function ViewRadioButton({
   const shareView = useViewerStore((s) => s.shareView);
   const unshareView = useViewerStore((s) => s.unshareView);
   const forkView = useViewerStore((s) => s.forkView);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const sectionRowRef = useRef<SectionRowHandle>(null);
 
   const channelsState = useViewerStore(channelsStateForLayer(index));
   const colors = Object.values(channelsState ?? {})
@@ -45,41 +43,9 @@ export function ViewRadioButton({
   const isOwnView = viewState !== "sharedByOthers";
   const isShared = viewState === "sharedByMe";
 
-  const startEditing = () => {
-    setEditValue(viewName);
-    setIsEditing(true);
-  };
-
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [isEditing]);
-
-  const commitEdit = () => {
-    const trimmed = editValue.trim();
-    setViewName(index, trimmed || null);
-    setIsEditing(false);
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitEdit();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      cancelEdit();
-    }
-  };
-
   const ownMenuItems = (
     <>
-      <MenuItem id="rename" icon="Pencil" onAction={startEditing}>
+      <MenuItem id="rename" icon="Pencil" onAction={() => sectionRowRef.current?.startRename()}>
         Rename
       </MenuItem>
       {accessLevel !== "read-only" && (
@@ -114,38 +80,11 @@ export function ViewRadioButton({
       )}
     >
       <SectionRow
+        ref={sectionRowRef}
         selected={isActive}
         colors={colors}
-
-        titleTruncate={!isEditing}
-        title={
-          isEditing && isOwnView ? (
-            <input
-              ref={inputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={handleKeyDown}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              className={twMerge(
-                "w-full min-w-0 h-full px-1",
-                "bg-background border border-ring rounded-sm",
-                "text-sm outline-none",
-              )}
-            />
-          ) : (
-            <span
-              onDoubleClick={(e) => {
-                if (!isOwnView) return;
-                e.stopPropagation();
-                startEditing();
-              }}
-            >
-              <TruncatedText>{viewName}</TruncatedText>
-            </span>
-          )
-        }
+        title={viewName}
+        onRename={isOwnView ? (next) => setViewName(index, next) : undefined}
         actions={
           <>
             <ViewStateIcon viewState={viewState} />
