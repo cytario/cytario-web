@@ -6,7 +6,9 @@ import { OverlayConfigModal } from "./OverlayConfig.modal";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { type OverlayEntry, RGBA } from "../../../state/store/types";
+import { AccordionToggle } from "../AccordionToggle";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
+import { SectionGrid } from "../SectionRow/SectionGrid";
 import { SectionRow } from "../SectionRow/SectionRow";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
@@ -136,6 +138,7 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
       {/* File row: clicking the name toggles the marker list; navigation,
           reconfiguration and removal live in the node's context menu. */}
       <div className="flex items-center gap-2 p-2">
+        <AccordionToggle name={fileName} isOpen={isOpen} onToggle={() => setIsOpen(!isOpen)} />
         <NodeLink
           node={node}
           onClick={() => setIsOpen(!isOpen)}
@@ -184,7 +187,7 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
           markers have no selected-item concept) names the marker list for
           assistive tech and scopes it for tests. */}
       {isOpen && (
-        <div role="group" aria-label="Overlay markers" className="flex flex-col gap-2 px-2">
+        <div role="group" aria-label="Overlay markers">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 p-4">
               <LoaderView label="Loading markers…" />
@@ -194,34 +197,38 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
               )}
             </div>
           ) : hasMarkers ? (
-            Object.entries(overlayState).map(([markerName, { color, count, isVisible, label }]) => {
-              const name =
-                label ??
-                (markerName.startsWith(MARKER_POSITIVE_PREFIX)
-                  ? markerName.slice(MARKER_POSITIVE_PREFIX.length)
-                  : markerName);
-              return (
-                <SectionRow
-                  key={markerName}
-                  className={isVisible ? "text-foreground" : "text-muted-foreground"}
-                  count={count > 0 ? count : undefined}
-                  countMax={isVisible ? maxDomain : undefined}
-                  colors={[color]}
-                  onColorChange={(c: RGBA) => setMarkerColor(resourceId, markerName, c)}
-                  title={name}
-                  toggle={
-                    <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
-                      <Switch
-                        isSelected={isVisible}
-                        onChange={() => setMarkerVisibility(resourceId, markerName, !isVisible)}
-                        color={rgb(color)}
-                        aria-label={`Toggle ${name} visibility`}
-                      />
-                    </Tooltip>
-                  }
-                />
-              );
-            })
+            <SectionGrid>
+              {Object.entries(overlayState).map(
+                ([markerName, { color, count, isVisible, label }]) => {
+                  const name =
+                    label ??
+                    (markerName.startsWith(MARKER_POSITIVE_PREFIX)
+                      ? markerName.slice(MARKER_POSITIVE_PREFIX.length)
+                      : markerName);
+                  return (
+                    <SectionRow
+                      key={markerName}
+                      className={isVisible ? "text-foreground" : "text-muted-foreground"}
+                      count={count > 0 ? count : undefined}
+                      countMax={isVisible ? maxDomain : undefined}
+                      colors={[color]}
+                      onColorChange={(c: RGBA) => setMarkerColor(resourceId, markerName, c)}
+                      title={name}
+                      toggle={
+                        <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
+                          <Switch
+                            isSelected={isVisible}
+                            onChange={() => setMarkerVisibility(resourceId, markerName, !isVisible)}
+                            color={rgb(color)}
+                            aria-label={`Toggle ${name} visibility`}
+                          />
+                        </Tooltip>
+                      }
+                    />
+                  );
+                },
+              )}
+            </SectionGrid>
           ) : (
             <div className="p-4 text-sm text-muted-foreground">
               No markers found in this overlay

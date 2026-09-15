@@ -1,5 +1,5 @@
 import { Switch, Tooltip } from "@cytario/design";
-import { Radio } from "react-aria-components";
+import { RadioButton, RadioField } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { BRIGHTFIELD_CHANNEL_COUNT, MAX_VISIBLE_CHANNELS } from "./constants";
@@ -53,23 +53,25 @@ export function ChannelBrightfieldItem({
     tooltip = `Only ${MAX_VISIBLE_CHANNELS} channels can be visible at once (Brightfield uses ${BRIGHTFIELD_CHANNEL_COUNT})`;
 
   return (
-    <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
-      <SectionRow
-        title="Brightfield"
-        isSelected={isSelected}
-        isLoading={isLoading}
-        colors={BRIGHTFIELD_RGB}
-        toggle={
-          <Tooltip content={tooltip}>
-            <Switch
-              isSelected={isVisible}
-              onChange={() => toggleVisibility()}
-              color="var(--color-muted-foreground)"
-              isDisabled={disabled}
-            />
-          </Tooltip>
-        }
-      />
-    </Radio>
+    <RadioField value={BRIGHTFIELD_GROUP_ID}>
+      <RadioButton className={cx}>
+        <SectionRow
+          title="Brightfield"
+          isSelected={isSelected}
+          isLoading={isLoading}
+          colors={BRIGHTFIELD_RGB}
+          toggle={
+            <Tooltip content={tooltip}>
+              <Switch
+                isSelected={isVisible}
+                onChange={() => toggleVisibility()}
+                color="var(--color-muted-foreground)"
+                isDisabled={disabled}
+              />
+            </Tooltip>
+          }
+        />
+      </RadioButton>
+    </RadioField>
   );
 }

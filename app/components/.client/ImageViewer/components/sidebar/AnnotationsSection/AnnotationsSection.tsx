@@ -9,7 +9,6 @@ import {
   useToast,
 } from "@cytario/design";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { twMerge } from "tailwind-merge";
 
 import { AnnotationsList } from "./AnnotationsList";
 import {
@@ -19,6 +18,7 @@ import {
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
+import { AccordionToggle } from "../AccordionToggle";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { SearchInput } from "~/components/SearchInput";
@@ -99,18 +99,7 @@ const AnnotationFileBlock = ({
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
         {/* Accordion chevron, mirroring the tree views' expand affordance. */}
-        <IconButton
-          icon="ChevronRight"
-          label={isOpen ? `Collapse ${label}` : `Expand ${label}`}
-          variant="ghost"
-          size="xs"
-          onPress={() => setIsOpen(!isOpen)}
-          className={twMerge(
-            "shrink-0 transition-transform text-muted-foreground",
-            isOpen && "rotate-90",
-            isOpen && "text-foreground",
-          )}
-        />
+        <AccordionToggle name={label} isOpen={isOpen} onToggle={() => setIsOpen(!isOpen)} />
         {isRenaming ? (
           <input
             ref={renameInputRef}
