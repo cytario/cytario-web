@@ -20,6 +20,9 @@ export const noopHostCapabilities: HostCapabilities = {
   assumeComputeRole: () => Promise.reject(new Error("host capabilities are server-only")),
   exchangeToken: () => Promise.reject(new Error("host capabilities are server-only")),
   revokeGrant: () => Promise.reject(new Error("host capabilities are server-only")),
+  brokerPublicUrl: () => {
+    throw new Error("host capabilities are server-only");
+  },
   jobLedger: () => {
     throw new Error("host capabilities are server-only");
   },

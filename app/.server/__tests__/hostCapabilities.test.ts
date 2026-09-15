@@ -1146,6 +1146,7 @@ describe("noopHostCapabilities (client-side sink)", () => {
     await expect(noopHostCapabilities.assumeComputeRole()).rejects.toThrow("server-only");
     await expect(noopHostCapabilities.exchangeToken()).rejects.toThrow("server-only");
     await expect(noopHostCapabilities.revokeGrant("sess-1")).rejects.toThrow("server-only");
+    expect(() => noopHostCapabilities.brokerPublicUrl()).toThrow("server-only");
     expect(() => noopHostCapabilities.jobLedger()).toThrow("server-only");
   });
 });
