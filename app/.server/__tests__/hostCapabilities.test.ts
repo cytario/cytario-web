@@ -1149,3 +1149,25 @@ describe("noopHostCapabilities (client-side sink)", () => {
     expect(() => noopHostCapabilities.jobLedger()).toThrow("server-only");
   });
 });
+
+describe("brokerPublicUrl (SRS-CY-416101)", () => {
+  // `cytarioConfig` is baked from process.env at module load, so each case
+  // re-imports the module graph with the env stubbed.
+  test("returns the configured BROKER_PUBLIC_URL when set", async () => {
+    vi.stubEnv("BROKER_PUBLIC_URL", "https://public.example.com");
+    vi.stubEnv("WEB_HOST", "https://internal.example.com");
+    vi.resetModules();
+    const { hostCapabilities: fresh } = await import("../hostCapabilities");
+    expect(fresh.brokerPublicUrl()).toBe("https://public.example.com");
+    vi.unstubAllEnvs();
+  });
+
+  test("falls back to the browser origin when BROKER_PUBLIC_URL is unset", async () => {
+    vi.stubEnv("BROKER_PUBLIC_URL", "");
+    vi.stubEnv("WEB_HOST", "https://internal.example.com");
+    vi.resetModules();
+    const { hostCapabilities: fresh } = await import("../hostCapabilities");
+    expect(fresh.brokerPublicUrl()).toBe("https://internal.example.com");
+    vi.unstubAllEnvs();
+  });
+});
