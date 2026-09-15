@@ -3,6 +3,7 @@ import { useRouteLoaderData } from "react-router";
 import { type UserProfile } from "~/.server/auth/getUserInfo";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
+import { HelpMenu } from "~/components/HelpMenu";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { ExplorerSidebarToggle } from "~/components/Sidebar/Explorer/ExplorerSidebarToggle";
 import { UserMenu } from "~/components/UserMenu";
@@ -12,6 +13,9 @@ interface RootLoaderResponse {
   notification?: NotificationInput;
   accountSettingsUrl?: string;
   portalUrl?: string;
+  docsUrl?: string;
+  supportEmail?: string;
+  version?: string;
 }
 
 export function AppHeader() {
@@ -43,6 +47,13 @@ export function AppHeader() {
             user={data.user}
             accountSettingsUrl={data.accountSettingsUrl}
             portalUrl={data?.portalUrl}
+          />
+        )}
+        {data?.user && data.version && (
+          <HelpMenu
+            version={data.version}
+            docsUrl={data.docsUrl}
+            supportEmail={data.supportEmail}
           />
         )}
       </div>

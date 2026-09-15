@@ -67,6 +67,9 @@ export interface RootLoaderResponse {
   notification?: NotificationInput;
   accountSettingsUrl?: string;
   portalUrl?: string;
+  docsUrl?: string;
+  supportEmail?: string;
+  version?: string;
 }
 
 export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
@@ -84,8 +87,11 @@ export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoade
     : undefined;
 
   const portalUrl = user ? cytarioConfig.endpoints.portal : undefined;
+  const docsUrl = user ? cytarioConfig.endpoints.docsUrl : undefined;
+  const supportEmail = user ? cytarioConfig.support?.email : undefined;
+  const version = process.env.VERSION ?? "unknown";
 
-  return { user, notification, accountSettingsUrl, portalUrl };
+  return { user, notification, accountSettingsUrl, portalUrl, docsUrl, supportEmail, version };
 };
 
 // Identity clientLoader. Forces this route off RR's bulk-fetch single-fetch
