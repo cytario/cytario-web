@@ -266,7 +266,7 @@ export const OverlaysLayer = ({
         markerMasks[i] = fullBitmask[i] & enabledBitmask;
       }
 
-      const getLineWidth = 3;
+      const getLineWidth = 1;
       const lineWidthMinPixels = 1;
 
       // Create polygon accessor function
