@@ -24,6 +24,13 @@ describe("isLeafDirectory", () => {
     expect(isLeafDirectory("data.zarr")).toBe(true);
   });
 
+  test("detects .sdata stores with and without the .zarr suffix", () => {
+    expect(isLeafDirectory("Xenium_Protein_HumanKidney_tiny.sdata")).toBe(true);
+    expect(isLeafDirectory("MIBI-TOF_CRC.sdata/")).toBe(true);
+    expect(isLeafDirectory("dataset.sdata.zarr")).toBe(true);
+    expect(isLeafDirectory("MIBI-TOF_CRC.sdata.zip")).toBe(false);
+  });
+
   test("detects .ome.zarr", () => {
     expect(isLeafDirectory("sample.ome.zarr")).toBe(true);
   });
