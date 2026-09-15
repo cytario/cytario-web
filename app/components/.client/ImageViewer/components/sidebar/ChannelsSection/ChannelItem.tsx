@@ -16,9 +16,9 @@ interface ChannelItemProps {
   isLoading: boolean;
   pixelValue: number;
   maxDomain: number;
-  visibleChannelCount?: number;
+  visibleChannelCount: number;
   toggleChannelVisibility: () => void;
-  onColorChange?: (color: RGBA) => void;
+  onColorChange: (color: RGBA) => void;
 }
 
 /** Individual channel row in the ChannelsSection: a RAC Radio (channel selection)
@@ -31,12 +31,12 @@ export function ChannelItem({
   color,
   pixelValue,
   maxDomain,
-  visibleChannelCount = 0,
+  visibleChannelCount,
   toggleChannelVisibility,
   onColorChange,
 }: ChannelItemProps) {
   const selectedChannelId = useViewerStore(select.selectedChannelId);
-  const isActive = selectedChannelId === name;
+  const isSelected = selectedChannelId === name;
 
   const cx = twMerge(
     `
@@ -59,7 +59,7 @@ export function ChannelItem({
   return (
     <Radio key={name} value={name} className={cx}>
       <SectionRow
-        selected={isActive}
+        isSelected={isSelected}
         isLoading={isLoading}
         count={pixelValue > 0 ? pixelValue : undefined}
         countMax={isVisible ? maxDomain : undefined}

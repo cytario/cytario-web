@@ -23,7 +23,7 @@ interface SectionRowProps {
   /** Picker's RGB choice, re-attached to the original alpha. */
   onColorChange?(color: RGB | RGBA): void;
   toggle?: ReactNode;
-  selected?: boolean;
+  isSelected?: boolean;
   className?: string;
   isLoading?: boolean;
 }
@@ -39,7 +39,7 @@ export const SectionRow = forwardRef<SectionRowHandle, SectionRowProps>(function
     count,
     countMax,
     toggle,
-    selected,
+    isSelected,
     className,
     isLoading = false,
   },
@@ -53,11 +53,12 @@ export const SectionRow = forwardRef<SectionRowHandle, SectionRowProps>(function
       group/controlrow
       relative flex items-center
       gap-1 rounded-full
-      px-1 py-1
+      p-1 h-7
       font-medium text-sm
       hover:bg-muted
+      transition-colors
     `,
-    selected && "bg-muted",
+    isSelected && "bg-muted",
     className,
   );
 

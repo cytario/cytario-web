@@ -27,7 +27,7 @@ export function ViewRadioButton({
     (s) => s.connections[connectionId]?.provider?.accessLevel ?? "read-only",
   );
   const activePresetIndex = useViewerStore(select.activePresetIndex);
-  const isActive = activePresetIndex === index;
+  const isSelected = activePresetIndex === index;
   const viewName = useViewerStore(select.viewName(index));
   const setViewName = useViewerStore(select.setViewName);
   const shareView = useViewerStore((s) => s.shareView);
@@ -81,7 +81,7 @@ export function ViewRadioButton({
     >
       <SectionRow
         ref={sectionRowRef}
-        selected={isActive}
+        isSelected={isSelected}
         colors={colors}
         title={viewName}
         onRename={isOwnView ? (next) => setViewName(index, next) : undefined}

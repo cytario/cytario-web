@@ -15,7 +15,7 @@ interface AnnotationGroupRowProps {
   onToggleVisibility: () => void;
   onColorChange?: (color: RGB) => void;
   /** Own set only: this group is the active class new regions are drawn into. */
-  isActive?: boolean;
+  isSelected?: boolean;
   /** Own set only: commit an edited class name. */
   onRename?: (newName: string) => void;
   /** Own set only: delete this class (drops the registry entry, unclassifies members). */
@@ -35,7 +35,7 @@ export function AnnotationGroupRow({
   isVisible,
   onToggleVisibility,
   onColorChange,
-  isActive,
+  isSelected,
   onRename,
   onDelete,
 }: AnnotationGroupRowProps) {
@@ -46,7 +46,7 @@ export function AnnotationGroupRow({
   return (
     <SectionRow
       ref={sectionRowRef}
-      selected={isActive}
+      isSelected={isSelected}
       colors={[swatch]}
       onColorChange={canRecolor ? onColorChange : undefined}
       title={name}

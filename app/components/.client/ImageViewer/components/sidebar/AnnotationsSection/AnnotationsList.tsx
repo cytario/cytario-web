@@ -211,7 +211,9 @@ export const AnnotationsList = ({
               onColorChange={
                 editable && color ? (color) => setClassColor(setId, name, color) : undefined
               }
-              isActive={editable && (isUnclassified ? activeClass === null : activeClass === name)}
+              isSelected={
+                editable && (isUnclassified ? activeClass === null : activeClass === name)
+              }
               onRename={
                 // Named classes only — new classes are created via "Add class",
                 // so the Unclassified bucket is never renamed.

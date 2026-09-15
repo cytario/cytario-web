@@ -29,7 +29,7 @@ export function ChannelBrightfieldItem({
   toggleVisibility,
 }: ChannelBrightfieldItemProps) {
   const selectedChannelId = useViewerStore(select.selectedChannelId);
-  const isActive = selectedChannelId === BRIGHTFIELD_GROUP_ID;
+  const isSelected = selectedChannelId === BRIGHTFIELD_GROUP_ID;
 
   const cx = twMerge(
     `
@@ -56,7 +56,7 @@ export function ChannelBrightfieldItem({
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
       <SectionRow
         title="Brightfield"
-        selected={isActive}
+        isSelected={isSelected}
         isLoading={isLoading}
         colors={BRIGHTFIELD_RGB}
         toggle={
