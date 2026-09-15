@@ -1,4 +1,4 @@
-import { CATEGORICAL_COLORS } from "../../../categoricalColors";
+import { CATEGORICAL_COLORS } from "../../../components/sidebar/ChannelsSection/ColorPicker/categoricalColors";
 import type { RGB } from "../types";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 

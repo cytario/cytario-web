@@ -2,11 +2,19 @@ import { Switch, Tooltip } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
+import { ColorSwatch } from "./ColorPicker/ColorSwatch";
 import { BRIGHTFIELD_CHANNEL_COUNT, MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { BRIGHTFIELD_GROUP_ID } from "../../../state/store/types";
+import { BRIGHTFIELD_GROUP_ID, RGB } from "../../../state/store/types";
 import { ControlRow } from "../ControlRow";
+
+// Literal RGB channel colors — content, not UI state; deliberately not design tokens.
+const BRIGHTFIELD_RGB: RGB[] = [
+  [239, 68, 68],
+  [34, 197, 94],
+  [59, 130, 246],
+];
 
 interface ChannelBrightfieldItemProps {
   isVisible: boolean;
@@ -51,15 +59,7 @@ export function ChannelBrightfieldItem({
         selected={isActive}
         isLoading={isLoading}
         swatch={
-          <span
-            aria-hidden
-            className="flex h-5 w-5 shrink-0 overflow-hidden rounded-full border-2 border-border"
-          >
-            {/* Literal RGB channel colors — content, not UI state; deliberately not design tokens. */}
-            <span className="grow h-full bg-[#ef4444]" />
-            <span className="grow h-full bg-[#22c55e]" />
-            <span className="grow h-full bg-[#3b82f6]" />
-          </span>
+          <ColorSwatch colors={BRIGHTFIELD_RGB} isDisabled aria-label="Brightfield channels" />
         }
         title="Brightfield"
         toggle={

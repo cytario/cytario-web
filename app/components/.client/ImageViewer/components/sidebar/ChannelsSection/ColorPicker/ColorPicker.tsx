@@ -9,8 +9,8 @@ import {
   SliderTrack,
 } from "react-aria-components";
 
-import { ColorSwatch } from "./ColorSwatch";
-import { CATEGORICAL_COLORS } from "../../../../categoricalColors";
+import { CATEGORICAL_COLORS } from "./categoricalColors";
+import { ColorSwatch, hex } from "./ColorSwatch";
 import { RGB, RGBA } from "../../../../state/store/types";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
@@ -35,7 +35,7 @@ interface ColorPickerProps {
 
 export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPickerProps) {
   if (isDisabled) {
-    return <ColorSwatch color={color} isDisabled aria-label={label ?? "Color"} />;
+    return <ColorSwatch colors={[color]} isDisabled aria-label={label ?? "Color"} />;
   }
 
   return (
@@ -50,7 +50,7 @@ export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPi
     >
       <Popover>
         {/* ColorSwatch as PopoverTrigger */}
-        <ColorSwatch color={color} aria-label={label ? `Edit ${label}` : "Open color picker"} />
+        <ColorSwatch colors={[color]} aria-label={label ? `Edit ${label}` : "Open color picker"} />
 
         <PopoverContent placement="bottom start" data-theme="dark">
           <RacColorPicker
@@ -66,12 +66,12 @@ export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPi
           >
             <div className="flex flex-col">
               <div className="flex items-center px-2 py-1">
-                {COLOR_PALLETTE_WITH_WHITE.map((color, index) => (
+                {COLOR_PALLETTE_WITH_WHITE.map((preset, index) => (
                   <ColorSwatch
                     key={index}
-                    color={color}
-                    onPress={() => onColorChange?.(color)}
-                    aria-label={`Preset color ${color}`}
+                    colors={[preset]}
+                    onPress={() => onColorChange?.(preset)}
+                    aria-label={`Preset color ${hex(preset)}`}
                   />
                 ))}
               </div>

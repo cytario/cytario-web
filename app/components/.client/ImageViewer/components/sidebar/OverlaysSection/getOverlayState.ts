@@ -1,8 +1,12 @@
-import { categoricalColorAt } from "../../../categoricalColors";
-import { OverlayState } from "../../../state/store/types";
+import { OverlayState, RGBA } from "../../../state/store/types";
+import { CATEGORICAL_COLORS } from "../ChannelsSection/ColorPicker/categoricalColors";
 import { type OverlayConfig, MARKER_POSITIVE_PREFIX } from "~/utils/db/overlayConfig";
 
 export type MarkerInfo = Record<string, { count: number }>;
+
+/** The palette color for a marker index, cycling once exhausted. */
+const categoricalColorAt = (index: number): RGBA =>
+  CATEGORICAL_COLORS[index % CATEGORICAL_COLORS.length];
 
 /** Display label for a marker: config label wins, else the prefix-stripped key. */
 export function markerDisplayLabel(markerKey: string, config?: OverlayConfig | null): string {

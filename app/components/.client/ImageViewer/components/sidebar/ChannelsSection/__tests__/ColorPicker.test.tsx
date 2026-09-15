@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-import { CATEGORICAL_COLORS } from "../../../../categoricalColors";
+import { CATEGORICAL_COLORS } from "../ColorPicker/categoricalColors";
 import { ColorPicker } from "../ColorPicker/ColorPicker";
 
 const RED_RGB: [number, number, number] = [255, 0, 0];

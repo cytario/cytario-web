@@ -54,8 +54,7 @@ export function ControlRow({
   return (
     <div className={cx}>
       {accessory}
-      {/* w-6 gutter mirrors NodeLink's NodeIndicator so stacked file rows and
-          control rows share the same title left edge. */}
+
       {swatch && (
         <span className="flex h-6 w-6 shrink-0 items-center justify-center">{swatch}</span>
       )}

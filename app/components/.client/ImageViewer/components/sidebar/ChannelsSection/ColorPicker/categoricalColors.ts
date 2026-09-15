@@ -1,4 +1,4 @@
-import { RGBA } from "./state/store/types";
+import { RGBA } from "../../../../state/store/types";
 
 /**
  * The viewer's shared categorical palette: 8 visually distinct colors (matches
@@ -16,7 +16,3 @@ export const CATEGORICAL_COLORS: RGBA[] = [
   [128, 0, 255, 255], // Violet
   [255, 0, 255, 255], // Magenta
 ];
-
-/** The palette color for an index, cycling once exhausted. */
-export const categoricalColorAt = (index: number): RGBA =>
-  CATEGORICAL_COLORS[index % CATEGORICAL_COLORS.length];

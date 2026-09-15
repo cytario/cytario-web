@@ -1,6 +1,6 @@
 import type { SupportedDtype } from "@vivjs/types";
 
-import { CATEGORICAL_COLORS } from "../../../categoricalColors";
+import { CATEGORICAL_COLORS } from "../../../components/sidebar/ChannelsSection/ColorPicker/categoricalColors";
 import { getDtypeMax } from "../../../utils/getDtypeMax";
 import { Channel, Image, Loader } from "../core/ome.tif.types";
 import { ChannelConfig, ChannelsState, RGB } from "../types";
