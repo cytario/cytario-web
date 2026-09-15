@@ -5,8 +5,8 @@ import { getOverlayState } from "./getOverlayState";
 import { OverlayConfigModal } from "./OverlayConfig.modal";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { type OverlayEntry } from "../../../state/store/types";
-import { ColorPicker, rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
+import { type OverlayEntry, RGBA } from "../../../state/store/types";
+import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 import { ControlRow } from "../ControlRow";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
@@ -204,30 +204,12 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
                 <ControlRow
                   key={markerName}
                   className={isVisible ? "text-foreground" : "text-muted-foreground"}
-                  accessory={
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5">
-                      {isVisible && (
-                        <div
-                          className="h-full"
-                          style={{
-                            width: `${(count / maxDomain) * 100}%`,
-                            backgroundColor: rgb(color),
-                          }}
-                        />
-                      )}
-                    </div>
-                  }
-                  swatch={
-                    // Picker is RGB; the marker color keeps its alpha across a recolor.
-                    <ColorPicker
-                      color={[color[0], color[1], color[2]]}
-                      onColorChange={(c) =>
-                        setMarkerColor(resourceId, markerName, [...c, color[3]])
-                      }
-                    />
-                  }
-                  title={name}
                   count={count > 0 ? count : undefined}
+                  countMax={isVisible ? maxDomain : undefined}
+                  colors={[color]}
+                  onColorChange={(c: RGBA) => setMarkerColor(resourceId, markerName, c)}
+                  colorLabel={`${name} color`}
+                  title={name}
                   toggle={
                     <Tooltip content={`${isVisible ? "Hide" : "Show"} ${name}`}>
                       <Switch

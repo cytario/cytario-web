@@ -2,7 +2,7 @@ import { Switch, Tooltip } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
+import { rgb } from "./ColorPicker/ColorPicker";
 import { MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
@@ -42,10 +42,10 @@ export function ChannelItem({
     `
       group/radio
       cursor-pointer
+      text-muted-foreground
       focus:outline-none
       focus-visible:outline-1
       focus-visible:outline-foreground
-      text-muted-foreground
       transition-colors
     `,
     isVisible && "text-foreground",
@@ -61,30 +61,12 @@ export function ChannelItem({
       <ControlRow
         selected={isActive}
         isLoading={isLoading}
-        accessory={
-          <>
-            <div className="absolute bottom-0 left-0 right-0 h-0.5">
-              {isVisible && (
-                <div
-                  className="h-full"
-                  style={{
-                    width: `${(pixelValue / maxDomain) * 100}%`,
-                    backgroundColor: rgb(color),
-                  }}
-                />
-              )}
-            </div>
-          </>
-        }
-        swatch={
-          // Picker is RGB; the channel color keeps its alpha across a recolor.
-          <ColorPicker
-            color={[color[0], color[1], color[2]]}
-            onColorChange={onColorChange ? (c) => onColorChange([...c, color[3]]) : undefined}
-          />
-        }
-        title={name}
         count={pixelValue > 0 ? pixelValue : undefined}
+        countMax={isVisible ? maxDomain : undefined}
+        colors={[color]}
+        onColorChange={onColorChange}
+        colorLabel={`${name} color`}
+        title={name}
         toggle={
           <Tooltip content={tooltip}>
             <Switch

@@ -26,16 +26,15 @@ const COLOR_PALLETTE_WITH_WHITE: RGB[] = [
 
 interface ColorPickerProps {
   color: RGB;
+  /** Absent: read-only — render the swatch statically, without the picker popover. */
   onColorChange?: (color: RGB) => void;
-  /** Read-only: render the swatch statically, without the picker popover. */
-  isDisabled?: boolean;
   /** Accessible name for the swatch/trigger (e.g. the class/channel it colors). */
   label?: string;
 }
 
-export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPickerProps) {
-  if (isDisabled) {
-    return <ColorSwatch colors={[color]} isDisabled aria-label={label ?? "Color"} />;
+export function ColorPicker({ color, onColorChange, label }: ColorPickerProps) {
+  if (!onColorChange) {
+    return <ColorSwatch colors={[color]} isDisabled />;
   }
 
   return (
@@ -57,7 +56,7 @@ export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPi
             value={parseColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`).toFormat("hsb")}
             onChange={(color) => {
               const rgb = color.toFormat("rgb");
-              onColorChange?.([
+              onColorChange([
                 rgb.getChannelValue("red"),
                 rgb.getChannelValue("green"),
                 rgb.getChannelValue("blue"),
@@ -70,7 +69,7 @@ export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPi
                   <ColorSwatch
                     key={index}
                     colors={[preset]}
-                    onPress={() => onColorChange?.(preset)}
+                    onPress={() => onColorChange(preset)}
                     aria-label={`Preset color ${hex(preset)}`}
                   />
                 ))}

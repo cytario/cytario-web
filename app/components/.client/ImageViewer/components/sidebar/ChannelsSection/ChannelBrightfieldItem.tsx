@@ -2,7 +2,6 @@ import { Switch, Tooltip } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { ColorSwatch } from "./ColorPicker/ColorSwatch";
 import { BRIGHTFIELD_CHANNEL_COUNT, MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
@@ -56,12 +55,11 @@ export function ChannelBrightfieldItem({
   return (
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
       <ControlRow
+        title="Brightfield"
         selected={isActive}
         isLoading={isLoading}
-        swatch={
-          <ColorSwatch colors={BRIGHTFIELD_RGB} isDisabled aria-label="Brightfield channels" />
-        }
-        title="Brightfield"
+        colors={BRIGHTFIELD_RGB}
+        colorLabel="Brightfield channels"
         toggle={
           <Tooltip content={tooltip}>
             <Switch

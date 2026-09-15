@@ -3,10 +3,9 @@ import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { ViewLabel } from "./ViewLabel";
 import { ViewStateIcon, type ViewKey } from "./ViewStateIcon";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
-import { select } from "../../../state/store/selectors";
+import { channelsStateForLayer, select } from "../../../state/store/selectors";
 import { ControlRow } from "../ControlRow";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
@@ -37,6 +36,11 @@ export function ViewRadioButton({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const channelsState = useViewerStore(channelsStateForLayer(index));
+  const colors = Object.values(channelsState ?? {})
+    .filter(({ isVisible }) => isVisible)
+    .map(({ color }) => color);
 
   const isOwnView = viewState !== "sharedByOthers";
   const isShared = viewState === "sharedByMe";
@@ -111,7 +115,7 @@ export function ViewRadioButton({
     >
       <ControlRow
         selected={isActive}
-        swatch={<ViewLabel index={index} />}
+        colors={colors}
 
         titleTruncate={!isEditing}
         title={

@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 
 import { UNCLASSIFIED_COLOR } from "../../../state/store/annotations/annotations.store";
 import { RGB } from "../../../state/store/types";
-import { ColorPicker, rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
+import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
 import { ControlRow } from "../ControlRow";
 
 interface AnnotationGroupRowProps {
@@ -77,14 +77,9 @@ export function AnnotationGroupRow({
     <ControlRow
       selected={isActive}
       titleTruncate={!editing}
-      swatch={
-        <ColorPicker
-          color={swatch}
-          onColorChange={onColorChange}
-          isDisabled={!canRecolor}
-          label={`${name} color`}
-        />
-      }
+      colors={[swatch]}
+      onColorChange={canRecolor ? onColorChange : undefined}
+      colorLabel={`${name} color`}
       title={
         editing ? (
           <Input
