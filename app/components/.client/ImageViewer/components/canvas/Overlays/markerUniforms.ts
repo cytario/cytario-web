@@ -2,53 +2,46 @@ import type { ShaderModule } from "@luma.gl/shadertools";
 
 import { RGBA } from "../../../state/store/types";
 
+// One color slot per marker bit (32), so each marker keeps an independent color.
+const COLOR_SLOT_COUNT = 32;
+
+type Enumerate<N extends number, Acc extends number[] = []> = Acc["length"] extends N
+  ? Acc[number]
+  : Enumerate<N, [...Acc, Acc["length"]]>;
+
+type ColorSlot = `color${Enumerate<typeof COLOR_SLOT_COUNT>}`;
+
+const colorSlotNames = Array.from(
+  { length: COLOR_SLOT_COUNT },
+  (_, i) => `color${i}`,
+) as ColorSlot[];
+
+const colorUniformTypes = Object.fromEntries(
+  colorSlotNames.map((name) => [name, "vec4<f32>"]),
+) as Record<ColorSlot, "vec4<f32>">;
+
 // GLSL uniform block declaration for marker colors and opacity
 const uniformBlock = /* glsl */ `\
   uniform markerUniforms {
-    vec4 color0;
-    vec4 color1;
-    vec4 color2;
-    vec4 color3;
-    vec4 color4;
-    vec4 color5;
-    vec4 color6;
-    vec4 color7;
+${colorSlotNames.map((name) => `    vec4 ${name};`).join("\n")}
     float opacity;
   } marker;
 `;
 
 // TypeScript type for marker color props
-export type MarkerProps = {
-  color0: RGBA;
-  color1: RGBA;
-  color2: RGBA;
-  color3: RGBA;
-  color4: RGBA;
-  color5: RGBA;
-  color6: RGBA;
-  color7: RGBA;
-  opacity: number;
-};
+export type MarkerProps = Record<ColorSlot, RGBA> & { opacity: number };
 
 export interface MarkerLayerProps {
   markerProps?: MarkerProps;
   getMarkerMask?: (d: unknown, info: { index: number; data: unknown; target: unknown[] }) => number; // Returns a 32-bit bitmask
 }
 
-// Export the ShaderModule with uniform types
 export const markerUniforms = {
   name: "marker",
   vs: "", // Not needed in vertex shader
   fs: uniformBlock, // Add to fragment shader
   uniformTypes: {
-    color0: "vec4<f32>",
-    color1: "vec4<f32>",
-    color2: "vec4<f32>",
-    color3: "vec4<f32>",
-    color4: "vec4<f32>",
-    color5: "vec4<f32>",
-    color6: "vec4<f32>",
-    color7: "vec4<f32>",
+    ...colorUniformTypes,
     opacity: "f32",
   },
 } as const satisfies ShaderModule<MarkerProps>;
@@ -56,19 +49,9 @@ export const markerUniforms = {
 /**
  * Create MarkerProps from fileMarkers record.
  *
- * The shader supports 32 marker bits but only 8 color slots (the bit-to-color
- * mapping is `i % 8` in the fragment shader). Multiple markers can therefore
- * collide on a single slot; the OverlaysSection exposes a per-marker color
- * picker that lets the user override any individual marker's color.
- *
- * Slot assignment is FIRST-wins: slot `s` takes its color from
- * `fileMarkers[keys[s]]` (the lowest-indexed marker that maps to that slot).
- * Last-wins (the previous behaviour) caused C-180: editing the colour of any
- * marker with index < 8 had no visible effect once a higher-indexed marker
- * shared its slot, because the higher index silently overwrote the slot on
- * every recompute. Markers at indices 8+ still cycle through the same eight
- * colour slots — a fundamental limit of the 8-slot shader uniform — so they
- * render in the colour of their cycle partner.
+ * Each of the 32 marker bits maps to its own color slot, so every marker keeps
+ * the color it was assigned (default palette or custom hex). Markers past the
+ * record's length fall back to transparent black.
  */
 export function createMarkerProps(
   fileMarkers: Record<string, { color: RGBA }>,
@@ -81,43 +64,27 @@ export function createMarkerProps(
     return c ? [c[0], c[1], c[2], 1.0] : [0, 0, 0, 0];
   };
 
-  return {
-    color0: getColor(0),
-    color1: getColor(1),
-    color2: getColor(2),
-    color3: getColor(3),
-    color4: getColor(4),
-    color5: getColor(5),
-    color6: getColor(6),
-    color7: getColor(7),
-    opacity,
-  };
+  const props = Object.fromEntries(
+    colorSlotNames.map((name, slot) => [name, getColor(slot)]),
+  ) as Record<ColorSlot, RGBA>;
+
+  return { ...props, opacity };
 }
 
 /**
  * Blend the active slot colors from a {@link MarkerProps} + bitmask,
  * mirroring the GLSL additive blend in `additiveBlending.glsl.ts`:
- * bit `i` → slot `i % 8`, summed per channel, clamped to [0, 255].
+ * bit `i` → its own slot, summed per channel, clamped to [0, 255].
  * Returns `[r, g, b, 255]` (opaque) or `[0, 0, 0, 0]` when no bits are set.
  */
 export function blendMarkerColor(props: MarkerProps, bitmask: number): RGBA {
   if (bitmask === 0) return [0, 0, 0, 0];
-  const slots: RGBA[] = [
-    props.color0,
-    props.color1,
-    props.color2,
-    props.color3,
-    props.color4,
-    props.color5,
-    props.color6,
-    props.color7,
-  ];
   let r = 0;
   let g = 0;
   let b = 0;
-  for (let i = 0; i < 32; i++) {
+  for (let i = 0; i < COLOR_SLOT_COUNT; i++) {
     if (bitmask & (1 << i)) {
-      const c = slots[i % 8];
+      const c = props[colorSlotNames[i]];
       r += c[0];
       g += c[1];
       b += c[2];
