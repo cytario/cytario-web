@@ -14,7 +14,7 @@ import {
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { RGB } from "../../../state/store/types";
-import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 interface AnnotationGroup {

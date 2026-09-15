@@ -2,12 +2,12 @@ import { Switch, Tooltip } from "@cytario/design";
 import { Radio } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { rgb } from "./ColorPicker/ColorPicker";
 import { MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../../state/store/types";
-import { ControlRow } from "../ControlRow";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
+import { SectionRow } from "../SectionRow/SectionRow";
 
 interface ChannelItemProps {
   name: keyof ChannelsStateColumns;
@@ -22,7 +22,7 @@ interface ChannelItemProps {
 }
 
 /** Individual channel row in the ChannelsSection: a RAC Radio (channel selection)
- *  wrapping the shared ControlRow — color picker, name, pixel value, visibility
+ *  wrapping the shared SectionRow — color picker, name, pixel value, visibility
  *  toggle, intensity bar and loading overlay. */
 export function ChannelItem({
   name,
@@ -58,7 +58,7 @@ export function ChannelItem({
 
   return (
     <Radio key={name} value={name} className={cx}>
-      <ControlRow
+      <SectionRow
         selected={isActive}
         isLoading={isLoading}
         count={pixelValue > 0 ? pixelValue : undefined}

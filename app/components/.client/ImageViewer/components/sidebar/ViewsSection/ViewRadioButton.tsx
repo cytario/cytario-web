@@ -6,7 +6,7 @@ import { twMerge } from "tailwind-merge";
 import { ViewStateIcon, type ViewKey } from "./ViewStateIcon";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForLayer, select } from "../../../state/store/selectors";
-import { ControlRow } from "../ControlRow";
+import { SectionRow } from "../SectionRow/SectionRow";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
 
@@ -113,7 +113,7 @@ export function ViewRadioButton({
         "group/radio cursor-pointer focus:outline-none focus-visible:outline-1 focus-visible:outline-foreground transition-colors",
       )}
     >
-      <ControlRow
+      <SectionRow
         selected={isActive}
         colors={colors}
 

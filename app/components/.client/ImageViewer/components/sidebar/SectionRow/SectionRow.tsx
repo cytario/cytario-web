@@ -2,13 +2,12 @@ import { Badge } from "@cytario/design";
 import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
-import { ColorPicker } from "./ChannelsSection/ColorPicker/ColorPicker";
-import { ColorSwatch } from "./ChannelsSection/ColorPicker/ColorSwatch";
+import { ColorPicker } from "./ColorPicker/ColorPicker";
 import { IntensityBar } from "./IntensityBar";
-import { RGB, RGBA } from "../../state/store/types";
+import { RGB, RGBA } from "../../../state/store/types";
 import { LoaderDots } from "~/components/Loader/LoaderDots";
 
-interface ControlRowProps {
+interface SectionRowProps {
   title: ReactNode;
   titleTruncate?: boolean;
   actions?: ReactNode;
@@ -16,9 +15,9 @@ interface ControlRowProps {
   /** Scale maximum for count; with colors, count, and this set, renders the
    *  bottom intensity bar. */
   countMax?: number;
-  /** Row colors: a single color renders the swatch (a picker when
-   *  onColorChange is set, a static swatch otherwise); several colors render
-   *  a static multi-segment swatch. */
+  /** Row colors: a single color renders the picker (or a static swatch when
+   *  onColorChange is absent); several colors render a static multi-segment
+   *  swatch. */
   colors?: (RGB | RGBA)[];
   /** Receives the same color shape given in colors — the picker's RGB choice
    *  re-attached to the original alpha when there was one. Applies to a
@@ -40,7 +39,7 @@ interface ControlRowProps {
  * a common selected treatment. Interaction semantics (radio, click targets)
  * belong to the caller's wrapper.
  */
-export function ControlRow({
+export function SectionRow({
   colors,
   onColorChange,
   colorLabel,
@@ -53,7 +52,7 @@ export function ControlRow({
   selected,
   className,
   isLoading = false,
-}: ControlRowProps) {
+}: SectionRowProps) {
   const cx = twMerge(
     `
       group/controlrow
@@ -68,28 +67,21 @@ export function ControlRow({
   );
 
   const [first] = colors ?? [];
-  const [r, g, b, alpha] = first ?? [0, 0, 0];
-  const echo =
-    onColorChange &&
-    ((rgbChoice: RGB) => onColorChange(alpha != null ? [...rgbChoice, alpha] : rgbChoice));
 
   return (
     <div className={cx}>
       <IntensityBar count={count} countMax={countMax} color={first} />
-      {colors != null && colors.length > 1 ? (
+      {colors && colors.length > 0 && (
         <span className="flex h-6 w-6 shrink-0 items-center justify-center">
-          <ColorSwatch colors={colors} isDisabled />
+          <ColorPicker colors={colors} onColorChange={onColorChange} label={colorLabel} />
         </span>
-      ) : first != null ? (
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center">
-          <ColorPicker color={[r, g, b]} onColorChange={echo} label={colorLabel} />
-        </span>
-      ) : null}
+      )}
 
       <span className={twMerge("min-w-0 flex-1", titleTruncate && "truncate")}>{title}</span>
 
       {isLoading && <LoaderDots rows={1} cols={6} />}
 
+      {/* Custom Actions */}
       {actions}
 
       {count != null && <Badge>{count}</Badge>}

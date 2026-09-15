@@ -1,5 +1,5 @@
-import { rgb } from "./ChannelsSection/ColorPicker/ColorPicker";
-import { RGB, RGBA } from "../../state/store/types";
+import { rgb } from "./ColorPicker/ColorPicker";
+import { RGB, RGBA } from "../../../state/store/types";
 
 interface IntensityBarProps {
   count?: number;

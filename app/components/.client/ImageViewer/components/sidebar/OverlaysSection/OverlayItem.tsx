@@ -6,8 +6,8 @@ import { OverlayConfigModal } from "./OverlayConfig.modal";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { type OverlayEntry, RGBA } from "../../../state/store/types";
-import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
-import { ControlRow } from "../ControlRow";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
+import { SectionRow } from "../SectionRow/SectionRow";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { LoaderView } from "~/components/Loader/LoaderView";
@@ -180,7 +180,7 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
         </div>
       )}
 
-      {/* Body: one ControlRow per marker. A labeled group (not radio semantics —
+      {/* Body: one SectionRow per marker. A labeled group (not radio semantics —
           markers have no selected-item concept) names the marker list for
           assistive tech and scopes it for tests. */}
       {isOpen && (
@@ -201,7 +201,7 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
                   ? markerName.slice(MARKER_POSITIVE_PREFIX.length)
                   : markerName);
               return (
-                <ControlRow
+                <SectionRow
                   key={markerName}
                   className={isVisible ? "text-foreground" : "text-muted-foreground"}
                   count={count > 0 ? count : undefined}

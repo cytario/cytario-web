@@ -1,10 +1,10 @@
 import Slider from "rc-slider";
 
 import { intensityToRatio, ratioToIntensity } from "./axisScale";
-import { rgb } from "./ColorPicker/ColorPicker";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ByteDomain } from "../../../state/store/types";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 
 export const DomainSlider = ({
   domain,

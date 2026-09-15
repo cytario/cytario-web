@@ -1,5 +1,5 @@
 import { OverlayState, RGBA } from "../../../state/store/types";
-import { CATEGORICAL_COLORS } from "../ChannelsSection/ColorPicker/categoricalColors";
+import { CATEGORICAL_COLORS } from "../SectionRow/ColorPicker/utils";
 import { type OverlayConfig, MARKER_POSITIVE_PREFIX } from "~/utils/db/overlayConfig";
 
 export type MarkerInfo = Record<string, { count: number }>;

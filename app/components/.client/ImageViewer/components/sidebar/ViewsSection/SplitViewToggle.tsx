@@ -3,7 +3,7 @@ import { Button, Tooltip } from "@cytario/design";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import { ChannelsState } from "../../../state/store/types";
-import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 
 const EMPTY_CHANNELS: ChannelsState = Object.freeze({});
 

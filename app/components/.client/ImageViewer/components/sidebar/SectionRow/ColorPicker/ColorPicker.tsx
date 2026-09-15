@@ -9,8 +9,8 @@ import {
   SliderTrack,
 } from "react-aria-components";
 
-import { CATEGORICAL_COLORS } from "./categoricalColors";
 import { ColorSwatch, hex } from "./ColorSwatch";
+import { CATEGORICAL_COLORS } from "./utils";
 import { RGB, RGBA } from "../../../../state/store/types";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
@@ -25,17 +25,25 @@ const COLOR_PALLETTE_WITH_WHITE: RGB[] = [
 ];
 
 interface ColorPickerProps {
-  color: RGB;
-  /** Absent: read-only — render the swatch statically, without the picker popover. */
-  onColorChange?: (color: RGB) => void;
+  colors: (RGB | RGBA)[];
+  /** Absent: read-only — renders the swatch(es) statically, without the picker popover. */
+  onColorChange?: (color: RGB | RGBA) => void;
   /** Accessible name for the swatch/trigger (e.g. the class/channel it colors). */
   label?: string;
 }
 
-export function ColorPicker({ color, onColorChange, label }: ColorPickerProps) {
-  if (!onColorChange) {
-    return <ColorSwatch colors={[color]} isDisabled />;
+export function ColorPicker({ colors, onColorChange, label }: ColorPickerProps) {
+  const [first] = colors;
+  if (first == null) return null;
+
+  const [r, g, b, alpha] = first;
+
+  if (colors.length > 1 || !onColorChange) {
+    return <ColorSwatch colors={colors} isDisabled />;
   }
+
+  const apply = (rgbChoice: RGB) =>
+    onColorChange(alpha != null ? [...rgbChoice, alpha] : rgbChoice);
 
   return (
     // Isolate trigger events from any parent press target (e.g. RAC <Radio>):
@@ -49,14 +57,14 @@ export function ColorPicker({ color, onColorChange, label }: ColorPickerProps) {
     >
       <Popover>
         {/* ColorSwatch as PopoverTrigger */}
-        <ColorSwatch colors={[color]} aria-label={label ? `Edit ${label}` : "Open color picker"} />
+        <ColorSwatch colors={colors} aria-label={label ? `Edit ${label}` : "Open color picker"} />
 
         <PopoverContent placement="bottom start" data-theme="dark">
           <RacColorPicker
-            value={parseColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`).toFormat("hsb")}
+            value={parseColor(`rgb(${r}, ${g}, ${b})`).toFormat("hsb")}
             onChange={(color) => {
               const rgb = color.toFormat("rgb");
-              onColorChange([
+              apply([
                 rgb.getChannelValue("red"),
                 rgb.getChannelValue("green"),
                 rgb.getChannelValue("blue"),
@@ -69,7 +77,7 @@ export function ColorPicker({ color, onColorChange, label }: ColorPickerProps) {
                   <ColorSwatch
                     key={index}
                     colors={[preset]}
-                    onPress={() => onColorChange(preset)}
+                    onPress={() => apply(preset)}
                     aria-label={`Preset color ${hex(preset)}`}
                   />
                 ))}

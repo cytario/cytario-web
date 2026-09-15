@@ -6,7 +6,7 @@ import { BRIGHTFIELD_CHANNEL_COUNT, MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID, RGB } from "../../../state/store/types";
-import { ControlRow } from "../ControlRow";
+import { SectionRow } from "../SectionRow/SectionRow";
 
 // Literal RGB channel colors — content, not UI state; deliberately not design tokens.
 const BRIGHTFIELD_RGB: RGB[] = [
@@ -54,7 +54,7 @@ export function ChannelBrightfieldItem({
 
   return (
     <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
-      <ControlRow
+      <SectionRow
         title="Brightfield"
         selected={isActive}
         isLoading={isLoading}

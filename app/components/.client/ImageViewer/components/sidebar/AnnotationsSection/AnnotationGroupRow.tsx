@@ -4,8 +4,8 @@ import { twMerge } from "tailwind-merge";
 
 import { UNCLASSIFIED_COLOR } from "../../../state/store/annotations/annotations.store";
 import { RGB } from "../../../state/store/types";
-import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
-import { ControlRow } from "../ControlRow";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
+import { SectionRow } from "../SectionRow/SectionRow";
 
 interface AnnotationGroupRowProps {
   name: string;
@@ -28,7 +28,7 @@ interface AnnotationGroupRowProps {
 }
 
 /**
- * Classification group header composed of the shared ControlRow: color swatch,
+ * Classification group header composed of the shared SectionRow: color swatch,
  * name, count, and visibility toggle, plus (own set) active-class selection —
  * the name button carries the radio semantics, the row shows the selected
  * treatment — and hover-revealed rename/delete. The unclassified group shows a
@@ -67,14 +67,14 @@ export function AnnotationGroupRow({
     setDraft(name);
   };
 
-  // Type scale comes from ControlRow (text-sm font-medium); only the deltas here.
+  // Type scale comes from SectionRow (text-sm font-medium); only the deltas here.
   const titleCx = twMerge(
     "w-full truncate text-left text-foreground",
     isUnclassified && "italic text-muted-foreground",
   );
 
   return (
-    <ControlRow
+    <SectionRow
       selected={isActive}
       titleTruncate={!editing}
       colors={[swatch]}

@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-import { CATEGORICAL_COLORS } from "../ColorPicker/categoricalColors";
-import { ColorPicker } from "../ColorPicker/ColorPicker";
+import { ColorPicker } from "../ColorPicker";
+import { CATEGORICAL_COLORS } from "../utils";
 
 const RED_RGB: [number, number, number] = [255, 0, 0];
 
@@ -13,13 +13,13 @@ const openPopover = () => {
 
 describe("ColorPicker", () => {
   test("renders the trigger swatch with current color", () => {
-    render(<ColorPicker color={RED_RGB} onColorChange={vi.fn()} />);
+    render(<ColorPicker colors={[RED_RGB]} onColorChange={vi.fn()} />);
     const triggers = screen.getAllByRole("button");
     expect(triggers.length).toBeGreaterThan(0);
   });
 
   test("opens popover with the 9 quick-pick swatches", async () => {
-    render(<ColorPicker color={RED_RGB} onColorChange={vi.fn()} />);
+    render(<ColorPicker colors={[RED_RGB]} onColorChange={vi.fn()} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
@@ -27,7 +27,7 @@ describe("ColorPicker", () => {
   });
 
   test("popover renders the HSV slider and hex input", async () => {
-    render(<ColorPicker color={RED_RGB} onColorChange={vi.fn()} />);
+    render(<ColorPicker colors={[RED_RGB]} onColorChange={vi.fn()} />);
     openPopover();
 
     expect(await screen.findByLabelText("Hue")).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe("ColorPicker", () => {
 
   test("clicking a preset swatch calls onColorChange with that color", async () => {
     const onColorChange = vi.fn();
-    render(<ColorPicker color={RED_RGB} onColorChange={onColorChange} />);
+    render(<ColorPicker colors={[RED_RGB]} onColorChange={onColorChange} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
@@ -48,7 +48,7 @@ describe("ColorPicker", () => {
 
   test("ninth preset is white", async () => {
     const onColorChange = vi.fn();
-    render(<ColorPicker color={RED_RGB} onColorChange={onColorChange} />);
+    render(<ColorPicker colors={[RED_RGB]} onColorChange={onColorChange} />);
     openPopover();
 
     const presetButtons = await screen.findAllByLabelText(/Preset color/);
