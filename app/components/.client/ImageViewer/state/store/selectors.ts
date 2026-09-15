@@ -123,6 +123,7 @@ export const select = {
 
   pixelValues: (state: ViewerStore) => state.pixelValues,
   setPixelValues: (state: ViewerStore) => state.setPixelValues,
+  clearPixelValues: (state: ViewerStore) => state.clearPixelValues,
 
   /* Preset Management */
   setActivePresetIndex: (state: ViewerStore) => state.setActivePresetIndex,

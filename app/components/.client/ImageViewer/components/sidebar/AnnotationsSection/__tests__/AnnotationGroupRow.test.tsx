@@ -89,7 +89,6 @@ describe("AnnotationGroupRow", () => {
         name="Unclassified"
         count={2}
         color={null}
-        isUnclassified
         isVisible={true}
         onToggleVisibility={vi.fn()}
       />,

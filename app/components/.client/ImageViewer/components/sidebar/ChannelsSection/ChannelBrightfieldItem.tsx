@@ -1,12 +1,19 @@
 import { Switch, Tooltip } from "@cytario/design";
-import { Radio } from "react-aria-components";
+import { RadioButton, RadioField } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
 import { BRIGHTFIELD_CHANNEL_COUNT, MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { BRIGHTFIELD_GROUP_ID } from "../../../state/store/types";
-import { ControlRow } from "../ControlRow";
+import { BRIGHTFIELD_GROUP_ID, RGB } from "../../../state/store/types";
+import { SectionRow } from "../SectionRow/SectionRow";
+
+// Literal RGB channel colors — content, not UI state; deliberately not design tokens.
+const BRIGHTFIELD_RGB: RGB[] = [
+  [239, 68, 68],
+  [34, 197, 94],
+  [59, 130, 246],
+];
 
 interface ChannelBrightfieldItemProps {
   isVisible: boolean;
@@ -22,7 +29,7 @@ export function ChannelBrightfieldItem({
   toggleVisibility,
 }: ChannelBrightfieldItemProps) {
   const selectedChannelId = useViewerStore(select.selectedChannelId);
-  const isActive = selectedChannelId === BRIGHTFIELD_GROUP_ID;
+  const isSelected = selectedChannelId === BRIGHTFIELD_GROUP_ID;
 
   const cx = twMerge(
     `
@@ -46,33 +53,25 @@ export function ChannelBrightfieldItem({
     tooltip = `Only ${MAX_VISIBLE_CHANNELS} channels can be visible at once (Brightfield uses ${BRIGHTFIELD_CHANNEL_COUNT})`;
 
   return (
-    <Radio value={BRIGHTFIELD_GROUP_ID} className={cx}>
-      <ControlRow
-        selected={isActive}
-        isLoading={isLoading}
-        swatch={
-          <span
-            aria-hidden
-            className="flex h-5 w-5 shrink-0 overflow-hidden rounded-full border-2 border-border"
-          >
-            {/* Literal RGB channel colors — content, not UI state; deliberately not design tokens. */}
-            <span className="grow h-full bg-[#ef4444]" />
-            <span className="grow h-full bg-[#22c55e]" />
-            <span className="grow h-full bg-[#3b82f6]" />
-          </span>
-        }
-        title="Brightfield"
-        toggle={
-          <Tooltip content={tooltip}>
-            <Switch
-              isSelected={isVisible}
-              onChange={() => toggleVisibility()}
-              color="var(--color-muted-foreground)"
-              isDisabled={disabled}
-            />
-          </Tooltip>
-        }
-      />
-    </Radio>
+    <RadioField value={BRIGHTFIELD_GROUP_ID}>
+      <RadioButton className={cx}>
+        <SectionRow
+          title="Brightfield"
+          isSelected={isSelected}
+          isLoading={isLoading}
+          colors={BRIGHTFIELD_RGB}
+          toggle={
+            <Tooltip content={tooltip}>
+              <Switch
+                isSelected={isVisible}
+                onChange={() => toggleVisibility()}
+                color="var(--color-muted-foreground)"
+                isDisabled={disabled}
+              />
+            </Tooltip>
+          }
+        />
+      </RadioButton>
+    </RadioField>
   );
 }

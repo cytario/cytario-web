@@ -51,6 +51,13 @@ export const OverlaysSection = () => {
       actions={
         <>
           <IconButton
+            icon="Plus"
+            label="Add overlay"
+            onPress={() => setIsOpen(true)}
+            variant="ghost"
+            size="xs"
+          />
+          <IconButton
             icon={showCellOutline ? "CircleDot" : "Circle"}
             label={showCellOutline ? "Hide outlines" : "Show outlines"}
             onPress={() => setShowCellOutline(!showCellOutline)}
@@ -66,23 +73,19 @@ export const OverlaysSection = () => {
         </>
       }
     >
-      {entries.map(([resourceId, entry]) => (
-        <OverlayItem key={resourceId} resourceId={resourceId} overlay={entry} />
-      ))}
-
-      <footer className="p-2 flex justify-center">
-        {entries.length === 0 ? (
-          <EmptyState
-            title="Add Overlay"
-            description="Add parquet cell detection files"
-            icon="Layers2"
-            className="py-6"
-            action={addOverlayButton}
-          />
-        ) : (
-          addOverlayButton
-        )}
-      </footer>
+      {entries.length === 0 ? (
+        <EmptyState
+          title="Add Overlay"
+          description="Add parquet cell detection files"
+          icon="Layers2"
+          className="py-6"
+          action={addOverlayButton}
+        />
+      ) : (
+        entries.map(([resourceId, entry]) => (
+          <OverlayItem key={resourceId} resourceId={resourceId} overlay={entry} />
+        ))
+      )}
 
       {isOpen && <LoadOverlayModal onClose={() => setIsOpen(false)} />}
     </Section>
