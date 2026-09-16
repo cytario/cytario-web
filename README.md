@@ -301,17 +301,15 @@ E2E tests (Playwright) live in a sibling repository and are triggered automatica
 
 ### Design System
 
-To develop [`@cytario/design`](https://github.com/cytario/cytario-design) components locally and see changes reflected in cytario-web, run a single command. Assumes both repos are cloned as siblings (`../cytario-design`):
+To develop [`@cytario/design`](https://github.com/cytario/cytario-design) — or any `@cytario` package — locally, point `CYTARIO_LOCAL_PATHS` at the sibling checkout before starting the dev server:
 
 ```sh
-npm run dev:design
+CYTARIO_LOCAL_PATHS='{"@cytario/design":"../cytario-design"}' npm run dev
 ```
 
-This links `@cytario/design` via `npm link`, starts `tsup --watch` in the design repo, and runs the cytario-web dev server — all in one process. Changes to design system source are rebuilt by tsup and picked up by Vite's HMR automatically.
+Each entry is aliased to the sibling's `src/index.ts`, so Vite serves its TypeScript source directly and picks up edits via HMR — no `npm link`, no rebuild step. Subpath imports follow the sibling tree (`styles/tokens.css` → `src/…`); the compiled stylesheet (`styles.css` → `dist/index.css`) is served from the sibling's `dist/`, so run `npm run watch:css` in the design repo alongside.
 
-The `vite.config.ts` is configured to handle the symlink: `optimizeDeps.exclude` skips pre-bundling, `ssr.noExternal` processes it through Vite's pipeline, and `server.watch` picks up changes in node_modules.
-
-> **Note:** Switching back to `npm run dev` automatically unlinks `@cytario/design` and restores the published version (via the `predev` script). No manual `npm install` needed.
+With the variable unset, the app uses the published packages from npm — nothing about the build changes.
 
 ### Debugging
 

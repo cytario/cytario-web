@@ -41,6 +41,7 @@ export default defineConfig({
       "bin/**/*.{test,spec}.?(c|m)[jt]s?(x)",
       "bin-src/**/*.{test,spec}.?(c|m)[jt]s?(x)",
       "scripts/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "vite-plugins/**/*.{test,spec}.?(c|m)[jt]s?(x)",
       "packages/**/*.{test,spec}.?(c|m)[jt]s?(x)",
     ],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/**"],
