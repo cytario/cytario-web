@@ -5,6 +5,7 @@ import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import {
   hostRequestDataFromJobToken,
   orgAgnosticHostRequestData,
+  readSoleOrganizationClaim,
 } from "~/.server/auth/carveOutRequestContext";
 import { toIdentity } from "~/.server/auth/getUserInfo";
 import { sessionMiddleware } from "~/.server/auth/sessionMiddleware";
@@ -29,7 +30,11 @@ import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
  *   the bearer token's signature, issuer, and audience and builds a
  *   `HostRequestData` from the verified claims so host capabilities
  *   (`jobLedger`, `assumeComputeRole`) resolve org/owner from the token, not
- *   a session. A token that fails verification returns 401.
+ *   a session. A token that fails verification returns 401. A token whose
+ *   `organization` claim carries multiple org keys (a multi-organization
+ *   user) has no unambiguous active org and is rejected; this dispatch has
+ *   no ledger lookup to resolve one. A token with no org claim at all is
+ *   likewise rejected.
  * - `"deployment-secret"` / `"webhook-secret"` carve-outs run outside the
  *   session gate with an org-agnostic `HostRequestData` so a cross-org
  *   reconciler (`JobLedger.listAll`) can run. The constant-time secret
@@ -96,7 +101,11 @@ async function dispatchCarveOut(
     if (!rawToken) return jsonError(401, "A job-scoped bearer token is required.");
     const verified = await verifyJobToken(rawToken);
     if (!verified) return jsonError(401, "The job-scoped token failed verification.");
-    const requestData = hostRequestDataFromJobToken(verified, rawToken);
+    const organization = readSoleOrganizationClaim(verified);
+    if (!organization) {
+      return jsonError(403, "The job-scoped token has no single organization claim.");
+    }
+    const requestData = hostRequestDataFromJobToken(verified, rawToken, organization);
     return withHostRequestContext(requestData, () =>
       handler({ request: args.request, params, identity: requestData.identity }),
     );

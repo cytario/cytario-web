@@ -31,6 +31,14 @@ const VALID_TOKEN_PAYLOAD = {
   organization: { testcorp: { id: "org-1", groups: [] } },
 };
 
+const MULTI_ORG_TOKEN_PAYLOAD = {
+  sub: "submitting-user-42",
+  organization: {
+    "cosmo-bio": { id: "org-1", groups: [] },
+    cytario: { id: "org-2", groups: [] },
+  },
+};
+
 const REFRESHED_ACCESS_TOKEN = "fresh-access-token";
 const ROTATED_REFRESH_TOKEN = "rotated-refresh-token";
 
@@ -44,11 +52,28 @@ function buildRequest(body: unknown): Request {
 
 const args = (request: Request) => ({ request, params: {}, context: new Map() }) as never;
 
+/**
+ * Mocks `findFirst` with the row only when the row satisfies the query's
+ * WHERE clause — the tenant filters (jobId, owner, org membership) live in
+ * the query, so a row outside them must resolve to no row at all.
+ */
+function findFirstMatchingWhere(row: Record<string, unknown> | null) {
+  return async (query: unknown): Promise<Record<string, unknown> | null> => {
+    if (!row) return null;
+    const where = (query as { where?: Record<string, unknown> }).where ?? {};
+    if (where.jobId !== undefined && where.jobId !== row.jobId) return null;
+    if (where.owner !== undefined && where.owner !== row.owner) return null;
+    const organization = where.organization as { in?: string[] } | undefined;
+    if (organization?.in && !organization.in.includes(row.organization as string)) return null;
+    return row;
+  };
+}
+
 const LEDGER_ROW = {
   jobId: "job-1",
   offlineSessionId: "sess-1",
   organization: "testcorp",
-  owner: "user-1",
+  owner: "submitting-user-42",
   inputS3Uris: ["s3://data-bucket/cases/case1/"],
   outputS3Uri: "s3://data-bucket/results/run42/",
   connectionId: "c1",
@@ -109,6 +134,94 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(response.status).toBe(403);
     expect((await response.json()) as { error: string }).toMatchObject({
       error: /no active job binding/i,
+    });
+  });
+
+  test("returns 403 when the token has no organization claim at all", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce({ sub: "submitting-user-42" });
+    const response = (await action(
+      args(buildRequest({ token: "tok", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /organization missing from token claims/i,
+    });
+  });
+
+  test("mints for a multi-org token whose ledger row's org is among the claim keys", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(MULTI_ORG_TOKEN_PAYLOAD);
+    const multiOrgRow = { ...LEDGER_ROW, organization: "cosmo-bio" };
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(multiOrgRow as never);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
+    });
+
+    const response = (await action(
+      args(buildRequest({ token: "tok", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, string>;
+    expect(body.accessKeyId).toBe("AKIA");
+    expect(body.refreshToken).toBe(ROTATED_REFRESH_TOKEN);
+  });
+
+  test("returns 403 when the ledger row's org is not among the token's org keys", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockImplementationOnce(
+      findFirstMatchingWhere({ ...LEDGER_ROW, organization: "other-corp" }) as never,
+    );
+    const response = (await action(
+      args(buildRequest({ token: "tok", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /no active job binding/i,
+    });
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("returns 403 when the ledger row belongs to a different user", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockImplementationOnce(
+      findFirstMatchingWhere({ ...LEDGER_ROW, owner: "someone-else" }) as never,
+    );
+    const response = (await action(
+      args(buildRequest({ token: "tok", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /no active job binding/i,
+    });
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("looks up the ledger row by jobId, owner, and org membership in the WHERE clause", async () => {
+    verifyJobTokenMock.mockResolvedValueOnce(MULTI_ORG_TOKEN_PAYLOAD);
+    const findFirst = vi
+      .spyOn(prisma.jobLedgerEntry, "findFirst")
+      .mockResolvedValueOnce({ ...LEDGER_ROW, organization: "cosmo-bio" } as never);
+    stsSendMock.mockResolvedValueOnce({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+        Expiration: new Date("2026-01-01T12:00:00Z"),
+      },
+    });
+
+    await action(args(buildRequest({ token: "tok", jobId: "job-1" })));
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        jobId: "job-1",
+        owner: "submitting-user-42",
+        organization: { in: ["cosmo-bio", "cytario"] },
+      },
     });
   });
 
