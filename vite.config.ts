@@ -1,33 +1,42 @@
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 import { cytarioPlugins } from "./vite-plugins/cytario-plugins";
+import { buildLocalDevelopmentConfig, parseCytarioLocalPaths } from "./vite-plugins/local-paths";
+
+const localPaths = parseCytarioLocalPaths(process.env.CYTARIO_LOCAL_PATHS);
+
+const missingEntryPoints = Object.entries(localPaths)
+  .filter(([, directory]) => !existsSync(resolve(directory, "src/index.ts")))
+  .map(([packageName, directory]) => `${packageName} → ${directory}/src/index.ts`);
+if (missingEntryPoints.length > 0) {
+  throw new Error(
+    `CYTARIO_LOCAL_PATHS targets without src/index.ts: ${missingEntryPoints.join(", ")}`,
+  );
+}
+
+const localDevelopment = buildLocalDevelopmentConfig(localPaths);
 
 export default defineConfig({
   plugins: [cytarioPlugins(), tailwindcss(), reactRouter(), tsconfigPaths()],
 
-  // Local @cytario/design development:
-  // Skip pre-bundling so Vite serves the latest dist on every request.
+  resolve: localDevelopment.resolve,
+
   optimizeDeps: {
     include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],
-    exclude: ["@cytario/design"],
+    exclude: localDevelopment.optimizeDepsExclude,
   },
-  // Process the design system through Vite's pipeline during SSR
-  // instead of letting Node resolve it (avoids dual-React issues).
   ssr: {
-    noExternal: ["@cytario/design"],
+    noExternal: localDevelopment.ssrNoExternal,
   },
-  // Vite ignores node_modules by default — opt-in to watching
-  // the design system so file changes trigger a reload.
   server: {
     port: 3000,
     fs: {
-      allow: [".", "../cytario-design"],
-    },
-    watch: {
-      ignored: ["!**/node_modules/@cytario/design/**"],
+      allow: [".", ...localDevelopment.serverFsAllow],
     },
   },
 
