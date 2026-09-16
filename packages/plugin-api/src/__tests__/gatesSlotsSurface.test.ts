@@ -180,7 +180,7 @@ describe("auth / gates / slots surface", () => {
   test("a CytarioPlugin can register a viewer via PluginContext", () => {
     const plugin = {
       name: "viewer-probe",
-      apiVersion: "^6.3.0",
+      apiVersion: "^6.4.0",
       register(ctx: PluginContext) {
         ctx.viewers.register({ match: (id) => id.endsWith(".zarr"), component: () => null });
       },

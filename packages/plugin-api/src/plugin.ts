@@ -73,7 +73,7 @@ export interface PluginContext {
   userMgmtGate: UserManagementGateRegistry;
   /**
    * Client-side viewer contributions. Live client-side; no-op sink
-   * server-side. Added additively at hostApiVersion 6.3.0; a plugin that
+   * server-side. Added additively at hostApiVersion 6.4.0; a plugin that
    * consumes only the pre-existing surface continues to satisfy the
    * CytarioPlugin contract unchanged.
    */
