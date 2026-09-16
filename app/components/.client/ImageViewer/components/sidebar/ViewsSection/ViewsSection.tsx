@@ -6,6 +6,7 @@ import { ViewRadioButton } from "./ViewRadioButton";
 import type { ViewKey } from "./ViewStateIcon";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
+import { SectionGrid } from "../SectionRow/SectionGrid";
 import { Section } from "~/components/Section/Section";
 
 /** Sidebar views control: split-panel layout (add/remove panels, assign VCS). */
@@ -38,17 +39,18 @@ export function ViewsSection() {
         aria-label="Views"
         value={String(activePresetIndex)}
         onChange={(value) => setActivePresetIndex(Number(value))}
-        className="flex flex-col gap-1 px-3 pt-2 pb-4 border-b border-border shrink-0"
       >
-        {layersStates.map((layersState, index) => (
-          <ViewRadioButton
-            key={index}
-            index={index}
-            canDelete={layersStates.length > 1}
-            viewState={viewStateFor(index)}
-            onDelete={() => removeChannelsState(index)}
-          />
-        ))}
+        <SectionGrid>
+          {layersStates.map((layersState, index) => (
+            <ViewRadioButton
+              key={index}
+              index={index}
+              canDelete={layersStates.length > 1}
+              viewState={viewStateFor(index)}
+              onDelete={() => removeChannelsState(index)}
+            />
+          ))}
+        </SectionGrid>
       </RadioGroup>
     </Section>
   );

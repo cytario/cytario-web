@@ -7,6 +7,7 @@ import { MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { BRIGHTFIELD_GROUP_ID, ChannelsStateColumns } from "../../../state/store/types";
+import { SectionGrid } from "../SectionRow/SectionGrid";
 
 export function ChannelItemList() {
   const channelsState = useViewerStore(select.channelsState);
@@ -60,62 +61,63 @@ export function ChannelItemList() {
         setSelectedChannelId(name);
         setChannelVisibility(name as keyof ChannelsStateColumns, true);
       }}
-      className="flex flex-col p-2 gap-1"
     >
-      {visibleChannelIds.map((id) => {
-        const config = channelsState?.[id];
-        if (!config) return null;
+      <SectionGrid>
+        {visibleChannelIds.map((id) => {
+          const config = channelsState?.[id];
+          if (!config) return null;
 
-        const name = id as keyof ChannelsStateColumns;
-        const { color, isVisible, isLoading } = config;
+          const name = id as keyof ChannelsStateColumns;
+          const { color, isVisible, isLoading } = config;
 
-        const toggleChannelVisibility = () => {
-          setChannelVisibility(name, !isVisible);
+          const toggleChannelVisibility = () => {
+            setChannelVisibility(name, !isVisible);
 
-          if (isVisible && name === selectedChannelId) {
-            setSelectedChannelId(null);
-          } else if (!isVisible) {
-            setSelectedChannelId(name);
-          }
-        };
-
-        return (
-          <ChannelItem
-            key={id}
-            name={name}
-            color={[...color, 255]}
-            isVisible={isVisible}
-            isLoading={isLoading}
-            pixelValue={pixelValues[name] ?? 0}
-            maxDomain={maxChannelDomain}
-            visibleChannelCount={visibleChannelCount}
-            toggleChannelVisibility={toggleChannelVisibility}
-            onColorChange={(newColor) => setChannelColor(id, newColor)}
-          />
-        );
-      })}
-
-      {showBrightfield && (
-        <ChannelBrightfieldItem
-          isVisible={isBrightfieldVisible}
-          isLoading={
-            !!channelsState?.[brightfieldGroup.red]?.isLoading ||
-            !!channelsState?.[brightfieldGroup.green]?.isLoading ||
-            !!channelsState?.[brightfieldGroup.blue]?.isLoading
-          }
-          visibleChannelCount={visibleChannelCount}
-          toggleVisibility={() => {
-            const newVisible = !isBrightfieldVisible;
-            setChannelVisibility(BRIGHTFIELD_GROUP_ID as keyof ChannelsStateColumns, newVisible);
-
-            if (!newVisible && selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+            if (isVisible && name === selectedChannelId) {
               setSelectedChannelId(null);
-            } else if (newVisible) {
-              setSelectedChannelId(BRIGHTFIELD_GROUP_ID);
+            } else if (!isVisible) {
+              setSelectedChannelId(name);
             }
-          }}
-        />
-      )}
+          };
+
+          return (
+            <ChannelItem
+              key={id}
+              name={name}
+              color={[...color, 255]}
+              isVisible={isVisible}
+              isLoading={isLoading}
+              pixelValue={pixelValues[name] ?? 0}
+              maxDomain={maxChannelDomain}
+              visibleChannelCount={visibleChannelCount}
+              toggleChannelVisibility={toggleChannelVisibility}
+              onColorChange={(newColor) => setChannelColor(id, newColor)}
+            />
+          );
+        })}
+
+        {showBrightfield && (
+          <ChannelBrightfieldItem
+            isVisible={isBrightfieldVisible}
+            isLoading={
+              !!channelsState?.[brightfieldGroup.red]?.isLoading ||
+              !!channelsState?.[brightfieldGroup.green]?.isLoading ||
+              !!channelsState?.[brightfieldGroup.blue]?.isLoading
+            }
+            visibleChannelCount={visibleChannelCount}
+            toggleVisibility={() => {
+              const newVisible = !isBrightfieldVisible;
+              setChannelVisibility(BRIGHTFIELD_GROUP_ID as keyof ChannelsStateColumns, newVisible);
+
+              if (!newVisible && selectedChannelId === BRIGHTFIELD_GROUP_ID) {
+                setSelectedChannelId(null);
+              } else if (newVisible) {
+                setSelectedChannelId(BRIGHTFIELD_GROUP_ID);
+              }
+            }}
+          />
+        )}
+      </SectionGrid>
     </RadioGroup>
   );
 }

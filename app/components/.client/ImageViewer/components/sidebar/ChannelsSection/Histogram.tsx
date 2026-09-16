@@ -2,12 +2,12 @@ import { ToggleButton } from "@cytario/design";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ratioToIntensity } from "./axisScale";
-import { rgb } from "./ColorPicker/ColorPicker";
 import { DomainSlider } from "./DomainSlider";
 import { HistogramChannel } from "./HistogramChannel";
 import { MinMaxSettings } from "./MinMaxSettings";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 
 export function Histogram() {
   const ref = useRef<HTMLDivElement>(null);

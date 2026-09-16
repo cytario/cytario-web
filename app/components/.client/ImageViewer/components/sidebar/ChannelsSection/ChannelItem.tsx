@@ -1,13 +1,13 @@
 import { Switch, Tooltip } from "@cytario/design";
-import { Radio } from "react-aria-components";
+import { RadioButton, RadioField } from "react-aria-components";
 import { twMerge } from "tailwind-merge";
 
-import { ColorPicker, rgb } from "./ColorPicker/ColorPicker";
 import { MAX_VISIBLE_CHANNELS } from "./constants";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ChannelsStateColumns, RGBA } from "../../../state/store/types";
-import { ControlRow } from "../ControlRow";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
+import { SectionRow } from "../SectionRow/SectionRow";
 
 interface ChannelItemProps {
   name: keyof ChannelsStateColumns;
@@ -16,14 +16,14 @@ interface ChannelItemProps {
   isLoading: boolean;
   pixelValue: number;
   maxDomain: number;
-  visibleChannelCount?: number;
+  visibleChannelCount: number;
   toggleChannelVisibility: () => void;
-  onColorChange?: (color: RGBA) => void;
+  onColorChange: (color: RGBA) => void;
 }
 
-/** Individual channel row in the ChannelsSection: a RAC Radio (channel selection)
- *  wrapping the shared ControlRow — color picker, name, pixel value, visibility
- *  toggle, intensity bar and loading overlay. */
+/** Individual channel row in the ChannelsSection: a RAC RadioField + RadioButton
+ *  (channel selection) wrapping the shared SectionRow — color picker, name, pixel
+ *  value, visibility toggle, intensity bar and loading overlay. */
 export function ChannelItem({
   name,
   isVisible,
@@ -31,21 +31,21 @@ export function ChannelItem({
   color,
   pixelValue,
   maxDomain,
-  visibleChannelCount = 0,
+  visibleChannelCount,
   toggleChannelVisibility,
   onColorChange,
 }: ChannelItemProps) {
   const selectedChannelId = useViewerStore(select.selectedChannelId);
-  const isActive = selectedChannelId === name;
+  const isSelected = selectedChannelId === name;
 
   const cx = twMerge(
     `
       group/radio
       cursor-pointer
+      text-muted-foreground
       focus:outline-none
       focus-visible:outline-1
       focus-visible:outline-foreground
-      text-muted-foreground
       transition-colors
     `,
     isVisible && "text-foreground",
@@ -57,45 +57,28 @@ export function ChannelItem({
   if (disabled) tooltip = `Only ${MAX_VISIBLE_CHANNELS} channels can be visible at once`;
 
   return (
-    <Radio key={name} value={name} className={cx}>
-      <ControlRow
-        selected={isActive}
-        isLoading={isLoading}
-        accessory={
-          <>
-            <div className="absolute bottom-0 left-0 right-0 h-0.5">
-              {isVisible && (
-                <div
-                  className="h-full"
-                  style={{
-                    width: `${(pixelValue / maxDomain) * 100}%`,
-                    backgroundColor: rgb(color),
-                  }}
-                />
-              )}
-            </div>
-          </>
-        }
-        swatch={
-          // Picker is RGB; the channel color keeps its alpha across a recolor.
-          <ColorPicker
-            color={[color[0], color[1], color[2]]}
-            onColorChange={onColorChange ? (c) => onColorChange([...c, color[3]]) : undefined}
-          />
-        }
-        title={name}
-        count={pixelValue > 0 ? pixelValue : undefined}
-        toggle={
-          <Tooltip content={tooltip}>
-            <Switch
-              isSelected={isVisible}
-              onChange={() => toggleChannelVisibility()}
-              color={rgb(color)}
-              isDisabled={disabled}
-            />
-          </Tooltip>
-        }
-      />
-    </Radio>
+    <RadioField key={name} value={name}>
+      <RadioButton className={cx}>
+        <SectionRow
+          isSelected={isSelected}
+          isLoading={isLoading}
+          count={isVisible && pixelValue > 0 ? pixelValue : undefined}
+          countMax={isVisible ? maxDomain : undefined}
+          colors={[color]}
+          onColorChange={onColorChange}
+          title={name}
+          toggle={
+            <Tooltip content={tooltip}>
+              <Switch
+                isSelected={isVisible}
+                onChange={() => toggleChannelVisibility()}
+                color={rgb(color)}
+                isDisabled={disabled}
+              />
+            </Tooltip>
+          }
+        />
+      </RadioButton>
+    </RadioField>
   );
 }

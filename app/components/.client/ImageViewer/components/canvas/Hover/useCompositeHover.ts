@@ -76,6 +76,7 @@ export const useCompositeHover = (
   // --- Store actions -----------------------------------------------------
   const setCompositeTooltip = useViewerStore(select.setCompositeTooltip);
   const setHoverMode = useViewerStore(select.setHoverMode);
+  const clearPixelValues = useViewerStore(select.clearPixelValues);
   const annotationMode = useViewerStore((s) => s.annotationMode);
 
   // Ref mirror of "hovering a non-transparent annotation" — read by
@@ -85,15 +86,9 @@ export const useCompositeHover = (
   // --- Hover pipeline ----------------------------------------------------
   const onHover = useCallback(
     (info: PickingInfo, event?: { srcEvent?: { shiftKey?: boolean } }) => {
+      const isInspect = annotationMode === "inspect";
       // Tooltip only renders in inspect mode — not in view or draw modes.
-      if (annotationMode !== "inspect") {
-        setCompositeTooltip(null);
-        return;
-      }
-
-      // Shift toggles verbose mode (future: Phase 3 keyboard inspect).
-      const shift = event?.srcEvent?.shiftKey ?? false;
-      setHoverMode(shift ? "verbose" : "compact");
+      if (!isInspect) setCompositeTooltip(null);
 
       const deck = deckRef.current?.deck;
       if (!deck) return;
@@ -108,6 +103,7 @@ export const useCompositeHover = (
       if (picks.length === 0) {
         hoveringAnnotationRef.current = false;
         setCompositeTooltip(null);
+        clearPixelValues();
         return;
       }
 
@@ -117,13 +113,16 @@ export const useCompositeHover = (
       for (const pick of picks) {
         const layerId = pick.layer?.id ?? "";
 
-        // Channels — always process the first channels pick we encounter.
-        // The sublayers are `Tiled-Image-channels-<id>` and
-        // `Background-Image-channels-<id>`, both contain `channels-`.
+        // Channels — always process, in every mode, so the sidebar pixel
+        // readout stays live. The sublayers are `Tiled-Image-channels-<id>`
+        // and `Background-Image-channels-<id>`, both contain `channels-`.
         if (layerId.includes(CHANNELS_ID_HINT)) {
           for (const it of getChannelTooltipItems(pick)) (sections.Channels ??= []).push(it);
           continue;
         }
+
+        // Overlays and annotations only feed the tooltip (inspect mode only).
+        if (!isInspect) continue;
 
         // Overlays
         if (layerId.startsWith(OVERLAYS_ID_PREFIX)) {
@@ -149,6 +148,12 @@ export const useCompositeHover = (
 
       hoveringAnnotationRef.current = hoveringAnnotation;
 
+      if (!isInspect) return;
+
+      // Shift toggles verbose mode (future: Phase 3 keyboard inspect).
+      const shift = event?.srcEvent?.shiftKey ?? false;
+      setHoverMode(shift ? "verbose" : "compact");
+
       const tooltip: CompositeTooltip = {
         cursor: { x: info.x, y: info.y },
         coordinate: info.coordinate ?? [0, 0, 0],
@@ -164,6 +169,7 @@ export const useCompositeHover = (
       getAnnotationTooltipItems,
       setCompositeTooltip,
       setHoverMode,
+      clearPixelValues,
     ],
   );
 

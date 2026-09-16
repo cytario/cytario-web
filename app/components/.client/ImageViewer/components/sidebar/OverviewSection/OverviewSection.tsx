@@ -7,7 +7,7 @@ import { Section } from "~/components/Section/Section";
 export const OverviewSection = () => {
   return (
     <Section pillar="overview" actions={<ResetViewStateButton />}>
-      <div className="block h-60 w-full shrink-0">
+      <div className="block h-44 w-full shrink-0 tall:h-60">
         <ImagePreview isInteractive />
       </div>
 

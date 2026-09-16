@@ -19,6 +19,7 @@ export interface ViewSlice {
   setViewStateActive: (viewState: ViewState) => void;
   setCursorPosition: (position: { x: number; y: number } | null) => void;
   setPixelValues: (ids: string[], values: number[]) => void;
+  clearPixelValues: () => void;
 
   setCompositeTooltip: (t: CompositeTooltip | null) => void;
   setHoverMode: (mode: "compact" | "verbose") => void;
@@ -70,6 +71,15 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
       },
       false,
       "setPixelValues",
+    ),
+
+  clearPixelValues: () =>
+    set(
+      (viewerStore) => {
+        viewerStore.pixelValues = {};
+      },
+      false,
+      "clearPixelValues",
     ),
 
   setCompositeTooltip: (compositeTooltip) =>

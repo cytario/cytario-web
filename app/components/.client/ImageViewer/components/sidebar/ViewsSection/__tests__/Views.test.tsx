@@ -190,7 +190,7 @@ describe("ViewsSection", () => {
     expect(screen.getByText("No channels")).toBeInTheDocument();
   });
 
-  test("empty name on commit calls setViewName with null", () => {
+  test("empty name on commit cancels without calling setViewName", () => {
     setupStore({
       layersStates: [{ channels: {}, name: "Custom" }],
       channelIds: [],
@@ -200,10 +200,11 @@ describe("ViewsSection", () => {
     const input = screen.getByDisplayValue("Custom");
     fireEvent.change(input, { target: { value: "" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(mockSetViewName).toHaveBeenCalledWith(0, null);
+    expect(mockSetViewName).not.toHaveBeenCalled();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 
-  test("whitespace-only name calls setViewName with null", () => {
+  test("whitespace-only name cancels without calling setViewName", () => {
     setupStore({
       layersStates: [{ channels: {}, name: "Custom" }],
       channelIds: [],
@@ -213,7 +214,8 @@ describe("ViewsSection", () => {
     const input = screen.getByDisplayValue("Custom");
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(mockSetViewName).toHaveBeenCalledWith(0, null);
+    expect(mockSetViewName).not.toHaveBeenCalled();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 
   test("renders all views in a flat list with state icons", () => {

@@ -86,6 +86,16 @@ describe("ChannelItem", () => {
     expect(mockToggleChannelVisibility).toHaveBeenCalled();
   });
 
+  test("picker preset click echoes the chosen color with the channel's original alpha", async () => {
+    renderWithRadioGroup();
+    fireEvent.click(screen.getByLabelText("Edit Red color"));
+
+    const presets = await screen.findAllByLabelText(/Preset color/);
+    fireEvent.click(presets[2]); // third preset: yellow
+
+    expect(mockOnColorChange).toHaveBeenCalledWith([255, 255, 0, 255]);
+  });
+
   describe(`MAX_VISIBLE_CHANNELS limit (${MAX_VISIBLE_CHANNELS} channels)`, () => {
     test("switch is not disabled when visible channel count is below limit", () => {
       renderWithRadioGroup({

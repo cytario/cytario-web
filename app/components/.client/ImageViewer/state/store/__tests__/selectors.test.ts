@@ -93,6 +93,7 @@ describe("selectors", () => {
     setError: vi.fn(),
     setCursorPosition: vi.fn(),
     setPixelValues: vi.fn(),
+    clearPixelValues: vi.fn(),
     setViewStatePreview: vi.fn(),
     setViewStateActive: vi.fn(),
     setIsViewerLoading: vi.fn(),

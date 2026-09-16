@@ -9,8 +9,8 @@ import {
   SliderTrack,
 } from "react-aria-components";
 
-import { ColorSwatch } from "./ColorSwatch";
-import { CATEGORICAL_COLORS } from "../../../../categoricalColors";
+import { ColorSwatch, hex } from "./ColorSwatch";
+import { CATEGORICAL_COLORS } from "./utils";
 import { RGB, RGBA } from "../../../../state/store/types";
 
 export function rgb(color: RGB | RGBA, alpha = 255): string {
@@ -25,23 +25,29 @@ const COLOR_PALLETTE_WITH_WHITE: RGB[] = [
 ];
 
 interface ColorPickerProps {
-  color: RGB;
-  onColorChange?: (color: RGB) => void;
-  /** Read-only: render the swatch statically, without the picker popover. */
-  isDisabled?: boolean;
-  /** Accessible name for the swatch/trigger (e.g. the class/channel it colors). */
+  colors: (RGB | RGBA)[];
+  /** Absent: read-only static swatch(es), no picker popover. */
+  onColorChange?: (color: RGB | RGBA) => void;
+  /** Accessible name for the swatch/trigger. */
   label?: string;
 }
 
-export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPickerProps) {
-  if (isDisabled) {
-    return <ColorSwatch color={color} isDisabled aria-label={label ?? "Color"} />;
+export function ColorPicker({ colors, onColorChange, label }: ColorPickerProps) {
+  const [first] = colors;
+  if (first == null) return null;
+
+  const [r, g, b, alpha] = first;
+
+  if (colors.length > 1 || !onColorChange) {
+    return <ColorSwatch colors={colors} isDisabled />;
   }
 
+  const apply = (rgbChoice: RGB) =>
+    onColorChange(alpha != null ? [...rgbChoice, alpha] : rgbChoice);
+
   return (
-    // Isolate trigger events from any parent press target (e.g. RAC <Radio>):
-    // mousedown bubbling into the parent puts it in "press" state, whose global
-    // listener then preventDefaults nested input clicks (the hex field).
+    // Stop mousedown/pointerdown reaching a parent press target (RAC <Radio>),
+    // whose global listener would preventDefault the nested hex-field input.
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       onClick={(e) => e.stopPropagation()}
@@ -50,14 +56,14 @@ export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPi
     >
       <Popover>
         {/* ColorSwatch as PopoverTrigger */}
-        <ColorSwatch color={color} aria-label={label ? `Edit ${label}` : "Open color picker"} />
+        <ColorSwatch colors={colors} aria-label={label ? `Edit ${label}` : "Open color picker"} />
 
         <PopoverContent placement="bottom start" data-theme="dark">
           <RacColorPicker
-            value={parseColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`).toFormat("hsb")}
+            value={parseColor(`rgb(${r}, ${g}, ${b})`).toFormat("hsb")}
             onChange={(color) => {
               const rgb = color.toFormat("rgb");
-              onColorChange?.([
+              apply([
                 rgb.getChannelValue("red"),
                 rgb.getChannelValue("green"),
                 rgb.getChannelValue("blue"),
@@ -66,12 +72,12 @@ export function ColorPicker({ color, onColorChange, isDisabled, label }: ColorPi
           >
             <div className="flex flex-col">
               <div className="flex items-center px-2 py-1">
-                {COLOR_PALLETTE_WITH_WHITE.map((color, index) => (
+                {COLOR_PALLETTE_WITH_WHITE.map((preset, index) => (
                   <ColorSwatch
                     key={index}
-                    color={color}
-                    onPress={() => onColorChange?.(color)}
-                    aria-label={`Preset color ${color}`}
+                    colors={[preset]}
+                    onPress={() => apply(preset)}
+                    aria-label={`Preset color ${hex(preset)}`}
                   />
                 ))}
               </div>

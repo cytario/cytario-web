@@ -1,5 +1,6 @@
 import { Button, EmptyState, Input } from "@cytario/design";
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { Radio, RadioGroup } from "react-aria-components";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { AnnotationThumb } from "./AnnotationThumb";
@@ -14,7 +15,7 @@ import {
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { RGB } from "../../../state/store/types";
-import { rgb } from "../ChannelsSection/ColorPicker/ColorPicker";
+import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 interface AnnotationGroup {
@@ -173,15 +174,34 @@ export const AnnotationsList = ({
     );
   };
 
+  // Active-class selection is a single-select radio group (SRS 4b); read-only
+  // grants get no group — the headers render plainly.
+  const GroupContainer = (editable ? RadioGroup : Fragment) as React.ComponentType<{
+    children?: React.ReactNode;
+    "aria-label"?: string;
+    value?: string;
+    onChange?: (value: string) => void;
+    className?: string;
+  }>;
+
   return (
     // gap-1 between group rows (the shared row rhythm); the larger gap-2 stays
     // between a group header and its thumbnail grid.
     <div className="flex flex-col gap-2">
-      {annotationsGroups.map(({ name, color, items }) => {
-        const cssColor = rgb([...(color ?? UNCLASSIFIED_COLOR), 255]);
-        const isUnclassified = isReservedClassName(name);
-        return (
-          <div key={name} className="flex flex-col gap-2">
+      <GroupContainer
+        {...(editable
+          ? {
+              "aria-label": "Annotation classes",
+              value: activeClass ?? UNCLASSIFIED,
+              onChange: (v: string) => setActiveClass(v === UNCLASSIFIED ? null : v),
+              className: "contents",
+            }
+          : {})}
+      >
+        {annotationsGroups.map(({ name, color, items }) => {
+          const cssColor = rgb([...(color ?? UNCLASSIFIED_COLOR), 255]);
+          const isUnclassified = isReservedClassName(name);
+          const header = (
             <AnnotationGroupRow
               name={name}
               count={items.length}
@@ -191,9 +211,8 @@ export const AnnotationsList = ({
               onColorChange={
                 editable && color ? (color) => setClassColor(setId, name, color) : undefined
               }
-              isActive={editable && (isUnclassified ? activeClass === null : activeClass === name)}
-              onSelectActive={
-                editable ? () => setActiveClass(isUnclassified ? null : name) : undefined
+              isSelected={
+                editable && (isUnclassified ? activeClass === null : activeClass === name)
               }
               onRename={
                 // Named classes only — new classes are created via "Add class",
@@ -203,43 +222,57 @@ export const AnnotationsList = ({
                   : undefined
               }
               onDelete={editable && !isUnclassified ? () => deleteClass(setId, name) : undefined}
-              isUnclassified={isUnclassified}
             />
+          );
+          return (
+            <div key={name} className="flex flex-col gap-2">
+              {editable ? (
+                <Radio
+                  value={isUnclassified ? UNCLASSIFIED : name}
+                  aria-label={`Draw new regions into ${name}`}
+                  className="group/radio cursor-pointer focus:outline-none focus-visible:outline-1 focus-visible:outline-foreground transition-colors"
+                >
+                  {header}
+                </Radio>
+              ) : (
+                header
+              )}
 
-            <div className="flex flex-wrap gap-2">
-              {items.map(({ feature, index }) => {
-                const id = feature.id;
-                return (
-                  <AnnotationThumb
-                    key={id ?? index}
-                    feature={feature}
-                    selected={!!id && selectedIds.includes(id)}
-                    color={cssColor}
-                    editable={editable}
-                    // Don't offer moving into the group the region already sits in.
-                    classNames={namedClasses.filter((n) => n !== name)}
-                    onSelect={(e) => select(feature, e)}
-                    onZoom={() => zoomToFeature(feature)}
-                    onClassify={(className) =>
-                      setClassForIds(setId, actionTargets(feature), className)
-                    }
-                    // Already-unclassified regions have nothing to clear.
-                    onClear={
-                      isUnclassified
-                        ? undefined
-                        : () => setClassForIds(setId, actionTargets(feature), null)
-                    }
-                    onRename={
-                      editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
-                    }
-                    onDelete={() => deleteFeatures(feature)}
-                  />
-                );
-              })}
+              <div className="flex flex-wrap gap-2">
+                {items.map(({ feature, index }) => {
+                  const id = feature.id;
+                  return (
+                    <AnnotationThumb
+                      key={id ?? index}
+                      feature={feature}
+                      selected={!!id && selectedIds.includes(id)}
+                      color={cssColor}
+                      editable={editable}
+                      // Don't offer moving into the group the region already sits in.
+                      classNames={namedClasses.filter((n) => n !== name)}
+                      onSelect={(e) => select(feature, e)}
+                      onZoom={() => zoomToFeature(feature)}
+                      onClassify={(className) =>
+                        setClassForIds(setId, actionTargets(feature), className)
+                      }
+                      // Already-unclassified regions have nothing to clear.
+                      onClear={
+                        isUnclassified
+                          ? undefined
+                          : () => setClassForIds(setId, actionTargets(feature), null)
+                      }
+                      onRename={
+                        editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
+                      }
+                      onDelete={() => deleteFeatures(feature)}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </GroupContainer>
 
       {editable &&
         searchQuery.trim().length === 0 &&

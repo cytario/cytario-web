@@ -92,6 +92,7 @@ describe("createViewerStore", () => {
       setError: expect.any(Function),
       setCursorPosition: expect.any(Function),
       setPixelValues: expect.any(Function),
+      clearPixelValues: expect.any(Function),
       setViewStatePreview: expect.any(Function),
       setViewStateActive: expect.any(Function),
       setIsViewerLoading: expect.any(Function),
@@ -181,6 +182,16 @@ describe("createViewerStore", () => {
 
     store.getState().setCursorPosition(null);
     expect(store.getState().cursorPosition).toBeNull();
+  });
+
+  test("clearPixelValues() clears the live pixel readout", () => {
+    const store = createViewerStore("test-viewer-px");
+
+    store.getState().setPixelValues(["Red", "Green"], [42, 7]);
+    expect(store.getState().pixelValues).toEqual({ Red: 42, Green: 7 });
+
+    store.getState().clearPixelValues();
+    expect(store.getState().pixelValues).toEqual({});
   });
 
   test("setViewStatePreview()", () => {
