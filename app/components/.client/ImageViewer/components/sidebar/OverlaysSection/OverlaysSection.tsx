@@ -45,49 +45,50 @@ export const OverlaysSection = () => {
   );
 
   return (
-    <Section
-      pillar="overlays"
-      badge={badge}
-      actions={
-        <>
-          <IconButton
-            icon="Plus"
-            label="Add overlay"
-            onPress={() => setIsOpen(true)}
-            variant="ghost"
-            size="xs"
+    <>
+      <Section
+        pillar="overlays"
+        badge={badge}
+        actions={
+          <>
+            <IconButton
+              icon="Plus"
+              label="Add overlay"
+              onPress={() => setIsOpen(true)}
+              variant="ghost"
+              size="xs"
+            />
+            <IconButton
+              icon={showCellOutline ? "CircleDot" : "Circle"}
+              label={showCellOutline ? "Hide outlines" : "Show outlines"}
+              onPress={() => setShowCellOutline(!showCellOutline)}
+              isDisabled={isInPointMode}
+              variant="ghost"
+              size="xs"
+            />
+            <SectionSlider
+              aria-label="Overlay fill opacity"
+              value={fillOpacity}
+              onChange={setFillOpacity}
+            />
+          </>
+        }
+      >
+        {entries.length === 0 ? (
+          <EmptyState
+            title="Add Overlay"
+            description="Add parquet cell detection files"
+            icon="Layers2"
+            className="py-6"
+            action={addOverlayButton}
           />
-          <IconButton
-            icon={showCellOutline ? "CircleDot" : "Circle"}
-            label={showCellOutline ? "Hide outlines" : "Show outlines"}
-            onPress={() => setShowCellOutline(!showCellOutline)}
-            isDisabled={isInPointMode}
-            variant="ghost"
-            size="xs"
-          />
-          <SectionSlider
-            aria-label="Overlay fill opacity"
-            value={fillOpacity}
-            onChange={setFillOpacity}
-          />
-        </>
-      }
-    >
-      {entries.length === 0 ? (
-        <EmptyState
-          title="Add Overlay"
-          description="Add parquet cell detection files"
-          icon="Layers2"
-          className="py-6"
-          action={addOverlayButton}
-        />
-      ) : (
-        entries.map(([resourceId, entry]) => (
-          <OverlayItem key={resourceId} resourceId={resourceId} overlay={entry} />
-        ))
-      )}
-
+        ) : (
+          entries.map(([resourceId, entry]) => (
+            <OverlayItem key={resourceId} resourceId={resourceId} overlay={entry} />
+          ))
+        )}
+      </Section>
       {isOpen && <LoadOverlayModal onClose={() => setIsOpen(false)} />}
-    </Section>
+    </>
   );
 };
