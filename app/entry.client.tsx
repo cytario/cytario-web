@@ -6,6 +6,7 @@ import { contextMenuRegistry } from "./components/contextMenuRegistry";
 import { sidebarNavRegistry } from "./components/sidebarNavRegistry";
 import { slotRegistry } from "./components/slotRegistry";
 import { storagePickerRegistry } from "./components/storagePickerRegistry";
+import { viewerRegistry } from "./components/viewerRegistry";
 import { clientRouteRegistry } from "./lib/clientRouteRegistry";
 import { storagePicker } from "./lib/storagePicker";
 import { bootstrapPlugins } from "./plugins.generated";
@@ -31,6 +32,7 @@ await bootstrapPlugins(
     contextMenus: contextMenuRegistry,
     sidebarNav: sidebarNavRegistry,
     storagePicker: storagePickerRegistry,
+    viewers: viewerRegistry,
     routes: clientRouteRegistry,
     env: "client",
   },

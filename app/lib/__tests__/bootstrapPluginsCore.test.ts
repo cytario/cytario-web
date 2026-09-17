@@ -10,6 +10,7 @@ import type {
   ServerEndpointRegistry,
   SidebarNavRegistry,
   SlotRegistry,
+  ViewerRegistry,
 } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
@@ -283,6 +284,21 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
       expect(sink.ctx?.env).toBe("server");
     });
 
+    test("injects the viewer registry scoped to the plugin name; env is client", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const scoped: ViewerRegistry = { register: vi.fn() };
+      const viewers = { scopedFor: vi.fn(() => scoped) };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        viewers,
+        env: "client",
+      });
+
+      expect(viewers.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.viewers).toBe(scoped);
+      expect(sink.ctx?.env).toBe("client");
+    });
+
     test("no-op sinks are supplied when registries are not injected", async () => {
       const sink: { ctx?: PluginContext } = {};
 
@@ -306,6 +322,9 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
         }),
       ).not.toThrow();
       expect(() => sink.ctx?.routes.register({ path: "/x" })).not.toThrow();
+      expect(() =>
+        sink.ctx?.viewers.register({ match: () => true, component: () => null }),
+      ).not.toThrow();
       expect(() =>
         sink.ctx?.serverEndpoints.register({
           path: "/x",

@@ -84,6 +84,7 @@ export type {
   StoragePickerSelection,
   StoragePickerRegistry,
 } from "./storagePicker";
+export type { ViewerProps, ViewerContribution, ViewerRegistry } from "./viewer";
 
 export { assertApiCompatible, IncompatiblePluginError } from "./apiVersion";
 export { sanitizeHeaders } from "./headers";

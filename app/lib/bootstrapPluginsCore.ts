@@ -11,6 +11,7 @@ import type {
   SlotRegistry,
   StoragePickerRegistry,
   UserManagementGateRegistry,
+  ViewerRegistry,
 } from "@cytario/plugin-api";
 import { IncompatiblePluginError, assertApiCompatible } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
@@ -39,6 +40,7 @@ export interface BootstrapRegistries {
   contextMenus?: Scoped<ContextMenuRegistry>;
   sidebarNav?: Scoped<SidebarNavRegistry>;
   storagePicker?: Scoped<StoragePickerRegistry>;
+  viewers?: Scoped<ViewerRegistry>;
   routes?: Scoped<RouteRegistry>;
   serverEndpoints?: Scoped<ServerEndpointRegistry>;
   /** Server-only single-slot user-management gate (not scoped to a plugin). */
@@ -66,6 +68,10 @@ const noopSidebarNavRegistry: Scoped<SidebarNavRegistry> = {
 
 const noopStoragePickerRegistry: Scoped<StoragePickerRegistry> = {
   scopedFor: () => ({ get: () => null }),
+};
+
+const noopViewerRegistry: Scoped<ViewerRegistry> = {
+  scopedFor: () => ({ register: () => {} }),
 };
 
 const noopRouteRegistry: Scoped<RouteRegistry> = {
@@ -107,6 +113,7 @@ export async function bootstrapPluginsCore(
   const contextMenus = registries?.contextMenus ?? noopContextMenuRegistry;
   const sidebarNav = registries?.sidebarNav ?? noopSidebarNavRegistry;
   const storagePicker = registries?.storagePicker ?? noopStoragePickerRegistry;
+  const viewers = registries?.viewers ?? noopViewerRegistry;
   const routes = registries?.routes ?? noopRouteRegistry;
   const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
   const userMgmtGate = registries?.userMgmtGate ?? noopUserManagementGateRegistry;
@@ -138,6 +145,7 @@ export async function bootstrapPluginsCore(
       contextMenus: contextMenus.scopedFor(plugin.name),
       sidebarNav: sidebarNav.scopedFor(plugin.name),
       storagePicker: storagePicker.scopedFor(plugin.name),
+      viewers: viewers.scopedFor(plugin.name),
       routes: routes.scopedFor(plugin.name),
       serverEndpoints: serverEndpoints.scopedFor(plugin.name),
       userMgmtGate,

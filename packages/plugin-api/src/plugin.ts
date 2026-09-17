@@ -8,6 +8,7 @@ import type { SidebarNavRegistry } from "./sidebarNav";
 import type { SlotRegistry } from "./slots";
 import type { StoragePickerRegistry } from "./storagePicker";
 import type { UserManagementGateRegistry } from "./userManagementGate";
+import type { ViewerRegistry } from "./viewer";
 
 export interface Logger {
   debug(msg: string, fields?: Record<string, unknown>): void;
@@ -70,6 +71,13 @@ export interface PluginContext {
    * `resolveUrl`/`resolveLabel` — additive at hostApiVersion 6.2.0.
    */
   userMgmtGate: UserManagementGateRegistry;
+  /**
+   * Client-side viewer contributions. Live client-side; no-op sink
+   * server-side. Added additively at hostApiVersion 6.4.0; a plugin that
+   * consumes only the pre-existing surface continues to satisfy the
+   * CytarioPlugin contract unchanged.
+   */
+  viewers: ViewerRegistry;
   logger: Logger;
   /** Lets a plugin branch its register() without import-time env sniffing. */
   env: "server" | "client";
