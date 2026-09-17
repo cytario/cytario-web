@@ -30,8 +30,9 @@ export type AnyBucketPolicyGrant = BucketPolicyGrant | RustfsBucketPolicyGrant;
  *
  * The AWS/RustFS split is expressed as a discriminated union on `providerType`
  * so each variant carries exactly the fields its engine uses: `kmsKeyArn`
- * exists only on the AWS target (a RustFS target carrying one is rejected
- * fail-closed — the RustFS write session has no KMS surface).
+ * exists only on the AWS target (the RustFS write session has no KMS surface;
+ * a JS caller smuggling the field onto a RustFS target is ignored — the
+ * RustFS branch never reads it).
  */
 export type ApplyTarget = AwsApplyTarget | RustfsApplyTarget;
 

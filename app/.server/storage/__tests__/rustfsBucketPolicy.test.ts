@@ -24,9 +24,9 @@ describe("rustfsBucketPolicy generator", () => {
       expect(statements.length).toBeGreaterThan(0);
       for (const statement of statements) {
         expect(statement.Effect).toBe("Allow");
-        // Single-valued StringEquals — never ForAnyValue (ANY-match would OR
-        // an org marker and a group path apart; see the cross-org collision
-        // review finding).
+        // Single-valued StringEquals — never ForAnyValue: multivalued
+        // condition keys evaluate ANY-match, which would OR an org marker
+        // and a group path apart.
         expect(statement.Condition?.["ForAnyValue:StringEquals"]).toBeUndefined();
         expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe(
           "cytario-org-acme/Lab/TeamX",
