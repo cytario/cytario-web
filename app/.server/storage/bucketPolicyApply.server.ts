@@ -16,13 +16,26 @@ import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 const label = createLabel("bucketpolicy-apply", "magenta");
 
+/** The provider discriminator both grant shapes carry. */
+export type GrantKind = BucketPolicyGrant["kind"] | RustfsBucketPolicyGrant["kind"];
+
+/** A provider-tagged bucket-policy grant, either provider's shape. */
+export type AnyBucketPolicyGrant = BucketPolicyGrant | RustfsBucketPolicyGrant;
+
 /**
  * Everything the apply needs about the target, resolved from the connection's
  * provider connection + provider role — never stored on the connection row
  * itself. `roleArn` is the acting user's connection provider role; the write
  * session is minted against it.
+ *
+ * The AWS/RustFS split is expressed as a discriminated union on `providerType`
+ * so each variant carries exactly the fields its engine uses: `kmsKeyArn`
+ * exists only on the AWS target (a RustFS target carrying one is rejected
+ * fail-closed — the RustFS write session has no KMS surface).
  */
-export interface ApplyTarget {
+export type ApplyTarget = AwsApplyTarget | RustfsApplyTarget;
+
+export interface AwsApplyTarget {
   organization: string;
   bucketName: string;
   region: string;
@@ -31,12 +44,17 @@ export interface ApplyTarget {
   roleArn: string;
   /** ARN of the bucket's SSE-KMS CMK, when SSE-KMS is in use. */
   kmsKeyArn?: string | null;
-  /**
-   * The provider type of the connection backing the apply. A `rustfs` target
-   * routes the generation, write-session policy, and lock key to the RustFS
-   * variants; `aws` (or a legacy catalog value) keeps the AWS path.
-   */
-  providerType?: "aws" | "rustfs";
+  providerType: "aws";
+}
+
+export interface RustfsApplyTarget {
+  organization: string;
+  bucketName: string;
+  region: string;
+  endpoint: string;
+  /** Opaque placeholder — the RustFS STS parses and ignores it. */
+  roleArn: string;
+  providerType: "rustfs";
 }
 
 /**
@@ -60,38 +78,10 @@ export const accountIdFromRoleArn = (roleArn: string): string => {
 };
 
 /**
- * The per-bucket lock-key namespace: the AWS account id on AWS, or the
- * endpoint host on an S3-compatible provider (one deployment serves one
- * account; the host pins the instance).
+ * The per-bucket lock-key namespace: the AWS account id on AWS targets, or the
+ * endpoint host on a RustFS target (one deployment serves one account; the
+ * host pins the instance).
  */
-
-/**
- * A bucket's grant set must be homogeneous with the target's provider: a
- * RustFS grant carries no `roleArn` (conditions are the binding) while an AWS
- * grant requires one (the Principal) — a mixed set can never compile correctly
- * through a single generator.
- */
-const assertGrantSetHomogeneity = (
-  target: ApplyTarget,
-  grants: Array<BucketPolicyGrant | RustfsBucketPolicyGrant>,
-): void => {
-  if (target.providerType === "rustfs") {
-    const strayAwsGrant = grants.find((grant) => "roleArn" in grant);
-    if (strayAwsGrant) {
-      throw new Error(
-        "A RustFS bucket-policy apply received an AWS-shaped grant (mixed providers on one bucket) — refusing, fail closed.",
-      );
-    }
-  } else {
-    const strayRustfsGrant = grants.find((grant) => !("roleArn" in grant));
-    if (strayRustfsGrant) {
-      throw new Error(
-        "An AWS bucket-policy apply received a RustFS-shaped grant (mixed providers on one bucket) — refusing, fail closed.",
-      );
-    }
-  }
-};
-
 const lockNamespaceOf = (target: ApplyTarget): string => {
   if (target.providerType === "rustfs") {
     if (!target.endpoint) {
@@ -124,14 +114,18 @@ const mintWriteSession = async (
   idToken: string,
   roleSessionName: string,
 ): Promise<S3Client> => {
-  const { region, endpoint, roleArn, organization, bucketName, kmsKeyArn, providerType } = target;
-  const providerConfig = getS3ProviderConfig(endpoint, region, providerType ?? null);
+  const { region, endpoint, roleArn, organization, bucketName, providerType } = target;
+  const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
 
   const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
   const Policy =
     providerType === "rustfs"
       ? buildRustfsWriteSessionPolicy({ organization, bucketName })
-      : buildWriteSessionPolicy({ organization, bucketName, kmsKeyArn });
+      : buildWriteSessionPolicy({
+          organization,
+          bucketName,
+          kmsKeyArn: target.providerType === "aws" ? target.kmsKeyArn : undefined,
+        });
 
   const { Credentials } = await stsClient.send(
     new AssumeRoleWithWebIdentityCommand({
@@ -174,6 +168,24 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
 };
 
 /**
+ * A bucket's grant set must be homogeneous with the target's provider: an AWS
+ * grant carries `kind: "aws"` (role-ARN Principal), a RustFS grant `kind:
+ * "rustfs"` (composite jwt:groups condition) — a mixed set can never compile
+ * correctly through a single generator. The explicit `kind` discriminator makes
+ * the check structural; catalog drift where a provider connection is missing
+ * fails the homogeneity guard rather than silently compiling the wrong shape.
+ */
+const assertGrantSetHomogeneity = (target: ApplyTarget, grants: AnyBucketPolicyGrant[]): void => {
+  const expected: GrantKind = target.providerType === "rustfs" ? "rustfs" : "aws";
+  const stray = grants.find((grant) => grant.kind !== expected);
+  if (stray) {
+    throw new Error(
+      `A ${target.providerType} bucket-policy apply received a ${stray.kind}-shaped grant (mixed providers on one bucket) — refusing, fail closed.`,
+    );
+  }
+};
+
+/**
  * Apply the desired grant set to a bucket's policy. `grants` is the FULL managed
  * grant set the bucket should carry — every live share/connection on that bucket
  * the caller authorizes — so the operation is idempotent and naturally handles
@@ -187,6 +199,8 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
  * On an AWS target the write is serialized under the per-(account, bucket) lock;
  * on a RustFS target under the per-(endpoint-host, bucket) lock — the same
  * mutual exclusion the AWS lock provides, keyed to the S3-compatible instance.
+ * The admin portal's bootstrap write serializes on the same key: it must use the
+ * endpoint host (not an AWS account id) for a RustFS bucket.
  *
  * On an AccessDenied (the write session lacks `s3:PutBucketPolicy`) it returns a
  * `warning` result — it never claims the grant was enforced.
@@ -196,7 +210,7 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
  */
 export const applyBucketPolicy = async (
   target: ApplyTarget,
-  grants: Array<BucketPolicyGrant | RustfsBucketPolicyGrant>,
+  grants: AnyBucketPolicyGrant[],
   idToken: string,
   actingUserName: string,
 ): Promise<ApplyResult> => {

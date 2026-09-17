@@ -4,14 +4,20 @@ import { redis } from "~/.server/db/redis";
 import { createLabel } from "~/.server/logging";
 
 /**
- * Per-(account, bucket) serialization lock for the bucket-policy read-merge-write.
- * `PutBucketPolicy` replaces the whole document with no conditional-write
- * primitive, so concurrent writers would clobber each other; every writer — the
- * cytario-web Share apply here AND the admin portal's Admin-Role bootstrap write —
- * serializes on the SAME key so the two never race.
+ * Per-(namespace, bucket) serialization lock for the bucket-policy
+ * read-merge-write. `PutBucketPolicy` replaces the whole document with no
+ * conditional-write primitive, so concurrent writers would clobber each
+ * other; every writer — the cytario-web Share apply here AND the admin
+ * portal's Admin-Role bootstrap write — serializes on the SAME key so the
+ * two never race.
  *
- * The lock key MUST be exactly `bucketpolicy:<accountId>:<bucketName>` (pinned
- * cross-repo contract).
+ * The lock key MUST be exactly `bucketpolicy:<namespace>:<bucketName>` (pinned
+ * cross-repo contract). The namespace is the AWS account id on an AWS target,
+ * or the S3-compatible endpoint host on a RustFS target (one RustFS instance
+ * serves one account, so the host IS the account namespace). The admin portal
+ * must derive the same namespace for the same bucket or the two writers
+ * serialize on different keys and the clobber race this lock prevents comes
+ * back.
  *
  * Single-Redis lease, no renewal: mutual exclusion holds only while the lease
  * lives, so the TTL must exceed the worst-case critical section (STS mint +
@@ -42,20 +48,21 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * namespace is the AWS account id on AWS targets, or the S3-compatible
  * endpoint host on a RustFS target (one instance serves one account).
  */
-export const bucketPolicyLockKey = (accountId: string, bucketName: string): string =>
-  `bucketpolicy:${accountId}:${bucketName}`;
+export const bucketPolicyLockKey = (namespace: string, bucketName: string): string =>
+  `bucketpolicy:${namespace}:${bucketName}`;
 
 /**
- * Run `fn` while holding the per-(account, bucket) lock, releasing it afterwards.
- * Retries acquisition up to a bounded number of times; throws if the lock cannot
- * be acquired so the caller fails closed rather than writing unserialized.
+ * Run `fn` while holding the per-(namespace, bucket) lock, releasing it
+ * afterwards. Retries acquisition up to a bounded number of times; throws if
+ * the lock cannot be acquired so the caller fails closed rather than writing
+ * unserialized.
  */
 export async function withBucketPolicyLock<T>(
-  accountId: string,
+  namespace: string,
   bucketName: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const lockKey = bucketPolicyLockKey(accountId, bucketName);
+  const lockKey = bucketPolicyLockKey(namespace, bucketName);
   const lockValue = randomUUID();
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {

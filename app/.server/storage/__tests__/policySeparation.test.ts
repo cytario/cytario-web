@@ -80,6 +80,7 @@ describe("policy-generator architectural separation (positive output properties)
 
   test("every Allow the bucket-policy generator emits carries ORG AND the per-group tag", () => {
     const grant: BucketPolicyGrant = {
+      kind: "aws",
       organization: "vericura",
       bucketName: "b",
       groupPath: "Lab/TeamX",

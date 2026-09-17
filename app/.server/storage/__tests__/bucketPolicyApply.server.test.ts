@@ -50,6 +50,7 @@ const WRITE_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/la
 const GRANT_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-ro";
 
 const target: ApplyTarget = {
+  providerType: "aws",
   organization: ORG,
   bucketName: "customer-bucket",
   region: "eu-central-1",
@@ -58,6 +59,7 @@ const target: ApplyTarget = {
 };
 
 const grant = (overrides: Partial<BucketPolicyGrant> = {}): BucketPolicyGrant => ({
+  kind: "aws",
   organization: ORG,
   bucketName: "customer-bucket",
   groupPath: "Lab/TeamX",

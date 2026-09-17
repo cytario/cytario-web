@@ -8,6 +8,7 @@ import {
 } from "../rustfsBucketPolicy";
 
 const grant = (overrides: Partial<RustfsBucketPolicyGrant> = {}): RustfsBucketPolicyGrant => ({
+  kind: "rustfs",
   organization: "acme",
   bucketName: "tenants",
   groupPath: "Lab/TeamX",
@@ -18,23 +19,43 @@ const grant = (overrides: Partial<RustfsBucketPolicyGrant> = {}): RustfsBucketPo
 
 describe("rustfsBucketPolicy generator", () => {
   describe("buildGrantCondition", () => {
-    test("every Allow statement carries the org marker and group path via jwt:groups", () => {
+    test("every Allow statement binds org and group as ONE composite jwt:groups value", () => {
       const statements = compileGrantStatements(grant());
       expect(statements.length).toBeGreaterThan(0);
       for (const statement of statements) {
         expect(statement.Effect).toBe("Allow");
-        const groups = statement.Condition?.["ForAnyValue:StringEquals"]?.["jwt:groups"];
-        expect(groups).toContain("cytario-org-acme");
-        expect(groups).toContain("Lab/TeamX");
+        // Single-valued StringEquals — never ForAnyValue (ANY-match would OR
+        // an org marker and a group path apart; see the cross-org collision
+        // review finding).
+        expect(statement.Condition?.["ForAnyValue:StringEquals"]).toBeUndefined();
+        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe(
+          "cytario-org-acme/Lab/TeamX",
+        );
         expect(statement.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBeUndefined();
       }
     });
 
-    test("an org-root grant carries only the org marker (no per-group entry)", () => {
+    test("the composite contains the org marker by construction — no OR-able array of independent values", () => {
+      // A session holding a matching group path in a DIFFERENT org must not
+      // satisfy the condition: the value the policy demands is the composite
+      // `<org-marker>/<group-path>`, which a foreign org's mapper never emits.
+      const statements = compileGrantStatements(grant());
+      for (const statement of statements) {
+        const groups = statement.Condition?.StringEquals?.["jwt:groups"];
+        const values = Array.isArray(groups) ? groups : [groups];
+        for (const value of values) {
+          expect(value).toMatch(/^cytario-org-acme\//);
+          // No value is the bare group path or the bare marker of another org.
+          expect(value).not.toBe("Lab/TeamX");
+          expect(value).not.toMatch(/^cytario-org-vericura/);
+        }
+      }
+    });
+
+    test("an org-root grant conditions on the bare org marker alone", () => {
       const statements = compileGrantStatements(grant({ groupPath: "*" }));
       for (const statement of statements) {
-        const groups = statement.Condition?.["ForAnyValue:StringEquals"]?.["jwt:groups"];
-        expect(groups).toEqual(["cytario-org-acme"]);
+        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cytario-org-acme");
       }
     });
 

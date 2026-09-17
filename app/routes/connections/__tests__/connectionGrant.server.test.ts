@@ -84,7 +84,13 @@ describe("grantForConnection", () => {
       roleArn,
       "read-only",
     );
-    const statements = compileGrantStatements(grant);
+    const statements = compileGrantStatements(
+      grant.kind === "aws"
+        ? grant
+        : ((): never => {
+            throw new Error("expected an AWS grant from an untyped provider default");
+          })(),
+    );
     for (const s of statements) {
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/lab/team-a"]).toBe("1");
@@ -102,7 +108,13 @@ describe("grantForConnection", () => {
       "read-write",
     );
     expect(grant.accessLevel).toBe("read-write");
-    const statements = compileGrantStatements(grant);
+    const statements = compileGrantStatements(
+      grant.kind === "aws"
+        ? grant
+        : ((): never => {
+            throw new Error("expected an AWS grant from an untyped provider default");
+          })(),
+    );
     const objectStmt = statements.find((s) => s.Resource === "arn:aws:s3:::shared/images/*")!;
     const actions = Array.isArray(objectStmt.Action) ? objectStmt.Action : [objectStmt.Action];
     expect(actions).toContain("s3:PutObject");
@@ -117,7 +129,13 @@ describe("grantForConnection", () => {
       "read-only",
     );
     expect(grant.groupPath).toBe("*");
-    const statements = compileGrantStatements(grant);
+    const statements = compileGrantStatements(
+      grant.kind === "aws"
+        ? grant
+        : ((): never => {
+            throw new Error("expected an AWS grant from an untyped provider default");
+          })(),
+    );
     for (const s of statements) {
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
       expect(s.Condition?.StringEquals).not.toHaveProperty("aws:PrincipalTag/*");

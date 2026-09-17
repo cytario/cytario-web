@@ -21,18 +21,34 @@
  * This module shares NO policy-construction code with `buildSessionPolicy`
  * (`app/.server/auth/sessionPolicy.ts`); each generator independently carries the
  * ORG condition (the CI architectural-separation test asserts this).
+ *
+ * Protocol-level constants, types, and pure utilities (S3 action sets, the size
+ * ceiling, the managed-Sid prefix, document parsing) are shared with the RustFS
+ * generator through `policyPrimitives.ts` — wire-protocol facts with no binding
+ * semantics. The separation test forbids cross-imports of the generator
+ * *modules*; primitives are not the generators.
  */
 
+import {
+  type AccessLevel,
+  BUCKET_METADATA_ACTIONS,
+  type PolicyCondition,
+  BUCKET_POLICY_MAX_BYTES,
+  LIST_ACTION,
+  MANAGED_SID_PREFIX,
+  READ_ACTIONS,
+  WRITE_ACTIONS,
+  type BucketPolicyDocument,
+  type PolicyStatement,
+  fnv1aHex,
+  isManagedStatement,
+  parseBucketPolicy as parsePolicyDocument,
+  stripSlashes,
+} from "./policyPrimitives";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
-import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
-/** Hard S3 limit on a bucket policy document. Fail closed above it. */
-export const BUCKET_POLICY_MAX_BYTES = 20480;
-
-/** Every managed statement's `Sid` starts with this so foreign statements are distinguishable. */
-export const MANAGED_SID_PREFIX = "Cytario";
-
-export type { AccessLevel };
+export { BUCKET_POLICY_MAX_BYTES, MANAGED_SID_PREFIX, isManagedStatement };
+export type { AccessLevel, BucketPolicyDocument, PolicyCondition, PolicyStatement };
 
 /**
  * A single share grant to realize on the bucket policy. `groupPath` is the
@@ -42,6 +58,9 @@ export type { AccessLevel };
  * which carries only the ORG condition (no per-group tag is emitted for `*`).
  */
 export interface BucketPolicyGrant {
+  /** Explicit provider discriminator — the apply's homogeneity guard keys on
+   *  it, never on incidental optional fields. */
+  kind: "aws";
   organization: string;
   bucketName: string;
   groupPath: string;
@@ -53,86 +72,11 @@ export interface BucketPolicyGrant {
   roleArn?: string;
 }
 
-/** Read actions granted at every access level. */
-const READ_ACTIONS = ["s3:GetObject"] as const;
-/** Bucket-level list action (scoped by the `s3:prefix` Condition, not by Resource ARN). */
-const LIST_ACTION = "s3:ListBucket";
-/**
- * Bucket-level metadata reads every S3 client issues on connect (Cyberduck among
- * them) to resolve region, enumerate in-progress multipart uploads, and read
- * ownership controls. Granted at every access level — they reveal bucket
- * metadata, not object data.
- */
-const BUCKET_METADATA_ACTIONS = [
-  "s3:GetBucketLocation",
-  "s3:ListBucketMultipartUploads",
-  "s3:GetBucketOwnershipControls",
-] as const;
-/**
- * Additional write + multipart actions granted for read-write / admin access.
- * The multipart actions are required for any client (Cyberduck) that chunks
- * uploads above its part threshold. Completing a multipart upload is
- * authorized by `s3:PutObject` (already in the list) — `s3:CompleteMultipartUpload`
- * is an API operation, not an IAM action key, and S3 rejects it in a policy
- * with "Policy has invalid action".
- */
-const WRITE_ACTIONS = [
-  "s3:PutObject",
-  "s3:DeleteObject",
-  "s3:AbortMultipartUpload",
-  "s3:ListMultipartUploadParts",
-] as const;
-
-export interface PolicyCondition {
-  StringEquals?: Record<string, string>;
-  StringLike?: Record<string, string[]>;
-  [operator: string]: Record<string, string | string[]> | undefined;
-}
-
-export interface PolicyStatement {
-  Sid?: string;
-  Effect: "Allow" | "Deny";
-  Principal?: unknown;
-  Action: string | string[];
-  Resource: string | string[];
-  Condition?: PolicyCondition;
-  [key: string]: unknown;
-}
-
-export interface BucketPolicyDocument {
-  Version: string;
-  Id?: string;
-  Statement: PolicyStatement[];
-}
-
-const stripSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
-
-/**
- * Deterministic, collision-resistant suffix for a managed `Sid`. Derived from the
- * grant's stable identity (org, group, prefix, access) so re-applying the same
- * grant converges to the same `Sid` -- the property idempotency and revoke rely on.
- * Uses a small non-cryptographic hash (FNV-1a) rendered hex; a `Sid` must match
- * `[A-Za-z0-9]+`, so no separators.
- */
-const fnv1aHex = (input: string): string => {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-};
-
-/** The two logical statements a grant compiles to share this managed-`Sid` stem. */
 const managedSidStem = (grant: BucketPolicyGrant): string => {
   const prefix = stripSlashes(grant.prefix ?? "");
   const identity = [grant.organization, grant.groupPath, prefix, grant.accessLevel].join("\u0000");
   return `${MANAGED_SID_PREFIX}Share${fnv1aHex(identity)}`;
 };
-
-/** True iff a statement is one this module manages (identified purely by `Sid` prefix). */
-export const isManagedStatement = (statement: PolicyStatement): boolean =>
-  typeof statement.Sid === "string" && statement.Sid.startsWith(MANAGED_SID_PREFIX);
 
 /**
  * Build the `Condition` block shared by every statement of a grant: the ORG tag
@@ -404,37 +348,7 @@ export const canonicalize = (value: unknown): string => {
   return JSON.stringify(normalize(value));
 };
 
-const EMPTY_POLICY: BucketPolicyDocument = { Version: "2012-10-17", Statement: [] };
-
-/**
- * Parse a live bucket policy document (the string `GetBucketPolicy` returns), or
- * the empty policy when the bucket has none. Throws on a malformed document so the
- * caller fails closed rather than clobbering an unparseable policy.
- */
-export const parseBucketPolicy = (raw: string | null | undefined): BucketPolicyDocument => {
-  if (!raw) return { ...EMPTY_POLICY, Statement: [] };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Live bucket policy is not valid JSON; refusing to overwrite (fail closed).");
-  }
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !Array.isArray((parsed as BucketPolicyDocument).Statement)
-  ) {
-    throw new Error(
-      "Live bucket policy has no Statement array; refusing to overwrite (fail closed).",
-    );
-  }
-  const doc = parsed as BucketPolicyDocument;
-  return {
-    Version: doc.Version || "2012-10-17",
-    ...(doc.Id ? { Id: doc.Id } : {}),
-    Statement: doc.Statement,
-  };
-};
+export const parseBucketPolicy = parsePolicyDocument;
 
 export interface BuildResult {
   /** The full merged policy document, foreign statements preserved. */
