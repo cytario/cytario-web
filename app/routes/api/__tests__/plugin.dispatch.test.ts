@@ -46,6 +46,14 @@ const VALID_JOB_TOKEN_PAYLOAD = {
   organization: { testcorp: { id: "org-1", groups: [] } },
 };
 
+const MULTI_ORG_JOB_TOKEN_PAYLOAD = {
+  sub: "submitting-user-42",
+  organization: {
+    "cosmo-bio": { id: "org-1", groups: [] },
+    cytario: { id: "org-2", groups: [] },
+  },
+};
+
 beforeEach(() => {
   serverEndpointRegistry.__reset();
   vi.clearAllMocks();
@@ -234,6 +242,54 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     )) as Response;
 
     expect(response.status).toBe(401);
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("job-token carve-out: returns 403 when the token's organization claim carries multiple org keys", async () => {
+    const actionFn = vi.fn(async () => Response.json({ brokered: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/credential-broker",
+      auth: "job-token",
+      action: actionFn,
+    });
+
+    verifyJobTokenMock.mockResolvedValueOnce(MULTI_ORG_JOB_TOKEN_PAYLOAD);
+
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/credential-broker", {
+        headers: { Authorization: "Bearer job-token-value" },
+      }),
+    )) as Response;
+
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /no single organization claim/i,
+    });
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("job-token carve-out: returns 403 when the token has no organization claim at all", async () => {
+    const actionFn = vi.fn(async () => Response.json({ brokered: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/credential-broker",
+      auth: "job-token",
+      action: actionFn,
+    });
+
+    verifyJobTokenMock.mockResolvedValueOnce({ sub: "submitting-user-42" });
+
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/credential-broker", {
+        headers: { Authorization: "Bearer job-token-value" },
+      }),
+    )) as Response;
+
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /no single organization claim/i,
+    });
     expect(actionFn).not.toHaveBeenCalled();
   });
 

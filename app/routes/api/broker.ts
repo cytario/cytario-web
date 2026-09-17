@@ -1,6 +1,9 @@
 import type { ActionFunctionArgs } from "react-router";
 
-import { hostRequestDataFromJobToken } from "~/.server/auth/carveOutRequestContext";
+import {
+  hostRequestDataFromJobToken,
+  readOrganizationClaimKeys,
+} from "~/.server/auth/carveOutRequestContext";
 import { refreshJobTokenWithLock } from "~/.server/auth/refreshJobTokenWithLock";
 import {
   buildBrokerSessionPolicy,
@@ -92,30 +95,43 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
     return jsonError(401, "The job-scoped token failed verification.");
   }
 
+  const orgKeys = readOrganizationClaimKeys(verified);
+
   console.info(
-    `${label} verified token for job ${body.jobId}, sub=${verified.sub}, org claim=${JSON.stringify(verified.organization)}`,
+    `${label} verified token for job ${body.jobId}, sub=${verified.sub}, org keys=${JSON.stringify([...orgKeys])}`,
   );
 
-  const requestData = hostRequestDataFromJobToken(verified, refreshedToken);
+  // A token with no organization claim at all is malformed.
+  if (orgKeys.size === 0) {
+    console.warn(`${label} 403: organization missing from token claims for job ${body.jobId}`);
+    return jsonError(403, "Organization missing from token claims.");
+  }
+
+  // The request organization is resolved from the ledger row recorded at
+  // submission: a user who belongs to multiple Keycloak organizations gets
+  // a multi-key `organization` claim, and the row's org selects the tenant
+  // this job actually belongs to. The row's org must be among the token's
+  // org memberships and the row must belong to the submitting user; a
+  // single message avoids leaking which check failed.
+  const entry = await prisma.jobLedgerEntry.findFirst({
+    where: {
+      jobId: body.jobId,
+      owner: verified.sub,
+      organization: { in: [...orgKeys] },
+    },
+  });
+  if (!entry) {
+    console.warn(
+      `${label} 403: no ledger row for job=${body.jobId} matching the token's ` +
+        `org keys or owner`,
+    );
+    return jsonError(403, "No active job binding for this token.");
+  }
+
+  const requestData = hostRequestDataFromJobToken(verified, refreshedToken, entry.organization);
 
   return withHostRequestContext(requestData, async () => {
     try {
-      if (!requestData.user.organization) {
-        console.warn(
-          `${label} 403: organization missing from token claims for job ${body.jobId}, raw claim=${JSON.stringify(verified.organization)}`,
-        );
-        return jsonError(403, "Organization missing from token claims.");
-      }
-
-      const entry = await prisma.jobLedgerEntry.findFirst({
-        where: { organization: requestData.user.organization, jobId: body.jobId },
-      });
-      if (!entry) {
-        console.warn(
-          `${label} 403: no ledger row for org=${requestData.user.organization} job=${body.jobId}`,
-        );
-        return jsonError(403, "No active job binding for this token.");
-      }
       if (!entry.roleArn) {
         console.warn(`${label} 403: roleArn empty for job ${body.jobId}`);
         return jsonError(403, "Job predates role recording; re-submit the job.");
