@@ -3,20 +3,10 @@ import { redis } from "../db/redis";
 
 /**
  * Refreshes the canonical grant token for a live offline session ahead of
- * expiry (SDS-CY-080900). A batch whose jobs outlive the grant's idle window
- * relies on this keepalive — the broker's redeem path alone only refreshes
- * when a container actually mints credentials.
- *
- * Resolves the canonical refresh token from the broker store and refreshes
- * through {@link refreshJobTokenWithLock}, so a keepalive cannot race a
- * concurrent broker redeem: both paths converge on the per-session Redis
- * lock and the single canonical token. The rotated token lands back in the
- * store with the same TTL discipline as a broker redeem.
- *
- * Never throws and never resurrects a revoked session: an absent store entry
- * (never-minted or revoked grant, which clears the store on revocation) is a
- * no-op, and a failed refresh — a session revoked at the identity service
- * since the last refresh — is a warn-level no-op.
+ * expiry. Both this path and a concurrent broker redeem converge on the
+ * per-session Redis lock inside {@link refreshJobTokenWithLock}, so they can
+ * never race. Never throws: an absent store entry or a failed refresh is a
+ * warn-level no-op — a revoked session is never resurrected.
  */
 export async function keepAliveGrant(offlineSessionId: string): Promise<void> {
   if (!offlineSessionId) return;
