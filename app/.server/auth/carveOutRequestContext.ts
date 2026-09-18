@@ -107,10 +107,8 @@ export function hostRequestDataFromJobToken(
  * webhook-secret carve-out. No organization and no user is synthesized — the
  * reconciler's cross-org scan ({@link JobLedger.listAll}) does not pre-filter
  * by org, and the per-org compute role is minted by passing the row's
- * organization to `assumeComputeRole` explicitly. The deployment-secret
- * constant-time compare is a separate, not-yet-implemented host obligation;
- * this context only lets the dispatched handler call host capabilities
- * without a session.
+ * organization to `assumeComputeRole` explicitly. The dispatcher verifies the
+ * shared secret before this context is built.
  */
 export function orgAgnosticHostRequestData(): HostRequestData {
   const user: UserProfile = {
