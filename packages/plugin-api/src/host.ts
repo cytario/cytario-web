@@ -413,6 +413,19 @@ export interface HostCapabilities {
    */
   revokeGrant(offlineSessionId: string): Promise<void>;
   /**
+   * Refreshes the canonical grant token for a live offline session ahead of
+   * expiry (SDS-CY-080900). Called by the per-run keepalive so a batch whose
+   * jobs outlive the grant's idle window keeps its shared session alive; the
+   * plugin passes only the `offlineSessionId` — never token material. The
+   * host resolves the canonical refresh token from the broker store and
+   * refreshes under the existing lock, so a keepalive cannot race a concurrent
+   * broker redeem. An absent or revoked session is a warn-level no-op — the
+   * call never resurrects a revoked grant and never throws. Added additively
+   * at hostApiVersion 6.5.0; a plugin that consumes only the pre-existing
+   * surface continues to satisfy the CytarioPlugin contract unchanged.
+   */
+  keepAliveGrant(offlineSessionId: string): Promise<void>;
+  /**
    * Returns a `JobLedger` instance scoped to the active organization
    * (SDS-CY-010099).
    */
