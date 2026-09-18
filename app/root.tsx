@@ -1,5 +1,5 @@
 import { H1, RouterProvider, ToastProvider } from "@cytario/design";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -111,6 +111,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const isInitialRender = useRef(true);
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (data?.notification) {
@@ -139,7 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isNavigating = navigation.state === "loading";
 
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en" data-theme="light" inert={!isHydrated}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
