@@ -105,6 +105,7 @@ describe("public surface", () => {
             },
           }),
         revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
         brokerPublicUrl: () => "",
@@ -193,6 +194,7 @@ describe("public surface", () => {
             },
           }),
         revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
         brokerPublicUrl: () => "",
@@ -274,6 +276,7 @@ describe("public surface", () => {
             },
           }),
         revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
         brokerPublicUrl: () => "",
@@ -355,6 +358,7 @@ describe("public surface", () => {
             },
           }),
         revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
         brokerPublicUrl: () => "",
@@ -370,5 +374,74 @@ describe("public surface", () => {
       env: "server",
     });
     expect(calls).toEqual([{ path: "/api/plugin/catalog", auth: "session" }]);
+  });
+
+  test("CytarioPlugin host surface exposes keepAliveGrant as an optional additive capability", async () => {
+    const calls: string[] = [];
+    const plugin = {
+      name: "keepalive-probe",
+      apiVersion: "^6.4.0",
+      register(ctx: PluginContext) {
+        // Feature detection: a host predating 6.5.0 does not provide it.
+        if (ctx.host.keepAliveGrant) {
+          ctx.host.keepAliveGrant("sess-batch-1").then(() => calls.push("kept-alive"));
+        } else {
+          calls.push("skipped");
+        }
+      },
+    } satisfies CytarioPlugin;
+    plugin.register({
+      sidebarNav: { register: () => {} },
+      contextMenus: { register: () => {} },
+      formats: { register: () => {} } as never,
+      gates: { register: () => {} },
+      slots: { register: () => {} },
+      viewers: { register: () => {} },
+      routes: { register: () => {} },
+      serverEndpoints: { register: () => {} },
+      storagePicker: { get: () => null },
+      userMgmtGate: { register: () => {} },
+      host: {
+        connections: () => Promise.resolve([]),
+        computeConnections: () => Promise.resolve([]),
+        catalogConnections: () => Promise.resolve([]),
+        connectionFetch: () => Promise.resolve(new Response()),
+        objectStore: () => ({
+          put: () => Promise.resolve(),
+          get: () => Promise.resolve(new Response()),
+          delete: () => Promise.resolve(),
+          list: () => Promise.resolve([]),
+          size: () => Promise.resolve(null),
+        }),
+        assumeComputeRole: () =>
+          Promise.resolve({
+            signedFetch: () => Promise.resolve(new Response()),
+            jobQueueArn: "arn:aws:batch:eu-central-1:1:job-queue/q",
+            jobRoleArn: "arn:aws:iam::1:role/job",
+            executionRoleArn: "arn:aws:iam::1:role/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+          }),
+        revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: (offlineSessionId: string) => {
+          expect(offlineSessionId).toBe("sess-batch-1");
+          return Promise.resolve();
+        },
+        exchangeToken: () =>
+          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        brokerPublicUrl: () => "",
+        jobLedger: () => ({
+          record: () => Promise.resolve(),
+          lookup: () => Promise.resolve(null),
+          list: () => Promise.resolve([]),
+          listAll: () => Promise.resolve([]),
+          remove: () => Promise.resolve(),
+        }),
+      },
+      logger: console,
+      env: "server",
+    });
+    await Promise.resolve();
+    expect(calls).toEqual(["kept-alive"]);
   });
 });

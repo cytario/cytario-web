@@ -413,6 +413,15 @@ export interface HostCapabilities {
    */
   revokeGrant(offlineSessionId: string): Promise<void>;
   /**
+   * Refreshes the canonical grant token for a live offline session ahead of
+   * expiry. The plugin passes only the `offlineSessionId` — never token
+   * material. Never throws; an absent or revoked session is a warn-level
+   * no-op, so a revoked grant is never resurrected. Additive: a plugin that
+   * consumes only the pre-existing surface continues to satisfy the
+   * CytarioPlugin contract unchanged.
+   */
+  keepAliveGrant(offlineSessionId: string): Promise<void>;
+  /**
    * Returns a `JobLedger` instance scoped to the active organization
    * (SDS-CY-010099).
    */

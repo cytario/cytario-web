@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { hostRequestStorage } from "~/.server/hostRequestContext";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
@@ -58,6 +58,13 @@ beforeEach(() => {
   serverEndpointRegistry.__reset();
   vi.clearAllMocks();
   verifyJobTokenMock.mockReset();
+  process.env.RECONCILE_SECRET = "test-reconcile-secret";
+  process.env.PLUGIN_WEBHOOK_SECRET = "test-webhook-secret";
+});
+
+afterEach(() => {
+  delete process.env.RECONCILE_SECRET;
+  delete process.env.PLUGIN_WEBHOOK_SECRET;
 });
 
 function buildArgs(method: string, pathname: string, init?: { headers?: Record<string, string> }) {
@@ -303,7 +310,11 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
       loader: loaderFn,
     });
 
-    await loader(buildArgs("GET", "/api/plugin/catalog-cache-webhook"));
+    await loader(
+      buildArgs("GET", "/api/plugin/catalog-cache-webhook", {
+        headers: { Authorization: "Bearer test-webhook-secret" },
+      }),
+    );
 
     expect(authMiddleware).not.toHaveBeenCalled();
     expect(loaderFn).toHaveBeenCalledWith(expect.objectContaining({ identity: undefined }));
@@ -324,7 +335,11 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
       action: actionFn,
     });
 
-    await action(buildArgs("POST", "/api/plugin/job-reconciliation"));
+    await action(
+      buildArgs("POST", "/api/plugin/job-reconciliation", {
+        headers: { Authorization: "Bearer test-reconcile-secret" },
+      }),
+    );
 
     expect(authMiddleware).not.toHaveBeenCalled();
     expect(actionFn).toHaveBeenCalledOnce();
@@ -341,5 +356,111 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
 
     const response = (await loader(buildArgs("GET", "/api/plugin/action-only"))) as Response;
     expect(response.status).toBe(404);
+  });
+});
+
+describe("/api/plugin/* carve-out secret verification (SDS-CY-010095)", () => {
+  test("correct secret dispatches to the handler", async () => {
+    const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/job-reconciliation",
+      auth: "deployment-secret",
+      action: actionFn,
+    });
+
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/job-reconciliation", {
+        headers: { Authorization: "Bearer test-reconcile-secret" },
+      }),
+    )) as Response;
+
+    expect(actionFn).toHaveBeenCalledOnce();
+    expect(await response.json()).toEqual({ reconciled: true });
+  });
+
+  test("wrong secret returns 401 with zero side effects (handler never invoked)", async () => {
+    const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/job-reconciliation",
+      auth: "deployment-secret",
+      action: actionFn,
+    });
+
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/job-reconciliation", {
+        headers: { Authorization: "Bearer wrong-secret" },
+      }),
+    )) as Response;
+
+    expect(response.status).toBe(401);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /shared secret failed verification/i,
+    });
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("missing Authorization header returns 401 and never invokes the handler", async () => {
+    const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/job-reconciliation",
+      auth: "deployment-secret",
+      action: actionFn,
+    });
+
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/job-reconciliation"),
+    )) as Response;
+
+    expect(response.status).toBe(401);
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("absent env var fails closed: 401 and the handler never runs", async () => {
+    const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/job-reconciliation",
+      auth: "deployment-secret",
+      action: actionFn,
+    });
+
+    delete process.env.RECONCILE_SECRET;
+    const response = (await action(
+      buildArgs("POST", "/api/plugin/job-reconciliation", {
+        headers: { Authorization: "Bearer anything" },
+      }),
+    )) as Response;
+
+    expect(response.status).toBe(401);
+    expect(actionFn).not.toHaveBeenCalled();
+  });
+
+  test("webhook-secret carve-out verifies against its own env secret", async () => {
+    const loaderFn = vi.fn(async () => Response.json({ cached: true }));
+
+    serverEndpointRegistry.scopedFor("compute-plugin").register({
+      path: "/api/plugin/catalog-cache-webhook",
+      auth: "webhook-secret",
+      loader: loaderFn,
+    });
+
+    const wrongSecret = (await loader(
+      buildArgs("GET", "/api/plugin/catalog-cache-webhook", {
+        headers: { Authorization: "Bearer test-reconcile-secret" },
+      }),
+    )) as Response;
+    expect(wrongSecret.status).toBe(401);
+    expect(loaderFn).not.toHaveBeenCalled();
+
+    const rightSecret = (await loader(
+      buildArgs("GET", "/api/plugin/catalog-cache-webhook", {
+        headers: { Authorization: "Bearer test-webhook-secret" },
+      }),
+    )) as Response;
+    expect(rightSecret.status).toBe(200);
+    expect(loaderFn).toHaveBeenCalledOnce();
   });
 });

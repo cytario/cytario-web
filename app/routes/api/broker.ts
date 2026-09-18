@@ -4,7 +4,10 @@ import {
   hostRequestDataFromJobToken,
   readOrganizationClaimKeys,
 } from "~/.server/auth/carveOutRequestContext";
-import { refreshJobTokenWithLock } from "~/.server/auth/refreshJobTokenWithLock";
+import {
+  offlineSessionIdFromToken,
+  refreshJobTokenWithLock,
+} from "~/.server/auth/refreshJobTokenWithLock";
 import {
   buildBrokerSessionPolicy,
   InlinePolicySizeError,
@@ -84,7 +87,24 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     console.warn(`${label} refresh failed for job ${body.jobId}: ${message}`);
-    return jsonError(401, "The job-scoped grant is expired or revoked.");
+    // A row that still exists means the job was recorded and not yet
+    // reconciled — the grant was revoked while the binding lives on: 403.
+    // No row means the grant is genuinely absent: 401. A single generic
+    // message per branch reveals nothing beyond revoked-vs-expired. The
+    // probe is scoped to the offlineSessionId decoded from the caller's own
+    // presented token, so it never confirms or denies a jobId the caller
+    // doesn't already hold the grant for; an undecodable token skips the
+    // probe and takes the 401 path.
+    const offlineSessionId = offlineSessionIdFromToken(body.token);
+    const rowExists =
+      offlineSessionId !== "" &&
+      (await prisma.jobLedgerEntry.findFirst({
+        where: { jobId: body.jobId, offlineSessionId },
+        select: { jobId: true },
+      })) !== null;
+    return rowExists
+      ? jsonError(403, "The job-scoped grant is expired or revoked.")
+      : jsonError(401, "The job-scoped grant is expired or revoked.");
   }
 
   console.info(`${label} refreshed token for job ${body.jobId}`);

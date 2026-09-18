@@ -7,6 +7,7 @@ import {
   orgAgnosticHostRequestData,
   readSoleOrganizationClaim,
 } from "~/.server/auth/carveOutRequestContext";
+import { verifyCarveOutSecret } from "~/.server/auth/carveOutSecret";
 import { toIdentity } from "~/.server/auth/getUserInfo";
 import { sessionMiddleware } from "~/.server/auth/sessionMiddleware";
 import { verifyJobToken } from "~/.server/auth/verifyJobToken";
@@ -26,6 +27,11 @@ import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
  * - `"session"` endpoints run inside the host's `authMiddleware` (gate,
  *   token-refresh, active-org check), so `identity` is resolved when plugin
  *   code runs.
+ * - `"deployment-secret"` / `"webhook-secret"` carve-outs run outside the
+ *   session gate with an org-agnostic `HostRequestData` so a cross-org
+ *   reconciler (`JobLedger.listAll`) can run, after the host constant-time
+ *   verifies the bearer credential against the auth mode's env secret
+ *   (fail-closed on absent configuration).
  * - `"job-token"` carve-outs run outside the session gate: the host verifies
  *   the bearer token's signature, issuer, and audience and builds a
  *   `HostRequestData` from the verified claims so host capabilities
@@ -35,10 +41,6 @@ import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
  *   user) has no unambiguous active org and is rejected; this dispatch has
  *   no ledger lookup to resolve one. A token with no org claim at all is
  *   likewise rejected.
- * - `"deployment-secret"` / `"webhook-secret"` carve-outs run outside the
- *   session gate with an org-agnostic `HostRequestData` so a cross-org
- *   reconciler (`JobLedger.listAll`) can run. The constant-time secret
- *   compare is a separate host obligation.
  *
  * `sessionMiddleware` runs as route middleware so a session-auth dispatch can
  * read the resolved session without re-running the session loader; it does
@@ -111,9 +113,13 @@ async function dispatchCarveOut(
     );
   }
 
-  // deployment-secret / webhook-secret: org-agnostic context so the
-  // reconciler's cross-org scan can run. The secret comparison itself is a
-  // separate host obligation — not implemented here.
+  // deployment-secret / webhook-secret: constant-time bearer-secret check
+  // first — these dispatch org-agnostic, so the secret is the only gate.
+  if (!verifyCarveOutSecret(args.request, contribution.auth)) {
+    return jsonError(401, "The shared secret failed verification.");
+  }
+
+  // Org-agnostic context so the reconciler's cross-org scan can run.
   const requestData = orgAgnosticHostRequestData();
   return withHostRequestContext(requestData, () =>
     handler({ request: args.request, params, identity: undefined }),

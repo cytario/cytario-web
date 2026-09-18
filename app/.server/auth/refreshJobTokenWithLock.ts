@@ -11,7 +11,7 @@ const STORE_PREFIX = "broker_rt:";
 const STORE_TTL_SECONDS = 604800;
 
 // Key derivation only — no signature verification. Returns "" if undecodable.
-function offlineSessionIdFromToken(token: string): string {
+export function offlineSessionIdFromToken(token: string): string {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return "";

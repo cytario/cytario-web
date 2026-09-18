@@ -566,6 +566,12 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     ).rejects.toThrow("non-empty offlineSessionId");
   });
 
+  test("keepAliveGrant no-ops on an empty offlineSessionId (never throws)", async () => {
+    await expect(
+      withHostRequestContext(mockRequestData, async () => hostCapabilities.keepAliveGrant("")),
+    ).resolves.toBeUndefined();
+  });
+
   test("jobLedger returns a JobLedger instance", () => {
     const ledger = withHostRequestContext(mockRequestData, () => hostCapabilities.jobLedger());
     expect(ledger).toBeDefined();
@@ -923,6 +929,24 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(deleteMany.mock.calls[0]?.[0]).toMatchObject({
       where: { organization: "testcorp", jobId: "job-1" },
     });
+  });
+
+  test("remove deletes by jobId alone from the org-agnostic carve-out context (reconciler path)", async () => {
+    const deleteMany = vi
+      .spyOn(prisma.jobLedgerEntry, "deleteMany")
+      .mockResolvedValue({ count: 1 } as never);
+    const orgAgnosticRequestData: HostRequestData = {
+      ...mockRequestData,
+      user: { ...mockRequestData.user, organization: undefined },
+      identity: undefined,
+    };
+    await withHostRequestContext(orgAgnosticRequestData, async () => {
+      await hostCapabilities.jobLedger().remove("job-1");
+    });
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    const deleteArgs = deleteMany.mock.calls[0]?.[0] as { where?: Record<string, string> };
+    expect(deleteArgs).toEqual({ where: { jobId: "job-1" } });
+    expect(deleteArgs.where).not.toHaveProperty("organization");
   });
 
   test("list filters by the session org and returns rows in insertion order", async () => {
