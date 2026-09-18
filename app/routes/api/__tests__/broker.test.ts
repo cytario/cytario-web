@@ -9,8 +9,10 @@ vi.mock("~/.server/auth/verifyJobToken", () => ({
 }));
 
 const refreshJobTokenWithLockMock = vi.hoisted(() => vi.fn());
+const offlineSessionIdFromTokenMock = vi.hoisted(() => vi.fn());
 vi.mock("~/.server/auth/refreshJobTokenWithLock", () => ({
   refreshJobTokenWithLock: refreshJobTokenWithLockMock,
+  offlineSessionIdFromToken: offlineSessionIdFromTokenMock,
 }));
 
 const stsSendMock = vi.hoisted(() => vi.fn());
@@ -86,6 +88,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   verifyJobTokenMock.mockReset();
   refreshJobTokenWithLockMock.mockReset();
+  offlineSessionIdFromTokenMock.mockReset().mockReturnValue("sess-1");
   stsSendMock.mockReset();
   // Default: refresh succeeds and returns a fresh access token + a rotated
   // refresh token. Individual tests override as needed.
@@ -130,14 +133,28 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(stsSendMock).not.toHaveBeenCalled();
   });
 
-  test("the refresh-failure row probe queries by jobId only — no owner or org pre-filter", async () => {
+  test("the refresh-failure row probe is scoped to the token's own offlineSessionId", async () => {
     refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
     const findFirst = vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
     await action(args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })));
     expect(findFirst).toHaveBeenCalledWith({
-      where: { jobId: "job-1" },
+      where: { jobId: "job-1", offlineSessionId: "sess-1" },
       select: { jobId: true },
     });
+  });
+
+  test("an undecodable token skips the row probe entirely and takes the 401 path", async () => {
+    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
+    offlineSessionIdFromTokenMock.mockReturnValueOnce("");
+    const findFirst = vi
+      .spyOn(prisma.jobLedgerEntry, "findFirst")
+      .mockResolvedValueOnce(LEDGER_ROW as never);
+    const response = (await action(
+      args(buildRequest({ token: "not-a-jwt", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(401);
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(verifyJobTokenMock).not.toHaveBeenCalled();
   });
 
   test("returns 401 when the refreshed token fails verification", async () => {
