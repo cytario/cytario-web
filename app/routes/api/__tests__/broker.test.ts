@@ -101,8 +101,9 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(response.status).toBe(400);
   });
 
-  test("returns 401 when the refresh fails (grant expired or revoked)", async () => {
+  test("returns 401 when the refresh fails and no ledger row exists (grant genuinely expired or absent)", async () => {
     refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
     const response = (await action(
       args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })),
     )) as Response;
@@ -112,6 +113,31 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     });
     // Verify is never reached when refresh fails.
     expect(verifyJobTokenMock).not.toHaveBeenCalled();
+  });
+
+  test("returns 403 when the refresh fails but the ledger row still exists (grant revoked, binding alive)", async () => {
+    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
+    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
+    const response = (await action(
+      args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })),
+    )) as Response;
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /expired or revoked/i,
+    });
+    // Verify is never reached when refresh fails.
+    expect(verifyJobTokenMock).not.toHaveBeenCalled();
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("the refresh-failure row probe queries by jobId only — no owner or org pre-filter", async () => {
+    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
+    const findFirst = vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
+    await action(args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })));
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { jobId: "job-1" },
+      select: { jobId: true },
+    });
   });
 
   test("returns 401 when the refreshed token fails verification", async () => {

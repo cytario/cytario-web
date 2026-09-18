@@ -84,7 +84,17 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     console.warn(`${label} refresh failed for job ${body.jobId}: ${message}`);
-    return jsonError(401, "The job-scoped grant is expired or revoked.");
+    // A row that still exists means the job was recorded and not yet
+    // reconciled — the grant was revoked while the binding lives on: 403.
+    // No row means the grant is genuinely absent: 401. A single generic
+    // message per branch reveals nothing beyond revoked-vs-expired.
+    const rowExists = await prisma.jobLedgerEntry.findFirst({
+      where: { jobId: body.jobId },
+      select: { jobId: true },
+    });
+    return rowExists
+      ? jsonError(403, "The job-scoped grant is expired or revoked.")
+      : jsonError(401, "The job-scoped grant is expired or revoked.");
   }
 
   console.info(`${label} refreshed token for job ${body.jobId}`);
