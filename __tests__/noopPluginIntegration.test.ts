@@ -47,6 +47,7 @@ describe("noop-plugin integration", () => {
             logGroupName: "/aws/batch/cytario-compute/test",
           }),
         revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
         brokerPublicUrl: () => "",
@@ -114,6 +115,7 @@ describe("noop-plugin integration", () => {
             logGroupName: "/aws/batch/cytario-compute/test",
           }),
         revokeGrant: () => Promise.resolve(),
+        keepAliveGrant: () => Promise.resolve(),
         exchangeToken: () =>
           Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
         brokerPublicUrl: () => "",

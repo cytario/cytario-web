@@ -271,6 +271,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
         assumeComputeRole: vi.fn(),
         exchangeToken: vi.fn(),
         revokeGrant: vi.fn(),
+        keepAliveGrant: vi.fn(),
         brokerPublicUrl: vi.fn(() => ""),
         jobLedger: vi.fn(),
       };
