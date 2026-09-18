@@ -1,3 +1,4 @@
+import { keepAliveGrant as keepAliveGrantImpl } from "./auth/keepAliveGrant";
 import { revokeGrant as revokeGrantImpl } from "./auth/revokeGrant";
 import { catalogFetch as connectionFetchImpl } from "./catalogFetch";
 import { assumeComputeRole as assumeComputeRoleImpl } from "./computeRole";
@@ -143,6 +144,10 @@ class HostCapabilitiesImpl implements HostCapabilities {
     return revokeGrantImpl(offlineSessionId);
   }
 
+  keepAliveGrant(offlineSessionId: string): Promise<void> {
+    return keepAliveGrantImpl(offlineSessionId);
+  }
+
   jobLedger(): JobLedger {
     return new JobLedgerImpl();
   }
@@ -236,11 +241,12 @@ class JobLedgerImpl implements JobLedger {
 
   async remove(jobId: string): Promise<void> {
     const { user } = requireRequestData();
-    if (!user.organization) {
-      throw new Error("Active organization missing from session");
-    }
+    // The deployment-secret carve-out dispatches org-agnostic (no session
+    // organization) — the same trust boundary as listAll — so the reconciler
+    // removes terminal rows by jobId alone. Session-authenticated callers
+    // keep the organization pre-filter.
     await prisma.jobLedgerEntry.deleteMany({
-      where: { organization: user.organization, jobId },
+      where: user.organization ? { organization: user.organization, jobId } : { jobId },
     });
   }
 
