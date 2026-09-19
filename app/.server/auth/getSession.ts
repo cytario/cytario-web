@@ -1,7 +1,6 @@
 import { CytarioSession, sessionStorage } from "./sessionStorage";
 
 /**
- * Retrieves the Cytario session from the request.
  * @deprecated For routes under the auth middleware chain, use `context.get(sessionContext)` instead.
  * Direct use in auth routes (login, callback, logout) that run outside middleware is acceptable.
  */

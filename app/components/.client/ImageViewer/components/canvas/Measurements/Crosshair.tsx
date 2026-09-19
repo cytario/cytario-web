@@ -16,9 +16,6 @@ export const Svg = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-/**
- * Crosshair component for displaying a crosshair at the cursor position.
- */
 export const Crosshair = () => {
   const cursorPosition = useViewerStore(select.cursorPosition);
   const metadata = useViewerStore(select.metadata);
@@ -28,7 +25,6 @@ export const Crosshair = () => {
   const width = 3;
   const size = 8;
 
-  // Adjust to center
   const x = Math.floor(cursorPosition.x) - width / 2;
   const y = Math.floor(cursorPosition.y) - width / 2;
 

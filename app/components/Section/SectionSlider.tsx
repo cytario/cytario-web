@@ -1,4 +1,3 @@
-/** Opacity slider for a Section header's `actions` slot. Maps 0–1 ↔ 0–100. */
 export function SectionSlider({
   value,
   onChange,

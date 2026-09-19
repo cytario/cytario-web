@@ -55,7 +55,6 @@ export function ColorPicker({ colors, onColorChange, label }: ColorPickerProps) 
       onMouseDown={(e) => e.stopPropagation()}
     >
       <Popover>
-        {/* ColorSwatch as PopoverTrigger */}
         <ColorSwatch colors={colors} aria-label={label ? `Edit ${label}` : "Open color picker"} />
 
         <PopoverContent placement="bottom start" data-theme="dark">

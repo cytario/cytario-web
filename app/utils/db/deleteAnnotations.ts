@@ -5,9 +5,8 @@ import { createSignedFetch } from "../signedFetch";
 
 /**
  * Deletes one annotation set's sidecar from S3. The duckdb-wasm COPY write
- * path cannot delete objects, so this goes through a signed-fetch DELETE
- * with the same browser-direct STS credentials the data plane uses. S3
- * DELETE is idempotent (204 also for a missing key), so a retry after a
+ * path cannot delete objects, so this goes through a signed-fetch DELETE.
+ * S3 DELETE is idempotent (204 also for a missing key), so a retry after a
  * partially-completed flush is safe.
  */
 export async function deleteAnnotations(resourceId: string, setId: string): Promise<void> {

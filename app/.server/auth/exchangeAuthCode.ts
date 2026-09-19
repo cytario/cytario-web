@@ -4,10 +4,6 @@ import { cytarioConfig } from "~/config";
 
 const { clientId, clientSecret } = cytarioConfig.auth;
 
-/**
- * Exchanges an authorization code for tokens using the OAuth 2.0 Authorization Code Flow.
- * Includes PKCE code_verifier for proof of possession.
- */
 export const exchangeAuthCode = async (
   code: string,
   redirectUri: string,

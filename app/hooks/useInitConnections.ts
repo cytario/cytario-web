@@ -8,11 +8,8 @@ import {
   useConnectionsStore,
 } from "~/utils/connectionsStore/useConnectionsStore";
 
-/**
- * Replace the client connections store with the auth-context set. Uses an
- * effect rather than render-time mutation: subscribed descendants would
- * otherwise trip React's "cannot update during render" warning.
- */
+/** Effect, not render-time mutation: subscribed descendants would otherwise
+ * trip React's "cannot update during render" warning. */
 export function useInitConnections(
   connectionConfigs: ConnectionConfigWithGrants[],
   credentials: Record<string, Credentials>,

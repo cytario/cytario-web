@@ -49,9 +49,9 @@ function buildMarkerCountsQuery(s3Uri: string, config: OverlayConfig | null): st
 }
 
 /**
- * Extract marker information from DuckDB-WASM database. Without a config this
- * keeps the legacy marker_positive_ regex behavior; with one, counts derive
- * from the configured class columns.
+ * Extract marker information from DuckDB-WASM. Without a config this keeps the
+ * legacy marker_positive_ regex behavior; with one, counts derive from the
+ * configured class columns.
  */
 export async function getMarkerInfoWasm(
   resourceId: string,

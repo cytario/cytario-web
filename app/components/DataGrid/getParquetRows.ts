@@ -2,10 +2,6 @@ import { createDatabase, releaseDatabase } from "../../utils/db/createDatabase";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import { getFileType } from "~/utils/fileType";
 
-/**
- * Fetch rows from a data file on S3.
- * Supports: parquet, csv
- */
 export async function getParquetRows(
   resourceId: string,
   limit = 100,

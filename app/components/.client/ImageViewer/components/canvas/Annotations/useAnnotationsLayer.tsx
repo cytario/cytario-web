@@ -31,9 +31,6 @@ import {
 } from "~/utils/db/annotationSchema";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-/** Minimal structural shape of the modifier flags carried by the DOM event
- *  behind a deck picking event — all optional so any concrete DOM event
- *  (Mouse/Pointer/Touch) is assignable to the click handler. */
 type ModifierKeys = { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean };
 
 const MODE_CLASSES = {
@@ -44,12 +41,8 @@ const MODE_CLASSES = {
   "draw-point": ClickOrDragPointMode,
 } as const;
 
-// Edit types that change committed geometry and must be persisted. An allowlist
-// fails safe: any other type (tentative draw events like addTentativePosition/
-// updateTentativeFeature, or cancelFeature/invalidPolygon/invalidHole — all
-// carrying unchanged data) is ignored, so we never persist a no-op and rebuild
-// the layer mid-stroke (which drops the active draw). Today's modes only emit
-// `addFeature`; the rest are forward-compat for modify/translate modes.
+// Allowlist of edit types that change committed geometry — anything else
+// (tentative draws, cancel/invalid) is ignored so the layer is never rebuilt mid-stroke.
 const COMMITTING_EDITS = new Set([
   "addFeature",
   "addPosition",
@@ -60,11 +53,8 @@ const COMMITTING_EDITS = new Set([
   "unionGeometry",
 ]);
 
-// Dual-contrast selection frame: white/black/white achromatic rings, widest
-// drawn underneath. Achromatic (not a hue) so it never collides with a
-// classification color, and the white↔black alternation stays legible on pure
-// black, pure white, and arbitrary colored slide backgrounds. Drawn beneath the
-// feature's own color line so the classification color stays on top, framed.
+// Achromatic (not a hue) rings so they never collide with classification colors and
+// stay legible on any background; drawn beneath the feature's own color line.
 // `width` = polygon stroke (px); `radius` = concentric ring radius for points.
 const SELECTION_RINGS: { width: number; radius: number; color: RGBA }[] = [
   { width: 9, radius: 9, color: [255, 255, 255, 255] },
@@ -77,21 +67,14 @@ const classColor = (feature: AnnotationFeature): RGB =>
 
 const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
 
-/**
- * Stamps identity onto edited features (per the sidecar schema): any feature
- * lacking an `id` gets a fresh `id` + `createdAt`/`updatedAt`, and a feature at
- * a changed index gets its `updatedAt` bumped. Draw modes emit bare geometry,
- * so feature identity is assigned here on the way to the store. `id`-less is the
- * robust signal for "new" — it doesn't depend on the edit's featureIndexes.
- */
+/** Assigns identity to edited features: fresh id/createdAt for new ones, updatedAt
+ *  bump for changed ones. Draw modes emit bare geometry, so identity is stamped here. */
 const stampEdit = (
   features: AnnotationFeature[],
   changed: number[] | undefined,
   active: AnnotationClassification | null,
 ): AnnotationFeature[] => {
   const now = new Date().toISOString();
-  // Pre-collect existing names so every new feature in this edit gets a unique
-  // auto-generated name (e.g. "0003" when 0001 and 0002 already exist).
   const takenNames = new Set<string>();
   for (const f of features) {
     const name = f.properties?.name;
@@ -107,8 +90,6 @@ const stampEdit = (
   return features.map((feature, i) => {
     const properties = feature.properties ?? {};
     if (!feature.id) {
-      // A freshly drawn region inherits the active class (none → unclassified)
-      // and an auto-generated unique name.
       return {
         ...feature,
         id: crypto.randomUUID(),
@@ -128,17 +109,9 @@ const stampEdit = (
   });
 };
 
-/**
- * Builds the `EditableGeoJsonLayer` for the image's annotations, rendering and
- * editing the shared working set held in the viewer store. Coordinates are
- * level-0 pixel space (CARTESIAN, matching the viewer's `OrthographicView`).
- * Edits flow back through `onEdit` → `ensureOwnSet()` + `updateSetFeatures(setId, …)`,
- * which the sync middleware diffs and autosaves to that set's sidecar.
- *
- * With `interactive: false` (preview/minimap decks) the own set renders as a
- * plain read-only `GeoJsonLayer` like the peers and picking is disabled
- * everywhere, so clicks pan the preview instead of drawing or selecting.
- */
+/** Builds the editable annotations layer over the shared working set in the viewer
+ *  store. With `interactive: false` (preview/minimap decks) the own set renders
+ *  read-only and picking is disabled so clicks pan the preview. */
 export const useAnnotationsLayer = (
   imagePanelId: number,
   interactive = true,
@@ -162,8 +135,7 @@ export const useAnnotationsLayer = (
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
   const annotationClasses = useViewerStore((s) => s.annotationClasses);
 
-  // The active class resolved to a stampable classification. The registry is
-  // the source of truth so a freshly created, still-empty class stamps too;
+  // The registry is the source of truth so a freshly created, still-empty class stamps too;
   // member features are only the fallback for unregistered legacy names.
   const activeClassification = useMemo<AnnotationClassification | null>(() => {
     if (!activeClass || isReservedClassName(activeClass)) return null;
@@ -185,17 +157,13 @@ export const useAnnotationsLayer = (
       return acc;
     }, []);
 
-    // Props shared by the own (editable) and peer (read-only) layers: fill/line
-    // colored by classification (hidden classes → alpha 0) and view-mode
-    // click-to-select. Only the alphas and per-user hidden/opacity differ.
     const selectOnClick = (info: PickingInfo, event?: { srcEvent?: ModifierKeys }) => {
-      if (mode !== "view") return; // in draw modes a click is a draw action
+      if (mode !== "view") return;
       const id = (info.object as AnnotationFeature | undefined)?.id;
       if (!id) return;
       const src = event?.srcEvent;
-      // Any modifier keeps the selection additive — toggle the clicked feature in
-      // or out. Range-select needs an ordered list, which the canvas has no
-      // meaningful notion of, so Shift behaves like Cmd/Ctrl here.
+      // Range-select needs an ordered list the canvas has no notion of, so Shift
+      // behaves like Cmd/Ctrl here.
       if (src && (src.metaKey || src.ctrlKey || src.shiftKey)) {
         setSelectedIds(
           selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
@@ -225,8 +193,6 @@ export const useAnnotationsLayer = (
       };
     };
 
-    // Preview decks and read-only grants render the active set read-only,
-    // styled like the editable layer but without edit modes or picking.
     const ownFill = Math.round(annotationsOpacity * 255);
     const ownLine = showOutline ? 255 : 0;
     const ownLayer =
@@ -249,26 +215,21 @@ export const useAnnotationsLayer = (
             ...paint(ownView?.hiddenClasses, ownFill, ownLine),
 
             onEdit: ({ updatedData, editType, editContext }) => {
-              // Persist only committing edits — anything else (tentative draw events,
-              // cancel/invalid) carries unchanged data; persisting it would rebuild
-              // this layer mid-stroke and drop the active draw.
               if (!COMMITTING_EDITS.has(editType)) return;
 
-              if (!ownUserId) return; // edits route to the current user's own key
+              if (!ownUserId) return;
               const changed: number[] | undefined = editContext?.featureIndexes;
               const stamped = stampEdit(
                 updatedData.features as AnnotationFeature[],
                 changed,
                 activeClassification,
               );
-              // Validate before persist: a degenerate/aborted draw (empty ring,
-              // `[[null]]`) is dropped and never written to S3 — the store is valid by
-              // construction.
+              // Degenerate/aborted draws (empty ring, `[[null]]`) are dropped
+              // and never written to S3.
               const valid = validAnnotationFeatures(stamped);
               const setId = ensureOwnSet();
               updateSetFeatures(setId, valid);
               if (editType === "addFeature") {
-                // Select the new feature only if it survived validation.
                 const newId = stamped[stamped.length - 1]?.id;
                 if (newId && valid.some((f) => f.id === newId)) {
                   setSelectedIds([newId]);
@@ -279,9 +240,8 @@ export const useAnnotationsLayer = (
             },
           });
 
-    // Other users' sets: one layer each, read-only (selectable + hoverable, not
-    // editable), dimmer than own, drawn beneath the editable layer. Hidden
-    // classes fade to alpha 0, mirroring the editable layer.
+    // Peer sets: read-only (selectable + hoverable, not editable), dimmer than own,
+    // drawn beneath the editable layer. Hidden classes fade to alpha 0, mirroring own.
     const peerLayers = annotationSets
       .filter((s) => s.id !== activeSetId)
       .map((set) => {
@@ -289,7 +249,6 @@ export const useAnnotationsLayer = (
         return new GeoJsonLayer({
           id: `annotations-${imagePanelId}-peer-${set.id}`,
           data: { type: "FeatureCollection", features: set.features },
-          // Peers are dimmer than own (2/3 fill, 200 stroke) but otherwise identical.
           ...paint(
             peerView?.hiddenClasses,
             Math.round(annotationsOpacity * 170),
@@ -303,11 +262,8 @@ export const useAnnotationsLayer = (
         });
       });
 
-    // Concentric outline halo on the selected feature(s) — selection isn't
-    // visibly rendered in view mode, so stack GeoJsonLayers (widest first) over
-    // the editable layer. Selection is global across users, so the halo spans
-    // own + peer sets; hidden features (per their own owner) are excluded so a
-    // halo never reveals one.
+    // Selection halo (selection isn't visibly rendered in view mode) spans own + peer
+    // sets; hidden features are excluded so a halo never reveals one.
     const selectedFeatures: AnnotationFeature[] = [
       ...features.filter((f) => isSelected(f) && !isHidden(f)),
       ...annotationSets
@@ -331,8 +287,6 @@ export const useAnnotationsLayer = (
                 stroked: true,
                 filled: false,
                 getLineColor: ring.color,
-                // Points get a thin stroke at increasing radii (concentric
-                // circles); polygons get the full ring width centered on the path.
                 getLineWidth: (f) =>
                   (f as AnnotationFeature).geometry?.type === "Point" ? 1.5 : ring.width,
                 lineWidthUnits: "pixels",
@@ -344,17 +298,11 @@ export const useAnnotationsLayer = (
               }),
           );
 
-    // Selection frame beneath the color layers so the classification color line
-    // stays on top and the achromatic frame reads around it; own above peers.
+    // Selection frame beneath the color layers so the classification color line stays on top.
     const layers = [...highlightLayers, ...peerLayers, ownLayer];
 
-    // --- Composite tooltip contributors ---
-
-    // Build a lookup of hidden classes per user so `getTooltipItems` can
-    // quickly check whether a picked feature is visually transparent (its
-    // class is hidden → fill alpha 0). This is the core fix for C-427:
-    // transparent annotations return `[]` so they no longer block tooltip
-    // items from layers beneath them.
+    // Per-user hidden-class lookup so `getTooltipItems` can skip features that are
+    // visually transparent (hidden class → alpha 0) and not block layers beneath them.
     const hiddenByUser = new Map<string, Set<string>>();
     if (activeSetId) hiddenByUser.set(activeSetId, new Set(ownView?.hiddenClasses ?? []));
     for (const set of annotationSets) {

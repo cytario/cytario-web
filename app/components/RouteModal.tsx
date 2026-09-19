@@ -12,10 +12,7 @@ export function RouteModal({
   title: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
-  /**
-   * Whether the modal can be dismissed by clicking outside (backdrop click).
-   * Pressing Escape always closes the modal regardless of this setting.
-   */
+  /** Backdrop-click dismiss only; Escape always closes regardless. */
   isDismissable?: boolean;
   onClose?: () => void;
 }>) {

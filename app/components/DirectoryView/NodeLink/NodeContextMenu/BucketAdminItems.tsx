@@ -8,22 +8,14 @@ import { canModify } from "~/utils/authorization";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
-/**
- * Bucket admin menu items (Re-apply / Edit / Delete). Menu items only — the
- * hidden forms and the delete ConfirmDialog live in `useNodeContextMenu`'s
- * `dialogs` slot, OUTSIDE the popover: React-Aria unmounts menu content on
- * close, so anything that must outlive the selection (forms, dialogs, the
- * confirm state) cannot live here.
- */
+/** Dialogs and forms live outside the popover — React-Aria unmounts menu content on close. */
 export function BucketAdminItems({
   node,
   onOpenConfirm,
   reapplyFormRef,
 }: {
   node: TreeNode;
-  /** Captures the trigger's focus and opens the delete confirm dialog. */
   onOpenConfirm: () => void;
-  /** Re-apply form rendered outside the popover; submitted imperatively. */
   reapplyFormRef: RefObject<HTMLFormElement | null>;
 }) {
   const connection = useConnectionsStore(select.connection(node.connectionId));

@@ -50,7 +50,6 @@ export function ChannelItemList() {
       onChange={(name) => {
         if (!name) return;
 
-        // Check if enabling this channel/group would exceed the viv limit
         const isBrightfield = name === BRIGHTFIELD_GROUP_ID;
         const slotsNeeded = isBrightfield ? 3 : 1;
         const alreadyVisible = isBrightfield

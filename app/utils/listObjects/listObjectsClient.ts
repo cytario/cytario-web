@@ -210,8 +210,8 @@ async function isExpiredTokenResponse(response: Response): Promise<boolean> {
 
 /**
  * Browser-side paginated `ListObjectsV2`. On `ExpiredToken` triggers one
- * refresh through `requestCredentialsRefresh` and retries the page; a second
- * failure surfaces as `ExpiredCredentialsError` for the UI to prompt re-auth.
+ * refresh and retries the page; a second failure surfaces as
+ * `ExpiredCredentialsError` for the UI to prompt re-auth.
  */
 export async function listObjectsClient(
   connectionConfig: ConnectionAddress,

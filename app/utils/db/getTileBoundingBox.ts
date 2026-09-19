@@ -6,9 +6,6 @@ interface TileIndex {
   z: number;
 }
 
-/**
- * Get tile bounding box in projected coordinates
- */
 export function getTileBoundingBox({ z, x, y }: TileIndex, tileSize: number = 256): BBox {
   const zoom = z * -1 + 1;
   const projectedTileSize = tileSize * 2 ** zoom;

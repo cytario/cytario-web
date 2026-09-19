@@ -17,8 +17,7 @@ export async function loadBioformatsZarrWithCredentials(
   const baseUrl = source.endsWith("/") ? source.slice(0, -1) : source;
 
   // Series 0 — bioformats2raw puts multiscales under 0/; root has only
-  // bioformats2raw.layout. Caller-supplied headers (SDS-CY-010050) ride
-  // along on every chunk fetch the store issues.
+  // bioformats2raw.layout. Caller-supplied headers ride along on every chunk fetch.
   const store = new CredentialedHTTPStore(`${baseUrl}/0`, signedFetch, headers);
   const result = await loadOmeZarrFromStore(store);
 
@@ -129,7 +128,6 @@ export function extractPhysicalSizes(
 
 /**
  * Omero colors are hex strings — "FF0000" (RGB) or "FF0000FF" (RGBA).
- * Exported for testing.
  */
 export function parseOmeroColor(color: string): [number, number, number, number] | undefined {
   if (!color) return undefined;

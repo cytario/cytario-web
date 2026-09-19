@@ -145,8 +145,8 @@ export async function loadOmeTiffWithCredentials(
   const { signedFetch, signal, headers } = opts;
 
   // Sidecar is optional — fetch only if caller did not pre-supply offsets.
-  // Caller-supplied headers (SDS-CY-010050) must reach EVERY network
-  // request the handler issues, including the sidecar fetch.
+  // Caller-supplied headers must reach EVERY network request the handler issues,
+  // including the sidecar fetch.
   let offsets: number[] | undefined = opts.offsets;
   if (offsets === undefined) {
     const offsetsUrl = getOffsetsUrl(s3Url);
@@ -165,30 +165,21 @@ export async function loadOmeTiffWithCredentials(
     }
   }
 
-  // cacheSize must match viv's internal Infinity to avoid block eviction
-  // during IFD parsing of large pyramidal TIFFs. Caller-supplied headers
-  // flow into the transport so geotiff's per-tile fetches inherit them.
+  // cacheSize must match viv's internal Infinity to avoid block eviction during IFD
+  // parsing of large pyramidal TIFFs. Caller-supplied headers flow into the transport
+  // so geotiff's per-tile fetches inherit them.
   const client = new SigV4TiffClient(s3Url, signedFetch, headers);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const source = await fromCustomClient(client as any, {
     cacheSize: Number.POSITIVE_INFINITY,
   });
 
-  // INTERIM WORKAROUND (root-cause-over-workaround rule): the in-place
-  // mutation below relies on geotiff.js caching the parsed IFD
-  // (ifdRequests[0]) and viv reading the same fileDirectory object reference
-  // — neither is guaranteed API. The upstream fix is for viv's singlefile
-  // loader to honor TiffData IFD/PlaneCount for offset accounting; until it
-  // lands (hms-dbmi/viv), remove this block and the stripUnsupportedSubImages
-  // helper once the upstream loader indexes such files natively.
-  // Pre-read IFD 0 and strip sub-images viv cannot index (RGB thumbnail/
-  // overview/label: all channels interleaved in one IFD). viv walks IFDs as
-  // SizeZ*SizeT*SizeC blocks per OME Image and — without SubIFDs — uses the
-  // Image count as the resolution-level count, so such sub-images overrun
-  // the IFD chain (GeoTIFFImageIndexError) and inflate the level count.
-  // geotiff caches the parsed IFD in ifdRequests[0]; GeoTIFFImage shares the
-  // same fileDirectory object reference, so the in-place mutation is visible
-  // to viv's subsequent getImage(0) call — no extra network round-trip.
+  // INTERIM WORKAROUND (root-cause-over-workaround rule): relies on geotiff.js caching
+  // the parsed IFD (ifdRequests[0]) and viv reading the same fileDirectory object
+  // reference — neither is guaranteed API. The upstream fix is for viv's singlefile
+  // loader to honor TiffData IFD/PlaneCount; remove this block and
+  // stripUnsupportedSubImages once the upstream loader indexes such files natively.
+  // Pre-read IFD 0 and strip sub-images viv cannot index (see stripUnsupportedSubImages).
   try {
     const firstImage = await source.getImage(0);
     if (isStrippedBeyondRenderBudget(firstImage.fileDirectory)) {
@@ -215,10 +206,10 @@ export async function loadOmeTiffWithCredentials(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (loadOmeTiff as any)("", { source, offsets });
 
-  // OME-XML sanitizer (C-78). Some producers emit Interleaved=true on planar
-  // multi-IFD layouts with SamplesPerPixel=1 per channel. Viv then appends a
-  // phantom _c=3 dim and routes tiles to the 8-bit RGB BitmapLayer instead
-  // of XRLayer. Detect and clear before viv consumes it.
+  // Some producers emit Interleaved=true on planar multi-IFD layouts with
+  // SamplesPerPixel=1 per channel. Viv then appends a phantom _c=3 dim and routes
+  // tiles to the 8-bit RGB BitmapLayer instead of XRLayer. Detect and clear before
+  // viv consumes it.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pixels = (result.metadata as any)?.Pixels;
   const channels = (pixels?.Channels ?? []) as Array<{

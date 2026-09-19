@@ -16,17 +16,11 @@ interface GateEntry {
   pluginName: string;
 }
 
-/**
- * Server-only session-gate registry. Mirrors the `formatRegistry` singleton
- * pattern: `scopedFor(pluginName)` binds the plugin name at register time (the
- * public `GateRegistry` surface never accepts it from plugin code), so a gate
- * throwing at request time can be attributed. Lives under a `.server` path so
- * it never enters the client bundle.
- */
+// The plugin name is bound at register time (never accepted from plugin
+// code) so a gate throwing at request time can be attributed.
 class GateRegistryImpl {
   private readonly entries: GateEntry[] = [];
 
-  /** Host-internal: a `GateRegistry` adapter bound to a plugin name. */
   scopedFor(pluginName: string): GateRegistry {
     return {
       register: (gate) => this.add(pluginName, gate),
@@ -41,16 +35,10 @@ class GateRegistryImpl {
     return this.entries.map((e) => e.gate);
   }
 
-  /**
-   * Runs registered gates in registration order and returns the first
-   * non-`continue` outcome (a `redirect` or a `deny`); otherwise `continue`.
-   * A throwing gate, or one returning a malformed outcome (missing/unknown
-   * `kind`), is logged with its plugin name and treated as `continue`
-   * (fail-open, matching the format-plugin containment contract).
-   */
+  // A throwing or malformed gate is treated as `continue` — fail-open,
+  // matching the plugin containment contract.
   async runGates(req: GateRequest): Promise<GateOutcome> {
-    // Snapshot so a gate registering re-entrantly mid-run cannot change the
-    // iterated set.
+    // Snapshot so a gate registering re-entrantly mid-run cannot change the iterated set.
     for (const { gate, pluginName } of [...this.entries]) {
       let outcome: GateOutcome;
       try {

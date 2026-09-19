@@ -16,13 +16,8 @@ const RELEASE_LOCK_SCRIPT = `
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Acquires a Redis NX lock with `lockKey`, runs `fn` inside it, and releases
- * the lock atomically on return or throw. Retries with backoff until
- * `MAX_RETRIES`. The lock value is a random UUID and the release is a
- * Lua check-and-delete so a stale lock (expired TTL) is never released by
- * the wrong holder.
- */
+// The release is a Lua check-and-delete so a stale lock (expired TTL) is
+// never released by the wrong holder.
 export async function withRedisLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T> {
   const lockValue = randomUUID();
 

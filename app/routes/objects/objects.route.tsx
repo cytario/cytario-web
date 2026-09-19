@@ -54,8 +54,8 @@ interface PluginViewerRouterProps {
 }
 
 function PluginViewer({ resourceId, signedFetch }: PluginViewerRouterProps) {
-  // Deep-link edge: the connections store may lag the route render. The
-  // connection-presence selector re-runs resolution when the store populates.
+  // Deep-link edge: the connections store may lag the route render; the
+  // presence selector re-runs resolution once it populates.
   const connectionId = resourceId.slice(0, resourceId.indexOf("/"));
   const connectionPresent = useConnectionsStore(
     (state) => state.connections[connectionId] !== undefined,
@@ -100,10 +100,9 @@ function PluginViewer({ resourceId, signedFetch }: PluginViewerRouterProps) {
   // contract hands the plugin a resolved httpsUrl.
   const syncMatch = httpsUrl === null ? null : viewerRegistry.resolve(resourceId);
 
-  // No sync match claimed the resource: sniff the content when a canHandle is
-  // on offer. Rejected canHandle counts as false inside resolveAsync, so this
-  // settles exactly once on the winner or null (fall through to the built-in
-  // viewer).
+  // No sync match claimed the resource: sniff the content when a canHandle
+  // is on offer. A rejected canHandle counts as false inside resolveAsync,
+  // so this settles exactly once on the winner or null (built-in viewer).
   const sniff = httpsUrl !== null && syncMatch === null && viewerRegistry.hasAsync();
 
   useEffect(() => {

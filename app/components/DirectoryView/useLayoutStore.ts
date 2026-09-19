@@ -21,11 +21,6 @@ interface PersistedLayoutState {
 
 const name = "LayoutStore";
 
-/**
- * Zustand store to manage layout state such as view mode and hidden-file
- * visibility. The store is persisted in local storage except for the
- * header slot.
- */
 export const useLayoutStore = create<LayoutStore>()(
   persist(
     devtools(
@@ -108,8 +103,6 @@ export const useLayoutStore = create<LayoutStore>()(
               showHiddenFiles: s?.showHiddenFiles ?? false,
             };
           },
-          // Column filters moved into per-column popover triggers — the
-          // show/hide toggle state is gone.
           6: (state) => {
             const s = state as { viewMode?: string; showHiddenFiles?: boolean };
             return {

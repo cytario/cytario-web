@@ -93,25 +93,20 @@ export const select = {
 
   isViewerLoading: (state: ViewerStore) => state.isViewerLoading,
 
-  /* Loader */
   loader: (state: ViewerStore) => state.loader,
   valueRange: (state: ViewerStore) => state.valueRange,
 
-  /* Metadata */
   metadata: (state: ViewerStore) => state.metadata,
 
   minZoom: (state: ViewerStore) => -(state.loader?.length ?? 0),
   maxZoom: () => 2,
 
-  /* View State Preview */
   viewStatePreview: (state: ViewerStore) => state.viewStatePreview,
   setViewStatePreview: (state: ViewerStore) => state.setViewStatePreview,
 
-  /* View State Active */
   viewStateActive: (state: ViewerStore) => state.viewStateActive,
   setViewStateActive: (state: ViewerStore) => state.setViewStateActive,
 
-  /* Tile Loading (per panel) */
   setIsChannelsLoading: (state: ViewerStore) => state.setIsChannelsLoading,
   setIsOverlaysLoading: (state: ViewerStore) => state.setIsOverlaysLoading,
 
@@ -125,12 +120,10 @@ export const select = {
   setPixelValues: (state: ViewerStore) => state.setPixelValues,
   clearPixelValues: (state: ViewerStore) => state.clearPixelValues,
 
-  /* Preset Management */
   setActivePresetIndex: (state: ViewerStore) => state.setActivePresetIndex,
   setViewName: (state: ViewerStore) => state.setViewName,
   activePresetIndex: (state: ViewerStore) => state.imagePanels[state.imagePanelIndex],
 
-  /* Channels */
   channelsState: (state: ViewerStore): ChannelsState | undefined => {
     const layerState = getLayersState(state);
     return resolveChannelsState(state.channels, layerState?.channels, state.channelIds);
@@ -153,7 +146,6 @@ export const select = {
     _bfGroupCache = { ids: channelIds, result };
     return result;
   },
-  /* Overlays */
   overlaysStates: (state: ViewerStore) => {
     const layerState = getLayersState(state);
     const overlaysState = layerState?.overlays ?? EMPTY_OBJECT;
@@ -181,7 +173,6 @@ export const select = {
   setChannelVisibility: (state: ViewerStore) => state.setChannelVisibility,
   setChannelColor: (state: ViewerStore) => state.setChannelColor,
 
-  /* Channels > Selected */
   selectedChannelId: (state: ViewerStore) =>
     state.selectedChannelId as keyof ChannelsStateColumns | typeof BRIGHTFIELD_GROUP_ID | null,
   setSelectedChannelId: (state: ViewerStore) => state.setSelectedChannelId,
@@ -275,7 +266,6 @@ export const select = {
 
   currentZoom: (state: ViewerStore) => state.viewStateActive?.zoom ?? 0,
 
-  /* Hover / composite tooltip */
   compositeTooltip: (state: ViewerStore) => state.compositeTooltip,
   setCompositeTooltip: (state: ViewerStore) => state.setCompositeTooltip,
   hoverMode: (state: ViewerStore) => state.hoverMode,

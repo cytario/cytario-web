@@ -29,8 +29,7 @@ export interface ConnectionProviderClient {
   endpoint: string | null;
   /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
-  /** The current user's grant access level for this connection.
-   *  Advisory UI gate; S3 denies enforce the actual permission boundary. */
+  /** Advisory UI gate; S3 denies enforce the actual permission boundary. */
   accessLevel: AccessLevel;
 }
 
@@ -47,19 +46,18 @@ export interface Connection {
 }
 
 /**
- * Connections store. Single map keyed by `config.id`.
- *
- * Deliberately not persisted: STS credentials never leave in-memory state —
- * any script in the realm can read `sessionStorage` / `localStorage`.
+ * Connections store. Deliberately not persisted: STS credentials never leave
+ * in-memory state — any script in the realm can read `sessionStorage` /
+ * `localStorage`.
  */
 export interface ConnectionsStore {
   connections: Record<string, Connection>;
   /**
    * Replace the whole store in one write; prunes entries removed server-side.
    * Connections without credentials are kept (status `"error"`) so a broken
-   * connection stays visible and manageable rather than silently vanishing.
-   * A prior live probe result is preserved across re-hydration to avoid a
-   * green→yellow flicker on revalidation.
+   * connection stays visible rather than silently vanishing. A prior live
+   * probe result is preserved across re-hydration to avoid a green→yellow
+   * flicker on revalidation.
    */
   setConnections: (
     configs: ConnectionConfigWithGrants[],
@@ -67,7 +65,7 @@ export interface ConnectionsStore {
     errors?: Record<string, string>,
     providers?: Record<string, ConnectionProviderClient>,
   ) => void;
-  /** Patch live health for already-loaded connections (e.g. after a probe). */
+  /** Patch live health for already-loaded connections. */
   setConnectionStatuses: (updates: Record<string, ConnectionStatusUpdate>) => void;
 }
 

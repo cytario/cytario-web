@@ -14,8 +14,8 @@ import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import { ViewPort } from "../../state/store/types";
 
-// Register geotiff decoders so dashboard thumbnails and the full viewer
-// can decode the same set of TIFF compression methods.
+// Register geotiff decoders so dashboard thumbnails and the full viewer decode the
+// same set of TIFF compression methods.
 registerDecoders();
 
 interface ViewProps {
@@ -24,17 +24,9 @@ interface ViewProps {
   isInteractive: boolean;
 }
 
-/**
- * Read-only DeckGL preview of the active image. Used in two contexts:
- * - Dashboard grid thumbnails (`isInteractive = false`) — no click handling.
- * - Slide view side panel (`isInteractive = true`) — clicking navigates the
- *   active viewport to the clicked coordinate.
- *
- * Shares the same channel, overlay, and annotation layer hooks as the main
- * {@link ImagePanel}, but without hover/tooltip or interactive annotation
- * editing. The deck.gl `controller` is intentionally omitted so the preview
- * cannot be panned/zoomed.
- */
+/** Read-only DeckGL preview of the active image, shared by dashboard thumbnails and the
+ *  slide view side panel. The deck.gl `controller` is intentionally omitted so the
+ *  preview cannot be panned/zoomed. */
 const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   const metadata = useViewerStore(select.metadata);
   const viewStatePreview = useViewerStore(select.viewStatePreview);
@@ -90,14 +82,8 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   );
 };
 
-/**
- * Wrapper that provides a sized container for the DeckGL preview and overlays
- * the active-viewport indicator. Renders nothing until the container measures
- * a non-zero viewport (handled by {@link ImageContainer}).
- *
- * @param isInteractive - When `true`, clicks navigate the active viewport.
- *   Defaults to `false` (dashboard thumbnail mode).
- */
+/** Sizes the DeckGL preview container and overlays the active-viewport indicator; renders
+ *  nothing until the container measures a non-zero viewport. */
 export const ImagePreview = ({ isInteractive = false }: { isInteractive?: boolean }) => {
   return (
     <ImageContainer isPreview>

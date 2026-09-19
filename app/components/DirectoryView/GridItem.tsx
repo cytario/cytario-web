@@ -14,8 +14,6 @@ interface GridItemProps {
   className?: string;
 }
 
-/** Grid card: preview slot + NodeLink row + optional meta. Card-wide right-click
- *  delegates to NodeLink's context menu via `onContextMenuTarget`. */
 export function GridItem({ node, preview, children, className }: GridItemProps) {
   const to = buildConnectionPath(node.connectionId, node.pathName);
   const contextMenuRef = useRef<((event: React.MouseEvent) => void) | null>(null);

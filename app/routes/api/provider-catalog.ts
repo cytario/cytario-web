@@ -8,11 +8,11 @@ import { toClientCatalog } from "~/utils/providerCatalog.schema";
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
- * The active organization's provider catalog for the connection-creation and share
- * selectors. Advisory: on a stale/unavailable lookup this returns `{ error }` with
- * 200 so the client degrades to a clear message and never blocks an already-created
- * connection. The response is the browser projection — no role ARNs, no Admin Role
- * ARN, no ExternalId, no management credential.
+ * The active organization's provider catalog, browser projection — no role
+ * ARNs, no ExternalId, no management credential. Advisory: on a
+ * stale/unavailable lookup this returns `{ error }` with 200 so the client
+ * degrades to a clear message and never blocks an already-created
+ * connection.
  */
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const { user, authTokens } = context.get(authContext);

@@ -1,20 +1,12 @@
 import { LRUCache } from "lru-cache";
 
 /**
- * Process-wide tile cache shared across ImagePanels (canvas view panels).
- *
- * Each ImagePanel renders its own DeckGL instance, so deck.gl's per-layer
- * Tileset2D cache is isolated per canvas — enabling split view forces the 2nd
- * panel to refetch/redecode every tile from scratch. This cache sits *below*
- * deck.gl: it memoizes the underlying fetch (channel getTile / overlay query)
- * by tile key so a second panel resolves from memory instead of the network.
- *
- * Keyed by a namespace object (the shared loader array for channels, a module
- * sentinel for overlays) via WeakMap, so entries are dropped when the loader is
- * replaced (image switch) and never collide across images.
- *
- * Bounded in BYTES, not entry count: decoded tiles and overlay Arrow tables
- * vary from KB to tens of MB, so a count cap lets memory grow unbounded.
+ * Process-wide tile cache shared across ImagePanels: each panel renders its own
+ * DeckGL instance, so deck.gl's per-layer Tileset2D cache is isolated per canvas —
+ * this cache sits below deck.gl and memoizes the underlying fetch so a second
+ * panel resolves from memory instead of the network. Keyed by a namespace object
+ * (WeakMap) so entries are dropped when the loader is replaced. Bounded in BYTES,
+ * not entry count: decoded tiles vary from KB to tens of MB.
  */
 
 /** Shared byte budget for all namespaces (~512 MB of resolved tile data). */

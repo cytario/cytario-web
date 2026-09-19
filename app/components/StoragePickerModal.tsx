@@ -87,8 +87,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
 
   const glob = globFilter.trim();
 
-  // Files "Add all matching" may offer: what's loaded minus hidden files the
-  // tree isn't showing (same toggle, same predicate).
+  // "Add all matching" offers what's loaded minus hidden files the tree isn't showing.
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   const selectableFiles = useMemo(
     () =>

@@ -11,10 +11,6 @@ export interface NotificationInput {
   duration?: number;
 }
 
-/**
- * Custom hook to handle backend notifications via the toast bridge.
- * Converts loader/action notification data into toast messages.
- */
 export const useBackendNotification = (): void => {
   const actionData = useActionData<NotificationInput>();
   const loaderData = useLoaderData<{ notification?: NotificationInput }>();

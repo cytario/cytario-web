@@ -24,12 +24,11 @@ export interface SearchConnectionResult {
 
 /**
  * Per-connection BFS search. Walks the tree level-by-level (one cached
- * `ListObjectsV2` per directory with `Delimiter /`, read through the shared
- * level cache so search and browse share fetches), filtering at each level
- * with the same `search()` logic the flat listing used. Leaf directories
- * (`.zarr`, `.mrxs`, …) are matched by name without descending into their
- * interiors, and companion directories are skipped entirely. All directories
- * at the same depth are listed in parallel.
+ * `ListObjectsV2` per directory, read through the shared level cache so
+ * search and browse share fetches), filtering at each level with the same
+ * `search()` logic the flat listing used. Leaf directories (`.zarr`, `.mrxs`,
+ * …) are matched by name without descending into their interiors, and
+ * companion directories are skipped entirely.
  *
  * With `filters.extensions`, only files matching an extension are results;
  * directories (matching or not) are traversed, not collected.

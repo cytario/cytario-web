@@ -1,25 +1,9 @@
 import type { ProviderResourceEnvelope } from "@cytario/plugin-api";
 
-/**
- * Maps a raw `defaultResources` / `maxResources` JSON object from the
- * compute-provider record (SRS-CY-49110) onto the provider-neutral
- * `ProviderResourceEnvelope` (SRS-CY-415110).
- *
- * The admin-portal stores the envelope as a loose JSON object. Two shapes
- * are tolerated:
- *
- * - **Kubernetes-quantity shape** (preferred, post-C-416): `{ cpu: "2000m",
- *   memory: "8Gi", ephemeralStorage: "20Gi", gpu: 1, runtimeCapSeconds:
- *   3600, platform: "EC2" }`. Passed through unchanged.
- * - **Legacy AWS-Batch shape** (pre-C-416 admin-portal): `{ vcpus: 4,
- *   memory: 16384, gpu: 1, runtimeCap: 3600 }` where `memory` is a MiB
- *   integer and `vcpus` is a whole-core count. Translated to the
- *   Kubernetes-quantity shape (`cpu: "4"`, `memory: "16384Mi"`, …).
- *
- * Returns `undefined` when `raw` is null, not an object, or carries no
- * recognized field — the plugin then treats the envelope as absent
- * (no provider default / no known ceiling).
- */
+// Tolerates both the Kubernetes-quantity shape ({ cpu: "2000m", memory: "8Gi",
+// ... }) and the legacy AWS-Batch shape ({ vcpus: 4, memory: 16384 }) where
+// `memory` is a MiB integer and `vcpus` a whole-core count; the latter is
+// translated to the former.
 export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | undefined {
   if (raw === null || typeof raw !== "object") return undefined;
   const obj = raw as Record<string, unknown>;
@@ -36,8 +20,7 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
     envelope.cpu = obj.vcpus;
   }
 
-  // Memory: accept Kubernetes quantity ("8Gi") or legacy MiB integer under
-  // `memory`. A bare number is treated as MiB and rendered as `${n}Mi`.
+  // Memory: a bare number is treated as MiB and rendered as `${n}Mi`.
   if (typeof obj.memory === "string") {
     envelope.memory = obj.memory;
   } else if (typeof obj.memory === "number" && obj.memory > 0) {
@@ -83,8 +66,6 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
     if (pairs.length > 0) envelope.supportedVcpuMemoryPairs = pairs;
   }
 
-  // Return undefined when no recognized field was populated — the plugin
-  // treats an empty envelope as "no provider default / no known ceiling".
   if (Object.keys(envelope).length === 0) return undefined;
   return envelope;
 }

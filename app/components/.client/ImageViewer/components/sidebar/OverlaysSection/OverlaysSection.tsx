@@ -9,10 +9,6 @@ import { Section } from "~/components/Section/Section";
 import { SectionSlider } from "~/components/Section/SectionSlider";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 
-/**
- * OverlaysSection component manages the display and interaction of overlays in the image viewer.
- * It allows users to toggle the visibility of different overlays and provides options to add new overlays.
- */
 /** Sidebar overlays control: add, toggle, delete overlay layers. */
 export const OverlaysSection = () => {
   const overlaysStates = useViewerStore(select.overlaysStates);
@@ -22,7 +18,7 @@ export const OverlaysSection = () => {
   const setShowCellOutline = useViewerStore(select.setShowCellOutline);
   const currentZoom = useViewerStore(select.currentZoom);
 
-  // Hide outline toggle when zoomed out (point mode doesn't have outlines)
+  // Hide outline toggle in point mode (points don't have outlines).
   const isInPointMode = isPointMode(currentZoom);
 
   const entries = Object.entries(overlaysStates);

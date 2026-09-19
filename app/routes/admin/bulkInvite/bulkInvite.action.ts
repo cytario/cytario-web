@@ -49,7 +49,7 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
   );
 
   // Treat 409 ("already a member or pending invitation") as a benign no-op,
-  // not a failure — same rationale as the single-invite action.
+  // not a failure.
   const succeeded = results.filter(
     (r) =>
       r.status === "fulfilled" ||

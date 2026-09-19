@@ -20,7 +20,6 @@ export function MinMaxSettings() {
   const maxValue = editingMax ?? String(selectedChannel?.contrastLimits[1] ?? 0);
 
   const commitValue = (type: "min" | "max", value: string) => {
-    // Clear editing state first
     if (type === "min") {
       setEditingMin(null);
     } else {
@@ -42,11 +41,9 @@ export function MinMaxSettings() {
     let newLimits: ByteDomain;
 
     if (type === "min") {
-      // Ensure min doesn't exceed max
       const newMin = Math.min(clampedValue, currentLimits[1]);
       newLimits = [newMin, currentLimits[1]];
     } else {
-      // Ensure max doesn't go below min
       const newMax = Math.max(clampedValue, currentLimits[0]);
       newLimits = [currentLimits[0], newMax];
     }
@@ -64,7 +61,6 @@ export function MinMaxSettings() {
     if (e.key === "Enter") {
       e.currentTarget.blur();
     } else if (e.key === "Escape") {
-      // Clear editing state without committing
       if (type === "min") {
         setEditingMin(null);
       } else {

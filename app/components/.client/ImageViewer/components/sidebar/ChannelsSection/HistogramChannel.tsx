@@ -21,7 +21,6 @@ export const HistogramChannel = ({
   width,
   height,
 
-  /*  */
   histogram,
   color,
   contrastLimit,
@@ -45,7 +44,6 @@ export const HistogramChannel = ({
 
   return (
     <g key={id}>
-      {/* Domain Mask */}
       <defs>
         <clipPath id={id}>
           <rect
@@ -63,7 +61,6 @@ export const HistogramChannel = ({
       {/* Min Value */}
       <line x1={scaledMin} y1={0} x2={scaledMin} y2={height} stroke={color} />
 
-      {/* Max Value */}
       <line x1={scaledMax} y1={0} x2={scaledMax} y2={height} stroke={color} />
       <polygon
         stroke={color}

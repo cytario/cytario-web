@@ -1,8 +1,7 @@
 /**
- * One-shot suppression for overlay error notifications. Tile loads fail per
- * tile; without this gate each failure would toast. Reporting stays suppressed
- * for a resource until its config changes (new key) or the overlay is
- * removed/reconfigured (explicit reset).
+ * One-shot suppression for overlay error notifications: tile loads fail per
+ * tile, and without this gate each failure would toast. Suppression lasts
+ * until the config changes or the overlay is removed/reconfigured.
  */
 const reported = new Set<string>();
 
@@ -16,7 +15,7 @@ export function shouldReportOverlayError(resourceId: string, configHash: string)
   return true;
 }
 
-/** Re-arm reporting for a resource (config change, removal, or manual retry). */
+/** Re-arm reporting for a resource. */
 export function resetOverlayErrorReporting(resourceId: string): void {
   const prefix = `${resourceId}|`;
   for (const key of reported) {

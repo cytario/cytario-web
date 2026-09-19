@@ -3,8 +3,7 @@ import { trimSharedTileCaches } from "~/components/.client/ImageViewer/utils/sha
 
 /**
  * Best-effort eviction of the process-wide decoded-data caches under memory
- * pressure. Dropped data refetches on demand; retained data keeps the viewer
- * usable. Called by the memory watchdog.
+ * pressure; dropped data refetches on demand.
  */
 export const trimCaches = (): void => {
   trimSharedTileCaches();

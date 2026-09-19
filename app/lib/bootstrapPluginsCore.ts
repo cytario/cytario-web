@@ -18,17 +18,10 @@ import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { HOST_API_VERSION } from "~/lib/hostApiVersion";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 
-/**
- * Registries each entry can inject. Gates, routes, server-endpoints, and host
- * capabilities are live server-side; slots, context-menus, and sidebar-nav are
- * live client-side; the entry that does not own a registry leaves it undefined
- * and the bootstrap supplies a no-op sink so a plugin's single `register(ctx)`
- * can call both without the wrong-env one taking effect. `env` is set by the
- * entry (`"server"` from entry.server, `"client"` from entry.client) and
- * surfaced on `ctx.env` so a plugin can branch its register() without
- * import-time env sniffing; it defaults to `"client"` for backward
- * compatibility.
- */
+// `env` is set by the entry ("server" from entry.server, "client" from
+// entry.client) and surfaced on `ctx.env` so a plugin can branch its
+// register() without import-time env sniffing; the entry that does not own a
+// registry leaves it undefined and the bootstrap supplies a no-op sink.
 /** A registry the bootstrap binds to a plugin name before handing it to `ctx`. */
 interface Scoped<R> {
   scopedFor(pluginName: string): R;
@@ -86,23 +79,9 @@ const noopUserManagementGateRegistry: UserManagementGateRegistry = {
   register: () => {},
 };
 
-/**
- * Iteration body extracted from the generated `plugins.generated.ts`
- * bootstrap. The codegen template now emits a thin wrapper that hands
- * the static plugin list to this helper, which means the iteration
- * logic (apiVersion gate, per-plugin try/catch, scoped FormatRegistry
- * construction) is unit-testable in isolation without dynamically
- * generating + importing TypeScript.
- *
- * Contract:
- * - assertApiCompatible is invoked before register(); incompatible
- *   plugins are logged and skipped.
- * - Each surviving plugin receives a `PluginContext` whose
- *   `FormatRegistry` is scoped to the plugin's name; cross-plugin
- *   registration of the same extension throws DuplicateRegistrationError.
- * - A failing `register()` is caught and logged; subsequent plugins
- *   still run (error containment).
- */
+// A failing `register()` is caught and logged so subsequent plugins still
+// run; each plugin's `FormatRegistry` is scoped to its name (cross-plugin
+// registration of the same extension throws DuplicateRegistrationError).
 export async function bootstrapPluginsCore(
   plugins: ReadonlyArray<CytarioPlugin>,
   logger: Logger,
@@ -118,8 +97,7 @@ export async function bootstrapPluginsCore(
   const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
   const userMgmtGate = registries?.userMgmtGate ?? noopUserManagementGateRegistry;
   const host = registries?.host ?? noopHostCapabilities;
-  // Both entries set `env` explicitly; the default only covers tests that call
-  // this helper without registries.
+  // The default only covers tests that call this helper without registries.
   const env: PluginContext["env"] = registries?.env ?? "client";
   for (const plugin of plugins) {
     try {

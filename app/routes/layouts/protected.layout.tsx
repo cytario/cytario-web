@@ -23,21 +23,17 @@ export const middleware = [authMiddleware];
 
 const label = createLabel("dashboard", "cyan");
 
-// Response carries STS credentials — keep it out of every cache between origin
-// and browser.
+// Response carries STS credentials — keep it out of every cache.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const { connectionConfigs, credentials, credentialErrors, connectionProviders, user } =
     context.get(authContext);
-  // No shouldRevalidate gate: the credential keep-alive (C-242) drives an
-  // explicit revalidation to re-mint STS credentials, and RR runs this loader
-  // on every navigation. Recents/favorites are two indexed queries riding
-  // along — cheaper than risking a gate that also starves credential refresh.
-  //
-  // This layout has no ErrorBoundary, so a rejected query here would 500 the
-  // whole authenticated app. Recents/favorites are decorative — degrade to
-  // empty rather than block navigation or the credential keep-alive.
+  // No shouldRevalidate gate: the credential keep-alive drives an explicit
+  // revalidation to re-mint STS credentials, and RR runs this loader on every
+  // navigation — recents/favorites riding along is cheaper than a gate that
+  // might starve credential refresh. They are decorative, so a failure degrades
+  // to empty rather than 500 the layout (which has no ErrorBoundary).
   const [recentlyViewed, favorites] = await Promise.all([
     loadRecentlyViewed(user.sub, 20).catch((error) => {
       console.error(`${label} Failed to load recently viewed:`, error);

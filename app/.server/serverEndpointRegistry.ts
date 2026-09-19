@@ -11,12 +11,9 @@ const VALID_AUTH_MODES = new Set<ServerEndpointAuth>([
   "deployment-secret",
 ]);
 
-/**
- * Path prefixes a plugin may contribute server endpoints under. A path that
- * does not start with one of these is rejected so a plugin endpoint cannot
- * shadow a core API route (SDS-CY-010095). Extend this list when new plugin
- * endpoint subtrees are reserved.
- */
+// A path that does not start with one of these is rejected so a plugin
+// endpoint cannot shadow a core API route. Extend when new plugin endpoint
+// subtrees are reserved.
 const ENDPOINT_PREFIX_ALLOWLIST = ["/api/plugin"] as const;
 
 interface ServerEndpointRecord {
@@ -24,17 +21,9 @@ interface ServerEndpointRecord {
   contribution: ServerEndpointContribution;
 }
 
-/**
- * Server-only endpoint registry. Mirrors the `gateRegistry` / `routeRegistry`
- * singleton pattern: `scopedFor(pluginName)` binds the plugin name at register
- * time. Lives under a `.server` path so it never enters the client bundle.
- *
- * The registry validates contributed paths and auth modes, and detects
- * duplicate path registrations. The carve-out endpoints (`job-token`,
- * `webhook-secret`, `deployment-secret`) are the only plugin-contributed
- * routes that run outside the session gate (SDS-CY-010095) — they are
- * first-class, host-reviewed extension points.
- */
+// The carve-out endpoints (`job-token`, `webhook-secret`, `deployment-secret`)
+// are the only plugin-contributed routes that run outside the session gate —
+// first-class, host-reviewed extension points.
 class ServerEndpointRegistryImpl {
   private readonly entries: ServerEndpointRecord[] = [];
 

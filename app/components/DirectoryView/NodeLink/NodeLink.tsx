@@ -15,15 +15,11 @@ export interface NodeLinkProps {
   contextMenuItems?: ReactNode;
   isClickable?: (node: TreeNode) => boolean;
   className?: string;
-  /** When provided, renders a checkbox before the node. Used by the storage picker. */
   isSelected?: (node: TreeNode) => boolean;
-  /** Called when the checkbox is toggled. Only rendered when `isSelected` is also provided. */
   onToggleSelect?: (node: TreeNode) => void;
-  /** When provided, the context menu's right-click handler is delegated to the
-   *  parent (e.g. GridItem spreads it on its card). NodeLink does not spread
-   *  `targetProps` on its own row in this case. */
+  /** When provided, the right-click handler is delegated to the parent; NodeLink
+   *  then does not spread `targetProps` on its own row. */
   onContextMenuTarget?: (handler: ((event: React.MouseEvent) => void) | null) => void;
-  /** When provided, highlights case-insensitive substring matches in the node name. */
   highlightQuery?: string;
 }
 
@@ -87,7 +83,7 @@ export function NodeLink({
   // Lift right-click handler to parent's ref (no state round-trip).
   onContextMenuTarget?.(ctx?.targetProps.onContextMenu ?? null);
 
-  // When parent owns right-click, don't add `group` — parent's group controls hover.
+  // Parent owns right-click: don't add `group`, parent's group controls hover.
   const containerCx = onContextMenuTarget ? "" : "group ";
 
   const targetProps = onContextMenuTarget ? {} : (ctx?.targetProps ?? {});

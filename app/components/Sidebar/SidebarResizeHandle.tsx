@@ -14,7 +14,6 @@ interface SidebarResizeHandleProps {
   store: SidebarStoreApi;
   side: "left" | "right";
   motionWidth: MotionValue<number>;
-  /** Global toggle shortcut, e.g. "mod+b", to show in the tooltip. */
   toggleShortcut?: string;
 }
 
@@ -28,14 +27,9 @@ function formatShortcut(combo: string): string {
     .join("");
 }
 
-// A child of the panel `<aside>`, positioned at its inner edge and extending
-// outward over the content. The aside's width *is* the panel width, so `right-0`
-// (left) / `left-0` (right) ride the edge with no transform of our own. The
-// aside keeps `inert`/`overflow-hidden` on an inner wrapper — not itself — so
-// this handle stays interactive and unclipped when the panel is closed
-// (width 0), enabling drag-to-open. Drives the live width through `motionWidth`
-// (no re-render per frame); framer `onPan` reports the gesture without moving
-// the element.
+// Positioned at the aside's inner edge, extending over the content; `inert`/
+// overflow-hidden live on an inner wrapper so the handle stays interactive at
+// width 0 (drag-to-open). motionWidth avoids a re-render per frame.
 export function SidebarResizeHandle({
   store,
   side,
@@ -50,9 +44,8 @@ export function SidebarResizeHandle({
   const dir = side === "left" ? 1 : -1;
   const widthAtPanStart = useRef(0);
 
-  // Drive motionWidth here rather than relying on the panel's open/width effect:
-  // a drag that leaves isOpen/width unchanged (e.g. nudging an already-closed
-  // panel) wouldn't re-run it, leaving the panel stuck mid-drag.
+  // Drive motionWidth here, not in the panel's open/width effect: a drag that
+  // leaves isOpen/width unchanged wouldn't re-run it, sticking mid-drag.
   const commit = (w: number) => {
     const close = w < SIDEBAR_MIN_WIDTH / 2;
     const target = close ? 0 : clampSidebarWidth(w);
@@ -72,8 +65,7 @@ export function SidebarResizeHandle({
     const shrink = side === "left" ? "ArrowLeft" : "ArrowRight";
     if (e.key !== grow && e.key !== shrink) return;
     e.preventDefault();
-    // `width` is the stored width (retained while closed). Grow from closed
-    // reopens at it; shrink while closed is a no-op.
+    // `width` is retained while closed: grow from closed reopens at it.
     if (e.key === grow) commit(isOpen ? width + KEYBOARD_STEP : width);
     else if (isOpen) commit(width - KEYBOARD_STEP);
   };

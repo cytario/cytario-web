@@ -6,10 +6,6 @@ export type ModalName = keyof typeof MODAL_REGISTRY;
 
 type ModalComponent = ComponentType<{ onClose: (extraKeys?: string[]) => void }>;
 
-/**
- * Maps `?modal=<name>` values to lazy-loaded modal components.
- * Add new entries here to register search-param-driven modals.
- */
 const MODAL_REGISTRY = {
   "add-connection": lazy(() => import("~/routes/connections/createConnection.modal")),
   "convert-overlay": lazy(() => import("~/components/DataGrid/ConvertOverlay.modal")),
@@ -18,10 +14,6 @@ const MODAL_REGISTRY = {
   cyberduck: lazy(() => import("~/components/DirectoryView/modals/Cyberduck.modal")),
 } satisfies Record<string, ModalComponent>;
 
-/**
- * Centralized mount point for search-param-driven modals.
- * Reads `?modal=<name>` and renders the matching component from the registry.
- */
 export function ModalOutlet() {
   const { modalName, closeModal } = useModal();
 

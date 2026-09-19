@@ -63,9 +63,8 @@ export const AnnotationsList = ({
   // non-empty commit (no default-named placeholder is ever persisted).
   const [adding, setAdding] = useState(false);
 
-  // Act on the current selection when the actioned feature is part of a
-  // multi-selection, else on just that feature — shared by classify, delete,
-  // and zoom so every row action targets the same set.
+  // Act on the current selection when the actioned feature is part of it, else on
+  // just that feature — shared by classify, delete, and zoom.
   const actionTargets = (feature: AnnotationFeature): string[] =>
     selectedIds.length > 1 && selectedIds.includes(feature.id) ? selectedIds : [feature.id];
 
@@ -75,10 +74,8 @@ export const AnnotationsList = ({
       query.length === 0 || annotationNameOf(feature).toLowerCase().includes(query);
 
     const byName = new Map<string, AnnotationGroup>();
-    // When authoring: always show the Unclassified bucket, pinned first — the
-    // default draw target — then every defined class (registry), so empty
-    // classes show. Read-only grants skip the empty scaffolding. When
-    // searching, skip it too (only show groups with matches).
+    // When authoring: seed the Unclassified bucket (the default draw target) and every
+    // defined class so empty classes show; read-only grants and searches skip that.
     if (editable && query.length === 0) {
       byName.set(UNCLASSIFIED, { name: UNCLASSIFIED, color: null, items: [] });
       for (const c of classes) byName.set(c.name, { name: c.name, color: c.color, items: [] });
@@ -122,9 +119,6 @@ export const AnnotationsList = ({
       return;
     }
 
-    // Shift+click: contiguous range from the anchor to the clicked item over the
-    // displayed order (anchor stays put). Falls back to plain select if there is
-    // no live anchor.
     if (e?.shiftKey && anchorId.current) {
       const from = orderedIds.indexOf(anchorId.current);
       const to = orderedIds.indexOf(id);
@@ -144,16 +138,13 @@ export const AnnotationsList = ({
       return;
     }
 
-    // Plain click: single select; reset the anchor.
     setSelectedIds([id]);
     anchorId.current = id;
   };
 
   const zoomToFeature = (feature: AnnotationFeature) => {
-    // Zoom to the whole selection (combined bounds) when the actioned region is
-    // part of it, else to just that region — same target rule as classify.
-    // Select without routing through select() — zoom is navigation, not a
-    // selection gesture, so it must not move the Shift-range anchor.
+    // Select without routing through select() — zoom is navigation, not a selection
+    // gesture, so it must not move the Shift-range anchor.
     const ids = new Set(actionTargets(feature));
     setSelectedIds([...ids]);
     if (!viewState) return;
@@ -163,8 +154,6 @@ export const AnnotationsList = ({
   };
 
   const deleteFeatures = (feature: AnnotationFeature) => {
-    // Delete the whole selection when the actioned region is part of it, else
-    // just that region — same target rule as classify.
     const ids = new Set(actionTargets(feature));
     setSelectedIds([]);
     anchorId.current = null;
@@ -174,8 +163,8 @@ export const AnnotationsList = ({
     );
   };
 
-  // Active-class selection is a single-select radio group (SRS 4b); read-only
-  // grants get no group — the headers render plainly.
+  // Active-class selection is a single-select radio group; read-only grants get no
+  // group — the headers render plainly.
   const GroupContainer = (editable ? RadioGroup : Fragment) as React.ComponentType<{
     children?: React.ReactNode;
     "aria-label"?: string;

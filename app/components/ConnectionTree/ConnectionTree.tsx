@@ -17,15 +17,9 @@ import { ancestorDirIds } from "~/utils/resourceId";
 interface ConnectionTreeProps {
   selectedConnection: string;
   query: string;
-  /**
-   * Decoded path of the resource the current route points at (S3-key form).
-   * When set, the tree mounts with every ancestor folder pre-expanded so a
-   * deep link / reload reveals where the resource lives. Omit to show only the
-   * collapsed root.
-   */
+  /** Route's resource path; when set, every ancestor is pre-expanded to reveal it. */
   activePathName?: string;
-  /** Visibility filters (extensions, …) merged over the sidebar's show-hidden
-   * toggle. Applied at both scan time (search) and render time. */
+  /** Caller filters (extensions, …) merged over the sidebar's show-hidden toggle. */
   filters?: TreeFilters;
   /** Extra NodeLink props, merged after the internal highlightQuery. */
   nodeLinkProps?: Omit<NodeLinkProps, "node">;
@@ -47,8 +41,7 @@ export function ConnectionTree({
     useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
     selectedConnection;
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
-  // Sidebar toggle is the default; caller filters (e.g. AddOverlay's
-  // extensions) are merged on top.
+  // Caller filters are merged on top of the sidebar's show-hidden default.
   const effectiveFilters = useMemo(
     () => ({ showHiddenFiles, ...filters }),
     [showHiddenFiles, filters],
@@ -147,7 +140,7 @@ export function ConnectionTree({
 
   return (
     <DirectoryViewTree
-      // Remount on connection change to reset headless-tree's id cache.
+      // Remount resets headless-tree's id cache.
       key={selectedConnection}
       nodes={rootNodes}
       kind="entries"

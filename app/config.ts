@@ -31,9 +31,9 @@ interface CytarioConfig {
     adminClientSecret: string;
     /**
      * Confidential client for the offline-capable job token grant (RFC 8693
-     * token exchange). The compute plugin calls `ctx.host.exchangeToken()` which
-     * exchanges the user's session token for an offline-capable grant with this
-     * client as the audience (SDS-CY-020105, SRS-CY-41901).
+     * token exchange). `ctx.host.exchangeToken()` exchanges the user's
+     * session token for an offline-capable grant with this client as the
+     * audience.
      */
     jobBrokerClientId: string;
     jobBrokerClientSecret: string;
@@ -109,9 +109,9 @@ const {
   CATALOG_CACHE_TTL_MS,
 } = process.env;
 
-// Admin-portal builds (EE/SaaS) resolve provider connections/roles from the
-// portal lookup; OSS builds read them from a deploy-time YAML file.
-// Portal presence is signalled by PORTAL_INTERNAL_URL.
+// Portal presence is signalled by PORTAL_INTERNAL_URL: admin-portal builds
+// (EE/SaaS) resolve provider connections/roles from the portal lookup; OSS
+// builds read them from a deploy-time YAML file.
 const providersSource: "portal" | "oss" = PORTAL_INTERNAL_URL ? "portal" : "oss";
 
 export const cytarioConfig: Readonly<CytarioConfig> = {

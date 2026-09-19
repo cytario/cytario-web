@@ -9,15 +9,11 @@ const readAllTextQuery = /*sql*/ `SELECT filename, content FROM read_text(?)`;
 /**
  * Transport for sidecar files (annotations, settings, …) in the customer's S3
  * bucket, via duckdb-wasm. Owns key derivation and read/write of the JSON
- * document — but not its shape: each `kind` layers its own envelope/parsing on
- * top (see `readAllAnnotations` / `writeAnnotations`).
- *
- * `owner` is generic — for annotations it is a set id (UUID), for settings it
- * is a user id. The repo treats it as an opaque key segment.
- *
- * Single-writer per key: one owner owns one file per kind, so `write`
- * (instance, scoped to one image + owner) is a full-file overwrite. The
- * all-owners read union is the static `readAll`.
+ * document, but not its shape: each `kind` layers its own envelope/parsing on
+ * top. `owner` is generic (set id for annotations, user id for settings) and
+ * treated as an opaque key segment. Single-writer per key: one owner owns one
+ * file per kind, so `write` is a full-file overwrite; the all-owners read
+ * union is the static `readAll`.
  */
 export class SidecarRepository {
   constructor(
@@ -26,12 +22,11 @@ export class SidecarRepository {
   ) {}
 
   /**
-   * Every owner's sidecar of `kind` for the image, in ONE round-trip: a wildcard
-   * `read_text` over `*.<kind>.*.json` returns one row per file (`filename` +
-   * `content`); the `<owner>` segment is parsed from each filename. Keyed by
-   * owner id. A zero-match `read_text` throws, so an empty `glob` short-circuits
-   * to `{}` first. Parsing each `content` into its document shape is the caller's
-   * concern (see `readAllAnnotations`).
+   * Every owner's sidecar of `kind` for the image in ONE round-trip: a wildcard
+   * `read_text` over `*.<kind>.*.json` returns one row per file, with the owner
+   * parsed from each filename. A zero-match `read_text` throws, so an empty
+   * `glob` short-circuits to `{}` first. Parsing each `content` into its
+   * document shape is the caller's concern.
    */
   static async readAll<T>(resourceId: string, kind: SidecarKind): Promise<Record<string, T>> {
     const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
@@ -57,7 +52,7 @@ export class SidecarRepository {
           const owner = parseOwnerFromKey(filename, kind);
           if (!owner || !content) continue;
           // One corrupt/truncated sidecar must not abort the whole union read —
-          // skip it (and log) so every other owner's annotations still load.
+          // skip it so every other owner's annotations still load.
           try {
             byOwner[owner] = JSON.parse(content) as T;
           } catch (error) {
@@ -81,10 +76,9 @@ export class SidecarRepository {
   }
 
   /**
-   * Overwrite the sidecar with `document` as the JSON file root. Each top-level
-   * key becomes a `COPY … (FORMAT JSON)` column, which serializes to one bare
-   * object. The `COPY TO` target and inlined values can't be bound parameters,
-   * so they're escaped.
+   * Each top-level key becomes a `COPY … (FORMAT JSON)` column, which
+   * serializes to one bare object. The `COPY TO` target and inlined values
+   * can't be bound parameters, so they're escaped.
    */
   async write(kind: SidecarKind, document: Record<string, unknown>): Promise<void> {
     const { connection, key } = await this.target(kind);

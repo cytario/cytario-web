@@ -10,28 +10,20 @@ import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 const label = createLabel("bucketpolicy-apply", "magenta");
 
-/**
- * Everything the apply needs about the target, resolved from the connection's
- * provider connection + provider role — never stored on the connection row
- * itself. `roleArn` is the acting user's connection provider role; the write
- * session is minted against it.
- */
+// Resolved from the connection's provider connection + role — never stored on
+// the connection row itself. `roleArn` is the acting user's connection provider
+// role; the write session is minted against it.
 export interface ApplyTarget {
   organization: string;
   bucketName: string;
   region: string;
   endpoint: string | null;
-  /** The acting user's connection provider role — the write session is minted against it. */
   roleArn: string;
-  /** ARN of the bucket's SSE-KMS CMK, when SSE-KMS is in use. */
   kmsKeyArn?: string | null;
 }
 
-/**
- * Outcome of an apply. Deliberately carries NO credentials — the write-capable
- * STS session is server-only and this shape is what a server action returns
- * toward the browser.
- */
+// Carries NO credentials deliberately — this shape is what a server action
+// returns toward the browser.
 export interface ApplyResult {
   status: "applied" | "warning";
   /** Present when `status === "warning"`: why the grant could not be enforced. */
@@ -47,23 +39,16 @@ export const accountIdFromRoleArn = (roleArn: string): string => {
   return match[1];
 };
 
-/**
- * Detect an AWS AccessDenied on either the STS mint or the S3 write. The write
- * session's `s3:PutBucketPolicy` may be denied by the role's attached policy even
- * when `allowsSharing` was advisory-true — we WARN, never claim enforced.
- */
+// The write session's `s3:PutBucketPolicy` may be denied by the role's attached
+// policy even when `allowsSharing` was advisory-true — we WARN, never claim enforced.
 const isAccessDenied = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const name = String((error as { name?: string }).name ?? "");
   return name === "AccessDenied" || name === "AccessDeniedException";
 };
 
-/**
- * Mint the DISTINCT, write-capable STS session for the acting user against their
- * connection provider role, scoped by the inline write-session policy. These
- * credentials are server-only and never leave this module — they are handed
- * straight to a short-lived `S3Client` and discarded.
- */
+// The write-session credentials are server-only: handed straight to a
+// short-lived S3Client and discarded, never returned.
 const mintWriteSession = async (
   target: ApplyTarget,
   idToken: string,
@@ -115,20 +100,9 @@ const getLivePolicy = async (client: S3Client, bucketName: string): Promise<stri
   }
 };
 
-/**
- * Apply the desired grant set to a bucket's policy. `grants` is the FULL managed
- * grant set the bucket should carry — every live share/connection on that bucket
- * the caller authorizes — so the operation is idempotent and naturally handles
- * un-share (a removed share is simply absent from `grants`). All-or-nothing: any
- * generation or size fault fails closed before the `PutBucketPolicy`.
- *
- * The write is serialized under the pinned per-(account, bucket) lock. On an AWS
- * AccessDenied (the write session lacks `s3:PutBucketPolicy`) it returns a
- * `warning` result — it never claims the grant was enforced.
- *
- * Server-only: the write-capable STS credentials never appear in the returned
- * `ApplyResult`.
- */
+// `grants` is the FULL managed grant set the bucket should carry, so the apply
+// is idempotent and un-share is simply absence from `grants`. On AccessDenied it
+// returns a `warning` — never claims the grant was enforced.
 export const applyBucketPolicy = async (
   target: ApplyTarget,
   grants: BucketPolicyGrant[],
@@ -136,13 +110,11 @@ export const applyBucketPolicy = async (
   actingUserName: string,
 ): Promise<ApplyResult> => {
   // The write-session role (`target.roleArn`) signs the PutBucketPolicy; each
-  // grant's own `roleArn` is the statement Principal. A grant without a
-  // `roleArn` is rejected fail-closed by `compileGrantStatements`.
+  // grant's own `roleArn` is the statement Principal.
 
-  // Generate first (outside the lock) so a generation/size fault fails closed
-  // before we mint a write session or touch the live policy. The merged document
-  // is regenerated inside the lock against the freshly-read live policy; this
-  // pre-check just short-circuits obvious faults.
+  // Generate outside the lock so a generation/size fault fails closed before we
+  // mint a write session; the real merge happens inside the lock against the
+  // freshly-read live policy.
   buildMergedPolicy(parseBucketPolicy(null), grants);
 
   const accountId = accountIdFromRoleArn(target.roleArn);

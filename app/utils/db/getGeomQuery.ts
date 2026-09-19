@@ -24,15 +24,14 @@ function classBitExpression(cls: OverlayClassConfig, bitIndex: number): string {
 }
 
 /**
- * Build SQL expression for computing marker bitmask.
- * Takes all marker classes and generates: (CAST(CAST("col1" AS BOOLEAN) AS INTEGER) << 0 | ...)
- * Column names are quoted to handle special characters (e.g., "marker_positive_pd-1")
- * The boolean→integer cast ensures each bit is 0 or 1.
+ * Build the SQL expression computing the marker bitmask: one shifted bit per
+ * class, OR-ed together. Column names are quoted to handle special characters
+ * (e.g. "marker_positive_pd-1"); the boolean→integer cast ensures each bit is
+ * 0 or 1.
  */
 function buildBitmaskExpression(markerColumns: string[]): string {
   if (markerColumns.length === 0) return "0";
 
-  // Limit to first 32 markers (32-bit integer capacity)
   const limitedMarkers = markerColumns.slice(0, OVERLAY_CLASS_BIT_LIMIT);
 
   const expressions = limitedMarkers.map(
@@ -86,9 +85,9 @@ function escapeColumnPath(path: string): string {
 }
 
 /**
- * Geometry-anchored tile predicate + position synthesis. The covering
- * columns are plain numerics, so parquet row-group statistics prune the scan;
- * x/y derive from the geometry via ST_Centroid for the rows that survive.
+ * Geometry-anchored tile predicate + position synthesis. The covering columns
+ * are plain numerics so parquet row-group statistics prune the scan; x/y
+ * derive from the geometry via ST_Centroid for the rows that survive.
  */
 function buildAnchoredSelect(
   s3Uri: string,
@@ -134,9 +133,7 @@ function buildAnchoredSelect(
 }
 /**
  * Get geometries query based on zoom level.
- * @param s3Uri - S3 URI for the parquet file (s3://bucketName/pathName)
  * @param markerColumns - ALL marker column names from the dataset (not just enabled ones)
- * @param config - overlay column mapping; marker columns come from its classes
  */
 export function getGeomQuery(
   s3Uri: string,

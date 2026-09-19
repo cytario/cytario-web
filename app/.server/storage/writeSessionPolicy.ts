@@ -1,18 +1,9 @@
-/**
- * Inline session policy for the write-capable bucket-policy apply STS session.
- *
- * This is the STS `Policy` parameter scoping the DISTINCT write session minted for
- * the Share apply — NOT the S3 bucket policy itself (that is `bucketPolicy.ts`) and
- * NOT the read-only data-plane session policy (that is
- * `app/.server/auth/sessionPolicy.ts`). It grants exactly `s3:GetBucketPolicy` /
- * `s3:PutBucketPolicy` on the one bucket ARN and, for an SSE-KMS bucket, the KMS
- * key-policy read/write on the one CMK ARN, every statement conditioned on
- * `aws:PrincipalTag/ORG` so a leaked write session cannot touch another bucket or
- * another tenant's resources.
- *
- * It intentionally shares no construction code with the other two policy
- * generators; each independently carries the ORG condition.
- */
+// STS `Policy` for the DISTINCT write session of the Share apply — not the
+// bucket policy itself (bucketPolicy.ts) and not the read-only data-plane
+// session policy (auth/sessionPolicy.ts). Every statement is conditioned on
+// `aws:PrincipalTag/ORG` so a leaked write session cannot touch another bucket
+// or another tenant's resources; shares no construction code with the other
+// two generators (each independently carries the ORG condition).
 
 export interface WriteSessionPolicyArgs {
   organization: string;

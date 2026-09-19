@@ -34,7 +34,6 @@ export function getNodeAccessors(
   return kind === "connections" ? makeConnectionAccessors(connections) : fileAccessors;
 }
 
-/** Filter hidden files (dot-files, sidecars) recursively — shared predicate from treeFilters. */
 export function filterHiddenNodes(nodes: TreeNode[], showHidden: boolean): TreeNode[] {
   if (showHidden) return nodes;
 
@@ -49,10 +48,7 @@ export function filterHiddenNodes(nodes: TreeNode[], showHidden: boolean): TreeN
     );
 }
 
-/**
- * Filter `TreeNode[]` using the same column-filter semantics as the Table.
- * Text filters use case-insensitive substring; select filters use exact match.
- */
+/** Text filters: case-insensitive substring; select filters: exact match. */
 export function filterNodes(
   nodes: TreeNode[],
   columnFilters: ColumnFiltersState,

@@ -1,13 +1,9 @@
 import { refreshJobTokenWithLock } from "./refreshJobTokenWithLock";
 import { redis } from "../db/redis";
 
-/**
- * Refreshes the canonical grant token for a live offline session ahead of
- * expiry. Both this path and a concurrent broker redeem converge on the
- * per-session Redis lock inside {@link refreshJobTokenWithLock}, so they can
- * never race. Never throws: an absent store entry or a failed refresh is a
- * warn-level no-op — a revoked session is never resurrected.
- */
+// Never throws: an absent store entry or a failed refresh is a warn-level
+// no-op — a revoked session is never resurrected. Races with a concurrent
+// broker redeem are excluded by the per-session lock in refreshJobTokenWithLock.
 export async function keepAliveGrant(offlineSessionId: string): Promise<void> {
   if (!offlineSessionId) return;
 

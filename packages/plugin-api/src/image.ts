@@ -1,20 +1,16 @@
-// Structural Image / Loader contract — host-independent. TypeScript surface
-// is permissive; PixelType casing and wavelength units are normative.
+// Structural Image / Loader contract — host-independent. TypeScript surface is
+// permissive; PixelType casing and wavelength units are normative.
 
 /**
- * Canonical pixel types. Plugin handlers MUST emit one of these exact
- * strings; viv's lower-case variants ("uint16") are NOT valid. The host's
- * built-in OME-Zarr loader normalises the upstream lower-case dtype to
- * canonical casing before yielding metadata.
+ * Canonical pixel types. Plugin handlers MUST emit one of these exact strings;
+ * viv's lower-case variants ("uint16") are NOT valid. The host's built-in
+ * OME-Zarr loader normalises the upstream lower-case dtype to canonical casing
+ * before yielding metadata.
  */
 export type PixelType =
   "Uint8" | "Uint16" | "Uint32" | "Int8" | "Int16" | "Int32" | "Float32" | "Float64";
 
-/**
- * Lower-case → canonical mapping. Exported so plugin authors and the
- * built-in loaders share one normalisation function rather than each
- * coercing dtype strings independently.
- */
+/** Lower-case → canonical mapping, shared by plugin authors and built-in loaders. */
 const PIXEL_TYPE_CANONICAL: Record<string, PixelType> = {
   uint8: "Uint8",
   uint16: "Uint16",
@@ -109,9 +105,9 @@ export interface RasterData {
 
 /**
  * Tile request the host issues against a `LoaderLevel`. `selection` carries
- * the channel/time/depth axes; concrete plugin authors are free to extend
- * the type via declaration merging if they need vendor-specific fields,
- * but the four properties below are normative.
+ * the channel/time/depth axes; plugin authors may extend the type via
+ * declaration merging for vendor-specific fields, but the properties below
+ * are normative.
  */
 export interface TileRequest {
   x: number;

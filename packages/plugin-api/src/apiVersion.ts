@@ -20,8 +20,8 @@ function isPluginShape(plugin: unknown): plugin is { name: string; apiVersion: s
 }
 
 /**
- * Only throws `IncompatiblePluginError` — the bootstrap relies on this to
- * skip incompatible plugins without crashing.
+ * Only throws `IncompatiblePluginError` — the bootstrap relies on this to skip incompatible
+ * plugins without crashing.
  */
 export function assertApiCompatible(plugin: unknown, hostVersion: string): void {
   if (!isPluginShape(plugin)) {

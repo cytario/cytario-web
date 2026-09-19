@@ -1,7 +1,6 @@
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { parseResourceId } from "~/utils/resourceId";
 
-/** The connection-root (bucket-level) node for a connection. */
 function buildConnectionNode(connectionId: string, connectionName: string): TreeNode {
   return {
     id: `${connectionId}/`,
@@ -14,7 +13,6 @@ function buildConnectionNode(connectionId: string, connectionName: string): Tree
   };
 }
 
-/** A directory node at an arbitrary path within a connection. */
 function buildDirectoryNode(
   connectionId: string,
   connectionName: string,

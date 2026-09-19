@@ -24,13 +24,10 @@ export function offlineSessionIdFromToken(token: string): string {
   }
 }
 
-/**
- * Single-flight refresh for batch-shared offline sessions (SRS-CY-416108).
- * A per-offlineSessionId Redis lock + canonical-token store lets N containers
- * sharing one grant converge on one current refresh token instead of racing
- * (SRS-CY-416109). Redeems at Keycloak on every call — no cache-hit fast path
- * (preserves the revocation guarantee of SRS-CY-416102(a)).
- */
+// Single-flight refresh for batch-shared offline sessions: a per-offlineSessionId
+// lock + canonical-token store lets N containers sharing one grant converge on
+// one current refresh token. Redeems at Keycloak on every call — no cache-hit
+// fast path, which preserves the revocation guarantee.
 export async function refreshJobTokenWithLock(
   presentedRefreshToken: string,
 ): Promise<RefreshedJobToken> {

@@ -32,7 +32,6 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
   const updateOverlaysState = useViewerStore(select.updateOverlaysState);
   const { toast } = useToast();
 
-  // Get file download progress from the file store
   const fileProgress = useFileStore((state) => state.files[resourceId]?.progress);
 
   const [isOpen, setIsOpen] = useState(true);
@@ -69,7 +68,6 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
     [resourceId, connectionId, pathName, fileName],
   );
 
-  // Calculate maxDomain from actual marker counts (for progress bar scaling)
   const maxDomain = Math.max(
     ...Object.values(overlayState).map(({ count }) => count),
     1, // Prevent division by zero
@@ -77,7 +75,6 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
 
   const connectionConfig = useConnectionsStore(connectionsSelect.connectionConfig(connectionId));
 
-  // Fetch markers on mount if not already loaded
   useEffect(() => {
     if (hasMarkers || !connectionConfig) return;
 
@@ -135,8 +132,6 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
 
   return (
     <div className="flex flex-col">
-      {/* File row: clicking the name toggles the marker list; navigation,
-          reconfiguration and removal live in the node's context menu. */}
       <div className="flex items-center gap-2 p-2">
         <AccordionToggle name={fileName} isOpen={isOpen} onToggle={() => setIsOpen(!isOpen)} />
         <NodeLink
@@ -183,9 +178,8 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
         </div>
       )}
 
-      {/* Body: one SectionRow per marker. A labeled group (not radio semantics —
-          markers have no selected-item concept) names the marker list for
-          assistive tech and scopes it for tests. */}
+      {/* A labeled group (not radio semantics — markers have no selected-item
+          concept) names the marker list for assistive tech and scopes it for tests. */}
       {isOpen && (
         <div role="group" aria-label="Overlay markers">
           {isLoading ? (

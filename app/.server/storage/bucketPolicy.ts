@@ -1,45 +1,24 @@
-/**
- * Bucket-policy generator.
- *
- * Compiles a share grant -- a (target-group scope, access level, prefix) tuple --
- * into the managed statements of an S3 bucket policy, and read-merge-writes them
- * into a live policy document while PRESERVING every foreign statement.
- *
- * Security invariants (non-negotiable):
- *  - Every Allow statement carries the `aws:PrincipalTag/ORG == <org alias>`
- *    condition. An intra-org-group grant additionally carries the per-group
- *    condition `aws:PrincipalTag/<org-relative-group-path> == "1"`; an org-root
- *    grant (`groupPath === ORG_ROOT_SCOPE`, shared with the whole organization)
- *    carries ONLY the ORG condition, since Keycloak does not emit a `*` principal
- *    tag. The generator REFUSES to emit any Allow lacking the ORG condition
- *    (fail closed).
- *  - Managed statements carry a stable `Sid` prefixed `Cytario` so they are
- *    mergeable and revocable, while foreign statements are left untouched.
- *  - The coalesced document must fit the 20480-byte bucket-policy ceiling; on
- *    overflow the apply fails closed with no partial write.
- *
- * This module shares NO policy-construction code with `buildSessionPolicy`
- * (`app/.server/auth/sessionPolicy.ts`); each generator independently carries the
- * ORG condition (the CI architectural-separation test asserts this).
- */
+// Bucket-policy generator. Every managed Allow carries the ORG principal-tag
+// condition (fail closed); an org-root grant carries only the ORG condition since
+// Keycloak does not emit a `*` principal tag. Managed statements carry a stable
+// `Sid` prefixed `Cytario`; foreign statements are preserved verbatim. Shares no
+// policy-construction code with sessionPolicy.ts — each generator independently
+// carries the ORG condition (the CI separation test asserts this).
 
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
-/** Hard S3 limit on a bucket policy document. Fail closed above it. */
+/** Hard S3 limit on a bucket policy document. */
 export const BUCKET_POLICY_MAX_BYTES = 20480;
 
-/** Every managed statement's `Sid` starts with this so foreign statements are distinguishable. */
+/** Managed statement `Sid`s start with this; foreign statements are left untouched. */
 export const MANAGED_SID_PREFIX = "Cytario";
 
 export type { AccessLevel };
 
 /**
- * A single share grant to realize on the bucket policy. `groupPath` is the
- * organization-relative group path (leading slash stripped, e.g. `Lab/TeamX`) --
- * the identical key the principal-tag mapper emits and the session policy would
- * never touch -- or the `ORG_ROOT_SCOPE` sentinel (`*`) for an org-wide grant,
- * which carries only the ORG condition (no per-group tag is emitted for `*`).
+ * `groupPath` is the organization-relative group path, or the `ORG_ROOT_SCOPE`
+ * sentinel (`*`) for an org-wide grant, which carries only the ORG condition.
  */
 export interface BucketPolicyGrant {
   organization: string;
@@ -47,35 +26,24 @@ export interface BucketPolicyGrant {
   groupPath: string;
   prefix: string | null | undefined;
   accessLevel: AccessLevel;
-  /** The IAM role ARN that is the Principal in the grant's S3 bucket-policy
-   *  statements — the role the grant names, resolved from the provider catalog
-   *  by the caller; never the apply write-session's role. */
+  // The Principal of the grant's statements — never the apply write-session's role.
   roleArn?: string;
 }
 
 /** Read actions granted at every access level. */
 const READ_ACTIONS = ["s3:GetObject"] as const;
-/** Bucket-level list action (scoped by the `s3:prefix` Condition, not by Resource ARN). */
+/** ListBucket is bucket-level: scoped by the `s3:prefix` Condition, not by Resource ARN. */
 const LIST_ACTION = "s3:ListBucket";
-/**
- * Bucket-level metadata reads every S3 client issues on connect (Cyberduck among
- * them) to resolve region, enumerate in-progress multipart uploads, and read
- * ownership controls. Granted at every access level — they reveal bucket
- * metadata, not object data.
- */
+// Metadata reads every S3 client issues on connect; they reveal bucket
+// metadata, not object data, so they are granted at every access level.
 const BUCKET_METADATA_ACTIONS = [
   "s3:GetBucketLocation",
   "s3:ListBucketMultipartUploads",
   "s3:GetBucketOwnershipControls",
 ] as const;
-/**
- * Additional write + multipart actions granted for read-write / admin access.
- * The multipart actions are required for any client (Cyberduck) that chunks
- * uploads above its part threshold. Completing a multipart upload is
- * authorized by `s3:PutObject` (already in the list) — `s3:CompleteMultipartUpload`
- * is an API operation, not an IAM action key, and S3 rejects it in a policy
- * with "Policy has invalid action".
- */
+// Write + multipart actions for read-write/admin. `s3:CompleteMultipartUpload`
+// is an API operation, not an IAM action key — S3 rejects it in a policy with
+// "Policy has invalid action"; completing an upload is authorized by PutObject.
 const WRITE_ACTIONS = [
   "s3:PutObject",
   "s3:DeleteObject",
@@ -107,13 +75,7 @@ export interface BucketPolicyDocument {
 
 const stripSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
-/**
- * Deterministic, collision-resistant suffix for a managed `Sid`. Derived from the
- * grant's stable identity (org, group, prefix, access) so re-applying the same
- * grant converges to the same `Sid` -- the property idempotency and revoke rely on.
- * Uses a small non-cryptographic hash (FNV-1a) rendered hex; a `Sid` must match
- * `[A-Za-z0-9]+`, so no separators.
- */
+/** Deterministic suffix from the grant's stable identity so re-applying converges to the same `Sid` (idempotency and revoke rely on it). */
 const fnv1aHex = (input: string): string => {
   let hash = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
@@ -130,21 +92,14 @@ const managedSidStem = (grant: BucketPolicyGrant): string => {
   return `${MANAGED_SID_PREFIX}Share${fnv1aHex(identity)}`;
 };
 
-/** True iff a statement is one this module manages (identified purely by `Sid` prefix). */
+/** True iff a statement is managed here (identified purely by `Sid` prefix). */
 export const isManagedStatement = (statement: PolicyStatement): boolean =>
   typeof statement.Sid === "string" && statement.Sid.startsWith(MANAGED_SID_PREFIX);
 
-/**
- * Build the `Condition` block shared by every statement of a grant: the ORG tag
- * plus the per-group tag. This is the fail-closed heart of the generator -- a grant
- * without an organization cannot produce a condition and must never be emitted.
- *
- * An org-root grant (`groupPath === ORG_ROOT_SCOPE`, i.e. shared with the whole
- * organization) carries ONLY the ORG condition: Keycloak does not emit a `*`
- * principal tag, so an `aws:PrincipalTag/*` condition would never match and
- * break the connection. Every member of the active org already carries the ORG
- * tag, so the ORG condition alone is the correct boundary for an org-wide grant.
- */
+// Fail-closed heart of the generator: a grant without an organization must never
+// be emitted. An org-root grant carries ONLY the ORG condition: Keycloak does not
+// emit a `*` principal tag, so a per-group condition would never match and break
+// the connection; the ORG tag alone is the correct boundary for an org-wide grant.
 const buildGrantCondition = (grant: BucketPolicyGrant): PolicyCondition => {
   if (!grant.organization) {
     throw new Error("Bucket-policy grant is missing an organization (fail closed).");
@@ -167,17 +122,9 @@ const buildGrantCondition = (grant: BucketPolicyGrant): PolicyCondition => {
   };
 };
 
-/**
- * Compile one grant into its managed statements:
- *  - a `ListBucket` statement scoped to the prefix via `s3:prefix` (bucket-level
- *    action cannot be Resource-scoped), and
- *  - an object statement (`GetObject`, plus write actions for read-write) scoped
- *    to the prefix via the Resource ARN.
- *
- * Prefixes are trailing-slash anchored: `<prefix>/` and
- * `<prefix>/*` for the list condition and `<prefix>/*` for the object ARN, so a
- * grant on `foo` cannot leak sibling keys `foobar`, `foo-other`.
- */
+// Prefixes are trailing-slash anchored (`<prefix>/` and `<prefix>/*`) so a grant
+// on `foo` cannot leak sibling keys `foobar`, `foo-other`. ListBucket is scoped
+// via `s3:prefix` (bucket-level actions cannot be Resource-scoped).
 export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatement[] => {
   if (!grant.bucketName) {
     throw new Error("Bucket-policy grant is missing a bucket name (fail closed).");
@@ -221,12 +168,9 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
 
   const statements: PolicyStatement[] = [listStatement, bucketMetadataStatement];
 
-  // Object-level actions depend on the access level. Read Only → GetObject
-  // only. Annotate → GetObject + PutObject scoped to sidecar files
-  // (*.annotations.*.json and settings.*.json at any directory depth —
-  // separate statements with narrower Resources) + DeleteObject scoped to
-  // annotation sidecars (set deletion). Read Write / Admin →
-  // GetObject + the full write + multipart action set on the whole prefix.
+  // Annotate scopes PutObject to sidecar files (*.annotations.*.json and
+  // settings.*.json at any depth) plus DeleteObject scoped to annotation sidecars
+  // (set deletion); settings sidecars stay put-only.
   if (grant.accessLevel === "annotate") {
     statements.push({
       Sid: `${sidStem}Object`,
@@ -253,8 +197,6 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
       Resource: [annotationResource, settingsBaseResource, settingsNestedResource],
       Condition: condition,
     });
-    // Annotation-set deletion: the viewer deletes a set's whole sidecar file.
-    // Scoped to the annotation pattern — settings sidecars stay put-only.
     statements.push({
       Sid: `${sidStem}AnnotateDelete`,
       Effect: "Allow",
@@ -279,11 +221,8 @@ export const compileGrantStatements = (grant: BucketPolicyGrant): PolicyStatemen
   return statements;
 };
 
-/**
- * Assert that every statement in a set carries the ORG condition. Called on the
- * managed statements before they are merged in, so a generation fault (an Allow
- * without the tenant binding) fails closed rather than widening the policy.
- */
+// A generation fault (an Allow without the tenant binding) fails closed here
+// rather than widening the policy.
 const assertOrgConditioned = (statements: PolicyStatement[]): void => {
   for (const statement of statements) {
     if (statement.Effect !== "Allow") continue;
@@ -296,22 +235,10 @@ const assertOrgConditioned = (statements: PolicyStatement[]): void => {
   }
 };
 
-/**
- * Coalesce managed statements to stay under the size ceiling: merge statements
- * that are identical except for their `Resource` and/or `Principal` into one
- * statement with multi-value `Resource` and `Principal.AWS` arrays, and fold a
- * read-only object statement into a read-write object statement for the same
- * (group, prefix). Foreign statements are never coalesced.
- *
- * Two managed statements are coalescible when their `Effect`, `Action` set, and
- * `Condition` are identical; their `Resource` values are then unioned and their
- * `Principal.AWS` values are unioned. Grants that share the same group, prefix,
- * and action-set but carry different role ARNs thus converge into one statement
- * whose `Principal` lists all applicable provider-role ARNs. Grants to different
- * groups are never merged (the per-group tag condition differs). Coalescing
- * changes the `Sid` to a stable digest of the merged content so re-applying stays
- * idempotent.
- */
+// Merge statements identical except `Resource`/`Principal` into one with unioned
+// arrays (the Sid is re-digested from merged content so re-applying stays
+// idempotent); grants to different groups are never merged (their per-group tag
+// conditions differ). Foreign statements are never coalesced.
 const coalesceManaged = (statements: PolicyStatement[]): PolicyStatement[] => {
   const groups = new Map<string, PolicyStatement>();
   const order: string[] = [];
@@ -364,11 +291,7 @@ const coalesceManaged = (statements: PolicyStatement[]): PolicyStatement[] => {
 const toResourceArray = (resource: PolicyStatement["Resource"] | undefined): string[] =>
   resource === undefined ? [] : Array.isArray(resource) ? resource : [resource];
 
-/**
- * Extract the `Principal.AWS` value(s) as a string array. A managed statement's
- * Principal is always `{ AWS: string | string[] }`; unknown shapes yield an empty
- * array so they contribute nothing to the union (and fail to coalesce).
- */
+// Unknown principal shapes contribute nothing to the union (and fail to coalesce).
 const toPrincipalArray = (principal: PolicyStatement["Principal"] | undefined): string[] => {
   if (!principal || typeof principal !== "object") return [];
   const aws = (principal as { AWS?: string | string[] }).AWS;
@@ -376,10 +299,7 @@ const toPrincipalArray = (principal: PolicyStatement["Principal"] | undefined): 
   return Array.isArray(aws) ? aws : [aws];
 };
 
-/**
- * Canonicalize a JSON value: sort object keys and sort every string array so two
- * semantically-equal statements serialize byte-identically. The coalescing key.
- */
+/** Sort object keys and every string array so semantically-equal statements serialize byte-identically. */
 export const canonicalize = (value: unknown): string => {
   const normalize = (input: unknown): unknown => {
     if (Array.isArray(input)) {
@@ -406,11 +326,8 @@ export const canonicalize = (value: unknown): string => {
 
 const EMPTY_POLICY: BucketPolicyDocument = { Version: "2012-10-17", Statement: [] };
 
-/**
- * Parse a live bucket policy document (the string `GetBucketPolicy` returns), or
- * the empty policy when the bucket has none. Throws on a malformed document so the
- * caller fails closed rather than clobbering an unparseable policy.
- */
+// Throws on a malformed document so the caller fails closed rather than
+// clobbering an unparseable policy; an absent policy yields the empty policy.
 export const parseBucketPolicy = (raw: string | null | undefined): BucketPolicyDocument => {
   if (!raw) return { ...EMPTY_POLICY, Statement: [] };
   let parsed: unknown;
@@ -445,16 +362,10 @@ export interface BuildResult {
   managedStatements: PolicyStatement[];
 }
 
-/**
- * Read-merge-write core. Produce the policy to apply from the live policy plus
- * the desired grant set:
- *  1. keep every foreign statement verbatim,
- *  2. replace ALL managed statements with the coalesced compilation of `grants`,
- *  3. assert every managed Allow is ORG-conditioned (fail closed),
- *  4. enforce the 20480-byte ceiling (fail closed on overflow).
- *
- * Passing an empty `grants` array removes all managed statements (full revoke).
- */
+// Read-merge-write core: keep every foreign statement verbatim, replace ALL
+// managed statements with the coalesced compilation of `grants` (an empty `grants`
+// array is a full revoke), and fail closed on any ORG-condition or size-ceiling
+// fault.
 export const buildMergedPolicy = (
   livePolicy: BucketPolicyDocument,
   grants: BucketPolicyGrant[],
@@ -485,11 +396,8 @@ export const buildMergedPolicy = (
   return { document, serialized, managedStatements };
 };
 
-/**
- * A foreign statement whose `Sid` collides with our managed prefix is a generation
- * fault: we cannot tell it apart from a statement we own, so we fail closed rather
- * than risk clobbering or double-counting it.
- */
+// A foreign statement whose `Sid` collides with our managed prefix cannot be
+// told apart from one we own — fail closed rather than risk clobbering it.
 const assertNoManagedSidCollision = (foreign: PolicyStatement[]): void => {
   // `foreign` already excludes managed statements, so any managed-prefixed Sid
   // here would be a logic error; guard defensively regardless.

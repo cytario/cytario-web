@@ -6,7 +6,6 @@ import { LZWDecoder } from "./lzwDecoder";
 /**
  * Register geotiff decoders. Idempotent — safe to call from any code path
  * that decodes a TIFF (full viewer or dashboard thumbnails).
- * @url https://github.com/vitessce/vitessce/issues/1709#issuecomment-2960537868
  */
 let registered = false;
 export function registerDecoders(): void {

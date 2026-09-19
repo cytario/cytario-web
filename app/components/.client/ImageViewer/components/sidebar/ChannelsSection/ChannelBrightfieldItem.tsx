@@ -44,7 +44,6 @@ export function ChannelBrightfieldItem({
     isVisible && "text-foreground",
   );
 
-  // Brightfield needs 3 channel slots
   const disabled =
     !isVisible && visibleChannelCount + BRIGHTFIELD_CHANNEL_COUNT > MAX_VISIBLE_CHANNELS;
 

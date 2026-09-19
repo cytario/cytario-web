@@ -1,8 +1,5 @@
-/**
- * Displays animated placeholder tiles in the top-left corner of the viewport
- * to signal active channel and overlay tile-loading. Each pulsing square
- * represents one outstanding tile request.
- */
+/** Animated placeholder tiles in the top-left corner of the viewport; one pulsing
+ *  square per outstanding tile request. */
 export const TileLoaderIndicator = ({
   isChannelsLoading,
   isOverlaysLoading,

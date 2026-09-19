@@ -5,9 +5,8 @@ import { isHiddenFilename } from "~/components/DirectoryView/treeFilters";
 import type { TreeFilters } from "~/components/DirectoryView/treeFilters";
 
 /**
- * Single source of truth for which listed S3 objects are shown: query on the
- * full key, extension on the file suffix, hidden on the last key segment —
- * the same `TreeFilters` the tree views apply at render time. Hidden/extension
+ * Single source of truth for which listed S3 objects are shown — the same
+ * `TreeFilters` the tree views apply at render time. Hidden/extension
  * filtering only applies when a `filters` object is passed; callers that omit
  * it (plain listings) keep raw listing semantics and filter at render.
  */

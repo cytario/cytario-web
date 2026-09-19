@@ -22,11 +22,10 @@ export type UserManagementAction =
 export type OrgTier = string;
 
 /**
- * Request the host passes to a registered {@link UserManagementGate}.
- *
- * The gate checks the `subscription_status` and `subscription_tier`
- * organization attributes. The identity carries the PII-free user profile and
- * its organization attributes.
+ * Request the host passes to a registered {@link UserManagementGate}. The
+ * gate checks the `subscription_status` and `subscription_tier` organization
+ * attributes. The identity carries the PII-free user profile and its
+ * organization attributes.
  */
 export interface UserManagementGateRequest {
   identity: Identity;
@@ -38,13 +37,11 @@ export interface UserManagementGateRequest {
 /**
  * A single-slot extension point a plugin may register to consult before the
  * host commits a user-management action (invite, add-to-group). The gate
- * checks the identity's `subscription_status` and returns `continue` to allow
- * or `deny` to block. Removals are never consulted.
+ * checks the identity's `subscription_status` and returns `continue` to
+ * allow or `deny` to block. Removals are never consulted.
  *
  * Server-only: the registry is live server-side and a no-op sink
- * client-side. Added additively at hostApiVersion 6.1.0; a plugin that
- * consumes only the pre-existing surface continues to satisfy the
- * CytarioPlugin contract unchanged.
+ * client-side.
  */
 export type UserManagementGate = (
   req: UserManagementGateRequest,

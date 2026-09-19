@@ -1,7 +1,7 @@
 /* global process, console */
-// Distroless has no shell, so the container entrypoint runs under Node.
-// Applies pending migrations, then hands off to the start command passed
-// as argv (CMD), forwarding termination signals for graceful shutdown.
+// Distroless has no shell, so the container entrypoint runs under Node:
+// applies pending migrations, then hands off to the start command passed as
+// argv (CMD), forwarding termination signals for graceful shutdown.
 import { spawn, spawnSync } from "node:child_process";
 
 const PRISMA_CLI = "node_modules/prisma/build/index.js";

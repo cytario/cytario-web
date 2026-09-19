@@ -1,7 +1,7 @@
 /**
  * A selected storage entry returned by the storage picker. The `path` is
- * relative to the connection's prefix (connection-prefix-stripped), matching
- * the convention used by `ObjectStore.list` (SDS-CY-010098).
+ * relative to the connection's prefix, matching the convention used by
+ * `ObjectStore.list`.
  */
 export interface StoragePickerResult {
   connectionId: string;
@@ -45,9 +45,7 @@ export interface StoragePickerOptions {
  * group-by selector, and an "Add" confirm button.
  *
  * Client-live; no-op sink server-side (throws "client-only" when called on
- * the server). Added additively at hostApiVersion 4.3.0; a plugin that
- * consumes only the pre-existing surface continues to satisfy the
- * CytarioPlugin contract unchanged.
+ * the server).
  */
 export interface StoragePicker {
   /**

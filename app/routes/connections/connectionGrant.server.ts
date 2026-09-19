@@ -33,12 +33,10 @@ export interface ActingContext {
   accessToken: string;
 }
 
-/**
- * Build the managed bucket-policy grant a single grant row intends. The grant's
- * `accessLevel` is resolved to a concrete role ARN (and validated level) by the
- * caller (via the provider catalog) and injected onto the `BucketPolicyGrant` so
- * the fail-closed policy generator accepts it.
- */
+/** Build the managed bucket-policy grant a single grant row intends: the
+ * grant's `accessLevel` is resolved to a concrete role ARN (and validated
+ * level) by the caller and injected so the fail-closed policy generator
+ * accepts it. */
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
   grant: { scope: string },
@@ -59,17 +57,13 @@ export function grantForConnection(
 export type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
 
 /**
- * Assemble the FULL desired managed grant set for a bucket in the active org from
- * its persisted connections' grants. Grants derive from already-persisted rows —
- * each row was authorized against its submitted scope when it was created or
- * updated; no additional per-row authorization happens here. Passing the full set
- * to `applyBucketPolicy` makes the write idempotent and makes un-share fall out
- * naturally — a removed connection is simply absent from the set.
- *
- * Each grant's `accessLevel` is resolved against the catalog to a concrete role
- * ARN for the connection's bucket; grants whose level has no role for the
- * bucket (stale catalog / role deleted) are skipped — they cannot contribute a
- * Principal and would fail the generator.
+ * Assemble the FULL desired managed grant set for a bucket in the active org
+ * from its persisted connections' grants. Passing the full set to
+ * `applyBucketPolicy` makes the write idempotent and makes un-share fall out
+ * naturally — a removed connection is simply absent from the set. Grants
+ * whose level has no role for the bucket (stale catalog / role deleted) are
+ * skipped — they cannot contribute a Principal and would fail the
+ * generator.
  */
 export function assembleBucketGrants(
   configs: ConnectionConfigWithGrants[],
@@ -100,12 +94,11 @@ export type ValidatedProviderRefs =
 
 /**
  * Validate submitted provider connection + grant access levels against the
- * catalog: the provider connection must exist and every grant's access level
- * must have a storage role for the connection's bucket in the catalog, and
- * that role's allowed scopes must cover the grant's scope (an org-wide role
- * with empty `allowedScopes` covers any scope). The client-side selector
- * filtering is advisory only — this is the authoritative check on the submitted
- * values.
+ * catalog: every grant's access level must have a storage role for the
+ * connection's bucket, and that role's allowed scopes must cover the grant's
+ * scope (an org-wide role with empty `allowedScopes` covers any scope).
+ * This is the authoritative check on the submitted values — the
+ * client-side selector filtering is advisory only.
  */
 export function validateProviderRefs(
   catalog: ProviderCatalog,
@@ -163,13 +156,11 @@ export function validateProviderRefs(
 }
 
 /**
- * Outcome of validating the submitted bucket against the portal bucket catalog.
- * In an OSS build there is no portal bucket registry, so the check is skipped
- * (returns `ok: true` immediately). In an admin-portal build the submitted
- * `bucketName` must be one of the org's registered buckets under the submitted
- * `providerConnectionId`; a bucket not in the catalog is rejected with a
- * field-level error. When the bucket lookup is unavailable, the create/update
- * is refused with a clear error rather than accepting a free-text bucket.
+ * Outcome of validating the submitted bucket against the portal bucket
+ * catalog. OSS builds skip the check (no portal bucket registry);
+ * admin-portal builds require the bucket to be registered under the
+ * submitted provider connection, and an unavailable lookup is refused with
+ * a clear error rather than accepting a free-text bucket.
  */
 export type BucketRefValidation =
   { ok: true } | { ok: false; errors: Record<string, string[]> } | { ok: false; formError: string };
@@ -206,12 +197,10 @@ export async function validateBucketRef(
 }
 
 /**
- * Resolve a connection to its `ApplyTarget` via the org provider catalog. The
- * write session runs under a grant whose resolved storage role is an Admin-level
- * role (`accessLevel === "admin"` — the only level that permits
- * `s3:PutBucketPolicy`); when none of the grants' roles is Admin, the first
- * resolvable grant's role is used as a best-effort fallback. The acting user
- * must administer the connection (canModify) before this is called.
+ * Resolve a connection to its `ApplyTarget` via the org provider catalog.
+ * The write session prefers an Admin-level grant (the only level that
+ * permits `s3:PutBucketPolicy`); when none is Admin, the first resolvable
+ * grant's role is used as a best-effort fallback.
  */
 export async function resolveApplyTarget(
   config: ConnectionConfigWithGrants,
@@ -235,7 +224,6 @@ export async function resolveApplyTarget(
   return resolveApplyTargetFromCatalog(config, catalog, bucketCatalog);
 }
 
-/** The org bucket catalog, or `undefined` in OSS builds / when the lookup fails. */
 async function bucketCatalogFor(
   organization: string,
   accessToken: string,
@@ -248,7 +236,6 @@ async function bucketCatalogFor(
   }
 }
 
-/** Resolve the storage role backing a persisted grant, scoped to its connection's bucket. */
 function findStorageRoleForConfig(
   catalog: ProviderCatalog,
   config: { providerConnectionId: string; bucketName: string },
@@ -265,7 +252,6 @@ function findStorageRoleForConfig(
   });
 }
 
-/** The provider-connection attributes plus the resolved role's, as a `ConnectionProvider`. */
 function connectionProviderFor(
   catalog: ProviderCatalog,
   config: { providerConnectionId: string },
@@ -284,12 +270,11 @@ function connectionProviderFor(
 }
 
 /**
- * Resolve the best `ApplyTarget` across ALL connections on a bucket: prefer a
- * connection that has an Admin-level grant (so the `PutBucketPolicy` write
- * succeeds); fall back to the supplied `fallback` connection when no Admin-level
- * role is found on any connection. This lets a read-only share succeed — the
- * write session borrows an Admin-level role from another connection the acting
- * user has on the same bucket.
+ * Resolve the best `ApplyTarget` across ALL connections on a bucket: prefer
+ * one with an Admin-level grant so the `PutBucketPolicy` write succeeds;
+ * fall back to `fallback` when none is found — this lets a read-only share
+ * succeed by borrowing an Admin-level role from another connection the
+ * acting user has on the same bucket.
  */
 function resolveApplyTargetFromSet(
   configs: ConnectionConfigWithGrants[],
@@ -382,10 +367,7 @@ export interface BucketRef {
 
 /**
  * Recompute the full managed grant set for `bucket` from its persisted
- * connections' grants and apply it under `applyVia`'s provider role. `applyVia`
- * only supplies the write-session role and region — it need not live on the
- * bucket anymore (the old-bucket revoke after a bucket move passes the pre-move
- * refs).
+ * connections' grants and apply it under `applyVia`'s provider role.
  */
 export async function applyBucketGrantSet(
   bucket: BucketRef,
@@ -444,10 +426,8 @@ export async function applyBucketGrantSet(
   }
 }
 
-/**
- * The apply step every connection mutation shares: recompute + apply the bucket's
- * grant set and persist the outcome on the connection row's `bucketPolicyStatus`.
- */
+/** The apply step every connection mutation shares: recompute + apply the
+ * bucket's grant set, persist the outcome on the row's `bucketPolicyStatus`. */
 export async function applyGrantsAndRecordStatus(
   config: ConnectionConfigWithGrants,
   acting: ActingContext,

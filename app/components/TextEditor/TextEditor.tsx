@@ -39,9 +39,7 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
 
   const dirty = content !== originalContent;
 
-  // Initial state `loading=true` covers the first render. The route passes
-  // `key={resourceId}` so the component remounts (re-entering `loading=true`)
-  // when the resource changes — no synchronous setState needed in the effect.
+  // Route remounts via key={resourceId} when the resource changes, so no sync setState needed.
   useEffect(() => {
     let cancelled = false;
     readTextFile(resourceId)

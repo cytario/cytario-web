@@ -27,12 +27,11 @@ export interface SlotProps {
 
 export interface SlotRegistry {
   // `component` is a React component type; typed as unknown here to keep
-  // plugin-api React-free at the type level (matches the framework-agnostic
-  // image.ts surface). Host casts to ComponentType<SlotProps>.
+  // plugin-api React-free at the type level. Host casts to
+  // ComponentType<SlotProps>.
   //
   // Slots are multi-owner: `register` appends rather than replacing, so
-  // multiple plugins may mount into the same slot. The host renders all
-  // registered components in registration order. The registry implementation
-  // lives in the host; this is the contract type only.
+  // multiple plugins may mount into the same slot; the host renders all
+  // registered components in registration order.
   register(slot: SlotName, component: unknown): void;
 }

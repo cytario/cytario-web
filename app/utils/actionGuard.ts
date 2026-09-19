@@ -9,7 +9,7 @@ import { getConnection } from "~/routes/connections/connections.server";
 interface GuardedActionArgs<Schema extends z.ZodType<{ connectionId: string }>> {
   args: ActionFunctionArgs;
   schema: Schema;
-  /** Label prefix for the 500 log line, e.g. "[favorites] Failed to add favorite:". */
+  /** Label prefix for the 500 log line. */
   errorLabel: string;
   handler: (
     data: z.infer<Schema>,
@@ -18,12 +18,8 @@ interface GuardedActionArgs<Schema extends z.ZodType<{ connectionId: string }>> 
   ) => Promise<void>;
 }
 
-/**
- * Shared envelope for the favorites/recents mutation actions: parse form data,
- * authorize the target connection, run the handler, and map failures to the
- * same status codes. Empty strings collapse to undefined so optional fields
- * stay absent.
- */
+/** Shared envelope for the favorites/recents mutation actions; empty strings
+ * collapse to undefined so optional fields stay absent. */
 export async function guardConnectionAction<Schema extends z.ZodType<{ connectionId: string }>>({
   args: { request, context },
   schema,

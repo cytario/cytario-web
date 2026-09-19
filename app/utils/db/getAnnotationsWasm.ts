@@ -4,21 +4,14 @@ import type { AnnotationFeature } from "./annotationSchema";
 import { validAnnotationFeatures } from "./annotationSchema";
 import { SidecarRepository } from "./sidecarRepository";
 
-// The annotation feature/property/classification types are derived from the zod
-// schema (single source of truth, C-307); re-exported here so existing importers
-// keep their `~/utils/db/getAnnotationsWasm` path.
 export type {
   AnnotationClassification,
   AnnotationFeature,
   AnnotationProperties,
 } from "./annotationSchema";
 
-/** A set of annotations. `id` is the sidecar key segment (UUID).
- *  `createdBy` is the author from the sidecar's `cytario.createdBy` field.
- *  `undefined` means unowned (e.g. imported QuPath export with no cytario
- *  envelope) — editable by anyone.
- *  `name` is the set's display name from `cytario.name` — undefined falls
- *  back to the positional "Annotation Set N" label. */
+/** A set of annotations. `createdBy` undefined means unowned (e.g. imported
+ *  QuPath export with no cytario envelope) — editable by anyone. */
 export type AnnotationSet = {
   id: string;
   createdBy: string | undefined;
@@ -27,12 +20,9 @@ export type AnnotationSet = {
 };
 
 /**
- * Reads EVERY annotation set for the image in one round-trip — the single
- * source of truth for the viewer's annotation sets. Each set's sidecar is parsed
- * to its feature array; sets with no features are dropped (lazy-create semantics).
- * The `createdBy` field is extracted from the sidecar's `cytario.createdBy`
- * body field — absent for QuPath exports (no `cytario` envelope), leaving
- * `createdBy` undefined (unowned). `name` comes from `cytario.name`.
+ * Reads EVERY annotation set for the image in one round-trip. Sets with no
+ * features are dropped (lazy-create semantics); `createdBy` is absent for
+ * QuPath exports (no `cytario` envelope), leaving the set unowned.
  */
 export async function readAllAnnotations(resourceId: string): Promise<AnnotationSet[]> {
   const documents = await SidecarRepository.readAll<
@@ -42,8 +32,7 @@ export async function readAllAnnotations(resourceId: string): Promise<Annotation
   >(resourceId, "annotations");
   const sets: AnnotationSet[] = [];
   for (const [setId, collection] of Object.entries(documents)) {
-    // Validate + normalize on read: drop malformed features (external/legacy),
-    // auto-close rings, normalize ids — so nothing degenerate reaches render.
+    // Validate + normalize on read so nothing degenerate reaches render.
     const features = validAnnotationFeatures(collection?.features);
     if (!features.length) continue;
     sets.push({

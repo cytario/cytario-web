@@ -3,25 +3,13 @@ import type { JWTPayload } from "jose";
 import { verifyToken } from "./jwtVerify";
 import { cytarioConfig } from "~/config";
 
-/**
- * Verified payload of a cytario-CLI token. Carries the nested
- * `organization` claim and the `sub` of the signed-in user; the
- * my-connections endpoint derives the request's user and active
- * organization from these claims without any browser session.
- */
 export interface VerifiedCliToken extends JWTPayload {
   sub: string;
 }
 
-/**
- * Verifies a cytario-CLI token's signature, issuer, and audience. The
- * audience is the CLI client (`CYTARIO_CLI_CLIENT_ID`) — carried by both
- * the ID token and (via the client's self-audience mapper) the access
- * token. The audience is always validated because the endpoint is a
- * carve-out outside the session gate and the token's audience is the only
- * claim that ties it to this route. Returns the verified payload (typed
- * to require `sub`) or null on any verification failure.
- */
+// The audience is always validated because the endpoint is a carve-out
+// outside the session gate and the token's audience is the only claim that
+// ties it to this route.
 export const verifyCliToken = async (token: string): Promise<VerifiedCliToken | null> => {
   const { cliClientId } = cytarioConfig.auth;
   if (!cliClientId) return null;

@@ -35,13 +35,8 @@ function requireRequestData() {
   return data;
 }
 
-/**
- * Projects a `ConnectionConfig` (with grants) to a secret-free
- * `ConnectionProjection` — strips grants, raw role identifiers, and
- * credentials (SDS-CY-010097). Resolves the provider type, endpoint, and
- * region from the provider catalog so a plugin receives concrete attributes,
- * not an opaque `providerConnectionId` reference.
- */
+// Secret-free projection: strips grants, raw role identifiers, and
+// credentials; resolves concrete provider attributes from the catalog.
 async function toConnectionProjection(
   config: ConnectionConfigWithGrants,
   accessToken: string,
@@ -59,21 +54,6 @@ async function toConnectionProjection(
   };
 }
 
-/**
- * Server-side `HostCapabilities` implementation. Each method resolves the
- * active organization and session from `AsyncLocalStorage` (set up by the
- * request pipeline) so a plugin calls `ctx.host.connections()` without
- * passing an explicit request context (SDS-CY-010094/010097).
- *
- * Capabilities backed by existing host infrastructure (`connections`,
- * `jobLedger`) are fully implemented. Capabilities that require new
- * infrastructure (`connectionFetch`, `userStorage`, `assumeComputeRole`,
- * `exchangeToken`) throw a clear "not configured" error — the type
- * contract is complete so a plugin can typecheck against the spec, and
- * the implementations will be wired when the backing infrastructure lands
- * (catalog connections, user storage connections, compute role config,
- * offline token grants).
- */
 class HostCapabilitiesImpl implements HostCapabilities {
   async connections(): Promise<readonly ConnectionProjection[]> {
     const { user, authTokens } = requireRequestData();
@@ -153,14 +133,10 @@ class HostCapabilitiesImpl implements HostCapabilities {
   }
 }
 
-/**
- * Host-owned running-jobs ledger (SDS-CY-080900, SDS-CY-010099). Carries
- * identifiers only — the provider job identifier, the grant's offline-
- * session identifier, the organization, and the submitting user — never
- * token or credential material. Rows are organization-scoped under the
- * same tenancy invariants as the connection store (organization
- * server-injected and never caller-supplied, org pre-filter on read).
- */
+// Carries identifiers only — never token or credential material. Rows are
+// organization-scoped under the same tenancy invariants as the connection
+// store: organization server-injected and never caller-supplied, org
+// pre-filter on read.
 class JobLedgerImpl implements JobLedger {
   async record(job: JobRecord): Promise<void> {
     const { user, authTokens } = requireRequestData();
@@ -168,12 +144,10 @@ class JobLedgerImpl implements JobLedger {
       throw new Error("Active organization missing from session");
     }
 
-    // Resolve the storage role for the submitting user, host-side, from the
-    // output connection and the session token. The broker reads the resolved
+    // The storage role is resolved host-side here so the broker reads
     // roleArn/region/s3Endpoint from the ledger row at mint time without
-    // re-resolving the provider catalog. Pinning the most permissive grant the
-    // user can see (not arbitrary first grant) keeps the job's credentials
-    // within the user's entitlement and ensures the output role can write.
+    // re-resolving the catalog. Pinning the most permissive grant the user
+    // can see keeps the job's credentials within the user's entitlement.
     const connection = await prisma.connectionConfig.findFirst({
       where: { id: job.connectionId, organization: user.organization },
       include: { grants: true },
@@ -243,8 +217,7 @@ class JobLedgerImpl implements JobLedger {
     const { user } = requireRequestData();
     // The deployment-secret carve-out dispatches org-agnostic (no session
     // organization) — the same trust boundary as listAll — so the reconciler
-    // removes terminal rows by jobId alone. Session-authenticated callers
-    // keep the organization pre-filter.
+    // removes terminal rows by jobId alone; session callers keep the org filter.
     await prisma.jobLedgerEntry.deleteMany({
       where: user.organization ? { organization: user.organization, jobId } : { jobId },
     });
@@ -258,13 +231,9 @@ class JobLedgerImpl implements JobLedger {
     return listLedgerEntries(user.organization);
   }
 
-  /**
-   * Cross-organization scan for the scheduled reconciler. Reaches across every
-   * tenant's rows — must only be reachable from the deployment-secret
-   * carve-out, never a session path. The carve-out dispatch sets up an
-   * org-agnostic request context so {@link requireRequestData} still resolves,
-   * but no organization pre-filter is applied here.
-   */
+  // Cross-organization scan for the scheduled reconciler — must only be
+  // reachable from the deployment-secret carve-out, never a session path:
+  // no organization pre-filter is applied here.
   async listAll(): Promise<readonly JobRecord[]> {
     requireRequestData();
     const entries = await prisma.jobLedgerEntry.findMany({

@@ -14,25 +14,18 @@ import { createLabel } from "~/.server/logging";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
 
-/** A connection config with its grants eager-loaded (the shape the app consumes). */
 export type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
 
 export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfigWithGrants[];
-  /** Per-connection reason for connections whose STS mint failed this request. */
   credentialErrors: Record<string, string>;
-  /** Per-connection resolved non-secret provider attributes (region/endpoint). */
   connectionProviders: Record<string, ClientConnectionProvider>;
 }
 
 export const authContext = createContext<AuthContextData>();
 
-/**
- * A token with less than this much remaining lifetime is treated as expired and
- * routed to the refresh path. Buffers beyond the id token's 30s verification
- * tolerance so a token is never forwarded to the portal token exchange or AWS STS
- * (both of which validate `exp` strictly) once it is near its end of life.
- */
+// Buffers beyond the id token's 30s verification tolerance so a token is never
+// forwarded to the portal token exchange or AWS STS (both validate exp strictly).
 const ACCESS_TOKEN_FRESHNESS_BUFFER_SECONDS = 60;
 
 const isRefreshTokenValid = (token?: string): boolean => {
@@ -47,7 +40,6 @@ const isRefreshTokenValid = (token?: string): boolean => {
   }
 };
 
-/** Seconds of remaining lifetime on an OIDC token, or 0 when unreadable. */
 const tokenTtlSeconds = (token?: string): number => {
   if (!token) return 0;
 
@@ -61,15 +53,8 @@ const tokenTtlSeconds = (token?: string): number => {
   }
 };
 
-/**
- * True when the token still has at least `bufferSeconds` of lifetime left.
- * The middleware must not forward a token that is valid-but-about-to-expire:
- * the access token is exchanged by the portal and the id token by AWS STS, both
- * of which validate `exp` strictly (no clock tolerance). Deciding on a small
- * buffer rather than "already expired" closes the window where the id token still
- * verifies locally (see `verifyIdToken`'s 30s clock tolerance) but the
- * access/id token is rejected downstream.
- */
+// The downstream consumers (portal exchange, AWS STS) validate exp strictly,
+// unlike verifyIdToken's 30s clock tolerance; the buffer closes that window.
 const isTokenFresherThan = (token: string | undefined, bufferSeconds: number): boolean =>
   tokenTtlSeconds(token) >= bufferSeconds;
 
@@ -120,11 +105,9 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
     let updatedSessionData = sessionData as SessionData;
     const { authTokens, user } = updatedSessionData;
 
-    // Consult plugin session gates before any ConnectionConfig query runs, so
-    // a zero-org or gated session cannot fall through to an unscoped tenant
-    // read. Gates receive only the PII-free identity projection. With no
-    // plugin loaded `runGates` returns `continue` and the built-in no-org
-    // fallback below preserves on-prem behaviour.
+    // Gates run before any ConnectionConfig query so a zero-org or gated session
+    // cannot fall through to an unscoped tenant read; gates receive only the
+    // PII-free identity projection.
     const outcome = await runGates({
       url: url.toString(),
       method: request.method,

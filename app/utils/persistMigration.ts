@@ -1,12 +1,7 @@
 /**
- * Creates a versioned migrate function for Zustand persist middleware.
- *
- * Each entry in the migrations record maps a source version number
- * to a function that transforms state from that version to the next.
- * Migrations are applied sequentially: v0 -> v1 -> v2 -> ... -> current.
- *
- * If any migration throws, the fallback state is returned instead
- * of crashing the app with corrupt hydrated state.
+ * Creates a versioned migrate function for Zustand persist middleware:
+ * migrations apply sequentially (v0 → v1 → …); if any throws, the fallback
+ * state is returned instead of crashing on corrupt hydrated state.
  */
 export function createMigrate<TState>(
   migrations: Record<number, (state: unknown) => unknown>,

@@ -1,12 +1,7 @@
-/**
- * Server-side CORS preflight probe run at connection create / update.
- *
- * Cytario's data plane is browser-direct, so the bucket must advertise a CORS
- * policy that matches the cytario origin. Probe outcomes:
- *   - `ok: false` — the browser will hard-block reads; the form rejects.
- *   - `ok: true, warnings: ["wildcard_origin"]` — `ACAO: *` works today (the
- *     read path is non-credentialed) but is flagged for operator hygiene.
- */
+// The data plane is browser-direct, so the bucket must advertise a CORS policy
+// matching the cytario origin: `ok: false` means the browser hard-blocks reads
+// (the form rejects); a wildcard ACAO works (read path is non-credentialed)
+// but is flagged as a warning for operator hygiene.
 
 import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
 import { SIGNED_REQUEST_HEADERS } from "~/utils/signedFetch";
@@ -25,11 +20,8 @@ export interface CorsPreflightResult {
 
 const PREFLIGHT_TIMEOUT_MS = 5_000;
 
-/**
- * Strips IPv4 / IPv6 literals from an error `detail` so the resolved IP of an
- * upstream endpoint never reaches the operator UI — denies the probe as a
- * port-scan oracle.
- */
+// So the resolved IP of an upstream endpoint never reaches the operator UI —
+// denies the probe as a port-scan oracle.
 export function redactIpLiterals(message: string): string {
   let result = message.replace(/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g, "[redacted]");
   result = result.replace(
@@ -45,7 +37,7 @@ export async function probeBucketCors(
   cytarioOrigin: string,
 ): Promise<CorsPreflightResult> {
   // Refuse out-of-allowlist URLs so the probe can never be an SSRF oracle
-  // against IMDS / RFC1918 / loopback, independent of upstream form validation.
+  // against IMDS / RFC1918 / loopback.
   if (!isAllowedS3Host(bucketUrl)) {
     return {
       ok: false,
@@ -105,7 +97,6 @@ export async function probeBucketCors(
   return { ok: true, warnings };
 }
 
-/** Human-readable failure message shown on the connection form. */
 export function describeCorsFailure(result: CorsPreflightResult, cytarioOrigin: string): string {
   switch (result.reason) {
     case "network":
@@ -121,7 +112,6 @@ export function describeCorsFailure(result: CorsPreflightResult, cytarioOrigin: 
   }
 }
 
-/** Human-readable message for a non-blocking warning. */
 export function describeCorsWarning(
   warning: CorsPreflightWarningReason,
   cytarioOrigin: string,

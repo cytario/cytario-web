@@ -10,17 +10,9 @@ interface AuthCodeTokenResponse {
   session_state?: string;
 }
 
-/**
- * Exchanges an authorization code + PKCE verifier for an offline-capable
- * job grant on the job-broker client (SRS-CY-41901). The Authorization Code
- * + PKCE flow creates a real offline session at Keycloak; the returned
- * refresh token survives the user's interactive session and is redeemable
- * by the credential broker on every call.
- *
- * The job-broker client authenticates with its client credentials (Basic
- * auth); the PKCE verifier proves the code was issued to the same party
- * that initiated the flow.
- */
+// The Authorization Code + PKCE flow creates a real offline session at
+// Keycloak; the returned refresh token survives the user's interactive
+// session and is redeemable by the credential broker on every call.
 export async function exchangeAuthCodeForJobGrant(
   code: string,
   redirectUri: string,

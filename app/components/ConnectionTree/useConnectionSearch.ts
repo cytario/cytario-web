@@ -22,11 +22,9 @@ interface SearchResult {
   isCapped: boolean;
 }
 
-// Recursive search of one connection. `query` is already debounced by
-// SearchInput. Results are keyed by connection+query+filters so
-// isSearching/nodes derive cleanly without resetting state in the effect.
-// The scan runs when either a query or an extension filter is active — the
-// extension scope alone prunes empty directories and needs the full walk.
+// Results keyed by connection+query+filters so isSearching/nodes derive without
+// resetting state in the effect. The extension scope alone needs the full walk
+// (it prunes empty directories).
 export function useConnectionSearch(
   connectionId: string,
   query: string,
@@ -62,17 +60,14 @@ export function useConnectionSearch(
     });
 
     return () => controller.abort();
-    // `key` serializes connection + query + filters, so it is the complete dep:
-    // caller-side `filters` identity churn (inline literals) must not re-trigger
-    // the walk. Everything else in the closure is captured from the render that
-    // produced the changed key.
+    // `key` is the complete dep: caller-side filter identity churn must not re-trigger the walk.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, hasCreds]);
 
   const matched = active && result.key === key;
   return {
     nodes: matched ? result.nodes : [],
-    // No credentials → immediate error (can't search), not a spinner.
+    // No credentials → immediate error, not a spinner.
     isSearching: active && hasCreds && !matched,
     error: active && (!hasCreds || (matched && result.error)),
     corsBlocked: matched && result.corsBlocked,

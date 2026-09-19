@@ -85,11 +85,7 @@ export async function getOrganizationGroupMembers(
   );
 }
 
-/**
- * List groups in an organization. Without `groupId` returns every top-level
- * org group; with `groupId` returns that group's direct children. Paginated
- * (KC defaults `max=10` on the children endpoint).
- */
+/** KC defaults `max=10` on the children endpoint, so pagination is mandatory. */
 export async function listOrganizationGroups(
   orgId: string,
   groupId?: string,
@@ -100,15 +96,9 @@ export async function listOrganizationGroups(
   return adminFetchAll<KeycloakGroup>((params) => `${path}?${params}`);
 }
 
-/**
- * Send an organization invitation to the given email
- *
- * Keycloak provisions the user if needed and emails the join link; firstName / lastName are only used when the user does not already exist.
- *
- * KC returns 409 both for "pending invitation already exists" and
- * "user already a member" — both are benign from the caller's POV; the
- * action layer should classify them as warnings rather than errors.
- */
+// KC returns 409 both for "pending invitation already exists" and "user
+// already a member" — both benign; the action layer classifies them as
+// warnings rather than errors.
 export async function inviteOrganizationUser(
   orgId: string,
   email: string,
@@ -120,7 +110,7 @@ export async function inviteOrganizationUser(
   if (firstName) body.set("firstName", firstName);
   if (lastName) body.set("lastName", lastName);
   // client_id targets the invitation link at the web client, so KC resolves the
-  // post-acceptance redirect from its root/base URL instead of the account console (C-439).
+  // post-acceptance redirect from its root/base URL instead of the account console.
   const clientId = encodeURIComponent(cytarioConfig.auth.clientId);
   return adminFormMutate(
     "POST",

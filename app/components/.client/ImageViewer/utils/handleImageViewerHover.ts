@@ -1,12 +1,7 @@
-// TODO: Fix types for the tile and layer.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// import { PickingInfo } from "@deck.gl/core";
 
-export const handleImageViewerHover = (
-  { tile, coordinate, sourceLayer: layer }: any, // PickingInfo
-) => {
+export const handleImageViewerHover = ({ tile, coordinate, sourceLayer: layer }: any) => {
   let hoverData;
-  // Tiled layer needs a custom layerZoomScale.
   if (layer.id.includes("Tiled")) {
     if (!tile?.content) {
       return null;
@@ -30,7 +25,6 @@ export const handleImageViewerHover = (
     if (!data) {
       return null;
     }
-    // The zoomed out layer needs to use the fixed zoom at which it is rendered.
     const layerZoomScale = Math.max(1, 2 ** Math.round(-z));
     const dataCoords = [
       Math.floor((coordinate[0] - bounds[0]) / layerZoomScale),
@@ -48,7 +42,7 @@ export const handleImageViewerHover = (
       return null;
     }
     const bounds = [0, height, width, 0];
-    // Using floor means that as we zoom out, we are scaling by the zoom just passed, not the one coming.
+    // Floor so that as we zoom out, we scale by the zoom just passed, not the one coming.
     const { zoom } = layer.context.viewport;
     const layerZoomScale = Math.max(1, 2 ** Math.floor(-zoom));
     const dataCoords = [

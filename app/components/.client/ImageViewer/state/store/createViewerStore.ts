@@ -15,20 +15,12 @@ import type { ViewerStore } from "./types";
 import { createViewsSlice } from "./views/views.store";
 
 /**
- * Creates a Zustand store for one image-viewer instance. State + actions are
- * composed from domain slices — core, viewport, views, channels, overlays,
- * annotations — over the
- * `subscribeWithSelector → persist → immer → devtools → temporal` middleware
- * stack. `subscribeWithSelector` lets the annotation autosave writer
- * subscribe to a single slice of state. `temporal` (zundo) is innermost so
- * it intercepts every `set` first, snapshotting the pre-mutation state into
- * the undo/redo history. `id` and `currentUserId` live at the root; `id`
- * keys persistence + devtools, `currentUserId` scopes per-user sidecar writes
- * and ownership guards.
- *
- * The `TemporalState` (cool-off controller) is attached as a property on the
- * returned store so the `useUndoRedo` hook can reset the gesture debounce
- * before calling undo/redo.
+ * Creates a Zustand store for one image-viewer instance, composed from domain
+ * slices over the `subscribeWithSelector → persist → immer → devtools → temporal`
+ * middleware stack. `temporal` (zundo) is innermost so it intercepts every `set`
+ * first, snapshotting the pre-mutation state into the undo/redo history. The
+ * `TemporalState` (cool-off controller) is attached as a property on the returned
+ * store so the `useUndoRedo` hook can reset the gesture debounce before undo/redo.
  */
 export const createViewerStore = (id: string, userId: string = "") => {
   const { options: temporalOptions, temporalState } = createTemporalOptions();

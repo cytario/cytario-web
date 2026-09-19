@@ -12,7 +12,7 @@ export interface DatabaseProvider {
   endpoint?: string | null;
 }
 
-/** Initialize a DuckDB WASM connection with S3 support (LRU-bounded per resourceId). */
+/** Initialize a DuckDB WASM connection with S3 support. */
 const createDatabaseInternal = async (resourceId: string, provider?: DatabaseProvider | null) => {
   console.info("[getTileDataWasm] Initializing DuckDB WASM with S3 support...");
 
@@ -26,9 +26,9 @@ const createDatabaseInternal = async (resourceId: string, provider?: DatabasePro
   const db = new AsyncDuckDB(new ConsoleLogger(4), worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
 
-  // Must be set before `open` (no SQL toggle). The mirror serves the same
-  // upstream binary verified at build time, but signatures are tied to
-  // `extensions.duckdb.org` so signature validation must be skipped.
+  // Must be set before `open` (no SQL toggle): the local mirror serves the
+  // same upstream binary, but its signatures are tied to
+  // `extensions.duckdb.org`, so signature validation must be skipped.
   await db.open({ allowUnsignedExtensions: true });
 
   const connection = await db.connect();
@@ -71,8 +71,8 @@ const createDatabaseInternal = async (resourceId: string, provider?: DatabasePro
 
 type DuckDbHandle = Awaited<ReturnType<typeof createDatabaseInternal>>;
 
-// Keyed by the connection itself so a rebuilt connection (singleton retries
-// after a failed init) can never inherit a stale "already applied" verdict.
+// Keyed by the connection itself so a rebuilt connection can never inherit a
+// stale "already applied" verdict.
 const appliedKeyIds = new WeakMap<DuckDbHandle["connection"], string | undefined>();
 
 // Serialize `SET s3_*` per resourceId: two concurrent reads straddling a
@@ -81,14 +81,11 @@ const appliedKeyIds = new WeakMap<DuckDbHandle["connection"], string | undefined
 const pendingApplications = new Map<string, Promise<void>>();
 
 /**
- * Open DuckDB instances kept alive: each carries a WASM worker + heap, so one
- * per viewed resource accumulates until the tab OOMs. LRU-bounded.
- *
- * Eviction is borrow-safe: a handle with outstanding borrows is never
- * terminated under in-flight queries — it is marked evicted and terminated
- * once the last borrower releases it. A re-request of a drained-but-not-yet-
- * terminated (or still-borrowed) evicted handle resurrects it instead of
- * spinning up a fresh instance.
+ * Each open DuckDB instance carries a WASM worker + heap, so one per viewed
+ * resource accumulates until the tab OOMs — LRU-bounded. Eviction is
+ * borrow-safe: a handle with outstanding borrows is marked evicted and
+ * terminated once the last borrower releases it; a re-request resurrects it
+ * instead of spinning up a duplicate.
  */
 const MAX_DUCKDB_INSTANCES = 3;
 
@@ -134,23 +131,20 @@ function evictBeyondCap() {
 }
 
 /**
- * STS credentials rotate (~hourly, C-242) while a cached connection lives for
- * the whole viewer session — re-apply the `SET s3_*` trio whenever the caller
- * resolves a different `AccessKeyId` than the connection last saw.
+ * STS credentials rotate hourly while a cached connection lives for the whole
+ * viewer session — re-apply the `SET s3_*` trio whenever the caller resolves a
+ * different `AccessKeyId` than the connection last saw.
  *
  * Borrow contract: every successful call must be paired with exactly one
- * `releaseDatabase(resourceId)` once the caller's work on the connection is
- * done (a `try/finally` around all query work). A missing release pins the
- * handle — and once it is evicted, its worker — in memory for the session.
+ * `releaseDatabase(resourceId)` once the caller's work is done (a
+ * `try/finally` around all query work). A missing release pins the handle —
+ * and once it is evicted, its worker — in memory for the session.
  */
 export const createDatabase = async (
   resourceId: string,
   credentials: Credentials,
   provider?: DatabaseProvider | null,
 ) => {
-  // Resurrect an evicted-but-alive handle (still borrowed, or awaiting its
-  // deferred termination) rather than creating a duplicate instance whose
-  // sibling the evicted one would keep in memory until it drains.
   let tracked = evictedHandles.get(resourceId);
   if (tracked) {
     evictedHandles.delete(resourceId);
@@ -160,7 +154,7 @@ export const createDatabase = async (
   }
 
   if (openHandles.has(resourceId)) {
-    // LRU touch — this resourceId moves to most-recent.
+    // LRU touch.
     tracked = openHandles.get(resourceId)!;
     openHandles.delete(resourceId);
     openHandles.set(resourceId, tracked);
@@ -171,13 +165,12 @@ export const createDatabase = async (
     openHandles.set(resourceId, fresh);
     evictBeyondCap();
 
-    // A failed init must not stay cached in either map, whether eviction
-    // parked it or it still sits live in the LRU.
+    // A failed init must not stay cached in either map.
     handlePromise.catch(() => dropFailedHandle(resourceId, fresh));
   }
 
-  // Borrow before any await so an eviction triggered while this call is
-  // still resolving the handle defers termination past this call's release.
+  // Borrow before any await so an eviction triggered while this call is still
+  // resolving the handle defers termination past this call's release.
   tracked.borrows += 1;
 
   let connection: DuckDbHandle["connection"];
@@ -208,7 +201,7 @@ export const createDatabase = async (
 
 /**
  * Release a `createDatabase` borrow. The last release of an evicted handle
- * terminates it; a live (non-evicted) handle simply stays in the LRU.
+ * terminates it; a live handle simply stays in the LRU.
  */
 export const releaseDatabase = (resourceId: string): void => {
   let tracked = openHandles.get(resourceId);
@@ -229,5 +222,4 @@ export const __resetDuckDbHandlesForTests = () => {
   pendingApplications.clear();
 };
 
-// Re-exported for `convertCsvToParquet`, which bootstraps its own WASM instance.
 export { applyS3Credentials } from "./csvCredentials";

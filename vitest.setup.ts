@@ -3,9 +3,9 @@ import { mockAnimationsApi } from "jsdom-testing-mocks";
 import { createElement } from "react";
 import { beforeAll } from "vitest";
 
-// Provide a working Storage implementation for Zustand persist middleware.
 // Node.js 24's built-in localStorage is broken without --localstorage-file,
-// and happy-dom doesn't fully override it.
+// and happy-dom doesn't fully override it — provide a working Storage
+// implementation for the Zustand persist middleware.
 function createStorageMock(): Storage {
   const store = new Map<string, string>();
   return {
@@ -48,13 +48,11 @@ vi.mock("~/components/Tooltip/Tooltip", () => ({
 }));
 
 beforeAll(() => {
-  // Set the locale to "en_US" to ensure consistent date formatting in tests
   process.env.LANG = "en_US.UTF-8";
   process.env.LC_ALL = "en_US.UTF-8";
   mockAnimationsApi();
 });
 
-// Reset all mocks and storage after each test file
 afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();

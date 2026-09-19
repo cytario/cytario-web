@@ -14,17 +14,8 @@ const EXPIRY_BUFFER_MS = 30_000;
 const cache = new Map<string, CachedToken>();
 const pending = new Map<string, PendingRefresh>();
 
-/**
- * Returns a valid access token for the cytario-web-admin service account
- * (client_credentials grant). Caches per clientId in memory and refreshes
- * before expiry. Concurrent callers for the same clientId share a single
- * in-flight refresh to avoid stampeding the token endpoint.
- *
- * Used by the keycloakAdmin client for user/group/organization management
- * operations — holds the broader realm-management role set (manage-users,
- * view-users, query-groups, manage-organizations, manage-identity-
- * providers).
- */
+// Holds the broader realm-management role set (manage-users, view-users,
+// query-groups, manage-organizations, manage-identity-providers).
 export async function getAdminToken(): Promise<string> {
   return getServiceAccountToken({
     clientId: cytarioConfig.auth.adminClientId,
@@ -33,15 +24,9 @@ export async function getAdminToken(): Promise<string> {
   });
 }
 
-/**
- * Returns a valid access token for the job-broker service account
- * (client_credentials grant). Narrow permission set — holds only
- * `manage-users` on realm-management, the narrowest standard role
- * covering the offline-session revocation endpoint
- * `DELETE /admin/realms/{realm}/sessions/{session}?isOffline=true`
- * (SDS-CY-020105, SDS-CY-080901). Used by the reconciler to revoke
- * terminal jobs' offline grants.
- */
+// Narrow: holds only `manage-users`, the narrowest standard role covering the
+// offline-session revocation endpoint
+// `DELETE /admin/realms/{realm}/sessions/{session}?isOffline=true`.
 export async function getJobBrokerToken(): Promise<string> {
   const { jobBrokerClientId, jobBrokerClientSecret } = cytarioConfig.auth;
   if (!jobBrokerClientId || !jobBrokerClientSecret) {

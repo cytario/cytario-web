@@ -1,6 +1,4 @@
 /**
- * S3 Provider Detection Utilities
- *
  * Centralizes logic for detecting whether an endpoint is AWS S3 or
  * an S3-compatible service (MinIO, Cloudflare R2, Wasabi, etc.)
  */
@@ -15,21 +13,12 @@ export interface S3ProviderConfig {
 const DEFAULT_REGION = "eu-central-1";
 const DEFAULT_ENDPOINT = "https://s3.amazonaws.com";
 
-/**
- * Determines if an endpoint is AWS S3 or S3-compatible service
- * @param endpoint - The S3 endpoint URL (or null/undefined for AWS default)
- * @returns True if AWS S3, false if S3-compatible service
- */
+/** True if the endpoint is AWS S3 (or absent, the AWS default). */
 export function isAwsS3Endpoint(endpoint?: string | null): boolean {
   return !endpoint || endpoint.includes("amazonaws.com");
 }
 
-/**
- * Gets the full provider configuration based on endpoint and region
- * @param endpoint - The S3 endpoint URL (or null/undefined for AWS default)
- * @param region - The AWS region (defaults to 'eu-central-1')
- * @returns Complete provider configuration
- */
+/** Full provider configuration for an endpoint/region pair. */
 export function getS3ProviderConfig(
   endpoint?: string | null,
   region?: string | null,
@@ -46,21 +35,13 @@ export function getS3ProviderConfig(
   };
 }
 
-/**
- * Determines if SSL should be used based on endpoint
- * @param endpoint - The S3 endpoint URL
- * @returns True if endpoint starts with https://
- */
+/** True if the endpoint uses SSL. */
 export function shouldUseSSL(endpoint?: string | null): boolean {
   const actualEndpoint = endpoint ?? DEFAULT_ENDPOINT;
   return actualEndpoint.startsWith("https://");
 }
 
-/**
- * Extracts hostname from endpoint URL (strips protocol)
- * @param endpoint - The S3 endpoint URL
- * @returns Hostname without protocol
- */
+/** Hostname from the endpoint URL (strips protocol). */
 export function getEndpointHostname(endpoint?: string | null): string {
   const actualEndpoint = endpoint ?? DEFAULT_ENDPOINT;
   return new URL(actualEndpoint).host;

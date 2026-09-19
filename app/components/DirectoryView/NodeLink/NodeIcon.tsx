@@ -9,10 +9,6 @@ interface NodeIconProps {
   className?: string;
 }
 
-/**
- * Resolves the icon name for a TreeNode: `bucket` → Archive, `directory` →
- * Folder, file → its matching file-type icon (fallback File).
- */
 export function getNodeIcon(node: { type: string; name: string }): IconName {
   if (node.type === "bucket") return "Archive";
   if (node.type === "directory") return "Folder";

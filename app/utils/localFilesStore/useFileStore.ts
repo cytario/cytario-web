@@ -118,9 +118,9 @@ export const useFileStore = create<FileStore>()(
 
       // Metadata-only: reads the single size record, never the payloads. A
       // payload-per-key read here pulled every cached download fully into RAM
-      // at startup — with a few 256 MB cached files that flooded the heap on
-      // first paint. Legacy caches predating the size record simply start
-      // empty; the next save of each file re-registers it.
+      // at startup, flooding the heap on first paint. Legacy caches predating
+      // the size record simply start empty; the next save of each file
+      // re-registers it.
       hydrate: async () => {
         const sizes = await readSizes();
         const allKeys = await idbKeys<string>(idbStore);

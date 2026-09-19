@@ -19,18 +19,9 @@ interface DirectoryViewTreeProps {
   onExpand?: (parent: TreeNode) => Promise<TreeNode[]>;
   /** Items expanded when the tree first mounts. */
   defaultExpandedItems?: string[];
-  /**
-   * Ancestor ids to reveal reactively. Whenever this changes, the ids are
-   * unioned into the expanded set (never removing manual expansions), and the
-   * async loader cascade-loads each newly-expanded level. Use to follow the
-   * active route on client-side navigation. Omit for static trees.
-   */
+  /** Ancestor ids to reveal reactively — unioned into the expanded set as they change. */
   revealItems?: string[];
-  /** Standard visibility filters (hidden files, extensions) applied at render
-   * time. Directories pass the hidden check; extension filters test files only. */
   filters?: TreeFilters;
-  /** Ad-hoc render-time predicate for one-off filters that don't fit TreeFilters.
-   * Composed after `filters`. */
   nodeFilter?: (node: TreeNode) => boolean;
 }
 
@@ -50,10 +41,9 @@ export function DirectoryViewTree({
   const nodesById = useRef<Map<string, TreeNode>>(new Map());
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems ?? []);
 
-  // Lazy trees (level listings) prime their index from the tree cache so
-  // previously expanded levels resolve instantly after remount. Static trees
-  // (search results) build synthetic nodes that may collide with cached ids,
-  // so they rely on their props alone.
+  // Lazy trees prime their index from the tree cache so previously expanded
+  // levels resolve instantly after remount; static (search-result) trees use
+  // their props alone to avoid id collisions.
   const isLazyTree = initialNodes.some((n) => n.loadState === "idle");
   const connectionId = initialNodes[0]?.connectionId;
   const cachedLevels = useConnectionTreeStore((s) =>
@@ -68,11 +58,9 @@ export function DirectoryViewTree({
     }
   }, [cachedLevels]);
 
-  // Reveal a deep-linked path on navigation: when `revealItems` changes, union
-  // the requested ancestor ids into the expanded set without disturbing manual
-  // expansions. The async loader then cascade-loads each newly-expanded level.
-  // Adjust-state-during-render (not an effect) so the reveal lands in the same
-  // commit as the route change.
+  // Union revealItems into the expanded set without disturbing manual
+  // expansions; the async loader cascade-loads each newly-expanded level.
+  // Adjust-state-during-render so the reveal lands in the same commit as the route change.
   const [prevReveal, setPrevReveal] = useState(revealItems);
   if (revealItems !== prevReveal) {
     setPrevReveal(revealItems);
@@ -110,9 +98,7 @@ export function DirectoryViewTree({
         }
         const parent = nodesById.current.get(id);
         if (!parent) return [];
-        // `loadState === "idle"` marks a lazy stub awaiting fetch. Everything
-        // else (loaded, undefined, search-result trees) uses the embedded
-        // `parent.children` directly.
+        // `loadState === "idle"` marks a lazy stub; everything else uses embedded children.
         const fetched =
           parent.loadState === "idle" ? await onExpand(parent) : (parent.children ?? []);
         for (const n of fetched) nodesById.current.set(n.id, n);

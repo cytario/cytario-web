@@ -169,8 +169,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* No `useHref`: RR's collapses `//` in absolute URLs (C-201).
-            Only needed for basename / hash routing — neither is in use. */}
+        {/* No `useHref`: RR's collapses `//` in absolute URLs. */}
         <RouterProvider navigate={navigate}>
           <FavoritesProvider favorites={protectedData?.favorites ?? []}>
             {data?.user && <AppHeader />}

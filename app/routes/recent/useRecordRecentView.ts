@@ -1,10 +1,6 @@
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
-/**
- * Records a "recently viewed" entry via a fire-and-forget POST to `/recent`.
- * Fires once per `resourceId` change; connection-root views (empty pathName) are skipped.
- */
 export function useRecordRecentView(
   resourceId: string,
   data: {

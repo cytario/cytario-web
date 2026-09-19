@@ -4,10 +4,6 @@ import { createLabel } from "~/.server/logging";
 
 const label = createLabel("duration", "red");
 
-/**
- * Middleware that logs request duration for debugging performance.
- * Export this from routes where you want to measure request timing.
- */
 export const requestDurationMiddleware: MiddlewareFunction = async ({ request }, next) => {
   const startTime = performance.now();
   const url = new URL(request.url);

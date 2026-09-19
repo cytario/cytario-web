@@ -16,11 +16,7 @@ import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export interface NodeContextMenuResult extends UseContextMenuResult {
-  /**
-   * Hidden forms + the delete ConfirmDialog. Rendered by NodeLink as a
-   * SIBLING of `menu` — outside the popover, because React-Aria unmounts
-   * menu content on close and the confirm flow must outlive the selection.
-   */
+  /** Rendered outside the popover — React-Aria unmounts menu content on close. */
   dialogs: ReactNode;
 }
 
@@ -36,8 +32,7 @@ export function useNodeContextMenu({
   const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
 
-  // Confirm-flow state: owned here (always mounted in NodeLink), never
-  // inside the popover.
+  // Confirm-flow state: owned here (always mounted), never inside the popover.
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const reapplyFormRef = useRef<HTMLFormElement>(null);
@@ -72,9 +67,8 @@ export function useNodeContextMenu({
 
   if (!connectionConfig) return null;
 
-  // Forms + confirm dialog, rendered outside the popover (see dialogs slot).
-  // Ungated beyond bucket-ness: they only act when the matching (gated)
-  // menu item fires, and rendering them for non-bucket nodes is harmless.
+  // Ungated beyond bucket-ness: they only act when the matching (gated) menu
+  // item fires, and rendering them for non-bucket nodes is harmless.
   const dialogs =
     node.type === "bucket" ? (
       <>

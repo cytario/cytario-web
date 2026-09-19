@@ -42,7 +42,7 @@ const ImagePanelInner = ({
   const pinTooltip = useViewerStore(select.pinTooltip);
   const unpinTooltip = useViewerStore(select.unpinTooltip);
 
-  // Debug: press "p" to pin/unpin the tooltip so it stays visible for DOM inspection.
+  // Debug-only: press "p" to pin/unpin the tooltip for DOM inspection.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "p" && !e.ctrlKey && !e.metaKey) {

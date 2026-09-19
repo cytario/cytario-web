@@ -47,7 +47,7 @@ const defaultSchedule = (callback: () => void, intervalMs: number) => {
 /**
  * Client-side memory-pressure safeguard: polls Chromium heap stats and reacts
  * with a toast + cache trim before the renderer is OOM-killed (which no JS
- * survives). Idempotent; a silent no-op where performance.memory is absent.
+ * survives). Silent no-op where performance.memory is absent.
  */
 export function startMemoryWatchdog(options: MemoryWatchdogOptions = {}): () => void {
   const getMemoryInfo = options.getMemoryInfo ?? (() => performance.memory);

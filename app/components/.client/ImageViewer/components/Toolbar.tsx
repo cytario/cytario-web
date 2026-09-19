@@ -18,8 +18,6 @@ const tools = [
   { mode: "draw-point", icon: "MapPin", label: "Draw point" },
 ] as const;
 
-/** Floating canvas toolbar: interaction modes + undo/redo + keyboard shortcuts.
- *  Draw tools appear only when the connection grant permits annotating. */
 export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
@@ -85,7 +83,6 @@ export const Toolbar = () => {
   );
 };
 
-/** Floating overlay bar: absolute-positioned pill with blur background. */
 export const FloatingBar = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
   <div
     {...props}

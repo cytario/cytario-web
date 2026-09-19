@@ -20,7 +20,7 @@ const colorUniformTypes = Object.fromEntries(
   colorSlotNames.map((name) => [name, "vec4<f32>"]),
 ) as Record<ColorSlot, "vec4<f32>">;
 
-// GLSL uniform block declaration for marker colors and opacity
+// GLSL uniform block declaring marker colors and opacity
 const uniformBlock = /* glsl */ `\
   uniform markerUniforms {
 ${colorSlotNames.map((name) => `    vec4 ${name};`).join("\n")}
@@ -38,21 +38,16 @@ export interface MarkerLayerProps {
 
 export const markerUniforms = {
   name: "marker",
-  vs: "", // Not needed in vertex shader
-  fs: uniformBlock, // Add to fragment shader
+  vs: "",
+  fs: uniformBlock,
   uniformTypes: {
     ...colorUniformTypes,
     opacity: "f32",
   },
 } as const satisfies ShaderModule<MarkerProps>;
 
-/**
- * Create MarkerProps from fileMarkers record.
- *
- * Each of the 32 marker bits maps to its own color slot, so every marker keeps
- * the color it was assigned (default palette or custom hex). Markers past the
- * record's length fall back to transparent black.
- */
+/** Each of the 32 marker bits maps to its own color slot; markers past the record's
+ *  length fall back to transparent black. */
 export function createMarkerProps(
   fileMarkers: Record<string, { color: RGBA }>,
   opacity: number,
@@ -71,12 +66,8 @@ export function createMarkerProps(
   return { ...props, opacity };
 }
 
-/**
- * Blend the active slot colors from a {@link MarkerProps} + bitmask,
- * mirroring the GLSL additive blend in `additiveBlending.glsl.ts`:
- * bit `i` → its own slot, summed per channel, clamped to [0, 255].
- * Returns `[r, g, b, 255]` (opaque) or `[0, 0, 0, 0]` when no bits are set.
- */
+/** Blend the active slot colors from a {@link MarkerProps} + bitmask, mirroring the
+ *  GLSL additive blend in `additiveBlending.glsl.ts`. */
 export function blendMarkerColor(props: MarkerProps, bitmask: number): RGBA {
   if (bitmask === 0) return [0, 0, 0, 0];
   let r = 0;

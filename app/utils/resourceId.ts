@@ -37,10 +37,9 @@ export function parseResourceId(resourceId: string): ResourceIdParts {
 
 /**
  * Ancestor directory node ids for a resource, from the connection root down to
- * the folder that contains it (the resource itself is excluded). Ids match
- * `DirectoryViewTree` node ids — `connectionId/pathName` with a trailing
- * slash on directories — so the result can be passed as `defaultExpandedItems`
- * to reveal a deep-linked node in the sidebar tree.
+ * the folder that contains it. Ids match `DirectoryViewTree` node ids
+ * (`connectionId/pathName` with a trailing slash on directories) so the
+ * result can be passed as `defaultExpandedItems`.
  *
  * `pathName` must be decoded (S3-key form, e.g. `customers/Project 6712/x.tif`).
  */
@@ -66,8 +65,8 @@ export function buildConnectionPath(connectionId: string, pathName: string): str
 
 /**
  * The bucket-address inputs `constructS3Url` needs: the bucket name plus the
- * non-secret region / endpoint resolved from the connection's provider connection
- * in the catalog, no longer stored on the connection record.
+ * non-secret region / endpoint resolved from the connection's provider
+ * connection in the catalog.
  */
 export interface BucketAddress {
   bucketName: string;
@@ -79,7 +78,6 @@ export interface BucketAddress {
  * Build the HTTPS URL for an S3 bucket or object. Always path-style (dotted
  * bucket names break the vhost wildcard cert). `s3Key` is the full object
  * key including any connection prefix; pass `""` for the bucket-level URL.
- * Callers pass raw keys — path segments are URI-encoded internally.
  */
 export function constructS3Url(address: BucketAddress, s3Key: string = ""): string {
   const bucket = address.bucketName;

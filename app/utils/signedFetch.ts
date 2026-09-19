@@ -10,7 +10,7 @@ export type SignedFetch = (url: string, init?: RequestInit) => Promise<Response>
 /**
  * Lowercase header names the SigV4 signer emits. The CORS probe lists these
  * in `Access-Control-Request-Headers` so the OPTIONS preflight carries the
- * same set as the eventual GET. Keep in sync with `signer.sign` below.
+ * same set as the eventual GET.
  */
 export const SIGNED_REQUEST_HEADERS = [
   "authorization",
@@ -123,8 +123,8 @@ function isImageDataPath(pathname: string): boolean {
  * S3's SigV4 canonicalization encodes characters that `encodeURIComponent`
  * leaves unreserved per RFC 3986: `! * ' ( )`. The signer runs with
  * `uriEscapePath: false` (paths are pre-encoded to avoid double-encoding),
- * so we must manually encode these characters in the pathname to match
- * what S3 computes server-side. Keeps already-encoded sequences intact.
+ * so these must be manually encoded in the pathname to match what S3
+ * computes server-side. Keeps already-encoded sequences intact.
  */
 function encodeS3Path(pathname: string): string {
   return pathname.replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -138,10 +138,8 @@ function encodeS3Path(pathname: string): string {
 export function createSignedFetch(
   getCredentials: () => Credentials | null,
   /**
-   * SigV4 signing region. The region lives on the connection's provider connection
-   * in the catalog, not on the connection record; callers that do not carry
-   * it resolved fall back to the default. Threading the resolved per-connection
-   * region to the browser signer is a follow-up.
+   * SigV4 signing region, resolved from the connection's provider connection
+   * in the catalog; callers that do not carry it fall back to the default.
    */
   region: string | undefined,
   connectionId?: string,
@@ -205,8 +203,8 @@ export function createSignedFetch(
         host: parsed.host,
       },
       // Include the body so the SigV4 signer computes the correct
-      // `x-amz-content-sha256` hash — without it, PUT requests would
-      // sign an empty body and S3 would reject the signature mismatch.
+      // `x-amz-content-sha256` hash — without it, PUT requests would sign an
+      // empty body and S3 would reject the signature mismatch.
       ...(init?.body != null ? { body: init.body } : {}),
     };
 

@@ -39,14 +39,10 @@ const geometriesBounds = (geometries: Geometry[]): Bounds | null => {
   return [minX, minY, maxX, maxY];
 };
 
-/** View state that frames the given geometries (one region, or the combined
- *  bounds of a multi-selection) in the current viewport, or null if none has
- *  bounds. Reuses the shared zoom-to-fit math.
- *
- *  The `base` is built as a clean literal (mirroring `calculateViewStateToFit`),
- *  NOT spread from `current` — `current` is whatever deck last emitted via
- *  `onViewStateChange` and carries controller/transition internals that, when
- *  fed back through the controlled `viewState` prop, shadow the zoom update. */
+/** View state that frames the given geometries in the current viewport, or null if none
+ *  has bounds. `base` must be a clean literal, NOT spread from `current` — `current`
+ *  carries controller/transition internals that, when fed back through the controlled
+ *  `viewState` prop, shadow the zoom update. */
 export const flyToFeaturesViewState = (
   geometries: Geometry[],
   current: ViewState,

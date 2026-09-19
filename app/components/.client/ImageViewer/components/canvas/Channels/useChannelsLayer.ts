@@ -42,15 +42,12 @@ export const useChannelsLayer = (
     return state.layersStates[channelsStateIndex]?.channelsOpacity ?? 1;
   });
 
-  // Wrap loader to track tile loading
-
   const loader = useMemo(() => {
     if (!rawLoader || rawLoader.length === 0) return rawLoader;
 
     return rawLoader.map((loaderLevel, levelIndex) => {
       const originalGetTile = loaderLevel.getTile.bind(loaderLevel);
 
-      // Create wrapped loader that preserves all original properties
       const wrappedLoader = Object.create(Object.getPrototypeOf(loaderLevel));
       Object.assign(wrappedLoader, loaderLevel);
 
@@ -60,10 +57,10 @@ export const useChannelsLayer = (
         loadTile(tileId);
 
         try {
-          // Shared across panels: a second ImagePanel's getTile resolves from
-          // memory instead of refetching. Keyed by pyramid level + tile coords
-          // + full selection (channel/z/t); namespaced to rawLoader so an image
-          // switch drops the cache. signal is intentionally excluded from the key.
+          // Shared across panels: a second ImagePanel's getTile resolves from memory
+          // instead of refetching. Keyed by level + tile coords + full selection;
+          // namespaced to rawLoader so an image switch drops the cache. signal is
+          // intentionally excluded from the key.
           const cacheKey = `${levelIndex}:${params.x}:${params.y}:${JSON.stringify(params.selection)}`;
           const result = await getCachedTile(rawLoader, cacheKey, () => originalGetTile(params));
 
@@ -81,11 +78,9 @@ export const useChannelsLayer = (
     });
   }, [finishTile, loadTile, rawLoader]);
 
-  // Channel sublayers are pickable so the composite hover hook can find
-  // the channels pick via `pickMultipleObjects` and read pixel values
-  // through `handleImageViewerHover`. The explicit id lets the composite
-  // hook identify this layer among all picks. No per-layer `onHover` is
-  // set — the composite hook handles all hover orchestration.
+  // Channel sublayers are pickable so the composite hover hook can find the
+  // channels pick via `pickMultipleObjects`; the explicit id lets it identify this
+  // layer. No per-layer `onHover` — the composite hook handles all hover orchestration.
   const multiscaleLayer = useMemo(() => {
     if (!loader || loader.length === 0) return null;
 
@@ -120,10 +115,9 @@ export const useChannelsLayer = (
     imagePanelId,
   ]);
 
-  // Extract visible channel ids + colors for tooltip mapping. `colors` and
-  // `ids` are parallel arrays from `mapChannelConfigsToState` (already
-  // filtered to visible channels); we zip them here so `getTooltipItems`
-  // can build TooltipItems without re-reading the store on every hover event.
+  // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState` (already
+  // filtered to visible channels); zip them so `getTooltipItems` can build
+  // TooltipItems without re-reading the store on every hover event.
   const visibleChannels = useMemo(() => {
     const result: { id: string; color: number[] }[] = [];
     for (let i = 0; i < ids.length; i++) {
@@ -139,9 +133,7 @@ export const useChannelsLayer = (
 
       const { hoverData } = data;
 
-      // Update the sidebar pixel-value readout (replaces the old
-      // `onMultiscaleLayerHover` → `setPixelValues` path). Channels without
-      // loaded tile data fall back to 0, matching the previous behaviour.
+      // Channels without loaded tile data fall back to 0.
       const ids = visibleChannels.map((c) => c.id);
       const values = visibleChannels.map((_, i) => hoverData[i] ?? 0);
       setPixelValues(ids, values);

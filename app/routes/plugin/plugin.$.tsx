@@ -8,26 +8,25 @@ import { Section } from "~/components/Container";
 import { clientRouteRegistry } from "~/lib/clientRouteRegistry";
 
 /**
- * Plugin-contributed route dispatch (SDS-CY-010093/010094).
+ * Plugin-contributed route dispatch. Plugins register `/plugin/*` routes via
+ * `ctx.routes` during bootstrap: the server singleton records `loader`/
+ * `action`, the client singleton the `element`. This splat route, colocated
+ * under the protected layout, is the single merge point — RR runs the
+ * layout's `authMiddleware` + active-org gate before this route's
+ * loader/action, so `identity` is resolved when plugin code runs. All
+ * `/plugin/*` routes are session-auth by definition; carve-outs live under
+ * `/api/plugin/*`.
  *
- * Plugins register `/plugin/*` routes via `ctx.routes` during bootstrap: the
- * server singleton records `loader`/`action`, the client singleton records
- * `element`. This splat route, colocated under the protected layout, is the
- * single merge point — React Router runs `authMiddleware` + the active-org
- * gate (the layout's middleware) before this route's loader/action, so
- * `identity` is resolved when plugin code runs (SDS-CY-010094). All `/plugin/*`
- * routes are session-auth by definition; carve-outs live under `/api/plugin/*`.
- *
- * No runtime dynamic-import (SDS-CY-010093): plugin modules are already
- * statically imported by `plugins.generated.ts`, so the registries are
- * populated at bootstrap. The server `routeRegistry` import is referenced only
- * from the `loader`/`action` server exports and is tree-shaken from the client
- * build; the client `clientRouteRegistry` import powers the default export.
+ * No runtime dynamic-import: plugin modules are already statically imported
+ * by `plugins.generated.ts`, so the registries are populated at bootstrap.
+ * The server `routeRegistry` import is referenced only from the
+ * `loader`/`action` server exports and is tree-shaken from the client build;
+ * the client `clientRouteRegistry` import powers the default export.
  *
  * The contributed `element` is opaque at the plugin-api boundary; the host
- * owns the single cast from `unknown` to `ComponentType` at the render site
- * (SDS-CY-010083), with a callable-check guard so a non-callable registration
- * surfaces as a contained render-time error rather than a crash.
+ * owns the single cast from `unknown` to `ComponentType`, with a
+ * callable-check guard so a non-callable registration surfaces as a
+ * contained render-time error rather than a crash.
  */
 
 const notFoundResponse = () => new Response(null, { status: 404 });
@@ -58,10 +57,10 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
 export default function PluginRoute() {
   const location = useLocation();
   // Plugin-contributed `element`s are registered only in the client-only
-  // registry (SDS-CY-010091/010083), so the server cannot render them and
-  // renders a stable shell instead. Render the same shell on the client's first
-  // (hydration) render, then reveal the real element after mount — otherwise the
-  // server fallback HTML mismatches the hydrated client tree (hydration error).
+  // registry, so the server cannot render them and renders a stable shell
+  // instead. Render the same shell on the client's first (hydration) render,
+  // then reveal the real element after mount — otherwise the server fallback
+  // HTML mismatches the hydrated client tree (hydration error).
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -80,10 +79,8 @@ export default function PluginRoute() {
   const element = entry?.contribution.element;
 
   if (typeof element !== "function") {
-    // Missing or non-callable element (SDS-CY-010083). Contain the failure to
-    // this route rather than crashing the render; the root ErrorBoundary
-    // handles thrown errors, but a non-callable value is a configuration
-    // defect best surfaced inline here.
+    // Missing or non-callable element: a configuration defect best surfaced
+    // inline here rather than thrown to the root ErrorBoundary.
     return (
       <Section>
         <p>Plugin route not configured.</p>

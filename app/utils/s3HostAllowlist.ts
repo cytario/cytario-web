@@ -1,9 +1,8 @@
 /**
  * Shared S3-host allowlist used by the CSP `connect-src` builder and the
- * connection schema / CORS preflight probe.
- *
- * `CYTARIO_ALLOWED_S3_HOSTS` REPLACES the defaults entirely — deployers
- * who want defaults plus extras must include them explicitly.
+ * connection schema / CORS preflight probe. `CYTARIO_ALLOWED_S3_HOSTS`
+ * REPLACES the defaults entirely — deployers who want defaults plus extras
+ * must include them explicitly.
  */
 
 export const DEFAULT_S3_HOSTS = ["https://*.amazonaws.com", "https://*.cytario.com"];

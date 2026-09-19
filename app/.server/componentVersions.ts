@@ -26,13 +26,9 @@ export function __resetComponentVersions() {
   cache = undefined;
 }
 
-/**
- * Bundled component versions read from the installed packages' manifests in
- * the runtime image. In EE deployments the assembly is cytario-ee (VERSION
- * env) and @cytario/web plus each plugin resolve from node_modules; in OSS
- * the assembly is @cytario/web itself (VERSION env carries its semver) and
- * no manifests resolve. Missing manifests are skipped rather than fatal.
- */
+// In EE the assembly is cytario-ee (VERSION env) and the web + plugin manifests
+// resolve from node_modules; in OSS the assembly is @cytario/web itself and no
+// manifests resolve.
 export async function getComponentVersions(
   resolve: PackageResolver = defaultResolve,
 ): Promise<ComponentVersions> {

@@ -8,26 +8,15 @@ import {
   GeoJSONPositionSchema,
 } from "zod-geojson";
 
-/**
- * Single source of truth for an annotation feature: one zod schema applied at
- * both I/O boundaries — `readAllAnnotations` (accept) and the layer's `onEdit`
- * (write) — so what we accept and what we persist can never drift (C-307). The
- * TS types are derived via `z.infer`, so the types can't drift from the schema.
- */
-
-// Geometry from zod-geojson (RFC 7946): positions are >= 2 plain numbers
-// (rejects null/NaN) and polygon rings are closed (first == last) with >= 4
-// positions. Rings are not auto-closed — deck emits closed rings, so an open
-// ring is malformed and dropped.
 const geometrySchema = z.discriminatedUnion("type", [
   GeoJSONPointSchema,
   GeoJSONPolygonSchema,
   GeoJSONMultiPolygonSchema,
 ]);
 
-// `classification.color` is fed straight to deck.gl as an RGB triple. Accept
-// >= 3 channels and coerce to RGB (drop a legacy alpha) rather than reject the
-// whole feature over color shape — legacy/imported sidecars may store RGBA.
+// `classification.color` feeds straight to deck.gl as an RGB triple. Accept
+// >= 3 channels and coerce to RGB rather than reject the whole feature over
+// color shape — legacy/imported sidecars may store RGBA.
 const classificationSchema = z.object({
   name: z.string(),
   color: z
@@ -48,9 +37,7 @@ export type AnnotationClassification = z.infer<typeof classificationSchema>;
 export type AnnotationProperties = z.infer<typeof propertiesSchema>;
 
 // zod-geojson makes `properties` nullable; normalize a missing/null value to an
-// object so it matches the GeoJSON shape deck.gl's layer types expect. The cast
-// bridges the generic's JSON-record param type to our richer loose object — the
-// runtime schema is a superset of a JSON record, so semantics are unchanged.
+// object so it matches the GeoJSON shape deck.gl's layer types expect.
 const normalizedPropertiesSchema = propertiesSchema
   .nullish()
   .transform((p) => p ?? {}) as unknown as z.ZodType<GeoJSONProperties>;
@@ -61,10 +48,9 @@ const baseFeatureSchema = GeoJSONFeatureGenericSchema(
   geometrySchema,
 );
 
-// Identity is the standard top-level GeoJSON `feature.id` (RFC 7946 §3.2, where
-// QuPath puts it). RFC 7946 makes it optional and `string | number`; we narrow
-// to a required non-empty string (the selection key). Missing → dropped, no
-// synthetic fallback.
+// Identity is the standard top-level GeoJSON `feature.id`; we narrow the
+// RFC's optional `string | number` to a required non-empty string (the
+// selection key). Missing → dropped, no synthetic fallback.
 const featureSchema = baseFeatureSchema.refine(
   (f): f is typeof f & { id: string } => {
     const id = (f as { id?: unknown }).id;
@@ -73,18 +59,16 @@ const featureSchema = baseFeatureSchema.refine(
   { message: "feature.id must be a non-empty string" },
 );
 
-// The generic's inferred output omits the base `id` and widens `properties` to a
-// JSON record, so derive the type explicitly: parsed geometry, our typed
-// `properties`, and the required id.
+// The generic's inferred output omits the base `id` and widens `properties` to
+// a JSON record, so the type is derived explicitly.
 export type AnnotationFeature = Omit<z.infer<typeof baseFeatureSchema>, "properties" | "id"> & {
   properties: AnnotationProperties;
   id: string;
 };
 
 /**
- * Validate a raw feature array: drop anything that fails the schema (logged),
- * keep the survivors. Run on both boundaries so the store is valid by
- * construction. Per-feature drop, not throw — one bad feature can't nuke the
+ * Validate a raw feature array: drop anything that fails the schema, keep the
+ * survivors. Per-feature drop, not throw — one bad feature can't nuke the
  * whole collection.
  */
 export function validAnnotationFeatures(raw: unknown): AnnotationFeature[] {

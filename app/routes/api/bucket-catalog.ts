@@ -8,11 +8,11 @@ import { cytarioConfig } from "~/config";
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
- * The active organization's registered-bucket catalog for the connection-creation
- * bucket picker. Advisory: on a stale/unavailable lookup this returns `{ error }`
- * with 200 so the client degrades to a clear message and never blocks an
- * already-created connection. Present only in admin-portal builds; OSS builds
- * do not register this route (the bucket is entered as free text).
+ * The active organization's registered-bucket catalog for the bucket picker.
+ * Present only in admin-portal builds; OSS builds get `{ source: "oss" }` and
+ * the bucket is entered as free text. Advisory: on a stale/unavailable lookup
+ * this returns `{ error }` with 200 so the client degrades to a clear message
+ * and never blocks an already-created connection.
  */
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const source = cytarioConfig.providers.source;

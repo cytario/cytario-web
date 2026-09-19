@@ -3,11 +3,7 @@ import { createDatabase, releaseDatabase } from "~/utils/db/createDatabase";
 
 const readTextQuery = /*sql*/ `SELECT content FROM read_text(?)`;
 
-/**
- * Read a text file's content via DuckDB's `read_text`. Uses the same
- * connection singleton as the annotation sidecar path — the S3 credentials
- * are already applied for the `resourceId`.
- */
+/** The DuckDB connection singleton already has the resourceId's S3 credentials applied. */
 export async function readTextFile(resourceId: string): Promise<string> {
   const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
   const connection = await createDatabase(resourceId, credentials, { region, endpoint });

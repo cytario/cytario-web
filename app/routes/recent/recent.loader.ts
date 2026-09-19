@@ -10,7 +10,6 @@ export type SerializedRecentlyViewed = {
   viewedAt: string;
 };
 
-/** Load a user's recently viewed items as serialized DTOs, newest-first. */
 export async function loadRecentlyViewed(
   userId: string,
   limit = 20,

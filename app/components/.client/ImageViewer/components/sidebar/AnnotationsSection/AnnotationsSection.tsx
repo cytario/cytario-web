@@ -30,11 +30,8 @@ import { parseResourceId } from "~/utils/resourceId";
 import { getSidecarKey } from "~/utils/sidecarKey";
 
 /** One annotation set's block inside the Annotations section: the sidecar as a
- *  NodeLink (label = set name, node = the real sidecar object so Open / Copy
- *  S3 URI work; when the grant permits annotating its context menu also offers
- *  Rename and Delete annotation set, and double-clicking the name opens an
- *  inline edit) with a region count, and the set's class groups beneath.
- *  Clicking the name collapses the group list. Opacity is section-level. */
+ *  NodeLink (label = set name, node = the real sidecar object so Open / Copy S3 URI
+ *  work) with a region count and the set's class groups beneath. */
 const AnnotationFileBlock = ({
   setId,
   label,
@@ -62,7 +59,6 @@ const AnnotationFileBlock = ({
   // The file is "visible" while at least one of its regions' classes isn't hidden.
   const anyVisible = features.some((f) => !hiddenClasses.includes(classNameOf(f)));
 
-  // The set's sidecar as a TreeNode — a real, co-located S3 object.
   const node = useMemo<TreeNode>(() => {
     const { connectionId, pathName } = parseResourceId(imageResourceId);
     const sidecarPath = getSidecarKey(pathName, "annotations", setId);
@@ -74,10 +70,9 @@ const AnnotationFileBlock = ({
       name: label,
       type: "file",
       isLeaf: true,
-      // Sentinel Size passes NodeContextMenu's known-size download gate —
-      // sidecars are app-written small JSON, so the 256 MB OOM guard doesn't
-      // apply (C-330's original sidecar-download scope, via C-445's path).
-      // Never displayed; the real size lives on S3.
+      // Sentinel Size passes NodeContextMenu's known-size download gate — sidecars
+      // are app-written small JSON, so the 256 MB OOM guard doesn't apply. Never
+      // displayed; the real size lives on S3.
       _Object: { Key: sidecarPath, Size: 0 },
     };
   }, [imageResourceId, setId, label]);

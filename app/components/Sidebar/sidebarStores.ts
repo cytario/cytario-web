@@ -1,5 +1,4 @@
 import { createSidebarStore } from "./createSidebarStore";
 
-// Left: connection navigation (Explorer). App-shell domain, present on every
-// route. The viewer's sidebar store lives in the viewer module (it owns it).
+// App-shell sidebar store; the viewer has its own, owned by the viewer module.
 export const useNavSidebarStore = createSidebarStore({ name: "NavSidebar" });

@@ -18,17 +18,14 @@ export interface SidebarStore {
 }
 
 interface SidebarStoreOptions {
-  /** localStorage + devtools key — unique per sidebar. */
   name: string;
   defaultOpen?: boolean;
   defaultWidth?: number;
 }
 
-/** Store handle returned by createSidebarStore — includes the persist API. */
 export type SidebarStoreApi = ReturnType<typeof createSidebarStore>;
 
-// One store per sidebar (left nav, right viewer). Separate persist keys so
-// each remembers its own open/width independently.
+// Separate stores/persist keys per sidebar so each remembers its own state.
 export function createSidebarStore({
   name,
   defaultOpen = true,
@@ -48,9 +45,7 @@ export function createSidebarStore({
       ),
       {
         name,
-        // SSR: start from defaults on server + first client render (markup
-        // matches), then rehydrate from localStorage in an effect (see
-        // useRehydrateSidebar). Persist only prefs, never the action fns.
+        // SSR: rehydrate in an effect (useRehydrateSidebar); persist prefs only.
         skipHydration: true,
         partialize: (s) => ({ isOpen: s.isOpen, width: s.width }),
       },

@@ -23,10 +23,9 @@ export function buildContentSecurityPolicy(
   const directives: Record<string, string> = {
     "default-src": "'self'",
     "connect-src": connectSrc,
-    // `'unsafe-inline'` is required by React Router's streamed hydration
-    // bootstrap script. `'unsafe-eval'` is required by numcodecs' emscripten
-    // dyncall trampolines (Zarr v2 blosc / lz4 / zstd). `'wasm-unsafe-eval'`
-    // covers DuckDB WASM. TODO: drop `'unsafe-eval'` once codecs go CSP-clean.
+    // `'unsafe-inline'`: React Router's streamed hydration bootstrap.
+    // `'unsafe-eval'`: numcodecs' emscripten dyncall trampolines (Zarr v2
+    // blosc / lz4 / zstd). `'wasm-unsafe-eval'`: DuckDB WASM.
     "script-src": "'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
     "style-src": "'self' 'unsafe-inline'",
     "img-src": "'self' data: blob:",

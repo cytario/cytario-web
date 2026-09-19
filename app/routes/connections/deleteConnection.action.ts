@@ -61,11 +61,11 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   delete credentials[deleted.id];
   session.set("credentials", credentials);
 
-  // Revoke the grant this share added: re-apply the bucket's remaining managed
-  // grant set under the acting write session. Because the deleted record is now
-  // absent from the set, the read-merge-write removes its managed Sid
-  // statement(s) — idempotent and all-or-nothing. When the acting session cannot
-  // apply the revoke, warn and do NOT claim the grant was withdrawn.
+  // Revoke the grant this share added by re-applying the bucket's remaining
+  // managed grant set: the deleted record is now absent from the set, so the
+  // read-merge-write removes its managed Sid statement(s) — idempotent and
+  // all-or-nothing. When the acting session cannot apply the revoke, warn and
+  // do NOT claim the grant was withdrawn.
   let notification = { status: "success" as "success" | "warning", message: "Connection deleted." };
   if (user.organization) {
     const outcome = await applyBucketGrantSet(

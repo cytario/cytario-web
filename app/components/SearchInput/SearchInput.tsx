@@ -11,7 +11,7 @@ export interface SearchInputProps {
   className?: string;
   /** Initial text. Caller must also pass it to onQueryChange's consumer — the input does not fire on mount. */
   defaultValue?: string;
-  /** Static content inside the input suffix (scope badge etc.), before the clear button. */
+  /** Static suffix content, before the clear button. */
   suffix?: ReactNode;
 }
 
@@ -52,9 +52,7 @@ export function SearchInput({
     onQueryChange(next);
   };
 
-  // Clear lives in the input suffix (universal clear-text affordance); reset
-  // is a deliberate restore-to-default, so it sits beside the input like
-  // every other reset in the codebase (FilterBar, MinMaxSettings).
+  // Clear lives in the input suffix; reset-to-default sits beside the input like every other reset.
   const showReset = defaultValue !== undefined && value !== defaultValue;
   const showClear = value !== "";
 

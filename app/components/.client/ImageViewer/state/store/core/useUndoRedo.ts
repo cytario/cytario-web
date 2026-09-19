@@ -14,17 +14,9 @@ type TemporalState = {
 type TemporalStoreApi = import("zustand").StoreApi<TemporalState>;
 
 /**
- * Exposes undo/redo for the current viewer's annotation history.
- *
- * zundo's `undo()`/`redo()` apply a past/future state by calling the store's
- * `set()` — which would normally flow back through `handleSet` and record a
- * new history entry. To prevent that, each call wraps `undo()`/`redo()` in
- * `pause()`/`resume()` on the temporal store so the reapplication is not
- * tracked. The gesture cool-off is also reset before the call so the first
- * post-undo edit is always recorded.
- *
- * `canUndo` / `canRedo` are derived from the temporal store's `pastStates` /
- * `futureStates` lengths and stay reactive via a temporal-store subscription.
+ * Exposes undo/redo for the current viewer's annotation history. Each call wraps
+ * `undo()`/`redo()` in `pause()`/`resume()` on the temporal store so the
+ * reapplication does not record a new history entry.
  */
 export const useUndoRedo = () => {
   const store = useContext(ViewerStoreContext);

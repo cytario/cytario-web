@@ -1,11 +1,8 @@
 import type { RouteContribution, RouteRegistry } from "@cytario/plugin-api";
 
-/**
- * Path prefixes a plugin may contribute routes under. A path that does not
- * start with one of these is rejected so a plugin route cannot shadow a core
- * route (SDS-CY-010093). Extend this list when new plugin route subtrees are
- * reserved.
- */
+// A path that does not start with one of these is rejected so a plugin route
+// cannot shadow a core route. Extend when new plugin route subtrees are
+// reserved.
 export const ROUTE_PREFIX_ALLOWLIST = ["/plugin"] as const;
 
 export interface RouteRecord {
@@ -17,26 +14,12 @@ export function isPathAllowed(path: string): boolean {
   return ROUTE_PREFIX_ALLOWLIST.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
-/**
- * Realm-agnostic `RouteRegistry` implementation. The validation and duplicate
- * detection are identical server-side and client-side; the two realms differ
- * only in *which* fields a plugin populates (`loader`/`action` server, `element`
- * client) and therefore which contributions each singleton actually receives.
- * Lives outside `.server/` so the client singleton can import it without
- * pulling server-only code into the client bundle.
- *
- * The registry validates contributed paths against the reserved-prefix
- * allowlist and detects duplicate path registrations within a single plugin.
- * Cross-plugin path collisions are also rejected — unlike UI registries
- * (context menus, sidebar nav) where cross-plugin `id` collisions are
- * tolerated, two plugins cannot own the same route path.
- *
- * Each realm owns its own instance: the server singleton
- * (`app/.server/routeRegistry.ts`) records loader/action contributions; the
- * client singleton (`app/lib/clientRouteRegistry.ts`) records element
- * contributions. A plugin env-branches which fields it registers, so the two
- * instances never hold conflicting copies of the same contribution.
- */
+// Validation and duplicate detection are identical in both realms; the realms
+// differ only in which fields a plugin populates (loader/action server,
+// element client). Unlike UI registries where cross-plugin id collisions are
+// tolerated, two plugins cannot own the same route path. Lives outside
+// `.server/` so the client singleton can import it without pulling
+// server-only code into the client bundle.
 export class RouteRegistryImpl {
   protected readonly entries: RouteRecord[] = [];
 

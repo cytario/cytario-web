@@ -1,9 +1,6 @@
 import type { ParquetColumn } from "~/components/DataGrid/getParquetSchema";
 
-/**
- * Interpretation mode for one overlay classification column.
- * "continuous" is reserved for intensity-gradient coloring (follow-up work).
- */
+/** Interpretation mode for one overlay classification column. */
 export type OverlayClassMode = "boolean" | "threshold" | "continuous";
 
 export const OVERLAY_CLASS_OPERATORS = [">", ">=", "<", "<=", "=", "!="] as const;
@@ -25,7 +22,7 @@ export interface OverlayColumnsConfig {
 }
 
 /** How the geometry column stores shapes — BYTE_ARRAY/BLOB holds WKB bytes,
- * VARCHAR/WKT-style text columns hold WKT strings. Derived from the column type. */
+ * VARCHAR/WKT-style text columns hold WKT strings. */
 export type OverlayGeometryEncoding = "wkb" | "wkt";
 
 /** Column names of a per-row geometry bounding box (GeoParquet 1.1 covering).
@@ -105,10 +102,9 @@ const isGeometryLikeType = (type: string): boolean =>
 const isWkbType = (type: string): boolean => /^(BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
 
 /**
- * Resolve a prunable covering from the schema. Struct coverings (geopandas
- * `write_covering=True` emits `bbox STRUCT(xmin, ymin, xmax, ymax)`) surface
- * as the four struct subfields; flat coverings surface as four numeric
- * columns matching xmin/xmax/ymin/ymax-like names.
+ * Resolve a prunable covering from the schema: struct coverings surface as
+ * four struct subfields, flat coverings as four numeric columns matching
+ * xmin/xmax/ymin/ymax-like names.
  */
 export function findCoveringColumns(schema: ParquetColumn[]): OverlayCoveringColumns | null {
   const byName = new Map(schema.map((col) => [col.name.toLowerCase(), col]));
@@ -155,8 +151,8 @@ const thresholdClassConfig = ({ name }: ParquetColumn): OverlayClassConfig => ({
  * Canonical layout (marker_positive_* booleans) wins; otherwise boolean-typed
  * columns become boolean classes and remaining numeric columns become threshold
  * candidates. Geometry-anchored files (no x/y; position encoded in the
- * geometry column, prunable via a GeoParquet covering) resolve their anchor
- * when a covering exists. Returns null when no viable mapping exists.
+ * geometry column) resolve their anchor when a covering exists. Returns null
+ * when no viable mapping exists.
  */
 export function interpretOverlaySchema(schema: ParquetColumn[]): OverlayConfig | null {
   if (schema.length === 0) return null;
@@ -179,7 +175,7 @@ export function interpretOverlaySchema(schema: ParquetColumn[]): OverlayConfig |
 
   // Geometry-anchored layout: no x/y columns, but geometry + a covering to
   // filter tiles on. Without a covering the geometry column cannot be pruned
-  // at read time — not a viable mapping.
+  // at read time.
   let anchor: OverlayGeometryAnchor | undefined;
   if (!xColumn || !yColumn) {
     if (!geomColumn || !covering) return null;
@@ -230,9 +226,8 @@ export function interpretOverlaySchema(schema: ParquetColumn[]): OverlayConfig |
 /**
  * Validate that every config column exists in the schema with a compatible
  * type. Class threshold mode requires a numeric source column; boolean mode
- * accepts any column (DuckDB casts). Continuous mode is not implemented yet
- * and is rejected. Geometry-anchored configs validate the anchor instead of
- * x/y columns: the geometry column plus every covering column must exist.
+ * accepts any column (DuckDB casts). Geometry-anchored configs validate the
+ * anchor instead of x/y columns.
  */
 export function validateOverlayConfig(config: OverlayConfig, schema: ParquetColumn[]): boolean {
   const byName = new Map(schema.map((col) => [col.name, col]));

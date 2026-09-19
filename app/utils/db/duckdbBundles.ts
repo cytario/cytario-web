@@ -11,7 +11,7 @@ import duckdbMvpModule from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
 
 /**
  * Resolve a Vite-emitted URL to an absolute URL. DuckDB's worker runs in a
- * `blob:` origin where `new Request("/...")` throws — we must pre-resolve.
+ * `blob:` origin where `new Request("/...")` throws.
  */
 function absoluteUrl(path: string): string {
   if (typeof window === "undefined") {

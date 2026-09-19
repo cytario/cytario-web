@@ -16,9 +16,7 @@ import {
 } from "../../../state/store/types";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
-/**
- * Hook to create overlays layers for the image viewer.
- */
+/** Creates the overlay marker layers for one image panel. */
 export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const layersStates = useViewerStore(select.layersStates);
   const metadata = useViewerStore(select.metadata);
@@ -34,8 +32,6 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const fillOpacity = layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? 0.8;
   const showCellOutline = layersStates[panelLayersStateIndex]?.showCellOutline ?? true;
 
-  // Capture the overlay state for this panel so `getTooltipItems` can decode
-  // marker bitmasks without re-reading the store on every hover event.
   const overlayState = layersStates[panelLayersStateIndex]?.overlays ?? null;
 
   const overlaysLayers = useMemo(() => {
@@ -46,7 +42,6 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
 
       const enabledMarkers = Object.keys(fileMarkers).filter((key) => fileMarkers[key].isVisible);
 
-      // Build marker props directly from fileMarkers
       const markerProps = createMarkerProps(fileMarkers, fillOpacity);
 
       return OverlaysLayer({
@@ -76,9 +71,6 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
     finishTile,
   ]);
 
-  // Stable reference to fileMarkers + enabledMarkers for the tooltip decoder.
-  // `overlayState` changes identity when the store updates, so this memo
-  // tracks it correctly.
   const tooltipCtx = useMemo(() => {
     if (!overlayState) return null;
     const entries = Object.entries(overlayState);
@@ -94,7 +86,6 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
     (info: PickingInfo): LayerTooltipItem[] => {
       if (!info.picked || info.index === undefined || !tooltipCtx) return [];
 
-      // Get Arrow table from source layer props
       const rawData = info.sourceLayer?.props?.data;
       const arrowTable = ((rawData as { src?: Table })?.src ?? rawData) as Table | undefined;
       if (!arrowTable) return [];
@@ -120,7 +111,6 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
         }
       }
 
-      // Find the matching overlay context by layer id prefix
       const layerId = info.layer?.id ?? "";
       const ctx = tooltipCtx.find((c) => layerId.startsWith(`MarkersLayer-${c.resourceId}`));
       if (!ctx) return [];

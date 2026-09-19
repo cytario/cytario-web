@@ -1,15 +1,14 @@
 /**
  * Module-level singleton so utility code (signedFetch, listObjectsClient) can
- * ask for fresh STS credentials without importing React. A route/component
- * that owns a `useRevalidator` installs the refresher at mount.
+ * ask for fresh STS credentials without importing React.
  */
 
 import type { Credentials } from "@aws-sdk/client-sts";
 
 /**
  * How long before STS expiry the server treats credentials as stale and
- * re-mints them (`isValidCredentials`). The client keep-alive interval must
- * stay below this so one revalidation always lands inside the window.
+ * re-mints them. The client keep-alive interval must stay below this so one
+ * revalidation always lands inside the window.
  */
 export const STS_STALENESS_BUFFER_MS = 5 * 60 * 1000;
 

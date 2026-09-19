@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { ViewPort } from "../../state/store/types";
 
 export const useView = ({ width, height }: ViewPort) => {
-  /** Setup Orthographic View */
   const view = useMemo(() => {
     return new OrthographicView({
       id: "detail",

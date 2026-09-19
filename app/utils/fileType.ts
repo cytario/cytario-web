@@ -33,8 +33,8 @@ interface FileTypeEntry {
 export type StorageLayout = "leaf" | "companion";
 
 // Matched top-to-bottom — OME-TIFF must precede TIFF so `.ome.tif` hits the
-// specific pattern. Built-ins stay hardcoded (not auto-derived from the
-// registry) so labels are available during SSR before bootstrap runs.
+// specific pattern. Built-ins stay hardcoded so labels are available during
+// SSR before bootstrap runs.
 const STATIC_FILE_TYPES: FileTypeEntry[] = [
   {
     pattern: /\.ome\.tiff?$/i,
@@ -121,11 +121,10 @@ function extensionToPattern(ext: string): RegExp {
   return new RegExp(`\\.${escapeForRegExp(ext)}\\/?$`, "i");
 }
 
-// Built-ins filtered out (pluginName === "cytario-web") to avoid doubling up
-// with STATIC_FILE_TYPES. Sorted by descending pattern-source length so
-// compound extensions outrank plain ones. One FileTypeEntry is emitted per
-// key in the registration — array aliases produce N entries sharing the
-// same label/icon; regex keys are used directly as the pattern.
+// Built-ins filtered out to avoid doubling up with STATIC_FILE_TYPES. Sorted
+// by descending pattern-source length so compound extensions outrank plain
+// ones. One entry per registry key — array aliases produce N entries sharing
+// the same label/icon.
 function pluginFileTypes(): FileTypeEntry[] {
   const entries: FileTypeEntry[] = [];
   for (const { keys, handler, pluginName } of formatRegistry.list()) {
@@ -174,8 +173,6 @@ export function __resetFileTypeCache(): void {
  *
  * @example
  * getExtension("sample.ome.tif")  // "ome.tif"
- * getExtension("image.zarr")      // "zarr"
- * getExtension("README")          // undefined
  */
 export function getExtension(name: string): string | undefined {
   const lower = name.toLowerCase();
@@ -188,14 +185,12 @@ export function getExtension(name: string): string | undefined {
 }
 
 /**
- * Strips the query string and fragment from a path/URL, returning just the
- * path portion. Signed URLs carry `?` query params (e.g. `foo.ext?sig=abc`),
- * which break extension-suffix matching (`\.ext$`) and resolve to "Unknown" —
- * strip them before any extension/type detection.
+ * Strips the query string and fragment from a path/URL. Signed URLs carry
+ * `?` query params which break extension-suffix matching (`\.ext$`) and
+ * resolve to "Unknown" — strip them before any extension/type detection.
  *
  * @example
  * stripUrlSuffix("s3://b/slide.ome.tif?X-Amz-Signature=abc") // "s3://b/slide.ome.tif"
- * stripUrlSuffix("data/slide.png#thumb")                     // "data/slide.png"
  */
 export function stripUrlSuffix(path: string): string {
   const queryIdx = path.indexOf("?");

@@ -31,10 +31,8 @@ interface MeConnection {
  * connections with the resolved grant (role ARN, access level, region,
  * S3/STS endpoints) the workstation's AWS CLI profile needs. Authenticated
  * by a Bearer access token on the CLI client — no browser session, no STS
- * mint; the CLI's own tooling performs AssumeRoleWithWebIdentity with the
- * profile. The same token is forwarded to the portal catalog lookups, which
- * exchange it (RFC 8693) to resolve the organization — the portal's two-gate
- * lookup cannot resolve an org from a tokenless call.
+ * mint. The same token is forwarded to the portal catalog lookups, which
+ * exchange it (RFC 8693) to resolve the organization.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const authHeader = request.headers.get("Authorization") ?? "";
@@ -67,9 +65,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   const bucketCatalog = await getBucketCatalog(organization, token).catch(() => undefined);
 
-  // The provider-catalog lookup is advisory for stale entries, but a full
-  // lookup failure must surface as a clear error (SRS-CY-45106), never as an
-  // empty connection list.
+  // A full lookup failure must surface as a clear error, never as an empty
+  // connection list.
   if (!catalog) {
     return jsonError(
       502,

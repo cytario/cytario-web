@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * True while the element intersects the viewport. Grid preview slots use this
- * so off-screen cards hold no viewer store, loader, or deck.gl instance — an
- * unobserved grid would otherwise mount all of those per card.
- */
+/** Keeps heavy per-card resources (viewer store, deck.gl) unmounted off-screen. */
 export function useInView<T extends Element>(
   rootMargin = "200px",
 ): {
