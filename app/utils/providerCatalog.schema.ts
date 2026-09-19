@@ -111,6 +111,15 @@ export const CATALOG_STATUSES = ["pending", "connected", "error"] as const;
 export type CatalogStatus = (typeof CATALOG_STATUSES)[number];
 
 /**
+ * The admin-portal lookup serializes an absent credential as JSON `null`, which
+ * `.optional()` rejects. `z.preprocess` normalises it at the parse boundary
+ * while keeping `.min(1)` in force and the output type `string | undefined`.
+ */
+function nullToUndefined(schema: z.ZodOptional<z.ZodString>) {
+  return z.preprocess((v) => (v === null ? undefined : v), schema);
+}
+
+/**
  * The closed value set the portal may send. `github-packages` and `ecr-native`
  * stay in the enum so an unsupported kind degrades to an empty catalog instead
  * of failing the whole provider catalog parse (and with it storage connections).
@@ -128,8 +137,8 @@ export const appCatalogSchema = z.object({
    * omits the Authorization header entirely — an unauthenticated read of a private
    * registry fails closed with an empty catalog, never a wrong-credential leak.
    */
-  accessAccountId: z.string().min(1).optional(),
-  accessAccountSecret: z.string().min(1).optional(),
+  accessAccountId: nullToUndefined(z.string().min(1).optional()),
+  accessAccountSecret: nullToUndefined(z.string().min(1).optional()),
   enabled: z.boolean(),
   status: z.enum(CATALOG_STATUSES),
   /** Defaults to `"harbor"` so a portal response predating the field degrades to Harbor. */

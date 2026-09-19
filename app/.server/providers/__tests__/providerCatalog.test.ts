@@ -185,6 +185,48 @@ describe("providerCatalogSchema", () => {
     expect(catalog.appCatalogs[0].accessAccountSecret).toBeUndefined();
   });
 
+  test("a portal payload with JSON null credentials parses to a credential-less catalog", () => {
+    // `.optional()` alone rejects null and the whole provider catalog — storage
+    // connections included — fails to parse; the nullToUndefined wrapper normalises it.
+    const withNullCredentials = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          id: "ac-1",
+          displayName: "Public OCI Catalog",
+          registryEndpoint: "https://registry.example.com",
+          namespace: "cytario",
+          registryKind: "oci-catalog",
+          accessAccountId: null,
+          accessAccountSecret: null,
+          enabled: true,
+          status: "connected" as const,
+          allowedGroups: [],
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withNullCredentials);
+    expect(catalog.appCatalogs).toHaveLength(1);
+    // null normalises to undefined, not a parse failure.
+    expect(catalog.appCatalogs[0].accessAccountId).toBeUndefined();
+    expect(catalog.appCatalogs[0].accessAccountSecret).toBeUndefined();
+    expect(catalog.appCatalogs[0].registryKind).toBe("oci-catalog");
+  });
+
+  test("a present-but-empty credential is still rejected (min(1) not loosened)", () => {
+    const withEmptyCredential = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          ...CATALOG.appCatalogs[0],
+          accessAccountId: "robot$harbor",
+          accessAccountSecret: "",
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(withEmptyCredential)).toThrow();
+  });
+
   test("parses an oci-catalog kind with credentials present", () => {
     const oci = {
       ...CATALOG,
