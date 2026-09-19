@@ -1095,6 +1095,20 @@ describe("createViewerStore", () => {
       expect(store.getState().layersStates).toEqual([]);
     });
 
+    test("does nothing when the loader has been released (empty array)", () => {
+      const store = createViewerStore("test-viewer-30b");
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [{ Name: "DAPI" }] } } as unknown as Image,
+        loader: [],
+      });
+
+      expect(() => store.getState().addChannelsState()).not.toThrow();
+      expect(store.getState().layersStates).toEqual([]);
+      expect(store.getState().imagePanelIndex).toBe(-1);
+    });
+
     test("initializes channels state on first call", () => {
       const store = createViewerStore("test-viewer-31");
 

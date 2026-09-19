@@ -81,6 +81,15 @@ describe("getInitialChannelsState", () => {
     expect(result.channelsState["GFP"].contrastLimits).toEqual([0, dtypeMax]);
   });
 
+  test("falls back to a 16-bit default range when the loader is empty", () => {
+    const metadata = createMockMetadata([{ Name: "DAPI" }]);
+
+    const result = getInitialChannelsState(metadata, [] as unknown as Loader);
+
+    expect(result.channelsState["DAPI"].domain).toEqual([0, dtypeMax]);
+    expect(result.channelsState["DAPI"].contrastLimits).toEqual([0, dtypeMax]);
+  });
+
   test("channels use color from metadata when available", () => {
     const metadata = createMockMetadata([
       { Name: "DAPI", Color: [0, 0, 255, 255] },

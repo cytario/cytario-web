@@ -94,7 +94,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
 
     addChannelsState: () => {
       const state = get();
-      if (!state.metadata || !state.loader) return;
+      if (!state.metadata || !state.loader?.length) return;
 
       if (state.imagePanelIndex < 0) {
         const { channelsState, channelIds, firstChannelKey } = getInitialChannelsState(
