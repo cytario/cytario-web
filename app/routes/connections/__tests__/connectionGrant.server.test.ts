@@ -3,8 +3,9 @@ import { describe, expect, test, vi } from "vitest";
 import { prisma } from "~/.server/db/prisma";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
-import { compileGrantStatements } from "~/.server/storage/bucketPolicy";
+import { type BucketPolicyGrant, compileGrantStatements } from "~/.server/storage/bucketPolicy";
 import { applyBucketPolicy } from "~/.server/storage/bucketPolicyApply.server";
+import { type RustfsBucketPolicyGrant } from "~/.server/storage/rustfsBucketPolicy";
 import {
   applyBucketGrantSet,
   assembleBucketGrants,
@@ -77,6 +78,16 @@ const shareableCatalog = mock.providerCatalog({
 });
 
 describe("grantForConnection", () => {
+  /** Narrow the union: these specs compile the AWS grant shape. */
+  const expectAwsGrant = (
+    grant: BucketPolicyGrant | RustfsBucketPolicyGrant,
+  ): BucketPolicyGrant => {
+    if (grant.kind !== "aws") {
+      throw new Error(`expected an AWS grant, got kind '${grant.kind}'`);
+    }
+    return grant;
+  };
+
   test("produces an ORG-conditioned, per-group-conditioned statement (fail-closed generator accepts it)", () => {
     const grant = grantForConnection(
       { organization: "acme", bucketName: "shared", prefix: "images" },
@@ -84,7 +95,7 @@ describe("grantForConnection", () => {
       roleArn,
       "read-only",
     );
-    const statements = compileGrantStatements(grant);
+    const statements = compileGrantStatements(expectAwsGrant(grant));
     for (const s of statements) {
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/lab/team-a"]).toBe("1");
@@ -102,7 +113,7 @@ describe("grantForConnection", () => {
       "read-write",
     );
     expect(grant.accessLevel).toBe("read-write");
-    const statements = compileGrantStatements(grant);
+    const statements = compileGrantStatements(expectAwsGrant(grant));
     const objectStmt = statements.find((s) => s.Resource === "arn:aws:s3:::shared/images/*")!;
     const actions = Array.isArray(objectStmt.Action) ? objectStmt.Action : [objectStmt.Action];
     expect(actions).toContain("s3:PutObject");
@@ -117,7 +128,7 @@ describe("grantForConnection", () => {
       "read-only",
     );
     expect(grant.groupPath).toBe("*");
-    const statements = compileGrantStatements(grant);
+    const statements = compileGrantStatements(expectAwsGrant(grant));
     for (const s of statements) {
       expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe("acme");
       expect(s.Condition?.StringEquals).not.toHaveProperty("aws:PrincipalTag/*");
