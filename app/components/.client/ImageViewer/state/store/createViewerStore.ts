@@ -7,7 +7,12 @@ import { createAnnotationsSlice } from "./annotations/annotations.store";
 import { createChannelsSlice } from "./channels/channels.store";
 import { withAutoFork } from "./core/autoFork";
 import { createCoreSlice } from "./core/core.store";
-import { debouncedStorage, viewerStoreMigrate, viewerStorePartialize } from "./core/persistence";
+import {
+  debouncedStorage,
+  viewerStoreMerge,
+  viewerStoreMigrate,
+  viewerStorePartialize,
+} from "./core/persistence";
 import { createTemporalOptions, type TemporalState } from "./core/viewerTemporal";
 import { createViewSlice } from "./core/viewport.store";
 import { createOverlaysSlice } from "./overlays/overlays.store";
@@ -52,6 +57,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
           name: "ViewerStore-" + id,
           version: 6,
           migrate: viewerStoreMigrate,
+          merge: viewerStoreMerge,
           partialize: viewerStorePartialize,
           storage: debouncedStorage,
           onRehydrateStorage: () => (_state, error) => {

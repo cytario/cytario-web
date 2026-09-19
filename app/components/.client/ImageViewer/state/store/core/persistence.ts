@@ -119,21 +119,50 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
   VIEWER_FALLBACK_STATE,
 );
 
-export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState => ({
-  currentUserId: state.currentUserId,
-  selectedChannelId: state.selectedChannelId,
-  imagePanelIndex: state.imagePanelIndex,
-  imagePanels: state.imagePanels,
-  layersStates: state.layersStates.filter((ls) => ls.author === state.currentUserId),
-  channels: state.channels,
-  channelIds: state.channelIds,
-  viewStateActive: state.viewStateActive,
-  annotationClasses: state.annotationClasses,
-  annotationActiveClass: state.annotationActiveClass,
-});
+export const viewerStorePartialize = (state: ViewerStore): PersistedViewerState => {
+  const own = state.layersStates.filter((ls) => ls.author === state.currentUserId);
+  // Remap panel → layerState pointers onto the filtered array: a panel
+  // pointing at a filtered-out peer view must not survive the write as a
+  // dangling index — after rehydrate the channels panel would read an
+  // undefined layerState and silently fall back to channel defaults.
+  // imagePanelIndex itself is a POSITION within imagePanels and is kept as-is.
+  const remap = new Map(state.layersStates.map((ls) => [ls, own.indexOf(ls)] as const));
+  const remapPointer = (i: number) => {
+    const mapped = remap.get(state.layersStates[i]);
+    return mapped === undefined || mapped < 0 ? (own.length > 0 ? 0 : -1) : mapped;
+  };
+  return {
+    currentUserId: state.currentUserId,
+    selectedChannelId: state.selectedChannelId,
+    imagePanelIndex: state.imagePanelIndex,
+    imagePanels: state.imagePanels.map(remapPointer),
+    layersStates: own,
+    channels: state.channels,
+    channelIds: state.channelIds,
+    viewStateActive: state.viewStateActive,
+    annotationClasses: state.annotationClasses,
+    annotationActiveClass: state.annotationActiveClass,
+  };
+};
+
+/**
+ * Custom persist merge that clamps panel pointers to the rehydrated
+ * layersStates. The partialize remap keeps newly written state consistent,
+ * but sessions persisted before the remap (or by any other writer) can carry
+ * dangling indices — without the clamp the channels panel reads an undefined
+ * layerState and silently falls back to channel defaults.
+ */
+export const viewerStoreMerge = (persisted: unknown, current: ViewerStore): ViewerStore => {
+  const p = (persisted ?? {}) as Partial<ViewerStore>;
+  const max = Array.isArray(p.layersStates) ? p.layersStates.length : 0;
+  const panels = (p.imagePanels ?? []).filter((i) => i >= 0 && i < max);
+  const imagePanels = panels.length > 0 ? panels : max > 0 ? [0] : [];
+  const imagePanelIndex =
+    max === 0 ? -1 : Math.min(Math.max(p.imagePanelIndex ?? -1, -1), imagePanels.length - 1);
+  return { ...current, ...p, imagePanels, imagePanelIndex } as ViewerStore;
+};
 
 const PERSIST_DEBOUNCE_MS = 500;
-
 const pendingWrites = new Map<string, string>();
 let flushRegistered = false;
 

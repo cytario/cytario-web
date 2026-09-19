@@ -102,9 +102,14 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
           state.loader,
         );
 
+        // Adoption order: the user's own shared view, else a peer's shared
+        // view (adopted read-only — the first write auto-forks it into the
+        // user's own views via withAutoFork), else a fresh default.
         const sharedIdx = state.layersStates.findIndex(
-          (layerState) => layerState.shared && layerState.author !== state.currentUserId,
+          (layerState) => layerState.shared && layerState.author === state.currentUserId,
         );
+        const peerSharedIdx =
+          sharedIdx >= 0 ? -1 : state.layersStates.findIndex((layerState) => layerState.shared);
         const defaultEntry = createDefaultLayersStateEntry(state.currentUserId);
 
         set(
@@ -112,6 +117,8 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
             let activeImagePanelIndex: number;
             if (sharedIdx >= 0) {
               activeImagePanelIndex = sharedIdx;
+            } else if (peerSharedIdx >= 0) {
+              activeImagePanelIndex = peerSharedIdx;
             } else {
               viewerStore.layersStates.push(defaultEntry);
               activeImagePanelIndex = viewerStore.layersStates.length - 1;
@@ -128,7 +135,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
 
         const activeImagePanelIndex = get().imagePanels[0]!;
         const layerState = get().layersStates[activeImagePanelIndex];
-        if (layerState?.shared && layerState.author !== state.currentUserId) {
+        if (layerState?.shared) {
           get().setActivePresetIndex(activeImagePanelIndex);
         } else {
           const bfGroup = detectBrightfieldGroup(channelIds);

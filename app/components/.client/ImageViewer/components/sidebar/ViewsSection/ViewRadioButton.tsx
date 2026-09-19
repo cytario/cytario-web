@@ -12,11 +12,13 @@ import { parseResourceId } from "~/utils/resourceId";
 
 export function ViewRadioButton({
   index,
+  id,
   canDelete,
   viewState,
   onDelete,
 }: {
   index: number;
+  id: string;
   canDelete: boolean;
   viewState: ViewKey;
   onDelete: () => void;
@@ -26,8 +28,8 @@ export function ViewRadioButton({
   const accessLevel = useConnectionsStore(
     (s) => s.connections[connectionId]?.provider?.accessLevel ?? "read-only",
   );
-  const activePresetIndex = useViewerStore(select.activePresetIndex);
-  const isSelected = activePresetIndex === index;
+  const activeLayersStateId = useViewerStore(select.activeLayersStateId);
+  const isSelected = activeLayersStateId === id;
   const viewName = useViewerStore(select.viewName(index));
   const setViewName = useViewerStore(select.setViewName);
   const shareView = useViewerStore((s) => s.shareView);
@@ -73,7 +75,7 @@ export function ViewRadioButton({
 
   return (
     <Radio
-      value={String(index)}
+      value={id}
       aria-label={`Channels view ${index + 1}`}
       className={twMerge(
         "group/radio cursor-pointer focus:outline-none focus-visible:outline-1 focus-visible:outline-foreground transition-colors",
