@@ -162,6 +162,51 @@ describe("providerCatalogSchema", () => {
     const catalog = providerCatalogSchema.parse(withoutAllowedGroups);
     expect(catalog.appCatalogs[0].allowedGroups).toEqual([]);
   });
+
+  test("an appCatalogs entry without registryKind/credentials parses to the harbor + credential-less defaults (SRS-CY-39807/39802)", () => {
+    const withoutKindOrCredentials = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          id: "ac-1",
+          displayName: "Legacy Catalog",
+          registryEndpoint: "https://harbor.example.com",
+          namespace: "cytario",
+          enabled: true,
+          status: "connected" as const,
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withoutKindOrCredentials);
+    // registryKind degrades to harbor.
+    expect(catalog.appCatalogs[0].registryKind).toBe("harbor");
+    // Absent credentials mean credential-less: the host omits the header.
+    expect(catalog.appCatalogs[0].accessAccountId).toBeUndefined();
+    expect(catalog.appCatalogs[0].accessAccountSecret).toBeUndefined();
+  });
+
+  test("parses an oci-catalog kind with credentials present", () => {
+    const oci = {
+      ...CATALOG,
+      appCatalogs: [
+        {
+          ...CATALOG.appCatalogs[0],
+          registryKind: "oci-catalog",
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(oci);
+    expect(catalog.appCatalogs[0].registryKind).toBe("oci-catalog");
+    expect(catalog.appCatalogs[0].accessAccountSecret).toBe("secret-token");
+  });
+
+  test("rejects a registryKind outside the closed value set", () => {
+    const bad = {
+      ...CATALOG,
+      appCatalogs: [{ ...CATALOG.appCatalogs[0], registryKind: "banana" }],
+    };
+    expect(() => providerCatalogSchema.parse(bad)).toThrow();
+  });
 });
 
 describe("getProviderCatalog (OSS build)", () => {
