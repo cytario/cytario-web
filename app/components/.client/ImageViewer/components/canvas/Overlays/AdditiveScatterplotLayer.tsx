@@ -1,10 +1,14 @@
 import { ScatterplotLayer } from "@deck.gl/layers";
 
-import { shadersInject } from "./additiveBlending.glsl";
+import { shadersInject, additiveBlendParameters } from "./additiveBlending.glsl";
 import { type MarkerProps, type MarkerLayerProps, markerUniforms } from "./markerUniforms";
 
 export class AdditiveScatterplotLayer extends ScatterplotLayer<MarkerLayerProps> {
   static layerName = "AdditiveScatterplotLayer";
+
+  static defaultProps = {
+    parameters: additiveBlendParameters,
+  };
 
   initializeState() {
     super.initializeState();

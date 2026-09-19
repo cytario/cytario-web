@@ -1,10 +1,14 @@
 import { SolidPolygonLayer } from "@deck.gl/layers";
 
-import { shadersInject } from "./additiveBlending.glsl";
+import { shadersInject, additiveBlendParameters } from "./additiveBlending.glsl";
 import { type MarkerProps, type MarkerLayerProps, markerUniforms } from "./markerUniforms";
 
 export class AdditivePolygonLayer extends SolidPolygonLayer<MarkerLayerProps> {
   static layerName = "AdditivePolygonLayer";
+
+  static defaultProps = {
+    parameters: additiveBlendParameters,
+  };
 
   // SolidPolygonLayer renders polygons as objects, so each polygon gets the attribute value.
   initializeState() {
