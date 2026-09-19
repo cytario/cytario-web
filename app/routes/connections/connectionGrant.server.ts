@@ -14,10 +14,7 @@ import {
   type ApplyTarget,
   applyBucketPolicy,
 } from "~/.server/storage/bucketPolicyApply.server";
-import {
-  type RustfsBucketPolicyGrant,
-  type RustfsAccessLevel,
-} from "~/.server/storage/rustfsBucketPolicy";
+import { type RustfsBucketPolicyGrant } from "~/.server/storage/rustfsBucketPolicy";
 import { cytarioConfig } from "~/config";
 import { ORG_ROOT_SCOPE, adminCovers } from "~/utils/authorization";
 import type { BucketCatalog } from "~/utils/bucketCatalog.schema";
@@ -43,7 +40,9 @@ export interface ActingContext {
  * caller (via the provider catalog) and injected onto the `BucketPolicyGrant` so
  * the fail-closed policy generator accepts it. A RustFS-backed provider
  * connection yields the RustFS grant shape — no role-ARN Principal; the
- * `jwt:groups` conditions carry the tenant and group binding.
+ * single composite `jwt:groups` value (`<org-marker>/<group-path>`) carries
+ * the tenant and group binding. The returned grant is discriminated by
+ * `kind`, and a grant set must be homogeneous in it to compile.
  */
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
@@ -54,14 +53,16 @@ export function grantForConnection(
 ): BucketPolicyGrant | RustfsBucketPolicyGrant {
   if (providerType === "rustfs") {
     return {
+      kind: "rustfs",
       organization: config.organization,
       bucketName: config.bucketName,
       groupPath: grant.scope,
       prefix: config.prefix,
-      accessLevel: accessLevel as RustfsAccessLevel,
+      accessLevel,
     };
   }
   return {
+    kind: "aws",
     organization: config.organization,
     bucketName: config.bucketName,
     groupPath: grant.scope,
@@ -106,13 +107,19 @@ export function assembleBucketGrants(
         ...(bucketRow ? { bucketId: bucketRow.id } : {}),
       });
       if (!storageRole) continue;
+      const grantKind = grantProviderTypeOf(providerConnection?.providerType);
+      if (!grantKind) {
+        throw new Error(
+          "Cannot assemble bucket grants: the connection's provider connection is absent from the catalog (fail closed).",
+        );
+      }
       grants.push(
         grantForConnection(
           config,
           grant,
           storageRole.roleArn,
           storageRole.accessLevel,
-          providerConnection?.providerType === "rustfs" ? "rustfs" : undefined,
+          grantKind === "rustfs" ? "rustfs" : undefined,
         ),
       );
     }
@@ -305,19 +312,27 @@ function connectionProviderFor(
 const applyProviderTypeOf = (providerType: ConnectionProvider["providerType"]): "aws" | "rustfs" =>
   providerType === "rustfs" ? "rustfs" : "aws";
 
+/** The provider type of a connection's grant assembly, fail-closed on drift. */
+const grantProviderTypeOf = (providerType: string | undefined): "aws" | "rustfs" | undefined =>
+  providerType === "rustfs" ? "rustfs" : providerType === "aws" ? "aws" : undefined;
+
 /** Build the `ApplyTarget` for a resolved connection provider + bucket. */
 function applyTargetFor(
   config: ConnectionConfigWithGrants,
   connectionProvider: ConnectionProvider,
+  kmsKeyArn?: string | null,
 ): ApplyTarget {
-  return {
+  const base = {
     organization: config.organization,
     bucketName: config.bucketName,
     region: connectionProvider.region,
     endpoint: connectionProvider.endpoint,
     roleArn: connectionProvider.roleArn,
-    providerType: applyProviderTypeOf(connectionProvider.providerType),
   };
+  if (applyProviderTypeOf(connectionProvider.providerType) === "rustfs") {
+    return { ...base, endpoint: connectionProvider.endpoint ?? "", providerType: "rustfs" };
+  }
+  return { ...base, kmsKeyArn, providerType: "aws" };
 }
 
 /**

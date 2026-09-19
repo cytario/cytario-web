@@ -31,7 +31,7 @@ vi.mock("~/utils/s3Provider", () => ({
 // Run the locked body immediately; the lock itself is unit-tested separately.
 vi.mock("../bucketPolicyLock", () => ({
   withBucketPolicyLock: vi.fn(
-    async (_accountId: string, _bucket: string, fn: () => Promise<unknown>) => fn(),
+    async (_namespace: string, _bucket: string, fn: () => Promise<unknown>) => fn(),
   ),
 }));
 
@@ -50,6 +50,7 @@ const WRITE_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/la
 const GRANT_ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-ro";
 
 const target: ApplyTarget = {
+  providerType: "aws",
   organization: ORG,
   bucketName: "customer-bucket",
   region: "eu-central-1",
@@ -58,6 +59,7 @@ const target: ApplyTarget = {
 };
 
 const grant = (overrides: Partial<BucketPolicyGrant> = {}): BucketPolicyGrant => ({
+  kind: "aws",
   organization: ORG,
   bucketName: "customer-bucket",
   groupPath: "Lab/TeamX",
@@ -201,6 +203,26 @@ describe("applyBucketPolicy — happy path", () => {
     await expect(
       applyBucketPolicy(target, [withoutRole], "id-token", "Alice Admin"),
     ).rejects.toThrow(/roleArn/i);
+
+    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
+    expect(PutBucketPolicyCommand).not.toHaveBeenCalled();
+  });
+
+  test("FAIL CLOSED: a mixed-provider grant set is rejected with no PutBucketPolicy", async () => {
+    // One bucket is served by one authorization model; a stray `kind`
+    // cannot compile through the target's generator without silently
+    // losing the other's binding vocabulary.
+    const strayRustfsGrant = {
+      kind: "rustfs",
+      organization: ORG,
+      bucketName: "customer-bucket",
+      groupPath: "Lab/TeamX",
+      prefix: null,
+      accessLevel: "read-only",
+    } as const;
+    await expect(
+      applyBucketPolicy(target, [strayRustfsGrant], "id-token", "Alice Admin"),
+    ).rejects.toThrow(/mixed providers on one bucket/i);
 
     expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
     expect(PutBucketPolicyCommand).not.toHaveBeenCalled();
