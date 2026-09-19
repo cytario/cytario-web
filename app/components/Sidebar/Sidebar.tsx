@@ -1,7 +1,14 @@
 import { animate, motion, useMotionValue } from "motion/react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { SIDEBAR_MIN_WIDTH, type SidebarStoreApi } from "./createSidebarStore";
+import {
+  SidebarContext,
+  useAnnouncer,
+  useBoundsRect,
+  useCanvasGestureActive,
+  useCanFloat,
+} from "./SidebarContext";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
 
 const slug = (name: string) => name.toLowerCase().replace(/\s+/g, "-");
@@ -40,11 +47,15 @@ interface SidebarProps {
   onOpen?: () => void;
   /** Force open on mount. */
   openOnMount?: boolean;
+  /** Lets Sections inside be lifted out of the panel onto the canvas. */
+  floatable?: boolean;
+  /** Box floated sections spawn inside; required with `floatable`. */
+  boundsRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }
 
 // Generic, dumb panel shell. Each domain owns its store (passed in); the shell
-// only renders the chrome: animated width, rehydration, an inert+clipped body,
+// only renders the chrome: animated width, rehydration, a hidden+clipped body,
 // the resize handle, and an optional toggle shortcut.
 export function Sidebar({
   name,
@@ -53,12 +64,32 @@ export function Sidebar({
   toggleShortcut,
   onOpen,
   openOnMount,
+  floatable = false,
+  boundsRef,
   children,
 }: SidebarProps) {
   const isOpen = store((s) => s.isOpen);
   const width = store((s) => s.width);
   const motionWidth = useMotionValue(isOpen ? width : 0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bounds = useBoundsRect(boundsRef);
+  const canFloat = useCanFloat(floatable);
+  const canvasGestureActive = useCanvasGestureActive(floatable);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const { message, announce } = useAnnouncer();
+  const context = useMemo(
+    () => ({
+      store,
+      floatable,
+      bounds,
+      canFloat,
+      dropTargetId,
+      setDropTargetId,
+      announce,
+      canvasGestureActive,
+    }),
+    [store, floatable, bounds, canFloat, dropTargetId, announce, canvasGestureActive],
+  );
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -109,10 +140,10 @@ export function Sidebar({
       const s = store.getState();
       if (s.isOpen) {
         s.setOpen(false);
-        focusById(sidebarToggleId(name)); // don't strand focus in the inert panel
+        focusById(sidebarToggleId(name)); // don't strand focus in the hidden panel
       } else {
         s.setOpen(true);
-        // Double rAF: wait for the re-render that lifts `inert`, else focus() is a no-op.
+        // Double rAF: wait for the re-render that unhides the body, else focus() is a no-op.
         if (onOpen) requestAnimationFrame(() => requestAnimationFrame(onOpen));
       }
     };
@@ -128,16 +159,26 @@ export function Sidebar({
       style={{ width: motionWidth }}
       className="relative shrink-0 border-border bg-background text-foreground"
     >
-      {/* inert + clip on this wrapper (not the aside) so the resize handle below
-          stays interactive and unclipped when the panel is closed. */}
-      <div className="h-full w-full overflow-hidden" inert={!isOpen || undefined}>
+      {/* Clip on this wrapper (not the aside) so the resize handle below stays
+          interactive and unclipped when the panel is closed. A closed body is
+          hidden rather than inert so descendants that escape the panel — a
+          floated section — can opt back in with `visibility: visible`. */}
+      <div
+        className="h-full w-full overflow-hidden"
+        style={{ visibility: isOpen ? undefined : "hidden" }}
+      >
         <div
           ref={scrollRef}
           className="flex h-full flex-col overflow-auto pb-60"
           style={{ minWidth: SIDEBAR_MIN_WIDTH }}
         >
-          {children}
+          <SidebarContext.Provider value={context}>{children}</SidebarContext.Provider>
         </div>
+      </div>
+
+      {/* Outside the hidden body so announcements land while the sidebar is closed. */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {message}
       </div>
 
       <SidebarResizeHandle

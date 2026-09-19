@@ -1,8 +1,25 @@
-import { Icon } from "@cytario/design";
+import { Icon, IconButton } from "@cytario/design";
+import { motion, useMotionValue } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { twMerge } from "tailwind-merge";
 
 import { SectionHeaderRow } from "./SectionHeaderRow";
 import { SectionStoreProvider, useSectionStore } from "./useSection";
+import {
+  clampFloatRect,
+  FLOAT_KEYBOARD_STEP,
+  FLOAT_KEYBOARD_STEP_LARGE,
+  type FloatRect,
+} from "~/components/Sidebar/createSidebarStore";
+import { FLOATING_PANEL_ATTR, useFloatingSection } from "~/components/Sidebar/SidebarContext";
 import { PILLARS, type PillarId } from "~/utils/pillars";
+
+const FLOATING_PANEL_CLASSES = "overflow-hidden rounded-lg border border-border shadow-lg";
+
+/** Pointer travel before a header drag detaches a docked section. */
+const DETACH_THRESHOLD_PX = 8;
+/** Where the panel spawns relative to the pointer so the control stays under the cursor. */
+const GRAB_OFFSET = { x: 12, y: 8 };
 
 interface SectionProps {
   pillar: PillarId;
@@ -12,31 +29,323 @@ interface SectionProps {
   children: React.ReactNode;
 }
 
+interface DragGesture {
+  wasFloating: boolean;
+  /** Drag-out has crossed the threshold and spawned the panel. */
+  detached: boolean;
+  /** Rect the panel occupies when the motion offsets are 0. */
+  baseRect: FloatRect;
+  startX: number;
+  startY: number;
+  /** Docked render width — the panel keeps it when dragged out. */
+  panelWidth: number;
+  /** Last clamped live rect — committed on release. */
+  lastRect: FloatRect | null;
+}
+
+interface FloatDockButtonProps {
+  pillar: PillarId;
+  isFloating: boolean;
+  onPress: () => void;
+  className?: string;
+  ref?: React.Ref<HTMLButtonElement>;
+}
+
+/** Merged float/dock control, shared by the panel header and the sidebar placeholder. */
+function FloatDockButton({ pillar, isFloating, onPress, className, ref }: FloatDockButtonProps) {
+  const { title, icon } = PILLARS[pillar];
+  return (
+    <IconButton
+      ref={ref}
+      icon={icon}
+      label={`${isFloating ? "Dock" : "Float"} ${title}`}
+      size="xs"
+      className={className}
+      onPress={onPress}
+    />
+  );
+}
+
 function SectionInner({ pillar, badge, actions, header, children }: SectionProps) {
   const { title, icon } = PILLARS[pillar];
   const isOpen = useSectionStore((s) => s.isOpen);
   const setIsOpen = useSectionStore((s) => s.setIsOpen);
+  const floating = useFloatingSection(pillar);
+  const floatButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const gesture = useRef<DragGesture | null>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const titleId = `section-${pillar}-title`;
+  const contentId = `section-${pillar}-content`;
+  const isFloating = floating?.isFloating ?? false;
+  // 3-state model (SRS-CY-33306): floating panels are always expanded; the
+  // docked accordion keeps the persisted open/closed state, restored on dock.
+  const effectiveOpen = isFloating ? true : isOpen;
+
+  const toggleFloat = () => {
+    if (!floating) return;
+    if (isFloating) {
+      floating.dock();
+    } else {
+      // Read the docked geometry before the re-render switches the panel to fixed.
+      const dockedRect = panelRef.current?.getBoundingClientRect();
+      floating.float();
+      if (dockedRect) {
+        // Spawn anchored at the docked slot so the panel pops out in place.
+        floating.moveTo(
+          clampFloatRect(
+            {
+              x: dockedRect.left - floating.bounds.left,
+              y: dockedRect.top - floating.bounds.top,
+              width: dockedRect.width,
+            },
+            floating.bounds,
+          ),
+        );
+      }
+    }
+    floating.announce(`${title} ${isFloating ? "docked" : "floating"}`);
+    // The placeholder's Dock button unmounts on dock — put focus back on the header control.
+    requestAnimationFrame(() => floatButtonRef.current?.focus());
+  };
+
+  const endGesture = useCallback(() => {
+    gesture.current = null;
+    setIsDragging(false);
+    x.set(0);
+    y.set(0);
+    floating?.setDropTarget(false);
+  }, [x, y, floating]);
+
+  // Escape mid-gesture restores the pre-gesture rect (SDS-CY-011016); a drag-out
+  // that already detached is docked back, restoring the pre-gesture state.
+  useEffect(() => {
+    if (!isDragging) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const g = gesture.current;
+      endGesture();
+      if (g?.detached && !g.wasFloating) floating?.dock();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isDragging, floating, endGesture]);
+
+  const onPanStart = (_e: unknown, info: { point: { x: number; y: number } }) => {
+    if (!floating) return;
+    gesture.current = {
+      wasFloating: isFloating,
+      detached: isFloating,
+      baseRect: floating.rect ?? { x: 0, y: 0, width: 0 },
+      startX: info.point.x,
+      startY: info.point.y,
+      panelWidth: panelRef.current?.offsetWidth ?? 0,
+      lastRect: null,
+    };
+  };
+
+  // Dock-drop hit test: the sidebar's x-range, at any height — the placeholder
+  // row supplies the column's left/right while the drag is running.
+  const overSidebar = (point: { x: number; y: number }) => {
+    const rect = placeholderRef.current?.getBoundingClientRect() ?? null;
+    return Boolean(rect && point.x >= rect.left && point.x <= rect.right);
+  };
+
+  const onPan = (_e: unknown, info: { point: { x: number; y: number } }) => {
+    const g = gesture.current;
+    if (!g || !floating) return;
+    if (!g.detached) {
+      const dx = info.point.x - g.startX;
+      const dy = info.point.y - g.startY;
+      if (Math.hypot(dx, dy) < DETACH_THRESHOLD_PX) return;
+      // Detach: spawn at the pointer, keeping the docked render width.
+      const spawn = clampFloatRect(
+        {
+          x: info.point.x - floating.bounds.left - GRAB_OFFSET.x,
+          y: info.point.y - floating.bounds.top - GRAB_OFFSET.y,
+          width: g.panelWidth || floating.bounds.width,
+        },
+        floating.bounds,
+      );
+      g.detached = true;
+      g.baseRect = spawn;
+      g.startX = info.point.x;
+      g.startY = info.point.y;
+      floating.float();
+      floating.moveTo(spawn);
+      setIsDragging(true);
+      floating.announce(`${title} floating`);
+    }
+    const target = clampFloatRect(
+      {
+        x: g.baseRect.x + (info.point.x - g.startX),
+        y: g.baseRect.y + (info.point.y - g.startY),
+        width: g.baseRect.width,
+      },
+      floating.bounds,
+    );
+    x.set(target.x - g.baseRect.x);
+    y.set(target.y - g.baseRect.y);
+    g.lastRect = target;
+    floating.setDropTarget(overSidebar(info.point));
+  };
+
+  const onPanEnd = (_e: unknown, info: { point: { x: number; y: number } }) => {
+    const g = gesture.current;
+    if (!g) return;
+    const overSlot = overSidebar(info.point);
+    endGesture();
+    if (!g.detached) return; // plain click — never detached, nothing to commit
+    if (overSlot) {
+      // Release over the sidebar docks at the section's slot (SRS-CY-33310).
+      floating?.dock();
+      floating?.announce(`${title} docked`);
+    } else if (g.lastRect) {
+      floating?.moveTo(g.lastRect);
+    }
+  };
+
+  const onGripKeyDown = (e: React.KeyboardEvent) => {
+    if (!floating?.isFloating) return;
+    const steps: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    const step = steps[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const distance = e.shiftKey ? FLOAT_KEYBOARD_STEP_LARGE : FLOAT_KEYBOARD_STEP;
+    floating.moveBy(step[0] * distance, step[1] * distance);
+  };
+
+  // One control: press toggles float/dock, drag floats out or moves (SRS-CY-33306).
+  // Framer's pan threshold (~3px) means any onPan callback counts as a drag —
+  // the press that follows a drag's pointerup must not re-toggle. The flag is
+  // shared with the expander/title drag surface below.
+  const suppressPress = useRef(false);
+  const onControlPress = () => {
+    if (suppressPress.current) {
+      suppressPress.current = false;
+      return;
+    }
+    toggleFloat();
+  };
+
+  const onExpanderClick = () => {
+    if (suppressPress.current) {
+      suppressPress.current = false;
+      return;
+    }
+    setIsOpen(!isOpen);
+  };
+
+  // Drag surface: the control itself plus the expander/title click area.
+  const dragHandlers = {
+    onPanStart: (e: unknown, info: { point: { x: number; y: number } }) => {
+      suppressPress.current = false;
+      onPanStart(e, info);
+    },
+    onPan: (e: unknown, info: { point: { x: number; y: number } }) => {
+      suppressPress.current = true;
+      onPan(e, info);
+    },
+    onPanEnd: onPanEnd,
+  };
+
+  // Merged float/dock + drag control. The pan gesture lives on the header row's
+  // drag wrapper (see SectionHeaderRow), so this stays a plain control — the
+  // wrapper never remounts across a float/dock, keeping the gesture alive.
+  const control = floating && (
+    <motion.div className="flex items-center" onKeyDown={onGripKeyDown}>
+      <FloatDockButton
+        ref={floatButtonRef}
+        pillar={pillar}
+        isFloating={isFloating}
+        className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        onPress={onControlPress}
+      />
+    </motion.div>
+  );
 
   return (
-    <div className="flex flex-col w-full bg-card text-muted-foreground">
-      <header className="z-10 sticky top-0 left-0">
-        <SectionHeaderRow
-          icon={icon}
-          title={title}
-          badge={badge}
-          actions={actions}
-          onClick={() => setIsOpen(!isOpen)}
-          selected={isOpen}
-          ariaExpanded={isOpen}
-          chevronSlot={<Icon icon={isOpen ? "ChevronDown" : "ChevronRight"} size="xs" />}
-        />
+    <>
+      {isFloating && (
+        // Wrapper carries the ref for drop-target hit testing; as a direct
+        // child of the sidebar column it must not stretch into the space the
+        // floated body vacated.
+        <div ref={placeholderRef} className="grow-0">
+          <SectionHeaderRow
+            className={twMerge(floating?.isDropTarget && "ring-2 ring-inset ring-primary")}
+            title={title}
+            badge={badge}
+            // Same control as the panel header, own instance: sharing `control`
+            // would share floatButtonRef, and this copy unmounting on dock would
+            // null the panel's ref. The wrapper centers it like the panel's does.
+            leadingControl={
+              <div className="flex items-center">
+                <FloatDockButton pillar={pillar} isFloating onPress={toggleFloat} />
+              </div>
+            }
+          />
+        </div>
+      )}
 
-        {/* Sticky content via props, e.g. Histogram */}
-        {isOpen && <div className="bg-background">{header}</div>}
-      </header>
+      <motion.div
+        ref={panelRef}
+        {...(isFloating ? { [FLOATING_PANEL_ATTR]: "" } : {})}
+        role={isFloating ? "group" : undefined}
+        aria-labelledby={isFloating ? titleId : undefined}
+        style={{ ...(floating?.style ?? {}), x, y }}
+        onPointerDown={isFloating ? floating?.bringToFront : undefined}
+        className={twMerge(
+          "flex flex-col w-full bg-card text-muted-foreground",
+          isFloating && FLOATING_PANEL_CLASSES,
+        )}
+      >
+        <header className="z-10 sticky top-0 left-0">
+          <SectionHeaderRow
+            icon={floating ? undefined : icon}
+            title={title}
+            titleId={titleId}
+            badge={badge}
+            leadingControl={control}
+            drag={dragHandlers}
+            actions={actions}
+            onClick={isFloating ? undefined : onExpanderClick}
+            selected={effectiveOpen}
+            ariaExpanded={isFloating ? undefined : isOpen}
+            ariaControls={isFloating || !isOpen ? undefined : contentId}
+            chevronSlot={
+              isFloating ? undefined : (
+                <Icon icon={isOpen ? "ChevronDown" : "ChevronRight"} size="xs" />
+              )
+            }
+          />
 
-      {isOpen && <div className="bg-card">{children}</div>}
-    </div>
+          {/* Sticky content via props, e.g. Histogram */}
+          {effectiveOpen && <div className="bg-background">{header}</div>}
+        </header>
+
+        {/* CSS grid 0fr/1fr collapse animates to measured content height with
+          no JS measuring; inert keeps the always-mounted body unfocusable
+          while collapsed. Floating panels are always expanded. */}
+        <div
+          id={contentId}
+          className="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+          style={{ gridTemplateRows: effectiveOpen ? "1fr" : "0fr" }}
+          aria-hidden={!effectiveOpen || undefined}
+          inert={!effectiveOpen || undefined}
+        >
+          <div className="min-h-0 overflow-hidden bg-card">{children}</div>
+        </div>
+      </motion.div>
+    </>
   );
 }
 

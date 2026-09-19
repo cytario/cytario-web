@@ -27,7 +27,7 @@ function formatShortcut(combo: string): string {
     .join("");
 }
 
-// Positioned at the aside's inner edge, extending over the content; `inert`/
+// Positioned at the aside's inner edge, extending over the content; visibility/
 // overflow-hidden live on an inner wrapper so the handle stays interactive at
 // width 0 (drag-to-open). motionWidth avoids a re-render per frame.
 export function SidebarResizeHandle({

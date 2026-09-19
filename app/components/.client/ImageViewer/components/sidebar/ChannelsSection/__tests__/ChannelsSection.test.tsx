@@ -116,7 +116,7 @@ describe("ChannelsSection", () => {
     renderWithTabs();
 
     const button = screen.getByRole("button", {
-      name: "Channels",
+      name: /Channels/,
     });
 
     expect(button).toBeInTheDocument();
