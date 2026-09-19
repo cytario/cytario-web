@@ -11,7 +11,7 @@ import { Section } from "~/components/Section/Section";
 
 /** Sidebar views control: split-panel layout (add/remove panels, assign VCS). */
 export function ViewsSection() {
-  const activePresetIndex = useViewerStore(select.activePresetIndex);
+  const activeLayersStateId = useViewerStore(select.activeLayersStateId);
   const setActivePresetIndex = useViewerStore(select.setActivePresetIndex);
   const layersStates = useViewerStore(select.layersStates);
   const removeChannelsState = useViewerStore(select.removeChannelsState);
@@ -37,14 +37,15 @@ export function ViewsSection() {
     >
       <RadioGroup
         aria-label="Views"
-        value={String(activePresetIndex)}
-        onChange={(value) => setActivePresetIndex(Number(value))}
+        value={String(activeLayersStateId)}
+        onChange={(value) => setActivePresetIndex(layersStates.findIndex((ls) => ls.id === value))}
       >
         <SectionGrid>
           {layersStates.map((layersState, index) => (
             <ViewRadioButton
-              key={index}
+              key={layersState.id}
               index={index}
+              id={layersState.id}
               canDelete={layersStates.length > 1}
               viewState={viewStateFor(index)}
               onDelete={() => removeChannelsState(index)}

@@ -123,6 +123,12 @@ export const select = {
   setActivePresetIndex: (state: ViewerStore) => state.setActivePresetIndex,
   setViewName: (state: ViewerStore) => state.setViewName,
   activePresetIndex: (state: ViewerStore) => state.imagePanels[state.imagePanelIndex],
+  /** Stable id of the layersState the focused panel shows — collection items
+   *  (view radios) must key off this, not off positional indices, or
+   *  react-aria throws "Cannot change the id of an item" when views are
+   *  removed. */
+  activeLayersStateId: (state: ViewerStore) =>
+    state.layersStates[state.imagePanels[state.imagePanelIndex]]?.id ?? "",
 
   channelsState: (state: ViewerStore): ChannelsState | undefined => {
     const layerState = getLayersState(state);
@@ -162,6 +168,8 @@ export const select = {
       const visible = state.channelIds.filter((id) => merged?.[id]?.isVisible);
       return visible.length > 0 ? visible.join(", ") : "No channels";
     },
+
+  sharedViewsLoaded: (state: ViewerStore) => state.sharedViewsLoaded,
 
   addChannelsState: (state: ViewerStore) => state.addChannelsState,
   removeChannelsState: (state: ViewerStore) => state.removeChannelsState,
