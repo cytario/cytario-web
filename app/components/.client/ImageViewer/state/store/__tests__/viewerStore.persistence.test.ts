@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { viewerStoreMigrate, viewerStorePartialize } from "../core/persistence";
+import { viewerStoreMerge, viewerStoreMigrate, viewerStorePartialize } from "../core/persistence";
 import type { ViewerStore } from "../types";
 
 function makeLayersState(author: string, overrides: Record<string, unknown> = {}) {
@@ -92,6 +92,11 @@ describe("viewerStorePartialize", () => {
       channelIds: ["ch-1"],
       imagePanelIndex: 2,
       imagePanels: [0, 1, 2],
+      layersStates: [
+        makeLayersState("user-a"),
+        makeLayersState("user-a"),
+        makeLayersState("user-a"),
+      ],
     });
 
     const result = viewerStorePartialize(state);
@@ -99,6 +104,36 @@ describe("viewerStorePartialize", () => {
     expect(result.channelIds).toEqual(["ch-1"]);
     expect(result.imagePanelIndex).toBe(2);
     expect(result.imagePanels).toEqual([0, 1, 2]);
+  });
+
+  it("clamps dangling panel pointers on rehydrate (pre-remap persisted state)", () => {
+    // State persisted before the partialize remap: only the own view survived
+    // the filter, but imagePanels still points at its pre-filter slot 1.
+    const persisted = makeStoreState({
+      imagePanelIndex: 0,
+      imagePanels: [1],
+      layersStates: [makeLayersState("user-a", { channels: { "ch-1": { color: [255, 0, 170] } } })],
+    });
+
+    const merged = viewerStoreMerge(persisted, makeStoreState());
+
+    expect(merged.imagePanels).toEqual([0]);
+    expect(merged.imagePanelIndex).toBe(0);
+    expect(merged.layersStates).toHaveLength(1);
+  });
+
+  it("degrades to empty panels when no own views survived", () => {
+    const persisted = makeStoreState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      layersStates: [makeLayersState("user-a")],
+    });
+    (persisted.layersStates as unknown[]).splice(0, 1);
+
+    const merged = viewerStoreMerge(persisted, makeStoreState());
+
+    expect(merged.imagePanels).toEqual([]);
+    expect(merged.imagePanelIndex).toBe(-1);
   });
 });
 
