@@ -67,6 +67,7 @@ const brokerDoc = (): PolicyDocument =>
   );
 
 const grant = (overrides: Partial<BucketPolicyGrant> = {}): BucketPolicyGrant => ({
+  kind: "aws",
   organization: ORG,
   bucketName: BUCKET,
   groupPath: "Lab/TeamX",

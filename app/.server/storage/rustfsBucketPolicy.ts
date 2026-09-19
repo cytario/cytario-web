@@ -7,82 +7,69 @@
  * bucket, read-merge-writing them into the live document while preserving
  * every foreign statement.
  *
- * Security invariants (mirroring the AWS generator, adapted to RustFS's
- * authorization vocabulary):
- *  - RustFS has no session tags and no `aws:PrincipalTag` condition keys. The
- *    tenant binding is the `jwt:groups` condition: every Allow statement
- *    carries `ForAnyValue:StringEquals { "jwt:groups": [...] }` naming the
- *    org marker (`cytario-org-<alias>`, the value the cytario-keycloak
- *    rustfs-groups mapper emits and the ARWWI mint propagates into the session
- *    token) and, for a group-scoped grant, the grantee group's org-relative
- *    path. An org-root grant (`groupPath === ORG_ROOT_SCOPE`) carries only the
- *    org marker — every member of the org holds it.
+ * Binding model (the deliberate difference from the AWS variant):
+ *  - RustFS has no session tags and no `aws:PrincipalTag` condition keys, and
+ *    its multivalued `jwt:groups` condition keys evaluate `ForAnyValue` (and
+ *    unqualified set semantics) as ANY-match — a condition listing several
+ *    independent values is OR'd, so an org marker and a group path must never
+ *    be separate values of one condition.
+ *  - The org keycloak mapper therefore emits each org-scoped group as the
+ *    single composite claim value `<org-marker>/<org-relative-group-path>`
+ *    (e.g. `cytario-org-acme/Lab/TeamX`), and this generator conditions each
+ *    group-scoped grant on exactly that one composite value. The organization
+ *    binding is AND-by-construction: the composite names both the org and the
+ *    group, and a foreign organization's session cannot produce another org's
+ *    composite because the mapper derives it from the session's own active
+ *    organization. An org-root grant (`groupPath === ORG_ROOT_SCOPE`)
+ *    conditions on the bare org marker alone — every member of the org holds
+ *    it, and it is reserved (a foreign org's session never carries it).
  *  - The org admission itself is bound at the storage layer by the per-org IAM
- *    policy the operator attaches to the marker-named IAM group; this
- *    generator only narrows resources and actions within it.
+ *    policy attached to the marker-named IAM group (customer-managed per the
+ *    operator runbook); this generator only narrows resources and actions
+ *    within it.
+ *
+ * Security invariants (mirroring the AWS generator, adapted to RustFS's
+ * vocabulary):
+ *  - Every Allow statement carries a `StringEquals` `jwt:groups` condition
+ *    whose every value contains the org marker (`cytario-org-<alias>`) — the
+ *    composite for group-scoped grants, the bare marker for org-root grants.
+ *    The generator REFUSES to emit any Allow lacking the org binding
+ *    (fail closed).
  *  - Managed statements carry a stable `Sid` prefixed `Cytario` so they remain
  *    mergeable and revocable, while foreign statements are left untouched.
  *  - The coalesced document must fit the 20480-byte bucket-policy ceiling; on
  *    overflow the apply fails closed with no partial write.
  *
- * This module shares NO policy-construction code with the AWS generator in
- * `bucketPolicy.ts` nor with `buildSessionPolicy` — the independence rule the
- * architectural CI test asserts for the AWS pair applies identically here.
+ * Protocol-level constants, types, and pure utilities are shared with the AWS
+ * generator through `policyPrimitives.ts` — facts of the S3 wire protocol that
+ * carry no binding semantics. The separation test forbids cross-imports of the
+ * generator *modules*; sharing protocol primitives does not weaken it. What
+ * stays deliberately unshared: condition construction, statement compilation,
+ * and coalescing (the AWS variant unions Principals across grants; RustFS's
+ * principal is the constant federated wildcard, so only Resources union).
  */
 
+import {
+  type AccessLevel,
+  BUCKET_METADATA_ACTIONS,
+  BUCKET_POLICY_MAX_BYTES,
+  type BucketPolicyDocument,
+  type PolicyStatement,
+  READ_ACTIONS,
+  WRITE_ACTIONS,
+  fnv1aHex,
+  isManagedStatement,
+  parseBucketPolicy as parsePolicyDocument,
+  stripSlashes,
+} from "./policyPrimitives";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
-
-/** Hard S3-family limit on a bucket-policy document. Fail closed above it. */
-export const BUCKET_POLICY_MAX_BYTES = 20480;
-
-/** Every managed statement's `Sid` starts with this so foreign statements differ. */
-export const MANAGED_SID_PREFIX = "Cytario";
 
 /** Reserved prefix of the org marker the rustfs-groups mapper emits. */
 export const ORG_MARKER_PREFIX = "cytario-org-";
 
-/** Read actions granted at every access level. */
-const READ_ACTIONS = ["s3:GetObject"] as const;
-/** Bucket-level list action (scoped by the `s3:prefix` Condition, not Resource ARN). */
-const LIST_ACTION = "s3:ListBucket";
-/** Bucket-level metadata reads every S3 client issues on connect. */
-const BUCKET_METADATA_ACTIONS = [
-  "s3:GetBucketLocation",
-  "s3:ListBucketMultipartUploads",
-  "s3:GetBucketOwnershipControls",
-] as const;
-/** Write + multipart actions granted for read-write / admin access. */
-const WRITE_ACTIONS = [
-  "s3:PutObject",
-  "s3:DeleteObject",
-  "s3:AbortMultipartUpload",
-  "s3:ListMultipartUploadParts",
-] as const;
-
-export type RustfsAccessLevel = "read-only" | "annotate" | "read-write" | "admin";
-
-export interface PolicyCondition {
-  StringEquals?: Record<string, string | string[]>;
-  StringLike?: Record<string, string[]>;
-  "ForAnyValue:StringEquals"?: Record<string, string | string[]>;
-  [operator: string]: Record<string, string | string[]> | undefined;
-}
-
-export interface PolicyStatement {
-  Sid?: string;
-  Effect: "Allow" | "Deny";
-  Principal?: unknown;
-  Action: string | string[];
-  Resource: string | string[];
-  Condition?: PolicyCondition;
-  [key: string]: unknown;
-}
-
-export interface BucketPolicyDocument {
-  Version: string;
-  Id?: string;
-  Statement: PolicyStatement[];
-}
+export type { AccessLevel, BucketPolicyDocument, PolicyStatement };
+export { isManagedStatement };
+export const parseBucketPolicy = parsePolicyDocument;
 
 /**
  * A single share grant to realize on the bucket policy. `groupPath` is the
@@ -90,65 +77,54 @@ export interface BucketPolicyDocument {
  * or the `ORG_ROOT_SCOPE` sentinel (`*`) for an org-wide grant.
  */
 export interface RustfsBucketPolicyGrant {
+  kind: "rustfs";
   organization: string;
   bucketName: string;
   groupPath: string;
   prefix: string | null | undefined;
-  accessLevel: RustfsAccessLevel;
+  accessLevel: AccessLevel;
 }
-
-const stripSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
-
-const fnv1aHex = (input: string): string => {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-};
-
-const managedSidStem = (grant: RustfsBucketPolicyGrant): string => {
-  const prefix = stripSlashes(grant.prefix ?? "");
-  const identity = [grant.organization, grant.groupPath, prefix, grant.accessLevel].join("\u0000");
-  return `${MANAGED_SID_PREFIX}Share${fnv1aHex(identity)}`;
-};
-
-/** True iff a statement is one this module manages (identified by `Sid` prefix). */
-export const isManagedStatement = (statement: PolicyStatement): boolean =>
-  typeof statement.Sid === "string" && statement.Sid.startsWith(MANAGED_SID_PREFIX);
 
 /** The org marker value for an organization alias. */
 export const orgMarkerFor = (organization: string): string => `${ORG_MARKER_PREFIX}${organization}`;
 
 /**
- * Build the `Condition` block shared by every statement of a grant. The org
- * marker is the fail-closed tenant binding — a grant without an organization
- * must never be emitted. A group-scoped grant additionally requires the
- * grantee group's org-relative path (both values ride the same `jwt:groups`
- * multivalued claim; `ForAnyValue` matches when the session carries at least
- * one listed value, and both entries come from the same token so the pairing
- * holds).
+ * The composite binding value for a group-scoped grant: the org marker prefix
+ * joined to the grantee group's org-relative path. Single-valued by
+ * construction, so the `StringEquals` condition cannot be OR'd apart.
  */
-const buildGrantCondition = (grant: RustfsBucketPolicyGrant): PolicyCondition => {
+export const compositeGroupValue = (organization: string, groupPath: string): string =>
+  `${orgMarkerFor(organization)}/${groupPath}`;
+
+const managedSidStem = (grant: RustfsBucketPolicyGrant): string => {
+  const prefix = stripSlashes(grant.prefix ?? "");
+  const identity = [grant.organization, grant.groupPath, prefix, grant.accessLevel].join("\u0000");
+  return `CytarioShare${fnv1aHex(identity)}`;
+};
+
+/**
+ * Build the `Condition` block shared by every statement of a grant: a
+ * `StringEquals` `jwt:groups` condition on exactly ONE value — the composite
+ * `<org-marker>/<group-path>` for a group-scoped grant (org + group bound
+ * together, immune to any-match evaluation), the bare org marker for an
+ * org-root grant. Fail-closed on a missing organization or group path.
+ */
+const buildGrantCondition = (grant: RustfsBucketPolicyGrant) => {
   if (!grant.organization) {
     throw new Error("Bucket-policy grant is missing an organization (fail closed).");
   }
   if (!grant.groupPath) {
     throw new Error("Bucket-policy grant is missing a target group path (fail closed).");
   }
-  if (grant.groupPath === ORG_ROOT_SCOPE) {
-    return {
-      "ForAnyValue:StringEquals": {
-        "jwt:groups": [orgMarkerFor(grant.organization)],
-      },
-    };
-  }
+  const value =
+    grant.groupPath === ORG_ROOT_SCOPE
+      ? orgMarkerFor(grant.organization)
+      : compositeGroupValue(grant.organization, grant.groupPath);
   return {
-    "ForAnyValue:StringEquals": {
-      "jwt:groups": [orgMarkerFor(grant.organization), grant.groupPath],
+    StringEquals: {
+      "jwt:groups": value,
     },
-  };
+  } as const;
 };
 
 /**
@@ -172,19 +148,20 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
   const sidStem = managedSidStem(grant);
 
   // RustFS federated sessions carry no ARN identities — the mapped-policy set
-  // IS the principal. The conditions alone bind the statements to the org and
-  // group, which is the same authority the role-ARN Principal carried on AWS.
+  // IS the principal. The composite condition alone binds the statements to
+  // the org and group, which is the same authority the role-ARN Principal
+  // carried on AWS.
   const principal = { AWS: "*" };
 
-  const listCondition: PolicyCondition = prefix
+  const listCondition: Record<string, Record<string, string | string[]>> = prefix
     ? { ...condition, StringLike: { "s3:prefix": [`${prefix}/`, `${prefix}/*`] } }
-    : condition;
+    : { ...condition };
 
   const listStatement: PolicyStatement = {
     Sid: `${sidStem}List`,
     Effect: "Allow",
     Principal: principal,
-    Action: LIST_ACTION,
+    Action: "s3:ListBucket",
     Resource: bucketArn,
     Condition: listCondition,
   };
@@ -195,11 +172,17 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
     Principal: principal,
     Action: [...BUCKET_METADATA_ACTIONS],
     Resource: bucketArn,
-    Condition: condition,
+    Condition: { ...condition },
   };
 
   const statements: PolicyStatement[] = [listStatement, bucketMetadataStatement];
 
+  // Object-level actions depend on the access level. Read Only → GetObject
+  // only. Annotate → GetObject + PutObject scoped to sidecar files
+  // (*.annotations.*.json and settings.*.json at any directory depth —
+  // separate statements with narrower Resources) + DeleteObject scoped to
+  // annotation sidecars (set deletion). Read Write / Admin →
+  // GetObject + the full write + multipart action set on the whole prefix.
   if (grant.accessLevel === "annotate") {
     statements.push({
       Sid: `${sidStem}Object`,
@@ -207,7 +190,7 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
       Principal: principal,
       Action: READ_ACTIONS[0],
       Resource: objectArn,
-      Condition: condition,
+      Condition: { ...condition },
     });
     const annotationResource = prefix
       ? `${bucketArn}/${prefix}/*.annotations.*.json`
@@ -224,15 +207,17 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
       Principal: principal,
       Action: "s3:PutObject",
       Resource: [annotationResource, settingsBaseResource, settingsNestedResource],
-      Condition: condition,
+      Condition: { ...condition },
     });
+    // Annotation-set deletion: the viewer deletes a set's whole sidecar file.
+    // Scoped to the annotation pattern — settings sidecars stay put-only.
     statements.push({
       Sid: `${sidStem}AnnotateDelete`,
       Effect: "Allow",
       Principal: principal,
       Action: "s3:DeleteObject",
       Resource: annotationResource,
-      Condition: condition,
+      Condition: { ...condition },
     });
   } else {
     const isWriteLevel = grant.accessLevel === "read-write" || grant.accessLevel === "admin";
@@ -243,7 +228,7 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
       Principal: principal,
       Action: objectActions.length === 1 ? objectActions[0] : objectActions,
       Resource: objectArn,
-      Condition: condition,
+      Condition: { ...condition },
     });
   }
 
@@ -251,32 +236,48 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
 };
 
 /**
- * Assert that every managed Allow statement carries the org-marker condition —
- * the RustFS analogue of the AWS generator's ORG-condition assertion, so a
+ * Assert that every managed Allow statement's `jwt:groups` condition carries
+ * the org binding — every listed value contains the org marker — so a
  * generation fault fails closed rather than widening the policy.
  */
 const assertOrgConditioned = (statements: PolicyStatement[]): void => {
   for (const statement of statements) {
     if (statement.Effect !== "Allow") continue;
-    const groups = statement.Condition?.["ForAnyValue:StringEquals"]?.["jwt:groups"];
+    const groups = statement.Condition?.StringEquals?.["jwt:groups"];
+    const values = Array.isArray(groups) ? groups : groups !== undefined ? [groups] : [];
     const carriesMarker =
-      Array.isArray(groups) && groups.some((value) => value.startsWith(ORG_MARKER_PREFIX));
+      values.length > 0 && values.every((value) => value.startsWith(ORG_MARKER_PREFIX));
     if (!carriesMarker) {
       throw new Error(
-        `Refusing to emit managed bucket-policy statement '${statement.Sid ?? "(no Sid)"}' without the org-marker jwt:groups condition (fail closed).`,
+        `Refusing to emit managed bucket-policy statement '${statement.Sid ?? "(no Sid)"}' without the org-bound jwt:groups condition (fail closed).`,
       );
     }
   }
 };
 
 /** Structural key two statements must share to be coalesced into one. */
-const coalesceKeyOf = (statement: PolicyStatement): string =>
-  JSON.stringify([
+const coalesceKeyOf = (statement: PolicyStatement): string => {
+  const conditionKeys = statement.Condition
+    ? Object.fromEntries(
+        Object.entries(statement.Condition)
+          .map(([op, kv]) => [
+            op,
+            kv
+              ? Object.fromEntries(
+                  Object.entries(kv).map(([k, v]) => [k, Array.isArray(v) ? [...v].sort() : v]),
+                )
+              : {},
+          ])
+          .sort(([a], [b]) => (a < b ? -1 : 1)),
+      )
+    : {};
+  return JSON.stringify([
     statement.Effect,
     statement.Action,
-    statement.Condition,
+    conditionKeys,
     Array.isArray(statement.Resource) ? [...statement.Resource].sort() : statement.Resource,
   ]);
+};
 
 /**
  * Coalesce managed statements to stay under the size ceiling: merge statements
@@ -311,50 +312,24 @@ const coalesceManaged = (statements: PolicyStatement[]): PolicyStatement[] => {
   return order.map((key) => groups.get(key)) as PolicyStatement[];
 };
 
-const EMPTY_POLICY: BucketPolicyDocument = { Version: "2012-10-17", Statement: [] };
-
-/**
- * Parse a live bucket-policy document, or the empty policy when the bucket has
- * none. Throws on a malformed document so the caller fails closed rather than
- * clobbering an unparseable policy.
- */
-export const parseBucketPolicy = (raw: string | null | undefined): BucketPolicyDocument => {
-  if (!raw) return { ...EMPTY_POLICY, Statement: [] };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Live bucket policy is not valid JSON; refusing to overwrite (fail closed).");
-  }
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !Array.isArray((parsed as BucketPolicyDocument).Statement)
-  ) {
-    throw new Error(
-      "Live bucket policy has no Statement array; refusing to overwrite (fail closed).",
-    );
-  }
-  const doc = parsed as BucketPolicyDocument;
-  return {
-    Version: doc.Version || "2012-10-17",
-    ...(doc.Id ? { Id: doc.Id } : {}),
-    Statement: doc.Statement,
-  };
-};
-
 export interface RustfsBuildResult {
+  /** The full merged policy document, foreign statements preserved. */
   document: BucketPolicyDocument;
+  /** Serialized document (what `PutBucketPolicy` receives). */
   serialized: string;
+  /** The managed statements after coalescing. */
   managedStatements: PolicyStatement[];
 }
 
 /**
- * Read-merge-write core, identical in shape to the AWS generator's
- * `buildMergedPolicy`: keep every foreign statement verbatim, replace all
- * managed statements with the coalesced compilation of `grants`, assert every
- * managed Allow is org-conditioned (fail closed), and enforce the size
- * ceiling. An empty `grants` array removes all managed statements (revoke).
+ * Read-merge-write core. Produce the policy to apply from the live policy plus
+ * the desired grant set:
+ *  1. keep every foreign statement verbatim,
+ *  2. replace ALL managed statements with the coalesced compilation of `grants`,
+ *  3. assert every managed Allow is org-conditioned (fail closed),
+ *  4. enforce the 20480-byte ceiling (fail closed on overflow).
+ *
+ * Passing an empty `grants` array removes all managed statements (full revoke).
  */
 export const buildMergedPolicy = (
   livePolicy: BucketPolicyDocument,
@@ -386,6 +361,11 @@ export const buildMergedPolicy = (
   return { document, serialized, managedStatements };
 };
 
+/**
+ * A foreign statement whose `Sid` collides with our managed prefix is a
+ * generation fault: we cannot tell it apart from a statement we own, so we
+ * fail closed rather than risk clobbering or double-counting it.
+ */
 const assertNoManagedSidCollision = (foreign: PolicyStatement[]): void => {
   for (const statement of foreign) {
     if (isManagedStatement(statement)) {

@@ -47,6 +47,7 @@ describe("rustfs policy-generator architectural separation", () => {
   test("every Allow the RustFS generator emits carries the org-marker jwt:groups condition", () => {
     const grants: RustfsBucketPolicyGrant[] = [
       {
+        kind: "rustfs",
         organization: "acme",
         bucketName: "tenants",
         groupPath: "Lab/TeamX",
@@ -54,6 +55,7 @@ describe("rustfs policy-generator architectural separation", () => {
         accessLevel: "annotate",
       },
       {
+        kind: "rustfs",
         organization: "acme",
         bucketName: "tenants",
         groupPath: "*",
@@ -65,9 +67,12 @@ describe("rustfs policy-generator architectural separation", () => {
       const statements = compileGrantStatements(grant);
       for (const statement of statements) {
         expect(statement.Effect).toBe("Allow");
-        const groups = statement.Condition?.["ForAnyValue:StringEquals"]?.["jwt:groups"];
-        expect(Array.isArray(groups)).toBe(true);
-        expect((groups as string[]).some((g) => g.startsWith("cytario-org-"))).toBe(true);
+        const groups = statement.Condition?.StringEquals?.["jwt:groups"];
+        const values = Array.isArray(groups) ? groups : [groups];
+        expect(values.length).toBeGreaterThan(0);
+        expect(values.every((g) => typeof g === "string" && g.startsWith("cytario-org-"))).toBe(
+          true,
+        );
       }
     }
   });
