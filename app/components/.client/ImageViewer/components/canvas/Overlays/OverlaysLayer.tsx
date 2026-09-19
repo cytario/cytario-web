@@ -3,6 +3,7 @@ import { type _TileLoadProps as TileLoadProps, TileLayer } from "@deck.gl/geo-la
 import { PolygonLayer } from "@deck.gl/layers";
 import { type Table } from "apache-arrow";
 
+import { additiveBlendParameters } from "./additiveBlending.glsl";
 import { AdditivePolygonLayer } from "./AdditivePolygonLayer";
 import { AdditiveScatterplotLayer } from "./AdditiveScatterplotLayer";
 import { getPolygon } from "./getPolygon";
@@ -192,8 +193,11 @@ export const OverlaysLayer = ({
           },
         };
 
+        // Explicit: the TileLayer's defaulted `parameters: {}` would clobber a
+        // subclass defaultProps value through the `...props` spread.
         return new AdditiveScatterplotLayer({
           ...props,
+          parameters: additiveBlendParameters,
           data,
           getRadius: pointRadius,
           radiusMinPixels: pointRadiusMin,
@@ -254,6 +258,7 @@ export const OverlaysLayer = ({
       const fillLayer = new AdditivePolygonLayer({
         ...props,
         id: `${props.id}-fill`,
+        parameters: additiveBlendParameters,
         data: arrowTable,
         getPolygon: (_d: unknown, context: AccessorContext<unknown>) =>
           polygonAccessor(context.index, context),
