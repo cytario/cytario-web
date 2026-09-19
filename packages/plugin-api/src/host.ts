@@ -34,6 +34,23 @@ export interface ComputeConnectionProjection {
 }
 
 /**
+ * Which registry technology a catalog connection enumerates against. The host
+ * declares it on the connection; the plugin never probes. Absent means `"harbor"`.
+ *
+ * `"github-packages"` and `"ecr-native"` are in the set so an unsupported kind
+ * never parse-fails the whole provider catalog, but enumeration rejects them
+ * (warn + empty catalog) rather than coercing to `"harbor"`.
+ */
+export type RegistryKind = "harbor" | "oci-catalog" | "github-packages" | "ecr-native";
+
+/**
+ * `"anonymous"` means the host issues the request with no Authorization header.
+ * Informational only — the host composes the header, so the plugin must never use
+ * this field to decide whether to send one.
+ */
+export type CatalogCredentialMode = "connection" | "anonymous";
+
+/**
  * Secret-free projection of a connected, enabled app catalog. The host
  * resolves the provider catalog, filters to
  * `status === "connected" && enabled`, and strips the access-account
@@ -58,6 +75,14 @@ export interface CatalogConnectionProjection {
   registryEndpoint: string;
   namespace: string;
   allowedGroups: readonly string[];
+  /** A host predating this field omits it; the plugin then assumes `"harbor"`. */
+  registryKind?: RegistryKind;
+  /**
+   * A host predating this field omits it; absence says nothing about
+   * authentication — only the host decides whether to attach a credential, and
+   * the projection never carries one.
+   */
+  credentialMode?: CatalogCredentialMode;
 }
 
 /**

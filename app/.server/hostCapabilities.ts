@@ -87,6 +87,10 @@ class HostCapabilitiesImpl implements HostCapabilities {
         registryEndpoint: c.registryEndpoint,
         namespace: c.namespace,
         allowedGroups: c.allowedGroups,
+        // The schema defaults this to "harbor"; the fallback only covers a catalog built by hand.
+        registryKind: c.registryKind ?? "harbor",
+        // "anonymous" means the host sends no Authorization header at all.
+        credentialMode: c.accessAccountSecret ? "connection" : "anonymous",
       }));
   }
 

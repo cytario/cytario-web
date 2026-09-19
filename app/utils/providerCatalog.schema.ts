@@ -110,15 +110,39 @@ export const computeRoleSchema = z.object({
 export const CATALOG_STATUSES = ["pending", "connected", "error"] as const;
 export type CatalogStatus = (typeof CATALOG_STATUSES)[number];
 
+/**
+ * The admin-portal lookup serializes an absent credential as JSON `null`, which
+ * `.optional()` rejects. `z.preprocess` normalises it at the parse boundary
+ * while keeping `.min(1)` in force and the output type `string | undefined`.
+ */
+function nullToUndefined(schema: z.ZodOptional<z.ZodString>) {
+  return z.preprocess((v) => (v === null ? undefined : v), schema);
+}
+
+/**
+ * The closed value set the portal may send. `github-packages` and `ecr-native`
+ * stay in the enum so an unsupported kind degrades to an empty catalog instead
+ * of failing the whole provider catalog parse (and with it storage connections).
+ */
+export const REGISTRY_KINDS = ["harbor", "oci-catalog", "github-packages", "ecr-native"] as const;
+export type RegistryKind = (typeof REGISTRY_KINDS)[number];
+
 export const appCatalogSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
   registryEndpoint: z.string().min(1),
   namespace: z.string().min(1),
-  accessAccountId: z.string().min(1),
-  accessAccountSecret: z.string().min(1),
+  /**
+   * Absent (both or neither) means the catalog is credential-less and the host
+   * omits the Authorization header entirely — an unauthenticated read of a private
+   * registry fails closed with an empty catalog, never a wrong-credential leak.
+   */
+  accessAccountId: nullToUndefined(z.string().min(1).optional()),
+  accessAccountSecret: nullToUndefined(z.string().min(1).optional()),
   enabled: z.boolean(),
   status: z.enum(CATALOG_STATUSES),
+  /** Defaults to `"harbor"` so a portal response predating the field degrades to Harbor. */
+  registryKind: z.enum(REGISTRY_KINDS).default("harbor"),
   /**
    * The catalog access-scope entitlement: zero or more organization group
    * paths a user must be a member of (at least one) to consume applications
@@ -149,7 +173,9 @@ export type AppCatalog = z.infer<typeof appCatalogSchema>;
 export type ProviderCatalog = z.infer<typeof providerCatalogSchema>;
 
 /** A provider role as exposed to the browser: no cloud role identifier. */
-export const clientProviderRoleSchema = providerRoleSchema.omit({ roleArn: true });
+export const clientProviderRoleSchema = providerRoleSchema.omit({
+  roleArn: true,
+});
 
 /**
  * The catalog projection the browser receives. Role ARNs stay server-side — the

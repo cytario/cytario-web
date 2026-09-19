@@ -18,6 +18,14 @@ function findCatalog(catalogs: AppCatalog[], connectionName: string): AppCatalog
   );
 }
 
+// A credential-less catalog must stay header-free: sending an empty value would
+// transmit `Basic Og==` and leak the anonymous mode to the registry.
+function resolveCatalogCredential(appCatalog: AppCatalog): string | undefined {
+  const { accessAccountId, accessAccountSecret } = appCatalog;
+  if (!accessAccountId || !accessAccountSecret) return undefined;
+  return `Basic ${Buffer.from(`${accessAccountId}:${accessAccountSecret}`).toString("base64")}`;
+}
+
 // SSRF guard — a plugin cannot use `connectionFetch` to reach an arbitrary
 // host; egress is confined to the connection's registry origin.
 function assertSameOrigin(registryEndpoint: string, requestUrl: string): void {
@@ -50,16 +58,17 @@ export async function catalogFetch(
 
   assertSameOrigin(appCatalog.registryEndpoint, url);
 
-  const authHeader = `Basic ${Buffer.from(
-    `${appCatalog.accessAccountId}:${appCatalog.accessAccountSecret}`,
-  ).toString("base64")}`;
+  const credential = resolveCatalogCredential(appCatalog);
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (credential) {
+    headers.Authorization = credential;
+  }
 
   const response = await fetch(url, {
     ...init,
-    headers: {
-      ...init?.headers,
-      Authorization: authHeader,
-    },
+    headers,
   });
 
   const strippedHeaders = new Headers(response.headers);
