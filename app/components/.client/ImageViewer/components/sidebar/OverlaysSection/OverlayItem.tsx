@@ -1,9 +1,9 @@
 import { Badge, Banner, Link, MenuItem, Switch, Tooltip, useToast } from "@cytario/design";
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 
-import { getOverlayState } from "./getOverlayState";
+import { getOverlayState, paletteOffsetFor } from "./getOverlayState";
 import { OverlayConfigModal } from "./OverlayConfig.modal";
-import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { useViewerStore, ViewerStoreContext } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { type OverlayEntry, RGBA } from "../../../state/store/types";
 import { AccordionToggle } from "../AccordionToggle";
@@ -26,6 +26,7 @@ interface OverlayItemProps {
 }
 
 export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
+  const viewerStore = useContext(ViewerStoreContext);
   const setMarkerVisibility = useViewerStore(select.setMarkerVisibility);
   const setMarkerColor = useViewerStore(select.setMarkerColor);
   const removeOverlaysState = useViewerStore(select.removeOverlaysState);
@@ -83,7 +84,12 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
       try {
         const markerInfo = await getMarkerInfoWasm(resourceId, overlay.config);
         if (markerInfo && Object.keys(markerInfo).length > 0) {
-          const newOverlayState = getOverlayState(markerInfo, overlay.config);
+          const overlaysStates = viewerStore ? select.overlaysStates(viewerStore.getState()) : {};
+          const newOverlayState = getOverlayState(
+            markerInfo,
+            overlay.config,
+            paletteOffsetFor(overlaysStates, resourceId),
+          );
           updateOverlaysState(resourceId, newOverlayState);
         } else {
           toast({
@@ -111,6 +117,7 @@ export const OverlayItem = ({ resourceId, overlay }: OverlayItemProps) => {
     toast,
     fileName,
     overlay.config,
+    viewerStore,
   ]);
 
   // Total cell/object count for the file-level badge (rows in the parquet).

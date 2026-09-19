@@ -1,4 +1,6 @@
-import { getOverlayState, markerDisplayLabel } from "../getOverlayState";
+import type { OverlaysState } from "../../../../state/store/types";
+import { CATEGORICAL_COLORS } from "../../SectionRow/ColorPicker/utils";
+import { getOverlayState, markerDisplayLabel, paletteOffsetFor } from "../getOverlayState";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
 
 const config: OverlayConfig = {
@@ -47,5 +49,49 @@ describe("getOverlayState with config", () => {
   test("falls back to prefix-stripped keys without a config", () => {
     const state = getOverlayState({ marker_positive_cd4: { count: 1 } });
     expect(state["marker_positive_cd4"].label).toBe("cd4");
+  });
+});
+
+describe("palette offset across overlays", () => {
+  const makeMarker = () => ({
+    color: [0, 0, 0, 1] as [number, number, number, number],
+    count: 0,
+    isVisible: false,
+    label: "",
+  });
+
+  const makeOverlays = (markerCounts: Record<string, number>) =>
+    Object.fromEntries(
+      Object.entries(markerCounts).map(([id, markerCount]) => [
+        id,
+        {
+          markers: Object.fromEntries(
+            Array.from({ length: markerCount }, (_, i) => [`marker_${i}`, makeMarker()]),
+          ),
+          config: null,
+        },
+      ]),
+    ) as unknown as OverlaysState;
+
+  test("counts only markers from other overlays", () => {
+    const overlays = makeOverlays({ "res-a": 3, "res-b": 2, "res-c": 4 });
+
+    expect(paletteOffsetFor(overlays, "res-b")).toBe(7);
+    expect(paletteOffsetFor(overlays, "res-a")).toBe(6);
+    expect(paletteOffsetFor({}, "res-a")).toBe(0);
+  });
+
+  test("offset shifts the palette so same-named markers land on distinct colors", () => {
+    const first = getOverlayState({ marker_positive_ck: { count: 1 } });
+    const second = getOverlayState({ marker_positive_ck: { count: 1 } }, null, 1);
+
+    expect(first["marker_positive_ck"].color).toEqual(CATEGORICAL_COLORS[0]);
+    expect(second["marker_positive_ck"].color).toEqual(CATEGORICAL_COLORS[1]);
+  });
+
+  test("offset wraps around the palette", () => {
+    const state = getOverlayState({ a: { count: 1 } }, null, CATEGORICAL_COLORS.length + 1);
+
+    expect(state["a"].color).toEqual(CATEGORICAL_COLORS[1]);
   });
 });

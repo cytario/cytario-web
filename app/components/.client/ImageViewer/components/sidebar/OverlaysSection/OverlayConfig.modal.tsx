@@ -1,8 +1,8 @@
 import { Banner, Button, Input, Select, type SelectItem } from "@cytario/design";
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 
-import { getOverlayState, markerDisplayLabel } from "./getOverlayState";
-import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { getOverlayState, markerDisplayLabel, paletteOffsetFor } from "./getOverlayState";
+import { ViewerStoreContext, useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { applyOverlayReconfiguration } from "../../../state/store/overlays/overlays.store";
 import { select } from "../../../state/store/selectors";
 import { type OverlayConfig, type OverlayEntry } from "../../../state/store/types";
@@ -85,6 +85,7 @@ export function OverlayConfigModal({
   onClose,
   onApplyError,
 }: OverlayConfigModalProps) {
+  const viewerStore = useContext(ViewerStoreContext);
   const updateOverlayConfig = useViewerStore(select.updateOverlayConfig);
 
   const [schema, setSchema] = useState<ParquetColumn[] | null>(null);
@@ -177,7 +178,12 @@ export function OverlayConfigModal({
     }
     try {
       const markerInfo = await getMarkerInfoWasm(resourceId, nextConfig);
-      const markers = getOverlayState(markerInfo, nextConfig);
+      const overlaysStates = viewerStore ? select.overlaysStates(viewerStore.getState()) : {};
+      const markers = getOverlayState(
+        markerInfo,
+        nextConfig,
+        paletteOffsetFor(overlaysStates, resourceId),
+      );
       updateOverlayConfig(resourceId, nextConfig, markers);
       applyOverlayReconfiguration(resourceId);
       onClose();
