@@ -308,34 +308,7 @@ export const canonicalize = (value: unknown): string => {
   return JSON.stringify(normalize(value));
 };
 
-const EMPTY_POLICY: BucketPolicyDocument = { Version: "2012-10-17", Statement: [] };
-
-// Throws on a malformed document so the caller fails closed rather than
-// clobbering an unparseable policy; an absent policy yields the empty policy.
-export const parseBucketPolicy = (raw: string | null | undefined): BucketPolicyDocument => {
-  if (!raw) return { ...EMPTY_POLICY, Statement: [] };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Live bucket policy is not valid JSON; refusing to overwrite (fail closed).");
-  }
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !Array.isArray((parsed as BucketPolicyDocument).Statement)
-  ) {
-    throw new Error(
-      "Live bucket policy has no Statement array; refusing to overwrite (fail closed).",
-    );
-  }
-  const doc = parsed as BucketPolicyDocument;
-  return {
-    Version: doc.Version || "2012-10-17",
-    ...(doc.Id ? { Id: doc.Id } : {}),
-    Statement: doc.Statement,
-  };
-};
+export const parseBucketPolicy = parsePolicyDocument;
 
 export interface BuildResult {
   /** The full merged policy document, foreign statements preserved. */
