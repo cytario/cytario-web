@@ -10,7 +10,7 @@ import type { SessionData } from "../sessionStorage";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
-import type { AccessLevel } from "~/utils/providerCatalog.schema";
+import type { AccessLevel, ProviderConnection } from "~/utils/providerCatalog.schema";
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
@@ -18,15 +18,21 @@ vi.mock("@aws-sdk/client-sts", () => ({
 }));
 
 vi.mock("~/utils/s3Provider", () => ({
-  getS3ProviderConfig: vi.fn((endpoint?: string | null) => {
-    const isAwsS3 = !endpoint || endpoint.includes("amazonaws.com");
-    return {
-      isAwsS3,
-      usePathStyle: !isAwsS3,
-      stsEndpoint: isAwsS3 ? "https://sts.us-east-1.amazonaws.com" : endpoint,
-      s3Endpoint: isAwsS3 ? "https://s3.us-east-1.amazonaws.com" : endpoint,
-    };
-  }),
+  getS3ProviderConfig: vi.fn(
+    (endpoint?: string | null, _region?: string | null, providerType?: string | null) => {
+      const isAwsS3 =
+        providerType !== undefined
+          ? providerType === "aws"
+          : !endpoint || endpoint.includes("amazonaws.com");
+      return {
+        isAwsS3,
+        usePathStyle: !isAwsS3,
+        stsEndpoint: isAwsS3 ? "https://sts.us-east-1.amazonaws.com" : endpoint,
+        s3Endpoint: isAwsS3 ? "https://s3.us-east-1.amazonaws.com" : endpoint,
+        honorsInlineSessionPolicy: isAwsS3 || providerType === "rustfs",
+      };
+    },
+  ),
 }));
 
 // Resolve provider attributes from a mocked catalog; keep the real resolver so the
@@ -138,6 +144,7 @@ describe("getAllSessionCredentials", () => {
       region?: string;
       roleArn?: string;
       accessLevel?: AccessLevel;
+      providerType?: ProviderConnection["providerType"];
     } = {},
   ) => {
     const pcId = overrides.providerConnectionId ?? "pc-mock";
@@ -147,6 +154,7 @@ describe("getAllSessionCredentials", () => {
           id: pcId,
           endpoint: overrides.endpoint ?? null,
           region: overrides.region ?? "us-east-1",
+          providerType: overrides.providerType ?? "aws",
         }),
       ],
       providerRoles: [
@@ -515,18 +523,27 @@ describe("getAllSessionCredentials", () => {
     expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
   });
 
-  test("non-AWS (MinIO) connection: Policy field is absent", async () => {
+  test("RustFS connection: Policy field is present (STS on endpoint, inline policy honored)", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
-      catalogFor({ endpoint: "https://minio.internal:9000" }),
+      catalogFor({
+        endpoint: "https://rustfs-poc.cytar.io",
+        providerType: "rustfs",
+      }),
     );
 
     await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "minio-bucket", prefix: "some-prefix" }),
+      mock.connectionConfig({ bucketName: "tenants", prefix: "acme" }),
     ]);
 
     const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
     expect(call).toBeDefined();
-    expect(call).not.toHaveProperty("Policy");
+    const policyJson = call?.Policy;
+    expect(policyJson).toBeDefined();
+    const policy = JSON.parse(policyJson as string) as {
+      Statement: Array<{ Sid: string }>;
+    };
+    expect(policy.Statement.some((s) => s.Sid === "ListBucketScopedToPrefix")).toBe(true);
+    expect(policy.Statement.some((s) => s.Sid === "GetObjectScopedToPrefix")).toBe(true);
   });
 
   test("returns empty credentials when no bucket configs provided", async () => {

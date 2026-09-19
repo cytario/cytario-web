@@ -7,7 +7,7 @@ interface ProviderConfig {
 
 const providers: Record<string, ProviderConfig> = {
   aws: { label: "AWS S3", color: "amber" },
-  minio: { label: "MinIO", color: "rose" },
+  rustfs: { label: "RustFS", color: "teal" },
 };
 
 interface ProviderPillProps {
@@ -15,6 +15,6 @@ interface ProviderPillProps {
 }
 
 export function ProviderPill({ provider }: ProviderPillProps) {
-  const config = providers[provider.toLowerCase()];
+  const config = providers[provider.toLowerCase()] ?? providers.aws;
   return <Badge color={config.color}>{config.label}</Badge>;
 }
