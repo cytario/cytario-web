@@ -5,7 +5,9 @@ import { useStore } from "zustand";
 import {
   clampFloatRect,
   createSidebarStore,
+  FLOAT_INSET,
   FLOAT_MIN_VIEWPORT_WIDTH,
+  FLOAT_PANEL_WIDTH,
   FLOAT_Z_BASE,
   FLOAT_Z_RANGE,
   nextFloatRect,
@@ -167,6 +169,9 @@ export function useFloatingSection(sectionId: string): FloatingSectionHandle | n
             left: bounds.left + entry.rect.x,
             top: bounds.top + entry.rect.y,
             width: entry.rect.width,
+            // Cap at the canvas slice below the panel's own top so a tall
+            // panel never outgrows the bounds box; the panel scrolls itself.
+            maxHeight: bounds.height > 0 ? bounds.height - entry.rect.y - FLOAT_INSET : undefined,
             zIndex,
             // Re-declared so a panel survives the collapsed sidebar's hidden body.
             visibility: floatsHidden ? "hidden" : "visible",
@@ -175,7 +180,7 @@ export function useFloatingSection(sectionId: string): FloatingSectionHandle | n
       float: () => {
         const state = store.getState();
         const count = Object.keys(state.floating).length;
-        state.float(sectionId, nextFloatRect(bounds, state.width, count));
+        state.float(sectionId, nextFloatRect(bounds, FLOAT_PANEL_WIDTH, count));
       },
       dock: () => store.getState().dock(sectionId),
       moveTo: (rect) => store.getState().move(sectionId, clampFloatRect(rect, bounds)),

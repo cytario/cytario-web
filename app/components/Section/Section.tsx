@@ -9,17 +9,33 @@ import {
   clampFloatRect,
   FLOAT_KEYBOARD_STEP,
   FLOAT_KEYBOARD_STEP_LARGE,
+  FLOAT_PANEL_WIDTH,
   type FloatRect,
 } from "~/components/Sidebar/createSidebarStore";
 import { FLOATING_PANEL_ATTR, useFloatingSection } from "~/components/Sidebar/SidebarContext";
 import { PILLARS, type PillarId } from "~/utils/pillars";
 
-const FLOATING_PANEL_CLASSES = "overflow-hidden rounded-lg border border-border shadow-lg";
+// The panel itself is the scroll container; its header is already sticky.
+const FLOATING_PANEL_CLASSES =
+  "overflow-x-hidden overflow-y-auto rounded-lg border border-border shadow-lg";
+
+/** Pillars whose body reflows to a 3-column SectionGrid when given room. */
+const THREE_COLUMN_PILLARS = new Set<PillarId>(["channels", "overlays"]);
+/** SectionGrid shows its 3rd column at the @lg container token (--container-lg,
+ *  32rem) — but the panel's own chrome (1px borders, classic scrollbars take
+ *  inline space) shrinks the measured @container below the token. Spawn wide
+ *  pillars one container step above it (--container-xl, 36rem) so the 3-column
+ *  reflow is guaranteed. */
+const SECTION_GRID_3COL_WIDTH = 36 * 16;
+const floatWidth = (pillar: PillarId) =>
+  THREE_COLUMN_PILLARS.has(pillar) ? SECTION_GRID_3COL_WIDTH : FLOAT_PANEL_WIDTH;
 
 /** Pointer travel before a header drag detaches a docked section. */
 const DETACH_THRESHOLD_PX = 8;
 /** Where the panel spawns relative to the pointer so the control stays under the cursor. */
 const GRAB_OFFSET = { x: 12, y: 8 };
+/** Click-float nudge toward the canvas so the panel visibly leaves the sidebar column. */
+const SPAWN_X_NUDGE_PX = 8;
 
 interface SectionProps {
   pillar: PillarId;
@@ -37,8 +53,6 @@ interface DragGesture {
   baseRect: FloatRect;
   startX: number;
   startY: number;
-  /** Docked render width — the panel keeps it when dragged out. */
-  panelWidth: number;
   /** Last clamped live rect — committed on release. */
   lastRect: FloatRect | null;
 }
@@ -99,9 +113,9 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
         floating.moveTo(
           clampFloatRect(
             {
-              x: dockedRect.left - floating.bounds.left,
+              x: dockedRect.left - floating.bounds.left - SPAWN_X_NUDGE_PX,
               y: dockedRect.top - floating.bounds.top,
-              width: dockedRect.width,
+              width: floatWidth(pillar),
             },
             floating.bounds,
           ),
@@ -143,7 +157,6 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       baseRect: floating.rect ?? { x: 0, y: 0, width: 0 },
       startX: info.point.x,
       startY: info.point.y,
-      panelWidth: panelRef.current?.offsetWidth ?? 0,
       lastRect: null,
     };
   };
@@ -162,12 +175,12 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       const dx = info.point.x - g.startX;
       const dy = info.point.y - g.startY;
       if (Math.hypot(dx, dy) < DETACH_THRESHOLD_PX) return;
-      // Detach: spawn at the pointer, keeping the docked render width.
+      // Detach: spawn at the pointer at the pillar's float width.
       const spawn = clampFloatRect(
         {
           x: info.point.x - floating.bounds.left - GRAB_OFFSET.x,
           y: info.point.y - floating.bounds.top - GRAB_OFFSET.y,
-          width: g.panelWidth || floating.bounds.width,
+          width: floatWidth(pillar),
         },
         floating.bounds,
       );

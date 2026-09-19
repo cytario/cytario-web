@@ -9,6 +9,8 @@ export const SIDEBAR_DEFAULT_WIDTH = 320;
 export const FLOAT_MIN_VIEWPORT_WIDTH = 640;
 export const FLOAT_INSET = 16;
 export const FLOAT_CASCADE = 24;
+/** Default floating panel width; wide pillars override at their spawn sites. */
+export const FLOAT_PANEL_WIDTH = 320;
 /** Slice of a panel kept inside the bounds box so its header stays reachable. */
 export const FLOAT_MIN_VISIBLE_HEIGHT = 96;
 export const FLOAT_KEYBOARD_STEP = 24;

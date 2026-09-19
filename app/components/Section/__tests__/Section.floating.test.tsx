@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { act, useEffect, useRef, type ReactNode } from "react";
 
 import { Section } from "../Section";
-import { createSidebarStore, type SidebarStoreApi } from "~/components/Sidebar/createSidebarStore";
+import {
+  createSidebarStore,
+  FLOAT_PANEL_WIDTH,
+  type SidebarStoreApi,
+} from "~/components/Sidebar/createSidebarStore";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 
 const TITLES = ["Overview", "Views", "Channels"];
@@ -175,6 +179,18 @@ describe("Section float/dock", () => {
     expect(store.getState().floating.overview.z).toBeGreaterThan(
       store.getState().floating.channels.z,
     );
+  });
+
+  test("floating width follows the pillar; panels scroll their own overflow", async () => {
+    const { user, store } = renderSections();
+
+    await user.click(screen.getByRole("button", { name: "Float Views" }));
+    await user.click(screen.getByRole("button", { name: "Float Channels" }));
+
+    expect(store.getState().floating.views.rect.width).toBe(FLOAT_PANEL_WIDTH);
+    // One container token step above @lg so the 3-column reflow survives chrome.
+    expect(store.getState().floating.channels.rect.width).toBe(36 * 16);
+    expect(panel("Channels")).toHaveClass("overflow-y-auto");
   });
 
   test("arrow keys on the grip move a floating panel, Shift steps 96px, focus stays", async () => {
