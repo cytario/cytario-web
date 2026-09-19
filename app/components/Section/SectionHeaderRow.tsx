@@ -80,7 +80,6 @@ export function SectionHeaderRow({
 }: SectionHeaderRowProps) {
   const left = (
     <>
-      {leadingControl}
       {leading}
       {icon && <Icon icon={icon} size="xs" />}
       {badge && (
@@ -136,16 +135,21 @@ export function SectionHeaderRow({
         // One stable pan surface spanning the control and the title area. The
         // inner control swaps button <-> div when a drag floats/docks the
         // section — remounting the pan element would kill the in-flight gesture.
+        // The control must stay OUTSIDE the expander button (no nested buttons).
         <motion.div
           className="flex grow touch-none"
           onPanStart={drag.onPanStart}
           onPan={drag.onPan}
           onPanEnd={drag.onPanEnd}
         >
+          {leadingControl}
           {control}
         </motion.div>
       ) : (
-        <>{control}</>
+        <>
+          {leadingControl}
+          {control}
+        </>
       )}
       {actions && <div className="flex items-center gap-2 px-2">{actions}</div>}
     </div>

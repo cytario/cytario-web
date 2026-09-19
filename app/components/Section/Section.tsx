@@ -36,6 +36,10 @@ const floatWidth = (pillar: PillarId) =>
 
 /** Pointer travel before a header drag detaches a docked section. */
 const DETACH_THRESHOLD_PX = 8;
+/** Pointer travel before a floating panel's release counts as a dock-drop.
+ *  A freshly floated panel spawns over the sidebar slot; without this, any
+ *  small grab-and-release of its header re-docks it immediately. */
+const DOCK_DROP_MIN_TRAVEL_PX = 16;
 /** Where the panel spawns relative to the pointer so the control stays under the cursor. */
 const GRAB_OFFSET = { x: 12, y: 8 };
 /** Click-float nudge toward the canvas so the panel visibly leaves the sidebar column. */
@@ -66,11 +70,19 @@ interface FloatDockButtonProps {
   isFloating: boolean;
   onPress: () => void;
   className?: string;
+  isDisabled?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
 /** Merged float/dock control, shared by the panel header and the sidebar placeholder. */
-function FloatDockButton({ pillar, isFloating, onPress, className, ref }: FloatDockButtonProps) {
+function FloatDockButton({
+  pillar,
+  isFloating,
+  onPress,
+  className,
+  isDisabled,
+  ref,
+}: FloatDockButtonProps) {
   const { title, icon } = PILLARS[pillar];
   return (
     <IconButton
@@ -78,6 +90,7 @@ function FloatDockButton({ pillar, isFloating, onPress, className, ref }: FloatD
       icon={icon}
       label={`${isFloating ? "Dock" : "Float"} ${title}`}
       size="xs"
+      isDisabled={isDisabled}
       className={className}
       onPress={onPress}
     />
@@ -105,7 +118,7 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
   const effectiveOpen = isFloating ? true : isOpen;
 
   const toggleFloat = () => {
-    if (!floating) return;
+    if (!floating || (!isFloating && !floating.canFloat)) return;
     if (isFloating) {
       floating.dock();
     } else {
@@ -139,19 +152,31 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
     floating?.setDropTarget(false);
   }, [x, y, floating]);
 
-  // Escape mid-gesture restores the pre-gesture rect (SDS-CY-011016); a drag-out
-  // that already detached is docked back, restoring the pre-gesture state.
+  // Escape mid-gesture restores the pre-gesture rect (SDS-CY-011016): a
+  // drag-out that already detached is docked back; a floating panel returns
+  // to its pre-gesture placement.
   useEffect(() => {
     if (!isDragging) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       const g = gesture.current;
       endGesture();
-      if (g?.detached && !g.wasFloating) floating?.dock();
+      if (g?.detached && !g.wasFloating) {
+        floating?.dock();
+        floating?.announce(`${title} docked`);
+      } else if (g?.wasFloating) {
+        floating?.moveTo(g.baseRect);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isDragging, floating, endGesture]);
+  }, [isDragging, floating, endGesture, title]);
+
+  // Below the narrow-viewport threshold floating is not offered (SRS-CY-33321)
+  // — a panel already out docks back instead of lingering unusable.
+  useEffect(() => {
+    if (floating && floating.isFloating && !floating.canFloat) floating.dock();
+  }, [floating]);
 
   const onPanStart = (_e: unknown, info: { point: { x: number; y: number } }) => {
     if (!floating) return;
@@ -163,10 +188,20 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       startY: info.point.y,
       lastRect: null,
     };
+    // Armed for every gesture kind — Escape must cancel either origin.
+    setIsDragging(true);
   };
 
   // Dock-drop hit test: the sidebar's x-range, at any height — the placeholder
-  // row supplies the column's left/right while the drag is running.
+  // row supplies the column's left/right while the drag is running. A floating
+  // panel needs real travel first, else grabbing its header over the sidebar
+  // slot it spawned on would re-dock on release.
+  const dockCandidate = (point: { x: number; y: number }, g: DragGesture) => {
+    if (!overSidebar(point)) return false;
+    if (!g.wasFloating) return true;
+    return Math.hypot(point.x - g.startX, point.y - g.startY) >= DOCK_DROP_MIN_TRAVEL_PX;
+  };
+
   const overSidebar = (point: { x: number; y: number }) => {
     const rect = placeholderRef.current?.getBoundingClientRect() ?? null;
     return Boolean(rect && point.x >= rect.left && point.x <= rect.right);
@@ -176,6 +211,8 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
     const g = gesture.current;
     if (!g || !floating) return;
     if (!g.detached) {
+      // Narrow viewports never offer floating (SRS-CY-33321).
+      if (!floating.canFloat) return;
       const dx = info.point.x - g.startX;
       const dy = info.point.y - g.startY;
       if (Math.hypot(dx, dy) < DETACH_THRESHOLD_PX) return;
@@ -194,7 +231,6 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       g.startY = info.point.y;
       floating.float();
       floating.moveTo(spawn);
-      setIsDragging(true);
       floating.announce(`${title} floating`);
     }
     const target = clampFloatRect(
@@ -208,13 +244,13 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
     x.set(target.x - g.baseRect.x);
     y.set(target.y - g.baseRect.y);
     g.lastRect = target;
-    floating.setDropTarget(overSidebar(info.point));
+    floating.setDropTarget(dockCandidate(info.point, g));
   };
 
   const onPanEnd = (_e: unknown, info: { point: { x: number; y: number } }) => {
     const g = gesture.current;
     if (!g) return;
-    const overSlot = overSidebar(info.point);
+    const overSlot = dockCandidate(info.point, g);
     endGesture();
     if (!g.detached) return; // plain click — never detached, nothing to commit
     if (overSlot) {
@@ -272,7 +308,15 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       suppressPress.current = true;
       onPan(e, info);
     },
-    onPanEnd: onPanEnd,
+    onPanEnd: (e: unknown, info: { point: { x: number; y: number } }) => {
+      onPanEnd(e, info);
+      // The release's press event fires after panEnd within the same task —
+      // reset past it, or a drag ending off-control leaves the next genuine
+      // click swallowed.
+      requestAnimationFrame(() => {
+        suppressPress.current = false;
+      });
+    },
   };
 
   // Merged float/dock + drag control. The pan gesture lives on the header row's
@@ -284,6 +328,7 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
         ref={floatButtonRef}
         pillar={pillar}
         isFloating={isFloating}
+        isDisabled={!floating.canFloat}
         className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
         onPress={onControlPress}
       />

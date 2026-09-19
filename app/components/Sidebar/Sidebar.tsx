@@ -91,6 +91,14 @@ export function Sidebar({
     [store, floatable, bounds, canFloat, dropTargetId, announce, canvasGestureActive],
   );
 
+  // Re-clamp placements whenever the canvas box changes (and right after
+  // rehydration, when bounds are first measured) so persisted rects from a
+  // larger viewport stay reachable (SRS-CY-33312).
+  useEffect(() => {
+    if (!floatable || bounds.width === 0) return;
+    store.getState().clampFloating(bounds);
+  }, [floatable, bounds, store]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
