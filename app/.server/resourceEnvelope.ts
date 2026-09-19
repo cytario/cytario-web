@@ -1,8 +1,8 @@
 import type { ProviderResourceEnvelope } from "@cytario/plugin-api";
 
 // Tolerates both the Kubernetes-quantity shape ({ cpu: "2000m", memory: "8Gi",
-// ... }) and the legacy AWS-Batch shape ({ vcpus: 4, memory: 16384 }) where
-// `memory` is a MiB integer and `vcpus` a whole-core count; the latter is
+// ... }) and the AWS-Batch shape ({ vcpu: 4, memory: 16384, gpuCount: 1 }) where
+// `memory` is a MiB integer and the CPU count is a whole number; the latter is
 // translated to the former.
 export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | undefined {
   if (raw === null || typeof raw !== "object") return undefined;
@@ -11,13 +11,12 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
   const envelope: ProviderResourceEnvelope = {};
 
   // CPU: accept Kubernetes quantity ("2000m", "2") or legacy whole-core
-  // integer under `vcpus` / `cpu`.
-  if (typeof obj.cpu === "string") {
-    envelope.cpu = obj.cpu;
-  } else if (typeof obj.vcpus === "number" && Number.isInteger(obj.vcpus)) {
-    envelope.cpu = String(obj.vcpus);
-  } else if (typeof obj.vcpus === "string") {
-    envelope.cpu = obj.vcpus;
+  // integer under `cpu` / `vcpus` / `vcpu`.
+  const cpuRaw = obj.cpu ?? obj.vcpus ?? obj.vcpu;
+  if (typeof cpuRaw === "string") {
+    envelope.cpu = cpuRaw;
+  } else if (typeof cpuRaw === "number" && Number.isInteger(cpuRaw)) {
+    envelope.cpu = String(cpuRaw);
   }
 
   // Memory: a bare number is treated as MiB and rendered as `${n}Mi`.
@@ -32,8 +31,8 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
     envelope.ephemeralStorage = obj.ephemeralStorage;
   }
 
-  // GPU: integer count. Accept `gpu` (preferred) or `gpus` (legacy).
-  const gpuRaw = obj.gpu ?? obj.gpus;
+  // GPU: integer count. Accept `gpu` (preferred), `gpus` or `gpuCount`.
+  const gpuRaw = obj.gpu ?? obj.gpus ?? obj.gpuCount;
   if (typeof gpuRaw === "number" && Number.isInteger(gpuRaw) && gpuRaw >= 0) {
     envelope.gpu = gpuRaw;
   }
