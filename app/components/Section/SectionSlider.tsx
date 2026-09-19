@@ -1,3 +1,7 @@
+import { Slider } from "@cytario/design";
+
+/** Compact section-action slider over the design system's Slider: 0–1 value,
+ *  no label/output chrome — the section header row supplies the context. */
 export function SectionSlider({
   value,
   onChange,
@@ -8,14 +12,14 @@ export function SectionSlider({
   "aria-label": string;
 }) {
   return (
-    <input
-      type="range"
-      min={0}
-      max={100}
+    <Slider
       aria-label={ariaLabel}
-      className="h-4 w-20 cursor-pointer accent-primary"
-      value={Math.round(value * 100)}
-      onChange={(e) => onChange(Number(e.target.value) / 100)}
+      className="w-20"
+      minValue={0}
+      maxValue={1}
+      step={0.01}
+      value={value}
+      onChange={(next) => onChange(Array.isArray(next) ? (next[0] ?? 0) : next)}
     />
   );
 }

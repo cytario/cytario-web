@@ -362,9 +362,7 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
           aria-hidden={!effectiveOpen || undefined}
           inert={!effectiveOpen || undefined}
         >
-          <div
-            className={twMerge("min-h-0 overflow-hidden bg-card", isFloating && "bg-transparent")}
-          >
+          <div className={twMerge("min-h-0 overflow-hidden bg-card", isFloating && "bg-card/80")}>
             {children}
           </div>
         </div>
