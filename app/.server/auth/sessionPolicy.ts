@@ -1,27 +1,12 @@
-/**
- * Builds an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`.
- *
- * STS applies this policy as a **filter**: the effective session permissions are
- * the intersection of the role's attached policy and this inline policy, and an
- * action the inline policy does **not** allow is denied for the session
- * regardless of the role's attached policy. The inline policy must therefore
- * enumerate every action the browser data plane needs — including `kms:Decrypt`
- * for SSE-KMS-encrypted objects (omitting it silently strips the role's grant
- * and breaks `GetObject`). The role's attached policy (and the bucket's KMS key
- * policy) remain the authoritative allowlist of **which** KMS keys the credential
- * may decrypt; the inline `kms:Decrypt` `Resource: "*"` only lets the role's
- * per-key grants flow through the STS intersection — it widens nothing.
- *
- * The ORG tenant binding is enforced by the role's trust policy (and the
- * bucket policy) — it is not repeated here. Keeping the inline policy lean
- * avoids hitting the 2048-character `Policy` limit early.
- *
- * AWS-specific: non-AWS providers (MinIO) may ignore or reject `Policy`;
- * guard the attachment behind `provider === "aws"`.
- */
+// STS applies the inline policy as a FILTER: effective session permissions are
+// the intersection with the role's attached policy, so the inline policy must
+// enumerate every action the data plane needs (omitting kms:Decrypt silently
+// breaks GetObject on SSE-KMS objects; Resource:"*" widens nothing — the role
+// and key policies stay the per-key authority). The ORG tenant binding is
+// enforced by the role's trust policy, not repeated here — lean also keeps us
+// under the 2048-character Policy limit.
 
-/** Mirrors `AccessLevel` from providerCatalog.schema — duplicated here to keep
- * the session-policy and bucket-policy generators import-disjoint (ARCH-1). */
+/** Duplicated to keep the session-policy and bucket-policy generators import-disjoint. */
 type AccessLevel = "read-only" | "annotate" | "read-write" | "admin";
 
 /** Fallback AWS region for the `kms:ViaService` condition when none is supplied. */
@@ -30,11 +15,7 @@ const DEFAULT_REGION = "eu-central-1";
 /** AWS `AssumeRoleWithWebIdentity` `Policy` parameter ceiling (characters). */
 export const POLICY_SIZE_CEILING = 2048;
 
-/**
- * Thrown when the serialized inline session policy would exceed the AWS
- * `AssumeRoleWithWebIdentity` `Policy` parameter ceiling. `fetchTemporaryCredentials`
- * treats this as a connection-level failure — no STS call, no policy-less fallback.
- */
+/** Thrown when the serialized policy exceeds the AWS `Policy` parameter ceiling; callers treat it as a connection-level failure with no policy-less fallback. */
 export class InlinePolicySizeError extends Error {
   readonly actualLength: number;
   readonly ceiling: number;
@@ -54,12 +35,8 @@ export interface SessionPolicyArgs {
   prefix: string | null | undefined;
   /** AWS region of the connection's S3 endpoint — scopes the `kms:ViaService` condition. */
   region: string;
-  /**
-   * Access level of the grant picked for the caller. `"read-write"` or `"admin"`
-   * includes the prefix-wide `PutObject`; lower levels omit it so the STS
-   * session itself denies writes to the connection data plane —
-   * defense-in-depth, not just a UI gate.
-   */
+  // Lower levels omit prefix-wide PutObject so the STS session itself denies
+  // writes — defense-in-depth, not just a UI gate.
   accessLevel: AccessLevel;
 }
 
@@ -69,14 +46,9 @@ const stripSlashes = (prefix: string): string => prefix.replace(/^\/+|\/+$/g, ""
 const objectArn = (bucketArn: string, prefix: string): string =>
   [bucketArn, prefix, "*"].filter(Boolean).join("/");
 
-/**
- * `ListBucket` scoped to one or more prefixes via the `s3:prefix` condition
- * (a bucket-level action can't be scoped by Resource ARN). No-prefix listing
- * must omit the `s3:prefix` condition: AWS evaluates an absent `prefix` query
- * parameter as `""`, which `StringLike "*"` does not match. Allowed values
- * anchor on `/`, otherwise IAM allows `ListBucket prefix=foo` which S3 expands
- * to siblings like `foobar.txt`.
- */
+// No-prefix listing must OMIT the `s3:prefix` condition: AWS evaluates an absent
+// prefix parameter as "", which StringLike "*" does not match. Allowed values
+// anchor on `/` or ListBucket prefix=foo would match siblings like foobar.txt.
 function listBucketStatement(bucketArn: string, prefixes: string[], sid: string) {
   const hasPrefix = prefixes.length > 0;
 
@@ -100,10 +72,7 @@ function listBucketStatement(bucketArn: string, prefixes: string[], sid: string)
       };
 }
 
-/**
- * `GetObject` scoped to a prefix via the Resource ARN —
- * `bucket/<prefix>/*`, or the whole bucket when no prefix is set.
- */
+/** GetObject scoped to a prefix via the Resource ARN (or the whole bucket when no prefix). */
 function getObjectStatement(bucketArn: string, prefix: string) {
   return {
     Sid: "GetObjectScopedToPrefix",
@@ -113,20 +82,10 @@ function getObjectStatement(bucketArn: string, prefix: string) {
   };
 }
 
-/**
- * `PutObject` for annotation and settings sidecar files under the connection
- * prefix. The wildcard segment (`*`) allows writing any annotation set —
- * per-user scoping is by filename convention (the UUID in the key identifies
- * the set), not IAM enforcement.
- *
- * Two sidecar kinds are covered:
- * - **Annotations** (`*.annotations.*.json`) — per-image.
- * - **Settings** (`settings.*.json` and `<dir>/settings.*.json`) — directory-level.
- *
- * Emitted only for the `annotate` level: `read-only` gets no write at all, and
- * `read-write`/`admin` get the broader prefix grant (see `getPutObjectStatement`)
- * which subsumes this scope.
- */
+// Sidecar PutObject for the annotate level only: the wildcard segment allows
+// writing any annotation set — per-user scoping is by filename convention
+// (the UUID in the key), not IAM enforcement. read-write/admin get the broader
+// prefix grant instead.
 function getPutOwnSidecarStatement(bucketArn: string, prefix: string) {
   const annotationArn = [bucketArn, prefix, `*.annotations.*.json`].filter(Boolean).join("/");
   const settingsArnBase = [bucketArn, prefix, `settings.*.json`].filter(Boolean).join("/");
@@ -140,14 +99,8 @@ function getPutOwnSidecarStatement(bucketArn: string, prefix: string) {
   };
 }
 
-/**
- * `DeleteObject` for annotation sidecars only — the viewer's "delete
- * annotation set" action removes a set's whole sidecar file. Scoped to the
- * annotation pattern (never settings sidecars, never arbitrary objects) and
- * emitted for every level that can write sidecars (`annotate`, `read-write`,
- * `admin`); the `read-write`/`admin` prefix grant carries PutObject only, so
- * they need this statement for annotation deletion too.
- */
+// Annotation-sidecar DeleteObject for every level that can write sidecars: the
+// read-write/admin prefix grant carries PutObject only, so they need this too.
 function getDeleteSidecarStatement(bucketArn: string, prefix: string) {
   const annotationArn = [bucketArn, prefix, `*.annotations.*.json`].filter(Boolean).join("/");
 
@@ -178,13 +131,9 @@ function getPutObjectStatement(bucketArn: string, prefix: string) {
   };
 }
 
-/**
- * A KMS data-plane statement scoped via `kms:ViaService` so the credential
- * can only reach KMS through the S3 data path (it cannot call KMS directly).
- * The role's attached policy + KMS key policy remain the authority on which
- * keys — `Resource: "*"` widens nothing. The inline policy is a filter, so
- * omitting these would deny them for the session regardless of the role.
- */
+// KMS scoped via kms:ViaService so the credential can only reach KMS through
+// the S3 data path; Resource:"*" widens nothing (role + key policies are the
+// per-key authority).
 function getKmsStatement(action: "kms:Decrypt" | "kms:GenerateDataKey", region: string) {
   const viaServiceRegion = region || DEFAULT_REGION;
   if (/[*?]/.test(viaServiceRegion)) {
@@ -208,7 +157,6 @@ function getKmsStatement(action: "kms:Decrypt" | "kms:GenerateDataKey", region: 
 const permitsPrefixWrite = (accessLevel: AccessLevel): boolean =>
   accessLevel === "read-write" || accessLevel === "admin";
 
-/** Whether the access level permits writing sidecar files (annotations + settings). */
 const permitsSidecarWrite = (accessLevel: AccessLevel): boolean => accessLevel !== "read-only";
 
 /** Build an inline IAM session policy for `AssumeRoleWithWebIdentityCommand`. */
@@ -279,27 +227,18 @@ export const buildSessionPolicy = ({
 
   return serialized;
 };
-/**
- * A parsed `s3://bucket/prefix` URI — the shape the broker session-policy
- * builder works with after parsing the ledger-recorded targets.
- */
+// A parsed `s3://bucket/prefix` URI for the broker session-policy builder.
 export interface S3Target {
   bucketName: string;
   prefix: string;
 }
 
-/**
- * Parse an `s3://bucket/prefix` URI into {@link S3Target}. Returns `null`
- * on an unparseable URI.
- *
- * The key is captured as the raw substring after `s3://<bucket>/` with no
- * encoding normalization: S3 keys may contain spaces and the characters
- * `?`, `#`, and `%` (all legal key bytes), and a generic URL parser would
- * percent-encode the space and silently truncate at `?`/`#`, corrupting
- * the session policy's `s3:prefix` StringLike patterns and Resource ARNs
- * against the actual keys.
- */
+/** Parse an `s3://bucket/prefix` URI; `null` on an unparseable URI. */
 export function parseS3Uri(uri: string): S3Target | null {
+  // The key is captured as the raw substring with no encoding normalization:
+  // S3 keys may contain spaces and `?`, `#`, `%`, and a generic URL parser
+  // would percent-encode the space or truncate at `?`/`#`, corrupting the
+  // session policy's patterns against the actual keys.
   if (typeof uri !== "string" || !uri.startsWith("s3://")) return null;
   const rest = uri.slice("s3://".length);
   const slash = rest.indexOf("/");
@@ -309,10 +248,7 @@ export function parseS3Uri(uri: string): S3Target | null {
   return { bucketName, prefix: stripSlashes(key) };
 }
 
-/**
- * Arguments for {@link buildBrokerSessionPolicy} — scoped to the analysis's
- * validated input and output targets from the running-jobs ledger.
- */
+/** Scoped to the analysis's validated input and output targets from the running-jobs ledger. */
 export interface BrokerSessionPolicyArgs {
   inputs: S3Target[];
   output: S3Target;
@@ -328,20 +264,15 @@ function validateS3Target(target: S3Target): void {
   }
 }
 
-/**
- * Build an inline IAM session policy for the broker's
- * `AssumeRoleWithWebIdentityCommand`. Scoped to the analysis's validated input
- * and output targets recorded in the ledger at submission — never from any
- * caller-supplied body field. Groups targets by bucket; `GetObject` covers
- * inputs + output; `PutObject` covers the output prefix only.
- */
+// Scoped to the analysis's validated ledger targets — never from any
+// caller-supplied body field. GetObject covers inputs + output; PutObject the
+// output prefix only.
 export const buildBrokerSessionPolicy = ({
   inputs,
   output,
   region: _region,
 }: BrokerSessionPolicyArgs): string => {
-  void _region; // retained in the interface; unused since the ViaService
-  // condition was removed (the role's policy constrains KMS).
+  void _region; // retained in the interface for callers; unused here
   for (const target of inputs) validateS3Target(target);
   validateS3Target(output);
 
@@ -354,11 +285,8 @@ export const buildBrokerSessionPolicy = ({
     bucketPrefixes.set(target.bucketName, prefixes);
   }
 
-  // Statements omit Sid fields (optional in IAM) and use compact prefix
-  // patterns to minimize the serialized policy size. STS's
-  // AssumeRoleWithWebIdentity limits the inline policy + the role's
-  // attached managed policies to 2048 packed bytes; URL-encoding inflates
-  // the JSON by ~38%, so every byte counts.
+  // Sid fields omitted and prefix patterns kept compact: STS caps the inline
+  // policy at 2048 packed bytes and URL-encoding inflates the JSON by ~38%.
   const statements: Array<{
     Effect: string;
     Action: string | string[];
@@ -370,8 +298,7 @@ export const buildBrokerSessionPolicy = ({
     const bucketArn = `arn:aws:s3:::${bucketName}`;
     if (prefixes.size > 0) {
       // Single StringLike pattern per prefix: "prefix*" matches both
-      // "prefix/" and "prefix/foo" — halves the prefix entries vs the
-      // previous [prefix/, prefix/*] scheme.
+      // "prefix/" and "prefix/foo".
       statements.push({
         Effect: "Allow",
         Action: "s3:ListBucket",
@@ -392,10 +319,9 @@ export const buildBrokerSessionPolicy = ({
   }
 
   // GetObject must cover both the target object itself (bucket/prefix) and
-  // objects under it (bucket/prefix/*). A single bucket/prefix/* ARN does not
-  // match the bare key — HeadObject/GetObject on the file itself fails with
-  // "no session policy allows the s3:GetObject action" (the intersection
-  // rule means the inline policy must explicitly allow every ARN).
+  // objects under it: a single bucket/prefix/* ARN does not match the bare
+  // key, and the intersection rule requires the inline policy to explicitly
+  // allow every ARN.
   const getObjectResources = allTargets.flatMap((target) => {
     const base = `arn:aws:s3:::${target.bucketName}`;
     return target.prefix
@@ -414,11 +340,9 @@ export const buildBrokerSessionPolicy = ({
     Resource: objectArn(`arn:aws:s3:::${output.bucketName}`, output.prefix),
   });
 
-  // KMS actions without the ViaService condition — the role's attached
-  // managed policy already constrains KMS to the S3 service, and the
-  // session policy is an intersection (the more restrictive condition
-  // from the role still applies). Omitting the condition here saves ~100
-  // URL-encoded bytes while preserving the security boundary.
+  // KMS actions without the ViaService condition: the role's attached policy
+  // already constrains KMS to S3, and the session policy is an intersection;
+  // omitting the condition saves ~100 URL-encoded bytes.
   statements.push({
     Effect: "Allow",
     Action: ["kms:Decrypt", "kms:GenerateDataKey"],

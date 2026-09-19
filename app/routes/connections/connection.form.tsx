@@ -77,7 +77,6 @@ interface ConnectionFormProps {
   adminScopes: string[];
   userId: string;
   initialData?: ConnectBucketFormData & { connectionId: string };
-  /** Pre-select scope (e.g. from admin page ?scope= param). Falls back to userId. */
   defaultScope?: string;
 }
 
@@ -240,11 +239,9 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
 
   /**
    * Access levels offerable for a grant scope: the level must be backed by a
-   * provider role on the SELECTED bucket (filtered to the selected provider
-   * connection), and that role's allowed scopes must cover the grant scope —
-   * a role with no allowed scopes is unrestricted. Levels the bucket has no
-   * role for are simply not offered. In an OSS build there is no bucket
-   * registry, so the connection's roles match regardless of bucket.
+   * provider role on the SELECTED bucket whose allowed scopes cover the grant
+   * scope (a role with no allowed scopes is unrestricted). Levels the bucket
+   * has no role for are simply not offered.
    */
   const levelsForGrant = (grantScope: string): AccessLevel[] => {
     const roleLevels = new Set(

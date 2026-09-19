@@ -1,8 +1,8 @@
 // CYTARIO_LOCAL_PATHS maps package names to sibling checkouts for live
 // development, e.g. {"@cytario/czi-loader":"/abs/czi-loader"}. Each entry is
 // aliased to the sibling's src/index.ts so Vite serves its TypeScript source.
-// Subpaths follow the sibling's own layout: "pkg/styles.css" maps to its
-// built dist/index.css (tailwind output), everything else to src/.
+// Subpaths follow the sibling's own layout: "pkg/styles.css" maps to its built
+// dist/index.css (tailwind output), everything else to src/.
 //
 // Bare react / react-aria imports inside sibling sources resolve from the
 // sibling's own node_modules or the workspace-root hoist, creating duplicate

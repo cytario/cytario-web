@@ -14,13 +14,9 @@ const isEditable = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
   (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
 
-// Firefox/macOS async-pan: a trackpad gesture that ends on a preventDefault
-// target (the deck.gl canvas) keeps its momentum bound to that original target,
-// so non-cancelable momentum events dispatched over the sidebar scroll nothing.
-// A gesture that starts on the sidebar, however, opens with cancelable wheel
-// events and its momentum keeps scrolling natively — applying those deltas too
-// would double the scroll. So classify by origin: cancelable events mark the
-// session native; non-cancelable sessions are hijacked and applied manually.
+// Firefox/macOS async-pan: momentum from a gesture that ended on a preventDefault
+// target (deck.gl) stays bound there and arrives non-cancelable — apply those
+// deltas manually. Native sessions (cancelable start) must not be doubled.
 // A quiet spell ends a session so the next event re-classifies.
 const WHEEL_SESSION_GAP_MS = 250;
 
@@ -40,11 +36,9 @@ interface SidebarProps {
   name: string;
   side: "left" | "right";
   store: SidebarStoreApi;
-  /** Self-registered global toggle, e.g. "mod+b". Guarded against editable focus. */
   toggleShortcut?: string;
-  /** Called after a shortcut-driven open (e.g. focus the search input). */
   onOpen?: () => void;
-  /** Force open on mount (viewer: controls visible on arrival). */
+  /** Force open on mount. */
   openOnMount?: boolean;
   children: ReactNode;
 }
@@ -77,8 +71,7 @@ export function Sidebar({
       if (now - lastEventAt > WHEEL_SESSION_GAP_MS) session = null;
       lastEventAt = now;
       if (e.cancelable) {
-        // Gesture is live on this element — native scrolling owns it, momentum
-        // phase included.
+        // Native momentum — don't double it.
         session = "native";
         return;
       }
@@ -93,9 +86,8 @@ export function Sidebar({
 
   useEffect(() => {
     // rehydrate() applies persisted state in a microtask, so force-open and the
-    // width snap must run *after* it resolves — otherwise persisted state would
-    // clobber openOnMount, and the width would animate from default → stored on
-    // load. Snapping (set, not animate) lands the rehydrated size before paint.
+    // width snap must run after it resolves, else persisted state clobbers
+    // openOnMount and the width animates from default on load.
     void Promise.resolve(store.persist.rehydrate()).then(() => {
       if (openOnMount) store.getState().setOpen(true);
       const s = store.getState();
@@ -120,8 +112,7 @@ export function Sidebar({
         focusById(sidebarToggleId(name)); // don't strand focus in the inert panel
       } else {
         s.setOpen(true);
-        // Double rAF: wait for the re-render that lifts `inert` to commit before
-        // focusing, else focus() on the still-inert input is a no-op.
+        // Double rAF: wait for the re-render that lifts `inert`, else focus() is a no-op.
         if (onOpen) requestAnimationFrame(() => requestAnimationFrame(onOpen));
       }
     };

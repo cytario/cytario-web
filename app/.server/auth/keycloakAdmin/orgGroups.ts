@@ -18,12 +18,6 @@ async function attachOrgSubtree(orgId: string, root: KeycloakGroup): Promise<Key
   };
 }
 
-/**
- * Fetch the descendants of one or every top-level org group via the
- * Organization Group `/children` endpoint. With `anchor` returns a forest of
- * one (the anchor's populated subtree); without it returns the full org-root
- * forest.
- */
 export async function fetchOrgGroupTree(
   orgId: string,
   anchor?: KeycloakGroup,
@@ -52,16 +46,12 @@ export interface GroupInfo {
   name: string;
 }
 
-/** Recursively collect every group id in a Keycloak group tree. */
 export function collectGroupIds(group: KeycloakGroup): string[] {
   return [group.id, ...group.subGroups.flatMap(collectGroupIds)];
 }
 
-/**
- * Find a group's path by its id within a Keycloak group tree. Returns the
- * org-relative path (leading slash stripped) matching the format of
- * `identity.groups`, or `undefined` when the id is not in the tree.
- */
+// Returns the org-relative path (leading slash stripped) matching the format
+// of `identity.groups`, or `undefined` when the id is not in the tree.
 export function findGroupPathInTree(
   groups: readonly KeycloakGroup[],
   groupId: string,
@@ -74,7 +64,6 @@ export function findGroupPathInTree(
   return undefined;
 }
 
-/** Recursively collect all groups with their IDs from a GroupWithMembers tree. */
 export function flattenGroupsWithIds(
   group: GroupWithMembers,
   accumulator: GroupInfo[] = [],
@@ -92,10 +81,6 @@ export function flattenGroupsWithIds(
   return accumulator;
 }
 
-/**
- * Collect all unique users and track their group memberships from a
- * GroupWithMembers tree.
- */
 export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
   const userMap = new Map<string, UserWithGroups>();
 
@@ -136,20 +121,9 @@ function extractIdFromLocation(response: Response, what: string): string {
   return id;
 }
 
-/**
- * Creates a new group inside the active organization, plus an auto-created
- * `admins` subgroup inside it for admin delegation.
- *
- * Both branches go through Keycloak 26.6's Organization Groups API
- * (`/admin/realms/{realm}/organizations/{orgId}/groups`), which is the
- * authoritative way to create org-owned groups — it isolates the hierarchy
- * per-org and prevents the realm-wide path collisions that the previous
- * `/admin/realms/{realm}/groups` approach allowed when two orgs happened to
- * pick the same group name.
- *
- * If the admins subgroup creation fails, the parent group is rolled back
- * (deleted) to avoid leaving the hierarchy in an inconsistent state.
- */
+// The Organization Groups API isolates the hierarchy per-org — the realm-wide
+// groups endpoint allowed path collisions when two orgs picked the same name.
+// If the admins subgroup creation fails, the parent is rolled back (deleted).
 export async function createGroup(
   parentScope: string,
   name: string,
@@ -213,14 +187,8 @@ async function attachMembers(orgId: string, group: KeycloakGroup): Promise<Group
   };
 }
 
-/**
- * Fetch a group within the active organization, with members + subgroup tree.
- *
- * Routes through Keycloak 26.6's Organization Groups endpoints so the lookup
- * is isolated to the active organization. The `ORG_ROOT_SCOPE` sentinel
- * synthesises a virtual root whose members are the full org membership and
- * whose subgroups are the org's top-level groups (recursive).
- */
+// The `ORG_ROOT_SCOPE` sentinel synthesises a virtual root whose members are
+// the full org membership and whose subgroups are the top-level groups.
 export async function getGroupWithMembers(
   orgId: string,
   scope: string,

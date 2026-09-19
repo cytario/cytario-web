@@ -12,23 +12,14 @@ function requireRequestData() {
   return data;
 }
 
-/**
- * Finds an app catalog by its display name (the `connectionName` a plugin
- * passes to `connectionFetch`). Returns `undefined` when no enabled,
- * connected catalog matches.
- */
 function findCatalog(catalogs: AppCatalog[], connectionName: string): AppCatalog | undefined {
   return catalogs.find(
     (c) => c.displayName === connectionName && c.enabled && c.status === "connected",
   );
 }
 
-/**
- * Validates that the request URL's origin matches the catalog's
- * `registryEndpoint` origin. This is an SSRF guard — a plugin cannot
- * use `connectionFetch` to reach an arbitrary host; egress is confined to
- * the connection's registry origin (SDS-CY-010097, SRS-CY-39305/52207).
- */
+// SSRF guard — a plugin cannot use `connectionFetch` to reach an arbitrary
+// host; egress is confined to the connection's registry origin.
 function assertSameOrigin(registryEndpoint: string, requestUrl: string): void {
   const allowed = new URL(registryEndpoint);
   const actual = new URL(requestUrl);
@@ -39,17 +30,9 @@ function assertSameOrigin(registryEndpoint: string, requestUrl: string): void {
   }
 }
 
-/**
- * Server-side `connectionFetch` implementation. Resolves the named catalog
- * connection from the provider catalog (the admin portal already decrypts
- * the robot secret and returns it in the lookup), attaches HTTP Basic auth
- * with the robot credentials, issues the request, and strips the
- * Authorization header from the response — so the plugin composes registry
- * requests but never receives or retains the credential (SDS-CY-010097).
- *
- * Egress is confined to the connection's `registryEndpoint` origin (SSRF
- * guard).
- */
+// The plugin composes registry requests but never receives or retains the
+// credential: the Authorization header is attached host-side and stripped
+// from the response. Egress is confined to the registry origin (SSRF guard).
 export async function catalogFetch(
   connectionName: string,
   url: string,

@@ -64,11 +64,7 @@ export const fileColumns: ColumnConfig[] = [
   },
 ];
 
-/**
- * Builds cell renderers with closure access to the original TreeNode list, so
- * the `name` renderer can hand NodeLink the full node (needed for icon
- * selection + Info-modal hookup).
- */
+/** Factory so the name renderer can hand NodeLink the full node (icon + Info-modal wiring). */
 function buildFileCellRenderers(nodes: TreeNode[]): CellRenderers<FileRow> {
   const nodesById = new Map(nodes.map((n) => [n.id, n]));
   return {

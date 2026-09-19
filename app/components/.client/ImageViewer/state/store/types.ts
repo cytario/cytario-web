@@ -178,7 +178,7 @@ export type ViewerStore = ViewerStoreState &
  * stack — `set` carries both the immer mutable draft and the devtools
  * action-label third argument. `temporal` (zundo) is innermost so it wraps the
  * store creator before any other middleware, giving it the raw state to
- * snapshot. Shared by every `slices/viewer.*.store`.
+ * snapshot.
  */
 export type ViewerSlice<T> = StateCreator<
   ViewerStore,

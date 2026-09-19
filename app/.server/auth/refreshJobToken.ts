@@ -6,22 +6,9 @@ export interface RefreshedJobToken {
   newRefreshToken: string;
 }
 
-/**
- * Redeems an offline grant's refresh token at the identity service's token
- * endpoint (SRS-CY-416102(a), SDS-CY-080400) to obtain a fresh, unexpired
- * access token for the broker's STS mint and the rotated refresh token to
- * return to the container.
- *
- * The job-broker client authenticates with its client credentials (the same
- * confidential client used for the original RFC 8693 token exchange,
- * SDS-CY-020105). The container never holds the `client_secret` — only the
- * broker does, which is why refresh happens host-side rather than in the
- * SDK.
- *
- * A non-2xx response (revoked session, expired past the realm's offline
- * max, or a replayed/rotated refresh token) throws — the broker maps that
- * to a 401 `GrantExpired` so the container stops retrying.
- */
+// The container never holds the `client_secret` — only the broker does, which
+// is why refresh happens host-side. A non-2xx response throws so the broker
+// can map it to a 401 `GrantExpired` and the container stops retrying.
 export async function refreshJobToken(refreshToken: string): Promise<RefreshedJobToken> {
   const { jobBrokerClientId, jobBrokerClientSecret } = cytarioConfig.auth;
 

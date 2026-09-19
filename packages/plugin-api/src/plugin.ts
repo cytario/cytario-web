@@ -21,62 +21,34 @@ export interface PluginContext {
   formats: FormatRegistry;
   gates: GateRegistry; // live server-side; no-op sink client-side
   slots: SlotRegistry; // live client-side; no-op sink server-side
-  /**
-   * Client-side context-menu contributions. Live client-side; no-op sink
-   * server-side. Added additively at hostApiVersion 4.1.0
-   * (SDS-CY-010911); a plugin that consumes only the pre-existing surface
-   * continues to satisfy the CytarioPlugin contract unchanged.
-   */
+  /** Client-side context-menu contributions. Live client-side; no-op sink server-side. */
   contextMenus: ContextMenuRegistry;
-  /**
-   * Client-side sidebar-navigation contributions. Live client-side; no-op
-   * sink server-side. Added additively at hostApiVersion 4.2.0
-   * (SDS-CY-010917); a plugin that consumes only the pre-existing surface
-   * continues to satisfy the CytarioPlugin contract unchanged.
-   */
+  /** Client-side sidebar-navigation contributions. Live client-side; no-op sink server-side. */
   sidebarNav: SidebarNavRegistry;
   /**
    * Route contributions. Server + client: the registry is live server-side
-   * (validates and records) and a no-op sink client-side. Added additively
-   * (SDS-CY-010093/010099); a plugin that consumes only the pre-existing
-   * surface continues to satisfy the CytarioPlugin contract unchanged.
+   * (validates and records) and a no-op sink client-side.
    */
   routes: RouteRegistry;
-  /**
-   * Server-endpoint contributions. Server-only: the registry is live
-   * server-side and a no-op sink client-side. Added additively
-   * (SDS-CY-010094/010099).
-   */
+  /** Server-endpoint contributions. Server-only: no-op sink client-side. */
   serverEndpoints: ServerEndpointRegistry;
   /**
-   * Server-side host capabilities. Server-only: the capabilities are live
-   * server-side and a no-op sink (throws on call) client-side. Added
-   * additively (SDS-CY-010097/010098/010099). A plugin captures `ctx.host`
-   * during `register(ctx)` and calls its methods from loaders/actions,
-   * where the per-request context (session, organization) is available.   */
-  host: HostCapabilities;
-  /**
-   * Client-side storage picker. Live client-side; no-op sink server-side.
-   * Added additively at hostApiVersion 4.3.0; a plugin that consumes only the
-   * pre-existing surface continues to satisfy the CytarioPlugin contract
-   * unchanged.
+   * Server-side host capabilities. Server-only: live server-side and a no-op
+   * sink (throws on call) client-side. A plugin captures `ctx.host` during
+   * `register(ctx)` and calls its methods from loaders/actions, where the
+   * per-request context (session, organization) is available.
    */
+  host: HostCapabilities;
+  /** Client-side storage picker. Live client-side; no-op sink server-side. */
   storagePicker: StoragePickerRegistry;
   /**
    * Server-side single-slot user-management gate. Server-only: the registry
-   * is live server-side and a no-op sink client-side. Added additively at
-   * hostApiVersion 6.1.0; a plugin that consumes only the pre-existing
-   * surface continues to satisfy the CytarioPlugin contract unchanged.
-   * The gate request carries `orgTier` and the deny outcome carries
+   * is live server-side and a no-op sink client-side. The gate request
+   * carries `orgTier` and the deny outcome carries
    * `resolveUrl`/`resolveLabel` — additive at hostApiVersion 6.2.0.
    */
   userMgmtGate: UserManagementGateRegistry;
-  /**
-   * Client-side viewer contributions. Live client-side; no-op sink
-   * server-side. Added additively at hostApiVersion 6.4.0; a plugin that
-   * consumes only the pre-existing surface continues to satisfy the
-   * CytarioPlugin contract unchanged.
-   */
+  /** Client-side viewer contributions. Live client-side; no-op sink server-side. */
   viewers: ViewerRegistry;
   logger: Logger;
   /** Lets a plugin branch its register() without import-time env sniffing. */

@@ -16,16 +16,8 @@ function isGateOutcome(value: unknown): value is GateOutcome {
   );
 }
 
-/**
- * Server-only single-slot registry for the user-management gate
- * (SDS-CY-010919). The last registration wins; the host's user-management
- * actions consult the registered gate, if any, before committing. When no
- * gate is registered (non-SaaS build, or a SaaS build whose plugin does not
- * register one) {@link consultUserMgmtGate} returns `null` and the action
- * proceeds without consulting.
- *
- * Lives under a `.server` path so it never enters the client bundle.
- */
+// Single-slot registry: the last registration wins; the host's user-management
+// actions consult the registered gate, if any, before committing.
 class UserManagementGateRegistryImpl implements UserManagementGateRegistry {
   private gate: UserManagementGate | null = null;
 
@@ -37,12 +29,9 @@ class UserManagementGateRegistryImpl implements UserManagementGateRegistry {
     return this.gate !== null;
   }
 
-  /**
-   * Consults the registered gate. Returns `null` when no gate is registered
-   * (no SaaS entitlement surface). A throwing gate, or one returning a
-   * malformed outcome, is logged and treated as `continue` (fail-open,
-   * matching the session-gate containment contract).
-   */
+  // A throwing gate, or one returning a malformed outcome, is logged and
+  // treated as `continue` (fail-open, matching the session-gate containment).
+  // Returns `null` when no gate is registered.
   async consult(req: UserManagementGateRequest): Promise<GateOutcome | null> {
     if (!this.gate) return null;
     let outcome: GateOutcome;

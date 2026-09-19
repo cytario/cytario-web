@@ -1,33 +1,18 @@
 import type { TreeNode } from "./buildDirectoryTree";
 import { isSidecarFilename } from "~/utils/sidecarKey";
 
-/**
- * Hidden from every directory view unless "show hidden files" is on:
- * dot-files and sidecar machinery files (annotations/settings). One
- * predicate for both, so every view hides the same set.
- */
+/** Hidden from every view unless showHiddenFiles: dot-files and sidecar machinery. */
 export function isHiddenFilename(name: string): boolean {
   return name.startsWith(".") || isSidecarFilename(name);
 }
 
-/**
- * Declarative visibility filters for tree views — one object, one predicate,
- * applied at both scan time (S3 walk / filterObjects) and render time
- * (DirectoryViewTree). Add new filter dimensions here; ad-hoc one-off
- * predicates still use DirectoryViewTree's `nodeFilter` escape hatch.
- */
+/** Applied at both scan time (filterObjects) and render time (DirectoryViewTree). */
 export interface TreeFilters {
-  /** false/undefined hides dot-files and sidecar machinery files. */
   showHiddenFiles?: boolean;
-  /** When set, files must end with one of these extensions (case-insensitive). Directories always pass. */
   extensions?: string[];
 }
 
-/**
- * Name-level predicate — shared by nodePassesFilters (render, TreeNode.name)
- * and filterObjects/bfsSearch (scan, key segments) so both stages hide and
- * admit the exact same set. `undefined` filters means raw — no filtering.
- */
+/** Shared by render and scan stages so both hide and admit the same set. */
 export function namePassesFilters(
   name: string,
   isFile: boolean,
@@ -42,7 +27,6 @@ export function namePassesFilters(
   return true;
 }
 
-/** Render-time predicate over TreeNodes. */
 export function nodePassesFilters(node: TreeNode, filters: TreeFilters | undefined): boolean {
   return namePassesFilters(node.name, node.type === "file", filters);
 }

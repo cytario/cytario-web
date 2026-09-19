@@ -15,10 +15,9 @@ export function connectionIsReadOnly(resourceId: string): boolean {
 }
 
 /**
- * Whether the current user's grant on the viewer's connection permits
- * annotation authoring (any access level above read-only). Gates the
- * authoring UI — S3 remains the enforcement boundary; this only keeps
- * the UI from offering actions that cannot persist.
+ * Whether the current user's grant on the viewer's connection permits annotation
+ * authoring. S3 remains the enforcement boundary; this only keeps the UI from
+ * offering actions that cannot persist.
  */
 export function useCanAnnotate(): boolean {
   const resourceId = useViewerStore((s) => s.id);

@@ -5,8 +5,8 @@ type Connection = {
 const loaded = new WeakMap<Connection, Promise<void>>();
 
 /**
- * Lazily install + load the DuckDB `spatial` extension. ~23 MB, so kept off
- * `createDatabase`'s critical path. Idempotent per connection via WeakMap.
+ * Lazily install + load the DuckDB `spatial` extension — ~23 MB, so kept off
+ * `createDatabase`'s critical path. Idempotent per connection.
  */
 export function ensureSpatialLoaded<T extends Connection>(connection: T): Promise<void> {
   const cached = loaded.get(connection);

@@ -12,12 +12,6 @@ import { Container, Section, SectionHeader } from "~/components/Container";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
-/**
- * What the DirectoryView is listing. Drives column config, the table
- * subcomponent, the grid card, and the shared filter-store slot.
- * - `"connections"` — top-level list of connections (provider/scope/region columns).
- * - `"entries"` — files **and** directories inside a connection (type/size/modified columns).
- */
 export type DirectoryKind = "connections" | "entries";
 
 interface DirectoryViewProps {
@@ -38,9 +32,7 @@ export function DirectoryView({ kind, node, children }: DirectoryViewProps) {
 
   const { columnFilters } = useColumnFilters({ tableId: kind });
 
-  // allNodes -> filteredNodes -> DirectoryView -> (Grid | Table)
-  // Hidden-file filter first, then column filters. Same `filteredNodes`
-  // feeds every view mode.
+  // Hidden-file filter first, then column filters; same filteredNodes feeds every view mode.
   const visibleNodes = useMemo(
     () => filterHiddenNodes(nodes, showHiddenFiles),
     [nodes, showHiddenFiles],

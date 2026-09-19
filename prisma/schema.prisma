@@ -77,12 +77,10 @@ connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectio
 @@index([userId])
 }
 
-// Host-owned running-jobs ledger (SDS-CY-080900). Carries identifiers only —
-// the provider job identifier, the grant's offline-session identifier, the
-// organization, and the submitting user — never token or credential material.
-// Rows are organization-scoped under the same tenancy invariants as the
-// connection store. A row is created at submission and removed only after its
-// grant's revocation is confirmed.
+// Host-owned running-jobs ledger. Carries identifiers only — the provider job
+// identifier, the grant's offline-session identifier, the organization, and the
+// submitting user — never token or credential material. A row is created at
+// submission and removed only after its grant's revocation is confirmed.
 model JobLedgerEntry {
   id               String   @id @default(uuid())
   batchId          String

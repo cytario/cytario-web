@@ -1,13 +1,10 @@
 import { z } from "zod";
 
 /**
- * The portal bucket catalog: the registered buckets an organization may
- * connect to, resolved from the admin portal's `GET /org/buckets` lookup.
- * Present only in admin-portal builds (EE & SaaS); OSS self-hosted builds
- * have no portal and the bucket is entered as free text.
- *
- * The shape mirrors the pinned lookup JSON contract exactly. It never carries
- * the Cytario Admin Role ARN, an ExternalId, or any management credential.
+ * The portal bucket catalog (admin-portal builds only; OSS builds enter the
+ * bucket as free text). Shape mirrors the pinned lookup JSON contract exactly —
+ * it never carries the Cytario Admin Role ARN, an ExternalId, or any
+ * management credential.
  */
 export const bucketLookupRowSchema = z.object({
   id: z.string().min(1),

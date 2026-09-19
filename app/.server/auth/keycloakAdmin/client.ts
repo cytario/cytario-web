@@ -57,14 +57,8 @@ async function adminRequest(
   return response;
 }
 
-/**
- * Issues an admin API request with a caller-supplied access token, reusing
- * the shared `adminApiBaseUrl` and `KeycloakAdminError` handling. Lets a
- * caller that holds its own narrow-permission service-account token (e.g.
- * the job-broker SA for offline-session revocation, SDS-CY-080901) hit the
- * admin endpoint without going through the broader cytario-web-admin
- * token that `adminRequest`/`adminMutate` mint.
- */
+// For callers holding their own narrow-permission service-account token (e.g.
+// the job-broker SA) rather than the broader cytario-web-admin token.
 export async function adminRequestWithToken(
   accessToken: string,
   method: "GET" | "POST" | "PUT" | "DELETE",
@@ -116,15 +110,9 @@ export async function adminFormMutate(
   });
 }
 
-/**
- * Iterate every page of a Keycloak list endpoint that uses `first` + `max`
- * cursors. KC defaults are often small (10), so callers should not rely on a
- * single fetch returning the full collection.
- *
- * `buildPath` receives a `URLSearchParams` already populated with `first` and
- * `max` — callers may attach extra params (e.g. `search`) before serialising
- * — and must return the absolute admin path to fetch.
- */
+// Keycloak list endpoints page with small defaults (often 10), so every page
+// must be iterated; `buildPath` receives params with `first`/`max` set and may
+// attach extras (e.g. `search`).
 export async function adminFetchAll<T>(
   buildPath: (params: URLSearchParams) => string,
   options: { pageSize?: number } = {},

@@ -5,11 +5,6 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 import { formatTruncationMessage } from "~/utils/listingLimits";
 import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 
-/**
- * Fetches one S3 level for the parent's connection. Emits a truncation toast
- * if the listing is capped. Suitable as the `onExpand` prop on
- * `DirectoryViewTree`.
- */
 export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
   if (parent.isLeaf || parent.type === "file") return [];
 

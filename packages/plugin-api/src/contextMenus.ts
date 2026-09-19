@@ -3,13 +3,12 @@ import type { NavNavigate } from "./sidebarNav";
 
 /**
  * Host-defined context-menu surfaces a plugin may contribute entries to.
- * v1 surface: `"s3-node"` — an image or folder row in the S3 Browser
- * (`app/components/DirectoryView/NodeLink/NodeContextMenu.tsx`).
+ * v1 surface: `"s3-node"` — an image or folder row in the S3 Browser.
  *
  * Additive: a future minor bump may add new literals; a plugin written
  * against v1 must not assume this union is closed at runtime. The host
- * ignores registrations targeting a `ContextMenuTarget` it does not know
- * about (logged at register time).
+ * ignores registrations targeting an unknown `ContextMenuTarget`
+ * (logged at register time).
  */
 export type ContextMenuTarget = "s3-node";
 
@@ -27,10 +26,10 @@ export interface ContextMenuNode {
 /**
  * Activation context the host hands to `ContextMenuEntry.isHidden` and
  * `ContextMenuEntry.onActivate`. The `identity` is the PII-free
- * `Identity` of SDS-CY-010060/010061 — `organization?`,
- * `organizationAttributes`, `groups`, `adminScopes`, and **no other
- * field**. The host shall not pass name, email, `preferred_username`,
- * `sub`, tokens, or STS credentials to the activation context.
+ * `Identity` — `organization?`, `organizationAttributes`, `groups`,
+ * `adminScopes`, and **no other field**. The host shall not pass name,
+ * email, `preferred_username`, `sub`, tokens, or STS credentials to the
+ * activation context.
  */
 export interface ContextMenuActivationContext {
   identity: Identity;
@@ -38,8 +37,6 @@ export interface ContextMenuActivationContext {
   node: ContextMenuNode;
   /**
    * Programmatic navigation, bound to the host's React Router instance.
-   * A plugin's `onActivate` may call this to navigate to a computed
-   * destination (e.g. open an analysis view for the selected node).
    * Mirrors `react-router`'s `useNavigate` surface.
    */
   navigate: NavNavigate;
@@ -47,10 +44,9 @@ export interface ContextMenuActivationContext {
 
 /**
  * A single context-menu entry contributed by a plugin. Registrations are
- * **append-only and multi-owner** (precedent: `SlotRegistry`): multiple
- * plugins may target the same `ContextMenuTarget`, the host renders all
- * registered entries in registration order, and there is no replace or
- * unregister in v1.
+ * **append-only and multi-owner**: multiple plugins may target the same
+ * `ContextMenuTarget`, the host renders all registered entries in
+ * registration order, and there is no replace or unregister in v1.
  *
  * - `id` is plugin-unique; a duplicate `(target, id)` pair within a
  *   single plugin's registrations is a bootstrap-contained registration
@@ -60,10 +56,10 @@ export interface ContextMenuActivationContext {
  *   the host renders them through its own `<MenuItem>` primitive (no
  *   `dangerouslySetInnerHTML`, no raw HTML).
  * - `isHidden(ctx)` may be sync or async. The host treats a rejected or
- *   non-boolean `isHidden` as `true` (entry hidden) — the **fail-hidden**
- *   posture is deliberately asymmetric with the navigation gate's
- *   fail-open posture (SDS-CY-010072). An entry that omits `isHidden` is
- *   always visible, modulo the host's own gating.
+ *   non-boolean `isHidden` as `true` (entry hidden) — a deliberately
+ *   asymmetric **fail-hidden** posture next to the navigation gate's
+ *   fail-open posture. An entry that omits `isHidden` is always visible,
+ *   modulo the host's own gating.
  * - `onActivate(ctx)` may throw or reject; the host shall catch and
  *   surface the error as a contained toast, not crash the S3 Browser.
  */
@@ -76,9 +72,8 @@ export interface ContextMenuEntry {
 }
 
 /**
- * Registry contract. The registry *type* ships in `@cytario/plugin-api`;
- * the registry *implementation* and the rendering of menu items live in
- * the host (`app/components/contextMenuRegistry.ts`).
+ * Registry contract. The registry *implementation* and the rendering of
+ * menu items live in the host.
  *
  * Client-only: the host wires `ctx.contextMenus` into `PluginContext`
  * only when `ctx.env === "client"`; on the server entry the registry is

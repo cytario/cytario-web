@@ -10,13 +10,8 @@ interface CalculateViewStateToFitBoundsOptions {
   fitFraction?: number;
 }
 
-/**
- * Fits a pixel-space bounding box into the viewport, reusing the same viv zoom
- * model as {@link calculateViewStateToFit} (`zoom = log2(scale)`, target =
- * bbox center). Inherits rotation/clamps/dimensions from `base`; overrides only
- * `target` + `zoom`. The store's `setViewStateActive` re-clamps zoom, so tiny
- * bounds (e.g. a point) settle at `maxZoom` rather than an absurd value.
- */
+/** Fits a pixel-space bounding box into the viewport using the viv zoom model
+ *  (`zoom = log2(scale)`, target = bbox center); inherits rotation/clamps from `base`. */
 export function calculateViewStateToFitBounds(
   bounds: Bounds,
   viewport: ViewPort,

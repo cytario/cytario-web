@@ -1,9 +1,6 @@
 /**
- * Higher-order function that wraps an async function with singleton pattern.
- * Caches promises by key and automatically retries on failure.
- *
- * @param initFn - Async initialization function to memoize
- * @returns Memoized version that caches by first parameter (key)
+ * Higher-order function wrapping an async function with the singleton pattern:
+ * caches promises by key and retries on failure (a rejected promise is evicted).
  */
 export function createSingleton<K, V, Args extends unknown[]>(
   initFn: (key: K, ...args: Args) => Promise<V>,

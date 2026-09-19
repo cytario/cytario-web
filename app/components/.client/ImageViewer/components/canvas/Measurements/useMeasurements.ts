@@ -76,7 +76,7 @@ export const useMeasurements = (viewStateOptional?: ViewState | null): UseMeasur
   const unit = metadata.Pixels.PhysicalSizeXUnit;
 
   const absoluteToMetric = absoluteToMetricFactory(
-    // TODO: Use a default value from metadata or a sensible default
+    // Falls back to 1 mm/px when metadata lacks a physical pixel size.
     metadata.Pixels.PhysicalSizeX ?? 1,
     unit,
   );

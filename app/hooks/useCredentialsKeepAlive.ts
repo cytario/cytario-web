@@ -7,23 +7,17 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 import { setCredentialsRefresher, STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
 
 /**
- * Revalidate inside the server's STS staleness buffer (`isValidCredentials`)
- * so one tick always lands in the window where the loader re-mints — rotation
- * happens before expiry. Each tick also keeps the Keycloak session inside its
- * idle timeout: viewer stretches produce no other server traffic (reads are
- * browser→S3).
+ * Revalidate inside the server's STS staleness buffer so rotation happens
+ * before expiry; each tick also keeps the Keycloak session inside its idle
+ * timeout (viewer stretches produce no other server traffic).
  */
 const KEEP_ALIVE_INTERVAL_MS = STS_STALENESS_BUFFER_MS - 60 * 1000;
 
 /** How long to wait for a revalidation to land rotated credentials in the store. */
 const STORE_UPDATE_TIMEOUT_MS = 5_000;
 
-/**
- * Resolves once the store holds credentials for `connectionId` with a
- * different `AccessKeyId` than `previousKeyId`; `null` on timeout. The store
- * is written by `useInitConnections` in an effect, so the update can land
- * after the revalidation promise settles.
- */
+/** Resolves once the store holds credentials with a different `AccessKeyId`; the
+ * store write can land after the revalidation promise settles. */
 const waitForRotatedCredentials = (
   connectionId: string,
   previousKeyId: string | undefined,
@@ -59,17 +53,9 @@ const waitForRotatedCredentials = (
   });
 
 /**
- * Keeps STS credentials and the Keycloak session alive (C-242).
- *
- * Installs the `credentialsRefresh` refresher so the `signedFetch` /
- * `listObjectsClient` ExpiredToken retry path can re-mint credentials: a
- * revalidation re-runs the protected-layout loader, the auth middleware
- * refreshes stale STS credentials (and Keycloak tokens), and
- * `useInitConnections` lands them in the connections store.
- *
- * Additionally revalidates on an interval so rotation happens proactively —
- * consumers without a retry path (DuckDB-WASM reads) never see expired
- * credentials, and the Keycloak session never idles out mid-use.
+ * Keeps STS credentials and the Keycloak session alive. Also installs the
+ * `credentialsRefresh` refresher so the ExpiredToken retry path in
+ * `signedFetch` / `listObjectsClient` can re-mint credentials.
  */
 export function useCredentialsKeepAlive() {
   const revalidator = useRevalidator();
@@ -84,7 +70,6 @@ export function useCredentialsKeepAlive() {
   const lastRunRef = useRef(0);
 
   useEffect(() => {
-    // Loader data is fresh at mount — don't let the visibility handler fire early.
     lastRunRef.current = Date.now();
 
     // Single-flight: a burst of expired tile reads triggers one revalidation.
@@ -111,7 +96,7 @@ export function useCredentialsKeepAlive() {
       if (rotated) return rotated;
 
       // No rotation observed — return what the store holds; the caller's
-      // retry surfaces ExpiredCredentialsError if it is still stale.
+      // retry surfaces the error if it is still stale.
       const current = liveCredentials(connectionId)();
       if (!current) {
         throw new Error(`No credentials for connection "${connectionId}" after refresh.`);

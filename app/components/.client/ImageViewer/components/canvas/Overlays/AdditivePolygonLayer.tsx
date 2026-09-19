@@ -6,8 +6,7 @@ import { type MarkerProps, type MarkerLayerProps, markerUniforms } from "./marke
 export class AdditivePolygonLayer extends SolidPolygonLayer<MarkerLayerProps> {
   static layerName = "AdditivePolygonLayer";
 
-  // Add custom attribute for marker mask
-  // NOTE: Polygons in SolidPolygonLayer are rendered as objects, so each polygon gets its value
+  // SolidPolygonLayer renders polygons as objects, so each polygon gets the attribute value.
   initializeState() {
     super.initializeState();
 

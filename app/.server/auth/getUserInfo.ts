@@ -5,10 +5,10 @@ import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 import type { Identity } from "@cytario/plugin-api";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
-// Only `groups` is consumed; other keys (incl. Keycloak's `id`) are opaque org
-// attributes. Accept any value shape (`unknown`) so a Keycloak mapper quirk
-// can't throw out of the whole parse and break login;
-// normalizeOrganizationAttributes drops `id`/`groups` and cleans the rest.
+// Accept any value shape (`unknown`) so a Keycloak mapper quirk can't throw
+// out of the whole parse and break login; only `groups` is consumed — other
+// keys (incl. Keycloak's `id`) are opaque org attributes, dropped along with
+// `groups` by normalizeOrganizationAttributes.
 const organizationClaimSchema = z
   .record(
     z.string(),
@@ -36,21 +36,18 @@ const userProfileSchema = z.object({
 type UserProfileRaw = z.infer<typeof userProfileSchema>;
 
 export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
-  /** Active Keycloak organization alias for this session. Undefined for zero-org users. */
   organization?: string;
-  /** Opaque, multivalued org attributes; frozen. Host assigns no meaning to keys. */
   organizationAttributes: Readonly<Record<string, readonly string[]>>;
   groups: string[];
   adminScopes: string[];
 }
 
-// Hygiene so a mapper change can't leak PII to the client: drop email-shaped and
-// oversized values. Attributes reach the browser via the Identity projection.
+// Hygiene so a mapper change can't leak PII to the client: attributes reach
+// the browser via the Identity projection.
 const EMAIL_SHAPED = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ATTR_VALUE_BYTES = 256;
 const attrEncoder = new TextEncoder();
 
-/** Removes leading slash from group name. */
 function normalizeGroup(group: string): string {
   return group.replace(/^\//, "");
 }
@@ -66,11 +63,7 @@ function isAllowedAttrValue(value: unknown): value is string {
   );
 }
 
-/**
- * Build the opaque attribute map: drop host-owned `id`/`groups`, wrap scalars to
- * arrays, keep allowed string values, omit now-empty keys. Frozen so a gate
- * can't mutate the shared attributes.
- */
+// Frozen so a gate can't mutate the shared attributes.
 function normalizeOrganizationAttributes(
   entry: OrganizationEntry,
 ): Readonly<Record<string, readonly string[]>> {
@@ -85,11 +78,9 @@ function normalizeOrganizationAttributes(
   return Object.freeze(attributes);
 }
 
-/** Enriches raw user profile with admin scopes. */
 function enrichUserProfile(raw: UserProfileRaw): UserProfile {
-  // Keycloak Organizations claim is `{ "<alias>": { id, groups, ...attrs } }`
-  // with exactly one key. Group membership and org attributes arrive nested
-  // under that key.
+  // Group membership and org attributes arrive nested under the sole key of the
+  // Keycloak Organizations claim `{ "<alias>": { id, groups, ...attrs } }`.
   const orgEntry = raw.organization ? Object.entries(raw.organization)[0] : undefined;
   const organization = orgEntry?.[0];
   const rawGroups = orgEntry ? (orgEntry[1].groups ?? []) : raw.groups;
@@ -97,9 +88,8 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
     ? normalizeOrganizationAttributes(orgEntry[1])
     : Object.freeze({});
 
-  // Root `/admins` becomes the `*` admin scope. `authorization.ts` treats `*`
-  // as "admin of every owner scope in this org" — still bounded by the tenant
-  // check, so it grants no cross-org power.
+  // Root `/admins` becomes the `*` admin scope — "admin of every owner scope in
+  // this org", still bounded by the tenant check (no cross-org power).
   const allGroups = rawGroups.map(normalizeGroup);
   const adminScopes = allGroups
     .filter((g) => g === "admins" || g.endsWith("/admins"))
@@ -122,7 +112,7 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
   };
 }
 
-/** Projects `UserProfile` to the contract's `Identity`, dropping PII so it never reaches the client. */
+/** Drops PII so it never reaches the client. */
 export function toIdentity(user: UserProfile): Identity {
   // Frozen — gates share this object; none may mutate it.
   return Object.freeze({
@@ -134,15 +124,9 @@ export function toIdentity(user: UserProfile): Identity {
   });
 }
 
-/**
- * Builds a {@link UserProfile} from a verified token's raw claims — the same
- * derivation {@link getUserInfo} applies to the userinfo response: group
- * membership arrives nested under the organization claim (Keycloak
- * Organizations), not as a top-level `groups` claim. Identity-display fields
- * the userinfo endpoint supplies are absent on a token-only path and default;
- * authorization derives from `sub` + the organization claim alone. Returns
- * null when the claims do not parse.
- */
+// Group membership arrives nested under the organization claim (Keycloak
+// Organizations), not as a top-level `groups` claim; identity-display fields
+// default when absent. Returns null when the claims do not parse.
 export function profileFromTokenClaims(claims: JWTPayload): UserProfile | null {
   const tokenClaimsSchema = userProfileSchema.extend({
     email_verified: z.boolean().default(false),
@@ -157,7 +141,6 @@ export function profileFromTokenClaims(claims: JWTPayload): UserProfile | null {
   return enrichUserProfile(parsed.data);
 }
 
-/** Retrieves and enriches user profile data from Keycloak. */
 export const getUserInfo = async (accessToken: string): Promise<UserProfile> => {
   try {
     const wellKnownEndpoints = await getWellKnownEndpoints();

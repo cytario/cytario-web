@@ -1,5 +1,3 @@
-// @cytario/plugin-api — public surface.
-
 export type { CytarioPlugin, PluginContext, Logger } from "./plugin";
 export type {
   FormatRegistry,

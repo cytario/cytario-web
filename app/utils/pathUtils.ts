@@ -39,8 +39,7 @@ export interface ResolvedConnectionPrefix {
 
 /**
  * Compose the S3 listing prefix, asserting `rawUrlPath` stays under
- * `connPrefix`. Defense in depth above STS / bucket policy. Throws
- * `ConnectionPrefixError` on `..` segments or out-of-prefix paths.
+ * `connPrefix` — defense in depth above STS / bucket policy.
  *
  * A trailing slash on `rawUrlPath` is preserved in `urlPath` — it is the
  * discriminator between a file (`slide.ome.tiff`) and a directory

@@ -13,16 +13,16 @@ const buildModule = await import(url.pathToFileURL(BUILD_PATH).href);
 const app = express();
 
 // Trust the first proxy (Traefik) so req.protocol reflects X-Forwarded-Proto
-// and req.ip reflects X-Forwarded-For. This is critical for secure cookie
-// handling when TLS is terminated at the reverse proxy.
+// and req.ip reflects X-Forwarded-For — critical for secure cookie handling
+// when TLS is terminated at the reverse proxy.
 app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
 
 let isShuttingDown = false;
 
-// Kubernetes readiness/liveness probe — before all middleware so it's fast and
-// never blocked by compression, static-file serving, or request logging.
+// Before all middleware so the probe is fast and never blocked by
+// compression, static-file serving, or request logging.
 app.get("/healthz", (_req, res) => {
   if (isShuttingDown) {
     res.status(503).send("shutting down");
@@ -42,10 +42,8 @@ app.use(
   }),
 );
 
-// Other build assets — short cache
 app.use(buildModule.publicPath, express.static(buildModule.assetsBuildDirectory, { maxAge: "1h" }));
 
-// Public static files (fonts, logos, etc.)
 app.use(express.static("public", { maxAge: "1h" }));
 
 app.use(morgan("tiny"));
@@ -74,7 +72,8 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
     console.log(`[cytario-web] ${signal} received, shutting down gracefully`);
     isShuttingDown = true;
 
-    // Wait for load balancer to deregister the pod before closing connections
+    // Wait for the load balancer to deregister the pod before closing
+    // connections.
     setTimeout(() => {
       console.log("[cytario-web] closing server to new connections");
       server.close((err) => {

@@ -1,7 +1,6 @@
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { getName } from "~/utils/pathUtils";
 
-/** Builds the `TreeNode` for the directory or bucket root currently being browsed. */
 export function buildCurrentNode(
   connectionId: string,
   connectionName: string,

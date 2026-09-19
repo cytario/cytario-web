@@ -49,8 +49,7 @@ function ImagePreviewSlot({
   signedFetch: ReturnType<typeof createSignedFetch>;
 }) {
   const userId = useCurrentUser()?.sub ?? "";
-  // Off-screen preview cards hold no store/loader — the last unmount of the
-  // provider releases the loader (ViewerStoreContext releaseViewer).
+  // Off-screen cards hold no store/loader — the last unmount releases the loader.
   const { ref, isInView } = useInView<HTMLDivElement>();
   return (
     <div ref={ref} className="h-full w-full">
@@ -87,12 +86,7 @@ function BucketCardGridItem({ node, connectionId }: { node: TreeNode; connection
   );
 }
 
-/**
- * Derives a prefix-relative preview resourceId from an S3 key.
- * `node.id` for directories points to the folder, not an image, so the viewer
- * would load the directory and render a black tile. When the tree builder
- * attached the first image as `node._Object`, derive the resourceId from its Key.
- */
+/** `node.id` for directories points to the folder — derive the preview from the first image's Key. */
 function usePreviewResourceId(node: TreeNode, connectionId: string) {
   const { connectionConfig } = useSignedFetch(connectionId);
   return useMemo(() => {
@@ -175,8 +169,7 @@ function useDirectoryPreviews(nodes: TreeNode[], kind: DirectoryKind): TreeNode[
       cancelled = true;
       controller.abort();
     };
-    // pendingKey captures the set of directories needing previews; pendingDirs
-    // is derived from the same render and is safe to close over.
+    // pendingDirs is derived from the same render and is safe to close over.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingKey]);
 
@@ -197,8 +190,8 @@ export function DirectoryViewGrid({ nodes, kind }: { nodes: TreeNode[]; kind: Di
   `;
 
   return (
-    // Container queries (not viewport): column count tracks the content area width
-    // — which shrinks when a sidebar pushes it — instead of the window width.
+    // Container queries, not viewport: columns track the content area that
+    // shrinks under a sidebar, not the window width.
     <div className="@container">
       <div className={cx}>
         {enrichedNodes.map((node) =>

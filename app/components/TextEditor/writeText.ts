@@ -1,11 +1,7 @@
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import type { SignedFetch } from "~/utils/signedFetch";
 
-/**
- * Write text content back to S3 via a SigV4-signed PUT. Uses the same
- * `createSignedFetch` pipeline as image-tile reads — the body is included
- * in the SigV4 signature so S3 accepts the PUT.
- */
+/** The body must be part of the SigV4 signature or S3 rejects the PUT. */
 export async function writeTextFile(
   resourceId: string,
   content: string,

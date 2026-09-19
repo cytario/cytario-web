@@ -10,20 +10,11 @@ import { cytarioConfig } from "~/config";
 const label = createLabel("auth-refresh", "magenta");
 
 /**
- * Generic claim-refresh primitive via OIDC silent re-authentication.
- *
- * A `refresh_token` grant only reissues a token from the cached Keycloak
- * session, so claims resolved out-of-band after login (e.g. an `organization`
- * membership added via the admin API) never appear. This route instead starts
- * an Authorization Code flow with `prompt=none`: Keycloak reuses the existing
- * SSO cookie (no interactive prompt) but performs a fresh authentication that
- * re-resolves membership and re-runs mappers, so the new token carries the
- * current claims. `/auth/callback` completes the exchange and writes the
- * session as usual.
- *
- * Carries no org/trial/billing logic — callers decide when a refresh is
- * warranted. No session, or a Keycloak `login_required`/`interaction_required`
- * (handled in the callback), falls back to interactive login.
+ * Silent re-auth via an Authorization Code flow with `prompt=none`: a
+ * `refresh_token` grant only reissues the cached Keycloak session, so claims
+ * resolved out-of-band after login (e.g. an organization membership added via
+ * the admin API) never appear — a fresh authentication re-runs the mappers.
+ * `/auth/callback` completes the exchange and writes the session as usual.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.info(`${label} Silent refresh initiated`);
@@ -67,7 +58,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     authUrl.searchParams.set("code_challenge", codeChallenge);
     authUrl.searchParams.set("code_challenge_method", "S256");
     authUrl.searchParams.set("nonce", nonce);
-    // Silent re-authentication: reuse the SSO session, never show a prompt.
     authUrl.searchParams.set("prompt", "none");
 
     console.info(`${label} Redirecting to Keycloak for silent re-authentication`);
@@ -79,7 +69,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-// Loading state shown briefly before redirect fires.
 export default function RefreshRoute() {
   return (
     <div className="flex items-center justify-center h-screen">

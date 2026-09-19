@@ -15,19 +15,15 @@ import { useChannelsLayer } from "../Channels/useChannelsLayer";
 import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
 
 /**
- * Single hover orchestrator for the image viewer (C-427).
+ * Single hover orchestrator for the image viewer: calls the three layer hooks,
+ * merges their layers, and provides a deck.gl-level `onHover` using
+ * `deck.pickMultipleObjects` to gather all picks at the cursor — each routed by
+ * layer-id prefix to the provider's `getTooltipItems`. Transparent annotation picks
+ * (hidden class → alpha 0) return `[]` so they no longer steal the cursor from
+ * pixel reads beneath them.
  *
- * Calls the three layer hooks, merges their layers into one array, and
- * provides a deck.gl-level `onHover` that uses `deck.pickMultipleObjects`
- * to gather **all** picks at the cursor position — not just the topmost.
- * Each pick is routed by layer-id prefix to the matching provider's
- * `getTooltipItems`; transparent annotation picks (hidden class → alpha 0)
- * return `[]` so they no longer steal the cursor from pixel reads beneath
- * them. The merged items array is published to the store as a
- * `CompositeTooltip`.
- *
- * The hook also owns the `getCursor` callback, which shows a pointer over
- * non-transparent annotations in view mode and a crosshair in draw mode.
+ * The hook also owns `getCursor`, which shows a pointer over non-transparent
+ * annotations in view mode and a crosshair in draw mode.
  */
 export interface CompositeHoverResult {
   /** All layers from all providers, ready to spread into `<DeckGL layers={…}>`. */
@@ -46,21 +42,12 @@ const OVERLAYS_ID_PREFIX = "MarkersLayer-";
 const ANNOTATIONS_ID_PREFIX = "annotations-";
 const ANNOTATIONS_SELECTION_SUFFIX = "-selection-";
 
-/**
- * Orchestrates hover across all layers (channels, overlays, annotations) and
- * produces a single composite tooltip. Each layer hook exposes a
- * `getTooltipItems` callback; this hook calls them in priority order, merges
- * results into a flat `LayerTooltipItem[]`, and writes it to the viewer
- * store. Transparent/hidden annotations are filtered out by returning `[]`
- * from their `getTooltipItems`.
- */
 export const useCompositeHover = (
   imagePanelId: number,
   isActivePanel: boolean,
 ): CompositeHoverResult => {
   const deckRef = useRef<DeckGLRef | null>(null);
 
-  // --- Layer providers ---------------------------------------------------
   const { layers: channelLayers, getTooltipItems: getChannelTooltipItems } =
     useChannelsLayer(imagePanelId);
   const { layers: overlayLayers, getTooltipItems: getOverlayTooltipItems } =
@@ -73,7 +60,6 @@ export const useCompositeHover = (
     [channelLayers, overlayLayers, annotationLayers],
   );
 
-  // --- Store actions -----------------------------------------------------
   const setCompositeTooltip = useViewerStore(select.setCompositeTooltip);
   const setHoverMode = useViewerStore(select.setHoverMode);
   const clearPixelValues = useViewerStore(select.clearPixelValues);
@@ -83,7 +69,6 @@ export const useCompositeHover = (
   // `getCursor` without triggering re-renders.
   const hoveringAnnotationRef = useRef(false);
 
-  // --- Hover pipeline ----------------------------------------------------
   const onHover = useCallback(
     (info: PickingInfo, event?: { srcEvent?: { shiftKey?: boolean } }) => {
       const isInspect = annotationMode === "inspect";
@@ -150,7 +135,7 @@ export const useCompositeHover = (
 
       if (!isInspect) return;
 
-      // Shift toggles verbose mode (future: Phase 3 keyboard inspect).
+      // Shift toggles verbose mode.
       const shift = event?.srcEvent?.shiftKey ?? false;
       setHoverMode(shift ? "verbose" : "compact");
 
@@ -173,7 +158,6 @@ export const useCompositeHover = (
     ],
   );
 
-  // --- Cursor ------------------------------------------------------------
   const getCursor = useCallback(
     (state: InteractionState) => {
       if (!isActivePanel) return "pointer";

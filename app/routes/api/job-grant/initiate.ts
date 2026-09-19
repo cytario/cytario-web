@@ -13,11 +13,9 @@ const label = createLabel("job-grant", "magenta");
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
- * Initiates the Authorization Code + PKCE flow for the job grant
- * (SRS-CY-41901). The browser POSTs the plugin run payload here; the host
- * stores it in Redis (with a PKCE verifier), and returns the Keycloak
- * authorization URL. The browser redirects to Keycloak, which authenticates
- * via the existing SSO session and prompts offline_access consent. On
+ * Initiates the Authorization Code + PKCE flow for the job grant. The
+ * browser POSTs the plugin run payload here; the host stores it in Redis
+ * (with a PKCE verifier) and returns the Keycloak authorization URL. On
  * callback, the host retrieves the pending payload, exchanges the auth code
  * for the offline grant, and re-dispatches the payload to the plugin's
  * submit phase.

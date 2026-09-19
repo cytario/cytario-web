@@ -24,22 +24,11 @@ export function clearBucketCatalogCache(): void {
   bucketCache.clear();
 }
 
-/**
- * Resolves the active organization's registered-bucket catalog — the buckets a
- * storage connection may bind to, filtered to the chosen provider connection at
- * the call site.
- *
- * Present only in admin-portal builds (EE & SaaS); OSS self-hosted builds have
- * no portal and the bucket is entered as free text. When the portal source is
- * not `portal`, this function throws — callers in OSS paths never reach it.
- *
- * The lookup is advisory: on staleness or unavailability the caller degrades to
- * a clear error and never blocks an already-created connection.
- *
- * Resolved catalogs are memoized per organization with a short TTL — the
- * catalog is consulted on every connection create/update, and the portal
- * round-trip should not run per request. Failures are never cached.
- */
+// Present only in admin-portal builds (EE & SaaS); OSS builds have no portal
+// and the bucket is entered as free text — when the source is not `portal`
+// this throws. The lookup is advisory: on staleness or unavailability the
+// caller degrades to a clear error. Memoized per org with a short TTL; the
+// portal round-trip should not run per request. Failures are never cached.
 export async function getBucketCatalog(
   organization: string,
   accessToken?: string,

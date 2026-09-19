@@ -44,8 +44,8 @@ export const OverlaysLayer = ({
   loadTile,
   finishTile,
 }: OverlaysLayerProps) => {
-  // Config participates in cache/error identity: reconfiguring the overlay
-  // must invalidate cached tiles and re-arm the one-shot error toast.
+  // Config participates in cache/error identity: reconfiguring must invalidate cached
+  // tiles and re-arm the one-shot error toast.
   const configHash = overlayConfigHash(overlayConfig);
 
   const reportTileError = (message: string) => {
@@ -57,12 +57,9 @@ export const OverlaysLayer = ({
     loadTile(id);
 
     try {
-      // Get ALL marker column names (not just enabled ones)
       const allMarkerKeys = Object.keys(fileMarkers);
 
-      // Shared across panels: the 2nd ImagePanel reuses the 1st panel's DuckDB
-      // result instead of re-running the query. Keyed by resource + tile index
-      // + marker columns + config; both shape the query.
+      // Shared across panels: the 2nd ImagePanel reuses the 1st panel's DuckDB result.
       const cacheKey = `${resourceId}|${index.z}-${index.x}-${index.y}|${allMarkerKeys.join(",")}|${configHash}`;
       const data = await getCachedTile(OVERLAY_CACHE_NS, cacheKey, () =>
         getTileDataWasm(resourceId, index, allMarkerKeys, overlayConfig),
@@ -82,19 +79,16 @@ export const OverlaysLayer = ({
   };
 
   return new TileLayer({
-    // Unique id per overlay resource — multiple overlays would otherwise collide
-    // and deck.gl would reconcile them as the same layer, clobbering each other.
+    // Unique id per overlay resource — multiple overlays would otherwise collide and
+    // deck.gl would reconcile them as the same layer, clobbering each other.
     id: `MarkersLayer-${resourceId}`,
     refinementStrategy: "no-overlap",
     maxZoom,
     minZoom,
     extent: [0, 0, imageWidth, imageHeight],
 
-    // Only recalculate when relevant data changes.
     updateTriggers: {
-      // Tile data only changes when the dataset, markers, or config change
       getTileData: [resourceId, Object.keys(fileMarkers).join(","), configHash],
-      // Sublayer rendering updates
       getMarkerMask: [enabledMarkers, fileMarkers],
       getFillColor: [enabledMarkers, fileMarkers],
       getLineColor: [enabledMarkers, strokeOpacity, markerProps],
@@ -109,19 +103,15 @@ export const OverlaysLayer = ({
       const pointRadius = 12;
       const pointRadiusMin = 0.1;
 
-      // Cast to Arrow Table and extract column vectors for zero-copy access
+      // Interleave Arrow chunks directly (toArray() would copy each chunk) for zero-copy access.
       const arrowTable = data as Table;
-      const numRows = arrowTable.numRows; // Cache this expensive call
+      const numRows = arrowTable.numRows;
 
       const xCol = arrowTable.getChild("x")!;
       const yCol = arrowTable.getChild("y")!;
 
-      // Cache binary attributes on the tile data object to avoid recomputation
       // @ts-expect-error - Adding cache properties to Arrow table
       if (!arrowTable._cachedPositions) {
-        // Optimization: Interleave directly from Arrow chunks without calling toArray()
-        // For multi-chunk columns, toArray() allocates and copies each chunk into a single array
-        // We skip this by iterating chunks directly - each chunk's .values is already a Float64Array
         const positionsFlat = new Float64Array(numRows * 2);
 
         let outputIndex = 0;
@@ -131,7 +121,6 @@ export const OverlaysLayer = ({
           const xChunk = xCol.data[chunkIdx];
           const yChunk = yCol.data[chunkIdx];
 
-          // Access underlying Float64Array buffers directly (zero-copy view into chunk)
           const xValues = xChunk.values as Float64Array;
           const yValues = yChunk.values as Float64Array;
           const chunkLength = xChunk.length;
@@ -151,16 +140,13 @@ export const OverlaysLayer = ({
       const positionsFlat = arrowTable._cachedPositions as Float64Array;
 
       if (isPointMode(props.tile.index.z)) {
-        // Extract pre-computed bitmask from DuckDB (contains ALL markers)
         const bitmaskCol = arrowTable.getChild("marker_bitmask");
         if (!bitmaskCol) {
           throw new Error("marker_bitmask column not found in Arrow table");
         }
 
-        // Cache full bitmask extraction (once per tile, never invalidates)
         // @ts-expect-error - Adding cache property to Arrow table
         if (!arrowTable._cachedFullBitmask) {
-          // Optimization: Extract directly from chunks without toArray()
           const fullBitmask = new Float32Array(numRows);
           let outputIndex = 0;
 
@@ -169,7 +155,6 @@ export const OverlaysLayer = ({
             const values = chunk.values as Float32Array;
             const chunkLength = chunk.length;
 
-            // Copy chunk values directly
             for (let i = 0; i < chunkLength; i++) {
               fullBitmask[outputIndex++] = values[i];
             }
@@ -182,7 +167,7 @@ export const OverlaysLayer = ({
         // @ts-expect-error - Retrieve cached full bitmask
         const fullBitmask = arrowTable._cachedFullBitmask as Float32Array;
 
-        // Build enabled bitmask from UI state
+        // Bitmask of the enabled markers in UI state.
         const allMarkerKeys = Object.keys(fileMarkers);
         let enabledBitmask = 0;
         for (const markerKey of enabledMarkers) {
@@ -192,7 +177,6 @@ export const OverlaysLayer = ({
           }
         }
 
-        // Apply enabled filter: bitwise AND each cell's bitmask with enabled mask
         const markerMasks = new Float32Array(numRows);
         for (let i = 0; i < numRows; i++) {
           markerMasks[i] = fullBitmask[i] & enabledBitmask;
@@ -200,7 +184,7 @@ export const OverlaysLayer = ({
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = {
-          src: arrowTable, // For tooltip hover access
+          src: arrowTable, // for tooltip hover access
           length: numRows,
           attributes: {
             getPosition: { value: positionsFlat, size: 2 },
@@ -219,16 +203,14 @@ export const OverlaysLayer = ({
         });
       }
 
-      // Polygon mode: Extract and filter bitmask same as points
+      // Polygon mode: same bitmask extraction and enabled filter as points.
       const bitmaskCol = arrowTable.getChild("marker_bitmask");
       if (!bitmaskCol) {
         throw new Error("marker_bitmask column not found in Arrow table");
       }
 
-      // Cache full bitmask extraction (once per tile, never invalidates)
       // @ts-expect-error - Adding cache property to Arrow table
       if (!arrowTable._cachedFullBitmask) {
-        // Optimization: Extract directly from chunks without toArray()
         const fullBitmask = new Float32Array(numRows);
         let outputIndex = 0;
 
@@ -237,7 +219,6 @@ export const OverlaysLayer = ({
           const values = chunk.values as Float32Array;
           const chunkLength = chunk.length;
 
-          // Copy chunk values directly
           for (let i = 0; i < chunkLength; i++) {
             fullBitmask[outputIndex++] = values[i];
           }
@@ -250,7 +231,7 @@ export const OverlaysLayer = ({
       // @ts-expect-error - Retrieve cached full bitmask
       const fullBitmask = arrowTable._cachedFullBitmask as Float32Array;
 
-      // Build enabled bitmask from UI state
+      // Bitmask of the enabled markers in UI state.
       const allMarkerKeys = Object.keys(fileMarkers);
       let enabledBitmask = 0;
       for (const markerKey of enabledMarkers) {
@@ -260,7 +241,6 @@ export const OverlaysLayer = ({
         }
       }
 
-      // Apply enabled filter: bitwise AND each polygon's bitmask with enabled mask
       const markerMasks = new Float32Array(numRows);
       for (let i = 0; i < numRows; i++) {
         markerMasks[i] = fullBitmask[i] & enabledBitmask;
@@ -269,7 +249,6 @@ export const OverlaysLayer = ({
       const getLineWidth = 1;
       const lineWidthMinPixels = 1;
 
-      // Create polygon accessor function
       const polygonAccessor = getPolygon(arrowTable);
 
       const fillLayer = new AdditivePolygonLayer({
@@ -287,15 +266,14 @@ export const OverlaysLayer = ({
         pickable: true,
       });
 
-      // Separate stroke layer (SolidPolygonLayer doesn't support strokes)
-      // Always create both layers to keep structure consistent (avoids tile reloads)
+      // Separate stroke layer (SolidPolygonLayer doesn't support strokes); both layers are
+      // always created to keep structure consistent and avoid tile reloads.
       const strokeLayer = new PolygonLayer({
         ...props,
         id: `${props.id}-stroke`,
         data: arrowTable,
         getPolygon: (_d: unknown, context: AccessorContext<unknown>) =>
           polygonAccessor(context.index, context),
-        // Only show strokes for enabled markers when strokeOpacity > 0
         getLineColor: (_d: unknown, { index }: { index: number }) => {
           if (strokeOpacity === 0 || markerMasks[index] === 0) {
             return [0, 0, 0, 0];

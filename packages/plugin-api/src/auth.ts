@@ -1,6 +1,4 @@
-// Read-only identity projection handed to plugins. Omits PII (name/email/etc.)
-// because it crosses to the browser via slot props. organizationAttributes is
-// opaque: the host assigns no meaning to keys; the plugin owns that vocabulary.
+// PII-free projection: crosses to the browser via slot props.
 
 /** Read-only identity view derived from the verified token. */
 export interface Identity {
@@ -9,8 +7,8 @@ export interface Identity {
   /** Active Keycloak organization alias. Undefined ⇒ zero-org session. */
   organization?: string;
   /**
-   * Opaque, multivalued Keycloak org attributes (Keycloak attrs are arrays).
-   * The host neither interprets keys nor collapses values; read `[0]` for a
+   * Opaque, multivalued Keycloak org attributes (Keycloak attrs are arrays);
+   * the host neither interprets keys nor collapses values — read `[0]` for a
    * single-valued attribute. Frozen at runtime.
    */
   organizationAttributes: Readonly<Record<string, readonly string[]>>;

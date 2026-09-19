@@ -6,13 +6,10 @@ const SCHEMA_VERSION = "1.0";
 
 /**
  * Writes a complete annotation set to its own sidecar
- * (`<image>.annotations.<setId>.json`). Each set owns one file (single-writer
- * per key), so this is a full-file overwrite. `setId` is the key segment
- * (UUID for new sets); `createdBy` is the user id written into
- * `cytario.createdBy` (set-level) and stamped onto each feature's
- * `properties.createdBy` (feature-level provenance that survives merges/copies).
- * `name` is the set's display name, written into `cytario.name` when defined.
- * Geometry is level-0 pixel coordinates, written verbatim.
+ * (`<image>.annotations.<setId>.json`); each set owns one file, so this is a
+ * full-file overwrite. `createdBy` is written set-level into
+ * `cytario.createdBy` and stamped onto each feature's `properties.createdBy`
+ * (feature-level provenance that survives merges/copies).
  */
 export async function writeAnnotations(
   resourceId: string,

@@ -59,8 +59,8 @@ export const getUint8ArrayForResourceId = async (resourceId: string): Promise<Ui
   if (cachedData) return cachedData;
 
   const { connectionId, httpsUrl, region } = resolveResourceId(resourceId);
-  // Live getter + connectionId: a download outliving the STS credentials can
-  // refresh and retry instead of failing on ExpiredToken (C-242).
+  // Live getter: a download outliving the STS credentials can refresh and
+  // retry instead of failing on ExpiredToken.
   const signedFetch = createSignedFetch(liveCredentials(connectionId), region, connectionId);
 
   const response = await signedFetch(httpsUrl);

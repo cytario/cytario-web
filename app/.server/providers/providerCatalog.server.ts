@@ -36,20 +36,11 @@ export function clearProviderCatalogCache(): void {
   catalogCache.clear();
 }
 
-/**
- * Invalidate the provider-catalog cache for an organization's catalog
- * connection (SRS-CY-414106). The cache key is `(organization, catalog
- * connection)`: the entry holding the connection's `allowedGroups` access
- * scope (SRS-CY-39806) is evicted so the next `getProviderCatalog` re-fetches
- * fresh data from the portal. Call this when the access scope changes on a
- * catalog connection or when the connection is removed — a stale
- * `allowedGroups` set must never be served across an access-scope change.
- *
- * The cache is keyed per organization (the portal `GET /org/providers`
- * response is whole-org), so the `catalogConnectionId` is accepted for
- * caller intent and observability and scopes the eviction to the org whose
- * catalog holds that connection.
- */
+// Call this when the access scope changes on a catalog connection or when
+// the connection is removed — a stale `allowedGroups` set must never be
+// served across an access-scope change. The cache is keyed per organization
+// (the portal response is whole-org), so `catalogConnectionId` is accepted
+// only for caller intent and observability.
 export function invalidateProviderCatalogCache(
   organization: string,
   catalogConnectionId?: string,
@@ -64,22 +55,10 @@ export function invalidateProviderCatalogCache(
   }
 }
 
-/**
- * Resolves the active organization's provider catalog — the provider connections
- * and provider roles a storage connection may be composed from.
- *
- * The build source is fixed by admin-portal presence (`cytarioConfig.providers.source`):
- *  - `portal` (EE/SaaS): read from the admin portal lookup;
- *  - `oss`: read from the deploy-time YAML file.
- *
- * The lookup is advisory: on staleness or unavailability the caller degrades to a
- * clear error and never blocks an already-created connection.
- *
- * Resolved catalogs are memoized per organization with a short TTL — the catalog
- * is consulted on every credential-bearing request, and neither the portal
- * round-trip nor the YAML read should run per request. The TTL is configurable
- * via CATALOG_CACHE_TTL_MS (`0` disables the cache). Failures are never cached.
- */
+// The lookup is advisory: on staleness or unavailability the caller degrades
+// to a clear error rather than blocking. Memoized per organization with a
+// short TTL (portal round-trip / YAML read should not run per request;
+// CATALOG_CACHE_TTL_MS `0` disables). Failures are never cached.
 export async function getProviderCatalog(
   organization: string,
   accessToken?: string,
@@ -178,15 +157,10 @@ export function findProviderConnection(
   return catalog.providerConnections.find((c) => c.id === providerConnectionId);
 }
 
-/**
- * Look up the provider role that backs an access level on a storage connection:
- * exactly one role is provisioned per (provider connection, bucket, level), so
- * the level + connection pin the role. When the bucket catalog row id is known
- * it must match (`bucketIds`), otherwise the first role with the level under
- * the provider connection is used — with one role per (bucket, level) and
- * per-bucket connections this is unambiguous, but prefer the exact bucket
- * whenever the caller can supply the bucket catalog.
- */
+// Exactly one role is provisioned per (provider connection, bucket, level),
+// so the level + connection pin the role; when the bucket row id is known it
+// must match, otherwise the first role with the level under the connection
+// is used.
 export function findStorageRole(
   catalog: ProviderCatalog,
   refs: { providerConnectionId: string; accessLevel: AccessLevel; bucketId?: string },
@@ -199,11 +173,6 @@ export function findStorageRole(
   );
 }
 
-/**
- * The concrete AWS attributes a resolved connection carries: the provider
- * connection's type/endpoint/region plus the resolved storage role's ARN and
- * level.
- */
 export interface ConnectionProvider {
   providerType: ProviderConnection["providerType"];
   endpoint: string | null;
@@ -213,23 +182,14 @@ export interface ConnectionProvider {
   accessLevel: AccessLevel;
 }
 
-/**
- * A single grant resolved against the catalog: the grant's persisted scope +
- * the concrete provider-role attributes (roleArn, accessLevel) it maps to.
- */
 export interface ResolvedConnectionGrant {
   scope: string;
   roleArn: string;
   accessLevel: AccessLevel;
 }
 
-/**
- * The connection-level provider attributes resolved from the catalog: region and
- * endpoint come from the provider connection (shared by every grant on the
- * connection); `allowsSharing` is true when ANY of the connection's resolvable
- * grants' roles is an Admin-level role (`accessLevel === "admin"`). The per-grant
- * `roleArn` lives on the `ResolvedConnectionGrant` entries.
- */
+// `allowsSharing` is true when ANY of the connection's resolvable grants'
+// roles is Admin-level; the per-grant `roleArn` lives on the grants.
 export interface ResolvedConnectionProviderWithGrants {
   providerType: ProviderConnection["providerType"];
   endpoint: string | null;
@@ -238,20 +198,11 @@ export interface ResolvedConnectionProviderWithGrants {
   grants: ResolvedConnectionGrant[];
 }
 
-/**
- * Resolve a connection's provider connection and ALL of its grants against the
- * catalog. Each grant carries an access level; the concrete storage role for
- * that level on the connection's bucket is resolved here — the portal
- * provisions exactly one role per (connection, bucket, level), so the level
- * pins the role. When the bucket catalog is supplied the role is matched on
- * the connection's bucket row id; otherwise the first role with the level
- * under the provider connection is used.
- *
- * Returns `undefined` when the provider connection itself is absent
- * (a stale lookup); grants whose level has no role for the bucket are
- * silently dropped from the resolved set (they cannot contribute a
- * Principal or a credential).
- */
+// The portal provisions exactly one role per (connection, bucket, level), so
+// the grant's level pins the role; with the bucket catalog supplied the role
+// is matched on the bucket row id. Grants whose level has no role for the
+// bucket are silently dropped (they cannot contribute a Principal or a
+// credential); `undefined` means the provider connection itself is stale.
 export function resolveConnectionProviderWithGrants(
   catalog: ProviderCatalog,
   connection: {

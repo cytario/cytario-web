@@ -7,21 +7,14 @@ import { probeConnection } from "~/utils/probeConnection";
 const PROBE_CONCURRENCY = 4;
 
 /**
- * App-level connection health probe. Mounted once at the protected layout so
- * the store's `status` reflects real reachability on **every** surface
- * (AppHeader global search, sidebar, objects view) — not only after a visit to
- * `/connections`.
- *
- * Reuses the same `probeConnection` (one bounded `ListObjectsV2`) the
- * `/connections` route uses for its card previews. Runs whenever the set of
- * credentialed connections changes (i.e. after `useInitConnections` seeds the
- * store), writing each verdict into the store as it resolves.
+ * Mounted once at the protected layout so the store's `status` reflects real
+ * reachability on every surface, not only after a visit to `/connections`.
  */
 export function useConnectionHealthProbe() {
   const setConnectionStatuses = useConnectionsStore((s) => s.setConnectionStatuses);
   // Stable primitive key: re-probe only when the credentialed connection set
-  // changes, not on every status write. Credential-less connections can't be
-  // probed (no creds to sign with) — they keep their seeded "error".
+  // changes. Credential-less connections can't be probed (no creds to sign
+  // with) — they keep their seeded "error".
   const probeKey = useConnectionsStore((s) =>
     Object.values(s.connections)
       .filter((c) => c.credentials)

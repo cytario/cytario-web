@@ -26,8 +26,7 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Alive references so cleanup can tear down whatever resolved last, even
-  // after the effect's closure went stale.
+  // Alive references so cleanup tears down whatever resolved last, even after the closure went stale.
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const renderRef = useRef<RenderHandle | null>(null);
 

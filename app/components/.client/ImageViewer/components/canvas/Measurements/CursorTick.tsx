@@ -15,14 +15,11 @@ export const CursorTick = ({ vertical }: { vertical?: boolean }) => {
   const x = cursorPosition.x - 0;
   const y = cursorPosition.y - 0;
 
-  // Convert screen coordinates to absolute pixels
   const screenPixelsToAbsolutePixels = (n: number) => n * (1 / 2 ** zoom);
 
-  // Convert absolute pixels to metric units
   const unit = metadata.Pixels.PhysicalSizeXUnit;
   const absoluteToMetric = absoluteToMetricFactory(metadata.Pixels.PhysicalSizeX ?? 1, unit);
 
-  // Calculate metric position
   const absoluteX = screenPixelsToAbsolutePixels(x - screenOffsetLeft);
   const absoluteY = screenPixelsToAbsolutePixels(y - screenOffsetTop);
   const metricX = absoluteToMetric(absoluteX);

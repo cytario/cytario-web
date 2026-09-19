@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 /* global process */
-// Workspace-only build prep:
-//   1. Regenerate `@cytario/plugin-api`'s `src/version.ts` from the latest
-//      `plugin-api-v*` git tag.
-//   2. Download the DuckDB-WASM extensions (httpfs, spatial) into
-//      `public/duckdb-extensions/` so the runtime can `INSTALL` them from
-//      the cytario origin instead of `extensions.duckdb.org`.
-// Both steps become no-ops inside a published `@cytario/web` install where
-// the workspace source is not shipped.
+// Workspace-only build prep: regenerates @cytario/plugin-api's src/version.ts
+// from the latest plugin-api-v* git tag, then downloads the DuckDB-WASM
+// extensions (httpfs, spatial) into public/duckdb-extensions/ so the runtime
+// can INSTALL them from the cytario origin instead of extensions.duckdb.org.
+// Both steps are no-ops inside a published @cytario/web install where the
+// workspace source is not shipped.
 
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";

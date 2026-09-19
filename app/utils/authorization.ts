@@ -1,27 +1,18 @@
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 
 /**
- * Sentinel scope representing the active organization as a whole.
- *
- * - As an `adminScope`: the bearer is org-root admin and can see/modify every
- *   owner scope within the active org.
- * - As an `ownerScope`: the resource is owned at the org root and visible to
- *   every member of the active org. Mutation still requires an admin scope
- *   that covers `*` — i.e. another org-root admin.
- *
- * Reserved — must not be used as a real Keycloak group name (enforced by
+ * Sentinel scope representing the active organization as a whole: as an
+ * adminScope it covers every owner scope in the org; as an ownerScope it is
+ * visible to every member, but mutation still requires an admin scope that
+ * covers `*`. Reserved — never a real Keycloak group name (enforced by
  * `createGroupSchema`).
  */
 export const ORG_ROOT_SCOPE = "*";
 
 /**
- * Minimal resource shape needed for tenant + intra-org authorization. A resource
- * names its intra-org owner scope either as `ownerScope` (users, groups) or as
- * `scope` (a connection grant, whose owner-scope column is `scope`); both carry
- * the identical org-relative group path / user sub / `*` sentinel. A connection
- * carries one or more grants — each a (group scope, provider role) pair — and the
- * resource is visible/modifiable when the user can see/modify ANY of its grants'
- * scopes.
+ * A resource names its intra-org owner scope either as `ownerScope` (users,
+ * groups) or as `scope` (a connection grant); a connection carries one or more
+ * grants and is visible/modifiable when the user covers ANY of their scopes.
  */
 export interface AuthorizationResource {
   organization: string;
@@ -30,11 +21,8 @@ export interface AuthorizationResource {
   grants?: Array<{ scope: string }>;
 }
 
-/**
- * The owner scopes of a resource: a plain resource carries `ownerScope` (or the
- * legacy single-`scope`), a multi-grant connection carries `grants[].scope`.
- * Returns the scopes the resource is administered/visible under.
- */
+/** The owner scopes of a resource: `ownerScope` (or legacy single `scope`) for
+ * plain resources, `grants[].scope` for multi-grant connections. */
 function ownerScopesOf(resource: AuthorizationResource): string[] {
   if (resource.grants && resource.grants.length > 0) {
     return resource.grants.map((g) => g.scope);
@@ -48,43 +36,24 @@ function inActiveOrg(user: UserProfile, resource: AuthorizationResource): boolea
   return user.organization !== undefined && user.organization === resource.organization;
 }
 
-/**
- * Admin-scope ancestry predicate: an admin authority over
- * `adminScope` covers `ownerScope` iff it is the org-root sentinel, an exact
- * match, or a strict ancestor. This is the single source of truth for "does this
- * admin scope cover that target scope", reused by `canSee`/`canModify`/
- * `canCreate` here and by the request guards in `app/routes/admin/*` — so the
- * Share write's server-side grant authorization evaluates the
- * identical rule as user management.
- */
+/** Single source of truth for "does this admin scope cover that target scope",
+ * reused by canSee/canModify/canCreate and the admin route guards. */
 export function adminCovers(adminScope: string, ownerScope: string): boolean {
   if (adminScope === ORG_ROOT_SCOPE) return true;
   return ownerScope === adminScope || ownerScope.startsWith(adminScope + "/");
 }
 
-/**
- * True iff any of the user's admin scopes covers `targetScope`. The `*` sentinel
- * target is only coverable by an org-root admin (a bearer of `*`), never by a
- * named-scope admin.
- */
+/** True iff any admin scope covers `targetScope`; the `*` target is only
+ * coverable by an org-root admin, never by a named-scope admin. */
 export function adminScopesCover(adminScopes: string[], targetScope: string): boolean {
   if (targetScope === ORG_ROOT_SCOPE) return adminScopes.includes(ORG_ROOT_SCOPE);
   return adminScopes.some((adminScope) => adminCovers(adminScope, targetScope));
 }
 
-/**
- * Returns true if the user can see/list/inspect a resource.
- *
- * Tenant boundary: the resource must be in the user's active organization.
- *
- * Within the org:
- * - Org-root scope (`*`): visible to every org member
- * - Group membership: user belongs to the ownerScope group or a child group
- * - Admin ancestry: user admins a scope that is an ancestor of (or equal to) the ownerScope
- *
- * A multi-grant connection is visible when the user can see ANY of its grants'
- * scopes.
- */
+/** Can the user see/list/inspect the resource (tenant + intra-org rules)?
+ * Org-root scope is visible to every org member; group membership in the
+ * ownerScope group or a child also grants visibility. A multi-grant connection
+ * is visible when ANY of its grants' scopes is visible. */
 export function canSee(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
   return ownerScopesOf(resource).some((ownerScope) => canSeeScope(user, ownerScope));
@@ -98,20 +67,9 @@ function canSeeScope(user: UserProfile, ownerScope: string): boolean {
   return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
-/**
- * Returns true if the user can modify or delete a resource.
- *
- * Tenant boundary: the resource must be in the user's active organization.
- *
- * Within the org:
- * - Admin ancestry: user admins a scope that is an ancestor of (or equal to) the ownerScope
- *
- * Note: group membership alone is NOT sufficient — must be admin.
- *
- * A multi-grant connection is modifiable when the user can modify ANY of its
- * grants' scopes (connection-level fields like name/prefix are editable when at
- * least one grant is administered).
- */
+/** Can the user modify/delete the resource? Group membership alone is NOT
+ * sufficient — admin ancestry is required. A multi-grant connection is
+ * modifiable when ANY of its grants' scopes is administered. */
 export function canModify(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
   return ownerScopesOf(resource).some((ownerScope) => canModifyScope(user, ownerScope));
@@ -122,14 +80,7 @@ function canModifyScope(user: UserProfile, ownerScope: string): boolean {
   return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
-/**
- * Returns true if the user can create a resource in the given target.
- *
- * Tenant boundary: the target must be in the user's active organization.
- *
- * Within the org:
- * - Group scope: user must be admin of an ancestor scope
- */
+/** Can the user create a resource under the target scope? */
 export function canCreate(user: UserProfile, resource: AuthorizationResource): boolean {
   if (!inActiveOrg(user, resource)) return false;
   const ownerScope = resource.ownerScope ?? resource.scope ?? "";
@@ -137,9 +88,6 @@ export function canCreate(user: UserProfile, resource: AuthorizationResource): b
   return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
-/**
- * Filters a list of resources to only those the user can see.
- */
 export function filterVisible<T extends AuthorizationResource>(user: UserProfile, resources: T[]) {
   return resources.filter((r) => canSee(user, r));
 }

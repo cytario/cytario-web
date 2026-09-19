@@ -18,11 +18,6 @@ function requireRequestData() {
   return data;
 }
 
-/**
- * Resolves the compute provider and submit role from the provider catalog —
- * the named provider when `providerId` is supplied, else the organization's
- * first connected provider.
- */
 function resolveComputeRole(
   catalog: ProviderCatalog,
   providerId?: string,
@@ -47,13 +42,9 @@ function resolveComputeRole(
   return { computeProvider, computeRole };
 }
 
-/**
- * Creates a `SignedFetch` backed by STS credentials for AWS service
- * endpoints. The plugin calls `session.signedFetch(url, init)` and the host
- * signs the request with the minted credentials — the plugin never sees an
- * access key or session token. CloudWatch Logs endpoints sign with the
- * `logs` service; everything else signs as `batch` (SDS-CY-010098).
- */
+// The plugin never sees an access key or session token — the host signs
+// with the minted credentials. CloudWatch Logs endpoints sign with the
+// `logs` service; everything else signs as `batch`.
 export function createBatchSignedFetch(
   credentials: { AccessKeyId: string; SecretAccessKey: string; SessionToken?: string },
   region: string,
@@ -89,10 +80,9 @@ export function createBatchSignedFetch(
       hostname: parsedUrl.hostname,
       path: parsedUrl.pathname + parsedUrl.search,
       protocol: parsedUrl.protocol as "https:" | "http:",
-      // SigV4 requires `host` in the signed-headers set; Smithy does not
-      // add it from `hostname`, so it must be supplied explicitly (the S3
-      // signer in `signedFetch.ts` does the same). Without it AWS rejects
-      // with "'Host' or ':authority' must be a 'SignedHeader'".
+      // SigV4 requires `host` in the signed-headers set and Smithy does not
+      // add it from `hostname`; without it AWS rejects with "'Host' or
+      // ':authority' must be a 'SignedHeader'".
       headers: {
         host: parsedUrl.host,
         ...Object.fromEntries(headers.entries()),
@@ -109,17 +99,8 @@ export function createBatchSignedFetch(
   };
 }
 
-/**
- * Server-side `assumeComputeRole` implementation. Resolves the compute
- * submit role from the provider catalog, mints an STS session via
- * `AssumeRoleWithWebIdentity` with the user's id token, and returns a
- * `ComputeRoleSession` with a `signedFetch` that signs AWS Batch API
- * requests with the minted credentials.
- *
- * The plugin never sees an access key or a raw session token — the host
- * is the only actor that reads them, preserving the outbound-credential-
- * surface invariant (§6.8).
- */
+// The plugin never sees an access key or a raw session token — the host is
+// the only actor that reads them.
 export async function assumeComputeRole(
   providerId?: string,
   organizationOverride?: string,

@@ -1,10 +1,8 @@
-// Allowlist: Range, If-None-Match, Accept, Cache-Control.
-// Denylist (always wins): Authorization, Host, Cookie, x-amz-*.
-// Value guards: UTF-8 byte length <= 1024; no ASCII control characters
-// (U+0000..U+001F, U+007F). These two rules close header-smuggling and
-// resource-exhaustion vectors that the name-only allowlist alone misses.
-// First line of defense; the caller's merge order (signed headers last)
-// is the second.
+// Allowlist: Range, If-None-Match, Accept, Cache-Control. Denylist (always
+// wins): Authorization, Host, Cookie, x-amz-*. The UTF-8 byte-length cap and
+// the control-character ban close header-smuggling and resource-exhaustion
+// vectors the name-only allowlist alone misses; the caller's merge order
+// (signed headers last) is the second line of defense.
 const ALLOWED = new Set(["range", "if-none-match", "accept", "cache-control"]);
 const DENIED_EXACT = new Set(["authorization", "host", "cookie"]);
 const DENIED_PREFIX = "x-amz-";

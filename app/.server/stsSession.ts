@@ -1,11 +1,8 @@
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
-/**
- * The credentials minted by `assumeRoleWithWebIdentity` — the raw STS
- * response for callers that need the key material (the broker's response
- * body). Callers that return a signed surface to the plugin must not leak
- * these; they assemble their own output from the returned Credentials.
- */
+// Raw STS response for callers that need the key material (the broker's
+// response body); callers returning a signed surface to the plugin must not
+// leak these.
 export interface WebIdentityCredentials {
   AccessKeyId: string;
   SecretAccessKey: string;
@@ -13,12 +10,7 @@ export interface WebIdentityCredentials {
   Expiration?: Date;
 }
 
-/**
- * Mints short-lived credentials via `AssumeRoleWithWebIdentity`. Resolves the
- * STS endpoint from the storage endpoint/region, presents `webIdentityToken`
- * as the OIDC token, and attaches `policy` (an inline session-policy filter)
- * when supplied. Throws when STS returns no usable keys.
- */
+/** Mints short-lived credentials via `AssumeRoleWithWebIdentity`; throws when STS returns no usable keys. */
 export async function assumeRoleWithWebIdentity(input: {
   roleArn: string;
   roleSessionName: string;
@@ -56,11 +48,7 @@ export async function assumeRoleWithWebIdentity(input: {
   };
 }
 
-/**
- * Sanitizes a string into a valid STS `RoleSessionName` (≤64 chars, `[\w+=,.@-]`).
- * Collapses consecutive hyphens and falls back to `cytario-session` for names
- * too short to be valid — shared by every STS mint in the server.
- */
+/** Sanitizes into a valid STS `RoleSessionName` (≤64 chars, `[\w+=,.@-]`), collapsing consecutive hyphens; falls back to `cytario-session`. */
 export function sanitizeRoleSessionName(name: string): string {
   const sanitized = name
     .replace(/[^\w+=,.@-]/g, "-")

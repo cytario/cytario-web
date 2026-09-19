@@ -3,7 +3,6 @@ import { prisma } from "~/.server/db/prisma";
 
 export type { PinnedPath };
 
-/** Upsert a favorite, updating metadata if it already exists. */
 export async function addFavorite(
   userId: string,
   favorite: {
@@ -40,7 +39,6 @@ export async function addFavorite(
   });
 }
 
-/** Remove a favorite for a user by connection id and path. */
 export async function removeFavorite(
   userId: string,
   connectionId: string,
@@ -49,7 +47,6 @@ export async function removeFavorite(
   await prisma.pinnedPath.deleteMany({ where: { userId, connectionId, pathName } });
 }
 
-/** Get all favorites for a user, ordered newest-first. */
 export async function getFavorites(userId: string): Promise<PinnedPath[]> {
   return prisma.pinnedPath.findMany({
     where: { userId },

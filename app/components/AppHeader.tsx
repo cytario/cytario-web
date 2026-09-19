@@ -22,8 +22,7 @@ export function AppHeader() {
   const headerSlot = useLayoutStore((s) => s.headerSlot);
   const data = useRouteLoaderData<RootLoaderResponse>("root");
 
-  // Real dark theme (not hand-rolled token overrides) so header components
-  // resolve the canonical dark palette — same as every other dark surface.
+  // Real dark theme (not token overrides) so children resolve the canonical dark palette.
   return (
     <header
       data-theme="dark"

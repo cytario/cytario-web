@@ -7,9 +7,8 @@ import { useCanAnnotate } from "../../utils/useCanAnnotate";
 import { Toolbar } from "../Toolbar";
 import { isAnnotationImportFile, parseAnnotationImportFile } from "~/utils/db/annotationImport";
 
-/** Canvas area: renders N ImagePanels + floating Toolbar. Dragging annotation
- *  export files (.json/.geojson) onto the canvas imports them as unowned
- *  annotation sets (same validation path as the sidebar's file input). */
+/** Canvas area: renders N ImagePanels + floating Toolbar. Dropping annotation export
+ *  files imports them as unowned annotation sets. */
 export const ImageCanvas = () => {
   const imagePanels = useViewerStore((state) => state.imagePanels);
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
@@ -17,8 +16,8 @@ export const ImageCanvas = () => {
   const { toast } = useToast();
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // dragenter/leave fire for every child crossing; count depth so the
-  // overlay stays up while the pointer is anywhere inside the canvas.
+  // dragenter/leave fire for every child crossing; count depth so the overlay
+  // stays up while the pointer is anywhere inside the canvas.
   const dragDepth = useRef(0);
   const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
 
@@ -29,8 +28,8 @@ export const ImageCanvas = () => {
     if (files.length === 0) return;
     e.preventDefault();
 
-    // Read-only grants can never persist an import — reject visibly instead
-    // of seeding a set that would silently vanish on reload.
+    // Read-only grants can never persist an import — reject instead of seeding
+    // a set that would silently vanish on reload.
     if (!canAnnotate) {
       toast({
         variant: "error",
@@ -63,7 +62,7 @@ export const ImageCanvas = () => {
     <div
       className="relative flex w-full h-full"
       onDragEnter={(e) => {
-        if (!hasFiles(e) || !canAnnotate) return; // no drop-zone hint when it can't land
+        if (!hasFiles(e) || !canAnnotate) return;
         e.preventDefault();
         dragDepth.current += 1;
         setIsDragOver(true);

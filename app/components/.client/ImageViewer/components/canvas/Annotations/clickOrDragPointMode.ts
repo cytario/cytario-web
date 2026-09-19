@@ -9,18 +9,11 @@ import {
   type StopDraggingEvent,
 } from "@deck.gl-community/editable-layers";
 
-// A sub-threshold drag fires `panend` AND a trailing native `click` for the
-// same gesture (deck's click tolerance > Hammer's 10px pan threshold), which
-// would place two points. Ignore a click landing within this window of a
-// drag-end — distinct gestures are always far further apart than this.
+// A sub-threshold drag fires both `panend` and a trailing native `click` for the same
+// gesture — ignoring the click keeps one gesture = one point.
 const CLICK_AFTER_DRAG_MS = 100;
 
-/**
- * Point placement tolerant of a slight drag. `DrawPointMode` commits only on a
- * clean click, but deck suppresses `onClick` once the pointer passes its drag
- * threshold — so a not-quite-still press drops nothing. This also commits on
- * pointer-up, and de-dupes the trailing click so one gesture = one point.
- */
+/** Commits on pointer-up too: deck suppresses `onClick` once the pointer passes its drag threshold. */
 export class ClickOrDragPointMode extends DrawPointMode {
   private lastDragEndAt = 0;
 
@@ -34,7 +27,7 @@ export class ClickOrDragPointMode extends DrawPointMode {
   }
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
-    if (Date.now() - this.lastDragEndAt < CLICK_AFTER_DRAG_MS) return; // trailing click of a drag
+    if (Date.now() - this.lastDragEndAt < CLICK_AFTER_DRAG_MS) return;
     super.handleClick(event, props);
   }
 

@@ -57,12 +57,7 @@ export const connectionColumns: ColumnConfig[] = [
   },
 ];
 
-/**
- * Builds the cell renderer map for the connections table. Captured here as a
- * factory so the `name` renderer can close over the `nodes` array and look up
- * the TreeNode by connection id (NodeLink needs the full node for status
- * + context menu wiring).
- */
+/** Factory so the name renderer can look up the full TreeNode (NodeLink needs it). */
 function buildConnectionCellRenderers(
   nodes: TreeNode[],
 ): CellRenderers<ConnectionConfigWithGrants> {

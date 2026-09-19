@@ -43,7 +43,6 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   const { openModal } = useModal();
   const isCsv = getFileType(resourceId) === "CSV";
 
-  // Initial data fetch
   useEffect(() => {
     if (!connectionConfig) return;
 
@@ -66,7 +65,6 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
     fetchData();
   }, [resourceId, connectionConfig]);
 
-  // Fetch more rows
   const fetchMore = useCallback(async () => {
     if (isFetchingMore || !hasMore) return;
 
@@ -124,7 +122,6 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
   const { rows: tableRows } = table.getRowModel();
   const columnCount = tableColumns.length;
 
-  // Grid template: narrow # column, then equal width for others
   const gridTemplateColumns = `48px repeat(${columnCount - 1}, minmax(48px, 1fr))`;
 
   const virtualizer = useVirtualizer({
@@ -136,7 +133,6 @@ export const DataGrid = ({ resourceId }: { resourceId: string }) => {
 
   const virtualItems = virtualizer.getVirtualItems();
 
-  // Fetch more when scrolling near the bottom
   useEffect(() => {
     const lastItem = virtualItems[virtualItems.length - 1];
 

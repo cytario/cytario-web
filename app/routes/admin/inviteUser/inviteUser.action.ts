@@ -54,9 +54,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
     const status = e instanceof KeycloakAdminError ? e.status : undefined;
     if (status === 409) {
       // Keycloak returns 409 for both "pending invitation already exists" and
-      // "user is already a member". Both are benign no-ops from the admin's
-      // POV — the email already went out or the user is already in — so we
-      // surface them as a warning rather than an error.
+      // "user is already a member" — benign no-ops, so surface as a warning.
       const message = `${result.data.email} already has a pending invitation or is a member.`;
       if (inviteAnother) {
         return { success: true, message };

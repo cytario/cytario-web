@@ -22,12 +22,8 @@ interface AnnotationGroupRowProps {
   onDelete?: () => void;
 }
 
-/**
- * Classification group header composed of the shared SectionRow: color swatch,
- * name, count, and visibility toggle, plus a hover-revealed actions menu
- * (rename/delete, own set only). The unclassified group shows a dashed ghost
- * swatch. Active-class selection is the caller's row-level radio wrapper.
- */
+/** Classification group header on the shared SectionRow: color swatch, name, count,
+ *  and visibility toggle, plus a hover-revealed rename/delete menu (own set only). */
 export function AnnotationGroupRow({
   name,
   count,

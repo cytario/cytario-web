@@ -1,14 +1,7 @@
 import type { FormatExtension, FormatHandler, FormatRegistry } from "@cytario/plugin-api";
 import { getExtension, __resetFileTypeCache } from "~/utils/fileType";
 
-/**
- * Host-internal. `pluginName` is captured at register time so the public
- * `FormatRegistry` surface never accepts it from plugin code. `keys`
- * holds the normalized match keys for the registration — every key is
- * either a lowercase extension string (leading dot stripped) or a
- * `RegExp`. Resolution iterates registrations in insertion order and
- * tests the URL against each key.
- */
+/** Keys are normalized (lowercase extensions, leading dot stripped) or RegExp; resolution tests them in insertion order. */
 export interface Registration {
   keys: ReadonlyArray<string | RegExp>;
   handler: FormatHandler;
@@ -57,13 +50,7 @@ function describeKey(key: string | RegExp): string {
   return typeof key === "string" ? `"${key}"` : key.toString();
 }
 
-/**
- * Strip query string, fragment, and trailing slash before extracting an
- * extension. Directory-style URLs (`foo.ome.zarr/`) and signed URLs
- * (`foo.czi?sig=…`) must resolve to the same extension as their plain
- * counterparts. Regex keys see the original URL so they can match on
- * query parameters or trailing-slash semantics directly.
- */
+/** Directory-style and signed URLs must resolve to the same extension as their plain counterparts; regex keys see the raw URL. */
 function stripUrlSuffixAndSlash(url: string): string {
   const queryIdx = url.indexOf("?");
   const hashIdx = url.indexOf("#");
@@ -76,22 +63,14 @@ function stripUrlSuffixAndSlash(url: string): string {
 class FormatRegistryImpl {
   private readonly registrations: Registration[] = [];
 
-  /**
-   * Host-internal. Returns a `FormatRegistry` adapter bound to a plugin
-   * name. Not exposed on the public `@cytario/plugin-api` surface, so
-   * plugin code cannot register under another plugin's name.
-   */
+  /** Host-internal: binds pluginName here so plugins cannot register under another name. */
   scopedFor(pluginName: string): FormatRegistry {
     return {
       register: (extension, handler) => this.add(pluginName, extension, handler),
     };
   }
 
-  /**
-   * Host-internal registration. Same-plugin re-registration (same keys,
-   * same plugin name) is a no-op so HMR re-runs do not throw.
-   * Cross-plugin overlap on any key throws `DuplicateRegistrationError`.
-   */
+  /** Same-plugin re-registration is a no-op so HMR re-runs do not throw. */
   add(pluginName: string, extension: FormatExtension, handler: FormatHandler): void {
     const keys = normalizeKeys(extension);
     const existing = this.registrations.find((r) => keysCollide(r.keys, keys));
@@ -107,13 +86,7 @@ class FormatRegistryImpl {
     __resetFileTypeCache();
   }
 
-  /**
-   * Resolve a URL to its registered handler. Iteration order is
-   * insertion order; within a registration the first matching key wins.
-   * String keys are tested against the URL's extension after stripping
-   * the query string, fragment, and trailing slash. Regex keys are
-   * tested against the unmodified URL.
-   */
+  /** String keys match the stripped extension; regex keys match the raw URL. */
   resolve(url: string): Registration {
     const cleaned = stripUrlSuffixAndSlash(url);
     const extracted = getExtension(cleaned);
@@ -133,7 +106,7 @@ class FormatRegistryImpl {
     return this.registrations;
   }
 
-  /** Test-only: drop all registrations and clear derived caches. */
+  /** Test-only; also clears the fileType cache. */
   __reset(): void {
     this.registrations.length = 0;
     __resetFileTypeCache();

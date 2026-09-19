@@ -8,13 +8,10 @@ import { prisma } from "~/.server/db/prisma";
 import { assertGrantScope } from "~/routes/admin/assertAdminScope";
 import { canModify } from "~/utils/authorization";
 
-/**
- * Re-apply a connection's bucket-policy grant: recompute the bucket's full managed
- * grant set and re-apply it under the acting connection's provider-role write
- * session, so a drifted or errored connection converges back to `applied` (or
- * warns when the write is denied). Authorizes every grant's scope server-side
- * before minting any write session.
- */
+/** Re-apply a connection's bucket-policy grant so a drifted or errored
+ * connection converges back to `applied` (or warns when the write is denied).
+ * Authorizes every grant's scope server-side before minting any write
+ * session. */
 export const reapplyAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user } = context.get(authContext);
   const session = context.get(sessionContext);

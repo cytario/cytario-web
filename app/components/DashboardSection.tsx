@@ -15,7 +15,6 @@ interface DashboardSectionProps {
 }
 
 export function DashboardSection({ title, nodes, viewMode, maxItems, to }: DashboardSectionProps) {
-  // Don't render the section at all if there are no items to show.
   if (nodes.length === 0) {
     return null;
   }

@@ -73,16 +73,12 @@ export const SectionRow = forwardRef<SectionRowHandle, SectionRowProps>(function
 
       <SectionRowTitle ref={titleRef} title={title} onRename={onRename} />
 
-      {/* Loading Indicator */}
       {isLoading && <LoaderDots rows={1} cols={6} />}
 
-      {/* Custom Actions */}
       {actions}
 
-      {/* Count Badge */}
       {count != null && <Badge>{count}</Badge>}
 
-      {/* Visibility Toggle */}
       {toggle}
     </div>
   );

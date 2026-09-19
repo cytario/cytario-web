@@ -1,14 +1,8 @@
 import type { HostCapabilities } from "@cytario/plugin-api";
 
-/**
- * No-op sink for the client entry — every method rejects or throws because
- * host capabilities are server-only (SDS-CY-010097/010098/010099). A plugin
- * that captures `ctx.host` during `register(ctx)` on the client should never
- * call its methods — they are only valid inside server-side loaders/actions.
- *
- * Lives outside `.server/` so it can be imported by the client bootstrap
- * (`bootstrapPluginsCore.ts`) without violating the bundle boundary.
- */
+// Every method rejects or throws: host capabilities are server-only and only
+// valid inside server-side loaders/actions. Lives outside `.server/` so the
+// client bootstrap can import it without violating the bundle boundary.
 export const noopHostCapabilities: HostCapabilities = {
   connections: () => Promise.reject(new Error("host capabilities are server-only")),
   computeConnections: () => Promise.reject(new Error("host capabilities are server-only")),

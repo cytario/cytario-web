@@ -44,9 +44,8 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         viewStateActive: s?.viewStateActive ?? null,
       };
     },
-    // C-149: resourceId format changed from provider/bucket/path to
-    // connectionName/path. Clear persisted overlay keys — they'll be
-    // re-added on next use.
+    // resourceId format changed from provider/bucket/path to connectionName/path;
+    // clear persisted overlay keys — they'll be re-added on next use.
     1: (state) => {
       const s = state as PersistedViewerState;
       return {
@@ -57,9 +56,8 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         })),
       };
     },
-    // C-423: annotation opacity + outline toggle are now persisted, matching
-    // the channels/overlays opacity controls (which were already persisted via
-    // layersStates). Backfill defaults for stores saved before this change.
+    // Annotation opacity + outline toggle are now persisted; backfill defaults for
+    // stores saved before this change.
     2: (state) => {
       const s = state as Record<string, unknown> & Partial<PersistedViewerState>;
       return {
@@ -71,11 +69,9 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         showAnnotationOutline: boolean;
       };
     },
-    // C-423 follow-up: annotationsOpacity and showAnnotationOutline moved from
-    // top-level persisted state into per-preset layersStates entries (mirroring
-    // channelsOpacity/showCellOutline). Migrate the old top-level values into
-    // every existing layersStates entry; entries created after this change
-    // already include the fields via addChannelsState.
+    // annotationsOpacity and showAnnotationOutline moved from top-level persisted
+    // state into per-preset layersStates entries; migrate the old top-level values
+    // into every existing layersStates entry.
     3: (state) => {
       const s = state as Record<string, unknown> & Partial<PersistedViewerState>;
       const oldOpacity = (s.annotationsOpacity as number | undefined) ?? 1;
@@ -92,7 +88,8 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         })),
       } as PersistedViewerState;
     },
-    // C-331: the persisted state shape changed to include a top-level `currentUserId` field, which is now used to filter layersStates for the current user. Migrate the old state by adding a default value for currentUserId and filtering layersStates to only include entries authored by that user.
+    // Persisted state now carries a top-level currentUserId used to filter layersStates
+    // per user; migrate by resetting to the fallback state.
     4: () => VIEWER_FALLBACK_STATE,
     // Overlay entries changed shape: a resource's value used to be the bare
     // marker record; it now carries { markers, config }. Wrap legacy values

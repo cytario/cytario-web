@@ -8,16 +8,14 @@ interface GeometrySvgProps {
   selected?: boolean;
 }
 
-/** White/black/white selection frame for paths, widest first (rendered
- *  underneath), so the achromatic frame reads on any background. */
+/** Achromatic white/black/white frame so selection reads on any background. */
 const SELECTION_STROKES: { stroke: string; width: number }[] = [
   { stroke: "#fff", width: 5 },
   { stroke: "#000", width: 3.5 },
   { stroke: "#fff", width: 2 },
 ];
 
-/** Concentric white/black/white rings around a selected point, mirroring the
- *  on-slide point selection frame. Radii outermost-first (drawn underneath). */
+/** Matching white/black/white rings around a selected point. */
 const POINT_SELECTION_RINGS: { r: number; stroke: string }[] = [
   { r: 6.5, stroke: "#fff" },
   { r: 5.5, stroke: "#000" },
@@ -26,8 +24,7 @@ const POINT_SELECTION_RINGS: { r: number; stroke: string }[] = [
 
 const POINT_RADIUS = 3;
 
-/** Renderable decomposition of a geometry: closed/open coordinate rings (for a
- *  path) and standalone points (for glyphs). */
+/** Coordinate rings (path) plus standalone points. */
 interface Shape {
   rings: Position[][];
   /** Rings are polygon rings (close with `Z`); false for open line strings. */
@@ -56,13 +53,7 @@ const toShape = (geometry: Geometry): Shape => {
   }
 };
 
-/**
- * Renders a GeoJSON geometry as a fitted `size`×`size` SVG thumbnail. Polygons
- * and line strings draw as a path (polygons filled + closed), points as dots;
- * a `selected` treatment adds the achromatic selection frame. Coordinates are
- * taken as-is (screen space, Y-down) — source parsing (WKT via `wktToGeometry`,
- * …) and any coordinate-space conversion belong in the caller.
- */
+/** Coordinates are screen-space (Y-down) as-is; parsing/conversion belongs in the caller. */
 export const GeometrySvg = ({
   geometry,
   size = 48,
@@ -81,9 +72,8 @@ export const GeometrySvg = ({
   const ys = coords.map((p) => p[1]);
   const minX = Math.min(...xs);
   const minY = Math.min(...ys);
-  // Real spans (may be 0 for a point / axis-aligned line); the scale divisor is
-  // clamped to avoid /0, but centering uses the true span so a degenerate
-  // geometry (single point) lands at the box center, not the padding corner.
+  // Centering uses the true span so a degenerate geometry (single point)
+  // lands at the box center despite the clamped scale divisor.
   const spanX = Math.max(...xs) - minX;
   const spanY = Math.max(...ys) - minY;
   const drawable = size - padding * 2;

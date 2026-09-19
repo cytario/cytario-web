@@ -10,7 +10,6 @@ export type SerializedFavorite = {
   lastModified: string | null;
 };
 
-/** Load a user's favorites as serialized DTOs, newest-first. */
 export async function loadFavorites(userId: string): Promise<SerializedFavorite[]> {
   const raw = await getFavorites(userId);
   return raw.map((favorite) => ({

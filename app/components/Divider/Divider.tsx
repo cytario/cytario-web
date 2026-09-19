@@ -4,7 +4,6 @@ import { twMerge } from "tailwind-merge";
 
 const BASE = "px-2 py-2 border-b border-border";
 
-/** Small muted label with a bottom border — group/section divider. */
 export function Divider({
   children,
   className,

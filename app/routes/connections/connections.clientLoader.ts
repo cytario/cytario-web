@@ -11,11 +11,6 @@ import { type ConnectionProbeResult, probeConnection } from "~/utils/probeConnec
 
 const PREVIEW_CONCURRENCY = 4;
 
-/**
- * Per-connection preview + health probe. One bounded-concurrency
- * `ListObjectsV2` doubles as the bucket-card preview and the connection
- * health check; `CorsLikelyError` becomes a card-level CORS warning.
- */
 export async function enrichConnectionsWithPreviews({
   request,
   serverLoader,

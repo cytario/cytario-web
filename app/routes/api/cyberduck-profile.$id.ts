@@ -30,11 +30,10 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const { bucketName, prefix, name: connectionName } = connectionConfig;
   const { auth, endpoints } = cytarioConfig;
 
-  // The concrete role/endpoint/region live on the referenced provider connection
-  // and the grant-level storage roles resolved from the org catalog, not on the
-  // connection. The embedded role is the downloading user's most permissive
-  // applicable grant (SRS-CY-43111) — the same rule the browser credential mint
-  // applies.
+  // The concrete role/endpoint/region live on the referenced provider
+  // connection and the grant-level storage roles resolved from the org
+  // catalog, not on the connection. The embedded role is the downloading
+  // user's most permissive applicable grant.
   let resolvedConnectionProvider;
   try {
     const catalog = await getProviderCatalog(connectionConfig.organization);
@@ -68,10 +67,8 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   const actualRegion = connectionProvider.region;
   const providerConfig = getS3ProviderConfig(connectionProvider.endpoint, actualRegion);
 
-  // Derive a unique vendor ID from the webapp hostname (e.g. "cytario.com" -> "cytario-com")
   const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
 
-  // Generate Cyberduck profile XML
   const profile = generateCyberduckProfile({
     vendor,
     connectionName,
@@ -91,7 +88,6 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     },
   });
 
-  // Return XML as downloadable file
   return new Response(profile, {
     headers: {
       "Content-Type": "application/xml",
@@ -133,26 +129,22 @@ function generateCyberduckProfile(config: CyberduckProfileConfig): string {
     oauthConfig,
   } = config;
 
-  // Build scopes array
   const scopesXml = oauthConfig.scopes
     .map((scope) => `        <string>${escapeXml(scope)}</string>`)
     .join("\n");
 
-  // Build S3 properties
   const s3Properties: string[] = [];
 
-  // Only disable virtual host style for non-AWS endpoints (MinIO, etc.)
-  // AWS S3 uses virtual host style by default and works better with it
+  // Virtual-host style breaks non-AWS endpoints (MinIO, etc.); AWS S3 works
+  // better with it enabled.
   if (!isAWS) {
     s3Properties.push(`        <key>s3.bucket.virtualhost.disable</key>
         <true/>`);
   }
 
-  // Set region
   s3Properties.push(`        <key>s3.location</key>
         <string>${escapeXml(region)}</string>`);
 
-  // Set custom endpoint hostname (strip protocol)
   const hostnameWithoutProtocol = endpoint.replace(/^https?:\/\//, "");
   s3Properties.push(`        <key>s3.hostname.default</key>
         <string>${escapeXml(hostnameWithoutProtocol)}</string>`);

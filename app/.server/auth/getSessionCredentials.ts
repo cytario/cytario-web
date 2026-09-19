@@ -38,9 +38,8 @@ interface SessionCredentialRequest {
   connectionConfig: ConnectionConfig;
   grant: ResolvedConnectionGrant;
   connectionProvider: ResolvedConnectionProviderWithGrants;
-  /** The bucket's registered region when known (portal builds); the bucket
-   *  catalog is the per-bucket source — a bucket may live in a different
-   *  region than its provider connection's default. */
+  // The bucket catalog is the per-bucket source — a bucket may live in a
+  // different region than its provider connection's default.
   bucketRegion?: string;
   sessionData: SessionData;
   roleSessionName: string;
@@ -67,17 +66,10 @@ const fetchTemporaryCredentials = async ({
     region,
   });
 
-  // Inline session policy is an AWS-specific STS feature: STS applies it as a
-  // filter over the role's attached policy, so the minted credential cannot
-  // exceed the configured prefix scope even if the role itself is broader. It
-  // is a closed allowlist that grants no `s3:PutBucketPolicy`. It must
-  // enumerate `kms:Decrypt` so the role's per-key grants survive the STS
-  // intersection and `GetObject` works against SSE-KMS-encrypted objects
-  // (omitting `kms:Decrypt` denies it for the session regardless of the role
-  // policy). The ORG tenant binding is enforced by the role's trust policy,
-  // not repeated here. S3-compatible providers whose STS ignores/rejects
-  // `Policy` (notably MinIO, signalled by a non-AWS endpoint) omit it — the
-  // role's attached policy is then the only bound.
+  // Inline session policy is AWS-specific: it filters the minted credential down
+  // to the configured prefix scope. S3-compatible providers whose STS
+  // ignores/rejects `Policy` (MinIO, signalled by a non-AWS endpoint) omit it —
+  // the role's attached policy is then the only bound.
   const Policy = providerConfig.isAwsS3
     ? buildSessionPolicy({ bucketName, prefix, region, accessLevel })
     : undefined;
@@ -99,15 +91,8 @@ const fetchTemporaryCredentials = async ({
   return Credentials;
 };
 
-/**
- * Pick the most permissive grant whose scope the authenticated user can see
- * (group membership or admin ancestry). A user who is a member of several
- * granted groups receives the grant with the highest access level — so an
- * `annotate` (or `read-write`) user who also holds a `read-only` grant on the
- * same connection is not demoted. Returns `undefined` when no grant is
- * applicable to the user (the connection is visible only through an ancestor
- * the user does not directly hold).
- */
+// Highest applicable access level wins, so a user holding both `annotate`
+// and `read-only` grants on the same connection is not demoted.
 export const pickGrantForUser = (
   connectionProvider: ResolvedConnectionProviderWithGrants,
   user: UserProfile,
@@ -145,46 +130,27 @@ const describeCredentialError = (error: unknown): string => {
 export interface ClientConnectionProvider {
   region: string;
   endpoint: string | null;
-  /** Whether the connection's provider role permits onward sharing. */
   allowsSharing: boolean;
-  /** The current user's resolved grant access level. Advisory UI gate;
-   *  S3 denies enforce the actual permission boundary. */
+  // Advisory UI gate; S3 denies enforce the actual permission boundary.
   accessLevel: AccessLevel;
 }
 
 export interface SessionCredentialsResult {
   credentials: ConnectionsCredentials;
-  /** Reason string per connection name for connections whose STS mint failed. */
   errors: Record<string, string>;
-  /**
-   * Per-connection resolved non-secret provider attributes (region/endpoint) for
-   * the client data-plane — never a role ARN or credential. Absent for a
-   * connection whose catalog reference is stale/unavailable.
-   */
+  // Never a role ARN or credential; absent for a connection whose catalog
+  // reference is stale/unavailable.
   providers: Record<string, ClientConnectionProvider>;
 }
 
-/**
- * Fetches credentials for all connection configs in parallel.
- *
- * A connection no longer carries its own provider/endpoint/roleArn/region — those
- * live on the portal-managed (or OSS-configured) provider connection the
- * connection references, and each grant's access level maps to a storage role
- * resolved from the organization's provider catalog (bucket-scoped when the
- * bucket catalog is available) before minting.
- *
- * Keys credentials by `config.name` so connections that share a bucket but resolve
- * to different roles each get their own STS mint. Only fetches for connections
- * with missing or expired credentials. The catalog lookup is advisory: when it is
- * unavailable or a reference is stale, the affected connection surfaces a clear
- * per-connection error rather than blocking the others.
- */
+// The catalog lookup is advisory: when unavailable or a reference is stale,
+// the affected connection surfaces a per-connection error rather than
+// blocking the others. Keys credentials by connection id so connections
+// sharing a bucket but resolving to different roles each get their own mint.
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
   connectionConfigs: ConnectionConfigWithGrants[],
 ): Promise<SessionCredentialsResult> => {
-  // Nothing to resolve or mint when the org has no connections — avoid a needless
-  // provider lookup.
   if (connectionConfigs.length === 0) {
     return { credentials: sessionData.credentials, errors: {}, providers: {} };
   }
@@ -201,10 +167,10 @@ export const getAllSessionCredentials = async (
     console.warn(`${label} Provider catalog lookup failed: ${catalogError}`);
   }
 
-  // The bucket catalog carries each bucket's registered region — a bucket can
-  // live in a different region than its provider connection's default, and the
-  // session policy's kms:ViaService condition must name the bucket's region.
-  // Portal builds only; unavailability degrades to the connection region.
+  // A bucket can live in a different region than its provider connection's
+  // default, and the session policy's kms:ViaService condition must name the
+  // bucket's region. Portal builds only; unavailability degrades to the
+  // connection region.
   let bucketCatalog: Awaited<ReturnType<typeof getBucketCatalog>> | undefined;
   if (cytarioConfig.providers.source === "portal") {
     try {
@@ -223,9 +189,9 @@ export const getAllSessionCredentials = async (
         )?.region ?? undefined)
       : undefined;
 
-  // Resolve the non-secret provider attributes (region/endpoint) for every
-  // connection so the client data-plane can address the bucket even when the STS
-  // credential is still cached and no mint runs this request.
+  // Resolved for every connection so the client data-plane can address the
+  // bucket even when the STS credential is still cached and no mint runs this
+  // request.
   const providers: Record<string, ClientConnectionProvider> = {};
   if (catalog) {
     for (const connectionConfig of connectionConfigs) {

@@ -3,12 +3,6 @@ import { z } from "zod";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 import { ACCESS_LEVELS } from "~/utils/providerCatalog.schema";
 
-/**
- * A submitted owner scope: the org-root sentinel, a user sub, or a group path.
- * Constrained before it reaches `adminCovers` or a generated policy condition —
- * traversal-looking segments (`Lab/../x`) and IAM wildcard/variable characters
- * are rejected outright rather than relying on downstream predicates.
- */
 export const scopeSchema = z
   .string()
   .min(1, "Scope is required")
@@ -36,13 +30,6 @@ export const connectionNameSchema = z
 /** Maximum length of a connection / share prefix before generation. */
 export const MAX_PREFIX_LENGTH = 1024;
 
-/**
- * Validate a prefix before it enters any generated bucket policy:
- * reject IAM-wildcard characters (`*`, `?`), IAM policy-variable syntax (`${...}`),
- * the traversal segment `..`, the control characters NUL / CR / LF, and over-length
- * values, surfacing an explicit error and refusing to generate. Applied identically
- * to a connection prefix and to a shared folder prefix.
- */
 export const prefixSchema = z
   .string()
   .max(MAX_PREFIX_LENGTH, `Prefix must be at most ${MAX_PREFIX_LENGTH} characters`)
@@ -70,24 +57,19 @@ export const bucketNameSchema = z
     "Bucket name must be lowercase alphanumeric with dots or hyphens, no leading/trailing separator",
   );
 
-/**
- * A single grant: a group scope paired with an access level. A connection
- * carries one or more grants; the concrete storage role for the level on the
- * connection's bucket is resolved server-side from the catalog — its IAM role
- * ARN becomes the Principal of a managed bucket-policy statement.
- */
+/** A single grant: a group scope paired with an access level. The concrete
+ * storage role for the level on the connection's bucket is resolved server-side
+ * from the catalog — its IAM role ARN becomes the Principal of a managed
+ * bucket-policy statement. */
 export const grantSchema = z.object({
   scope: scopeSchema,
   accessLevel: z.enum(ACCESS_LEVELS, { error: "A valid access level is required" }),
 });
 
-/**
- * A storage connection is composed by SELECTING a provider connection and one or
- * more grants — each a group scope + access level — never a free-text cloud role
- * identifier or endpoint. The concrete cloud role, endpoint, and region are
- * carried by the chosen provider connection and resolved from its catalog
- * (by access level) server-side, and are never accepted from the form.
- */
+/** A storage connection is composed by SELECTING a provider connection and
+ * grants — never a free-text cloud role identifier or endpoint. The concrete
+ * role, endpoint, and region are carried by the chosen provider connection and
+ * resolved from its catalog server-side, never accepted from the form. */
 export const connectionSchema = z
   .object({
     name: connectionNameSchema,
@@ -104,14 +86,12 @@ export const connectionSchema = z
 export type ConnectBucketFormData = z.input<typeof connectionSchema>;
 export type ConnectionFormValues = z.output<typeof connectionSchema>;
 
-/**
- * Payload of the service-to-service create endpoint `POST /api/connections`
- * (admin-portal onboarding). Unlike the form schema, the organization
- * is taken from the payload — the caller is a trusted service, not a browser
+/** Payload of the service-to-service create endpoint `POST /api/connections`
+ * (admin-portal onboarding). Unlike the form schema, the organization is
+ * taken from the payload — the caller is a trusted service, not a browser
  * session — and `managedExternally` marks the connection's bucket policy as
- * owned by an outside system (the demo bucket, managed by Terraform), which
- * cytario-web must never apply. The form action never sets it.
- */
+ * owned by an outside system, which cytario-web must never apply; the form
+ * action never sets it. */
 export const serviceConnectionSchema = z
   .object({
     organization: z.string().min(1, "organization is required"),
@@ -137,7 +117,6 @@ export const defaultFormValues: ConnectBucketFormData = {
   grants: [{ scope: "", accessLevel: "read-only" as const }],
 };
 
-/** Auto-suggest a connection name from a bucket + optional prefix. */
 export function suggestName(bucketName: string, prefix: string): string {
   const lastSegment = prefix.replace(/\/$/, "").split("/").filter(Boolean).pop();
   const base = lastSegment ? `${bucketName} ${lastSegment}` : bucketName;

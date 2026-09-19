@@ -19,8 +19,7 @@ export function ConnectionsSection() {
   const [override, setOverride] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  // Reset the manual pick when the route's connection changes, so the tree
-  // follows navigation into a different connection (adjust-state-during-render).
+  // Adjust-state-during-render: drop the manual pick when the route's connection changes.
   const [prevRouteId, setPrevRouteId] = useState(routeId);
   if (routeId !== prevRouteId) {
     setPrevRouteId(routeId);
@@ -30,8 +29,7 @@ export function ConnectionsSection() {
   const selectedConnection =
     override ?? (routeId && connectionIds.includes(routeId) ? routeId : connectionIds[0]);
 
-  // Reveal the active resource only when the tree shows the route's own
-  // connection — not when the user manually switched to a different one.
+  // Reveal the active resource only on the route's own connection, not a manual switch.
   const activePathName = selectedConnection === routeId ? params["*"] : undefined;
 
   return (

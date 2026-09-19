@@ -1,15 +1,6 @@
 import type { Identity, UserManagementAction } from "@cytario/plugin-api";
 import { userMgmtGateRegistry } from "~/.server/userManagementGateRegistry";
 
-/**
- * Consults the registered user-management gate (if any) before the host
- * commits a user-management action (SDS-CY-010919). The gate checks the
- * identity's `subscription_status` and `subscription_tier`; it returns
- * `continue` to allow or `deny` to block. When no gate is registered
- * (non-SaaS build, or a SaaS build whose plugin does not register one) this
- * returns early and the action proceeds without consulting.
- */
-
 /** Throws a `Response` (status 402 by default) when the gate denies. */
 export async function consultUserMgmtGate(
   identity: Identity,

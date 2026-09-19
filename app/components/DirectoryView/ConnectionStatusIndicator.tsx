@@ -14,11 +14,6 @@ const VARIANTS = {
   loading: { className: "bg-warning animate-pulse", label: "Connecting…" },
 } as const;
 
-/**
- * Connection health indicator. Subscribes to the connections store itself so
- * every surface that renders a bucket node (list, sidebar, search) shows the
- * same live status, and any component with a connectionId can drop it in.
- */
 export function ConnectionStatusIndicator({ connectionId }: ConnectionStatusIndicatorProps) {
   const status = useConnectionsStore(select.connectionStatus(connectionId));
   const statusMessage = useConnectionsStore(select.connectionStatusMessage(connectionId));

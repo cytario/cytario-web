@@ -22,23 +22,13 @@ import { createLabel } from "~/.server/logging";
 import { assumeRoleWithWebIdentity, sanitizeRoleSessionName } from "~/.server/stsSession";
 
 /**
- * Credential-broker endpoint: a running container calls this host-owned route
- * with its job-scoped token to obtain short-lived S3 storage credentials. The
- * broker is purely ledger-driven — it reads the storage role ARN, region, S3
- * endpoint, and the analysis's input/output targets from the ledger row
- * recorded at submission, with no provider catalog or connection query at
- * mint time.
- *
- * The container carries the grant's **refresh token** (not the access token),
- * because the access token's short `exp` would expire before a long job's
- * first broker call. The broker redeems (refreshes) the grant at the
- * identity service on every call (SRS-CY-416102(a), SDS-CY-080400) to obtain
- * a fresh, unexpired access token, verifies it, passes it to STS, and
- * returns the rotated refresh token so the container's next mint presents
- * the current (rotated) token. A revoked or expired grant mints nothing.
- *
- * Request body: `{ token: string, jobId: string }` — exactly what the SDK
- * sends. No caller-supplied field influences the credential scope.
+ * Credential-broker endpoint: a running container calls this host-owned
+ * route with its job-scoped token to obtain short-lived S3 storage
+ * credentials. The broker is purely ledger-driven — it reads the storage
+ * role ARN, region, S3 endpoint, and the analysis's input/output targets
+ * from the ledger row recorded at submission, with no provider catalog or
+ * connection query at mint time. No caller-supplied field influences the
+ * credential scope.
  */
 
 const label = createLabel("broker", "cyan");
@@ -73,11 +63,11 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
     return jsonError(400, "token and jobId are required");
   }
 
-  // Redeem the offline grant at the identity service on every call
-  // (SRS-CY-416102(a)) — a revoked or expired grant mints nothing. The
-  // container carries a refresh token; the broker refreshes it host-side
-  // (the job-broker client is confidential, so the container can't hold
-  // the client_secret) and verifies the fresh access token before STS.
+  // The container carries a refresh token because the access token's short
+  // `exp` would expire before a long job's first broker call: the broker
+  // refreshes it host-side (the job-broker client is confidential, so the
+  // container can't hold the client_secret) and verifies the fresh access
+  // token before STS. A revoked or expired grant mints nothing.
   let refreshedToken: string;
   let newRefreshToken: string;
   try {
@@ -87,14 +77,12 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     console.warn(`${label} refresh failed for job ${body.jobId}: ${message}`);
-    // A row that still exists means the job was recorded and not yet
-    // reconciled — the grant was revoked while the binding lives on: 403.
-    // No row means the grant is genuinely absent: 401. A single generic
-    // message per branch reveals nothing beyond revoked-vs-expired. The
-    // probe is scoped to the offlineSessionId decoded from the caller's own
-    // presented token, so it never confirms or denies a jobId the caller
-    // doesn't already hold the grant for; an undecodable token skips the
-    // probe and takes the 401 path.
+    // A row that still exists means the grant was revoked while the binding
+    // lives on: 403. No row means the grant is genuinely absent: 401. A
+    // single generic message per branch reveals nothing beyond
+    // revoked-vs-expired; the probe is scoped to the offlineSessionId
+    // decoded from the caller's own presented token, so it never confirms or
+    // denies a jobId the caller doesn't already hold the grant for.
     const offlineSessionId = offlineSessionIdFromToken(body.token);
     const rowExists =
       offlineSessionId !== "" &&
@@ -130,9 +118,8 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   // The request organization is resolved from the ledger row recorded at
   // submission: a user who belongs to multiple Keycloak organizations gets
   // a multi-key `organization` claim, and the row's org selects the tenant
-  // this job actually belongs to. The row's org must be among the token's
-  // org memberships and the row must belong to the submitting user; a
-  // single message avoids leaking which check failed.
+  // this job actually belongs to. A single message avoids leaking which
+  // check failed.
   const entry = await prisma.jobLedgerEntry.findFirst({
     where: {
       jobId: body.jobId,

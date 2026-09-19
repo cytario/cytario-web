@@ -11,8 +11,7 @@ import { buildVirtualNode } from "~/utils/treeNodeFactories";
 export { enrichConnectionsWithPreviews as clientLoader } from "./connections.clientLoader";
 export { loadConnections as loader } from "./connections.loader";
 
-// Response carries STS credentials — keep it out of every cache between origin
-// and browser.
+// Response carries STS credentials — keep it out of every cache.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 const title = "Connections";

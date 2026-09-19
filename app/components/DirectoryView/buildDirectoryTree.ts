@@ -21,10 +21,6 @@ function sortTreeNodes(nodes: TreeNode[]): void {
 
 export type TreeNodeType = "bucket" | "directory" | "file";
 
-/**
- * A node in the storage directory tree. Shape matches `@cytario/design`
- * `TreeNode` so it can be passed straight to the design-system `<Tree>`.
- */
 export interface TreeNode {
   id: string;
   connectionId: string;
@@ -38,7 +34,7 @@ export interface TreeNode {
   _Object?: _Object;
 
   isLeaf?: boolean;
-  /** `"idle"` marks a lazy stub awaiting fetch via `DirectoryViewTree`'s `onExpand`. */
+  /** `"idle"` marks a lazy stub awaiting fetch via onExpand. */
   loadState?: "idle";
 }
 
@@ -116,11 +112,7 @@ function buildDirectoryTreeRecursive(
   }
 }
 
-/**
- * Returns ids of every non-leaf node in the tree — useful as
- * `defaultExpandedItems` on `DirectoryViewTree` to pre-expand a static
- * search-result tree.
- */
+/** Ids of every non-leaf node — useful as defaultExpandedItems for a search-result tree. */
 export function collectInteriorIds(nodes: TreeNode[]): string[] {
   const ids: string[] = [];
   function walk(ns: TreeNode[]) {

@@ -10,10 +10,8 @@ import eslintPluginTailwindcss from "eslint-plugin-tailwindcss";
 import globals from "globals";
 
 export default [
-  // ESLint recommended rules
   js.configs.recommended,
 
-  // Ignore build artifacts and dependencies
   {
     ignores: [
       "**/node_modules/**",
@@ -29,7 +27,6 @@ export default [
     ],
   },
 
-  // JavaScript/TypeScript + React configuration
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
@@ -120,7 +117,6 @@ export default [
       react: {
         version: "detect",
       },
-      // Treat these components like forms/links for a11y rules
       formComponents: ["Form"],
       linkComponents: [
         { name: "Link", linkAttribute: "to" },
@@ -140,7 +136,6 @@ export default [
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
-      // Fetch API types
       globals: {
         RequestInit: "readonly",
         RequestInfo: "readonly",
@@ -158,7 +153,6 @@ export default [
       ...eslintPluginImport.configs.typescript.rules,
     },
     settings: {
-      // Treat imports starting with ~/ as internal
       "import/internal-regex": "^~/",
       "import/resolver": {
         node: {
@@ -171,10 +165,9 @@ export default [
     },
   },
 
-  // Tailwind token validity — resolved against the actual app theme
-  // (app/styles.css incl. the design catalog and namespace resets), so
-  // classes whose tokens don't exist (e.g. rounded-2xl after the radius
-  // reset, bg-emerald-500 after the color reset) are flagged.
+  // Resolved against the actual app theme (app/styles.css incl. the design
+  // catalog and namespace resets), so classes whose tokens don't exist
+  // (e.g. rounded-2xl after the radius reset) are flagged.
   {
     files: ["app/**/*.{ts,tsx}"],
     plugins: { tailwindcss: eslintPluginTailwindcss },
@@ -188,7 +181,6 @@ export default [
     },
   },
 
-  // Test files configuration
   {
     files: [
       "**/*.test.ts",
@@ -200,7 +192,6 @@ export default [
     languageOptions: {
       globals: {
         ...globals.node,
-        // Vitest globals
         vi: true,
         describe: true,
         test: true,
@@ -220,7 +211,6 @@ export default [
           "ts-ignore": false,
         },
       ],
-      // Enforce consistent test function naming
       "no-restricted-globals": [
         "warn",
         {
@@ -231,7 +221,8 @@ export default [
     },
   },
 
-  // Enforce named exports in app directory (except routes and framework files)
+  // Named exports only in app code; routes and framework files keep default
+  // exports (framework requirement).
   {
     files: ["app/**/*.{ts,tsx,js,jsx}"],
     ignores: [
@@ -247,7 +238,6 @@ export default [
     },
   },
 
-  // Configuration files
   {
     files: [".eslintrc.cjs", "eslint.config.js", "vitest.config.ts"],
     languageOptions: {
@@ -257,7 +247,7 @@ export default [
     },
   },
 
-  // Disable ESLint rules that conflict with Prettier — must be last so it wins.
-  // Formatting itself is enforced by `npm run format:check` (CI), not ESLint.
+  // Must be last so it wins. Formatting itself is enforced by
+  // `npm run format:check` (CI), not ESLint.
   prettierConfig,
 ];

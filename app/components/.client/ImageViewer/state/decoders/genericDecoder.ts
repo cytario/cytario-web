@@ -1,12 +1,10 @@
 import { BaseDecoder } from "geotiff";
 import { LRUCache } from "lru-cache";
 
-// Vite handles ?worker&url imports and provides the worker URL
 // eslint-disable-next-line import/default
 import DecoderWorkerUrl from "./decoder.worker.js?worker&url";
 import { WorkerPool } from "./workerPool";
 
-// Constants
 const DEFAULT_WORKER_POOL_SIZE = 8;
 /** Cached decoded blocks per image: ~256 MB of decoded pixel data. */
 const MAX_CACHE_BYTES = 256 * 1024 * 1024;
@@ -60,11 +58,7 @@ export class GenericDecoder extends BaseDecoder {
     this.maxUncompressedSize = width * height * nbytes;
   }
 
-  /**
-   * Decodes a compressed image block using worker pool and caching
-   * @param inputBuffer - The compressed image block
-   * @returns Decoded image buffer
-   */
+  /** Decodes a compressed image block via the worker pool, caching by content hash. */
   async decodeBlock(inputBuffer: ArrayBuffer): Promise<ArrayBuffer> {
     if (!inputBuffer || inputBuffer.byteLength === 0) {
       throw new Error("Invalid input buffer: empty or null");
@@ -72,7 +66,6 @@ export class GenericDecoder extends BaseDecoder {
 
     const bufferHash = this.hashBuffer(inputBuffer);
 
-    // Check cache first
     const cachedResult = bufferCache.get(bufferHash);
     if (cachedResult) {
       return cachedResult;
@@ -85,7 +78,6 @@ export class GenericDecoder extends BaseDecoder {
         decoderId: this.getDecoderId(),
       });
 
-      // Cache the result
       bufferCache.set(bufferHash, outputBuffer);
       return outputBuffer;
     } catch (error) {
@@ -94,18 +86,11 @@ export class GenericDecoder extends BaseDecoder {
     }
   }
 
-  /**
-   * Returns the decoder identifier (must be overridden by subclasses)
-   */
   public getDecoderId(): string {
     return "uninitialized-decoder";
   }
 
-  /**
-   * FNV-1a hash function for ArrayBuffer - faster and better distribution than simple hash
-   * @param buffer - The buffer to hash
-   * @returns Hash value
-   */
+  /** FNV-1a — faster and better distributed than a simple hash. */
   private hashBuffer(buffer: ArrayBuffer): number {
     const FNV_OFFSET_BASIS = 2166136261;
     const FNV_PRIME = 16777619;
@@ -119,21 +104,16 @@ export class GenericDecoder extends BaseDecoder {
       hash = Math.imul(hash, FNV_PRIME);
     }
 
-    return hash >>> 0; // Convert to unsigned 32-bit integer
+    return hash >>> 0; // unsigned 32-bit
   }
 }
 
-/**
- * Drops cached decoded blocks without tearing down the pool (idle workers are
- * cheap; decoded pixel data is not). Memory-pressure reaction.
- */
+/** Memory-pressure reaction: drops cached decoded blocks without tearing down the pool. */
 export function trimDecoderCache(): void {
   bufferCache.clear();
 }
 
-/**
- * Terminates the worker pool and releases resources
- */
+/** Terminates the worker pool and releases resources. */
 export function shutdownDecoderPool(): void {
   workerPool?.terminate();
   workerPool = null;

@@ -8,8 +8,7 @@ interface LoaderDotsProps {
 }
 
 export const LoaderDots = (props: LoaderDotsProps) => (
-  // Inner uses Math.random() during render — wrap in ClientOnly so SSR
-  // doesn't disagree with hydration on the active dot's `r` attribute.
+  // Math.random() during render — ClientOnly avoids an SSR hydration mismatch.
   <ClientOnly>
     <LoaderDotsInner {...props} />
   </ClientOnly>

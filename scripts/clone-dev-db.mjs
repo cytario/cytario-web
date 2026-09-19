@@ -125,13 +125,12 @@ async function listPrimaryKeys(client, table) {
 
 async function listUniqueConstraints(client, table) {
   // Unique constraints declared via `CONSTRAINT ... UNIQUE` live in
-  // pg_constraint. Unique indexes created via `CREATE UNIQUE INDEX` (as
-  // the migration files do) do NOT get a pg_constraint row — they only
-  // appear in pg_index with indisunique=true. The clone must copy both or
-  // the recreated table silently drops the `CREATE UNIQUE INDEX`-style
-  // uniqueness, which `prisma migrate status` will not detect because the
-  // `_prisma_migrations` table is also copied (so every migration is
-  // considered applied). Returns { name, columns, style } where style is
+  // pg_constraint; unique indexes created via `CREATE UNIQUE INDEX` (as the
+  // migration files do) do NOT — they only appear in pg_index with
+  // indisunique=true. The clone must copy both or the recreated table
+  // silently drops index-style uniqueness, which `prisma migrate status` will
+  // not detect because the copied `_prisma_migrations` table marks every
+  // migration applied. Returns { name, columns, style } where style is
   // "constraint" or "index".
   const { rows: constraintRows } = await client.query(
     `SELECT con.conname AS name, array_to_string(array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)), ',') AS columns
@@ -175,7 +174,6 @@ async function countRows(client, table) {
 }
 
 async function listSequences(client) {
-  // pg_sequences exposes every sequence in a schema with its full config.
   const { rows } = await client.query(
     `SELECT sequencename AS name, data_type, start_value::text AS start_value,
     min_value::text AS min_value, max_value::text AS max_value,
@@ -184,9 +182,9 @@ async function listSequences(client) {
     FROM pg_sequences
     WHERE schemaname = 'public'`,
   );
-  // Ownership: pg_depend rows with deptype = 'a' link a sequence to the
-  // table.column it backs via a serial/bigserial DEFAULT. Prisma's
-  // introspect and `prisma migrate diff` rely on this metadata.
+  // pg_depend rows with deptype = 'a' link a sequence to the table.column it
+  // backs via a serial/bigserial DEFAULT. Prisma's introspect and
+  // `prisma migrate diff` rely on this metadata.
   const { rows: ownRows } = await client.query(
     `SELECT c.relname AS seq_name,
     format('%I.%I', t.relname, a.attname) AS owned_by
@@ -214,9 +212,9 @@ async function listSequences(client) {
 
 async function copySequences(source, target) {
   const seqs = await listSequences(source);
-  // Create bare sequences — table DDL references them via the DEFAULT
-  // expression captured from pg_attrdef. Ownership is wired in a second
-  // pass after tables exist (see linkSequenceOwnership).
+  // Bare sequences — table DDL references them via the DEFAULT expression
+  // captured from pg_attrdef; ownership is wired in a second pass after
+  // tables exist (linkSequenceOwnership).
   for (const s of seqs) {
     const cycle = s.cycle ? "CYCLE" : "NO CYCLE";
     // last_value is null for never-read sequences; fall back to start_value
@@ -236,8 +234,6 @@ async function copySequences(source, target) {
 }
 
 async function linkSequenceOwnership(source, target) {
-  // Re-list rather than threading the seq array through main() so this
-  // step stays self-contained and idempotent.
   const seqs = await listSequences(source);
   for (const s of seqs) {
     if (s.ownedBy) {
@@ -281,9 +277,8 @@ async function copyTable(source, target, table) {
 
   await target.query(`CREATE TABLE "${table}" (${colDefs}${constraints})`);
 
-  // Recreate `CREATE UNIQUE INDEX`-style unique indexes after the table
-  // (they don't belong in pg_constraint, so they can't be table
-  // constraints and must be issued after the CREATE TABLE).
+  // Index-style unique indexes must be issued after the CREATE TABLE — they
+  // cannot be table constraints.
   for (const u of uniques) {
     if (u.style === "index") {
       const cols = u.columns.map((c) => `"${c}"`).join(", ");
@@ -378,13 +373,13 @@ async function main() {
     await targetClient.query(`CREATE TYPE "${name}" AS ENUM (${labelList})`);
   }
 
-  // Copy sequences before tables — table DDL embeds DEFAULT nextval(...)
-  // captured from pg_attrdef, which fails if the sequence doesn't exist.
+  // Sequences before tables — table DDL embeds DEFAULT nextval(...) captured
+  // from pg_attrdef, which fails if the sequence doesn't exist.
   console.log("copying sequences…");
   const seqs = await copySequences(sourceClient, targetClient);
   console.log(`  ${seqs.length} sequence(s)`);
 
-  // Copy tables (including _prisma_migrations so Prisma knows what's applied).
+  // Tables (including _prisma_migrations so Prisma knows what's applied).
   console.log("copying tables…");
   const tables = await listTables(sourceClient);
   let totalRows = 0;
@@ -394,7 +389,7 @@ async function main() {
     console.log(`  ${table}: ${n} rows`);
   }
 
-  // Now that every table exists, wire sequence → column ownership so
+  // Wire sequence → column ownership now that every table exists, so
   // Prisma's introspect sees the serial binding.
   console.log("linking sequence ownership…");
   await linkSequenceOwnership(sourceClient, targetClient);

@@ -142,7 +142,8 @@ export const AnnotationThumb = ({
           label={`Actions for ${label}`}
           variant="ghost"
           size="xs"
-          // Show on thumb hover or keyboard focus-within, so the actions stay discoverable without cluttering every thumbnail.
+          // Show on thumb hover or keyboard focus-within so the actions stay
+          // discoverable without cluttering every thumbnail.
           className={`
             absolute top-0 right-0
             opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100

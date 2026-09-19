@@ -16,10 +16,7 @@ storagePickerRegistry.set(storagePicker);
 
 // Await bootstrap before hydrating so registry-derived gates (e.g. the
 // `getFileCategory` viewer gate) see plugin-contributed formats on the first
-// client render, matching the server which also awaits before SSR. Plugin
-// modules are already statically imported above, so this only waits for
-// `register()` to run — it pulls in no extra bundle. (Built-ins still register
-// lazily in ViewerStoreContext to keep viv + geotiff out of the entry chunk.)
+// client render, matching the server which also awaits before SSR.
 await bootstrapPlugins(
   {
     debug: (msg, fields) => console.debug("[plugin-bootstrap]", msg, fields ?? {}),
@@ -44,7 +41,6 @@ startTransition(() => {
   hydrateRoot(document, <HydratedRouter />);
 });
 
-// React before the renderer is OOM-killed (no JS survives the kill itself).
 // No-op on browsers without Chromium heap stats.
 startMemoryWatchdog({
   onPressure: () => {

@@ -92,13 +92,11 @@ export function BulkActions({ selectedUserIds, users, groups, onSuccess }: BulkA
     [users, selectedUserIds],
   );
 
-  // Remove: only groups at least one selected user is in
   const removeGroupOptions = useMemo(
     () => allGroupOptions.filter((o) => selectedUsers.some((u) => u.groupPaths.has(o.name))),
     [allGroupOptions, selectedUsers],
   );
 
-  // Add: only groups where at least one selected user is NOT yet a member
   const addGroupOptions = useMemo(
     () => allGroupOptions.filter((o) => selectedUsers.some((u) => !u.groupPaths.has(o.name))),
     [allGroupOptions, selectedUsers],

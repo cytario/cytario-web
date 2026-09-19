@@ -1,6 +1,6 @@
-// Pure codegen helper shared between the Vite plugin and the CLI.
-// Takes a CYTARIO_PLUGINS env string, returns the deterministic
-// contents of `app/plugins.generated.ts`.
+// Codegen helper shared between the Vite plugin and the CLI: takes a
+// CYTARIO_PLUGINS env string, returns the deterministic contents of
+// `app/plugins.generated.ts`.
 
 const NPM_NAME_RE = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
@@ -29,8 +29,8 @@ export function parseCytarioPluginsEnv(env: string | undefined): CodegenInput {
 }
 
 /**
- * Emit the contents of `app/plugins.generated.ts`. Identifiers are
- * derived by index so the raw env value never lands as a bare identifier.
+ * Emit the contents of `app/plugins.generated.ts`. Identifiers are derived
+ * by index so the raw env value never lands as a bare identifier.
  */
 export function generatePluginsModule(input: CodegenInput): string {
   const { plugins } = input;

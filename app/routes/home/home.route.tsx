@@ -40,15 +40,12 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 export { enrichConnectionsWithPreviews as clientLoader } from "~/routes/connections/connections.clientLoader";
 export { loadConnections as loader } from "~/routes/connections/connections.loader";
 
-// Response carries STS credentials — keep it out of every cache between origin
-// and browser.
+// Response carries STS credentials — keep it out of every cache.
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export default function HomeRoute() {
   const { nodes, connectionConfigs } = useLoaderData<LoaderData>();
 
-  // Recents/favorites are composed once in the protected layout; home and the
-  // sidebar both read that loader.
   const layoutData = useRouteLoaderData<typeof protectedLayoutLoader>(
     "routes/layouts/protected.layout",
   );

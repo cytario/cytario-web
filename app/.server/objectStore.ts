@@ -35,23 +35,13 @@ function requireRequestData() {
   return data;
 }
 
-/**
- * Whether a connection's grant permits general (arbitrary) object writes.
- * Read Write and Admin both allow PutObject + DeleteObject at the connection
- * prefix; Annotate allows only annotation sidecars; Read Only allows no
- * writes at all. The `objectStore` capability requires Read Write or Admin
- * for `put` and `delete` (SRS-CY-37302).
- */
+// Read Write and Admin allow arbitrary writes at the connection prefix;
+// Annotate allows only annotation sidecars; Read Only allows no writes.
+// `put` and `delete` here require Read Write or Admin.
 function permitsGeneralWrite(grants: { accessLevel: AccessLevel }[]): boolean {
   return grants.some((g) => g.accessLevel === "read-write" || g.accessLevel === "admin");
 }
 
-/**
- * Resolves a connection by id, validates the user's authorization, and
- * checks the write level for write/delete operations. Returns the
- * connection config + resolved provider attributes (role ARN, region,
- * endpoint) needed to mint an STS session.
- */
 async function resolveWritableConnection(
   connectionId: string,
   requireWrite: boolean,
@@ -105,24 +95,17 @@ async function resolveWritableConnection(
   };
 }
 
-/**
- * Builds an S3 key from the connection's prefix and the plugin-supplied key.
- * The key is relative to the connection's prefix — the host prepends the
- * prefix so the plugin cannot write outside the connection's scope.
- */
+// The plugin-supplied key is relative to the connection's prefix — the host
+// prepends the prefix so the plugin cannot write outside the connection's scope.
 function buildS3Key(prefix: string, key: string): string {
   const cleanPrefix = prefix.replace(/^\/+|\/+$/g, "");
   const cleanKey = key.replace(/^\/+/, "");
   return cleanPrefix ? `${cleanPrefix}/${cleanKey}` : cleanKey;
 }
 
-/**
- * Server-side `ObjectStore` implementation. Validates the connection + write
- * level, mints an STS session scoped to the connection's prefix, and
- * performs S3 PUT/GET/DELETE via a short-lived S3Client. The plugin never
- * sees the bucket name, the S3 credentials, or the full S3 key — it
- * provides a connection ID and a key relative to that connection's prefix.
- */
+// The plugin never sees the bucket name, the S3 credentials, or the full S3
+// key — it provides a connection ID and a key relative to that connection's
+// prefix.
 class ObjectStoreImpl implements ObjectStore {
   async put(connectionId: string, key: string, body: BodyInit): Promise<void> {
     const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
@@ -411,7 +394,7 @@ class ObjectStoreImpl implements ObjectStore {
     } catch (err: unknown) {
       // NoSuchKey → the object does not exist (a directory or a missing
       // object); return null so the plugin collapses the per-row floor to
-      // the app's fixed floor (SRS-CY-415110). Any other error propagates.
+      // the app's fixed floor. Any other error propagates.
       const name = (err as { name?: string })?.name;
       if (name === "NoSuchKey" || name === "NotFound") return null;
       throw err;

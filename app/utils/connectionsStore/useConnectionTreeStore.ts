@@ -49,17 +49,15 @@ interface LevelEntry extends RawLevel {
 }
 
 /**
- * Per-connection raw-listing cache. Keys are resolved S3 prefixes so node ids
- * (`${connectionId}/${pathName}`) stay deterministic — a cache hit returns
- * the identical node references a previous navigation rendered. Both browse
- * (loadLevel) and search (loadLevelRaw, via bfsSearch) read and write the
- * same entries: one fetch per prefix per TTL regardless of who asks, and a
- * search warms the levels browse expands later. In-memory only; entries
- * expire after `TREE_CACHE_TTL_MS`.
+ * Per-connection raw-listing cache keyed by resolved S3 prefixes so node ids
+ * stay deterministic — a cache hit returns the identical node references a
+ * previous navigation rendered. Both browse and search read/write the same
+ * entries: one fetch per prefix per TTL, and a search warms the levels browse
+ * expands later. In-memory only.
  */
 interface ConnectionTreeStore {
   levels: Record<string, Map<string, LevelEntry>>;
-  /** Cache-first single-level load returning built TreeNodes; parallel callers share one S3 request. */
+  /** Cache-first single-level load; parallel callers share one S3 request. */
   loadLevel(args: LoadConnectionLevelArgs): Promise<LoadConnectionLevelResult>;
   /** Cache-first raw listing by resolved S3 prefix — the search walk's read path. */
   loadLevelRaw(args: LoadRawLevelArgs): Promise<LevelEntry>;
@@ -171,8 +169,6 @@ export const useConnectionTreeStore = create<ConnectionTreeStore>()(
           perConnection.set(cacheKey, { ...current, nodes });
           return { levels: { ...state.levels, [connectionId]: perConnection } };
         });
-        // Parallel first loads may each build; converge on the stored nodes.
-        // ponytail: builds aren't deduped (only the S3 call is) — dedupe if profiling ever cares.
         const stored = get().levels[connectionId]?.get(cacheKey)?.nodes ?? nodes;
         return { nodes: stored, isCapped: entry.isCapped };
       },

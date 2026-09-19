@@ -19,8 +19,7 @@ export function createSectionStore(pillarId: PillarId) {
         }),
         { name: pillarId },
       ),
-      // SSR: render the default on server + first client paint, then rehydrate
-      // from localStorage in an effect (same pattern as createSidebarStore).
+      // SSR: render defaults on server + first client paint, rehydrate in an effect.
       { name: pillarId, skipHydration: true },
     ),
   );
@@ -42,7 +41,6 @@ export function SectionStoreProvider({
   return <SectionStoreContext.Provider value={store}>{children}</SectionStoreContext.Provider>;
 }
 
-// export function useSectionStore() {
 export const useSectionStore = <T,>(selector: (state: SectionStore) => T): T => {
   const store = useContext(SectionStoreContext);
   if (!store) throw new Error("useSectionStore must be used within a SectionStoreProvider");

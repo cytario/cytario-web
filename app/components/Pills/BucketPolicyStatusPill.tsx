@@ -15,11 +15,7 @@ const statuses: Record<BucketPolicyStatus, StatusConfig> = {
   externally_managed: { label: "Managed externally", color: "purple" },
 };
 
-/**
- * A connection's bucket-policy status: whether the grant this
- * connection intends is applied, has drifted from the live policy, or errored, so
- * a user recognizes a share whose grant is not (or no longer) in effect.
- */
+/** Signals whether a connection's intended bucket-policy grant is applied, drifted, or errored. */
 export function BucketPolicyStatusPill({ status }: { status: BucketPolicyStatus }) {
   const config = statuses[status] ?? statuses.none;
   return <Badge color={config.color}>{config.label}</Badge>;

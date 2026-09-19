@@ -64,8 +64,7 @@ export async function convertCsvToParquet(resourceId: string, config?: OverlayCo
     console.log(`[CSV→Parquet] → Destination: ${parquetDestination}`);
     console.log("[CSV→Parquet] ⏳ This may take a while for large datasets...");
 
-    // Convert geometry to WKT (Well-Known Text) before writing to parquet
-    // WKT is VARCHAR type which serializes better to Parquet than WKB BLOB
+    // WKT (VARCHAR) serializes better to Parquet than a WKB BLOB.
     const projection = config
       ? buildOverlayCopyProjection(config.columns, config.classes)
       : `object,
@@ -88,7 +87,6 @@ export async function convertCsvToParquet(resourceId: string, config?: OverlayCo
     console.error("[CSV→Parquet] ✗ Error during conversion:", error);
     throw error;
   } finally {
-    // Clean up resources
     if (conn) {
       await conn.close();
       console.log("[CSV→Parquet] ✓ Database connection closed");

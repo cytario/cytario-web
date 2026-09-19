@@ -16,21 +16,12 @@ const label = createLabel("job-grant", "magenta");
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
- * Authorization Code flow callback for the job-grant (SRS-CY-41901).
- *
- * Keycloak redirects here after the user consents to `offline_access`.
- * The callback:
- * 1. Validates the `state` parameter and retrieves the pending submission
- *    (and PKCE verifier) from Redis (single-use).
- * 2. Exchanges the auth code + PKCE verifier for the offline grant
- *    (refresh token + offline session id) on the job-broker client.
- * 3. Sets up a `HostRequestData` with the grant and invokes the plugin's
- *    submit phase by re-dispatching the original request to the plugin
- *    endpoint.
- * 4. Redirects the browser to the jobs view.
- *
- * The plugin's submit phase calls `ctx.host.exchangeToken()` which returns
- * the grant from the request context (no token exchange at runtime).
+ * Authorization Code flow callback for the job grant. Keycloak redirects
+ * here after the user consents to `offline_access`; the callback validates
+ * the `state`, exchanges the auth code + PKCE verifier for the offline
+ * grant on the job-broker client, sets up a `HostRequestData` with the
+ * grant, and re-dispatches the original request to the plugin's submit
+ * phase before redirecting to the jobs view.
  */
 export const loader = async (args: LoaderFunctionArgs) => {
   const { request, context } = args;
@@ -66,9 +57,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
     return redirect("/plugin/jobs?error=grant_failed");
   }
 
-  // authMiddleware has already run (in the middleware array), refreshing
-  // the session tokens and populating authContext with the fresh user +
-  // authTokens. Read from there instead of manually calling getSession.
+  // authMiddleware (in the middleware array) has already refreshed the
+  // session tokens and populated authContext — read from there instead of
+  // calling getSession again.
   const { authTokens } = context.get(authContext);
   if (!authTokens) {
     console.error(`${label} No auth tokens in session`);

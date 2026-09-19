@@ -39,8 +39,8 @@ export const usersLoader: LoaderFunction = async ({ request, context }) => {
   }
 
   const users = collectAllUsers(group);
-  // The synthesised org-root node is not a real group; hide it from the
-  // group-membership column / filter UI.
+  // The synthesised org-root node is not a real group — hide it from the
+  // group-membership UI.
   const groups = (
     scope === ORG_ROOT_SCOPE
       ? group.subGroups.flatMap((sg) => flattenGroupsWithIds(sg))

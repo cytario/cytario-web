@@ -19,10 +19,6 @@ export type {
   GrantInput,
 } from "~/.server/connections/createConnection.server";
 
-/**
- * Parse the repeating grants group from the submitted formData. The form emits
- * `grants[<index>].scope` / `grants[<index>].accessLevel` pairs.
- */
 export function parseGrants(formData: FormData): GrantInput[] {
   const indexSet = new Set<number>();
   for (const key of formData.keys()) {
@@ -39,7 +35,6 @@ export function parseGrants(formData: FormData): GrantInput[] {
 
 export const createConnection = createConnectionRecord;
 
-/** Field-level message for a P2002 unique violation on connection create. */
 export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestError) {
   const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
   if (target.includes("scope")) {

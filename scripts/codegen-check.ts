@@ -1,10 +1,8 @@
 #!/usr/bin/env tsx
 /**
- * CI guard: regenerates `app/plugins.generated.ts` from CANONICAL_PLUGINS
- * and diffs against the committed file. Ignores CYTARIO_PLUGINS env so a
+ * CI guard: regenerates `app/plugins.generated.ts` from CANONICAL_PLUGINS and
+ * diffs against the committed file. Ignores CYTARIO_PLUGINS env so a
  * locally-set value cannot make CI green only on the developer's machine.
- * When the canonical set changes, bump CANONICAL_PLUGINS and the committed
- * file together.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -18,8 +16,8 @@ const FULL_PATH = resolve(ROOT, GENERATED_PATH);
 
 /**
  * Canonical plugin set for the committed `app/plugins.generated.ts`.
- * Empty in the upstream host — downstream assemblers set
- * `CYTARIO_PLUGINS` at build time and regenerate locally (not committed).
+ * Empty in the upstream host — downstream assemblers set `CYTARIO_PLUGINS`
+ * at build time and regenerate locally (not committed).
  */
 const CANONICAL_PLUGINS: ReadonlyArray<string> = [];
 

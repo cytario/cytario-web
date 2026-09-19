@@ -4,14 +4,9 @@ import { useSearchParams } from "react-router";
 import type { ModalName } from "~/routes/layouts/ModalOutlet";
 
 /**
- * Hook for opening and closing search-param-driven modals.
- *
- * - `openModal` pushes a history entry so the browser back button closes the modal.
- *   Extra `params` are stored as search params alongside `?modal=<name>`.
- *   Captures the active element so focus can be restored on close.
- * - `closeModal` replaces the current entry (no extra history) and removes
- *   `modal` plus any extra keys added by `openModal` in a single navigation.
- *   Restores focus to the element that triggered the modal.
+ * `openModal` pushes a history entry (browser back closes the modal) and
+ * captures the active element; `closeModal` replaces the entry and restores
+ * focus.
  */
 export function useModal() {
   const [searchParams, setSearchParams] = useSearchParams();

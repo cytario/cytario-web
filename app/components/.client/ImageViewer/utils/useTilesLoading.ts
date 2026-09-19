@@ -6,7 +6,6 @@ export const useTilesLoading = (
 ) => {
   const loadingSet = useRef(new Set<string>());
 
-  // Tile loading state
   const loadTile = useCallback(
     (id: string) => {
       loadingSet.current.add(id);

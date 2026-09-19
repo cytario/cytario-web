@@ -23,7 +23,7 @@ export function hasCompanionDirectory(name: string): boolean {
 
 /**
  * Directory prefixes to hide: `slide.mrxs` ⇒ `slide/`, `OS-1.vsi` ⇒
- * `_OS-1_/` (per the format's `companionDir` template). Match via startsWith.
+ * `_OS-1_/` (per the format's `companionDir` template).
  */
 export function companionDirectoryPrefixes(keys: readonly string[]): Set<string> {
   const hidden = new Set<string>();

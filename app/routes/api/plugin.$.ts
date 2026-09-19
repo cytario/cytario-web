@@ -16,11 +16,10 @@ import { jsonError } from "~/.server/httpResponse";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
 
 /**
- * Plugin-contributed server-endpoint dispatch.
- *
- * Plugins register endpoints under `/api/plugin/*` via `ctx.serverEndpoints`
- * during bootstrap; this splat resource route matches the incoming pathname
- * against `serverEndpointRegistry.list()` and delegates to the contribution's
+ * Plugin-contributed server-endpoint dispatch. Plugins register endpoints
+ * under `/api/plugin/*` via `ctx.serverEndpoints` during bootstrap; this splat
+ * resource route matches the incoming pathname against
+ * `serverEndpointRegistry.list()` and delegates to the contribution's
  * `loader` (GET/HEAD) or `action` (mutations).
  *
  * Auth split:
@@ -28,26 +27,21 @@ import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
  *   token-refresh, active-org check), so `identity` is resolved when plugin
  *   code runs.
  * - `"deployment-secret"` / `"webhook-secret"` carve-outs run outside the
- *   session gate with an org-agnostic `HostRequestData` so a cross-org
- *   reconciler (`JobLedger.listAll`) can run, after the host constant-time
- *   verifies the bearer credential against the auth mode's env secret
- *   (fail-closed on absent configuration).
+ *   session gate with an org-agnostic `HostRequestData` (after a
+ *   constant-time bearer-secret verification) so a cross-org reconciler can
+ *   run.
  * - `"job-token"` carve-outs run outside the session gate: the host verifies
  *   the bearer token's signature, issuer, and audience and builds a
- *   `HostRequestData` from the verified claims so host capabilities
- *   (`jobLedger`, `assumeComputeRole`) resolve org/owner from the token, not
- *   a session. A token that fails verification returns 401. A token whose
- *   `organization` claim carries multiple org keys (a multi-organization
- *   user) has no unambiguous active org and is rejected; this dispatch has
- *   no ledger lookup to resolve one. A token with no org claim at all is
- *   likewise rejected.
+ *   `HostRequestData` from the verified claims. A token that fails
+ *   verification returns 401; a token with multiple or no org keys is
+ *   likewise rejected (no unambiguous active org).
  *
- * `sessionMiddleware` runs as route middleware so a session-auth dispatch can
- * read the resolved session without re-running the session loader; it does
- * not gate carve-outs (they ignore the session).
+ * `sessionMiddleware` runs as route middleware so a session-auth dispatch
+ * can read the resolved session without re-running the session loader; it
+ * does not gate carve-outs.
  *
- * Unmatched `/api/plugin/*` paths return 404 JSON so this splat does not shadow
- * the `*` fallback's 200-HTML behaviour.
+ * Unmatched paths return 404 JSON so this splat does not shadow the `*`
+ * fallback's 200-HTML behaviour.
  */
 export const middleware = [sessionMiddleware];
 
@@ -64,8 +58,6 @@ async function dispatchSession(
   contribution: { loader?: RouteLoader; action?: RouteAction },
   params: Record<string, string | undefined>,
 ): Promise<Response> {
-  // Reuse the host's authMiddleware exactly: gate, token-refresh, active-org
-  // check. `next` runs the plugin loader/action with the resolved identity.
   // `authMiddleware` is typed as `MiddlewareFunction` (Result defaults to
   // unknown); runtime always yields a Response — redirect, gate deny,
   // logout, or the plugin handler's return.
@@ -79,10 +71,6 @@ async function dispatchSession(
   return result;
 }
 
-/**
- * Extracts the bearer token from the `Authorization` header (RFC 6750),
- * returning `null` when absent or malformed.
- */
 function readBearerToken(request: Request): string | null {
   const header = request.headers.get("Authorization");
   if (!header) return null;
@@ -113,8 +101,8 @@ async function dispatchCarveOut(
     );
   }
 
-  // deployment-secret / webhook-secret: constant-time bearer-secret check
-  // first — these dispatch org-agnostic, so the secret is the only gate.
+  // Constant-time bearer-secret check first — these dispatch org-agnostic,
+  // so the secret is the only gate.
   if (!verifyCarveOutSecret(args.request, contribution.auth)) {
     return jsonError(401, "The shared secret failed verification.");
   }

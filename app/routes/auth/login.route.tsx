@@ -19,17 +19,9 @@ export const meta: MetaFunction = () => {
 
 const label = createLabel("login", "blue");
 
-/**
- * OAuth 2.0 Authorization Code Flow - Login Initiator
- *
- * This route redirects users to Keycloak for authentication using the modern
- * Authorization Code Flow with PKCE instead of the deprecated Resource Owner
- * Password Credentials (ROPC).
- */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.info(`${label} Login initiated`);
 
-  // Check if user is already authenticated
   const session = await getSession(request);
   const user = session.get("user");
 
@@ -39,22 +31,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
-    // Get the redirect parameter to return user to intended page after login
     const url = new URL(request.url);
     const redirectTo = url.searchParams.get("redirect");
 
-    // Validate redirect at ingress to prevent open redirect
     const safeRedirectTo = validateRedirectTo(redirectTo || undefined);
 
-    // Generate state, PKCE, and nonce for CSRF/replay protection
     const { state, codeChallenge, nonce } = await generateOAuthState(
       safeRedirectTo === "/" ? undefined : safeRedirectTo,
     );
 
-    // Get Keycloak endpoints
     const wellKnownEndpoints = await getWellKnownEndpoints();
 
-    // Build authorization URL
     const redirectUri = `${cytarioConfig.endpoints.webapp}/auth/callback`;
     const authUrl = new URL(wellKnownEndpoints.authorization_endpoint);
     authUrl.searchParams.set("client_id", cytarioConfig.auth.clientId);
@@ -68,7 +55,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     console.info(`${label} Redirecting to Keycloak authorization endpoint`);
 
-    // Redirect user to Keycloak login page
     return redirect(authUrl.toString());
   } catch (error) {
     console.error(`${label} Failed to initiate login:`, error);
@@ -78,7 +64,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-// Loading state shown briefly before redirect fires
 export default function LoginRoute() {
   return (
     <div className="flex items-center justify-center h-screen">

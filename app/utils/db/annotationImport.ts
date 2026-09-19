@@ -2,7 +2,7 @@ import type { AnnotationFeature } from "./annotationSchema";
 import { validAnnotationFeatures } from "./annotationSchema";
 
 /** An annotation export file picked or dropped by the user (QuPath-style
- *  GeoJSON FeatureCollection, `.json` or `.geojson`). */
+ *  GeoJSON FeatureCollection). */
 export function isAnnotationImportFile(file: File): boolean {
   return /\.(json|geojson)$/i.test(file.name);
 }

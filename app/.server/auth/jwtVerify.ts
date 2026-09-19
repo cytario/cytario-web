@@ -12,11 +12,6 @@ const getJwks = async () => {
   return remoteJwks;
 };
 
-/**
- * Verifies a JWT's signature and issuer against the OIDC provider's JWKS,
- * with a 30-second clock tolerance. When `audience` is supplied it is
- * validated; otherwise the audience claim is not checked.
- */
 export const verifyToken = async (token: string, audience?: string): Promise<JWTPayload | null> => {
   try {
     const jwks = await getJwks();

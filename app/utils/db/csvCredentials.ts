@@ -6,8 +6,8 @@ type Queryable = { query: (sql: string) => Promise<unknown> };
 
 /**
  * Whole-file CSV→Parquet conversion holds the CSV in the JS heap and a copy in
- * the DuckDB worker heap (~2× file size peak). Mirrors the 256 MB download
- * ceiling: beyond this, refuse rather than risk the renderer OOM kill.
+ * the DuckDB worker heap (~2× file size peak): beyond this, refuse rather than
+ * risk the renderer OOM kill.
  */
 export const CSV_CONVERSION_MAX_BYTES = 256 * 1024 * 1024;
 

@@ -12,9 +12,6 @@ import { cytarioConfig } from "~/config";
 
 const label = createLabel("auth-callback", "cyan");
 
-/**
- * Redirects to login with an error notification stored in the session.
- */
 const failWithNotification = async (request: Request, message: string) => {
   const session = await getSession(request);
   session.set("notification", { status: "error" as const, message });
@@ -23,10 +20,6 @@ const failWithNotification = async (request: Request, message: string) => {
   });
 };
 
-/**
- * OAuth 2.0 Authorization Code Flow callback handler.
- * This route receives the authorization code from Keycloak after successful authentication.
- */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.info(`${label} Callback received`);
 
@@ -36,7 +29,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const error = url.searchParams.get("error");
   const errorDescription = url.searchParams.get("error_description");
 
-  // Handle errors from authorization server
   if (error) {
     // A silent re-auth (prompt=none) has no usable SSO session — this is an
     // expected outcome, not a failure. Fall back to interactive login,
@@ -56,14 +48,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
   }
 
-  // Validate required parameters
   if (!code || !state) {
     console.error(`${label} Missing code or state parameter`);
     return failWithNotification(request, "Authentication failed. Missing required parameters.");
   }
 
   try {
-    // Validate state to prevent CSRF attacks (atomic GETDEL)
+    // Atomic GETDEL: one-shot state consumption prevents CSRF replay.
     const stateData = await validateOAuthState(state);
     if (!stateData) {
       console.error(`${label} Invalid or expired state parameter`);
@@ -78,14 +69,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     console.info(`${label} State validated successfully`);
 
-    // Build the redirect URI (must match what was sent to authorization endpoint)
     const redirectUri = `${cytarioConfig.endpoints.webapp}/auth/callback`;
 
-    // Exchange authorization code for tokens with PKCE verifier
     console.info(`${label} Exchanging authorization code for tokens`);
     const tokens = await exchangeAuthCode(code, redirectUri, stateData.codeVerifier);
 
-    // Verify ID token signature via JWKS and validate nonce from verified payload
     const idTokenPayload = await verifyIdToken(tokens.id_token);
     if (!idTokenPayload) {
       console.error(`${label} ID token signature verification failed`);
@@ -97,7 +85,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return failWithNotification(request, "Authentication failed. Please try again.");
     }
 
-    // Get user info using the access token
     console.info(`${label} Fetching user info`);
     const user = await getUserInfo(tokens.access_token);
 
@@ -106,7 +93,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       message: `Welcome, ${user.email}!`,
     };
 
-    // Create session with user data and tokens
     const session = await getSession(request);
     session.set("user", user);
     session.set("authTokens", {
@@ -116,7 +102,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
     session.set("notification", notification);
 
-    // Redirect to the originally requested page or default to home
     const redirectTo = validateRedirectTo(stateData.redirectTo);
     console.info(`${label} Authentication successful, redirecting to:`, redirectTo);
 
@@ -129,7 +114,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-// This route only handles redirects, no UI needed
 export default function CallbackRoute() {
   return null;
 }
