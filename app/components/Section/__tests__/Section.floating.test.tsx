@@ -184,13 +184,17 @@ describe("Section float/dock", () => {
   test("floating width follows the pillar; panels scroll their own overflow", async () => {
     const { user, store } = renderSections();
 
+    await user.click(screen.getByRole("button", { name: "Float Overview" }));
     await user.click(screen.getByRole("button", { name: "Float Views" }));
     await user.click(screen.getByRole("button", { name: "Float Channels" }));
 
-    expect(store.getState().floating.views.rect.width).toBe(FLOAT_PANEL_WIDTH);
-    // One container token step above @lg so the 3-column reflow survives chrome.
+    expect(store.getState().floating.overview.rect.width).toBe(FLOAT_PANEL_WIDTH);
+    // Pillars with a 3-column SectionGrid spawn one container token step above
+    // @lg so the reflow survives panel chrome and scrollbars.
+    expect(store.getState().floating.views.rect.width).toBe(36 * 16);
     expect(store.getState().floating.channels.rect.width).toBe(36 * 16);
-    expect(panel("Channels")).toHaveClass("overflow-y-auto");
+    const floated = panel("Channels");
+    expect(floated).toHaveClass("overflow-y-auto", "backdrop-blur-sm");
   });
 
   test("arrow keys on the grip move a floating panel, Shift steps 96px, focus stays", async () => {

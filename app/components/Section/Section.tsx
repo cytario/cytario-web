@@ -16,11 +16,15 @@ import { FLOATING_PANEL_ATTR, useFloatingSection } from "~/components/Sidebar/Si
 import { PILLARS, type PillarId } from "~/utils/pillars";
 
 // The panel itself is the scroll container; its header is already sticky.
+// Translucency + blur like the drawing FloatingBar (Toolbar) — children in the
+// sticky header zone carry their own translucent layer so scrolled content is
+// masked underneath; the body stays transparent over the root's blurred bg.
 const FLOATING_PANEL_CLASSES =
-  "overflow-x-hidden overflow-y-auto rounded-lg border border-border shadow-lg";
+  "overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-background/80 backdrop-blur-sm shadow-lg";
+const TRANSLUCENT_CLASSES = "bg-background/80 backdrop-blur-sm";
 
 /** Pillars whose body reflows to a 3-column SectionGrid when given room. */
-const THREE_COLUMN_PILLARS = new Set<PillarId>(["channels", "overlays"]);
+const THREE_COLUMN_PILLARS = new Set<PillarId>(["views", "channels", "overlays"]);
 /** SectionGrid shows its 3rd column at the @lg container token (--container-lg,
  *  32rem) — but the panel's own chrome (1px borders, classic scrollbars take
  *  inline space) shrinks the measured @container below the token. Spawn wide
@@ -339,10 +343,13 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
                 <Icon icon={isOpen ? "ChevronDown" : "ChevronRight"} size="xs" />
               )
             }
+            className={isFloating ? TRANSLUCENT_CLASSES : undefined}
           />
 
           {/* Sticky content via props, e.g. Histogram */}
-          {effectiveOpen && <div className="bg-background">{header}</div>}
+          {effectiveOpen && (
+            <div className={isFloating ? TRANSLUCENT_CLASSES : "bg-background"}>{header}</div>
+          )}
         </header>
 
         {/* CSS grid 0fr/1fr collapse animates to measured content height with
@@ -355,7 +362,11 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
           aria-hidden={!effectiveOpen || undefined}
           inert={!effectiveOpen || undefined}
         >
-          <div className="min-h-0 overflow-hidden bg-card">{children}</div>
+          <div
+            className={twMerge("min-h-0 overflow-hidden bg-card", isFloating && "bg-transparent")}
+          >
+            {children}
+          </div>
         </div>
       </motion.div>
     </>
