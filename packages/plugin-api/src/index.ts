@@ -65,6 +65,8 @@ export type {
   ConnectionProjection,
   ComputeConnectionProjection,
   CatalogConnectionProjection,
+  RegistryKind,
+  CatalogCredentialMode,
   ConnectionFetch,
   ObjectStore,
   StorageEntry,

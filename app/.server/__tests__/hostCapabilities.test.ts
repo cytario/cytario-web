@@ -110,6 +110,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
           accessAccountSecret: "secret-token",
           enabled: true,
           status: "connected",
+          registryKind: "harbor",
           allowedGroups: ["lab/team-a", "lab/team-b"],
         },
         {
@@ -121,6 +122,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
           accessAccountSecret: "secret-token-2",
           enabled: true,
           status: "connected",
+          registryKind: "harbor",
           allowedGroups: [],
         },
         {
@@ -132,6 +134,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
           accessAccountSecret: "secret-token-3",
           enabled: false,
           status: "connected",
+          registryKind: "harbor",
           allowedGroups: ["lab/team-c"],
         },
       ],
@@ -155,6 +158,57 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
       allowedGroups: [],
     });
     expect(projections.find((p) => p.id === "ac-disabled")).toBeUndefined();
+
+    getProviderCatalogMock.mockReset();
+  });
+
+  test("catalogConnections projection carries registryKind + credentialMode (SDS-CY-080201 / SRS-CY-414102)", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [],
+      computeRoles: [],
+      appCatalogs: [
+        {
+          id: "ac-oci",
+          displayName: "Public OCI Catalog",
+          registryEndpoint: "https://registry.example.com",
+          namespace: "cytario",
+          // credential-less: no account id, no secret
+          enabled: true,
+          status: "connected",
+          registryKind: "oci-catalog",
+          allowedGroups: [],
+        },
+        {
+          id: "ac-harbor",
+          displayName: "Harbor Catalog",
+          registryEndpoint: "https://harbor.example.com",
+          namespace: "cytario",
+          accessAccountId: "robot$harbor",
+          accessAccountSecret: "secret-token",
+          enabled: true,
+          status: "connected",
+          registryKind: "harbor",
+          allowedGroups: [],
+        },
+      ],
+    } satisfies ProviderCatalog);
+
+    const projections = await withHostRequestContext(mockRequestData, async () =>
+      hostCapabilities.catalogConnections(),
+    );
+
+    // The oci-catalog catalog carries its kind and the anonymous mode.
+    expect(projections.find((p) => p.id === "ac-oci")).toMatchObject({
+      registryKind: "oci-catalog",
+      credentialMode: "anonymous",
+    });
+    // A kindless catalog defaults to harbor and carries the connection mode.
+    expect(projections.find((p) => p.id === "ac-harbor")).toMatchObject({
+      registryKind: "harbor",
+      credentialMode: "connection",
+    });
 
     getProviderCatalogMock.mockReset();
   });
