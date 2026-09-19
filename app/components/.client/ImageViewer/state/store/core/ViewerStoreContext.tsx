@@ -39,12 +39,13 @@ export const ViewerStoreProvider = ({
   const metadata = useStore(store, select.metadata);
   const channelsState = useStore(store, select.channelsState);
   const addChannelsState = useStore(store, select.addChannelsState);
+  const sharedViewsLoaded = useStore(store, select.sharedViewsLoaded);
 
   useEffect(() => {
-    if (!channelsState && metadata) {
+    if (!channelsState && metadata && sharedViewsLoaded) {
       addChannelsState();
     }
-  }, [metadata, channelsState, addChannelsState]);
+  }, [metadata, channelsState, addChannelsState, sharedViewsLoaded]);
 
   const ensureLoaded = useRef(ensureViewerLoaded);
   useEffect(() => {
