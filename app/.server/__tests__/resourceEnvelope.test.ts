@@ -151,6 +151,14 @@ describe("mapResourceEnvelope", () => {
     });
   });
 
+  test("accepts a partial admin-portal blob", () => {
+    expect(mapResourceEnvelope({ vcpu: "8", gpuCount: 2 })).toEqual({
+      cpu: "8",
+      gpu: 2,
+    });
+    expect(mapResourceEnvelope({ gpuCount: 0 })).toEqual({ gpu: 0 });
+  });
+
   test("prefers cpu over vcpu and gpu over gpuCount", () => {
     expect(mapResourceEnvelope({ cpu: "2000m", vcpu: 4, gpu: 1, gpuCount: 2 })).toEqual({
       cpu: "2000m",
@@ -162,6 +170,12 @@ describe("mapResourceEnvelope", () => {
     expect(mapResourceEnvelope({ vcpu: 1.5, memory: "4Gi", gpuCount: 1.5 })).toEqual({
       memory: "4Gi",
     });
+  });
+
+  test("an unusable alias does not shadow a usable one", () => {
+    expect(mapResourceEnvelope({ cpu: 1.5, vcpus: 4 })).toEqual({ cpu: "4" });
+    expect(mapResourceEnvelope({ cpu: true, vcpu: 2 })).toEqual({ cpu: "2" });
+    expect(mapResourceEnvelope({ gpu: 1.5, gpuCount: 3 })).toEqual({ gpu: 3 });
   });
 
   test("ignores unknown fields", () => {

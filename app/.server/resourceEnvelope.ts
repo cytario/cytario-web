@@ -1,21 +1,24 @@
 import type { ProviderResourceEnvelope } from "@cytario/plugin-api";
 
 // Tolerates both the Kubernetes-quantity shape ({ cpu: "2000m", memory: "8Gi",
-// ... }) and the AWS-Batch shape ({ vcpu: 4, memory: 16384, gpuCount: 1 }) where
-// `memory` is a MiB integer and the CPU count is a whole number; the latter is
-// translated to the former.
+// ... }) and the admin-portal shape ({ vcpu: 4, memory: 16384, gpuCount: 1 })
+// where `memory` is a MiB integer and the CPU count is a whole number; the
+// latter is translated to the former.
 export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | undefined {
   if (raw === null || typeof raw !== "object") return undefined;
   const obj = raw as Record<string, unknown>;
 
   const envelope: ProviderResourceEnvelope = {};
 
-  // CPU: accept Kubernetes quantity ("2000m", "2") or legacy whole-core
-  // integer under `cpu` / `vcpus` / `vcpu`.
-  const cpuRaw = obj.cpu ?? obj.vcpus ?? obj.vcpu;
+  // CPU: accept Kubernetes quantity ("2000m", "2") or a whole-core integer
+  // under `cpu`, or the legacy `vcpus` / the admin-portal `vcpu`. The first
+  // *usable* alias wins, so an unusable value does not shadow a later one.
+  const cpuRaw = [obj.cpu, obj.vcpus, obj.vcpu].find(
+    (v) => typeof v === "string" || (typeof v === "number" && Number.isInteger(v)),
+  );
   if (typeof cpuRaw === "string") {
     envelope.cpu = cpuRaw;
-  } else if (typeof cpuRaw === "number" && Number.isInteger(cpuRaw)) {
+  } else if (typeof cpuRaw === "number") {
     envelope.cpu = String(cpuRaw);
   }
 
@@ -31,9 +34,12 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
     envelope.ephemeralStorage = obj.ephemeralStorage;
   }
 
-  // GPU: integer count. Accept `gpu` (preferred), `gpus` or `gpuCount`.
-  const gpuRaw = obj.gpu ?? obj.gpus ?? obj.gpuCount;
-  if (typeof gpuRaw === "number" && Number.isInteger(gpuRaw) && gpuRaw >= 0) {
+  // GPU: integer count. Accept `gpu` (preferred), `gpus` or the admin-portal
+  // `gpuCount`; as with CPU, the first usable alias wins.
+  const gpuRaw = [obj.gpu, obj.gpus, obj.gpuCount].find(
+    (v) => typeof v === "number" && Number.isInteger(v) && v >= 0,
+  );
+  if (typeof gpuRaw === "number") {
     envelope.gpu = gpuRaw;
   }
 
