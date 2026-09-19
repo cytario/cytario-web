@@ -9,6 +9,7 @@ import {
   LayerChannelsState,
   ViewerStore,
 } from "./types";
+import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const EMPTY_OBJECT = Object.freeze({});
 
@@ -244,7 +245,7 @@ export const select = {
 
   overlaysFillOpacity: (state: ViewerStore) => {
     const layerState = getLayersState(state);
-    return layerState?.overlaysFillOpacity ?? 0.8;
+    return layerState?.overlaysFillOpacity ?? DEFAULT_OVERLAYS_FILL_OPACITY;
   },
   setOverlaysFillOpacity: (state: ViewerStore) => state.setOverlaysFillOpacity,
 

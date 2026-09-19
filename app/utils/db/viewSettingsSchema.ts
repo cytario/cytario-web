@@ -5,6 +5,7 @@ import type {
   LayersStateEntry,
   RGB,
 } from "~/components/.client/ImageViewer/state/store/types";
+import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const SCHEMA_VERSION = "1.1";
 
@@ -70,7 +71,7 @@ export const viewSettingsChannelSchema = z.object({
   ),
   channelsOpacity: z.number().default(1),
   overlays: sidecarOverlaysSchema.default({}),
-  overlaysFillOpacity: z.number().default(0.8),
+  overlaysFillOpacity: z.number().default(DEFAULT_OVERLAYS_FILL_OPACITY),
   showCellOutline: z.boolean().default(true),
   annotationsOpacity: z.number().default(1),
   showAnnotationOutline: z.boolean().default(true),

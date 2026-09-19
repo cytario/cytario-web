@@ -9,6 +9,7 @@ import type { ViewSlice } from "./core/viewport.store";
 import type { OverlaysSlice } from "./overlays/overlays.store";
 import type { ViewsSlice } from "./views/views.store";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
+import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 export type { OverlayConfig };
 
@@ -84,7 +85,7 @@ export const createDefaultLayersStateEntry = (author = ""): LayersStateEntry => 
   channels: {},
   overlays: {},
   channelsOpacity: 1,
-  overlaysFillOpacity: 0.5,
+  overlaysFillOpacity: DEFAULT_OVERLAYS_FILL_OPACITY,
   showCellOutline: true,
   annotationsOpacity: 0.5,
   showAnnotationOutline: true,
