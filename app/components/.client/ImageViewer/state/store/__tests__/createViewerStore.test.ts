@@ -1181,13 +1181,13 @@ describe("createViewerStore", () => {
       expect(newPreset.annotationsOpacity).toBe(0.5);
     });
 
-    test("selects first shared view when shared views are preloaded", () => {
-      const store = createViewerStore("test-viewer-33c");
+    test("adopts a peer shared view on first visit when no own view exists", () => {
+      const store = createViewerStore("test-viewer-33c", "user-self");
 
-      const sharedView = createMockLayersState();
-      sharedView.author = "other-user";
-      sharedView.shared = true;
-      sharedView.channels = {
+      const peerView = createMockLayersState();
+      peerView.author = "other-user";
+      peerView.shared = true;
+      peerView.channels = {
         Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
       };
 
@@ -1195,7 +1195,7 @@ describe("createViewerStore", () => {
         imagePanelIndex: -1,
         metadata: { Pixels: { Channels: [] } } as unknown as Image,
         loader: [{}] as unknown as Loader,
-        layersStates: [sharedView],
+        layersStates: [peerView],
       });
 
       vi.mocked(getInitialChannelsState).mockReturnValue({
@@ -1207,8 +1207,78 @@ describe("createViewerStore", () => {
       store.getState().addChannelsState();
 
       const state = store.getState();
+      // Peer view adopted read-only — no fresh default entry is pushed.
+      // The first write auto-forks it into the user's own views.
       expect(state.layersStates).toHaveLength(1);
       expect(state.imagePanels[0]).toBe(0);
+    });
+
+    test("selects the user's own stored shared view on first visit", () => {
+      const store = createViewerStore("test-viewer-33e", "user-self");
+
+      const ownView = createMockLayersState();
+      ownView.author = "user-self";
+      ownView.shared = true;
+      ownView.channels = {
+        Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+      };
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        layersStates: [ownView],
+      });
+
+      vi.mocked(getInitialChannelsState).mockReturnValue({
+        channelsState: createMockChannels(),
+        channelIds: ["Red", "Green"],
+        firstChannelKey: "Red",
+      });
+
+      store.getState().addChannelsState();
+
+      const state = store.getState();
+      // Own shared view adopted — no new default view created.
+      expect(state.layersStates).toHaveLength(1);
+      expect(state.imagePanels[0]).toBe(0);
+    });
+
+    test("prefers the user's own shared view over a peer view on first visit", () => {
+      const store = createViewerStore("test-viewer-33f", "user-self");
+
+      const peerView = createMockLayersState();
+      peerView.author = "other-user";
+      peerView.shared = true;
+      peerView.channels = {
+        Red: { isVisible: true, contrastLimits: [0, 200], color: [255, 0, 0] },
+      };
+      const ownView = createMockLayersState();
+      ownView.author = "user-self";
+      ownView.shared = true;
+      ownView.channels = {
+        Green: { isVisible: true, contrastLimits: [0, 1000], color: [0, 255, 0] },
+      };
+
+      store.setState({
+        imagePanelIndex: -1,
+        metadata: { Pixels: { Channels: [] } } as unknown as Image,
+        loader: [{}] as unknown as Loader,
+        layersStates: [peerView, ownView],
+      });
+
+      vi.mocked(getInitialChannelsState).mockReturnValue({
+        channelsState: createMockChannels(),
+        channelIds: ["Red", "Green"],
+        firstChannelKey: "Red",
+      });
+
+      store.getState().addChannelsState();
+
+      const state = store.getState();
+      expect(state.layersStates).toHaveLength(2);
+      // Own view lives at index 1 — that's what the active panel should point at.
+      expect(state.imagePanels[0]).toBe(1);
     });
 
     test("selects default view when no shared views are preloaded", () => {
