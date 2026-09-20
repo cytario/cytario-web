@@ -1,4 +1,4 @@
-import { Icon, IconButton } from "@cytario/design";
+import { Icon, IconButton, type IconName } from "@cytario/design";
 import { motion, useMotionValue } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
@@ -12,7 +12,6 @@ import {
   type FloatRect,
 } from "~/components/Sidebar/createSidebarStore";
 import { FLOATING_PANEL_ATTR, useSectionHandle } from "~/components/Sidebar/SidebarContext";
-import { PILLARS, type PillarId } from "~/utils/pillars";
 
 // The panel itself is the scroll container; its header is already sticky.
 // Translucency + blur like the drawing FloatingBar (Toolbar) — children in the
@@ -21,17 +20,6 @@ import { PILLARS, type PillarId } from "~/utils/pillars";
 const FLOATING_PANEL_CLASSES =
   "overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-background/80 backdrop-blur-sm shadow-lg";
 const TRANSLUCENT_CLASSES = "bg-background/80 backdrop-blur-sm";
-
-/** Pillars whose body reflows to a 3-column SectionGrid when given room. */
-const THREE_COLUMN_PILLARS = new Set<PillarId>(["views", "channels", "overlays"]);
-/** SectionGrid shows its 3rd column at the @lg container token (--container-lg,
- *  32rem) — but the panel's own chrome (1px borders, classic scrollbars take
- *  inline space) shrinks the measured @container below the token. Spawn wide
- *  pillars one container step above it (--container-xl, 36rem) so the 3-column
- *  reflow is guaranteed. */
-const SECTION_GRID_3COL_WIDTH = 36 * 16;
-const floatWidth = (pillar: PillarId) =>
-  THREE_COLUMN_PILLARS.has(pillar) ? SECTION_GRID_3COL_WIDTH : FLOAT_PANEL_WIDTH;
 
 /** Pointer travel before a header drag detaches a docked section. */
 const DETACH_THRESHOLD_PX = 8;
@@ -45,7 +33,12 @@ const GRAB_OFFSET = { x: 12, y: 8 };
 const SPAWN_X_NUDGE_PX = 8;
 
 interface SectionProps {
-  pillar: PillarId;
+  /** Store key — also anchors the persisted state and the a11y ids. */
+  id: string;
+  title: string;
+  icon: IconName;
+  /** Floating panel width — callers pass their content's reflow breakpoint. */
+  floatWidth?: number;
   badge?: string;
   actions?: React.ReactNode;
   header?: React.ReactNode;
@@ -65,7 +58,8 @@ interface DragGesture {
 }
 
 interface FloatDockButtonProps {
-  pillar: PillarId;
+  title: string;
+  icon: IconName;
   isFloating: boolean;
   onPress: () => void;
   className?: string;
@@ -75,14 +69,14 @@ interface FloatDockButtonProps {
 
 /** Merged float/dock control, shared by the panel header and the sidebar placeholder. */
 function FloatDockButton({
-  pillar,
+  title,
+  icon,
   isFloating,
   onPress,
   className,
   isDisabled,
   ref,
 }: FloatDockButtonProps) {
-  const { title, icon } = PILLARS[pillar];
   return (
     <IconButton
       ref={ref}
@@ -96,9 +90,17 @@ function FloatDockButton({
   );
 }
 
-export function Section({ pillar, badge, actions, header, children }: SectionProps) {
-  const { title, icon } = PILLARS[pillar];
-  const floating = useSectionHandle(pillar);
+export function Section({
+  id,
+  title,
+  icon,
+  floatWidth,
+  badge,
+  actions,
+  header,
+  children,
+}: SectionProps) {
+  const floating = useSectionHandle(id);
   const floatButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
@@ -107,8 +109,8 @@ export function Section({ pillar, badge, actions, header, children }: SectionPro
   const y = useMotionValue(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const titleId = `section-${pillar}-title`;
-  const contentId = `section-${pillar}-content`;
+  const titleId = `section-${id}-title`;
+  const contentId = `section-${id}-content`;
   const isFloating = floating?.isFloating ?? false;
   // 3-state model (SRS-CY-33306), one record in the sidebar store: floating
   // panels render expanded; docking restores the section's own open state.
@@ -130,7 +132,7 @@ export function Section({ pillar, badge, actions, header, children }: SectionPro
             {
               x: dockedRect.left - floating.bounds.left - SPAWN_X_NUDGE_PX,
               y: dockedRect.top - floating.bounds.top,
-              width: floatWidth(pillar),
+              width: floatWidth ?? FLOAT_PANEL_WIDTH,
             },
             floating.bounds,
           ),
@@ -214,12 +216,12 @@ export function Section({ pillar, badge, actions, header, children }: SectionPro
       const dx = info.point.x - g.startX;
       const dy = info.point.y - g.startY;
       if (Math.hypot(dx, dy) < DETACH_THRESHOLD_PX) return;
-      // Detach: spawn at the pointer at the pillar's float width.
+      // Detach: spawn at the pointer at the section float width.
       const spawn = clampFloatRect(
         {
           x: info.point.x - floating.bounds.left - GRAB_OFFSET.x,
           y: info.point.y - floating.bounds.top - GRAB_OFFSET.y,
-          width: floatWidth(pillar),
+          width: floatWidth ?? FLOAT_PANEL_WIDTH,
         },
         floating.bounds,
       );
@@ -327,7 +329,8 @@ export function Section({ pillar, badge, actions, header, children }: SectionPro
     <motion.div className="flex items-center" onKeyDown={onGripKeyDown}>
       <FloatDockButton
         ref={floatButtonRef}
-        pillar={pillar}
+        title={title}
+        icon={icon}
         isFloating={isFloating}
         isDisabled={!floating.canFloat}
         className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
@@ -352,7 +355,7 @@ export function Section({ pillar, badge, actions, header, children }: SectionPro
             // null the panel's ref. The wrapper centers it like the panel's does.
             leadingControl={
               <div className="flex items-center">
-                <FloatDockButton pillar={pillar} isFloating onPress={toggleFloat} />
+                <FloatDockButton title={title} icon={icon} isFloating onPress={toggleFloat} />
               </div>
             }
           />
@@ -373,7 +376,7 @@ export function Section({ pillar, badge, actions, header, children }: SectionPro
       >
         <header className="z-10 sticky top-0 left-0">
           <SectionHeaderRow
-            // The static icon yields to the control's pillar icon exactly where
+            // The static icon yields to the control icon exactly where
             // the control exists; non-floatable sidebars keep the static icon.
             icon={floating?.floatable ? undefined : icon}
             title={title}

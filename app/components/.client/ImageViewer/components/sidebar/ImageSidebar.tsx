@@ -8,17 +8,16 @@ import { OverlaysSection } from "./OverlaysSection/OverlaysSection";
 import { OverviewSection } from "./OverviewSection/OverviewSection";
 import { ViewsSection } from "./ViewsSection/ViewsSection";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
-import type { PillarId } from "~/utils/pillars";
 
 export const IMAGE_SIDEBAR_NAME = "Image Controls";
 
 /** Render order in the sidebar; a docked section always returns to its slot here. */
-const SECTIONS: { pillar: PillarId; Component: ComponentType }[] = [
-  { pillar: "overview", Component: OverviewSection },
-  { pillar: "views", Component: ViewsSection },
-  { pillar: "channels", Component: ChannelsSection },
-  { pillar: "overlays", Component: OverlaysSection },
-  { pillar: "annotations", Component: AnnotationsSection },
+const SECTIONS: { id: string; Component: ComponentType }[] = [
+  { id: "overview", Component: OverviewSection },
+  { id: "views", Component: ViewsSection },
+  { id: "channels", Component: ChannelsSection },
+  { id: "overlays", Component: OverlaysSection },
+  { id: "annotations", Component: AnnotationsSection },
 ];
 
 interface ImageSidebarProps {
@@ -38,8 +37,8 @@ export const ImageSidebar = ({ boundsRef }: ImageSidebarProps) => (
       floatable
       boundsRef={boundsRef}
     >
-      {SECTIONS.map(({ pillar, Component }) => (
-        <Component key={pillar} />
+      {SECTIONS.map(({ id, Component }) => (
+        <Component key={id} />
       ))}
     </Sidebar>
     <ImageSidebarToggle />

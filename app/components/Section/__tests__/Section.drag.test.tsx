@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useRef, type ReactNode } from "react";
 
 import { Section } from "../Section";
+import { SECTION_GRID_3COL_WIDTH } from "~/components/.client/ImageViewer/components/sidebar/SectionRow/SectionGrid";
 import { createSidebarStore, type SidebarStoreApi } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 
@@ -35,13 +36,18 @@ function renderSections() {
   const store = createSidebarStore({ name: `sidebar-${crypto.randomUUID()}` });
   render(
     <Harness store={store}>
-      <Section pillar="overview">
+      <Section id="overview" title="Overview" icon="Image">
         <p>overview body</p>
       </Section>
-      <Section pillar="views">
+      <Section id="views" title="Views" icon="Columns3" floatWidth={SECTION_GRID_3COL_WIDTH}>
         <p>views body</p>
       </Section>
-      <Section pillar="channels">
+      <Section
+        id="channels"
+        title="Channels"
+        icon="Microscope"
+        floatWidth={SECTION_GRID_3COL_WIDTH}
+      >
         <p>channels body</p>
       </Section>
     </Harness>,

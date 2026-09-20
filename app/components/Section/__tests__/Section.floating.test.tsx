@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { act, useEffect, useRef, type ReactNode } from "react";
 
 import { Section } from "../Section";
+import { SECTION_GRID_3COL_WIDTH } from "~/components/.client/ImageViewer/components/sidebar/SectionRow/SectionGrid";
 import {
   createSidebarStore,
   FLOAT_PANEL_WIDTH,
@@ -41,13 +42,18 @@ function renderSections(options: { floatable?: boolean } = {}) {
   const store = createSidebarStore({ name: `sidebar-${crypto.randomUUID()}` });
   const result = render(
     <Harness store={store} floatable={options.floatable}>
-      <Section pillar="overview">
+      <Section id="overview" title="Overview" icon="Image">
         <p>overview body</p>
       </Section>
-      <Section pillar="views">
+      <Section id="views" title="Views" icon="Columns3" floatWidth={SECTION_GRID_3COL_WIDTH}>
         <p>views body</p>
       </Section>
-      <Section pillar="channels">
+      <Section
+        id="channels"
+        title="Channels"
+        icon="Microscope"
+        floatWidth={SECTION_GRID_3COL_WIDTH}
+      >
         <p>channels body</p>
       </Section>
     </Harness>,
@@ -84,7 +90,12 @@ function placeholderDockButton(title: string) {
 describe("Section float/dock", () => {
   test("stays sidebar-only without a floatable sidebar", () => {
     render(
-      <Section pillar="channels">
+      <Section
+        id="channels"
+        title="Channels"
+        icon="Microscope"
+        floatWidth={SECTION_GRID_3COL_WIDTH}
+      >
         <p>channels body</p>
       </Section>,
     );
@@ -162,7 +173,7 @@ describe("Section float/dock", () => {
 
     rerender(
       <Harness store={store}>
-        <Section pillar="overview">
+        <Section id="overview" title="Overview" icon="Image">
           <p>overview body</p>
         </Section>
       </Harness>,
@@ -202,8 +213,8 @@ describe("Section float/dock", () => {
     expect(store.getState().sections.overview?.rect?.width).toBe(FLOAT_PANEL_WIDTH);
     // Pillars with a 3-column SectionGrid spawn one container token step above
     // @lg so the reflow survives panel chrome and scrollbars.
-    expect(store.getState().sections.views?.rect?.width).toBe(36 * 16);
-    expect(store.getState().sections.channels?.rect?.width).toBe(36 * 16);
+    expect(store.getState().sections.views?.rect?.width).toBe(SECTION_GRID_3COL_WIDTH);
+    expect(store.getState().sections.channels?.rect?.width).toBe(SECTION_GRID_3COL_WIDTH);
     const floated = panel("Channels");
     expect(floated).toHaveClass("overflow-y-auto", "backdrop-blur-sm");
   });
@@ -295,7 +306,12 @@ describe("Section float/dock", () => {
     const user = userEvent.setup();
     render(
       <Harness store={store}>
-        <Section pillar="channels">
+        <Section
+          id="channels"
+          title="Channels"
+          icon="Microscope"
+          floatWidth={SECTION_GRID_3COL_WIDTH}
+        >
           <Probe />
         </Section>
       </Harness>,

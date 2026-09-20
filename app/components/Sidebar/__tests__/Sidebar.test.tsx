@@ -114,10 +114,10 @@ function renderFloatableSidebar(store: SidebarStoreApi) {
     return (
       <div ref={boundsRef}>
         <Sidebar name="Controls" side="right" store={store} floatable boundsRef={boundsRef}>
-          <Section pillar="overview">
+          <Section id="overview" title="Overview" icon="Image">
             <p>overview body</p>
           </Section>
-          <Section pillar="channels">
+          <Section id="channels" title="Channels" icon="Microscope">
             <p>channels body</p>
           </Section>
         </Sidebar>

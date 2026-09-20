@@ -34,7 +34,9 @@ export function ConnectionsSection() {
 
   return (
     <Section
-      pillar="connections"
+      id="connections"
+      title="Connections"
+      icon="Plug"
       badge={String(connectionIds.length)}
       actions={
         <>
