@@ -369,6 +369,7 @@ export function Section({
         aria-labelledby={isFloating ? titleId : undefined}
         style={{ ...(floating?.style ?? {}), x, y }}
         onPointerDown={isFloating ? floating?.bringToFront : undefined}
+        onFocus={isFloating ? floating?.bringToFront : undefined}
         className={twMerge(
           "flex flex-col w-full bg-card text-muted-foreground",
           isFloating && FLOATING_PANEL_CLASSES,

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act, useEffect, useRef, type ReactNode } from "react";
 
@@ -197,6 +197,26 @@ describe("Section float/dock", () => {
     );
 
     await user.pointer({ target: panel("Overview"), keys: "[MouseLeft]" });
+
+    expect(store.getState().sections.overview.z ?? 0).toBeGreaterThan(
+      store.getState().sections.channels.z ?? 0,
+    );
+  });
+
+  test("keyboard focus inside a floated panel raises it (SRS-CY-33308)", () => {
+    const { store } = renderSections();
+
+    act(() => {
+      store.getState().float("overview", { x: 16, y: 16, width: 320 });
+      store.getState().float("channels", { x: 48, y: 48, width: 320 });
+    });
+    expect(store.getState().sections.channels.z ?? 0).toBeGreaterThan(
+      store.getState().sections.overview.z ?? 0,
+    );
+
+    act(() => {
+      fireEvent.focus(within(panel("Overview")).getByRole("button", { name: "Dock Overview" }));
+    });
 
     expect(store.getState().sections.overview.z ?? 0).toBeGreaterThan(
       store.getState().sections.channels.z ?? 0,
