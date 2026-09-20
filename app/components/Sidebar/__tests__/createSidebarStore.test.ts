@@ -92,6 +92,15 @@ describe("sidebar section state", () => {
     expect(store.getState().sections.channels.isOpen).toBe(false);
   });
 
+  test("floating a section shows a hidden float set", () => {
+    const store = createSidebarStore({ name: "layout-unhide" });
+    store.getState().setFloatsHidden(true);
+
+    store.getState().float("overview", rect);
+
+    expect(store.getState().floatsHidden).toBe(false);
+  });
+
   test("float after dock spawns at a fresh cascaded offset, not the old position", () => {
     const store = createSidebarStore({ name: "layout-refloat" });
     store.getState().float("overview", { x: 500, y: 500, width: 320 });

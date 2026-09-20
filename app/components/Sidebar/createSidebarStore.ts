@@ -165,6 +165,9 @@ export function createSidebarStore({
                 const z = s.topZ + 1;
                 return {
                   topZ: z,
+                  // Floating a section shows the set — a hidden float would
+                  // spawn a panel the user cannot see.
+                  floatsHidden: false,
                   sections: {
                     ...s.sections,
                     [sectionId]: { isOpen: s.sections[sectionId]?.isOpen ?? true, rect, z },
