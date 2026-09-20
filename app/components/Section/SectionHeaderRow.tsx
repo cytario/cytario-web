@@ -18,12 +18,13 @@ const ROW_CLASSES = `
   bg-background
   hover:text-foreground
   overflow-hidden
+  gap-1 px-1
 `;
 
 const LEFT_CLASSES = `
   cursor-pointer
   flex items-center grow
-  h-10 gap-1 px-2
+  h-10 gap-1
   text-muted-foreground
   hover:text-foreground
   transition-colors
@@ -137,7 +138,7 @@ export function SectionHeaderRow({
         // section — remounting the pan element would kill the in-flight gesture.
         // The control must stay OUTSIDE the expander button (no nested buttons).
         <motion.div
-          className="flex grow touch-none"
+          className="flex grow touch-none gap-1"
           onPanStart={drag.onPanStart}
           onPan={drag.onPan}
           onPanEnd={drag.onPanEnd}
@@ -151,7 +152,7 @@ export function SectionHeaderRow({
           {control}
         </>
       )}
-      {actions && <div className="flex items-center gap-2 px-2">{actions}</div>}
+      {actions && <div className="flex items-center gap-1">{actions}</div>}
     </div>
   );
 }

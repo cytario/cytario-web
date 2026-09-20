@@ -14,7 +14,7 @@ export function SectionSlider({
   return (
     <Slider
       aria-label={ariaLabel}
-      className="w-20"
+      className="w-20 px-2"
       minValue={0}
       maxValue={1}
       step={0.01}
