@@ -216,6 +216,14 @@ export interface ComputeRoleSession {
    */
   imagePullSecretRef: string | null;
   /**
+   * Pull-secret ARN per catalog, keyed by the catalog id from
+   * `CatalogConnectionProjection`. A catalog-addressed submission picks its
+   * entry here; `imagePullSecretRef` remains the single-catalog fallback.
+   * Optional — a host predating this field omits it, and the plugin falls
+   * back to the scalar alone.
+   */
+  registryPullSecrets?: Readonly<Record<string, string>>;
+  /**
    * CloudWatch Logs log-group name the compute provider's job-container output
    * is written to. Provisioned by the admin-portal via the Logs
    * `CreateLogGroup` API and passed through the lookup so the plugin references
