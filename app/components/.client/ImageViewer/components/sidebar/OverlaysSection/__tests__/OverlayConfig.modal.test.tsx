@@ -8,9 +8,11 @@ import { OverlayConfigModal } from "../OverlayConfig.modal";
 import { getParquetTopLevelSchema } from "~/components/DataGrid/getParquetSchema";
 import { getMarkerInfoWasm } from "~/utils/db/getMarkerInfoWasm";
 
-vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: vi.fn(),
-}));
+vi.mock("../../../../state/store/core/ViewerStoreContext", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../../../state/store/core/ViewerStoreContext")>();
+  return { ...actual, useViewerStore: vi.fn() };
+});
 
 vi.mock("~/components/DataGrid/getParquetSchema", () => ({
   getParquetSchema: vi.fn(),

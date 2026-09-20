@@ -15,6 +15,7 @@ import {
   type RGBA,
 } from "../../../state/store/types";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
+import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 /** Creates the overlay marker layers for one image panel. */
 export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
@@ -29,7 +30,8 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const imageWidth = metadata?.Pixels?.SizeX ?? 0;
   const imageHeight = metadata?.Pixels?.SizeY ?? 0;
 
-  const fillOpacity = layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? 0.8;
+  const fillOpacity =
+    layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? DEFAULT_OVERLAYS_FILL_OPACITY;
   const showCellOutline = layersStates[panelLayersStateIndex]?.showCellOutline ?? true;
 
   const overlayState = layersStates[panelLayersStateIndex]?.overlays ?? null;

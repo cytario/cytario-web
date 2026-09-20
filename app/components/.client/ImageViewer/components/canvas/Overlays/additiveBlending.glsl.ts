@@ -1,3 +1,15 @@
+/** Fragments accumulate onto the framebuffer instead of alpha-blending over it,
+ *  so fills from separate overlay files add up (yellow + blue → white). */
+export const additiveBlendParameters = {
+  blend: true,
+  blendColorOperation: "add",
+  blendColorSrcFactor: "src-alpha",
+  blendColorDstFactor: "one",
+  blendAlphaOperation: "add",
+  blendAlphaSrcFactor: "one",
+  blendAlphaDstFactor: "one",
+} as const;
+
 export const shadersInject = {
   // Vertex shader: declare and pass the marker bitmask
   "vs:#decl": /* glsl */ `
