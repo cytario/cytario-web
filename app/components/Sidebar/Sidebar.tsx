@@ -159,6 +159,22 @@ export function Sidebar({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [toggleShortcut, store, name, onOpen]);
 
+  // Hide/show every floating panel at once (SRS-CY-33315). Bound to the shell
+  // so it works with any focus; suppressed while typing.
+  useEffect(() => {
+    if (!floatable) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!matchesShortcut(e, "mod+shift+f")) return;
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      const hidden = !store.getState().floatsHidden;
+      store.getState().setFloatsHidden(hidden);
+      announce(hidden ? "Floating panels hidden" : "Floating panels shown");
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [floatable, store, announce]);
+
   return (
     <motion.aside
       id={sidebarDomId(name)}

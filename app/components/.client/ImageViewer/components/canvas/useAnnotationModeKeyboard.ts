@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef } from "react";
 
 import { ViewerStoreContext } from "../../state/store/core/ViewerStoreContext";
 import { AnnotationMode } from "../../state/store/types";
+import { isInsideFloatingPanel } from "~/components/Sidebar/SidebarContext";
 
 const DRAW_MODES: ReadonlySet<AnnotationMode> = new Set([
   "draw-polygon",
@@ -27,6 +28,8 @@ export function useAnnotationModeKeyboard() {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (isFormField(e.target)) return;
+      // Canvas shortcuts yield to a floating panel holding focus (SRS-CY-33316).
+      if (isInsideFloatingPanel(document.activeElement)) return;
 
       if (e.key === "Escape") {
         const current = store.getState().annotationMode;

@@ -175,8 +175,10 @@ export function Section({
   // Below the narrow-viewport threshold floating is not offered (SRS-CY-33321)
   // — a panel already out docks back instead of lingering unusable.
   useEffect(() => {
-    if (floating && floating.isFloating && !floating.canFloat) floating.dock();
-  }, [floating]);
+    if (!floating || !floating.isFloating || floating.canFloat) return;
+    floating.dock();
+    floating.announce(`${title} docked`);
+  }, [floating, title]);
 
   const onPanStart = (_e: unknown, info: { point: { x: number; y: number } }) => {
     if (!floating) return;
