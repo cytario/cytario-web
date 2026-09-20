@@ -19,11 +19,6 @@ vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
 }));
 
-vi.mock("~/components/Section/useSection", () => ({
-  useSectionStore: vi.fn(() => ({ isOpen: true, setIsOpen: vi.fn() })),
-  SectionStoreProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
-
 const makeViewState = (zoom = 0): ViewState =>
   ({
     zoom,

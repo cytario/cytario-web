@@ -94,11 +94,22 @@ describe("Section float/dock", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  test("stays sidebar-only inside a sidebar that is not floatable", () => {
-    renderSections({ floatable: false });
+  test("stays sidebar-only inside a sidebar that is not floatable", async () => {
+    const { user } = renderSections({ floatable: false });
 
     expect(screen.queryByRole("button", { name: /^Float/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("group")).not.toBeInTheDocument();
+
+    // The consolidated handle still serves the accordion (Explorer's path) —
+    // and without float controls, the static pillar icon stays.
+    const expander = screen.getByRole("button", { name: /Channels/ });
+    expect(expander).toHaveAttribute("aria-expanded", "true");
+    expect(expander.querySelector(".lucide-microscope")).not.toBeNull();
+
+    await user.click(expander);
+    expect(expander).toHaveAttribute("aria-expanded", "false");
+    await user.click(expander);
+    expect(expander).toHaveAttribute("aria-expanded", "true");
   });
 
   test("floating switches the section to fixed positioning and group semantics", async () => {
@@ -170,14 +181,14 @@ describe("Section float/dock", () => {
 
     await user.click(screen.getByRole("button", { name: "Float Overview" }));
     await user.click(screen.getByRole("button", { name: "Float Channels" }));
-    expect(store.getState().floating.channels.z).toBeGreaterThan(
-      store.getState().floating.overview.z,
+    expect(store.getState().sections.channels.z ?? 0).toBeGreaterThan(
+      store.getState().sections.overview.z ?? 0,
     );
 
     await user.pointer({ target: panel("Overview"), keys: "[MouseLeft]" });
 
-    expect(store.getState().floating.overview.z).toBeGreaterThan(
-      store.getState().floating.channels.z,
+    expect(store.getState().sections.overview.z ?? 0).toBeGreaterThan(
+      store.getState().sections.channels.z ?? 0,
     );
   });
 
@@ -188,11 +199,11 @@ describe("Section float/dock", () => {
     await user.click(screen.getByRole("button", { name: "Float Views" }));
     await user.click(screen.getByRole("button", { name: "Float Channels" }));
 
-    expect(store.getState().floating.overview.rect.width).toBe(FLOAT_PANEL_WIDTH);
+    expect(store.getState().sections.overview?.rect?.width).toBe(FLOAT_PANEL_WIDTH);
     // Pillars with a 3-column SectionGrid spawn one container token step above
     // @lg so the reflow survives panel chrome and scrollbars.
-    expect(store.getState().floating.views.rect.width).toBe(36 * 16);
-    expect(store.getState().floating.channels.rect.width).toBe(36 * 16);
+    expect(store.getState().sections.views?.rect?.width).toBe(36 * 16);
+    expect(store.getState().sections.channels?.rect?.width).toBe(36 * 16);
     const floated = panel("Channels");
     expect(floated).toHaveClass("overflow-y-auto", "backdrop-blur-sm");
   });
@@ -223,16 +234,16 @@ describe("Section float/dock", () => {
       control.focus();
 
       await user.keyboard("{ArrowLeft}");
-      expect(store.getState().floating.channels.rect.x).toBe(476);
+      expect(store.getState().sections.channels?.rect?.x).toBe(476);
 
       await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
-      expect(store.getState().floating.channels.rect.x).toBe(572);
+      expect(store.getState().sections.channels?.rect?.x).toBe(572);
 
       await user.keyboard("{ArrowUp}");
-      expect(store.getState().floating.channels.rect.y).toBe(276);
+      expect(store.getState().sections.channels?.rect?.y).toBe(276);
 
       expect(control).toHaveFocus();
-      expect(store.getState().floating.channels.rect.width).toBe(320);
+      expect(store.getState().sections.channels?.rect?.width).toBe(320);
     } finally {
       Element.prototype.getBoundingClientRect = original;
     }

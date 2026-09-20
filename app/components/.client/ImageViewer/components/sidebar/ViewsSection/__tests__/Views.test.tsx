@@ -5,7 +5,6 @@ import { Mock } from "vitest";
 import { useViewerStore } from "../../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../../state/store/selectors";
 import { ViewsSection } from "../ViewsSection";
-import { useSectionStore } from "~/components/Section/useSection";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
@@ -14,11 +13,6 @@ vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
 
 vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
   useConnectionsStore: vi.fn(),
-}));
-
-vi.mock("~/components/Section/useSection", () => ({
-  useSectionStore: vi.fn(),
-  SectionStoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const mockSetViewName = vi.fn();
@@ -96,7 +90,6 @@ function setupStore(overrides?: {
   });
 
   (useConnectionsStore as unknown as Mock).mockReturnValue(accessLevel);
-  (useSectionStore as Mock).mockReturnValue({ isOpen: true, setIsOpen: vi.fn() });
 }
 
 describe("ViewsSection", () => {

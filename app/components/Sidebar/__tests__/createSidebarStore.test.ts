@@ -53,7 +53,7 @@ describe("nextFloatRect", () => {
   });
 });
 
-describe("sidebar floating layout", () => {
+describe("sidebar section state", () => {
   const rect = { x: 10, y: 20, width: 320 };
 
   test("float and bringToFront maintain a stacking order", () => {
@@ -61,23 +61,35 @@ describe("sidebar floating layout", () => {
 
     store.getState().float("overview", rect);
     store.getState().float("channels", rect);
-    expect(store.getState().floating.channels.z).toBeGreaterThan(
-      store.getState().floating.overview.z,
+    expect(store.getState().sections.channels.z).toBeGreaterThan(
+      store.getState().sections.overview.z ?? 0,
     );
 
     store.getState().bringToFront("overview");
-    expect(store.getState().floating.overview.z).toBeGreaterThan(
-      store.getState().floating.channels.z,
+    expect(store.getState().sections.overview.z).toBeGreaterThan(
+      store.getState().sections.channels.z ?? 0,
     );
   });
 
-  test("docking removes the entry — a section absent from floating is docked", () => {
+  test("docking drops the placement and keeps the accordion state", () => {
     const store = createSidebarStore({ name: "layout-dock" });
+    store.getState().toggleSection("overview");
     store.getState().float("overview", rect);
 
     store.getState().dock("overview");
 
-    expect(store.getState().floating).toEqual({});
+    expect(store.getState().sections.overview).toEqual({ isOpen: false });
+  });
+
+  test("toggleSection flips the open state, defaulting to open", () => {
+    const store = createSidebarStore({ name: "layout-toggle" });
+
+    store.getState().toggleSection("overview");
+    store.getState().toggleSection("overview");
+    store.getState().toggleSection("channels");
+
+    expect(store.getState().sections.overview.isOpen).toBe(true);
+    expect(store.getState().sections.channels.isOpen).toBe(false);
   });
 
   test("float after dock spawns at a fresh cascaded offset, not the old position", () => {
@@ -87,7 +99,7 @@ describe("sidebar floating layout", () => {
 
     store.getState().float("overview", rect);
 
-    expect(store.getState().floating.overview.rect).toEqual(rect);
+    expect(store.getState().sections.overview.rect).toEqual(rect);
   });
 
   test("bringToFront on a docked section is a no-op", () => {
@@ -98,7 +110,7 @@ describe("sidebar floating layout", () => {
 
     store.getState().bringToFront("overview");
 
-    expect(store.getState().floating).toBe(before.floating);
+    expect(store.getState().sections).toBe(before.sections);
     expect(store.getState().topZ).toBe(before.topZ);
   });
 
@@ -110,29 +122,34 @@ describe("sidebar floating layout", () => {
       store.getState().bringToFront("overview");
     }
 
-    const { floating, topZ } = store.getState();
+    const { sections, topZ } = store.getState();
     expect(topZ).toBeLessThanOrEqual(19);
-    expect(Math.max(...Object.values(floating).map((entry) => entry.z))).toBeLessThanOrEqual(19);
+    expect(Math.max(...Object.values(sections).map((entry) => entry.z ?? 0))).toBeLessThanOrEqual(
+      19,
+    );
   });
 
-  test("resetFloating clears every placement", () => {
+  test("resetFloating clears every placement, accordion state survives", () => {
     const store = createSidebarStore({ name: "layout-reset" });
     store.getState().float("overview", rect);
-    store.getState().float("channels", rect);
+    store.getState().toggleSection("channels");
 
     store.getState().resetFloating();
 
-    expect(store.getState().floating).toEqual({});
+    expect(store.getState().sections.overview.rect).toBeUndefined();
+    expect(store.getState().sections.channels).toEqual({ isOpen: false });
     expect(store.getState().topZ).toBe(0);
   });
 
-  test("panel rects persist; stacking order does not", () => {
+  test("section state persists; stacking order does not", () => {
     const store = createSidebarStore({ name: "layout-persist" });
     store.getState().float("overview", rect);
+    store.getState().toggleSection("channels");
 
     const persisted = JSON.parse(localStorage.getItem("layout-persist") ?? "{}").state;
     expect(persisted.isOpen).toBe(true);
     expect(persisted.width).toBe(320);
-    expect(persisted.floating.overview).toEqual({ rect });
+    expect(persisted.sections.overview).toEqual({ isOpen: true, rect });
+    expect(persisted.sections.channels).toEqual({ isOpen: false });
   });
 });

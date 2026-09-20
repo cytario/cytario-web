@@ -120,17 +120,23 @@ export function useCanvasGestureActive(enabled: boolean): boolean {
   return active;
 }
 
-export interface FloatingSectionHandle {
+export interface SectionHandle {
   isFloating: boolean;
+  /** Docked accordion state — held while floating and restored on dock. */
+  isOpen: boolean;
   /** Hidden by the hide-all-floats toggle; still floating, just not rendered. */
   isHidden: boolean;
   /** A dock drag is hovering this section's placeholder row. */
   isDropTarget: boolean;
+  /** Whether this sidebar offers floating at all — the control's existence. */
+  floatable: boolean;
+  /** False below the narrow-viewport threshold — the control disables. */
   canFloat: boolean;
   bounds: BoundsRect;
   rect: FloatRect | null;
   /** Viewport-fixed placement while floating; undefined when docked. */
   style?: CSSProperties;
+  toggleOpen: () => void;
   float: () => void;
   dock: () => void;
   moveTo: (rect: FloatRect) => void;
@@ -140,30 +146,31 @@ export interface FloatingSectionHandle {
   announce: (message: string) => void;
 }
 
-// Keeps useFloatingSection's hook order stable where there is no sidebar context.
+// Keeps useSectionHandle's hook order stable where there is no sidebar context.
 const detachedStore = createSidebarStore({ name: "Sidebar (detached)" });
 
-/** Float/dock controls for one section, or null outside a floatable sidebar. */
-export function useFloatingSection(sectionId: string): FloatingSectionHandle | null {
+/** Section state (accordion + floating) for one section, or null outside a Sidebar. */
+export function useSectionHandle(sectionId: string): SectionHandle | null {
   const context = useContext(SidebarContext);
   const store = context?.store ?? detachedStore;
-  const entry = useStore(store, (s) => s.floating[sectionId]);
+  const entry = useStore(store, (s) => s.sections[sectionId]);
   const floatsHidden = useStore(store, (s) => s.floatsHidden);
-  const isActive = Boolean(context?.floatable);
 
   return useMemo(() => {
-    if (!context || !isActive) return null;
-    const { bounds, canFloat, dropTargetId, setDropTargetId, announce } = context;
-    const isFloating = Boolean(entry);
+    if (!context) return null;
+    const { bounds, canFloat, dropTargetId, setDropTargetId, announce, floatable } = context;
+    const isFloating = Boolean(entry?.rect);
     const zIndex = FLOAT_Z_BASE + Math.min(entry?.z ?? 0, FLOAT_Z_RANGE);
     return {
       isFloating,
+      isOpen: entry?.isOpen ?? true,
       isHidden: isFloating && floatsHidden,
       isDropTarget: dropTargetId === sectionId,
+      floatable,
       canFloat,
       bounds,
       rect: entry?.rect ?? null,
-      style: entry
+      style: entry?.rect
         ? {
             position: "fixed",
             left: bounds.left + entry.rect.x,
@@ -177,16 +184,17 @@ export function useFloatingSection(sectionId: string): FloatingSectionHandle | n
             visibility: floatsHidden ? "hidden" : "visible",
           }
         : undefined,
+      toggleOpen: () => store.getState().toggleSection(sectionId),
       float: () => {
         const state = store.getState();
-        const count = Object.keys(state.floating).length;
+        const count = Object.values(state.sections).filter((s) => s.rect).length;
         state.float(sectionId, nextFloatRect(bounds, FLOAT_PANEL_WIDTH, count));
       },
       dock: () => store.getState().dock(sectionId),
       moveTo: (rect) => store.getState().move(sectionId, clampFloatRect(rect, bounds)),
       moveBy: (dx, dy) => {
-        const current = store.getState().floating[sectionId];
-        if (!current) return;
+        const current = store.getState().sections[sectionId];
+        if (!current?.rect) return;
         store
           .getState()
           .move(sectionId, clampFloatRect(offsetFloatRect(current.rect, dx, dy), bounds));
@@ -195,7 +203,7 @@ export function useFloatingSection(sectionId: string): FloatingSectionHandle | n
       setDropTarget: (over) => setDropTargetId(over ? sectionId : null),
       announce,
     };
-  }, [context, entry, floatsHidden, isActive, sectionId, store]);
+  }, [context, entry, floatsHidden, sectionId, store]);
 }
 
 /** Shell-side announcer: one polite live region per sidebar. */

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { SectionHeaderRow } from "./SectionHeaderRow";
-import { SectionStoreProvider, useSectionStore } from "./useSection";
 import {
   clampFloatRect,
   FLOAT_KEYBOARD_STEP,
@@ -12,7 +11,7 @@ import {
   FLOAT_PANEL_WIDTH,
   type FloatRect,
 } from "~/components/Sidebar/createSidebarStore";
-import { FLOATING_PANEL_ATTR, useFloatingSection } from "~/components/Sidebar/SidebarContext";
+import { FLOATING_PANEL_ATTR, useSectionHandle } from "~/components/Sidebar/SidebarContext";
 import { PILLARS, type PillarId } from "~/utils/pillars";
 
 // The panel itself is the scroll container; its header is already sticky.
@@ -97,11 +96,9 @@ function FloatDockButton({
   );
 }
 
-function SectionInner({ pillar, badge, actions, header, children }: SectionProps) {
+export function Section({ pillar, badge, actions, header, children }: SectionProps) {
   const { title, icon } = PILLARS[pillar];
-  const isOpen = useSectionStore((s) => s.isOpen);
-  const setIsOpen = useSectionStore((s) => s.setIsOpen);
-  const floating = useFloatingSection(pillar);
+  const floating = useSectionHandle(pillar);
   const floatButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
@@ -113,8 +110,9 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
   const titleId = `section-${pillar}-title`;
   const contentId = `section-${pillar}-content`;
   const isFloating = floating?.isFloating ?? false;
-  // 3-state model (SRS-CY-33306): floating panels are always expanded; the
-  // docked accordion keeps the persisted open/closed state, restored on dock.
+  // 3-state model (SRS-CY-33306), one record in the sidebar store: floating
+  // panels render expanded; docking restores the section's own open state.
+  const isOpen = floating?.isOpen ?? true;
   const effectiveOpen = isFloating ? true : isOpen;
 
   const toggleFloat = () => {
@@ -295,7 +293,7 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       suppressPress.current = false;
       return;
     }
-    setIsOpen(!isOpen);
+    floating?.toggleOpen();
   };
 
   // Drag surface: the control itself plus the expander/title click area.
@@ -322,7 +320,10 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
   // Merged float/dock + drag control. The pan gesture lives on the header row's
   // drag wrapper (see SectionHeaderRow), so this stays a plain control — the
   // wrapper never remounts across a float/dock, keeping the gesture alive.
-  const control = floating && (
+  // The control exists only in floatable sidebars; within them, the narrow
+  // viewport disables it (SRS-CY-33321). Non-floatable sidebars (Explorer)
+  // use the same handle purely for the accordion.
+  const control = floating?.floatable && (
     <motion.div className="flex items-center" onKeyDown={onGripKeyDown}>
       <FloatDockButton
         ref={floatButtonRef}
@@ -372,7 +373,9 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
       >
         <header className="z-10 sticky top-0 left-0">
           <SectionHeaderRow
-            icon={floating ? undefined : icon}
+            // The static icon yields to the control's pillar icon exactly where
+            // the control exists; non-floatable sidebars keep the static icon.
+            icon={floating?.floatable ? undefined : icon}
             title={title}
             titleId={titleId}
             badge={badge}
@@ -413,13 +416,5 @@ function SectionInner({ pillar, badge, actions, header, children }: SectionProps
         </div>
       </motion.div>
     </>
-  );
-}
-
-export function Section(props: SectionProps) {
-  return (
-    <SectionStoreProvider pillarId={props.pillar}>
-      <SectionInner {...props} />
-    </SectionStoreProvider>
   );
 }

@@ -137,7 +137,7 @@ describe("Section drag gestures", () => {
 
       await drag(screen.getByText("Channels"), [500, 300], [660, 340]);
 
-      const entry = store.getState().floating.channels;
+      const entry = store.getState().sections.channels;
       expect(entry).toBeDefined();
       expect(entry.rect).toEqual({ x: 660 - 12, y: 340 - 8, width: 576 });
     } finally {
@@ -152,7 +152,7 @@ describe("Section drag gestures", () => {
 
       await drag(screen.getByText("Channels"), [500, 300], [1250, 300]);
 
-      expect(store.getState().floating.channels).toBeUndefined();
+      expect(store.getState().sections.channels?.rect).toBeUndefined();
     } finally {
       restore();
     }
@@ -173,7 +173,7 @@ describe("Section drag gestures", () => {
         [1258, 24],
       );
 
-      expect(store.getState().floating.channels).toBeDefined();
+      expect(store.getState().sections.channels?.rect).toBeDefined();
     } finally {
       restore();
     }
@@ -191,7 +191,7 @@ describe("Section drag gestures", () => {
         [1310, 20],
       );
 
-      expect(store.getState().floating.channels).toBeUndefined();
+      expect(store.getState().sections.channels?.rect).toBeUndefined();
     } finally {
       restore();
     }
@@ -205,7 +205,7 @@ describe("Section drag gestures", () => {
       await drag(screen.getByText("Channels"), [500, 300], [660, 340], false);
       await pressEscape();
 
-      expect(store.getState().floating.channels).toBeUndefined();
+      expect(store.getState().sections.channels?.rect).toBeUndefined();
     } finally {
       restore();
     }
@@ -219,12 +219,12 @@ describe("Section drag gestures", () => {
       await user.click(screen.getByRole("button", { name: "Float Channels" }));
       const panel = screen.getByRole("group", { name: "Channels" });
       await drag(within(panel).getByText("Channels"), [1250, 20], [700, 300]);
-      const before = store.getState().floating.channels.rect;
+      const before = store.getState().sections.channels.rect;
 
       await drag(within(panel).getByText("Channels"), [700, 300], [760, 320], false);
       await pressEscape();
 
-      expect(store.getState().floating.channels.rect).toEqual(before);
+      expect(store.getState().sections.channels.rect).toEqual(before);
     } finally {
       restore();
     }
@@ -241,7 +241,7 @@ describe("Section drag gestures", () => {
 
       await user.click(within(panel).getByRole("button", { name: "Dock Channels" }));
 
-      await waitFor(() => expect(store.getState().floating.channels).toBeUndefined());
+      await waitFor(() => expect(store.getState().sections.channels?.rect).toBeUndefined());
     } finally {
       restore();
     }
@@ -260,7 +260,7 @@ describe("Section drag gestures", () => {
 
       await drag(screen.getByText("Channels"), [500, 300], [660, 340]);
 
-      expect(store.getState().floating.channels).toBeUndefined();
+      expect(store.getState().sections.channels?.rect).toBeUndefined();
     } finally {
       innerWidth.mockRestore();
       restore();

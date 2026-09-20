@@ -32,9 +32,16 @@ export interface FloatRect {
   width: number;
 }
 
-export interface FloatingSection {
-  rect: FloatRect;
-  z: number;
+/**
+ * One record per section — the entire open/closed/floating state model:
+ * `rect` present means floating (with its placement), absent means docked;
+ * `isOpen` is the docked accordion state, kept and restored across floats.
+ */
+export interface SectionEntry {
+  isOpen: boolean;
+  rect?: FloatRect;
+  /** Stacking order — session-transient, never persisted. */
+  z?: number;
 }
 
 export interface BoundsBox {
@@ -86,8 +93,8 @@ export function focusEscapeOffset(panel: Edges, focus: Edges): { dx: number; dy:
 export interface SidebarStore {
   isOpen: boolean;
   width: number;
-  /** Floating sections by id; a section absent from the map is docked. */
-  floating: Record<string, FloatingSection>;
+  /** Per-section state by id; absent = docked with default open state. */
+  sections: Record<string, SectionEntry>;
   /** Stacking counter — session-transient, never persisted. */
   topZ: number;
   /** Hide-all toggle; panels keep their rects while hidden. */
@@ -95,6 +102,7 @@ export interface SidebarStore {
   toggle: () => void;
   setOpen: (open: boolean) => void;
   setWidth: (width: number) => void;
+  toggleSection: (sectionId: string) => void;
   float: (sectionId: string, rect: FloatRect) => void;
   dock: (sectionId: string) => void;
   move: (sectionId: string, rect: FloatRect) => void;
@@ -107,7 +115,9 @@ export interface SidebarStore {
 interface PersistedSidebar {
   isOpen: boolean;
   width: number;
-  floating: Record<string, { rect: FloatRect }>;
+  sections: Record<string, { isOpen: boolean; rect?: FloatRect }>;
+  /** Pre-consolidation shape — placements migrate, accordion prefs do not. */
+  floating?: Record<string, { rect: FloatRect }>;
 }
 
 interface SidebarStoreOptions {
@@ -130,28 +140,52 @@ export function createSidebarStore({
         (set) => ({
           isOpen: defaultOpen,
           width: defaultWidth,
-          floating: {},
+          sections: {},
           topZ: 0,
           floatsHidden: false,
           toggle: () => set((s) => ({ isOpen: !s.isOpen }), false, "toggle"),
           setOpen: (isOpen) => set({ isOpen }, false, "setOpen"),
           setWidth: (width) => set({ width: clampSidebarWidth(width) }, false, "setWidth"),
+          toggleSection: (sectionId) =>
+            set(
+              (s) => ({
+                sections: {
+                  ...s.sections,
+                  [sectionId]: {
+                    isOpen: !(s.sections[sectionId]?.isOpen ?? true),
+                  },
+                },
+              }),
+              false,
+              "toggleSection",
+            ),
           float: (sectionId, rect) =>
             set(
               (s) => {
                 const z = s.topZ + 1;
-                return { topZ: z, floating: { ...s.floating, [sectionId]: { rect, z } } };
+                return {
+                  topZ: z,
+                  sections: {
+                    ...s.sections,
+                    [sectionId]: { isOpen: s.sections[sectionId]?.isOpen ?? true, rect, z },
+                  },
+                };
               },
               false,
               "float",
             ),
+          // Docking keeps the entry: isOpen survives the round trip, only the
+          // placement is dropped.
           dock: (sectionId) =>
             set(
               (s) => {
-                if (!s.floating[sectionId]) return s;
-                const floating = { ...s.floating };
-                delete floating[sectionId];
-                return { floating };
+                if (!s.sections[sectionId]?.rect) return s;
+                return {
+                  sections: {
+                    ...s.sections,
+                    [sectionId]: { isOpen: s.sections[sectionId].isOpen },
+                  },
+                };
               },
               false,
               "dock",
@@ -159,9 +193,9 @@ export function createSidebarStore({
           move: (sectionId, rect) =>
             set(
               (s) => {
-                const current = s.floating[sectionId];
-                if (!current) return s;
-                return { floating: { ...s.floating, [sectionId]: { ...current, rect } } };
+                const current = s.sections[sectionId];
+                if (!current?.rect) return s;
+                return { sections: { ...s.sections, [sectionId]: { ...current, rect } } };
               },
               false,
               "move",
@@ -169,30 +203,44 @@ export function createSidebarStore({
           bringToFront: (sectionId) =>
             set(
               (s) => {
-                const current = s.floating[sectionId];
-                if (!current || current.z === s.topZ) return s;
+                const current = s.sections[sectionId];
+                if (!current?.rect || current.z === s.topZ) return s;
                 const z = s.topZ + 1;
-                return { topZ: z, floating: { ...s.floating, [sectionId]: { ...current, z } } };
+                return {
+                  topZ: z,
+                  sections: { ...s.sections, [sectionId]: { ...current, z } },
+                };
               },
               false,
               "bringToFront",
             ),
-          resetFloating: () => set({ floating: {}, topZ: 0 }, false, "resetFloating"),
+          resetFloating: () =>
+            set(
+              (s) => ({
+                sections: Object.fromEntries(
+                  Object.entries(s.sections).map(([id, entry]) => [id, { isOpen: entry.isOpen }]),
+                ),
+                topZ: 0,
+              }),
+              false,
+              "resetFloating",
+            ),
           setFloatsHidden: (floatsHidden) => set({ floatsHidden }, false, "setFloatsHidden"),
           clampFloating: (bounds) =>
             set(
               (s) => {
                 let changed = false;
-                const floating: Record<string, FloatingSection> = {};
-                for (const [id, entry] of Object.entries(s.floating)) {
+                const sections: Record<string, SectionEntry> = {};
+                for (const [id, entry] of Object.entries(s.sections)) {
+                  if (!entry.rect) {
+                    sections[id] = entry;
+                    continue;
+                  }
                   const rect = clampFloatRect(entry.rect, bounds);
-                  changed ||=
-                    rect.x !== entry.rect.x ||
-                    rect.y !== entry.rect.y ||
-                    rect.width !== entry.rect.width;
-                  floating[id] = { ...entry, rect };
+                  changed ||= rect.x !== entry.rect.x || rect.y !== entry.rect.y;
+                  sections[id] = { ...entry, rect };
                 }
-                return changed ? { floating } : s;
+                return changed ? { sections } : s;
               },
               false,
               "clampFloating",
@@ -207,19 +255,25 @@ export function createSidebarStore({
         partialize: (s): PersistedSidebar => ({
           isOpen: s.isOpen,
           width: s.width,
-          floating: Object.fromEntries(
-            Object.entries(s.floating).map(([id, entry]) => [id, { rect: entry.rect }]),
+          sections: Object.fromEntries(
+            Object.entries(s.sections).map(([id, entry]) => [
+              id,
+              { isOpen: entry.isOpen, ...(entry.rect ? { rect: entry.rect } : {}) },
+            ]),
           ),
         }),
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as Partial<PersistedSidebar>;
-          const floating: Record<string, FloatingSection> = {};
+          const sections: Record<string, SectionEntry> = {};
           let topZ = 0;
-          for (const [id, entry] of Object.entries(saved.floating ?? {})) {
-            if (!entry?.rect) continue;
-            floating[id] = { rect: entry.rect, z: ++topZ };
+          // The consolidated map subsumes the old floating-only shape; legacy
+          // per-section accordion prefs are deliberately not migrated.
+          for (const [id, entry] of Object.entries(saved.sections ?? saved.floating ?? {})) {
+            if (!entry) continue;
+            sections[id] = { isOpen: entry.isOpen ?? true };
+            if (entry.rect) sections[id] = { ...sections[id], rect: entry.rect, z: ++topZ };
           }
-          return { ...current, ...saved, floating, topZ };
+          return { ...current, ...saved, sections, topZ };
         },
       },
     ),
