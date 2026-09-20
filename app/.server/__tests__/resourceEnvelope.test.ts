@@ -117,6 +117,67 @@ describe("mapResourceEnvelope", () => {
     });
   });
 
+  test("accepts the admin-portal shape (vcpu + gpuCount + MiB memory)", () => {
+    expect(
+      mapResourceEnvelope({
+        instanceType: "g4dn.2xlarge",
+        vcpu: 8,
+        memory: 32768,
+        gpuCount: 1,
+        maxRuntime: 14400,
+      }),
+    ).toEqual({
+      cpu: "8",
+      memory: "32768Mi",
+      gpu: 1,
+      runtimeCapSeconds: 14400,
+    });
+  });
+
+  test("maps the same admin-portal shape for a maxResources blob", () => {
+    expect(
+      mapResourceEnvelope({
+        instanceType: "g4dn.12xlarge",
+        vcpu: 48,
+        memory: 196608,
+        gpuCount: 4,
+        maxRuntime: 86400,
+      }),
+    ).toEqual({
+      cpu: "48",
+      memory: "196608Mi",
+      gpu: 4,
+      runtimeCapSeconds: 86400,
+    });
+  });
+
+  test("accepts a partial admin-portal blob", () => {
+    expect(mapResourceEnvelope({ vcpu: "8", gpuCount: 2 })).toEqual({
+      cpu: "8",
+      gpu: 2,
+    });
+    expect(mapResourceEnvelope({ gpuCount: 0 })).toEqual({ gpu: 0 });
+  });
+
+  test("prefers cpu over vcpu and gpu over gpuCount", () => {
+    expect(mapResourceEnvelope({ cpu: "2000m", vcpu: 4, gpu: 1, gpuCount: 2 })).toEqual({
+      cpu: "2000m",
+      gpu: 1,
+    });
+  });
+
+  test("rejects a non-integer vcpu and gpuCount", () => {
+    expect(mapResourceEnvelope({ vcpu: 1.5, memory: "4Gi", gpuCount: 1.5 })).toEqual({
+      memory: "4Gi",
+    });
+  });
+
+  test("an unusable alias does not shadow a usable one", () => {
+    expect(mapResourceEnvelope({ cpu: 1.5, vcpus: 4 })).toEqual({ cpu: "4" });
+    expect(mapResourceEnvelope({ cpu: true, vcpu: 2 })).toEqual({ cpu: "2" });
+    expect(mapResourceEnvelope({ gpu: 1.5, gpuCount: 3 })).toEqual({ gpu: 3 });
+  });
+
   test("ignores unknown fields", () => {
     expect(mapResourceEnvelope({ cpu: "2", memory: "4Gi", instanceType: "m5.large" })).toEqual({
       cpu: "2",
