@@ -82,6 +82,16 @@ export const computeProviderSchema = z.object({
     jobRoleArn: z.string().min(1),
     executionRoleArn: z.string().min(1),
     imagePullSecretRef: z.string().nullable(),
+    /**
+     * Pull-secret ARN per catalog, keyed by catalog id. Absent on a portal
+     * payload that predates multiple catalogs — the scalar
+     * `imagePullSecretRef` stays the one-catalog fallback. Null normalises to
+     * an absent map, mirroring the credential fields above.
+     */
+    registryPullSecrets: z.preprocess(
+      (v) => (v === null ? undefined : v),
+      z.record(z.string(), z.string().min(1)).optional(),
+    ),
     logGroupName: z.string().min(1),
     defaultResources: z.record(z.string(), z.unknown()).nullable(),
     /**

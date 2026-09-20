@@ -335,6 +335,169 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     expect(session.jobQueueArn).toBe("arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue");
   });
 
+  test("catalogConnections projects both of two connected catalogs", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [],
+      computeRoles: [],
+      appCatalogs: [
+        {
+          id: "ac-prod",
+          displayName: "Prod Harbor",
+          registryEndpoint: "https://harbor.example.com",
+          namespace: "cytario",
+          accessAccountId: "robot$harbor",
+          accessAccountSecret: "secret-token",
+          enabled: true,
+          status: "connected",
+          registryKind: "harbor",
+          allowedGroups: [],
+        },
+        {
+          id: "ac-dev",
+          displayName: "Dev Harbor",
+          registryEndpoint: "https://dev-harbor.example.com",
+          namespace: "cytario-dev",
+          accessAccountId: "robot$dev",
+          accessAccountSecret: "dev-secret",
+          enabled: true,
+          status: "connected",
+          registryKind: "harbor",
+          allowedGroups: [],
+        },
+      ],
+    } satisfies ProviderCatalog);
+
+    const projections = await withHostRequestContext(mockRequestData, async () =>
+      hostCapabilities.catalogConnections(),
+    );
+
+    expect(projections).toHaveLength(2);
+    expect(projections.find((p) => p.id === "ac-prod")).toMatchObject({
+      name: "Prod Harbor",
+      registryEndpoint: "https://harbor.example.com",
+      namespace: "cytario",
+    });
+    expect(projections.find((p) => p.id === "ac-dev")).toMatchObject({
+      name: "Dev Harbor",
+      registryEndpoint: "https://dev-harbor.example.com",
+      namespace: "cytario-dev",
+    });
+
+    getProviderCatalogMock.mockReset();
+  });
+
+  test("assumeComputeRole threads the per-catalog registryPullSecrets map alongside the scalar ref", async () => {
+    const registryPullSecrets = {
+      "ac-prod":
+        "arn:aws:secretsmanager:eu-central-1:825967678234:secret:cytario-compute/cp-1/registry-pull/ac-prod",
+      "ac-dev":
+        "arn:aws:secretsmanager:eu-central-1:825967678234:secret:cytario-compute/cp-1/registry-pull/ac-dev",
+    };
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef:
+              "arn:aws:secretsmanager:eu-central-1:825967678234:secret:cytario-compute/cp-1/registry-pull",
+            registryPullSecrets,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+      },
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+
+    expect(session.registryPullSecrets).toEqual(registryPullSecrets);
+    // The scalar stays as-is: the map is additive, not a replacement.
+    expect(session.imagePullSecretRef).toBe(
+      "arn:aws:secretsmanager:eu-central-1:825967678234:secret:cytario-compute/cp-1/registry-pull",
+    );
+  });
+
+  test("assumeComputeRole omits the map entirely on a payload that predates it", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef:
+              "arn:aws:secretsmanager:eu-central-1:825967678234:secret:cytario-compute/cp-1/registry-pull",
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [
+        {
+          id: "cr-1",
+          computeProviderId: "cp-1",
+          roleArn: "arn:aws:iam::825967678234:role/cytario-cp-submit",
+          name: "submit",
+        },
+      ],
+      appCatalogs: [],
+    });
+    stsSendMock.mockResolvedValue({
+      Credentials: {
+        AccessKeyId: "AKIA",
+        SecretAccessKey: "secret",
+        SessionToken: "token",
+      },
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+
+    expect(session.registryPullSecrets).toBeUndefined();
+    expect(session.imagePullSecretRef).toBe(
+      "arn:aws:secretsmanager:eu-central-1:825967678234:secret:cytario-compute/cp-1/registry-pull",
+    );
+  });
+
   test("assumeComputeRole resolves a named provider id among the org's connected providers (SRS-CY-37302)", async () => {
     getProviderCatalogMock.mockResolvedValue({
       providerConnections: [],

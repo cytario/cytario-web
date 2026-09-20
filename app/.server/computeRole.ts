@@ -131,6 +131,9 @@ export async function assumeComputeRole(
     jobRoleArn: computeProvider.typeSpecific.jobRoleArn,
     executionRoleArn: computeProvider.typeSpecific.executionRoleArn,
     imagePullSecretRef: computeProvider.typeSpecific.imagePullSecretRef,
+    ...(computeProvider.typeSpecific.registryPullSecrets
+      ? { registryPullSecrets: computeProvider.typeSpecific.registryPullSecrets }
+      : {}),
     logGroupName: computeProvider.typeSpecific.logGroupName,
     ...(defaultResources ? { defaultResources } : {}),
     ...(maxResources ? { maxResources } : {}),
