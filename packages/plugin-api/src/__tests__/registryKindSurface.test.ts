@@ -39,6 +39,6 @@ test("the value sets are the closed unions (kind: 4 values, mode: 2)", () => {
   expect(modes).toHaveLength(2);
 });
 
-test("host apiVersion is 6.9.0 (the additive minor that carries the fields)", () => {
-  expect(HOST_API_VERSION).toBe("6.9.0");
+test("host apiVersion is 6.10.0 (the additive minor that carries registryKind, credentialMode and the picker's folder mode)", () => {
+  expect(HOST_API_VERSION).toBe("6.10.0");
 });
