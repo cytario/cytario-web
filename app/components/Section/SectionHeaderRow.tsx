@@ -31,6 +31,10 @@ const LEFT_CLASSES = `
   outline-none focus-visible:outline focus-visible:outline-ring -outline-offset-2
 `;
 
+/** Static-title variants: a grab surface while the row drags, an inert docking slot otherwise. */
+const GRAB_LEFT_CLASSES = "cursor-grab active:cursor-grabbing";
+const SLOT_LEFT_CLASSES = "cursor-default hover:text-muted-foreground";
+
 export interface SectionHeaderRowProps {
   icon?: IconValue;
   title: string;
@@ -42,7 +46,7 @@ export interface SectionHeaderRowProps {
   chevronSlot?: React.ReactNode;
   /** Rendered at the very left of the row, before the icon — e.g. the placeholder's Dock control. */
   leading?: React.ReactNode;
-  /** Rendered as a sibling BEFORE the expander/link control — must never nest inside it. */
+  /** Float/dock control — inside the title area on inert rows (floating header, slot), a sibling before the expander/link otherwise: interactive rows must never embed it. */
   leadingControl?: React.ReactNode;
   /** Pan handlers making the row's click area (expander / title) a drag surface. */
   drag?: {
@@ -79,8 +83,13 @@ export function SectionHeaderRow({
   ariaExpanded,
   ariaControls,
 }: SectionHeaderRowProps) {
+  // A button/link row must not embed interactive descendants — the control
+  // rides inside the title only on inert rows (floating header, slot).
+  const controlInsideTitle = !to && !onClick;
+
   const left = (
     <>
+      {controlInsideTitle && leadingControl}
       {leading}
       {icon && <Icon icon={icon} size="xs" />}
       {badge && (
@@ -122,7 +131,7 @@ export function SectionHeaderRow({
     <div
       className={twMerge(
         LEFT_CLASSES,
-        drag ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+        drag ? GRAB_LEFT_CLASSES : SLOT_LEFT_CLASSES,
         selected && "text-foreground",
       )}
     >
@@ -132,26 +141,19 @@ export function SectionHeaderRow({
 
   return (
     <div className={twMerge(ROW_CLASSES, className)}>
-      {drag ? (
-        // One stable pan surface spanning the control and the title area. The
-        // inner control swaps button <-> div when a drag floats/docks the
-        // section — remounting the pan element would kill the in-flight gesture.
-        // The control must stay OUTSIDE the expander button (no nested buttons).
-        <motion.div
-          className="flex grow touch-none gap-1"
-          onPanStart={drag.onPanStart}
-          onPan={drag.onPan}
-          onPanEnd={drag.onPanEnd}
-        >
-          {leadingControl}
-          {control}
-        </motion.div>
-      ) : (
-        <>
-          {leadingControl}
-          {control}
-        </>
-      )}
+      {/* One stable pan surface over control + title — layout-transparent
+          (display: contents) when the row is not a drag surface, so the
+          wrapper never remounts mid-gesture and non-drag rows keep their
+          flex layout. The control stays outside a button/link control. */}
+      <motion.div
+        className={drag ? "flex grow touch-none" : "contents"}
+        onPanStart={drag?.onPanStart}
+        onPan={drag?.onPan}
+        onPanEnd={drag?.onPanEnd}
+      >
+        {!controlInsideTitle && leadingControl}
+        {control}
+      </motion.div>
       {actions && <div className="flex items-center gap-1">{actions}</div>}
     </div>
   );

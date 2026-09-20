@@ -349,7 +349,7 @@ export function Section({
         // floated body vacated.
         <div ref={placeholderRef} className="grow-0">
           <SectionHeaderRow
-            className={twMerge(floating?.isDropTarget && "ring-2 ring-inset ring-primary")}
+            className={twMerge("bg-card", floating?.isDropTarget && "bg-muted")}
             title={title}
             badge={badge}
             // Same control as the panel header, own instance: sharing `control`
@@ -357,7 +357,13 @@ export function Section({
             // null the panel's ref. The wrapper centers it like the panel's does.
             leadingControl={
               <div className="flex items-center">
-                <FloatDockButton title={title} icon={icon} isFloating onPress={toggleFloat} />
+                {/* The slot advertises the dock-back action; the title carries identity. */}
+                <FloatDockButton
+                  title={title}
+                  icon="PanelRightClose"
+                  isFloating
+                  onPress={toggleFloat}
+                />
               </div>
             }
           />
