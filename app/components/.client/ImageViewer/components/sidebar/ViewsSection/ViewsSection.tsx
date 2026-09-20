@@ -6,7 +6,7 @@ import { ViewRadioButton } from "./ViewRadioButton";
 import type { ViewKey } from "./ViewStateIcon";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { SectionGrid } from "../SectionRow/SectionGrid";
+import { SECTION_GRID_3COL_WIDTH, SectionGrid } from "../SectionRow/SectionGrid";
 import { Section } from "~/components/Section/Section";
 
 /** Sidebar views control: split-panel layout (add/remove panels, assign VCS). */
@@ -27,7 +27,10 @@ export function ViewsSection() {
 
   return (
     <Section
-      pillar="views"
+      id="views"
+      title="Views"
+      icon="Columns3"
+      floatWidth={SECTION_GRID_3COL_WIDTH}
       actions={
         <>
           <IconButton icon="Plus" label="Add view" size="sm" onPress={addChannelsState} />

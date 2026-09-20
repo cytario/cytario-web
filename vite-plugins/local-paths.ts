@@ -4,11 +4,16 @@
 // Subpaths follow the sibling's own layout: "pkg/styles.css" maps to its built
 // dist/index.css (tailwind output), everything else to src/.
 //
-// Bare react / react-aria imports inside sibling sources resolve from the
-// sibling's own node_modules or the workspace-root hoist, creating duplicate
-// module instances — dedupe pins them to this app's install.
+// Bare react / react-aria imports inside sibling sources must not resolve
+// via Node from the sibling's own node_modules or the workspace-root hoist —
+// dedupe cannot reach SSR-externalized modules. Bundling the sibling AND its
+// react-dependent runtime deps into SSR (ssrNoExternal) keeps those react
+// imports inside Vite's resolver, where dedupe pins them to this app's
+// install.
 
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 
 const NPM_NAME_RE = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
@@ -80,6 +85,47 @@ export function buildLocalDevelopmentConfig(
       { find: new RegExp(`^${escaped}/(.+)$`), replacement: `${resolve(directory, "src")}/$1` },
     ];
   });
+  // Only sibling runtime deps that depend on react (lucide-react, zustand, …)
+  // need bundling — that pulls them inside dedupe's reach. Everything else
+  // stays SSR-externalized: Vite's dev SSR transform cannot execute CJS-only
+  // packages (jpeg-js), Node's require can. An unreadable sibling package.json
+  // (stale path, tests) degrades to [] — no bundling, old behavior.
+  const reactImportingSiblingDeps = (directory: string): string[] => {
+    try {
+      const pkgJsonPath = resolve(directory, "package.json");
+      const req = createRequire(pkgJsonPath);
+      const dependencies = Object.keys(
+        JSON.parse(readFileSync(pkgJsonPath, "utf8")).dependencies ?? {},
+      );
+      return dependencies.filter((dep) => {
+        try {
+          let dir = dirname(req.resolve(dep));
+          for (;;) {
+            const candidate = resolve(dir, "package.json");
+            if (existsSync(candidate)) {
+              const pkg = JSON.parse(readFileSync(candidate, "utf8"));
+              return (
+                "react" in
+                {
+                  ...pkg.dependencies,
+                  ...pkg.peerDependencies,
+                  ...pkg.optionalDependencies,
+                }
+              );
+            }
+            const parent = dirname(dir);
+            if (parent === dir) return false;
+            dir = parent;
+          }
+        } catch {
+          return false;
+        }
+      });
+    } catch {
+      return [];
+    }
+  };
+
   return {
     resolve: {
       alias,
@@ -87,6 +133,9 @@ export function buildLocalDevelopmentConfig(
     },
     serverFsAllow: entries.map(([, directory]) => directory),
     optimizeDepsExclude: entries.map(([packageName]) => packageName),
-    ssrNoExternal: entries.map(([packageName]) => packageName),
+    ssrNoExternal: [
+      ...entries.map(([packageName]) => packageName),
+      ...new Set(entries.flatMap(([, directory]) => reactImportingSiblingDeps(directory))),
+    ],
   };
 }

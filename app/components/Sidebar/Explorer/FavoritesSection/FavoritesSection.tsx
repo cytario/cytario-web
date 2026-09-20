@@ -28,7 +28,9 @@ export function FavoritesSection() {
 
   return (
     <Section
-      pillar="favorites"
+      id="favorites"
+      title="Favorites"
+      icon="Star"
       badge={String(nodes.length)}
       actions={
         <IconButtonLink

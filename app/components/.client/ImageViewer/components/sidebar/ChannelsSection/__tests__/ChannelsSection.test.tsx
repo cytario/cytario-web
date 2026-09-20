@@ -6,15 +6,9 @@ import { Mock } from "vitest";
 import { useViewerStore } from "../../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../../state/store/selectors";
 import { ChannelsSection } from "../ChannelsSection";
-import { useSectionStore } from "~/components/Section/useSection";
 
 vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: vi.fn(),
-}));
-
-vi.mock("~/components/Section/useSection", () => ({
-  useSectionStore: vi.fn(),
-  SectionStoreProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock("../Histogram", () => ({
@@ -91,14 +85,6 @@ describe("ChannelsSection", () => {
           return undefined;
       }
     });
-
-    (useSectionStore as Mock).mockImplementation((selector) => {
-      const state = {
-        isOpen: true,
-        setIsOpen: vi.fn(),
-      };
-      return selector(state);
-    });
   });
 
   const renderWithTabs = () => {
@@ -116,7 +102,7 @@ describe("ChannelsSection", () => {
     renderWithTabs();
 
     const button = screen.getByRole("button", {
-      name: "Channels",
+      name: /Channels/,
     });
 
     expect(button).toBeInTheDocument();

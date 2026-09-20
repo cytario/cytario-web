@@ -2,6 +2,7 @@ import { ChannelItemList } from "./ChannelItemList";
 import { Histogram } from "./Histogram";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
+import { SECTION_GRID_3COL_WIDTH } from "../SectionRow/SectionGrid";
 import { Section } from "~/components/Section/Section";
 import { SectionSlider } from "~/components/Section/SectionSlider";
 
@@ -28,7 +29,10 @@ export function ChannelsSection() {
 
   return (
     <Section
-      pillar="channels"
+      id="channels"
+      title="Channels"
+      icon="Microscope"
+      floatWidth={SECTION_GRID_3COL_WIDTH}
       badge={badge}
       header={<Histogram />}
       actions={

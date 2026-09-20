@@ -28,7 +28,9 @@ export function RecentSection() {
 
   return (
     <Section
-      pillar="recent"
+      id="recent"
+      title="Recent"
+      icon="Clock"
       badge={String(nodes.length)}
       actions={
         <IconButtonLink

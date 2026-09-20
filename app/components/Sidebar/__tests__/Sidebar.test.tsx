@@ -1,7 +1,10 @@
-import { render } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useRef } from "react";
 
-import { createSidebarStore } from "../createSidebarStore";
+import { createSidebarStore, type SidebarStoreApi } from "../createSidebarStore";
 import { Sidebar } from "../Sidebar";
+import { Section } from "~/components/Section/Section";
 
 function renderSidebar() {
   const store = createSidebarStore({ name: "test-sidebar", defaultOpen: true });
@@ -77,5 +80,95 @@ describe("Sidebar momentum-wheel fallback", () => {
     el.dispatchEvent(new WheelEvent("wheel", { cancelable: false, deltaY: 120 }));
 
     expect(el.scrollTop).toBe(0);
+  });
+});
+
+// Properties whose presence on an ancestor would make a `position: fixed`
+// descendant resolve against that ancestor instead of the viewport.
+const FIXED_CONTAINING_BLOCK_PROPS = [
+  "transform",
+  "translate",
+  "rotate",
+  "scale",
+  "perspective",
+  "filter",
+  "backdrop-filter",
+  "contain",
+  "will-change",
+];
+
+function fixedContainingBlockAncestors(el: HTMLElement) {
+  const offenders: string[] = [];
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    for (const prop of FIXED_CONTAINING_BLOCK_PROPS) {
+      const value = node.style.getPropertyValue(prop);
+      if (value && value !== "none") offenders.push(`${node.tagName}[${prop}=${value}]`);
+    }
+  }
+  return offenders;
+}
+
+function renderFloatableSidebar(store: SidebarStoreApi) {
+  function Tree() {
+    const boundsRef = useRef<HTMLDivElement>(null);
+    return (
+      <div ref={boundsRef}>
+        <Sidebar name="Controls" side="right" store={store} floatable boundsRef={boundsRef}>
+          <Section id="overview" title="Overview" icon="Image">
+            <p>overview body</p>
+          </Section>
+          <Section id="channels" title="Channels" icon="Microscope">
+            <p>channels body</p>
+          </Section>
+        </Sidebar>
+      </div>
+    );
+  }
+  return render(<Tree />);
+}
+
+function panelBody() {
+  const el = document.querySelector(".overflow-hidden");
+  if (!(el instanceof HTMLElement)) throw new Error("panel body not found");
+  return el;
+}
+
+describe("Sidebar closed body", () => {
+  test("hides the body instead of making it inert", () => {
+    const store = createSidebarStore({ name: "visibility-sidebar" });
+    renderFloatableSidebar(store);
+    expect(panelBody()).not.toHaveAttribute("inert");
+    expect(panelBody().style.visibility).toBe("");
+
+    act(() => store.getState().setOpen(false));
+
+    expect(panelBody()).not.toHaveAttribute("inert");
+    expect(panelBody().style.visibility).toBe("hidden");
+  });
+
+  test("keeps a floated section usable while the docked content is hidden", async () => {
+    const user = userEvent.setup();
+    const store = createSidebarStore({ name: "floating-visibility-sidebar" });
+    renderFloatableSidebar(store);
+
+    await user.click(screen.getByRole("button", { name: "Float Overview" }));
+    act(() => store.getState().setOpen(false));
+
+    const floated = screen.getByRole("group", { name: "Overview" });
+    expect(getComputedStyle(floated).visibility).toBe("visible");
+    expect(getComputedStyle(within(floated).getByText("overview body")).visibility).toBe("visible");
+    expect(getComputedStyle(screen.getByText("channels body")).visibility).toBe("hidden");
+  });
+
+  test("no ancestor of a floated panel establishes a fixed containing block", async () => {
+    const user = userEvent.setup();
+    const store = createSidebarStore({ name: "containing-block-sidebar" });
+    renderFloatableSidebar(store);
+
+    await user.click(screen.getByRole("button", { name: "Float Overview" }));
+
+    expect(fixedContainingBlockAncestors(screen.getByRole("group", { name: "Overview" }))).toEqual(
+      [],
+    );
   });
 });

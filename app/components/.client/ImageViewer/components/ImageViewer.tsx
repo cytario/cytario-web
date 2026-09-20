@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 import { ImageCanvas } from "./canvas/ImageCanvas";
 import { ImageSidebar } from "./sidebar/ImageSidebar";
 import { ViewerStoreProvider } from "../state/store/core/ViewerStoreContext";
@@ -11,15 +13,17 @@ interface ViewerProps {
 
 export const ImageViewer = ({ signedFetch, resourceId }: ViewerProps) => {
   const userId = useCurrentUser()?.sub ?? "";
+  const boundsRef = useRef<HTMLDivElement>(null);
 
   return (
     <ViewerStoreProvider resourceId={resourceId} signedFetch={signedFetch} userId={userId}>
       <div
+        ref={boundsRef}
         data-theme="dark"
         className="relative flex grow h-full bg-background text-foreground overflow-clip"
       >
         <ImageCanvas />
-        <ImageSidebar />
+        <ImageSidebar boundsRef={boundsRef} />
       </div>
     </ViewerStoreProvider>
   );

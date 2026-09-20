@@ -6,7 +6,7 @@ import { Section } from "~/components/Section/Section";
 /** Sidebar overview: navigation thumbnail + magnification presets + reset. */
 export const OverviewSection = () => {
   return (
-    <Section pillar="overview" actions={<ResetViewStateButton />}>
+    <Section id="overview" title="Overview" icon="Image" actions={<ResetViewStateButton />}>
       <div className="block h-44 w-full shrink-0 tall:h-60">
         <ImagePreview isInteractive />
       </div>

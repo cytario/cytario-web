@@ -5,6 +5,7 @@ import { OverlayItem } from "./OverlayItem";
 import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
+import { SECTION_GRID_3COL_WIDTH } from "../SectionRow/SectionGrid";
 import { Section } from "~/components/Section/Section";
 import { SectionSlider } from "~/components/Section/SectionSlider";
 import { isPointMode } from "~/utils/db/getGeomQuery";
@@ -43,7 +44,10 @@ export const OverlaysSection = () => {
   return (
     <>
       <Section
-        pillar="overlays"
+        id="overlays"
+        title="Overlays"
+        icon="Layers2"
+        floatWidth={SECTION_GRID_3COL_WIDTH}
         badge={badge}
         actions={
           <>

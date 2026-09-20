@@ -231,7 +231,9 @@ export const AnnotationsSection = () => {
 
   return (
     <Section
-      pillar="annotations"
+      id="annotations"
+      title="Annotations"
+      icon="Lasso"
       badge={`${visible}/${total}`}
       header={
         <SearchInput
