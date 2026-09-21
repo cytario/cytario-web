@@ -46,6 +46,15 @@ const providerCatalogWith = (appCatalog: unknown): ProviderCatalog =>
     appCatalogs: [appCatalog],
   }) as ProviderCatalog;
 
+const providerCatalogWithTwo = (first: unknown, second: unknown): ProviderCatalog =>
+  ({
+    providerConnections: [],
+    providerRoles: [],
+    computeProviders: [],
+    computeRoles: [],
+    appCatalogs: [first, second],
+  }) as ProviderCatalog;
+
 const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
 
 function stubFetch(respond: () => Response) {
@@ -150,6 +159,100 @@ describe("catalogFetch — credential attachment (SRS-CY-414102)", () => {
     const headers = fetchCalls[0].init?.headers as Record<string, string>;
     expect(headers.Accept).toBe("application/vnd.oci.image.manifest.v1+json");
     expect(headers.Authorization).toMatch(/^Basic /);
+  });
+});
+
+describe("catalogFetch — multiple catalogs", () => {
+  test("name resolution picks the right catalog among two connected ones", async () => {
+    getProviderCatalogMock.mockResolvedValue(
+      providerCatalogWithTwo(
+        catalogWith(),
+        catalogWith({
+          id: "ac-2",
+          displayName: "Dev Harbor",
+          registryEndpoint: "https://dev-harbor.example.com",
+          accessAccountId: "robot$dev",
+          accessAccountSecret: "dev-secret",
+        }),
+      ),
+    );
+    stubFetch(
+      () =>
+        new Response("{}", {
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await hostRequestStorage.run(mockRequestData, () =>
+      catalogFetch("Dev Harbor", "https://dev-harbor.example.com/v2/_catalog"),
+    );
+
+    expect(fetchCalls).toHaveLength(1);
+    const headers = fetchCalls[0].init?.headers as Record<string, string>;
+    const expected = `Basic ${Buffer.from("robot$dev:dev-secret").toString("base64")}`;
+    expect(headers.Authorization).toBe(expected);
+  });
+
+  test("a credential-less catalog among credentialed ones still emits no Authorization", async () => {
+    getProviderCatalogMock.mockResolvedValue(
+      providerCatalogWithTwo(
+        catalogWith(),
+        catalogWith({
+          id: "ac-public",
+          displayName: "Public OCI",
+          registryEndpoint: "https://registry.example.com",
+          registryKind: "oci-catalog",
+          accessAccountId: undefined,
+          accessAccountSecret: undefined,
+        }),
+      ),
+    );
+    stubFetch(
+      () =>
+        new Response("{}", {
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await hostRequestStorage.run(mockRequestData, () =>
+      catalogFetch("Public OCI", "https://registry.example.com/v2/_catalog"),
+    );
+
+    expect(fetchCalls).toHaveLength(1);
+    const headers = fetchCalls[0].init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+    expect(Object.keys(headers)).not.toContain("Authorization");
+  });
+
+  test("the other catalog's credential is never attached to a cross-catalog name", async () => {
+    getProviderCatalogMock.mockResolvedValue(
+      providerCatalogWithTwo(
+        catalogWith(),
+        catalogWith({
+          id: "ac-2",
+          displayName: "Dev Harbor",
+          registryEndpoint: "https://dev-harbor.example.com",
+          accessAccountId: "robot$dev",
+          accessAccountSecret: "dev-secret",
+        }),
+      ),
+    );
+    stubFetch(
+      () =>
+        new Response("{}", {
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await hostRequestStorage.run(mockRequestData, () =>
+      catalogFetch("Harbor", "https://harbor.example.com/v2/_catalog"),
+    );
+
+    const headers = fetchCalls[0].init?.headers as Record<string, string>;
+    const expected = `Basic ${Buffer.from("robot$harbor:secret-token").toString("base64")}`;
+    expect(headers.Authorization).toBe(expected);
+    const devCredential = `Basic ${Buffer.from("robot$dev:dev-secret").toString("base64")}`;
+    expect(headers.Authorization).not.toBe(devCredential);
   });
 });
 

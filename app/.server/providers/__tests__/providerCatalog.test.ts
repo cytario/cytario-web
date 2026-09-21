@@ -249,6 +249,70 @@ describe("providerCatalogSchema", () => {
     };
     expect(() => providerCatalogSchema.parse(bad)).toThrow();
   });
+
+  test("parses a registryPullSecrets map on the compute-provider typeSpecific", () => {
+    const withMap = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            registryPullSecrets: {
+              "ac-1":
+                "arn:aws:secretsmanager:eu-central-1:123456789012:secret:cytario-compute/cp-1/registry-pull/ac-1",
+            },
+          },
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withMap);
+    expect(catalog.computeProviders[0].typeSpecific.registryPullSecrets).toEqual({
+      "ac-1":
+        "arn:aws:secretsmanager:eu-central-1:123456789012:secret:cytario-compute/cp-1/registry-pull/ac-1",
+    });
+  });
+
+  test("a compute-provider payload without registryPullSecrets still parses (scalar-only legacy shape)", () => {
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    expect(catalog.computeProviders[0].typeSpecific.registryPullSecrets).toBeUndefined();
+    expect(catalog.computeProviders[0].typeSpecific.imagePullSecretRef).toBe(
+      "arn:aws:secretsmanager:eu-central-1:123456789012:secret:registry-pull-abc",
+    );
+  });
+
+  test("a JSON null registryPullSecrets normalises to an absent map, not a parse failure", () => {
+    const withNull = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            registryPullSecrets: null,
+          },
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withNull);
+    expect(catalog.computeProviders[0].typeSpecific.registryPullSecrets).toBeUndefined();
+  });
+
+  test("rejects an empty pull-secret ARN inside the map (min(1) not loosened)", () => {
+    const withEmptyArn = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            registryPullSecrets: { "ac-1": "" },
+          },
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(withEmptyArn)).toThrow();
+  });
 });
 
 describe("getProviderCatalog (OSS build)", () => {
