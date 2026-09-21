@@ -1104,7 +1104,9 @@ describe("createViewerStore", () => {
         loader: [],
       });
 
-      expect(() => store.getState().addChannelsState()).not.toThrow();
+      store.getState().addChannelsState();
+
+      expect(store.getState().channels).toEqual({});
       expect(store.getState().layersStates).toEqual([]);
       expect(store.getState().imagePanelIndex).toBe(-1);
     });

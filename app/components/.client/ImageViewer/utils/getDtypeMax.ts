@@ -1,6 +1,6 @@
 import type { SupportedDtype } from "@vivjs/types";
 
-export const getDtypeMax = (dtype: SupportedDtype): number => {
+export const getDtypeMax = (dtype?: SupportedDtype): number => {
   switch (dtype) {
     case "Uint8":
       return 2 ** 8 - 1;
@@ -17,6 +17,9 @@ export const getDtypeMax = (dtype: SupportedDtype): number => {
     case "Float32":
     case "Float64":
       return 1;
+    default:
+      // Absent dtype means no level is loaded; 16-bit is the likely real depth.
+      return 2 ** 16 - 1;
   }
 };
 

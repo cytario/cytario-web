@@ -25,4 +25,13 @@ describe("getSelectionStats()", () => {
       histogram: expect.any(Array),
     });
   });
+
+  test("rejects a released (empty) loader instead of dereferencing undefined", async () => {
+    await expect(
+      getSelectionStats({
+        loader: [],
+        selection: { c: 0, x: 0, y: 0, z: 0, t: 0 },
+      }),
+    ).rejects.toThrow("Cannot read channel stats without a loaded image level");
+  });
 });

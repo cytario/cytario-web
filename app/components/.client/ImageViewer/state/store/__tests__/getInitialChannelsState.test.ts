@@ -81,7 +81,7 @@ describe("getInitialChannelsState", () => {
     expect(result.channelsState["GFP"].contrastLimits).toEqual([0, dtypeMax]);
   });
 
-  test("falls back to a 16-bit default range when the loader is empty", () => {
+  test("empty loader still yields a full dtype range", () => {
     const metadata = createMockMetadata([{ Name: "DAPI" }]);
 
     const result = getInitialChannelsState(metadata, [] as unknown as Loader);
