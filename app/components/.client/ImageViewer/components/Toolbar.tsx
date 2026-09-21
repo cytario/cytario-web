@@ -10,6 +10,7 @@ import { useUndoRedoShortcuts } from "../state/store/core/useUndoRedoShortcuts";
 import { useViewerStore } from "../state/store/core/ViewerStoreContext";
 import { type AnnotationMode } from "../state/store/types";
 import { useCanAnnotate } from "../utils/useCanAnnotate";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 const tools = [
   { mode: "view", icon: "Hand", label: "Drag, pan, and zoom" },
@@ -24,6 +25,7 @@ export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const scaleBarVisible = useViewerDisplayStore((state) => state.scaleBarVisible);
   const canAnnotate = useCanAnnotate();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useUndoRedoShortcuts();
@@ -36,9 +38,11 @@ export const Toolbar = () => {
 
   return (
     <>
-      <FloatingBar className="bottom-8 left-8 p-5">
-        <ScaleBar />
-      </FloatingBar>
+      {scaleBarVisible && (
+        <FloatingBar className="bottom-8 left-8 p-5">
+          <ScaleBar />
+        </FloatingBar>
+      )}
 
       <FloatingBar
         role="toolbar"

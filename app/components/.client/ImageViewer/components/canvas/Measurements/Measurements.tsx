@@ -1,6 +1,6 @@
 import { Ruler } from "./Ruler";
 import { useMeasurements } from "./useMeasurements";
-import { useDisplayUnitStore } from "~/utils/displayUnitStore/useDisplayUnitStore";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 const PIXEL_LADDER = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 
@@ -17,7 +17,7 @@ export function Measurements() {
     one_mm,
     zoom,
   } = useMeasurements();
-  const displayUnit = useDisplayUnitStore((s) => s.displayUnit);
+  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
 
   if (displayUnit === "pixels") {
     // Tick blocks of `blockSize` level-0 px, sized so ticks stay legible at any zoom.

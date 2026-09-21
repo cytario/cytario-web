@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { absoluteToMetricFactory, metricToAbsoluteFactory } from "../Measurements/utils";
-import { useDisplayUnitStore } from "~/utils/displayUnitStore/useDisplayUnitStore";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 const inputClassName = `
   w-20 rounded-md border border-border bg-background
@@ -18,7 +18,7 @@ export const StampSizeInput = () => {
   const metadata = useViewerStore(select.metadata);
   const stampWidthPx = useViewerStore((s) => s.annotationStampSize.widthPx);
   const setStampSize = useViewerStore((s) => s.setAnnotationStampSize);
-  const displayUnit = useDisplayUnitStore((s) => s.displayUnit);
+  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
 
   const unitSuffix = displayUnit === "pixels" ? "px" : (metadata?.Pixels.PhysicalSizeXUnit ?? "µm");
   // Per-axis spacing: a metric size stays square in physical dimensions even

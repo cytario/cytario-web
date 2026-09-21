@@ -3,13 +3,13 @@ import { useMeasurements } from "./useMeasurements";
 import { absoluteToMetricFactory } from "./utils";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useDisplayUnitStore } from "~/utils/displayUnitStore/useDisplayUnitStore";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 export const CursorTick = ({ vertical }: { vertical?: boolean }) => {
   const { zoom, screenOffsetLeft, screenOffsetTop } = useMeasurements();
   const metadata = useViewerStore(select.metadata);
   const cursorPosition = useViewerStore(select.cursorPosition);
-  const displayUnit = useDisplayUnitStore((s) => s.displayUnit);
+  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
 
   if (!cursorPosition) return null;
   if (!metadata) return null;

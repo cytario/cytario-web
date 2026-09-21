@@ -1,5 +1,5 @@
 import { useMeasurements } from "./useMeasurements";
-import { useDisplayUnitStore } from "~/utils/displayUnitStore/useDisplayUnitStore";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 const METRIC_SIZES: [number, string][] = [
   [100, "10 cm"],
@@ -47,8 +47,8 @@ const pixelSize = (one_px: number): [number, string] => {
 
 export const ScaleBar = () => {
   const { one_mm, zoom } = useMeasurements();
-  const displayUnit = useDisplayUnitStore((s) => s.displayUnit);
-  const toggleDisplayUnit = useDisplayUnitStore((s) => s.toggleDisplayUnit);
+  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
+  const toggleDisplayUnit = useViewerDisplayStore((s) => s.toggleDisplayUnit);
 
   const [size, unit] = displayUnit === "pixels" ? pixelSize(2 ** zoom) : metricSize(one_mm);
 
