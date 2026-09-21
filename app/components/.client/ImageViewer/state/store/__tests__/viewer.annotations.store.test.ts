@@ -624,3 +624,98 @@ describe("createAnnotationSet", () => {
     );
   });
 });
+
+// -----------------------------------------------------------------------
+// duplicateAnnotations
+// -----------------------------------------------------------------------
+
+describe("duplicateAnnotations", () => {
+  test("creates independent copies with fresh identity, same geometry, and preserved classification", () => {
+    const store = createViewerStore("dup-1");
+    const source = makeFeature({ id: "src-1", className: "Tumor", color: [255, 0, 0] });
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [source])]);
+
+    const created = store.getState().duplicateAnnotations("set-a", [source]);
+
+    const features = store.getState().annotationSets.find((s) => s.id === "set-a")!.features;
+    expect(features).toHaveLength(2);
+    const copy = features[1];
+    expect(copy.id).toBe(created[0]);
+    expect(copy.id).not.toBe(source.id);
+    expect(copy.geometry).toEqual(source.geometry);
+    expect(copy.properties.classification).toEqual(source.properties.classification);
+    // Not a shared reference — later class edits of one must not touch the other.
+    expect(copy.properties.classification).not.toBe(source.properties.classification);
+    expect(copy.properties.name).toMatch(/^\d{4}$/);
+    expect(copy.properties.createdAt).toBeDefined();
+    expect(copy.properties.updatedAt).toBeDefined();
+  });
+
+  test("mints names from the lowest unused index, continuing past the sources", () => {
+    const store = createViewerStore("dup-2");
+    const named = (name: string): AnnotationFeature => {
+      const feature = makeFeature({});
+      feature.properties.name = name;
+      return feature;
+    };
+    const sources = [named("0001"), named("0003")];
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", sources)]);
+
+    store.getState().duplicateAnnotations("set-a", sources);
+
+    const features = store.getState().annotationSets.find((s) => s.id === "set-a")!.features;
+    expect(features.map((f) => f.properties.name)).toEqual(["0001", "0003", "0002", "0004"]);
+  });
+
+  test("translates duplicates by the given offset and leaves sources untouched", () => {
+    const store = createViewerStore("dup-3");
+    const source = makeFeature({ id: "src-1" });
+    source.geometry = { type: "Point", coordinates: [100, 100] };
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [source])]);
+
+    store.getState().duplicateAnnotations("set-a", [source], [10, -5]);
+
+    const features = store.getState().annotationSets.find((s) => s.id === "set-a")!.features;
+    expect(features[0].geometry).toEqual({ type: "Point", coordinates: [100, 100] });
+    expect(features[1].geometry).toEqual({ type: "Point", coordinates: [110, 95] });
+  });
+
+  test("replaces the selection with the new ids", () => {
+    const store = createViewerStore("dup-4");
+    const a = makeFeature({ id: "a" });
+    const b = makeFeature({ id: "b" });
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [a, b])]);
+    store.getState().setAnnotationSelectedIds([a.id, b.id]);
+
+    const created = store.getState().duplicateAnnotations("set-a", [a, b]);
+
+    expect(store.getState().annotationSelectedIds).toEqual(created);
+  });
+
+  test("is a no-op for an unknown set id or an empty source list", () => {
+    const store = createViewerStore("dup-5");
+    const source = makeFeature({ id: "src-1" });
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [source])]);
+
+    expect(store.getState().duplicateAnnotations("missing", [source])).toEqual([]);
+    expect(store.getState().duplicateAnnotations("set-a", [])).toEqual([]);
+
+    const features = store.getState().annotationSets.find((s) => s.id === "set-a")!.features;
+    expect(features).toHaveLength(1);
+  });
+
+  test("enters the undo history like region creation", () => {
+    const store = createViewerStore("dup-6");
+    const source = makeFeature({ id: "src-1" });
+    store.getState().seedAnnotations([makeSet("set-a", "user-a", [source])]);
+
+    store.getState().duplicateAnnotations("set-a", [source]);
+    expect(store.getState().annotationSets.find((s) => s.id === "set-a")!.features).toHaveLength(2);
+
+    const temporal = (store as unknown as { temporal?: { getState: () => { undo: () => void } } })
+      .temporal!;
+    temporal.getState().undo();
+
+    expect(store.getState().annotationSets.find((s) => s.id === "set-a")!.features).toHaveLength(1);
+  });
+});
