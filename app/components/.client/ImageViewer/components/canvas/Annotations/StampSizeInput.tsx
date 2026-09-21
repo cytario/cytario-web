@@ -11,17 +11,20 @@ const inputClassName = `
   focus:outline-none focus:ring-1 focus:ring-primary
 `;
 
-/** Edge length of the stamped square, entered in the global display unit and
- *  stored as level-0 pixels. The displayed value re-derives from the stored
- *  pixels when the unit flips. */
+/** Edge length of the stamped square, entered in nanometers (metric) or
+ *  level-0 pixels and stored as level-0 pixels. The displayed value re-derives
+ *  from the stored pixels when the unit flips. */
 export const StampSizeInput = () => {
   const metadata = useViewerStore(select.metadata);
   const stampWidthPx = useViewerStore((s) => s.annotationStampSize.widthPx);
   const setStampSize = useViewerStore((s) => s.setAnnotationStampSize);
   const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
 
-  const unitSuffix = displayUnit === "pixels" ? "px" : (metadata?.Pixels.PhysicalSizeXUnit ?? "µm");
-  // Per-axis spacing: a metric size stays square in physical dimensions even
+  // The metric variant of the input is always nanometers, independent of the
+  // image's metadata unit; the factories normalize to mm.
+  const metadataUnit = metadata?.Pixels.PhysicalSizeXUnit ?? "µm";
+  const nanometersPerMillimeter = 1_000_000;
+  // Per-axis spacing: a nanometer size stays square in physical dimensions even
   // when the image's pixels are anisotropic.
   const spacingX = metadata?.Pixels.PhysicalSizeX ?? 1;
   const spacingY = metadata?.Pixels.PhysicalSizeY ?? spacingX;
@@ -29,7 +32,9 @@ export const StampSizeInput = () => {
   const toDisplay = (widthPx: number): number =>
     displayUnit === "pixels"
       ? widthPx
-      : Math.round(absoluteToMetricFactory(spacingX, unitSuffix)(widthPx));
+      : Math.round(
+          absoluteToMetricFactory(spacingX, metadataUnit)(widthPx) * nanometersPerMillimeter,
+        );
 
   const [draft, setDraft] = useState(String(toDisplay(stampWidthPx)));
   const [draftSync, setDraftSync] = useState({ sizePx: stampWidthPx, unit: displayUnit });
@@ -46,9 +51,11 @@ export const StampSizeInput = () => {
       setDraft(String(toDisplay(stampWidthPx)));
       return;
     }
+    const nanometersToLevel0Px = (spacing: number) =>
+      metricToAbsoluteFactory(spacing, metadataUnit)(value / nanometersPerMillimeter);
     setStampSize(
-      displayUnit === "pixels" ? value : metricToAbsoluteFactory(spacingX, unitSuffix)(value),
-      displayUnit === "pixels" ? value : metricToAbsoluteFactory(spacingY, unitSuffix)(value),
+      displayUnit === "pixels" ? value : nanometersToLevel0Px(spacingX),
+      displayUnit === "pixels" ? value : nanometersToLevel0Px(spacingY),
     );
   };
 
@@ -69,7 +76,7 @@ export const StampSizeInput = () => {
           }
         }}
       />
-      {unitSuffix}
+      {displayUnit === "pixels" ? "px" : "nm"}
     </label>
   );
 };
