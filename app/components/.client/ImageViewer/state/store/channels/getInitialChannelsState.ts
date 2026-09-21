@@ -19,7 +19,7 @@ export const getInitialChannelsState = (metadata: Image, loader: Loader) => {
   const channels = metadata.Pixels.Channels as Channel[];
 
   const channelIds = channels.map((ch, i) => ch.Name ?? `Channel ${i}`);
-  const dtypeMax = getDtypeMax(loader[0].dtype as SupportedDtype);
+  const dtypeMax = getDtypeMax(loader[0]?.dtype as SupportedDtype);
   const defaultRange: [number, number] = [0, dtypeMax];
 
   const initialChannelsState = channels.reduce((acc, channel, index) => {

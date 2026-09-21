@@ -19,6 +19,9 @@ export async function getSelectionStats({
   histogram: number[];
 }> {
   const data = loader[loader.length - 1];
+  if (!data) {
+    throw new Error("Cannot read channel stats without a loaded image level");
+  }
 
   const raster = await data.getRaster({
     selection,
