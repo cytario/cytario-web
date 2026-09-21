@@ -62,6 +62,11 @@ export interface AnnotationsSlice {
    *  seeded or lazy-created on first draw. */
   activeSetId: string | null;
   annotationMode: AnnotationMode;
+  /** Edge lengths in level-0 pixels of the square stamped by the draw-box tool
+   *  on a plain click. Two components so a metric size stays square in physical
+   *  dimensions on anisotropic-pixel images. Session state — converted from the
+   *  display unit at the size input, never persisted. */
+  annotationStampSize: { widthPx: number; heightPx: number };
   /** `feature.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
@@ -144,6 +149,7 @@ export interface AnnotationsSlice {
    *  drawing into it, so a new region is never born into a hidden class. */
   showAnnotationClass: (setId: string, name: string) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
+  setAnnotationStampSize: (widthPx: number, heightPx: number) => void;
   setAnnotationSelectedIds: (ids: string[]) => void;
 }
 
@@ -154,6 +160,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   annotationSets: [],
   activeSetId: null,
   annotationMode: "view",
+  annotationStampSize: { widthPx: 512, heightPx: 512 },
   annotationSelectedIds: [],
   annotationView: {},
   annotationActiveClass: null,
@@ -517,6 +524,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "setAnnotationMode",
+    ),
+
+  setAnnotationStampSize: (widthPx, heightPx) =>
+    set(
+      (viewerStore) => {
+        viewerStore.annotationStampSize = { widthPx, heightPx };
+      },
+      false,
+      "setAnnotationStampSize",
     ),
 
   setAnnotationSelectedIds: (ids) =>

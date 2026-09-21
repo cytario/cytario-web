@@ -2,6 +2,7 @@ import { InteractionState, OrthographicViewState } from "@deck.gl/core";
 import DeckGL from "@deck.gl/react";
 import { useCallback, useEffect } from "react";
 
+import { StampGhost } from "./Annotations/StampGhost";
 import { LayersTooltip } from "./Hover/LayersTooltip";
 import { useCompositeHover } from "./Hover/useCompositeHover";
 import { ImageContainer } from "./ImageContainer";
@@ -158,6 +159,8 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
           <ImagePanelInner imagePanelId={imagePanelId} viewPort={viewPort} />
 
           {isActivePanel && <Measurements />}
+
+          {isActivePanel && <StampGhost />}
 
           {!isActivePanel && <Crosshair />}
 

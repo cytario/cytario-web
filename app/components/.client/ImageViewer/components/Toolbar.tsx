@@ -2,6 +2,7 @@ import { IconButton } from "@cytario/design";
 import type { HTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 
+import { StampSizeInput } from "./canvas/Annotations/StampSizeInput";
 import { ScaleBar } from "./canvas/Measurements/ScaleBar";
 import { useAnnotationModeKeyboard } from "./canvas/useAnnotationModeKeyboard";
 import { useUndoRedo } from "../state/store/core/useUndoRedo";
@@ -16,6 +17,7 @@ const tools = [
   { mode: "draw-freehand", icon: "Pencil", label: "Draw freehand" },
   { mode: "draw-polygon", icon: "Pentagon", label: "Draw polygon" },
   { mode: "draw-point", icon: "MapPin", label: "Draw point" },
+  { mode: "draw-box", icon: "Square", label: "Stamp box" },
 ] as const;
 
 export const Toolbar = () => {
@@ -58,6 +60,8 @@ export const Toolbar = () => {
               />
             );
           })}
+
+        {canAnnotate && activeMode === "draw-box" && <StampSizeInput />}
 
         {canAnnotate && (
           <>

@@ -10,6 +10,7 @@ import type { Feature, FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
+import { StampBoxMode } from "./stampBoxMode";
 import {
   annotationNameOf,
   classColor as registeredClassColor,
@@ -39,6 +40,7 @@ const MODE_CLASSES = {
   "draw-polygon": DrawPolygonMode,
   "draw-freehand": DrawPolygonByDraggingMode,
   "draw-point": ClickOrDragPointMode,
+  "draw-box": StampBoxMode,
 } as const;
 
 // Allowlist of edit types that change committed geometry — anything else
@@ -127,6 +129,8 @@ export const useAnnotationsLayer = (
   const annotationsOpacity = layersStates[panelLayersStateIndex]?.annotationsOpacity ?? 1;
   const showOutline = layersStates[panelLayersStateIndex]?.showAnnotationOutline ?? true;
   const mode = useViewerStore((s) => s.annotationMode);
+  const stampWidthPx = useViewerStore((s) => s.annotationStampSize.widthPx);
+  const stampHeightPx = useViewerStore((s) => s.annotationStampSize.heightPx);
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const ensureOwnSet = useViewerStore((s) => s.ensureOwnSet);
   const updateSetFeatures = useViewerStore((s) => s.updateSetFeatures);
@@ -211,6 +215,14 @@ export const useAnnotationsLayer = (
             id: `annotations-${imagePanelId}`,
             data,
             mode: MODE_CLASSES[mode],
+            modeConfig:
+              mode === "draw-box"
+                ? {
+                    dragToDraw: true,
+                    stampWidthPx: stampWidthPx,
+                    stampHeightPx: stampHeightPx,
+                  }
+                : undefined,
             selectedFeatureIndexes,
             ...paint(ownView?.hiddenClasses, ownFill, ownLine),
 
@@ -345,6 +357,8 @@ export const useAnnotationsLayer = (
     annotationsOpacity,
     showOutline,
     mode,
+    stampWidthPx,
+    stampHeightPx,
     selectedIds,
     imagePanelId,
     ownUserId,
