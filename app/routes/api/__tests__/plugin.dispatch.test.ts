@@ -34,30 +34,25 @@ vi.mock("~/.server/auth/sessionMiddleware", () => ({
   sessionMiddleware: vi.fn(),
 }));
 
-// `verifyJobToken` is mocked so the dispatch test never hits the network.
-// Each test sets `verifyJobToken` to return a verified payload or null.
-const verifyJobTokenMock = vi.hoisted(() => vi.fn());
-vi.mock("~/.server/auth/verifyJobToken", () => ({
-  verifyJobToken: verifyJobTokenMock,
+// `resolveJobBinding` is mocked so the dispatch test never touches the ledger.
+// Each test sets it to a resolved binding or null.
+const resolveJobBindingMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/resolveJobBinding", () => ({
+  resolveJobBinding: resolveJobBindingMock,
 }));
 
-const VALID_JOB_TOKEN_PAYLOAD = {
-  sub: "submitting-user-42",
-  organization: { testcorp: { id: "org-1", groups: [] } },
-};
-
-const MULTI_ORG_JOB_TOKEN_PAYLOAD = {
-  sub: "submitting-user-42",
-  organization: {
-    "cosmo-bio": { id: "org-1", groups: [] },
-    cytario: { id: "org-2", groups: [] },
-  },
+const VALID_JOB_BINDING = {
+  jobId: "job-1",
+  batchId: "batch-1",
+  offlineSessionId: "sess-1",
+  organization: "testcorp",
+  owner: "submitting-user-42",
 };
 
 beforeEach(() => {
   serverEndpointRegistry.__reset();
   vi.clearAllMocks();
-  verifyJobTokenMock.mockReset();
+  resolveJobBindingMock.mockReset();
   process.env.RECONCILE_SECRET = "test-reconcile-secret";
   process.env.PLUGIN_WEBHOOK_SECRET = "test-webhook-secret";
 });
@@ -154,7 +149,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     expect(loaderFn).not.toHaveBeenCalled();
   });
 
-  test("job-token carve-out: verifies the bearer token and derives identity from its claims (no session) (SRS-CY-416102(b))", async () => {
+  test("job-token carve-out: resolves the bearer token to its ledger row and derives identity from that row (no session) (SRS-CY-416102(b))", async () => {
     const { authMiddleware } = await import("~/.server/auth/authMiddleware");
     const actionFn = vi.fn(async () => Response.json({ brokered: true }));
 
@@ -164,7 +159,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
       action: actionFn,
     });
 
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_JOB_TOKEN_PAYLOAD);
+    resolveJobBindingMock.mockResolvedValueOnce(VALID_JOB_BINDING);
 
     const args = buildArgs("POST", "/api/plugin/credential-broker", {
       headers: { Authorization: "Bearer job-token-value" },
@@ -172,7 +167,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const response = (await action(args)) as Response;
 
     expect(authMiddleware).not.toHaveBeenCalled();
-    expect(verifyJobTokenMock).toHaveBeenCalledWith("job-token-value");
+    expect(resolveJobBindingMock).toHaveBeenCalledWith("job-token-value");
     expect(actionFn).toHaveBeenCalledOnce();
     expect(actionFn).toHaveBeenCalledWith({
       request: args.request,
@@ -204,7 +199,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
       action: actionFn,
     });
 
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_JOB_TOKEN_PAYLOAD);
+    resolveJobBindingMock.mockResolvedValueOnce(VALID_JOB_BINDING);
 
     const args = buildArgs("POST", "/api/plugin/credential-broker", {
       headers: { Authorization: "Bearer job-token-value" },
@@ -231,7 +226,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     expect(actionFn).not.toHaveBeenCalled();
   });
 
-  test("job-token carve-out: returns 401 when the token fails verification (bad/expired/wrong-audience)", async () => {
+  test("job-token carve-out: returns 401 when the token resolves to no ledger row (unknown, cancelled, or swept job)", async () => {
     const actionFn = vi.fn(async () => Response.json({ brokered: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
@@ -240,7 +235,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
       action: actionFn,
     });
 
-    verifyJobTokenMock.mockResolvedValueOnce(null);
+    resolveJobBindingMock.mockResolvedValueOnce(null);
 
     const response = (await action(
       buildArgs("POST", "/api/plugin/credential-broker", {
@@ -249,54 +244,6 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     )) as Response;
 
     expect(response.status).toBe(401);
-    expect(actionFn).not.toHaveBeenCalled();
-  });
-
-  test("job-token carve-out: returns 403 when the token's organization claim carries multiple org keys", async () => {
-    const actionFn = vi.fn(async () => Response.json({ brokered: true }));
-
-    serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/credential-broker",
-      auth: "job-token",
-      action: actionFn,
-    });
-
-    verifyJobTokenMock.mockResolvedValueOnce(MULTI_ORG_JOB_TOKEN_PAYLOAD);
-
-    const response = (await action(
-      buildArgs("POST", "/api/plugin/credential-broker", {
-        headers: { Authorization: "Bearer job-token-value" },
-      }),
-    )) as Response;
-
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /no single organization claim/i,
-    });
-    expect(actionFn).not.toHaveBeenCalled();
-  });
-
-  test("job-token carve-out: returns 403 when the token has no organization claim at all", async () => {
-    const actionFn = vi.fn(async () => Response.json({ brokered: true }));
-
-    serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/credential-broker",
-      auth: "job-token",
-      action: actionFn,
-    });
-
-    verifyJobTokenMock.mockResolvedValueOnce({ sub: "submitting-user-42" });
-
-    const response = (await action(
-      buildArgs("POST", "/api/plugin/credential-broker", {
-        headers: { Authorization: "Bearer job-token-value" },
-      }),
-    )) as Response;
-
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /no single organization claim/i,
-    });
     expect(actionFn).not.toHaveBeenCalled();
   });
 

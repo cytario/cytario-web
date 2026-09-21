@@ -1,18 +1,28 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { prisma } from "~/.server/db/prisma";
 import { action } from "~/routes/api/broker";
 
-const verifyJobTokenMock = vi.hoisted(() => vi.fn());
-vi.mock("~/.server/auth/verifyJobToken", () => ({
-  verifyJobToken: verifyJobTokenMock,
+// The job token resolves to a ledger row server-side; nothing in the request
+// body takes part, so the resolver is the seam that decides the binding.
+const resolveJobBindingMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/resolveJobBinding", () => ({
+  resolveJobBinding: resolveJobBindingMock,
 }));
 
-const refreshJobTokenWithLockMock = vi.hoisted(() => vi.fn());
-const offlineSessionIdFromTokenMock = vi.hoisted(() => vi.fn());
-vi.mock("~/.server/auth/refreshJobTokenWithLock", () => ({
-  refreshJobTokenWithLock: refreshJobTokenWithLockMock,
-  offlineSessionIdFromToken: offlineSessionIdFromTokenMock,
+vi.mock("~/.server/auth/refreshJobToken", () => ({
+  JobGrantRefusedError: class JobGrantRefusedError extends Error {
+    status: number;
+    constructor(status: number, detail: string) {
+      super(`Job token refresh refused: ${status} - ${detail}`);
+      this.status = status;
+    }
+  },
+}));
+
+const resolveBatchAccessTokenMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/jobCredentialStore", () => ({
+  hashJobToken: (token: string) => `hash:${token}`,
+  resolveBatchAccessToken: resolveBatchAccessTokenMock,
 }));
 
 const stsSendMock = vi.hoisted(() => vi.fn());
@@ -28,51 +38,12 @@ vi.mock("@aws-sdk/client-sts", () => ({
   },
 }));
 
-const VALID_TOKEN_PAYLOAD = {
-  sub: "submitting-user-42",
-  organization: { testcorp: { id: "org-1", groups: [] } },
-};
-
-const MULTI_ORG_TOKEN_PAYLOAD = {
-  sub: "submitting-user-42",
-  organization: {
-    "cosmo-bio": { id: "org-1", groups: [] },
-    cytario: { id: "org-2", groups: [] },
-  },
-};
-
-const REFRESHED_ACCESS_TOKEN = "fresh-access-token";
-const ROTATED_REFRESH_TOKEN = "rotated-refresh-token";
-
-function buildRequest(body: unknown): Request {
-  return new Request("http://localhost/api/broker", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
-const args = (request: Request) => ({ request, params: {}, context: new Map() }) as never;
-
-/**
- * Mocks `findFirst` with the row only when the row satisfies the query's
- * WHERE clause — the tenant filters (jobId, owner, org membership) live in
- * the query, so a row outside them must resolve to no row at all.
- */
-function findFirstMatchingWhere(row: Record<string, unknown> | null) {
-  return async (query: unknown): Promise<Record<string, unknown> | null> => {
-    if (!row) return null;
-    const where = (query as { where?: Record<string, unknown> }).where ?? {};
-    if (where.jobId !== undefined && where.jobId !== row.jobId) return null;
-    if (where.owner !== undefined && where.owner !== row.owner) return null;
-    const organization = where.organization as { in?: string[] } | undefined;
-    if (organization?.in && !organization.in.includes(row.organization as string)) return null;
-    return row;
-  };
-}
+const ACCESS_TOKEN = "batch-access-token";
+const PRESENTED_TOKEN = "job-session-token";
 
 const LEDGER_ROW = {
   jobId: "job-1",
+  batchId: "batch-1",
   offlineSessionId: "sess-1",
   organization: "testcorp",
   owner: "submitting-user-42",
@@ -84,143 +55,50 @@ const LEDGER_ROW = {
   s3Endpoint: null,
 };
 
+const BINDING = { ...LEDGER_ROW, row: LEDGER_ROW };
+
+function buildRequest(body: unknown): Request {
+  return new Request("http://localhost/api/broker", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+const args = (request: Request) => ({ request, params: {}, context: new Map() }) as never;
+
+const STS_CREDENTIALS = {
+  Credentials: {
+    AccessKeyId: "AKIA",
+    SecretAccessKey: "secret",
+    SessionToken: "token",
+    Expiration: new Date("2026-01-01T12:00:00Z"),
+  },
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
-  verifyJobTokenMock.mockReset();
-  refreshJobTokenWithLockMock.mockReset();
-  offlineSessionIdFromTokenMock.mockReset().mockReturnValue("sess-1");
+  resolveJobBindingMock.mockReset();
+  resolveBatchAccessTokenMock.mockReset();
   stsSendMock.mockReset();
-  // Default: refresh succeeds and returns a fresh access token + a rotated
-  // refresh token. Individual tests override as needed.
-  refreshJobTokenWithLockMock.mockResolvedValue({
-    accessToken: REFRESHED_ACCESS_TOKEN,
-    newRefreshToken: ROTATED_REFRESH_TOKEN,
-  });
+
+  resolveJobBindingMock.mockResolvedValue(BINDING);
+  resolveBatchAccessTokenMock.mockResolvedValue(ACCESS_TOKEN);
+  stsSendMock.mockResolvedValue(STS_CREDENTIALS);
 });
 
-describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
-  test("returns 400 when the body is missing token or jobId", async () => {
-    const response = (await action(args(buildRequest({ token: "tok" })))) as Response;
+describe("POST /api/broker (SRS-CY-416102, SRS-CY-416110, SDS-CY-080400)", () => {
+  test("returns 400 when the body carries no token", async () => {
+    const response = (await action(args(buildRequest({})))) as Response;
     expect(response.status).toBe(400);
+    expect(resolveJobBindingMock).not.toHaveBeenCalled();
   });
 
-  test("returns 401 when the refresh fails and no ledger row exists (grant genuinely expired or absent)", async () => {
-    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
-    const response = (await action(
-      args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(401);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /expired or revoked/i,
-    });
-    // Verify is never reached when refresh fails.
-    expect(verifyJobTokenMock).not.toHaveBeenCalled();
-  });
+  test("returns 403 when the presented token resolves to no ledger row", async () => {
+    resolveJobBindingMock.mockResolvedValueOnce(null);
 
-  test("returns 403 when the refresh fails but the ledger row still exists (grant revoked, binding alive)", async () => {
-    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    const response = (await action(
-      args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /expired or revoked/i,
-    });
-    // Verify is never reached when refresh fails.
-    expect(verifyJobTokenMock).not.toHaveBeenCalled();
-    expect(stsSendMock).not.toHaveBeenCalled();
-  });
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
 
-  test("the refresh-failure row probe is scoped to the token's own offlineSessionId", async () => {
-    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
-    const findFirst = vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
-    await action(args(buildRequest({ token: "stale-refresh-token", jobId: "job-1" })));
-    expect(findFirst).toHaveBeenCalledWith({
-      where: { jobId: "job-1", offlineSessionId: "sess-1" },
-      select: { jobId: true },
-    });
-  });
-
-  test("an undecodable token skips the row probe entirely and takes the 401 path", async () => {
-    refreshJobTokenWithLockMock.mockRejectedValueOnce(new Error("refresh failed"));
-    offlineSessionIdFromTokenMock.mockReturnValueOnce("");
-    const findFirst = vi
-      .spyOn(prisma.jobLedgerEntry, "findFirst")
-      .mockResolvedValueOnce(LEDGER_ROW as never);
-    const response = (await action(
-      args(buildRequest({ token: "not-a-jwt", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(401);
-    expect(findFirst).not.toHaveBeenCalled();
-    expect(verifyJobTokenMock).not.toHaveBeenCalled();
-  });
-
-  test("returns 401 when the refreshed token fails verification", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(null);
-    const response = (await action(
-      args(buildRequest({ token: "refresh-token", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(401);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /failed verification/i,
-    });
-  });
-
-  test("returns 403 when no ledger row exists", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(null);
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /no active job binding/i,
-    });
-  });
-
-  test("returns 403 when the token has no organization claim at all", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce({ sub: "submitting-user-42" });
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /organization missing from token claims/i,
-    });
-  });
-
-  test("mints for a multi-org token whose ledger row's org is among the claim keys", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(MULTI_ORG_TOKEN_PAYLOAD);
-    const multiOrgRow = { ...LEDGER_ROW, organization: "cosmo-bio" };
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(multiOrgRow as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as Record<string, string>;
-    expect(body.accessKeyId).toBe("AKIA");
-    expect(body.refreshToken).toBe(ROTATED_REFRESH_TOKEN);
-  });
-
-  test("returns 403 when the ledger row's org is not among the token's org keys", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockImplementationOnce(
-      findFirstMatchingWhere({ ...LEDGER_ROW, organization: "other-corp" }) as never,
-    );
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
     expect(response.status).toBe(403);
     expect((await response.json()) as { error: string }).toMatchObject({
       error: /no active job binding/i,
@@ -228,215 +106,213 @@ describe("POST /api/broker (SRS-CY-416102, SDS-CY-080400)", () => {
     expect(stsSendMock).not.toHaveBeenCalled();
   });
 
-  test("returns 403 when the ledger row belongs to a different user", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockImplementationOnce(
-      findFirstMatchingWhere({ ...LEDGER_ROW, owner: "someone-else" }) as never,
-    );
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect((await response.json()) as { error: string }).toMatchObject({
-      error: /no active job binding/i,
-    });
-    expect(stsSendMock).not.toHaveBeenCalled();
-  });
+  test("mints from the resolved row's role and targets", async () => {
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
 
-  test("looks up the ledger row by jobId, owner, and org membership in the WHERE clause", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(MULTI_ORG_TOKEN_PAYLOAD);
-    const findFirst = vi
-      .spyOn(prisma.jobLedgerEntry, "findFirst")
-      .mockResolvedValueOnce({ ...LEDGER_ROW, organization: "cosmo-bio" } as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    await action(args(buildRequest({ token: "tok", jobId: "job-1" })));
-
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        jobId: "job-1",
-        owner: "submitting-user-42",
-        organization: { in: ["cosmo-bio", "cytario"] },
-      },
-    });
-  });
-
-  test("mints non-empty creds from the ledger row — no catalog call, no connection query", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, string>;
     expect(body.accessKeyId).toBe("AKIA");
     expect(body.secretAccessKey).toBe("secret");
     expect(body.sessionToken).toBe("token");
     expect(body.expiration).toBeDefined();
-    // The rotated refresh token is returned for the container's next mint.
-    expect(body.refreshToken).toBe(ROTATED_REFRESH_TOKEN);
-  });
-
-  test("refreshes the token with the body's refresh token, not the access token", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
-
-    expect(refreshJobTokenWithLockMock).toHaveBeenCalledWith("container-refresh-token");
-  });
-
-  test("passes the refreshed access token to verifyJobToken, not the body token", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
-
-    expect(verifyJobTokenMock).toHaveBeenCalledWith(REFRESHED_ACCESS_TOKEN);
-  });
-
-  test("passes the refreshed access token to STS as WebIdentityToken, not the body token", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    await action(args(buildRequest({ token: "container-refresh-token", jobId: "job-1" })));
-
-    const sentCommand = stsSendMock.mock.calls[0]?.[0];
-    expect(sentCommand.input.WebIdentityToken).toBe(REFRESHED_ACCESS_TOKEN);
-  });
-
-  test("STS call uses roleArn and region from the ledger row", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    await action(args(buildRequest({ token: "tok", jobId: "job-1" })));
 
     const sentCommand = stsSendMock.mock.calls[0]?.[0];
     expect(sentCommand.input.RoleArn).toBe("arn:aws:iam::123:role/storage");
+    expect(sentCommand.input.WebIdentityToken).toBe(ACCESS_TOKEN);
+  });
+
+  test("never returns credential material beyond the STS triple", async () => {
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("refreshToken");
+    expect(Object.keys(body).sort()).toEqual([
+      "accessKeyId",
+      "expiration",
+      "secretAccessKey",
+      "sessionToken",
+    ]);
+  });
+
+  test("no request field influences the binding, the scope, or the role", async () => {
+    const response = (await action(
+      args(
+        buildRequest({
+          token: PRESENTED_TOKEN,
+          jobId: "someone-elses-job",
+          organization: "other-corp",
+          roleArn: "arn:aws:iam::999:role/over-privileged",
+          bucket: "other-bucket",
+          prefix: "secrets/",
+        }),
+      ),
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    // The resolver saw only the token; the row it returned is the whole authority.
+    expect(resolveJobBindingMock).toHaveBeenCalledWith(PRESENTED_TOKEN);
+    expect(resolveJobBindingMock).toHaveBeenCalledTimes(1);
+
+    const sentCommand = stsSendMock.mock.calls[0]?.[0];
+    expect(sentCommand.input.RoleArn).toBe("arn:aws:iam::123:role/storage");
+    const policy = String(sentCommand.input.Policy);
+    expect(policy).toContain("cases/case1/*");
+    expect(policy).toContain("results/run42/*");
+    expect(policy).not.toContain("other-bucket");
+    expect(policy).not.toContain("secrets/");
+  });
+
+  test("one job's token never resolves another job's row", async () => {
+    resolveJobBindingMock.mockResolvedValueOnce(null);
+
+    const response = (await action(
+      args(buildRequest({ token: "job-as-token", jobId: "job-b" })),
+    )) as Response;
+
+    expect(response.status).toBe(403);
+    expect(resolveJobBindingMock).toHaveBeenCalledWith("job-as-token");
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("serves the mint from the batch's cached access token without a refusal", async () => {
+    await action(args(buildRequest({ token: PRESENTED_TOKEN })));
+
+    expect(resolveBatchAccessTokenMock).toHaveBeenCalledWith("batch-1");
+    expect(resolveBatchAccessTokenMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("returns 403 when the identity service refuses the refresh (grant withdrawn, binding alive)", async () => {
+    const { JobGrantRefusedError } = await import("~/.server/auth/refreshJobToken");
+    resolveBatchAccessTokenMock.mockRejectedValueOnce(
+      new JobGrantRefusedError(400, "invalid_grant"),
+    );
+
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
+    expect(response.status).toBe(403);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /expired or revoked/i,
+    });
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("returns 503, not 403, when the refresh fails for a hosting fault rather than a refusal", async () => {
+    resolveBatchAccessTokenMock.mockRejectedValueOnce(
+      new Error("Failed to acquire Redis lock after maximum retries"),
+    );
+
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
+    // A lock, database, or network fault says nothing about the grant, so the
+    // container is told to retry rather than to give up.
+    expect(response.status).toBe(503);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /temporarily unavailable/i,
+    });
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("returns 400 for a non-string token instead of failing on the hash", async () => {
+    const response = (await action(args(buildRequest({ token: 303 })))) as Response;
+
+    expect(response.status).toBe(400);
+    expect(resolveJobBindingMock).not.toHaveBeenCalled();
+  });
+
+  test("returns 401 when the row is live but the batch holds no credential record (grant lapsed)", async () => {
+    resolveBatchAccessTokenMock.mockResolvedValueOnce(null);
+
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
+    expect(response.status).toBe(401);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /expired or revoked/i,
+    });
+    expect(stsSendMock).not.toHaveBeenCalled();
+  });
+
+  test("the resolution runs under the token alone, never a caller-supplied job id", async () => {
+    await action(args(buildRequest({ token: PRESENTED_TOKEN, jobId: "job-b" })));
+
+    expect(resolveJobBindingMock).toHaveBeenCalledWith(PRESENTED_TOKEN);
+    expect(resolveJobBindingMock).toHaveBeenCalledTimes(1);
   });
 
   test("session policy is scoped to the ledger-recorded targets", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
-    });
-
-    await action(args(buildRequest({ token: "tok", jobId: "job-1" })));
+    await action(args(buildRequest({ token: PRESENTED_TOKEN })));
 
     const sentCommand = stsSendMock.mock.calls[0]?.[0];
-    expect(sentCommand.input.Policy).toBeDefined();
     expect(sentCommand.input.Policy).toContain("s3:PutObject");
     expect(sentCommand.input.Policy).toContain("results/run42/*");
     expect(sentCommand.input.Policy).toContain("s3:GetObject");
     expect(sentCommand.input.Policy).toContain("cases/case1/*");
   });
 
-  test("mints without session policy when outputS3Uri is empty (legacy row)", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      ...LEDGER_ROW,
-      inputS3Uris: [],
-      outputS3Uri: "",
-    } as never);
-    stsSendMock.mockResolvedValueOnce({
-      Credentials: {
-        AccessKeyId: "AKIA",
-        SecretAccessKey: "secret",
-        SessionToken: "token",
-        Expiration: new Date("2026-01-01T12:00:00Z"),
-      },
+  test("mints without a session policy when the row has no output target (legacy row)", async () => {
+    resolveJobBindingMock.mockResolvedValueOnce({
+      ...BINDING,
+      row: { ...LEDGER_ROW, inputS3Uris: [], outputS3Uri: "" },
     });
 
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
     expect(response.status).toBe(200);
-    const sentCommand = stsSendMock.mock.calls[0]?.[0];
-    expect(sentCommand.input.Policy).toBeUndefined();
+    expect(stsSendMock.mock.calls[0]?.[0].input.Policy).toBeUndefined();
   });
 
-  test("returns 403 when roleArn is empty (job predates role recording)", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce({
-      ...LEDGER_ROW,
-      roleArn: "",
-    } as never);
+  test("returns 403 when the row predates role recording", async () => {
+    resolveJobBindingMock.mockResolvedValueOnce({
+      ...BINDING,
+      row: { ...LEDGER_ROW, roleArn: "" },
+    });
 
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
     expect(response.status).toBe(403);
     expect((await response.json()) as { error: string }).toMatchObject({
       error: /predates role recording/i,
     });
+    expect(stsSendMock).not.toHaveBeenCalled();
   });
 
-  test("logs the underlying error on a denial", async () => {
-    verifyJobTokenMock.mockResolvedValueOnce(VALID_TOKEN_PAYLOAD);
-    vi.spyOn(prisma.jobLedgerEntry, "findFirst").mockResolvedValueOnce(LEDGER_ROW as never);
-    stsSendMock.mockRejectedValueOnce(new Error("STS is down"));
+  test("returns 503, not 403, when STS fails — the job's authorization is intact", async () => {
+    stsSendMock.mockRejectedValue(new Error("STS is unreachable"));
 
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const response = (await action(
-      args(buildRequest({ token: "tok", jobId: "job-1" })),
-    )) as Response;
-    expect(response.status).toBe(403);
-    expect(errorSpy).toHaveBeenCalled();
-    expect(errorSpy.mock.calls[0]?.[1]).toContain("STS is down");
-    errorSpy.mockRestore();
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
+    // A provider outage says nothing about the grant, so the container retries
+    // instead of abandoning a valid job.
+    expect(response.status).toBe(503);
+    expect((await response.json()) as { error: string }).toMatchObject({
+      error: /temporarily unavailable/i,
+    });
+  });
+
+  test("never echoes internal failure detail to the container", async () => {
+    stsSendMock.mockRejectedValue(new Error("arn:aws:iam::123:role/storage has no trust policy"));
+
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+    const body = (await response.json()) as { error: string };
+
+    expect(body.error).not.toMatch(/arn:|trust policy/i);
+  });
+
+  test("retries without the inline policy when STS rejects it as too large", async () => {
+    const tooLarge = Object.assign(new Error("Packed policy too large"), {
+      name: "PackedPolicyTooLargeException",
+    });
+    stsSendMock.mockRejectedValueOnce(tooLarge).mockResolvedValueOnce(STS_CREDENTIALS);
+
+    const response = (await action(args(buildRequest({ token: PRESENTED_TOKEN })))) as Response;
+
+    expect(response.status).toBe(200);
+    expect(stsSendMock).toHaveBeenCalledTimes(2);
+    expect(stsSendMock.mock.calls[1]?.[0].input.Policy).toBeUndefined();
+  });
+
+  test("RoleSessionName derives from the row's owner", async () => {
+    await action(args(buildRequest({ token: PRESENTED_TOKEN })));
+
+    expect(stsSendMock.mock.calls[0]?.[0].input.RoleSessionName).toContain("submitting-user-42");
   });
 });

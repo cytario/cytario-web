@@ -39,6 +39,8 @@ test("the value sets are the closed unions (kind: 4 values, mode: 2)", () => {
   expect(modes).toHaveLength(2);
 });
 
-test("host apiVersion is 6.11.0 (the additive minors carry registryKind, credentialMode, the picker's folder mode and registryPullSecrets)", () => {
-  expect(HOST_API_VERSION).toBe("6.11.0");
+// A guard, not a record: whenever the host adds an additive minor, this
+// assertion moves with it, so a bump nobody meant to make shows up here.
+test("host apiVersion is 6.12.0 (carries registryKind, credentialMode, the picker's folder mode, registryPullSecrets and the per-job broker token mint)", () => {
+  expect(HOST_API_VERSION).toBe("6.12.0");
 });

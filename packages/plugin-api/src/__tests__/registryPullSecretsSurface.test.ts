@@ -39,6 +39,8 @@ test("a session predating the field still satisfies the type (scalar fallback al
   expect(legacy.registryPullSecrets).toBeUndefined();
 });
 
-test("host apiVersion is 6.11.0 (the additive minor that carries the map)", () => {
-  expect(HOST_API_VERSION).toBe("6.11.0");
+// The map landed in 6.11.0; the floor has since moved on, so assert the
+// current value rather than the one this surface arrived at.
+test("host apiVersion is at least the 6.11.0 that carries the map", () => {
+  expect(HOST_API_VERSION).toBe("6.12.0");
 });

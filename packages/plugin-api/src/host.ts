@@ -253,25 +253,33 @@ export interface ComputeRoleSession {
 }
 
 /**
- * Offline-capable job token grant. The token can be passed to a submitted
- * job so it can call the credential-broker endpoint to obtain short-lived
- * storage credentials without a browser session.
+ * Offline-capable job grant, as exchanged during the job-grant callback. The
+ * credential material is present only for the host's own credential record: a
+ * plugin reaching `ctx.host.exchangeToken()` sees the identifiers, and a
+ * submitted job's container receives a per-job session token instead
+ * (`mintJobBrokerToken`).
  */
 export interface TokenGrant {
-  token: string;
   expiresAt: Date;
   /**
    * The offline-session identifier from the token exchange. Recorded in the
    * running-jobs ledger so the reconciler can revoke the grant after the job
-   * completes.
+   * completes, and the key of the batch's credential record.
    */
   offlineSessionId: string;
+  /** The batch's refresh token. Host-internal; never handed to plugin code. */
+  refreshToken?: string;
+  /** The batch's freshly minted access token. Host-internal. */
+  accessToken?: string;
+  /** Expiry of `accessToken`. Host-internal. */
+  accessTokenExpiresAt?: Date;
 }
 
 /**
- * Identifier-only record in the host-owned running-jobs ledger. Never
- * carries token or credential material. A row is created at submission and
- * removed only after its grant's revocation is confirmed.
+ * Ledger record in the host-owned running-jobs ledger. A row is created at
+ * submission and removed only after its grant's revocation is confirmed. The
+ * host stores only the token hash, and never returns `jobToken` from
+ * `lookup`, `list`, or `listAll`.
  */
 export interface JobRecord {
   jobId: string;
@@ -283,6 +291,12 @@ export interface JobRecord {
    * absent means the org's first connected provider.
    */
   providerId?: string | null;
+  /**
+   * The job's broker session token, on `record` only. The host stores its
+   * hash — the raw value never reaches the database — and rows read back
+   * never carry it, so a ledger read yields nothing mintable.
+   */
+  jobToken?: string;
   /**
    * The organization this job belongs to. Host-injected on `record` (the
    * caller-supplied value is discarded and the active session org is used);
@@ -410,9 +424,17 @@ export interface HostCapabilities {
    */
   assumeComputeRole(providerId?: string, organization?: string): Promise<ComputeRoleSession>;
   /**
-   * Performs the offline-capable job token grant.
+   * Returns the job-grant callback phase's offline-capable grant — its
+   * offline-session identifier and expiry. Available only during that phase.
    */
   exchangeToken(): Promise<TokenGrant>;
+  /**
+   * Mints the opaque, high-entropy session token a submitted job's container
+   * presents to the credential broker. The token carries no claim and no scope
+   * of its own; the job it authorizes is whatever row `jobLedger().record()`
+   * binds it to, so pass the token back as `jobToken` on that call.
+   */
+  mintJobBrokerToken(): Promise<string>;
   /** Externally-reachable base URL of the host's broker route, for callers outside the browser origin. */
   brokerPublicUrl(): string;
   /**
@@ -425,8 +447,8 @@ export interface HostCapabilities {
    */
   revokeGrant(offlineSessionId: string): Promise<void>;
   /**
-   * Refreshes the canonical grant token for a live offline session ahead of
-   * expiry. The plugin passes only the `offlineSessionId` — never token
+   * Refreshes the batch's held credentials for a live offline session ahead of
+   * expiry. The plugin passes only the `offlineSessionId` — never credential
    * material. Never throws; an absent or revoked session is a warn-level
    * no-op, so a revoked grant is never resurrected.
    */

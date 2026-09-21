@@ -4,6 +4,10 @@ import { redirect } from "react-router";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { exchangeAuthCodeForJobGrant } from "~/.server/auth/exchangeAuthCodeForJobGrant";
 import { getUserInfo, toIdentity } from "~/.server/auth/getUserInfo";
+import {
+  collectCredentialsIfBatchEmpty,
+  putBatchCredentials,
+} from "~/.server/auth/jobCredentialStore";
 import { consumePendingSubmission } from "~/.server/auth/jobGrantStorage";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
@@ -68,12 +72,34 @@ export const loader = async (args: LoaderFunctionArgs) => {
   const userProfile = await getUserInfo(authTokens.accessToken);
   const identity = toIdentity(userProfile);
 
+  // The batch's OAuth material is written here — the one point where the
+  // refresh token exists — and never reaches the plugin or a container.
+  const { refreshToken, accessToken, accessTokenExpiresAt } = grant;
+  if (!refreshToken || !accessToken || !accessTokenExpiresAt) {
+    console.error(`${label} Auth code exchange returned no credential material`);
+    return redirect("/plugin/jobs?error=grant_failed");
+  }
+
+  try {
+    await putBatchCredentials({
+      batchId: pending.batchId,
+      offlineSessionId: grant.offlineSessionId,
+      refreshToken,
+      accessToken,
+      accessTokenExpiresAt,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "credential record failed";
+    console.error(`${label} Failed to store batch credentials:`, message);
+    return redirect("/plugin/jobs?error=submit_failed");
+  }
+
   const requestData = {
     user: userProfile,
     identity,
     authTokens,
     sessionId: context.get(sessionContext)?.id ?? "",
-    jobGrant: grant,
+    jobGrant: { expiresAt: grant.expiresAt, offlineSessionId: grant.offlineSessionId },
   };
 
   return withHostRequestContext(requestData, async () => {
@@ -107,6 +133,17 @@ export const loader = async (args: LoaderFunctionArgs) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "submission failed";
       console.error(`${label} Job submission failed:`, message);
+      // A total submission failure records no job, so nothing would ever collect
+      // this batch's credentials through the ledger sweep. Drop them here; a
+      // partial submission leaves the rows that did land, and the sweep
+      // collects the record once those are gone.
+      await collectCredentialsIfBatchEmpty(pending.batchId).catch((cleanupErr) => {
+        console.warn(
+          `${label} Failed to drop credentials for an unsubmitted batch: ${
+            cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)
+          }`,
+        );
+      });
       const params = new URLSearchParams({ error: "submit_failed" });
       if (err instanceof Error && err.message) params.set("message", err.message);
       return redirect(`/plugin/jobs?${params.toString()}`);

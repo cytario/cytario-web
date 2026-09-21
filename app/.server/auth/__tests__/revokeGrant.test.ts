@@ -14,11 +14,12 @@ vi.mock("../keycloakAdmin/serviceAccountToken", () => ({
   getJobBrokerToken: vi.fn().mockResolvedValue("broker-bearer-token"),
 }));
 
-const clearJobGrantStoreMock = vi.hoisted(() => vi.fn());
-vi.mock("../refreshJobTokenWithLock", () => ({
-  clearJobGrantStore: clearJobGrantStoreMock,
+const deleteBatchCredentialsMock = vi.hoisted(() => vi.fn());
+vi.mock("../jobCredentialStore", () => ({
+  deleteBatchCredentials: deleteBatchCredentialsMock,
 }));
 
+import { prisma } from "../../db/prisma";
 import { KeycloakAdminError } from "../keycloakAdmin/client";
 import { getJobBrokerToken } from "../keycloakAdmin/serviceAccountToken";
 import { revokeGrant } from "../revokeGrant";
@@ -29,8 +30,11 @@ describe("revokeGrant (SDS-CY-080901, SRS-CY-416106)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockedGetJobBrokerToken.mockResolvedValue("broker-bearer-token");
-    clearJobGrantStoreMock.mockReset();
-    clearJobGrantStoreMock.mockResolvedValue(undefined);
+    deleteBatchCredentialsMock.mockReset();
+    deleteBatchCredentialsMock.mockResolvedValue(undefined);
+    vi.spyOn(prisma.jobGrantCredential, "findUnique").mockResolvedValue({
+      batchId: "batch-1",
+    } as never);
   });
 
   test("DELETEs the offline session with isOffline=true via the job-broker token", async () => {
@@ -88,17 +92,35 @@ describe("revokeGrant (SDS-CY-080901, SRS-CY-416106)", () => {
     expect(url).toContain("/sessions/a%2Fb%20c%3Fd%3De?isOffline=true");
   });
 
-  test("clears the broker canonical-token store for the session (SDS-CY-080402)", async () => {
+  // The broker, keep-alive, and revocation must reach the same record — this is
+  // the silent-no-op failure a differently-keyed store would reintroduce.
+  test("revocation resolves the batch through the relation and deletes by it (SDS-CY-080901)", async () => {
+    vi.spyOn(prisma.jobGrantCredential, "findUnique").mockResolvedValue({
+      batchId: "batch-1",
+    } as never);
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
     vi.stubGlobal("fetch", fetchMock);
 
     await revokeGrant("sess-123");
 
-    expect(clearJobGrantStoreMock).toHaveBeenCalledTimes(1);
-    expect(clearJobGrantStoreMock).toHaveBeenCalledWith("sess-123");
+    expect(prisma.jobGrantCredential.findUnique).toHaveBeenCalledWith({
+      where: { offlineSessionId: "sess-123" },
+      select: { batchId: true },
+    });
+    expect(deleteBatchCredentialsMock).toHaveBeenCalledWith("batch-1");
   });
 
-  test("clears the store even when Keycloak returns 404 (already revoked)", async () => {
+  test("deletes the batch's credential record for the session (SDS-CY-080403)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await revokeGrant("sess-123");
+
+    expect(deleteBatchCredentialsMock).toHaveBeenCalledTimes(1);
+    expect(deleteBatchCredentialsMock).toHaveBeenCalledWith("batch-1");
+  });
+
+  test("deletes the record even when Keycloak returns 404 (already revoked)", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
@@ -106,13 +128,13 @@ describe("revokeGrant (SDS-CY-080901, SRS-CY-416106)", () => {
 
     await revokeGrant("already-revoked");
 
-    expect(clearJobGrantStoreMock).toHaveBeenCalledWith("already-revoked");
+    expect(deleteBatchCredentialsMock).toHaveBeenCalledWith("batch-1");
   });
 
-  test("does not throw if the store clear fails (best-effort, TTL backstops)", async () => {
+  test("does not throw if the record delete fails (best-effort, the row check backstops)", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
     vi.stubGlobal("fetch", fetchMock);
-    clearJobGrantStoreMock.mockRejectedValueOnce(new Error("redis down"));
+    deleteBatchCredentialsMock.mockRejectedValueOnce(new Error("db down"));
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(revokeGrant("sess-123")).resolves.toBeUndefined();

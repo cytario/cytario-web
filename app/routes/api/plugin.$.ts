@@ -3,14 +3,13 @@ import { type ActionFunctionArgs, type LoaderFunctionArgs } from "react-router";
 import type { RouteAction, RouteLoader, ServerEndpointAuth } from "@cytario/plugin-api";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import {
-  hostRequestDataFromJobToken,
   orgAgnosticHostRequestData,
-  readSoleOrganizationClaim,
+  jobTokenHostRequestData,
 } from "~/.server/auth/carveOutRequestContext";
 import { verifyCarveOutSecret } from "~/.server/auth/carveOutSecret";
 import { toIdentity } from "~/.server/auth/getUserInfo";
+import { resolveJobBinding } from "~/.server/auth/resolveJobBinding";
 import { sessionMiddleware } from "~/.server/auth/sessionMiddleware";
-import { verifyJobToken } from "~/.server/auth/verifyJobToken";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
 import { jsonError } from "~/.server/httpResponse";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
@@ -30,11 +29,11 @@ import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
  *   session gate with an org-agnostic `HostRequestData` (after a
  *   constant-time bearer-secret verification) so a cross-org reconciler can
  *   run.
- * - `"job-token"` carve-outs run outside the session gate: the host verifies
- *   the bearer token's signature, issuer, and audience and builds a
- *   `HostRequestData` from the verified claims. A token that fails
- *   verification returns 401; a token with multiple or no org keys is
- *   likewise rejected (no unambiguous active org).
+ * - `"job-token"` carve-outs run outside the session gate: the host resolves
+ *   the bearer token to the ledger row it was issued for and builds a
+ *   `HostRequestData` from that row — the token's authority is the row, and no
+ *   claim or caller-supplied field takes part. A token that resolves to no row
+ *   returns 401.
  *
  * `sessionMiddleware` runs as route middleware so a session-auth dispatch
  * can read the resolved session without re-running the session loader; it
@@ -89,13 +88,11 @@ async function dispatchCarveOut(
   if (contribution.auth === "job-token") {
     const rawToken = readBearerToken(args.request);
     if (!rawToken) return jsonError(401, "A job-scoped bearer token is required.");
-    const verified = await verifyJobToken(rawToken);
-    if (!verified) return jsonError(401, "The job-scoped token failed verification.");
-    const organization = readSoleOrganizationClaim(verified);
-    if (!organization) {
-      return jsonError(403, "The job-scoped token has no single organization claim.");
+    const binding = await resolveJobBinding(rawToken);
+    if (!binding) {
+      return jsonError(401, "The job-scoped token resolves to no active job.");
     }
-    const requestData = hostRequestDataFromJobToken(verified, rawToken, organization);
+    const requestData = jobTokenHostRequestData(binding);
     return withHostRequestContext(requestData, () =>
       handler({ request: args.request, params, identity: requestData.identity }),
     );

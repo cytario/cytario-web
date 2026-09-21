@@ -1,49 +1,16 @@
-import type { JWTPayload } from "jose";
-
 import type { UserProfile } from "./getUserInfo";
 import type { AuthTokens } from "./sessionStorage";
 import type { HostRequestData } from "../hostRequestContext";
-import type { VerifiedJobToken } from "./verifyJobToken";
+import type { ResolvedJobBinding } from "./resolveJobBinding";
 import type { Identity } from "@cytario/plugin-api";
 
-// A user may belong to multiple Keycloak organizations (multi-key claim); a
-// legacy string claim (org mapper not firing on token refresh) is accepted
-// with a warn log.
-export function readOrganizationClaimKeys(payload: JWTPayload): ReadonlySet<string> {
-  const claim = payload.organization;
-  if (!claim) return new Set<string>();
-  if (typeof claim === "string") {
-    console.warn(
-      `[carve-out] organization claim is a string ("${claim}"), expected object form — ` +
-        "the org mapper may not be firing on token refresh; using the string as fallback",
-    );
-    return new Set([claim]);
-  }
-  if (typeof claim === "object" && !Array.isArray(claim)) {
-    return new Set(Object.keys(claim as Record<string, unknown>));
-  }
-  return new Set<string>();
-}
-
-/** Sole claim key when unambiguous; `undefined` when absent or multi-org (caller must resolve or fail closed). */
-export function readSoleOrganizationClaim(payload: JWTPayload): string | undefined {
-  const keys = readOrganizationClaimKeys(payload);
-  return keys.size === 1 ? [...keys][0] : undefined;
-}
-
-// Organization and user derive exclusively from verified claims and the
-// caller-resolved organization — never caller-supplied body/query/header,
-// never a browser session (the carve-out runs outside the session gate); a
-// caller that cannot resolve the org passes `undefined` and org-requiring
-// capabilities fail closed. The token rides as `idToken` so
-// `assumeComputeRole` can present it as the STS `WebIdentityToken`.
-export function hostRequestDataFromJobToken(
-  token: VerifiedJobToken,
-  rawToken: string,
-  organization: string | undefined,
-): HostRequestData {
+// Organization and user derive exclusively from the ledger row a presented job
+// token resolved to — never caller-supplied body/query/header, never a browser
+// session (the carve-out runs outside the session gate). A caller whose token
+// resolves to no row fails closed before this is built.
+export function jobTokenHostRequestData(binding: ResolvedJobBinding): HostRequestData {
   const user: UserProfile = {
-    sub: token.sub,
+    sub: binding.owner,
     email: "",
     email_verified: false,
     name: "",
@@ -51,28 +18,28 @@ export function hostRequestDataFromJobToken(
     given_name: "",
     family_name: "",
     policy: [],
-    organization,
+    organization: binding.organization,
     organizationAttributes: Object.freeze({}),
     groups: [],
     adminScopes: [],
   };
   const identity: Identity = Object.freeze({
-    sub: token.sub,
-    organization,
+    sub: binding.owner,
+    organization: binding.organization,
     organizationAttributes: Object.freeze({}),
     groups: [],
     adminScopes: [],
   });
   const authTokens: AuthTokens = {
-    accessToken: rawToken,
+    accessToken: "",
     refreshToken: "",
-    idToken: rawToken,
+    idToken: "",
   };
   return {
     user,
     identity,
     authTokens,
-    sessionId: `job-token:${token.sub}`,
+    sessionId: `job-token:${binding.jobId}`,
   };
 }
 

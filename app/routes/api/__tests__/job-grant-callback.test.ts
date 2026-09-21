@@ -31,6 +31,13 @@ vi.mock("~/.server/serverEndpointRegistry", () => ({
   serverEndpointRegistry: { list: listEndpointsMock },
 }));
 
+const putBatchCredentialsMock = vi.hoisted(() => vi.fn());
+const collectCredentialsIfBatchEmptyMock = vi.hoisted(() => vi.fn());
+vi.mock("~/.server/auth/jobCredentialStore", () => ({
+  putBatchCredentials: putBatchCredentialsMock,
+  collectCredentialsIfBatchEmpty: collectCredentialsIfBatchEmptyMock,
+}));
+
 const PENDING = {
   pluginPath: "/api/plugin/run",
   requestBody: JSON.stringify({ applicationId: "demo-app", version: "1.0.0" }),
@@ -39,7 +46,13 @@ const PENDING = {
   codeVerifier: "verifier-1",
 };
 
-const GRANT = { offlineSessionId: "sess-1", token: "rt-1", expiresAt: new Date() };
+const GRANT = {
+  offlineSessionId: "sess-1",
+  refreshToken: "rt-1",
+  accessToken: "at-1",
+  accessTokenExpiresAt: new Date(),
+  expiresAt: new Date(),
+};
 
 function buildArgs(code: string, state: string, overrides: Record<string, unknown> = {}) {
   const url = new URL(`http://localhost/api/job-grant/callback?code=${code}&state=${state}`);
@@ -54,6 +67,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   consumePendingMock.mockResolvedValue(PENDING);
   exchangeMock.mockResolvedValue(GRANT);
+  putBatchCredentialsMock.mockResolvedValue(undefined);
+  collectCredentialsIfBatchEmptyMock.mockReset();
+  collectCredentialsIfBatchEmptyMock.mockResolvedValue(undefined);
   getUserInfoMock.mockResolvedValue({ sub: "u1", organization: "testcorp" });
   toIdentityMock.mockReturnValue({
     sub: "u1",
