@@ -43,16 +43,19 @@ jobs:
           # workflow uses `actions/checkout` with no explicit `ref:` so it
           # checks out whatever `--ref` was set to.
           DOCS_REF="$HEAD_REF"
+          # Smoke profile (C-578): the trimmed PR gate — full browsing runs nightly.
           if ! gh workflow run e2e.yml \
               --repo cytario/cytario-docs \
               --ref "$DOCS_REF" \
-              -f ref="$WEB_SHA" 2>/dev/null; then
+              -f ref="$WEB_SHA" \
+              -f browsing_profile=smoke 2>/dev/null; then
             echo "::notice::No paired cytario-docs/$HEAD_REF branch; dispatching against main"
             DOCS_REF="main"
             gh workflow run e2e.yml \
               --repo cytario/cytario-docs \
               --ref "$DOCS_REF" \
-              -f ref="$WEB_SHA"
+              -f ref="$WEB_SHA" \
+              -f browsing_profile=smoke
           else
             echo "::notice::Using paired cytario-docs branch: $HEAD_REF"
           fi
