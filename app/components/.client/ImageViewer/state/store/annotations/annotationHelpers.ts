@@ -42,6 +42,34 @@ export const generateAnnotationName = (features: AnnotationFeature[]): string =>
   }
 };
 
+/** A geometry translated by a slide-coordinate delta (paste offset for
+ *  duplicates). Position channels beyond x/y pass through untouched. */
+export const translateGeometry = (
+  geometry: AnnotationFeature["geometry"],
+  [dx, dy]: [number, number],
+): AnnotationFeature["geometry"] => {
+  const translatePosition = (position: number[]): number[] => [
+    position[0] + dx,
+    position[1] + dy,
+    ...position.slice(2),
+  ];
+  if (geometry.type === "Point") {
+    return { ...geometry, coordinates: translatePosition(geometry.coordinates) };
+  }
+  if (geometry.type === "Polygon") {
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((ring) => ring.map(translatePosition)),
+    };
+  }
+  return {
+    ...geometry,
+    coordinates: geometry.coordinates.map((polygon) =>
+      polygon.map((ring) => ring.map(translatePosition)),
+    ),
+  };
+};
+
 /** The default name minted for a newly created set: the lowest
  *  "Annotation Set N.json" not already taken (mirrors generateAnnotationName's
  *  lowest-unused-index rule, so delete + re-draw never collides). */

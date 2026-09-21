@@ -14,6 +14,7 @@ import {
   annotationNameOf,
   classColor as registeredClassColor,
   classNameOf,
+  generateAnnotationName,
   isReservedClassName,
   selectActiveSetFeatures,
   UNCLASSIFIED,
@@ -75,33 +76,29 @@ const stampEdit = (
   active: AnnotationClassification | null,
 ): AnnotationFeature[] => {
   const now = new Date().toISOString();
-  const takenNames = new Set<string>();
-  for (const f of features) {
-    const name = f.properties?.name;
-    if (typeof name === "string" && name.length > 0) takenNames.add(name);
-  }
-  let nameCounter = 1;
-  const nextName = (): string => {
-    while (takenNames.has(String(nameCounter).padStart(4, "0"))) nameCounter++;
-    const name = String(nameCounter).padStart(4, "0");
-    takenNames.add(name);
-    return name;
-  };
+  // generateAnnotationName runs against the features named so far — pre-seeded
+  // with every already-named feature, then extended as new names are minted.
+  const named: AnnotationFeature[] = features.filter(
+    (f) => typeof f.properties?.name === "string" && f.properties.name.length > 0,
+  );
   return features.map((feature, i) => {
     const properties = feature.properties ?? {};
     if (!feature.id) {
-      return {
+      const stamped: AnnotationFeature = {
         ...feature,
         id: crypto.randomUUID(),
         properties: {
           ...properties,
-          name: nextName(),
+          name: generateAnnotationName(named),
           ...(active ? { classification: active } : {}),
           createdAt: now,
           updatedAt: now,
         },
       };
+      named.push(stamped);
+      return stamped;
     }
+    named.push(feature);
     if (changed?.includes(i)) {
       return { ...feature, properties: { ...properties, updatedAt: now } };
     }

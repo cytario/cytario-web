@@ -3,6 +3,7 @@ import type { HTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { ScaleBar } from "./canvas/Measurements/ScaleBar";
+import { useAnnotationDuplicateShortcuts } from "./canvas/useAnnotationDuplicateShortcuts";
 import { useAnnotationModeKeyboard } from "./canvas/useAnnotationModeKeyboard";
 import { useUndoRedo } from "../state/store/core/useUndoRedo";
 import { useUndoRedoShortcuts } from "../state/store/core/useUndoRedoShortcuts";
@@ -26,6 +27,7 @@ export const Toolbar = () => {
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useUndoRedoShortcuts();
   useAnnotationModeKeyboard();
+  useAnnotationDuplicateShortcuts();
 
   const activate = (target: AnnotationMode) => {
     if (target !== "view" && target !== "inspect") setSelectedIds([]);

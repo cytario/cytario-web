@@ -3,9 +3,11 @@ import {
   type AnnotationClass,
   classNameOf,
   classColor,
+  generateAnnotationName,
   generateSetName,
   isReservedClassName,
   pickClassColor,
+  translateGeometry,
 } from "./annotationHelpers";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
@@ -114,6 +116,16 @@ export interface AnnotationsSlice {
    *  existing name reuses its color. Naming the Unclassified group routes here
    *  with that group's ids (its members carry no `classification` to rename). */
   setAnnotationClassForIds: (setId: string, ids: string[], name: string | null) => void;
+  /** Duplicate the given features into a set as new independent annotations:
+   *  fresh id/name/timestamps, the source's geometry (translated by `offset`
+   *  when given) and classification copied verbatim. The selection is replaced
+   *  with the new ids; enters the undo history like region creation. Returns
+   *  the new feature ids. */
+  duplicateAnnotations: (
+    setId: string,
+    sources: AnnotationFeature[],
+    offset?: [number, number],
+  ) => string[];
   /** Rename a class, reassigning every member; merges into the target's color if
    *  it already exists, and follows the active class. Rejects the reserved
    *  "Unclassified" name (naming the null bucket goes through setAnnotationClassForIds). */
@@ -349,6 +361,44 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       false,
       "setAnnotationClassForIds",
     ),
+
+  duplicateAnnotations: (setId, sources, offset) => {
+    const created: string[] = [];
+    set(
+      (viewerStore) => {
+        const set = viewerStore.annotationSets.find((s) => s.id === setId);
+        if (!set || sources.length === 0) return;
+        const now = new Date().toISOString();
+        // generateAnnotationName runs against the features named so far —
+        // pre-seeded with the set, extended as duplicate names are minted.
+        const named = [...set.features];
+        for (const source of sources) {
+          const classification = source.properties?.classification;
+          const feature: AnnotationFeature = {
+            type: "Feature",
+            id: crypto.randomUUID(),
+            geometry: offset ? translateGeometry(source.geometry, offset) : source.geometry,
+            properties: {
+              ...source.properties,
+              // A copy owns its classification: later renames/recolors of the
+              // source's class object must not bleed into the duplicate.
+              ...(classification ? { classification: { ...classification } } : {}),
+              name: generateAnnotationName(named),
+              createdAt: now,
+              updatedAt: now,
+            },
+          };
+          named.push(feature);
+          set.features.push(feature);
+          created.push(feature.id);
+        }
+        viewerStore.annotationSelectedIds = created;
+      },
+      false,
+      "duplicateAnnotations",
+    );
+    return created;
+  },
 
   renameAnnotationClass: (setId, oldName, newName) =>
     set(
