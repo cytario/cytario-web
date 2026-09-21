@@ -71,6 +71,10 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
 
   return (
     <DeckGL
+      // Distinct canvas id: without it the preview deck duplicates the main
+      // canvas's default "deckgl-overlay" id, making that id ambiguous in the
+      // DOM and in e2e selectors.
+      id="image-preview-canvas"
       width={viewPort.width}
       height={viewPort.height}
       views={[view]}
