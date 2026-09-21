@@ -1,5 +1,5 @@
 import { Button, Dialog, Input, Select, Spinner } from "@cytario/design";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
   StoragePickerOptions,
@@ -27,7 +27,9 @@ const GROUP_BY_OPTIONS = [
 ];
 
 export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePickerModalProps) {
+  const isFolderMode = (options.select ?? "files") === "folder";
   const [selectedNodes, setSelectedNodes] = useState<Map<string, TreeNode>>(new Map());
+  const [selectedFolder, setSelectedFolder] = useState<TreeNode | null>(null);
   const [loadedFiles, setLoadedFiles] = useState<Map<string, TreeNode>>(new Map());
   const [globFilter, setGlobFilter] = useState("");
   const [groupBy, setGroupBy] = useState("");
@@ -37,6 +39,9 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   const initialConnectionId = options.connectionId ?? connectionIds[0] ?? "";
   const [activeConnectionId, setActiveConnectionId] = useState(initialConnectionId);
 
+  // The root row is always the connection root, so the whole connection stays
+  // reachable in either mode; `initialPath` only pre-selects the folder the
+  // picker opens at, once that folder is reached while expanding.
   const rootNodes = useMemo(() => {
     if (!activeConnectionId) return [];
     const conn = connections[activeConnectionId];
@@ -48,24 +53,40 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
         connectionName: conn.connectionConfig.name,
         name: conn.connectionConfig.name,
         type: "bucket" as const,
-        pathName: options.initialPath ?? "",
+        pathName: "",
         children: [],
         loadState: "idle" as const,
       },
     ];
-  }, [activeConnectionId, connections, options.initialPath]);
+  }, [activeConnectionId, connections]);
 
-  const onExpand = useCallback(async (parent: TreeNode) => {
-    const children = await defaultOnExpand(parent);
-    setLoadedFiles((prev) => {
-      const next = new Map(prev);
-      for (const child of children) {
-        if (child.type === "file") next.set(child.id, child);
+  const initialFolderPath = asFolderPath(options.initialPath ?? "");
+  const initialFolderId = initialFolderPath ? `${activeConnectionId}/${initialFolderPath}` : null;
+  const presetConsumedRef = useRef(false);
+
+  const onExpand = useCallback(
+    async (parent: TreeNode) => {
+      const children = await defaultOnExpand(parent);
+      setLoadedFiles((prev) => {
+        const next = new Map(prev);
+        for (const child of children) {
+          if (child.type === "file") next.set(child.id, child);
+        }
+        return next;
+      });
+      // Pre-select the initial folder the first time it is reached, so the preset
+      // never overrides a destination the analyst has already picked.
+      if (isFolderMode && initialFolderId && !presetConsumedRef.current) {
+        const initial = children.find((child) => child.id === initialFolderId);
+        if (initial) {
+          presetConsumedRef.current = true;
+          setSelectedFolder(initial);
+        }
       }
-      return next;
-    });
-    return children;
-  }, []);
+      return children;
+    },
+    [isFolderMode, initialFolderId],
+  );
 
   const toggleNode = useCallback((node: TreeNode) => {
     if (node.type !== "file") return;
@@ -84,6 +105,15 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   }, []);
 
   const isSelected = useCallback((node: TreeNode) => selectedNodes.has(node.id), [selectedNodes]);
+
+  // A destination is the whole folder, so a click replaces the previous pick
+  // rather than adding to it; the connection root counts as a folder. A click
+  // also ends the initial-path preset — from here the analyst is in control.
+  const selectFolder = useCallback((node: TreeNode) => {
+    if (node.type === "file") return;
+    presetConsumedRef.current = true;
+    setSelectedFolder((prev) => (prev?.id === node.id ? null : node));
+  }, []);
 
   const glob = globFilter.trim();
 
@@ -110,6 +140,18 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   }, [glob, selectableFiles]);
 
   const handleConfirm = useCallback(() => {
+    if (isFolderMode) {
+      if (!selectedFolder) return;
+      onConfirm([
+        [
+          {
+            connectionId: selectedFolder.connectionId,
+            path: asFolderPath(selectedFolder.pathName),
+          },
+        ],
+      ]);
+      return;
+    }
     const results: StoragePickerResult[] = [];
     for (const node of selectedNodes.values()) {
       if (node.type === "file") {
@@ -121,10 +163,11 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
     } else {
       onConfirm(results.map((r) => [r]));
     }
-  }, [selectedNodes, options.groupBy, groupBy, onConfirm]);
+  }, [isFolderMode, selectedFolder, selectedNodes, options.groupBy, groupBy, onConfirm]);
 
-  const showGlob = options.globFilter ?? false;
-  const showGroupBy = options.groupBy ?? false;
+  // Folder mode has no meaningful file-selection affordances.
+  const showGlob = !isFolderMode && (options.globFilter ?? false);
+  const showGroupBy = !isFolderMode && (options.groupBy ?? false);
   const matchingCount = useMemo(() => {
     if (!glob) return selectableFiles.length;
     let count = 0;
@@ -135,6 +178,10 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
   }, [glob, selectableFiles]);
 
   const selectionSummary = useMemo(() => {
+    if (isFolderMode) {
+      if (!selectedFolder) return "No folder selected";
+      return `Destination: ${asFolderPath(selectedFolder.pathName) || "connection root"}`;
+    }
     if (selectedNodes.size === 0) return "No files selected";
     if (showGroupBy && groupBy) {
       const groups = new Set(
@@ -143,10 +190,17 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
       return `${groups.size} groups from ${selectedNodes.size} files`;
     }
     return `${selectedNodes.size} file${selectedNodes.size === 1 ? "" : "s"} selected`;
-  }, [selectedNodes, showGroupBy, groupBy]);
+  }, [isFolderMode, selectedFolder, selectedNodes, showGroupBy, groupBy]);
+
+  const confirmDisabled = isFolderMode ? !selectedFolder : selectedNodes.size === 0;
 
   return (
-    <Dialog isOpen onOpenChange={onCancel} title="Add inputs" size="xl">
+    <Dialog
+      isOpen
+      onOpenChange={onCancel}
+      title={isFolderMode ? "Choose a destination" : "Add inputs"}
+      size="xl"
+    >
       {connectionIds.length === 0 ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />
@@ -159,7 +213,9 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
               onSelect={(id) => {
                 setActiveConnectionId(id);
                 setSelectedNodes(new Map());
+                setSelectedFolder(null);
                 setLoadedFiles(new Map());
+                presetConsumedRef.current = false;
               }}
             />
             {showGlob && (
@@ -200,17 +256,26 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
               nodeFilter={
                 glob ? (node) => node.type !== "file" || matchGlob(node.name, glob) : undefined
               }
-              nodeLinkProps={{
-                isClickable: () => false,
-                onClick: (node) => {
-                  if (node.type === "file") {
-                    if (glob && !matchGlob(node.name, glob)) return;
-                    toggleNode(node);
-                  }
-                },
-                isSelected,
-                onToggleSelect: toggleNode,
-              }}
+              nodeLinkProps={
+                isFolderMode
+                  ? {
+                      isClickable: (node) => node.type !== "file",
+                      onClick: (node) => {
+                        if (node.type !== "file") selectFolder(node);
+                      },
+                    }
+                  : {
+                      isClickable: () => false,
+                      onClick: (node) => {
+                        if (node.type === "file") {
+                          if (glob && !matchGlob(node.name, glob)) return;
+                          toggleNode(node);
+                        }
+                      },
+                      isSelected,
+                      onToggleSelect: toggleNode,
+                    }
+              }
             />
           </div>
 
@@ -220,8 +285,8 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
               <Button variant="secondary" onPress={onCancel}>
                 Cancel
               </Button>
-              <Button isDisabled={selectedNodes.size === 0} onPress={handleConfirm}>
-                Add
+              <Button isDisabled={confirmDisabled} onPress={handleConfirm}>
+                {isFolderMode ? "Save here" : "Add"}
               </Button>
             </div>
           </div>
@@ -240,6 +305,12 @@ function groupResults(results: StoragePickerResult[], groupBy: string): StorageP
     groups.set(key, arr);
   }
   return Array.from(groups.values());
+}
+
+/** Folder paths carry a trailing slash and read as `""` at the connection root. */
+function asFolderPath(pathName: string): string {
+  const trimmed = pathName.replace(/^\/+/, "").replace(/\/+$/, "");
+  return trimmed ? `${trimmed}/` : "";
 }
 
 function computeGroupKey(path: string, groupBy: string): string {

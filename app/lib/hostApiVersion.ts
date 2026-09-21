@@ -6,4 +6,9 @@
 // 6.9.0: `CatalogConnectionProjection` gains the optional `registryKind` and
 // `credentialMode` fields — additive at a minor version, so existing plugins
 // still satisfy the contract.
-export const HOST_API_VERSION = "6.9.0";
+//
+// 6.10.0: `StoragePickerOptions` gains the optional `select` mode, so the picker
+// can hand back a destination folder as well as input files — additive at a
+// minor version, so a plugin passing no new option keeps today's file-selection
+// behaviour.
+export const HOST_API_VERSION = "6.10.0";
