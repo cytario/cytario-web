@@ -70,6 +70,9 @@ export interface AnnotationsSlice {
   /** `feature.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
+  /** Last singly-selected feature id — the fixed end of a Shift-range
+   *  extension. Shared across set blocks so a range can span them. */
+  annotationSelectionAnchorId: string | null;
   /** Per-set view state (hidden classes), keyed by `setId`. Kept apart from
    *  `annotationSets` so a view change never enters the persist diff. */
   annotationView: Record<string, SetAnnotationView>;
@@ -151,6 +154,7 @@ export interface AnnotationsSlice {
   setAnnotationMode: (mode: AnnotationMode) => void;
   setAnnotationStampSize: (widthPx: number, heightPx: number) => void;
   setAnnotationSelectedIds: (ids: string[]) => void;
+  setAnnotationSelectionAnchor: (id: string | null) => void;
 }
 
 /** Per-image annotation state. Features live on S3 (one sidecar per set); this
@@ -162,6 +166,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   annotationMode: "view",
   annotationStampSize: { widthPx: 512, heightPx: 512 },
   annotationSelectedIds: [],
+  annotationSelectionAnchorId: null,
   annotationView: {},
   annotationActiveClass: null,
   annotationClasses: [],
@@ -292,6 +297,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
           survivorIds.has(id),
         );
+        if (viewerStore.annotationSelectionAnchorId !== null) {
+          const anchorId = viewerStore.annotationSelectionAnchorId;
+          if (!survivorIds.has(anchorId)) viewerStore.annotationSelectionAnchorId = null;
+        }
       },
       false,
       "deleteAnnotationSet",
@@ -542,5 +551,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "setAnnotationSelectedIds",
+    ),
+
+  setAnnotationSelectionAnchor: (id) =>
+    set(
+      (viewerStore) => {
+        viewerStore.annotationSelectionAnchorId = id;
+      },
+      false,
+      "setAnnotationSelectionAnchor",
     ),
 });
