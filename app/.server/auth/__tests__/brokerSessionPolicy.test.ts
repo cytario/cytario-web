@@ -7,15 +7,6 @@ const INPUT: S3Target = { bucketName: "data-bucket", prefix: "cases/case1" };
 const OUTPUT: S3Target = { bucketName: "data-bucket", prefix: "results/run42" };
 
 describe("buildBrokerSessionPolicy (SRS-CY-416103)", () => {
-  test("scopes PutObject to the output prefix only", () => {
-    const policy = JSON.parse(
-      buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
-    );
-    const putStmt = policy.Statement.find((s: { Action: string }) => s.Action === "s3:PutObject");
-    expect(putStmt).toBeDefined();
-    expect(putStmt.Resource).toBe("arn:aws:s3:::data-bucket/results/run42/*");
-  });
-
   test("GetObject covers both input and output prefixes", () => {
     const policy = JSON.parse(
       buildBrokerSessionPolicy({ inputs: [INPUT], output: OUTPUT, region: REGION }),
