@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef } from "react";
 
 import { ViewerStoreContext } from "../../state/store/core/ViewerStoreContext";
 import { AnnotationMode } from "../../state/store/types";
+import { connectionIsReadOnly } from "../../utils/useCanAnnotate";
 import { isInsideFloatingPanel } from "~/components/Sidebar/SidebarContext";
 
 const DRAW_MODES: ReadonlySet<AnnotationMode> = new Set([
@@ -11,7 +12,8 @@ const DRAW_MODES: ReadonlySet<AnnotationMode> = new Set([
 ]);
 
 /** Global keyboard shortcuts for annotation modes: Escape returns to "view"; holding
- *  Space temporarily enters drag mode and restores the previous mode on release. */
+ *  Space temporarily enters drag mode and restores the previous mode on release;
+ *  Delete/Backspace deletes the selected annotations (annotate grants only). */
 export function useAnnotationModeKeyboard() {
   const store = useContext(ViewerStoreContext);
   if (!store) throw new Error("useAnnotationModeKeyboard must be used within ViewerStoreProvider");
@@ -49,6 +51,22 @@ export function useAnnotationModeKeyboard() {
           savedMode.current = current;
           store.getState().setAnnotationMode("view");
         }
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const state = store.getState();
+        if (connectionIsReadOnly(state.id)) return;
+        const selected = new Set(state.annotationSelectedIds);
+        if (selected.size === 0) return;
+        e.preventDefault();
+        for (const annotationSet of state.annotationSets) {
+          const kept = annotationSet.features.filter((f) => !selected.has(f.id));
+          if (kept.length !== annotationSet.features.length) {
+            state.updateSetFeatures(annotationSet.id, kept);
+          }
+        }
+        state.setAnnotationSelectedIds([]);
       }
     };
 

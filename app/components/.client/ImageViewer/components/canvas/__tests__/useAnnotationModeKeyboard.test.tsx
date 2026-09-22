@@ -3,10 +3,19 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 
 type AnnotationMode = "view" | "draw-polygon" | "draw-freehand" | "draw-point";
 
+type MockFeature = { id: string };
+
+type MockAnnotationSet = { id: string; features: MockFeature[] };
+
 type MockStore = {
+  id: string;
   getState: () => {
     annotationMode: AnnotationMode;
     setAnnotationMode: (m: AnnotationMode) => void;
+    annotationSelectedIds: string[];
+    annotationSets: MockAnnotationSet[];
+    updateSetFeatures: (setId: string, features: MockFeature[]) => void;
+    setAnnotationSelectedIds: (ids: string[]) => void;
   };
 };
 
@@ -21,6 +30,7 @@ vi.mock("../../../state/store/core/ViewerStoreContext", async () => {
 
 import { ViewerStoreContext } from "../../../state/store/core/ViewerStoreContext";
 import { useAnnotationModeKeyboard } from "../useAnnotationModeKeyboard";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 
 const wrapper = (store: MockStore) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -56,12 +66,49 @@ const createMockStore = (mode: AnnotationMode = "view") => {
     mockAnnotationMode = m;
   });
   mockStore = {
+    id: "test-conn/images/slide.ome.tif",
     getState: () => ({
+      id: "test-conn/images/slide.ome.tif",
       annotationMode: mockAnnotationMode,
       setAnnotationMode: mockSetAnnotationMode,
+      annotationSelectedIds: [],
+      annotationSets: [],
+      updateSetFeatures: vi.fn(),
+      setAnnotationSelectedIds: vi.fn(),
     }),
   };
   return mockStore;
+};
+
+/** Store preloaded with two sets for the delete-selection tests. `updateSetFeatures`
+ *  actually filters the named set so repeated assertions see realistic state. */
+const createDeleteStore = (
+  selectedIds: string[],
+  sets: MockAnnotationSet[] = [
+    { id: "set-1", features: [{ id: "f1" }, { id: "f2" }] },
+    { id: "set-2", features: [{ id: "f3" }, { id: "f4" }] },
+  ],
+) => {
+  mockAnnotationMode = "view";
+  mockSetAnnotationMode = vi.fn();
+  const updateSetFeatures = vi.fn((setId: string, features: MockFeature[]) => {
+    const annotationSet = sets.find((s) => s.id === setId);
+    if (annotationSet) annotationSet.features = features;
+  });
+  const setAnnotationSelectedIds = vi.fn();
+  mockStore = {
+    id: "test-conn/images/slide.ome.tif",
+    getState: () => ({
+      id: "test-conn/images/slide.ome.tif",
+      annotationMode: mockAnnotationMode,
+      setAnnotationMode: mockSetAnnotationMode,
+      annotationSelectedIds: selectedIds,
+      annotationSets: sets,
+      updateSetFeatures,
+      setAnnotationSelectedIds,
+    }),
+  };
+  return { store: mockStore, updateSetFeatures, setAnnotationSelectedIds };
 };
 
 afterEach(() => {
@@ -218,6 +265,76 @@ describe("useAnnotationModeKeyboard — form field guard", () => {
 
     expect(mockSetAnnotationMode).not.toHaveBeenCalled();
     document.body.removeChild(textarea);
+  });
+});
+
+describe("useAnnotationModeKeyboard — Delete/Backspace delete selection", () => {
+  it("Delete removes every selected feature from its sets and clears the selection", () => {
+    seedViewerConnection("test-conn");
+    const { store, updateSetFeatures, setAnnotationSelectedIds } = createDeleteStore(["f1", "f3"]);
+    renderHook(() => useAnnotationModeKeyboard(), { wrapper: wrapper(store) });
+
+    fireKey("Delete");
+
+    expect(updateSetFeatures).toHaveBeenCalledTimes(2);
+    expect(updateSetFeatures).toHaveBeenCalledWith("set-1", [{ id: "f2" }]);
+    expect(updateSetFeatures).toHaveBeenCalledWith("set-2", [{ id: "f4" }]);
+    expect(setAnnotationSelectedIds).toHaveBeenCalledWith([]);
+  });
+
+  it("Backspace behaves identically to Delete", () => {
+    seedViewerConnection("test-conn");
+    const { store, updateSetFeatures } = createDeleteStore(["f2"]);
+    renderHook(() => useAnnotationModeKeyboard(), { wrapper: wrapper(store) });
+
+    fireKey("Backspace");
+
+    expect(updateSetFeatures).toHaveBeenCalledTimes(1);
+    expect(updateSetFeatures).toHaveBeenCalledWith("set-1", [{ id: "f1" }]);
+    expect(updateSetFeatures).not.toHaveBeenCalledWith("set-2", expect.anything());
+  });
+
+  it("Delete with an empty selection is a no-op", () => {
+    seedViewerConnection("test-conn");
+    const { store, updateSetFeatures, setAnnotationSelectedIds } = createDeleteStore([]);
+    renderHook(() => useAnnotationModeKeyboard(), { wrapper: wrapper(store) });
+
+    fireKey("Delete");
+
+    expect(updateSetFeatures).not.toHaveBeenCalled();
+    expect(setAnnotationSelectedIds).not.toHaveBeenCalled();
+  });
+
+  it("Delete is a no-op on a read-only connection", () => {
+    seedViewerConnection("test-conn", "read-only");
+    const { store, updateSetFeatures, setAnnotationSelectedIds } = createDeleteStore(["f1"]);
+    renderHook(() => useAnnotationModeKeyboard(), { wrapper: wrapper(store) });
+
+    fireKey("Delete");
+
+    expect(updateSetFeatures).not.toHaveBeenCalled();
+    expect(setAnnotationSelectedIds).not.toHaveBeenCalled();
+  });
+
+  it("ignores Delete when focus is in an input", () => {
+    seedViewerConnection("test-conn");
+    const { store, updateSetFeatures } = createDeleteStore(["f1"]);
+    renderHook(() => useAnnotationModeKeyboard(), { wrapper: wrapper(store) });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Delete",
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "target", { value: input });
+    window.dispatchEvent(event);
+
+    expect(updateSetFeatures).not.toHaveBeenCalled();
+    document.body.removeChild(input);
   });
 });
 
