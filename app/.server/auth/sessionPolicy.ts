@@ -6,29 +6,15 @@
 // enforced by the role's trust policy, not repeated here — lean also keeps us
 // under the 2048-character Policy limit.
 
+import { InlinePolicySizeError, POLICY_SIZE_CEILING } from "./inlinePolicySize";
+
 /** Duplicated to keep the session-policy and bucket-policy generators import-disjoint. */
 type AccessLevel = "read-only" | "annotate" | "read-write" | "admin";
 
 /** Fallback AWS region for the `kms:ViaService` condition when none is supplied. */
 const DEFAULT_REGION = "eu-central-1";
 
-/** AWS `AssumeRoleWithWebIdentity` `Policy` parameter ceiling (characters). */
-export const POLICY_SIZE_CEILING = 2048;
-
-/** Thrown when the serialized policy exceeds the AWS `Policy` parameter ceiling; callers treat it as a connection-level failure with no policy-less fallback. */
-export class InlinePolicySizeError extends Error {
-  readonly actualLength: number;
-  readonly ceiling: number;
-
-  constructor(actualLength: number, ceiling: number) {
-    super(
-      `Inline session policy size ceiling exceeded: serialized policy is ${actualLength} characters, ceiling is ${ceiling}.`,
-    );
-    this.name = "InlinePolicySizeError";
-    this.actualLength = actualLength;
-    this.ceiling = ceiling;
-  }
-}
+export { InlinePolicySizeError, POLICY_SIZE_CEILING };
 
 export interface SessionPolicyArgs {
   bucketName: string;
