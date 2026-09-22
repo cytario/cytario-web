@@ -276,6 +276,9 @@ export const OverlaysLayer = ({
       const strokeLayer = new PolygonLayer({
         ...props,
         id: `${props.id}-stroke`,
+        // Additive like the fills: strokes from separate overlay files accumulate
+        // in the offscreen pass instead of the last-drawn file overwriting the rest.
+        parameters: additiveBlendParameters,
         data: arrowTable,
         getPolygon: (_d: unknown, context: AccessorContext<unknown>) =>
           polygonAccessor(context.index, context),

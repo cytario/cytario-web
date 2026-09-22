@@ -76,3 +76,36 @@ export const shadersInject = {
     color = vec4(blendedColor, marker.opacity);
   `,
 };
+
+/** Composite pass: premultiplied-over blend of the offscreen overlay texture
+ *  over the opaque viv base — preserves the base instead of washing it out. */
+export const compositeBlendParameters = {
+  depthWriteEnabled: false,
+  depthCompare: "always",
+  blend: true,
+  blendColorOperation: "add",
+  blendColorSrcFactor: "one",
+  blendColorDstFactor: "one-minus-src-alpha",
+  blendAlphaOperation: "add",
+  blendAlphaSrcFactor: "one",
+  blendAlphaDstFactor: "one-minus-src-alpha",
+} as const;
+
+/** Fullscreen passthrough sampler: outputs the offscreen overlay texture,
+ *  letting the layer's `compositeBlendParameters` blend it over the base.
+ *  Mirrors deck's ScreenPass FS template (`texSrc`/`uv` conventions). */
+export const compositeFragmentShader = /* glsl */ `\
+#version 300 es
+
+uniform sampler2D uFill;
+
+in vec2 position;
+in vec2 coordinate;
+in vec2 uv;
+
+out vec4 fragColor;
+
+void main(void) {
+  fragColor = texture(uFill, uv);
+}
+`;

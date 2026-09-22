@@ -56,7 +56,10 @@ const ImagePanelInner = ({
 
   const view = useView({ width, height });
 
-  const { layers, deckRef, onHover, getCursor } = useCompositeHover(imagePanelId, isActivePanel);
+  const { layers, effects, layerFilter, deckRef, onHover, getCursor } = useCompositeHover(
+    imagePanelId,
+    isActivePanel,
+  );
 
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
@@ -97,6 +100,8 @@ const ImagePanelInner = ({
         height={height}
         views={[view]}
         layers={layers}
+        effects={effects}
+        layerFilter={layerFilter}
         onViewStateChange={onViewStateChange}
         viewState={{ detail: viewStateActive }}
         getCursor={getCursor}
