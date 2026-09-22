@@ -48,6 +48,9 @@ const BUCKET = "customer-bucket";
 const ROLE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw";
 const KMS_KEY_ARN = "arn:aws:kms:eu-central-1:123456789012:key/abc123";
 
+const MAX_LENGTH_PREFIX = "a".repeat(64);
+const MAX_LENGTH_BUCKET = "bucket-" + "b".repeat(57);
+
 const sessionDoc = (accessLevel: AccessLevel, prefix: string): PolicyDocument =>
   parsePolicy(buildSessionPolicy({ bucketName: BUCKET, prefix, region: REGION, accessLevel }));
 
@@ -195,6 +198,19 @@ describe("data-plane session policy", () => {
   test.each(SESSION_DOCS)("%s stays within the 2048-char Policy ceiling", (_name, policy) => {
     expect(JSON.stringify(policy).length).toBeLessThanOrEqual(POLICY_SIZE_CEILING);
   });
+
+  test.each(ACCESS_LEVELS)(
+    "%s stays within the ceiling for a max-length bucket and prefix",
+    (level) => {
+      const serialized = buildSessionPolicy({
+        bucketName: MAX_LENGTH_BUCKET,
+        prefix: MAX_LENGTH_PREFIX,
+        region: REGION,
+        accessLevel: level,
+      });
+      expect(serialized.length).toBeLessThanOrEqual(POLICY_SIZE_CEILING);
+    },
+  );
 });
 
 describe("structural guard rails", () => {
