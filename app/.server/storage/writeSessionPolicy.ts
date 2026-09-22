@@ -5,6 +5,8 @@
 // or another tenant's resources; shares no construction code with the other
 // two generators (each independently carries the ORG condition).
 
+import { InlinePolicySizeError, POLICY_SIZE_CEILING } from "../auth/inlinePolicySize";
+
 export interface WriteSessionPolicyArgs {
   organization: string;
   bucketName: string;
@@ -52,5 +54,10 @@ export const buildWriteSessionPolicy = ({
     });
   }
 
-  return JSON.stringify({ Version: "2012-10-17", Statement: statements });
+  const serialized = JSON.stringify({ Version: "2012-10-17", Statement: statements });
+  if (serialized.length > POLICY_SIZE_CEILING) {
+    throw new InlinePolicySizeError(serialized.length, POLICY_SIZE_CEILING);
+  }
+
+  return serialized;
 };
