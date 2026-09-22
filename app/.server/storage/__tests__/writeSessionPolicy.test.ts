@@ -1,3 +1,4 @@
+import { InlinePolicySizeError, POLICY_SIZE_CEILING } from "../../auth/sessionPolicy";
 import { buildWriteSessionPolicy } from "../writeSessionPolicy";
 
 interface Stmt {
@@ -63,5 +64,20 @@ describe("buildWriteSessionPolicy", () => {
     expect(() => buildWriteSessionPolicy({ organization: ORG, bucketName: "b*" })).toThrow(
       /wildcard/i,
     );
+  });
+
+  test("stays within the 2048-char STS Policy ceiling for a max-realistic organization", () => {
+    const json = buildWriteSessionPolicy({
+      organization: "o".repeat(64),
+      bucketName: BUCKET,
+      kmsKeyArn: "arn:aws:kms:eu-central-1:123456789012:key/abc-123",
+    });
+    expect(json.length).toBeLessThanOrEqual(POLICY_SIZE_CEILING);
+  });
+
+  test("FAIL CLOSED: refuses a serialized policy over the STS Policy ceiling", () => {
+    expect(() =>
+      buildWriteSessionPolicy({ organization: "o".repeat(3000), bucketName: BUCKET }),
+    ).toThrow(InlinePolicySizeError);
   });
 });
