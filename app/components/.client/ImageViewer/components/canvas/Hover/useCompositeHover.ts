@@ -1,5 +1,5 @@
 import { InteractionState, PickingInfo } from "@deck.gl/core";
-import type { Layer } from "@deck.gl/core";
+import type { Effect, FilterContext, Layer } from "@deck.gl/core";
 import type { DeckGLRef } from "@deck.gl/react";
 import { useCallback, useMemo, useRef } from "react";
 
@@ -12,6 +12,13 @@ import type {
 } from "../../../state/store/types";
 import { useAnnotationsLayer } from "../Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "../Channels/useChannelsLayer";
+import {
+  OVERLAYS_ID_PREFIX,
+  OVERLAY_COMPOSITE_LAYER_ID,
+  OverlayCompositeEffect,
+  OverlayCompositeLayer,
+  type OverlayCompositeResult,
+} from "../Overlays/OverlayComposite";
 import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
 
 /**
@@ -28,6 +35,10 @@ import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
 export interface CompositeHoverResult {
   /** All layers from all providers, ready to spread into `<DeckGL layers={…}>`. */
   layers: Layer[];
+  /** Effects for the composite overlay pass. */
+  effects: Effect[];
+  /** Filters the overlay layers out of the main color pass (they render offscreen). */
+  layerFilter: (context: FilterContext) => boolean;
   /** Ref to attach to `<DeckGL ref={…}>` — needed for `pickMultipleObjects`. */
   deckRef: React.RefObject<DeckGLRef | null>;
   /** deck.gl `onHover` handler. */
@@ -38,7 +49,6 @@ export interface CompositeHoverResult {
 
 /** Layer-id prefixes used to route picks to the right provider. */
 const CHANNELS_ID_HINT = "channels-";
-const OVERLAYS_ID_PREFIX = "MarkersLayer-";
 const ANNOTATIONS_ID_PREFIX = "annotations-";
 const ANNOTATIONS_SELECTION_SUFFIX = "-selection-";
 
@@ -55,9 +65,31 @@ export const useCompositeHover = (
   const { layers: annotationLayers, getTooltipItems: getAnnotationTooltipItems } =
     useAnnotationsLayer(imagePanelId);
 
+  // Offscreen additive-overlay composition: the effect renders the overlay layers into an
+  // FBO each frame, the composite layer premultiplied-over blends the result onto the base.
+  const overlayComposite = useMemo(() => {
+    const result: OverlayCompositeResult = {};
+    return {
+      result,
+      layer: new OverlayCompositeLayer({
+        id: OVERLAY_COMPOSITE_LAYER_ID,
+        pickable: false,
+        result,
+      }),
+      effects: [new OverlayCompositeEffect(result)],
+    };
+  }, []);
+
   const layers = useMemo(
-    () => [...channelLayers, ...overlayLayers, ...annotationLayers],
-    [channelLayers, overlayLayers, annotationLayers],
+    () => [...channelLayers, ...overlayLayers, overlayComposite.layer, ...annotationLayers],
+    [channelLayers, overlayLayers, overlayComposite.layer, annotationLayers],
+  );
+
+  // Overlay layers render offscreen only (the composite layer draws their result); they
+  // must still draw in the picking pass so hovering over overlays keeps working.
+  const layerFilter = useCallback(
+    ({ layer, isPicking }: FilterContext) => !layer.id.startsWith(OVERLAYS_ID_PREFIX) || isPicking,
+    [],
   );
 
   const setCompositeTooltip = useViewerStore(select.setCompositeTooltip);
@@ -170,5 +202,12 @@ export const useCompositeHover = (
     [isActivePanel, annotationMode],
   );
 
-  return { layers, deckRef, onHover, getCursor };
+  return {
+    layers,
+    effects: overlayComposite.effects,
+    layerFilter,
+    deckRef,
+    onHover,
+    getCursor,
+  };
 };
