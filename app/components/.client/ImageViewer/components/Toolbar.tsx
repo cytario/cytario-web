@@ -47,7 +47,7 @@ export const Toolbar = () => {
       <FloatingBar
         role="toolbar"
         aria-label="Annotation tools"
-        className="bottom-8 left-1/2 -translate-x-1/2"
+        className="bottom-8 left-1/2 -translate-x-1/2 gap-2"
       >
         {tools
           .filter(({ mode }) => canAnnotate || !mode.startsWith("draw-"))
@@ -98,7 +98,7 @@ export const FloatingBar = ({ className, ...props }: HTMLAttributes<HTMLDivEleme
       `
         z-30 absolute
         flex flex-row items-center
-        p-2 gap-2 rounded-full
+        p-2 gap-4 rounded-full
         bg-background/80 backdrop-blur-sm
         shadow-md
       `,

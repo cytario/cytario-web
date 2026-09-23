@@ -52,7 +52,10 @@ export const ScaleBar = () => {
   const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
   const toggleDisplayUnit = useViewerDisplayStore((s) => s.toggleDisplayUnit);
 
+  // At extreme zoom even the smallest ladder step (1 nm / 1 px) exceeds
+  // maxWidth — render the bar capped so it can't blow out the canvas corner.
   const [size, unit] = displayUnit === "pixels" ? pixelSize(2 ** zoom) : metricSize(one_mm);
+  const width = Math.min(size, maxWidth);
 
   return (
     <button
@@ -66,7 +69,7 @@ export const ScaleBar = () => {
         text-muted-foreground
         border-x-2 border-muted-foreground
       `}
-      style={{ width: size }}
+      style={{ width }}
     >
       <div className="h-0.5 w-full bg-muted-foreground" />
       <MetricText className="px-1 text-nowrap">{unit}</MetricText>

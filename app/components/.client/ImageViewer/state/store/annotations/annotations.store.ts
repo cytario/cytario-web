@@ -272,6 +272,24 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         if (set) {
           set.features = features;
         }
+        // Every feature-removal path funnels through here, so prune the
+        // selection and its Shift-range anchor of deleted feature ids once.
+        const survivorIds = new Set(
+          viewerStore.annotationSets.flatMap((s) =>
+            s.features.flatMap((f) => (f.id ? [f.id] : [])),
+          ),
+        );
+        if (viewerStore.annotationSelectedIds.some((id) => !survivorIds.has(id))) {
+          viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
+            survivorIds.has(id),
+          );
+        }
+        if (
+          viewerStore.annotationSelectionAnchorId !== null &&
+          !survivorIds.has(viewerStore.annotationSelectionAnchorId)
+        ) {
+          viewerStore.annotationSelectionAnchorId = null;
+        }
       },
       false,
       "updateSetFeatures",
@@ -297,9 +315,11 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
           survivorIds.has(id),
         );
-        if (viewerStore.annotationSelectionAnchorId !== null) {
-          const anchorId = viewerStore.annotationSelectionAnchorId;
-          if (!survivorIds.has(anchorId)) viewerStore.annotationSelectionAnchorId = null;
+        if (
+          viewerStore.annotationSelectionAnchorId !== null &&
+          !survivorIds.has(viewerStore.annotationSelectionAnchorId)
+        ) {
+          viewerStore.annotationSelectionAnchorId = null;
         }
       },
       false,

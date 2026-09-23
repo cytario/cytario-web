@@ -12,13 +12,16 @@ describe("absoluteToMetricFactory", () => {
     { physicalSize: 50, size: 100, unit: "mm", expected: 5000 },
     { physicalSize: 10, size: 100, unit: "µm", expected: 1 },
     { physicalSize: 50, size: 100, unit: "µm", expected: 5 },
+    { physicalSize: 10, size: 100, unit: "nm", expected: 0.001 },
+    // Unknown units fall back to µm.
+    { physicalSize: 10, size: 100, unit: "micron", expected: 1 },
   ];
 
   test.each(testCases)(
     "correctly converts absolute to metric with $unit unit",
     ({ physicalSize, size, unit, expected }) => {
       const absoluteToMetric = absoluteToMetricFactory(physicalSize, unit);
-      expect(absoluteToMetric(size)).toBe(expected);
+      expect(absoluteToMetric(size)).toBeCloseTo(expected, 10);
     },
   );
 });
@@ -34,13 +37,14 @@ describe("metricToAbsoluteFactory", () => {
     { physicalSize: 5, sizeMetric: 2000, unit: "mm", expected: 400 },
     { physicalSize: 10, sizeMetric: 1000, unit: "µm", expected: 100000 },
     { physicalSize: 5, sizeMetric: 2000, unit: "µm", expected: 400000 },
+    { physicalSize: 10, sizeMetric: 0.001, unit: "nm", expected: 100 },
   ];
 
   test.each(testCases)(
     "correctly converts metric to absolute with $unit unit",
     ({ physicalSize, sizeMetric, unit, expected }) => {
       const metricToAbsolute = metricToAbsoluteFactory(physicalSize, unit);
-      expect(metricToAbsolute(sizeMetric)).toBe(expected);
+      expect(metricToAbsolute(sizeMetric)).toBeCloseTo(expected, 10);
     },
   );
 });

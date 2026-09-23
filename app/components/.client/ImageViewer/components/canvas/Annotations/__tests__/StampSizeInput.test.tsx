@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { useStore } from "zustand";
 
@@ -66,4 +66,48 @@ describe("StampSizeInput unit conversion", () => {
       heightPx: 100,
     });
   });
+
+  test("the displayed value re-derives when the unit flips", () => {
+    const input = setup("metric");
+    expect((input as HTMLInputElement).value).toBe("256000");
+
+    act(() => {
+      useViewerDisplayStore.setState({ displayUnit: "pixels" });
+    });
+    // 512 px shown directly, no stale metric draft.
+    expect((input as HTMLInputElement).value).toBe("512");
+
+    act(() => {
+      useViewerDisplayStore.setState({ displayUnit: "metric" });
+    });
+    expect((input as HTMLInputElement).value).toBe("256000");
+  });
+
+  test("Enter commits without blur", () => {
+    const input = setup("pixels");
+    input.focus();
+    fireEvent.change(input, { target: { value: "200" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(currentStore.getState().annotationStampSize).toEqual({
+      widthPx: 200,
+      heightPx: 200,
+    });
+  });
+
+  test.each(["abc", "-5", "0", ""])(
+    "invalid input %j is rejected and the previous value restored",
+    (invalid) => {
+      const input = setup("pixels");
+      fireEvent.change(input, { target: { value: invalid } });
+      fireEvent.blur(input);
+
+      // The store keeps its prior size; the input re-derives from it.
+      expect(currentStore.getState().annotationStampSize).toEqual({
+        widthPx: 512,
+        heightPx: 512,
+      });
+      expect((input as HTMLInputElement).value).toBe("512");
+    },
+  );
 });
