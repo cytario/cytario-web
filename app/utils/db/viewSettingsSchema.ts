@@ -7,7 +7,7 @@ import type {
 } from "~/components/.client/ImageViewer/state/store/types";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
-const SCHEMA_VERSION = "1.1";
+const SCHEMA_VERSION = "1.2";
 
 const overlayClassSchema = z.object({
   sourceColumn: z.string(),
@@ -53,9 +53,6 @@ const overlayEntrySchema = z.object({
   config: overlayConfigSchema.nullable(),
 });
 
-/** Sidecar overlays parse as an unknown record; migrateSidecarOverlays discriminates entries. */
-const sidecarOverlaysSchema = z.record(z.string(), z.unknown());
-
 export const viewSettingsChannelSchema = z.object({
   id: z.string(),
   author: z.string(),
@@ -70,8 +67,6 @@ export const viewSettingsChannelSchema = z.object({
     }),
   ),
   channelsOpacity: z.number().default(1),
-  overlays: sidecarOverlaysSchema.default({}),
-  overlaysFillOpacity: z.number().default(DEFAULT_OVERLAYS_FILL_OPACITY),
   showCellOutline: z.boolean().default(true),
   annotationsOpacity: z.number().default(1),
   showAnnotationOutline: z.boolean().default(true),
@@ -79,7 +74,7 @@ export const viewSettingsChannelSchema = z.object({
 
 export const viewSettingsDocumentSchema = z.object({
   cytario: z.object({
-    schemaVersion: z.enum(["1.0", "1.1"]),
+    schemaVersion: z.enum(["1.0", "1.1", "1.2"]),
     kind: z.literal("settings"),
     image: z.string(),
     author: z.string(),
@@ -150,8 +145,6 @@ export function layersStateToSidecarEntry(entry: LayersStateEntry): ViewSettings
     shared: entry.shared ?? false,
     channels,
     channelsOpacity: entry.channelsOpacity,
-    overlays: entry.overlays as ViewSettingsEntry["overlays"],
-    overlaysFillOpacity: entry.overlaysFillOpacity,
     showCellOutline: entry.showCellOutline,
     annotationsOpacity: entry.annotationsOpacity,
     showAnnotationOutline: entry.showAnnotationOutline,
@@ -171,9 +164,9 @@ export function sidecarEntryToLayersState(entry: ViewSettingsEntry): LayersState
     id: entry.id,
     author: entry.author,
     channels,
-    overlays: migrateSidecarOverlays(entry.overlays) as LayersStateEntry["overlays"],
+    overlays: {},
     channelsOpacity: entry.channelsOpacity,
-    overlaysFillOpacity: entry.overlaysFillOpacity,
+    overlaysFillOpacity: DEFAULT_OVERLAYS_FILL_OPACITY,
     showCellOutline: entry.showCellOutline,
     annotationsOpacity: entry.annotationsOpacity,
     showAnnotationOutline: entry.showAnnotationOutline,
