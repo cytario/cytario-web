@@ -27,6 +27,15 @@ function attrNum(attrs: string, name: string): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+/** NominalMagnification of the first Image's Objective — viv's OME-XML parse drops Instrument. */
+export function parseNominalMagnification(omexml: string): number | undefined {
+  const firstImage = /<Image\b[^>]*>[\s\S]*?<\/Image>/.exec(omexml);
+  const objective = firstImage && /<Objective\b([^>]*)>/.exec(firstImage[0]);
+  if (!objective) return undefined;
+  const match = /NominalMagnification="([\d.]+)"/.exec(objective[1]);
+  return match ? Number(match[1]) : undefined;
+}
+
 function parseOmeImageBlock(block: string, body: string): OmeImageBlock | null {
   const pixels = /<Pixels\b([^>]*)>/.exec(body);
   if (!pixels) return null;
@@ -180,6 +189,7 @@ export async function loadOmeTiffWithCredentials(
   // loader to honor TiffData IFD/PlaneCount; remove this block and
   // stripUnsupportedSubImages once the upstream loader indexes such files natively.
   // Pre-read IFD 0 and strip sub-images viv cannot index (see stripUnsupportedSubImages).
+  let nominalMagnification: number | undefined;
   try {
     const firstImage = await source.getImage(0);
     if (isStrippedBeyondRenderBudget(firstImage.fileDirectory)) {
@@ -187,6 +197,7 @@ export async function loadOmeTiffWithCredentials(
     }
     const omexml = firstImage.fileDirectory.ImageDescription;
     if (typeof omexml === "string") {
+      nominalMagnification = parseNominalMagnification(omexml);
       const stripped = stripUnsupportedSubImages(omexml);
       if (stripped !== omexml) {
         console.warn(
@@ -236,6 +247,10 @@ export async function loadOmeTiffWithCredentials(
       }
     }
     pixels.Interleaved = false;
+  }
+
+  if (nominalMagnification !== undefined) {
+    (result.metadata as Image).NominalMagnification = nominalMagnification;
   }
 
   return {

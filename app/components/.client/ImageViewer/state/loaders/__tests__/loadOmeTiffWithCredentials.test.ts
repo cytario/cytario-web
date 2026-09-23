@@ -1,6 +1,7 @@
 import {
   stripUnsupportedSubImages,
   isStrippedBeyondRenderBudget,
+  parseNominalMagnification,
 } from "../loadOmeTiffWithCredentials";
 
 function omeImage(
@@ -12,6 +13,7 @@ function omeImage(
     tiffData?: string[];
     interleaved?: boolean;
     channelSpp?: number[];
+    objective?: string;
   },
 ): string {
   const sizeZ = opts.sizeZ ?? 1;
@@ -22,11 +24,12 @@ function omeImage(
     .join("");
   const tiffData = (opts.tiffData ?? [`<TiffData IFD="0"/>`]).join("");
   const interleaved = opts.interleaved ? ` Interleaved="true"` : "";
+  const objective = opts.objective ? `<Objective ${opts.objective}/>` : "";
   return (
     `<Image ID="Image:${id}" Name="${id}">` +
     `<Pixels DimensionOrder="XYCZT" Type="uint8" SizeX="64" SizeY="64"` +
     ` SizeZ="${sizeZ}" SizeC="${opts.sizeC}" SizeT="${sizeT}"${interleaved}>` +
-    `${channels}${tiffData}</Pixels></Image>`
+    `${channels}${tiffData}</Pixels>${objective}</Image>`
   );
 }
 
@@ -136,5 +139,28 @@ describe("isStrippedBeyondRenderBudget", () => {
   test("allows small stripped IFDs", () => {
     expect(isStrippedBeyondRenderBudget({ StripOffsets: new Array(64) })).toBe(false);
     expect(isStrippedBeyondRenderBudget({})).toBe(false);
+  });
+});
+
+describe("parseNominalMagnification", () => {
+  test("reads the first Image's Objective NominalMagnification", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objective: `ID="Objective:0:0" NominalMagnification="40"` }),
+      omeImage("1", { sizeC: 1, objective: `ID="Objective:1:0" NominalMagnification="20"` }),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(40);
+  });
+
+  test("parses float magnification values", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objective: `ID="Objective:0:0" NominalMagnification="63.0"` }),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(63);
+  });
+
+  test("returns undefined when no Objective is declared", () => {
+    const omexml = wrap(omeImage("0", { sizeC: 1 }));
+    expect(parseNominalMagnification(omexml)).toBeUndefined();
+    expect(parseNominalMagnification("not xml at all")).toBeUndefined();
   });
 });

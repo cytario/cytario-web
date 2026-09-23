@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Mock } from "vitest";
 
+import type { Image } from "../../../../state/store/core/ome.tif.types";
 import { useViewerStore } from "../../../../state/store/core/ViewerStoreContext";
 import { type ViewState } from "../../../../state/store/types";
 import { magnificationFromZoom, zoomFromMagnification } from "../Magnifier";
@@ -36,10 +37,13 @@ const makeViewState = (zoom = 0): ViewState =>
 
 const setViewStateActive = vi.fn();
 
-const mockStore = (viewStateActive: ViewState | null = makeViewState()) =>
+const mockStore = (
+  viewStateActive: ViewState | null = makeViewState(),
+  metadata: Image | null = null,
+) =>
   (useViewerStore as Mock).mockImplementation((selector) =>
     selector({
-      metadata: null,
+      metadata,
       viewStateActive,
       setViewStateActive,
     }),
@@ -103,6 +107,40 @@ describe("Magnifier", () => {
     expect(screen.getByRole("textbox")).toHaveValue("20.0");
   });
 
+  test("falls back to 20x when metadata has no NominalMagnification", () => {
+    mockStore(makeViewState(0), { Pixels: { Channels: [] } } as unknown as Image);
+    render(<OverviewSection />);
+
+    expect(screen.getByRole("textbox")).toHaveValue("20.0");
+  });
+
+  test("uses NominalMagnification from metadata for the readout", () => {
+    mockStore(makeViewState(0), {
+      NominalMagnification: 40,
+      Pixels: { Channels: [] },
+    } as unknown as Image);
+    render(<OverviewSection />);
+
+    expect(screen.getByRole("textbox")).toHaveValue("40.0");
+  });
+
+  test("uses NominalMagnification from metadata for preset zoom", async () => {
+    const user = userEvent.setup();
+    mockStore(makeViewState(0), {
+      NominalMagnification: 40,
+      Pixels: { Channels: [] },
+    } as unknown as Image);
+    render(<OverviewSection />);
+
+    await user.click(screen.getByRole("radio", { name: "80x" }));
+
+    expect(setViewStateActive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zoom: zoomFromMagnification(80, 40),
+      }),
+    );
+  });
+
   test("renders the segmented control with correct aria-label", () => {
     render(<OverviewSection />);
 
@@ -121,6 +159,11 @@ describe("zoomFromMagnification", () => {
 
   test("returns -2 for 5x at 20x objective", () => {
     expect(zoomFromMagnification(5, 20)).toBe(-2);
+  });
+
+  test("calibrates against a non-default objective power", () => {
+    expect(zoomFromMagnification(40, 40)).toBe(0);
+    expect(zoomFromMagnification(10, 40)).toBe(-2);
   });
 });
 
