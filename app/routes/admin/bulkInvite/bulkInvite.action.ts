@@ -1,22 +1,18 @@
 import { type ActionFunction, redirect } from "react-router";
 
 import { bulkInviteSchema } from "./bulkInvite.schema";
-import { assertAdminScope } from "../assertAdminScope";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { toIdentity } from "~/.server/auth/getUserInfo";
-import { findOrganizationByAlias, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
+import { inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
 export const bulkInviteAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { adminUrl } = assertAdminScope(request.url, user.adminScopes);
-
-  if (!user.organization) {
-    throw new Response("No active organization", { status: 400 });
-  }
+  const { org, adminUrl } = context.get(adminContext);
 
   const json = await request.json();
   const result = bulkInviteSchema.safeParse(json);
@@ -26,11 +22,6 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
   }
 
   const { rows } = result.data;
-
-  const org = await findOrganizationByAlias(user.organization);
-  if (!org) {
-    throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
-  }
 
   await consultUserMgmtGate(toIdentity(user), {
     kind: "invite",

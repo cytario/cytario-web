@@ -1,7 +1,7 @@
 import { type ActionFunction, redirect } from "react-router";
 
 import { createGroupSchema } from "./createGroup.schema";
-import { assertAdminScope } from "../assertAdminScope";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { getUserInfo } from "~/.server/auth/getUserInfo";
@@ -11,7 +11,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 
 export const createGroupAction: ActionFunction = async ({ request, context }) => {
   const { user, authTokens } = context.get(authContext);
-  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
+  const { org, adminUrl, scope } = context.get(adminContext);
 
   const formData = await request.formData();
   const result = createGroupSchema.safeParse(Object.fromEntries(formData));
@@ -23,11 +23,7 @@ export const createGroupAction: ActionFunction = async ({ request, context }) =>
   const session = await getSession(request);
 
   try {
-    const { path, adminsGroupId, orgId } = await createGroup(
-      scope,
-      result.data.name,
-      user.organization,
-    );
+    const { path, adminsGroupId, orgId } = await createGroup(scope, result.data.name, org.alias);
 
     await addUserToOrganizationGroup(orgId, adminsGroupId, user.sub);
 

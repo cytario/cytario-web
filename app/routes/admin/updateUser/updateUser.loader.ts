@@ -1,13 +1,13 @@
 import { LoaderFunction } from "react-router";
 
-import { assertAdminScope } from "../assertAdminScope";
 import { assertUsersInScope } from "../assertUsersInScope";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getUser } from "~/.server/auth/keycloakAdmin";
 
-export const updateUserLoader: LoaderFunction = async ({ request, context, params }) => {
+export const updateUserLoader: LoaderFunction = async ({ context, params }) => {
   const { user } = context.get(authContext);
-  const { scope } = assertAdminScope(request.url, user.adminScopes);
+  const { scope } = context.get(adminContext);
 
   await assertUsersInScope([params.userId!], scope, user.organization);
 
