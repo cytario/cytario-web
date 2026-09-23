@@ -1,3 +1,8 @@
+import {
+  collectCredentialsIfBatchEmpty,
+  generateJobSessionToken,
+  hashJobToken,
+} from "./auth/jobCredentialStore";
 import { keepAliveGrant as keepAliveGrantImpl } from "./auth/keepAliveGrant";
 import { revokeGrant as revokeGrantImpl } from "./auth/revokeGrant";
 import { catalogFetch as connectionFetchImpl } from "./catalogFetch";
@@ -119,6 +124,18 @@ class HostCapabilitiesImpl implements HostCapabilities {
     return Promise.resolve(data.jobGrant);
   }
 
+  // The batch's refresh token stays server-side: the container is handed this
+  // opaque token instead, and the broker resolves it to the job's ledger row.
+  mintJobBrokerToken(): Promise<string> {
+    const data = hostRequestStorage.getStore();
+    if (!data?.jobGrant) {
+      throw new Error(
+        "mintJobBrokerToken() called outside the job-grant callback phase — the batch grant is only available during the Authorization Code callback (SRS-CY-41901)",
+      );
+    }
+    return Promise.resolve(generateJobSessionToken());
+  }
+
   brokerPublicUrl(): string {
     const base = cytarioConfig.endpoints.brokerPublicUrl || cytarioConfig.endpoints.webapp;
     return `${base}/api/broker`;
@@ -188,11 +205,18 @@ class JobLedgerImpl implements JobLedger {
       );
     }
 
+    if (!job.jobToken) {
+      throw new Error(
+        `Job ${job.jobId} has no broker session token — the credential broker cannot resolve it`,
+      );
+    }
+
     await prisma.jobLedgerEntry.create({
       data: {
         batchId: job.batchId,
         jobId: job.jobId,
         offlineSessionId: job.offlineSessionId,
+        jobTokenHash: hashJobToken(job.jobToken),
         organization: user.organization,
         owner: job.owner,
         inputS3Uris: job.inputS3Uris,
@@ -222,9 +246,19 @@ class JobLedgerImpl implements JobLedger {
     // The deployment-secret carve-out dispatches org-agnostic (no session
     // organization) — the same trust boundary as listAll — so the reconciler
     // removes terminal rows by jobId alone; session callers keep the org filter.
+    const rows = await prisma.jobLedgerEntry.findMany({
+      where: user.organization ? { organization: user.organization, jobId } : { jobId },
+      select: { batchId: true },
+    });
     await prisma.jobLedgerEntry.deleteMany({
       where: user.organization ? { organization: user.organization, jobId } : { jobId },
     });
+    // Removing a job's row is the cancel path (immediate) and the reconciler's
+    // terminal sweep alike; the batch's encrypted credentials go with the last
+    // of its jobs, so a canceled or finished batch leaves nothing at rest.
+    for (const batchId of new Set(rows.map((row) => row.batchId))) {
+      if (batchId) await collectCredentialsIfBatchEmpty(batchId);
+    }
   }
 
   async list(): Promise<readonly JobRecord[]> {
@@ -247,8 +281,10 @@ class JobLedgerImpl implements JobLedger {
   }
 }
 
+// `jobTokenHash` is deliberately absent from the projection: a ledger read must
+// never carry anything mintable, and the token itself was never stored.
 function toJobRecord(entry: {
-  batchId: string;
+  batchId: string | null;
   jobId: string;
   offlineSessionId: string;
   organization: string;
@@ -262,7 +298,8 @@ function toJobRecord(entry: {
   s3Endpoint: string | null;
 }): JobRecord {
   return {
-    batchId: entry.batchId,
+    // Empty on rows predating the credentials table, which have no batch.
+    batchId: entry.batchId ?? "",
     jobId: entry.jobId,
     offlineSessionId: entry.offlineSessionId,
     organization: entry.organization,

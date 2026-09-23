@@ -1,41 +1,44 @@
 import type { ActionFunctionArgs } from "react-router";
 
-import {
-  hostRequestDataFromJobToken,
-  readOrganizationClaimKeys,
-} from "~/.server/auth/carveOutRequestContext";
-import {
-  offlineSessionIdFromToken,
-  refreshJobTokenWithLock,
-} from "~/.server/auth/refreshJobTokenWithLock";
+import { jobTokenHostRequestData } from "~/.server/auth/carveOutRequestContext";
+import { resolveBatchAccessToken } from "~/.server/auth/jobCredentialStore";
+import { JobGrantRefusedError } from "~/.server/auth/refreshJobToken";
+import { resolveJobBinding } from "~/.server/auth/resolveJobBinding";
 import {
   buildBrokerSessionPolicy,
   InlinePolicySizeError,
   parseS3Uri,
   type S3Target,
 } from "~/.server/auth/sessionPolicy";
-import { verifyJobToken } from "~/.server/auth/verifyJobToken";
-import { prisma } from "~/.server/db/prisma";
 import { withHostRequestContext } from "~/.server/hostRequestContext";
 import { jsonError } from "~/.server/httpResponse";
 import { createLabel } from "~/.server/logging";
 import { assumeRoleWithWebIdentity, sanitizeRoleSessionName } from "~/.server/stsSession";
 
 /**
- * Credential-broker endpoint: a running container calls this host-owned
- * route with its job-scoped token to obtain short-lived S3 storage
- * credentials. The broker is purely ledger-driven — it reads the storage
- * role ARN, region, S3 endpoint, and the analysis's input/output targets
- * from the ledger row recorded at submission, with no provider catalog or
- * connection query at mint time. No caller-supplied field influences the
- * credential scope.
+ * A refusal from the identity service means the grant is gone; anything else —
+ * the refresh lock timing out, a database or network fault — is a condition of
+ * this deployment, and the caller's to retry. Keycloak answers a rejected
+ * refresh with a 4xx, which `refreshJobToken` folds into the error message.
+ */
+function isGrantRefusal(err: unknown): boolean {
+  return err instanceof JobGrantRefusedError;
+}
+
+/**
+ * Credential-broker endpoint: a running container calls this host-owned route
+ * with its own job session token to obtain short-lived S3 storage credentials.
+ * The token is the whole of the caller's authority — the request carries no
+ * other field, and the broker resolves the token to the ledger row it was
+ * issued for. From there it is purely ledger-driven: the storage role ARN,
+ * region, S3 endpoint, and the analysis's input/output targets all come from
+ * that row, with no provider catalog or connection query at mint time.
  */
 
 const label = createLabel("broker", "cyan");
 
 interface BrokerRequestBody {
   token: string;
-  jobId: string;
 }
 
 interface BrokerResponse {
@@ -43,12 +46,6 @@ interface BrokerResponse {
   secretAccessKey: string;
   sessionToken: string;
   expiration: string;
-  /**
-   * The rotated refresh token the container must present on its next mint
-   * (refresh-token rotation). The SDK overwrites its in-memory token
-   * with this value.
-   */
-  refreshToken: string;
 }
 
 export async function action(args: ActionFunctionArgs): Promise<Response> {
@@ -59,94 +56,73 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
     return jsonError(400, "Invalid request body");
   }
 
-  if (!body.token || !body.jobId) {
-    return jsonError(400, "token and jobId are required");
+  if (typeof body.token !== "string" || body.token.length === 0) {
+    return jsonError(400, "token is required");
   }
 
-  // The container carries a refresh token because the access token's short
-  // `exp` would expire before a long job's first broker call: the broker
-  // refreshes it host-side (the job-broker client is confidential, so the
-  // container can't hold the client_secret) and verifies the fresh access
-  // token before STS. A revoked or expired grant mints nothing.
-  let refreshedToken: string;
-  let newRefreshToken: string;
-  try {
-    const refreshed = await refreshJobTokenWithLock(body.token);
-    refreshedToken = refreshed.accessToken;
-    newRefreshToken = refreshed.newRefreshToken;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown";
-    console.warn(`${label} refresh failed for job ${body.jobId}: ${message}`);
-    // A row that still exists means the grant was revoked while the binding
-    // lives on: 403. No row means the grant is genuinely absent: 401. A
-    // single generic message per branch reveals nothing beyond
-    // revoked-vs-expired; the probe is scoped to the offlineSessionId
-    // decoded from the caller's own presented token, so it never confirms or
-    // denies a jobId the caller doesn't already hold the grant for.
-    const offlineSessionId = offlineSessionIdFromToken(body.token);
-    const rowExists =
-      offlineSessionId !== "" &&
-      (await prisma.jobLedgerEntry.findFirst({
-        where: { jobId: body.jobId, offlineSessionId },
-        select: { jobId: true },
-      })) !== null;
-    return rowExists
-      ? jsonError(403, "The job-scoped grant is expired or revoked.")
-      : jsonError(401, "The job-scoped grant is expired or revoked.");
-  }
-
-  console.info(`${label} refreshed token for job ${body.jobId}`);
-
-  const verified = await verifyJobToken(refreshedToken);
-  if (!verified) {
-    console.warn(`${label} verification failed for job ${body.jobId}`);
-    return jsonError(401, "The job-scoped token failed verification.");
-  }
-
-  const orgKeys = readOrganizationClaimKeys(verified);
-
-  console.info(
-    `${label} verified token for job ${body.jobId}, sub=${verified.sub}, org keys=${JSON.stringify([...orgKeys])}`,
-  );
-
-  // A token with no organization claim at all is malformed.
-  if (orgKeys.size === 0) {
-    console.warn(`${label} 403: organization missing from token claims for job ${body.jobId}`);
-    return jsonError(403, "Organization missing from token claims.");
-  }
-
-  // The request organization is resolved from the ledger row recorded at
-  // submission: a user who belongs to multiple Keycloak organizations gets
-  // a multi-key `organization` claim, and the row's org selects the tenant
-  // this job actually belongs to. A single message avoids leaking which
-  // check failed.
-  const entry = await prisma.jobLedgerEntry.findFirst({
-    where: {
-      jobId: body.jobId,
-      owner: verified.sub,
-      organization: { in: [...orgKeys] },
-    },
-  });
-  if (!entry) {
-    console.warn(
-      `${label} 403: no ledger row for job=${body.jobId} matching the token's ` +
-        `org keys or owner`,
-    );
+  const binding = await resolveJobBinding(body.token);
+  if (!binding) {
+    // No ledger row for this token: the job is unknown, cancelled, or already
+    // swept after a terminal state. Nothing downstream can be scoped, so no
+    // request field is ever consulted for a fallback.
+    console.warn(`${label} 403: presented token resolves to no ledger row`);
     return jsonError(403, "No active job binding for this token.");
   }
 
-  const requestData = hostRequestDataFromJobToken(verified, refreshedToken, entry.organization);
+  // The same context builder the job-token carve-out dispatch uses, so the
+  // broker and that dispatch cannot disagree about the identity a resolved
+  // binding produces.
+  const requestData = jobTokenHostRequestData(binding);
 
   return withHostRequestContext(requestData, async () => {
     try {
+      // The row the resolver returned, not a second fetch: a sweep between the
+      // two would race, and re-reading only narrows a window the caller cannot
+      // observe.
+      const entry = binding.row;
+
       if (!entry.roleArn) {
-        console.warn(`${label} 403: roleArn empty for job ${body.jobId}`);
+        console.warn(`${label} 403: roleArn empty for job ${entry.jobId}`);
         return jsonError(403, "Job predates role recording; re-submit the job.");
+      }
+
+      // Refreshed only when the batch's held access token is missing or stale.
+      // A row predating the credentials table has no batch, so it has nothing
+      // to mint with.
+      if (!entry.batchId) {
+        console.warn(`${label} 403: job ${entry.jobId} has no batch to mint for`);
+        return jsonError(403, "This job predates batch credential recording; re-submit it.");
+      }
+
+      let accessToken: string | null;
+      try {
+        accessToken = await resolveBatchAccessToken(entry.batchId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unknown";
+        console.warn(`${label} refresh failed for job ${entry.jobId}: ${message}`);
+        // Only the identity service refusing the refresh means the grant is
+        // gone, and only that is non-retryable: a lock, database, or network
+        // fault here says nothing about the grant, so the caller is told to
+        // retry rather than to give up. Reporting the second as the first
+        // would fail every job of a batch on a momentary hiccup.
+        return isGrantRefusal(err)
+          ? jsonError(403, "The job-scoped grant is expired or revoked.")
+          : jsonError(503, "The credential broker is temporarily unavailable.");
+      }
+
+      if (!accessToken) {
+        // The row is live but the batch holds no credentials: the grant lapsed
+        // or was revoked between the row check and the read. Distinct from the
+        // 403 below so a caller can tell "revoked" from "nothing left to mint
+        // with"; both are terminal, and a transport failure stays a transport
+        // failure the caller may retry.
+        console.warn(`${label} 401: no credential record for batch of job ${entry.jobId}`);
+        return jsonError(401, "The job-scoped grant is expired or revoked.");
       }
 
       const inputTargets: S3Target[] = (entry.inputS3Uris ?? [])
         .map(parseS3Uri)
-        .filter((t): t is S3Target => t !== null);
+        .filter((target): target is S3Target => target !== null);
       const outputTarget = entry.outputS3Uri ? parseS3Uri(entry.outputS3Uri) : null;
 
       let policy: string | undefined;
@@ -160,7 +136,7 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         } catch (err) {
           if (err instanceof InlinePolicySizeError) {
             console.warn(
-              `${label} session policy too large (${err.message}) for job ${body.jobId}; ` +
+              `${label} session policy too large (${err.message}) for job ${entry.jobId}; ` +
                 "omitting inline policy — the role's attached policies govern access",
             );
           } else {
@@ -173,31 +149,31 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
       try {
         credentials = await assumeRoleWithWebIdentity({
           roleArn: entry.roleArn,
-          roleSessionName: sanitizeRoleSessionName(`broker-${verified.sub}`),
-          webIdentityToken: refreshedToken,
+          roleSessionName: sanitizeRoleSessionName(`broker-${entry.owner}`),
+          webIdentityToken: accessToken,
           region: entry.region,
           endpoint: entry.s3Endpoint,
           policy,
         });
       } catch (err) {
-        // STS's PackedPolicyTooLargeException fires when the inline policy
-        // plus the role's attached managed policies exceed the total packed
-        // limit — even when the inline policy alone is under 2048 chars.
-        // Retry without the inline policy; the role's managed policies
-        // still govern access (the inline policy is a narrowing filter).
+        // STS's PackedPolicyTooLargeException fires when the inline policy plus
+        // the role's attached managed policies exceed the total packed limit —
+        // even when the inline policy alone is under 2048 chars. Retry without
+        // the inline policy; the role's managed policies still govern access
+        // (the inline policy is a narrowing filter).
         if (
           err instanceof Error &&
           (/PackedPolicyTooLarge|packed policy/i.test(err.name) ||
             /Packed policy/i.test(err.message))
         ) {
           console.warn(
-            `${label} STS rejected inline policy as too large for job ${body.jobId}; ` +
+            `${label} STS rejected inline policy as too large for job ${entry.jobId}; ` +
               "retrying without inline policy — the role's attached policies govern access",
           );
           credentials = await assumeRoleWithWebIdentity({
             roleArn: entry.roleArn,
-            roleSessionName: sanitizeRoleSessionName(`broker-${verified.sub}`),
-            webIdentityToken: refreshedToken,
+            roleSessionName: sanitizeRoleSessionName(`broker-${entry.owner}`),
+            webIdentityToken: accessToken,
             region: entry.region,
             endpoint: entry.s3Endpoint,
           });
@@ -212,15 +188,19 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
         sessionToken: credentials.SessionToken ?? "",
         expiration:
           credentials.Expiration?.toISOString() ?? new Date(Date.now() + 3600_000).toISOString(),
-        refreshToken: newRefreshToken,
       };
 
-      console.info(`${label} minted credentials for job ${body.jobId}`);
+      console.info(`${label} minted credentials for job ${entry.jobId}`);
       return Response.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Broker denied the request";
-      console.error(`${label} denied request for job ${body.jobId}:`, message);
-      return jsonError(403, message);
+      // Everything reaching here is a fault on our side — STS refusing or
+      // unreachable, a policy-composition bug, the ledger read. None of it says
+      // the job's authorization is gone, so a terminal 403 would make a
+      // container abandon a valid job. The caller gets a retryable status and a
+      // fixed message; the detail goes to the host log, never to the container.
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`${label} mint failed for job ${binding.jobId}:`, message);
+      return jsonError(503, "The credential broker is temporarily unavailable.");
     }
   });
 }

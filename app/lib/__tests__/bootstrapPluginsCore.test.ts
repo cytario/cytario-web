@@ -270,6 +270,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
         objectStore: vi.fn(),
         assumeComputeRole: vi.fn(),
         exchangeToken: vi.fn(),
+        mintJobBrokerToken: vi.fn(),
         revokeGrant: vi.fn(),
         keepAliveGrant: vi.fn(),
         brokerPublicUrl: vi.fn(() => ""),

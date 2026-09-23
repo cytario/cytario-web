@@ -83,7 +83,7 @@ connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectio
 // submission and removed only after its grant's revocation is confirmed.
 model JobLedgerEntry {
   id               String   @id @default(uuid())
-  batchId          String
+  batchId          String?
   jobId            String
   offlineSessionId String
   organization     String
@@ -94,10 +94,39 @@ model JobLedgerEntry {
   roleArn          String
   region           String
   s3Endpoint       String?
+  jobTokenHash     String?  @unique
   providerId       String?
   createdAt        DateTime @default(now())
 
+  /// The batch's held credentials. A job cannot outlive the batch's
+  /// authorization, so the two go together rather than being correlated by a
+  /// hand-matched session id. Nullable for rows recorded before this table
+  /// existed — they have no batch to relate to.
+  credential       JobGrantCredential? @relation(fields: [batchId], references: [batchId], onDelete: Cascade)
+
   @@unique([organization, jobId])
   @@index([organization, owner])
-  @@index([offlineSessionId])
+  @@index([batchId])
+}
+
+/// The batch's held credentials — the refresh token and the cached access token
+/// the broker mints from. Encrypted at rest at the application layer, and the one
+/// place a batch's OAuth material lives; the ledger above holds only the job
+/// token's hash. One record per batch, keyed by the batch identifier the ledger
+/// rows carry, so the broker, keep-alive, revocation and collection all address
+/// the same record through the same relation.
+model JobGrantCredential {
+  id                    String   @id @default(uuid())
+  /// The relation's parent key, and the key the ledger rows carry.
+  batchId               String   @unique
+  /// The batch's Keycloak offline session, for keep-alive and revocation.
+  offlineSessionId      String   @unique
+  encryptedRefreshToken String
+  encryptedAccessToken  String
+  accessTokenExpiresAt  DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  /// Every job of the batch; the credential is collected when the last one goes.
+  ledgerEntries         JobLedgerEntry[]
 }

@@ -106,8 +106,8 @@ describe("public surface", () => {
           }),
         revokeGrant: () => Promise.resolve(),
         keepAliveGrant: () => Promise.resolve(),
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
@@ -195,8 +195,8 @@ describe("public surface", () => {
           }),
         revokeGrant: () => Promise.resolve(),
         keepAliveGrant: () => Promise.resolve(),
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
@@ -277,8 +277,8 @@ describe("public surface", () => {
           }),
         revokeGrant: () => Promise.resolve(),
         keepAliveGrant: () => Promise.resolve(),
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
@@ -359,8 +359,8 @@ describe("public surface", () => {
           }),
         revokeGrant: () => Promise.resolve(),
         keepAliveGrant: () => Promise.resolve(),
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
@@ -427,8 +427,8 @@ describe("public surface", () => {
           expect(offlineSessionId).toBe("sess-batch-1");
           return Promise.resolve();
         },
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),

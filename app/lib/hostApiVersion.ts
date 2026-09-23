@@ -15,4 +15,12 @@
 // 6.11.0: `ComputeRoleSession` gains the optional `registryPullSecrets` map, so
 // a plugin can pick the pull credential of the application's owning catalog —
 // additive at a minor version, so existing plugins still satisfy the contract.
-export const HOST_API_VERSION = "6.11.0";
+//
+// 6.12.0: `HostCapabilities.mintJobBrokerToken` is added and `TokenGrant`
+// narrows to the grant's identifiers, so a plugin mints its own per-job broker
+// token rather than receiving the batch's grant token. Additive at a minor
+// version for the host gate, but a plugin that consumed `TokenGrant.token` must
+// move to the new capability — and this one is not backward compatible for such
+// a consumer within 6.x, despite the minor.
+
+export const HOST_API_VERSION = "6.12.0";

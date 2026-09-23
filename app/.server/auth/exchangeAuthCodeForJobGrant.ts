@@ -59,7 +59,9 @@ export async function exchangeAuthCodeForJobGrant(
   }
 
   return {
-    token: json.refresh_token,
+    refreshToken: json.refresh_token,
+    accessToken: json.access_token,
+    accessTokenExpiresAt: new Date(Date.now() + (json.expires_in ?? 300) * 1000),
     expiresAt: new Date(Date.now() + (json.refresh_expires_in ?? json.expires_in) * 1000),
     offlineSessionId: json.session_state,
   };

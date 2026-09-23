@@ -48,8 +48,8 @@ describe("noop-plugin integration", () => {
           }),
         revokeGrant: () => Promise.resolve(),
         keepAliveGrant: () => Promise.resolve(),
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),
@@ -116,8 +116,8 @@ describe("noop-plugin integration", () => {
           }),
         revokeGrant: () => Promise.resolve(),
         keepAliveGrant: () => Promise.resolve(),
-        exchangeToken: () =>
-          Promise.resolve({ token: "", expiresAt: new Date(), offlineSessionId: "" }),
+        exchangeToken: () => Promise.resolve({ expiresAt: new Date(), offlineSessionId: "" }),
+        mintJobBrokerToken: () => Promise.resolve(""),
         brokerPublicUrl: () => "",
         jobLedger: () => ({
           record: () => Promise.resolve(),

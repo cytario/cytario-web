@@ -16,13 +16,27 @@ const RELEASE_LOCK_SCRIPT = `
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export interface RedisLockOptions {
+  /** How long the lock survives if its holder dies before releasing it. */
+  ttlSeconds?: number;
+  maxRetries?: number;
+  retryDelayMs?: number;
+}
+
 // The release is a Lua check-and-delete so a stale lock (expired TTL) is
 // never released by the wrong holder.
-export async function withRedisLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T> {
+export async function withRedisLock<T>(
+  lockKey: string,
+  fn: () => Promise<T>,
+  options: RedisLockOptions = {},
+): Promise<T> {
   const lockValue = randomUUID();
+  const ttlSeconds = options.ttlSeconds ?? LOCK_TTL_SECONDS;
+  const maxRetries = options.maxRetries ?? MAX_RETRIES;
+  const retryDelayMs = options.retryDelayMs ?? RETRY_DELAY_MS;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const acquired = await redis.set(lockKey, lockValue, "EX", LOCK_TTL_SECONDS, "NX");
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const acquired = await redis.set(lockKey, lockValue, "EX", ttlSeconds, "NX");
 
     if (acquired === "OK") {
       try {
@@ -32,7 +46,7 @@ export async function withRedisLock<T>(lockKey: string, fn: () => Promise<T>): P
       }
     }
 
-    await delay(RETRY_DELAY_MS);
+    await delay(retryDelayMs);
   }
 
   throw new Error("Failed to acquire Redis lock after maximum retries");

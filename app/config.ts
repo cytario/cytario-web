@@ -79,6 +79,8 @@ interface CytarioConfig {
      */
     catalogCacheTtlMs: number;
   };
+  /** Base64-encoded 32-byte AES-256-GCM key for secrets held in Postgres. */
+  dbEncryptionKey?: string;
   cookie: CookieOptions;
 }
 
@@ -107,6 +109,7 @@ const {
   PROVIDERS_LOOKUP_SECRET,
   PROVIDERS_OSS_CONFIG_PATH,
   CATALOG_CACHE_TTL_MS,
+  DB_ENCRYPTION_KEY,
 } = process.env;
 
 // Portal presence is signalled by PORTAL_INTERNAL_URL: admin-portal builds
@@ -152,6 +155,7 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
         ? Number(CATALOG_CACHE_TTL_MS)
         : 30_000,
   },
+  dbEncryptionKey: DB_ENCRYPTION_KEY,
   cookie: {
     httpOnly: true,
     secure: NODE_ENV !== "development",
