@@ -1,10 +1,9 @@
 import { type LoaderFunction } from "react-router";
 
-import { assertAdminScope } from "../assertAdminScope";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import {
   collectAllUsers,
-  findOrganizationByAlias,
   flattenGroupsWithIds,
   getGroupWithMembers,
 } from "~/.server/auth/keycloakAdmin";
@@ -13,17 +12,9 @@ import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 import { compareGroupPaths } from "~/utils/groupPath";
 import { resolveScopeLabel } from "~/utils/scopeLabel";
 
-export const usersLoader: LoaderFunction = async ({ request, context }) => {
+export const usersLoader: LoaderFunction = async ({ context }) => {
   const { user } = context.get(authContext);
-  const { scope } = assertAdminScope(request.url, user.adminScopes);
-
-  if (!user.organization) {
-    throw new Response("No active organization", { status: 400 });
-  }
-  const org = await findOrganizationByAlias(user.organization);
-  if (!org) {
-    throw new Response("Organization not found in Keycloak", { status: 404 });
-  }
+  const { org, scope } = context.get(adminContext);
 
   const [group, allConnections] = await Promise.all([
     getGroupWithMembers(org.id, scope),

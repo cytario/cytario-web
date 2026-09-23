@@ -1,20 +1,18 @@
 import { type ActionFunction, redirect } from "react-router";
 
 import { bulkActionSchema } from "./bulkUsers.schema";
-import { assertAdminScope } from "../assertAdminScope";
 import { assertGroupsInScope } from "../assertGroupsInScope";
 import { assertUsersInScope } from "../assertUsersInScope";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { toIdentity } from "~/.server/auth/getUserInfo";
 import {
   addUserToOrganizationGroup,
-  findOrganizationByAlias,
   findGroupPathInTree,
   removeUserFromOrganizationGroup,
   setUserEnabled,
 } from "~/.server/auth/keycloakAdmin";
-import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import type { KeycloakGroup } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
@@ -28,7 +26,7 @@ const actionLabels = {
 
 export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   const { user } = context.get(authContext);
-  const { adminUrl, scope } = assertAdminScope(request.url, user.adminScopes);
+  const { org, adminUrl, scope } = context.get(adminContext);
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
@@ -43,14 +41,6 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   let groupTree: readonly KeycloakGroup[] = [];
   if (groupId) {
     groupTree = await assertGroupsInScope([groupId], scope, user.organization);
-  }
-
-  if (!user.organization) {
-    throw new Response("No active organization", { status: 400 });
-  }
-  const org = await findOrganizationByAlias(user.organization);
-  if (!org) {
-    throw new KeycloakAdminError(404, `Organization not found: ${user.organization}`);
   }
 
   if (intent === "addToGroup" && groupId) {

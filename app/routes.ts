@@ -56,30 +56,32 @@ const appRoutes = [
   },
 ];
 
-/** Admin routes — scope-gated, wrapped in protected layout alongside appRoutes. */
+/** Admin routes — scope-gated via adminMiddleware, wrapped in protected layout alongside appRoutes. */
 const adminRoutes = [
-  {
-    path: "/admin/users",
-    file: "routes/admin/users/users.route.tsx",
-    children: [
-      {
-        path: "invite",
-        file: "routes/admin/inviteUser/inviteUser.modal.tsx",
-      },
-      {
-        path: "bulk-invite",
-        file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
-      },
-      {
-        path: "create-group",
-        file: "routes/admin/createGroup/createGroup.modal.tsx",
-      },
-      {
-        path: ":userId",
-        file: "routes/admin/updateUser/updateUser.modal.tsx",
-      },
-    ],
-  },
+  layout("routes/layouts/admin.layout.tsx", [
+    {
+      path: "/admin/users",
+      file: "routes/admin/users/users.route.tsx",
+      children: [
+        {
+          path: "invite",
+          file: "routes/admin/inviteUser/inviteUser.modal.tsx",
+        },
+        {
+          path: "bulk-invite",
+          file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
+        },
+        {
+          path: "create-group",
+          file: "routes/admin/createGroup/createGroup.modal.tsx",
+        },
+        {
+          path: ":userId",
+          file: "routes/admin/updateUser/updateUser.modal.tsx",
+        },
+      ],
+    },
+  ]),
 ];
 
 /** Data endpoints — authenticated, no layout (JSON responses). */
