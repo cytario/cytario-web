@@ -549,3 +549,11 @@ function seedOwnSetBlock(): { setId: string } {
   const setId = seedOwnSet(currentStore!, [makeFeature("f1")]);
   return { setId };
 }
+
+// ----------------------------------------------------------------------
+// Cross-set Shift range (SRS-CY-33254)
+// ----------------------------------------------------------------------
+
+// The cross-set Shift-range mechanics (shared anchor + section-wide axis) are
+// covered in AnnotationsList.test.tsx, which renders the real lists; this file
+// stubs AnnotationsList, so no thumb interaction is possible here.

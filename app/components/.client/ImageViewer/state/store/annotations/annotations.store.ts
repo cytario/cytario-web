@@ -62,9 +62,17 @@ export interface AnnotationsSlice {
    *  seeded or lazy-created on first draw. */
   activeSetId: string | null;
   annotationMode: AnnotationMode;
+  /** Edge lengths in level-0 pixels of the square stamped by the draw-box tool
+   *  on a plain click. Two components so a metric size stays square in physical
+   *  dimensions on anisotropic-pixel images. Session state — converted from the
+   *  display unit at the size input, never persisted. */
+  annotationStampSize: { widthPx: number; heightPx: number };
   /** `feature.id`s of selected features — stable across edits/reorders,
    *  unlike array indexes. Resolved to deck `selectedFeatureIndexes` at render. */
   annotationSelectedIds: string[];
+  /** Last singly-selected feature id — the fixed end of a Shift-range
+   *  extension. Shared across set blocks so a range can span them. */
+  annotationSelectionAnchorId: string | null;
   /** Per-set view state (hidden classes), keyed by `setId`. Kept apart from
    *  `annotationSets` so a view change never enters the persist diff. */
   annotationView: Record<string, SetAnnotationView>;
@@ -144,7 +152,9 @@ export interface AnnotationsSlice {
    *  drawing into it, so a new region is never born into a hidden class. */
   showAnnotationClass: (setId: string, name: string) => void;
   setAnnotationMode: (mode: AnnotationMode) => void;
+  setAnnotationStampSize: (widthPx: number, heightPx: number) => void;
   setAnnotationSelectedIds: (ids: string[]) => void;
+  setAnnotationSelectionAnchor: (id: string | null) => void;
 }
 
 /** Per-image annotation state. Features live on S3 (one sidecar per set); this
@@ -154,7 +164,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   annotationSets: [],
   activeSetId: null,
   annotationMode: "view",
+  annotationStampSize: { widthPx: 512, heightPx: 512 },
   annotationSelectedIds: [],
+  annotationSelectionAnchorId: null,
   annotationView: {},
   annotationActiveClass: null,
   annotationClasses: [],
@@ -260,6 +272,24 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         if (set) {
           set.features = features;
         }
+        // Every feature-removal path funnels through here, so prune the
+        // selection and its Shift-range anchor of deleted feature ids once.
+        const survivorIds = new Set(
+          viewerStore.annotationSets.flatMap((s) =>
+            s.features.flatMap((f) => (f.id ? [f.id] : [])),
+          ),
+        );
+        if (viewerStore.annotationSelectedIds.some((id) => !survivorIds.has(id))) {
+          viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
+            survivorIds.has(id),
+          );
+        }
+        if (
+          viewerStore.annotationSelectionAnchorId !== null &&
+          !survivorIds.has(viewerStore.annotationSelectionAnchorId)
+        ) {
+          viewerStore.annotationSelectionAnchorId = null;
+        }
       },
       false,
       "updateSetFeatures",
@@ -285,6 +315,12 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         viewerStore.annotationSelectedIds = viewerStore.annotationSelectedIds.filter((id) =>
           survivorIds.has(id),
         );
+        if (
+          viewerStore.annotationSelectionAnchorId !== null &&
+          !survivorIds.has(viewerStore.annotationSelectionAnchorId)
+        ) {
+          viewerStore.annotationSelectionAnchorId = null;
+        }
       },
       false,
       "deleteAnnotationSet",
@@ -519,6 +555,15 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       "setAnnotationMode",
     ),
 
+  setAnnotationStampSize: (widthPx, heightPx) =>
+    set(
+      (viewerStore) => {
+        viewerStore.annotationStampSize = { widthPx, heightPx };
+      },
+      false,
+      "setAnnotationStampSize",
+    ),
+
   setAnnotationSelectedIds: (ids) =>
     set(
       (viewerStore) => {
@@ -526,5 +571,14 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "setAnnotationSelectedIds",
+    ),
+
+  setAnnotationSelectionAnchor: (id) =>
+    set(
+      (viewerStore) => {
+        viewerStore.annotationSelectionAnchorId = id;
+      },
+      false,
+      "setAnnotationSelectionAnchor",
     ),
 });

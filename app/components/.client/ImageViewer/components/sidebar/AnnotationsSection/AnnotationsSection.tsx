@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AnnotationsList } from "./AnnotationsList";
+import { groupAnnotations, orderedIdsOfGroups } from "./groupAnnotations";
 import {
   classNameOf,
   selectSetHiddenClasses,
@@ -38,6 +39,7 @@ const AnnotationFileBlock = ({
   features,
   searchQuery,
   editable,
+  selectionOrderedIds,
 }: {
   setId: string;
   label: string;
@@ -45,6 +47,8 @@ const AnnotationFileBlock = ({
   searchQuery: string;
   /** Connection grant permits annotating — edit affordances stay available. */
   editable: boolean;
+  /** Section-wide selection axis — passed through to the list for Shift-ranges. */
+  selectionOrderedIds: string[];
 }) => {
   const imageResourceId = useViewerStore((s) => s.id);
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
@@ -182,6 +186,7 @@ const AnnotationFileBlock = ({
           features={features}
           editable={editable}
           searchQuery={searchQuery}
+          selectionOrderedIds={selectionOrderedIds}
         />
       )}
     </div>
@@ -198,6 +203,7 @@ export const AnnotationsSection = () => {
   const showOutline = useViewerStore(select.showAnnotationOutline);
   const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
   const [searchQuery, setSearchQuery] = useState("");
+  const classes = useViewerStore((s) => s.annotationClasses);
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
   const createAnnotationSet = useViewerStore((s) => s.createAnnotationSet);
   const canAnnotate = useCanAnnotate();
@@ -228,6 +234,23 @@ export const AnnotationsSection = () => {
     const hidden = annotationView[s.id]?.hiddenClasses ?? [];
     return sum + s.features.filter((f) => !hidden.includes(classNameOf(f))).length;
   }, 0);
+
+  // The section-wide selection axis: every set block's displayed (grouped)
+  // order concatenated in block order. A Shift-range walks this axis, so it
+  // spans set boundaries exactly along the order the user sees.
+  const selectionOrderedIds = useMemo(
+    () =>
+      annotationSets.flatMap((set) =>
+        orderedIdsOfGroups(
+          groupAnnotations(set.features, {
+            editable: canAnnotate,
+            classes,
+            searchQuery,
+          }),
+        ),
+      ),
+    [annotationSets, canAnnotate, classes, searchQuery],
+  );
 
   return (
     <Section
@@ -304,6 +327,7 @@ export const AnnotationsSection = () => {
             features={s.features}
             searchQuery={searchQuery}
             editable={canAnnotate}
+            selectionOrderedIds={selectionOrderedIds}
           />
         ))}
       </div>

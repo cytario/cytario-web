@@ -5,24 +5,16 @@ import { Radio, RadioGroup } from "react-aria-components";
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { AnnotationThumb } from "./AnnotationThumb";
 import { flyToFeaturesViewState } from "./flyToFeature";
+import { groupAnnotations } from "./groupAnnotations";
 import {
-  annotationNameOf,
-  classNameOf,
   isReservedClassName,
   selectSetHiddenClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
-import { RGB } from "../../../state/store/types";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
-
-interface AnnotationGroup {
-  name: string;
-  color: RGB | null;
-  items: { feature: AnnotationFeature; index: number }[];
-}
 
 interface AnnotationsListProps {
   setId: string;
@@ -31,6 +23,9 @@ interface AnnotationsListProps {
    *  delete stay available. Read-only grants keep the list view-only. */
   editable: boolean;
   searchQuery: string;
+  /** Section-wide id order across every set block — the axis a Shift-range
+   *  walks, so ranges span set boundaries along the displayed order. */
+  selectionOrderedIds: string[];
 }
 
 /** Groups one set's annotation features by classification (with an
@@ -41,6 +36,7 @@ export const AnnotationsList = ({
   features,
   editable,
   searchQuery,
+  selectionOrderedIds,
 }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
@@ -68,30 +64,10 @@ export const AnnotationsList = ({
   const actionTargets = (feature: AnnotationFeature): string[] =>
     selectedIds.length > 1 && selectedIds.includes(feature.id) ? selectedIds : [feature.id];
 
-  const annotationsGroups = useMemo<AnnotationGroup[]>(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const matches = (feature: AnnotationFeature) =>
-      query.length === 0 || annotationNameOf(feature).toLowerCase().includes(query);
-
-    const byName = new Map<string, AnnotationGroup>();
-    // When authoring: seed the Unclassified bucket (the default draw target) and every
-    // defined class so empty classes show; read-only grants and searches skip that.
-    if (editable && query.length === 0) {
-      byName.set(UNCLASSIFIED, { name: UNCLASSIFIED, color: null, items: [] });
-      for (const c of classes) byName.set(c.name, { name: c.name, color: c.color, items: [] });
-    }
-    features.forEach((feature, index) => {
-      if (!matches(feature)) return;
-      const name = classNameOf(feature);
-      let group = byName.get(name);
-      if (!group) {
-        group = { name, color: feature.properties?.classification?.color ?? null, items: [] };
-        byName.set(name, group);
-      }
-      group.items.push({ feature, index });
-    });
-    return [...byName.values()];
-  }, [features, editable, classes, searchQuery]);
+  const annotationsGroups = useMemo(
+    () => groupAnnotations(features, { editable, classes, searchQuery }),
+    [features, editable, classes, searchQuery],
+  );
 
   // Existing named classes offered as move targets (the unclassified bucket is
   // reached via "Clear classification", not a move).
@@ -100,17 +76,11 @@ export const AnnotationsList = ({
     [annotationsGroups],
   );
 
-  // Flattened ids in displayed (grouped) order — the axis a Shift-range walks.
-  const orderedIds = useMemo(
-    () =>
-      annotationsGroups.flatMap(
-        (g) => g.items.map((it) => it.feature.id).filter(Boolean) as string[],
-      ),
-    [annotationsGroups],
-  );
-
   // Last item selected without Shift — the fixed end of a range extension.
-  const anchorId = useRef<string | null>(null);
+  // Held in the shared store so the anchor survives across set blocks and a
+  // Shift-range can span them.
+  const anchorId = useViewerStore((s) => s.annotationSelectionAnchorId);
+  const setSelectionAnchor = useViewerStore((s) => s.setAnnotationSelectionAnchor);
 
   const select = (feature: AnnotationFeature, e?: MouseEvent | React.MouseEvent) => {
     const id = feature.id;
@@ -119,12 +89,12 @@ export const AnnotationsList = ({
       return;
     }
 
-    if (e?.shiftKey && anchorId.current) {
-      const from = orderedIds.indexOf(anchorId.current);
-      const to = orderedIds.indexOf(id);
+    if (e?.shiftKey && anchorId) {
+      const from = selectionOrderedIds.indexOf(anchorId);
+      const to = selectionOrderedIds.indexOf(id);
       if (from !== -1 && to !== -1) {
         const [lo, hi] = from <= to ? [from, to] : [to, from];
-        setSelectedIds(orderedIds.slice(lo, hi + 1));
+        setSelectedIds(selectionOrderedIds.slice(lo, hi + 1));
         return;
       }
     }
@@ -134,12 +104,12 @@ export const AnnotationsList = ({
       setSelectedIds(
         selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
       );
-      anchorId.current = id;
+      setSelectionAnchor(id);
       return;
     }
 
     setSelectedIds([id]);
-    anchorId.current = id;
+    setSelectionAnchor(id);
   };
 
   const zoomToFeature = (feature: AnnotationFeature) => {
@@ -156,7 +126,7 @@ export const AnnotationsList = ({
   const deleteFeatures = (feature: AnnotationFeature) => {
     const ids = new Set(actionTargets(feature));
     setSelectedIds([]);
-    anchorId.current = null;
+    setSelectionAnchor(null);
     updateSetFeatures(
       setId,
       features.filter((f) => !ids.has(f.id)),

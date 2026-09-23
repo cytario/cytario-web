@@ -133,7 +133,8 @@ export interface OverlayEntry {
 
 export type OverlaysState = Record<string, OverlayEntry>; // Datasets
 
-export type AnnotationMode = "view" | "inspect" | "draw-polygon" | "draw-freehand" | "draw-point";
+export type AnnotationMode =
+  "view" | "inspect" | "draw-polygon" | "draw-freehand" | "draw-point" | "draw-box";
 
 export type TooltipSection = "Channels" | "Overlays" | "Annotations";
 

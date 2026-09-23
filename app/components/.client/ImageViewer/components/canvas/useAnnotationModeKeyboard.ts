@@ -9,6 +9,7 @@ const DRAW_MODES: ReadonlySet<AnnotationMode> = new Set([
   "draw-polygon",
   "draw-freehand",
   "draw-point",
+  "draw-box",
 ]);
 
 /** Global keyboard shortcuts for annotation modes: Escape returns to "view"; holding

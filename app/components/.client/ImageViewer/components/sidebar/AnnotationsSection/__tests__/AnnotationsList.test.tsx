@@ -5,6 +5,7 @@ import { useStore } from "zustand";
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../../state/store/types";
 import { AnnotationsList } from "../AnnotationsList";
+import { groupAnnotations, orderedIdsOfGroups } from "../groupAnnotations";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -67,14 +68,29 @@ function buildStore(userId = "user-a", features: AnnotationFeature[] = []) {
   return store;
 }
 
-/** Renders AnnotationsList against the pre-configured currentStore. */
+/** Renders AnnotationsList against the pre-configured currentStore. The
+ *  selection axis is derived the same way the section derives it, so the
+ *  Shift-range semantics under test match production. */
 function renderList(
   features: AnnotationFeature[],
   { userId = "user-a", editable = true }: { userId?: string; editable?: boolean } = {},
 ) {
   buildStore(userId, features);
+  const selectionOrderedIds = orderedIdsOfGroups(
+    groupAnnotations(features, {
+      editable,
+      classes: currentStore.getState().annotationClasses,
+      searchQuery: "",
+    }),
+  );
   return render(
-    <AnnotationsList setId={currentSetId} features={features} editable={editable} searchQuery="" />,
+    <AnnotationsList
+      setId={currentSetId}
+      features={features}
+      editable={editable}
+      searchQuery=""
+      selectionOrderedIds={selectionOrderedIds}
+    />,
   );
 }
 
@@ -372,5 +388,99 @@ describe("AnnotationsList — read-only connection (editable=false)", () => {
       "aria-disabled",
       "true",
     );
+  });
+});
+
+// -----------------------------------------------------------------------
+// Cross-set Shift range (SRS-CY-33254)
+// -----------------------------------------------------------------------
+
+describe("AnnotationsList — cross-set Shift range", () => {
+  /** Renders two set-block lists against one shared store, exactly as the
+   *  section does: both lists receive the SAME section-wide selection axis
+   *  (own block's grouped order, then the peer block's). */
+  function renderTwoLists(ownFeatures: AnnotationFeature[], peerFeatures: AnnotationFeature[]) {
+    buildStore("user-a", ownFeatures);
+    const peerSetId = crypto.randomUUID();
+    currentStore
+      .getState()
+      .seedAnnotations([
+        { id: peerSetId, createdBy: "peer-a", features: peerFeatures, name: "peer.json" },
+      ]);
+    const axisFor = (features: AnnotationFeature[]) =>
+      orderedIdsOfGroups(
+        groupAnnotations(features, {
+          editable: true,
+          classes: currentStore.getState().annotationClasses,
+          searchQuery: "",
+        }),
+      );
+    const selectionOrderedIds = [...axisFor(ownFeatures), ...axisFor(peerFeatures)];
+    const { unmount } = render(
+      <>
+        <AnnotationsList
+          setId={currentSetId}
+          features={ownFeatures}
+          editable
+          searchQuery=""
+          selectionOrderedIds={selectionOrderedIds}
+        />
+        <AnnotationsList
+          setId={peerSetId}
+          features={peerFeatures}
+          editable
+          searchQuery=""
+          selectionOrderedIds={selectionOrderedIds}
+        />
+      </>,
+    );
+    return { unmount, peerSetId };
+  }
+
+  test("Shift+click extends from an anchor in one set block into another", () => {
+    renderTwoLists([makeFeature("o1"), makeFeature("o2")], [makeFeature("p1"), makeFeature("p2")]);
+
+    const thumbs = () =>
+      screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"));
+    expect(thumbs()).toHaveLength(4);
+
+    // Anchor in the own block (first thumb), range end in the peer block
+    // (last thumb): the selection spans every region in between across the
+    // set boundary.
+    fireEvent.click(thumbs()[0]!);
+    fireEvent.click(thumbs()[3]!, { shiftKey: true });
+
+    const selected = currentStore.getState().annotationSelectedIds;
+    expect([...selected].sort()).toEqual(["o1", "o2", "p1", "p2"]);
+  });
+
+  test("the anchor survives across blocks for a backward cross-set range", () => {
+    renderTwoLists([makeFeature("o1"), makeFeature("o2")], [makeFeature("p1"), makeFeature("p2")]);
+
+    const thumbs = () =>
+      screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"));
+
+    fireEvent.click(thumbs()[3]!); // anchor in the peer block
+    fireEvent.click(thumbs()[0]!, { shiftKey: true }); // range end in the own block
+
+    const selected = currentStore.getState().annotationSelectedIds;
+    expect([...selected].sort()).toEqual(["o1", "o2", "p1", "p2"]);
+  });
+
+  test("deleting the anchor's features drops the anchor so Shift falls back to single selection", () => {
+    renderTwoLists([makeFeature("o1"), makeFeature("o2")], [makeFeature("p1")]);
+
+    const thumbs = () =>
+      screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"));
+
+    fireEvent.click(thumbs()[0]!); // anchor = o1
+    const actionButtons = screen.getAllByRole("button", { name: /^Actions for / });
+    fireEvent.click(actionButtons[0]!);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete annotation" }));
+
+    expect(currentStore.getState().annotationSelectionAnchorId).toBeNull();
+
+    fireEvent.click(thumbs()[2]!, { shiftKey: true }); // p1 — no anchor → single
+    expect(currentStore.getState().annotationSelectedIds).toEqual(["p1"]);
   });
 });

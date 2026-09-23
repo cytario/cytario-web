@@ -1,4 +1,7 @@
 import { useMeasurements } from "./useMeasurements";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { select } from "../../../state/store/selectors";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 export function SlideCarrier() {
   const {
@@ -11,14 +14,19 @@ export function SlideCarrier() {
     viewPortWidth,
     viewPortHeight,
   } = useMeasurements();
+  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
+  const metadata = useViewerStore(select.metadata);
+
+  const widthTotal = displayUnit === "pixels" ? (metadata?.Pixels.SizeX ?? 0) : widthTotalMm;
+  const heightTotal = displayUnit === "pixels" ? (metadata?.Pixels.SizeY ?? 0) : heightTotalMm;
 
   return (
     <div
       style={{ width: viewPortWidth, height: viewPortHeight }}
       className="absolute top-0 left-0 overflow-hidden"
     >
-      <Size value={widthTotalMm} />
-      <Size vertical value={heightTotalMm} />
+      <Size value={widthTotal} unit={displayUnit === "pixels" ? "px" : "mm"} />
+      <Size vertical value={heightTotal} unit={displayUnit === "pixels" ? "px" : "mm"} />
       <div
         className="absolute top-0 left-0 bg-black"
         style={{
@@ -31,7 +39,15 @@ export function SlideCarrier() {
   );
 }
 
-const Size = ({ value, vertical = false }: { value: number; vertical?: boolean }) => {
+const Size = ({
+  value,
+  unit,
+  vertical = false,
+}: {
+  value: number;
+  unit: "mm" | "px";
+  vertical?: boolean;
+}) => {
   const { imageWidthScreen, imageHeightScreen, screenOffsetLeft, screenOffsetTop } =
     useMeasurements();
 
@@ -40,7 +56,7 @@ const Size = ({ value, vertical = false }: { value: number; vertical?: boolean }
     : `translate(${screenOffsetLeft}px, ${screenOffsetTop - 18}px)`;
 
   const n = Math.round(value * 100) / 100;
-  const label = `${n} mm`;
+  const label = `${n} ${unit}`;
 
   return (
     <div

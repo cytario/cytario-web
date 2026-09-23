@@ -8,14 +8,18 @@ export const Ruler = ({
   min,
   max,
   offset,
-  one_mm,
+  spacing,
+  labelScale = 1,
   vertical,
 }: {
   size: number;
   min: number;
   max: number;
   offset: number;
-  one_mm: number;
+  /** Screen px between ticks. */
+  spacing: number;
+  /** Display-unit value added per tick (metric: 1; pixels: block size in level-0 px). */
+  labelScale?: number;
   vertical?: boolean;
 }) => {
   const arr: number[] = [];
@@ -52,9 +56,9 @@ export const Ruler = ({
         if (arr.length < 5) interval = 1;
 
         const isMajor = i % interval === 0;
-        const label = isMajor ? i : undefined;
+        const label = isMajor ? i * labelScale : undefined;
 
-        return <Tick key={i} number={label} offset={offset + i * one_mm} />;
+        return <Tick key={i} number={label} offset={offset + i * spacing} />;
       })}
 
       <CursorTick vertical={vertical} />

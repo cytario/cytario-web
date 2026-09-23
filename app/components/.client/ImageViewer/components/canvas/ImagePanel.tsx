@@ -2,6 +2,7 @@ import { InteractionState, OrthographicViewState } from "@deck.gl/core";
 import DeckGL from "@deck.gl/react";
 import { useCallback, useEffect } from "react";
 
+import { StampGhost } from "./Annotations/StampGhost";
 import { LayersTooltip } from "./Hover/LayersTooltip";
 import { useCompositeHover } from "./Hover/useCompositeHover";
 import { ImageContainer } from "./ImageContainer";
@@ -14,6 +15,7 @@ import { useView } from "./useView";
 import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import type { ViewPort, ViewState } from "../../state/store/types";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 export interface ViewProps {
   viewPort: ViewPort;
@@ -128,6 +130,7 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
   const isChannelsLoading = layerState?.isChannelsLoading ?? 0;
   const isOverlaysLoading = layerState?.isOverlaysLoading ?? 0;
   const setCursorPosition = useViewerStore(select.setCursorPosition);
+  const rulersVisible = useViewerDisplayStore((state) => state.rulersVisible);
   const clearPixelValues = useViewerStore(select.clearPixelValues);
   const setActiveImagePanelId = useViewerStore(select.setActiveImagePanelId);
   const isActivePanel = activeImagePanelId === imagePanelId;
@@ -157,7 +160,9 @@ export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
 
           <ImagePanelInner imagePanelId={imagePanelId} viewPort={viewPort} />
 
-          {isActivePanel && <Measurements />}
+          {isActivePanel && rulersVisible && <Measurements />}
+
+          {isActivePanel && <StampGhost />}
 
           {!isActivePanel && <Crosshair />}
 

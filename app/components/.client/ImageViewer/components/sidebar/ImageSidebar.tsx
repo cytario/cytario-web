@@ -6,6 +6,7 @@ import { ChannelsSection } from "./ChannelsSection/ChannelsSection";
 import { ImageSidebarToggle } from "./ImageSidebarToggle";
 import { OverlaysSection } from "./OverlaysSection/OverlaysSection";
 import { OverviewSection } from "./OverviewSection/OverviewSection";
+import { SettingsSection } from "./SettingsSection/SettingsSection";
 import { ViewsSection } from "./ViewsSection/ViewsSection";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 
@@ -18,6 +19,7 @@ const SECTIONS: { id: string; Component: ComponentType }[] = [
   { id: "channels", Component: ChannelsSection },
   { id: "overlays", Component: OverlaysSection },
   { id: "annotations", Component: AnnotationsSection },
+  { id: "settings", Component: SettingsSection },
 ];
 
 interface ImageSidebarProps {

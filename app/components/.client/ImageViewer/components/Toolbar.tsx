@@ -2,6 +2,7 @@ import { IconButton } from "@cytario/design";
 import type { HTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 
+import { StampSizeInput } from "./canvas/Annotations/StampSizeInput";
 import { ScaleBar } from "./canvas/Measurements/ScaleBar";
 import { useAnnotationModeKeyboard } from "./canvas/useAnnotationModeKeyboard";
 import { useUndoRedo } from "../state/store/core/useUndoRedo";
@@ -9,6 +10,7 @@ import { useUndoRedoShortcuts } from "../state/store/core/useUndoRedoShortcuts";
 import { useViewerStore } from "../state/store/core/ViewerStoreContext";
 import { type AnnotationMode } from "../state/store/types";
 import { useCanAnnotate } from "../utils/useCanAnnotate";
+import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 const tools = [
   { mode: "view", icon: "Hand", label: "Drag, pan, and zoom" },
@@ -16,12 +18,14 @@ const tools = [
   { mode: "draw-freehand", icon: "Pencil", label: "Draw freehand" },
   { mode: "draw-polygon", icon: "Pentagon", label: "Draw polygon" },
   { mode: "draw-point", icon: "MapPin", label: "Draw point" },
+  { mode: "draw-box", icon: "Square", label: "Stamp box" },
 ] as const;
 
 export const Toolbar = () => {
   const activeMode = useViewerStore((s) => s.annotationMode);
   const setMode = useViewerStore((s) => s.setAnnotationMode);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const scaleBarVisible = useViewerDisplayStore((state) => state.scaleBarVisible);
   const canAnnotate = useCanAnnotate();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   useUndoRedoShortcuts();
@@ -34,14 +38,16 @@ export const Toolbar = () => {
 
   return (
     <>
-      <FloatingBar className="bottom-8 left-8 p-5">
-        <ScaleBar />
-      </FloatingBar>
+      {scaleBarVisible && (
+        <FloatingBar className="bottom-8 left-8 p-5">
+          <ScaleBar />
+        </FloatingBar>
+      )}
 
       <FloatingBar
         role="toolbar"
         aria-label="Annotation tools"
-        className="bottom-8 left-1/2 -translate-x-1/2"
+        className="bottom-8 left-1/2 -translate-x-1/2 gap-2"
       >
         {tools
           .filter(({ mode }) => canAnnotate || !mode.startsWith("draw-"))
@@ -58,6 +64,8 @@ export const Toolbar = () => {
               />
             );
           })}
+
+        {canAnnotate && activeMode === "draw-box" && <StampSizeInput />}
 
         {canAnnotate && (
           <>

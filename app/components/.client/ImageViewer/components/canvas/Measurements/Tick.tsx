@@ -1,3 +1,4 @@
+import { MetricText } from "@cytario/design";
 import { twMerge } from "tailwind-merge";
 
 interface TickProps {
@@ -23,7 +24,7 @@ export const Tick = ({ number, offset }: TickProps) => {
         transform: `translateX(${adjustedOffset}px)`,
       }}
     >
-      {isMajor && <span className="px-1">{n}</span>}
+      {isMajor && <MetricText className="px-1">{n}</MetricText>}
     </div>
   );
 };
