@@ -1,9 +1,11 @@
 import {
+  layersStateToSidecarEntry,
   migrateSidecarOverlays,
   sidecarEntryToLayersState,
   viewSettingsDocumentSchema,
 } from "../viewSettingsSchema";
 import type { LayersStateEntry } from "~/components/.client/ImageViewer/state/store/types";
+import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const overlayEntry = {
   markers: {
@@ -52,65 +54,69 @@ describe("migrateSidecarOverlays", () => {
   });
 });
 
-describe("viewSettingsDocumentSchema with overlay entries", () => {
+describe("viewSettingsDocumentSchema without overlays", () => {
   const baseView = {
     id: "view-1",
     author: "user-1",
     shared: true,
     channels: {},
     channelsOpacity: 1,
-    overlays: { "res-1": overlayEntry },
-    overlaysFillOpacity: 0.8,
     showCellOutline: true,
     annotationsOpacity: 1,
     showAnnotationOutline: true,
   };
 
-  test("parses a v1.1 document with a full overlay config", () => {
+  test("parses a v1.2 document and drops stray overlay fields", () => {
     const doc = viewSettingsDocumentSchema.parse({
-      cytario: { schemaVersion: "1.1", kind: "settings", image: "s3://b/i.tif", author: "user-1" },
-      views: [baseView],
+      cytario: { schemaVersion: "1.2", kind: "settings", image: "s3://b/i.tif", author: "user-1" },
+      views: [{ ...baseView, overlays: { "res-1": overlayEntry }, overlaysFillOpacity: 0.8 }],
     });
 
-    expect(doc.views[0].overlays["res-1"]).toEqual(overlayEntry);
+    expect("overlays" in doc.views[0]).toBe(false);
+    expect("overlaysFillOpacity" in doc.views[0]).toBe(false);
   });
 
-  test("still parses a legacy v1.0 document with unknown overlays", () => {
+  test("still parses a legacy v1.1 document carrying overlays (silently dropped)", () => {
     const doc = viewSettingsDocumentSchema.parse({
-      cytario: { schemaVersion: "1.0", kind: "settings", image: "s3://b/i.tif", author: "user-1" },
-      views: [{ ...baseView, overlays: { "res-1": { arbitrary: true } } }],
+      cytario: {
+        schemaVersion: "1.1",
+        kind: "settings",
+        image: "s3://b/i.tif",
+        author: "user-1",
+      },
+      views: [
+        { ...baseView, overlays: { "res-1": { arbitrary: true } }, overlaysFillOpacity: 0.5 },
+      ],
     });
 
-    // The union's permissive arm accepts unknown shapes for read compatibility.
-    expect(doc.views[0].overlays).toEqual({ "res-1": { arbitrary: true } });
+    expect(doc.views[0].id).toBe("view-1");
+    expect("overlays" in doc.views[0]).toBe(false);
   });
 
-  test("sidecarEntryToLayersState migrates overlays into the entry shape", () => {
+  test("sidecarEntryToLayersState yields an empty overlays map and default fill opacity", () => {
     const entry = sidecarEntryToLayersState({
       ...baseView,
-      overlays: {
-        "res-1": {
-          marker_positive_cd4: { color: [255, 0, 0, 255], count: 3, isVisible: true },
-        },
-      },
-    }) as LayersStateEntry;
+      overlays: { "res-1": { arbitrary: true } },
+      overlaysFillOpacity: 0.5,
+    } as Parameters<typeof sidecarEntryToLayersState>[0]) as LayersStateEntry;
 
-    expect(entry.overlays["res-1"]).toEqual({
-      markers: {
-        marker_positive_cd4: { color: [255, 0, 0, 255], count: 3, isVisible: true },
-      },
-      config: null,
-    });
+    expect(entry.overlays).toEqual({});
+    expect(entry.overlaysFillOpacity).toBe(DEFAULT_OVERLAYS_FILL_OPACITY);
   });
 
-  test("round-trips a full overlay config through entry conversion", () => {
-    const asSidecar = {
+  test("layersStateToSidecarEntry omits overlay state", () => {
+    const layersState = {
       ...baseView,
+      channelsOpacity: 1,
       overlays: { "res-1": overlayEntry },
-    };
-    const asLayers = sidecarEntryToLayersState(asSidecar) as LayersStateEntry;
+      overlaysFillOpacity: 0.8,
+      isChannelsLoading: 0,
+      isOverlaysLoading: 0,
+    } as unknown as LayersStateEntry;
 
-    expect(asLayers.overlays["res-1"]?.config).toEqual(overlayEntry.config);
-    expect(asLayers.overlays["res-1"]?.markers).toEqual(overlayEntry.markers);
+    const asSidecar = layersStateToSidecarEntry(layersState);
+
+    expect("overlays" in asSidecar).toBe(false);
+    expect("overlaysFillOpacity" in asSidecar).toBe(false);
   });
 });
