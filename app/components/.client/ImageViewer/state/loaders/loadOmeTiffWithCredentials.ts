@@ -27,13 +27,46 @@ function attrNum(attrs: string, name: string): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
-/** NominalMagnification of the first Image's Objective — viv's OME-XML parse drops Instrument. */
+/**
+ * NominalMagnification of the first Image's Objective. Objective elements live
+ * under <Instrument>, a sibling of <Image>, so the first Image is resolved via
+ * its InstrumentRef / ObjectiveSettings IDRef; viv's OME-XML parse drops
+ * Instrument entirely. Non-positive values are treated as absent.
+ */
 export function parseNominalMagnification(omexml: string): number | undefined {
+  const readFirst = (scope: string): number | undefined => {
+    for (const objective of scope.matchAll(/<Objective\b[^>]*>/g)) {
+      const match = /NominalMagnification="([\d.]+)"/.exec(objective[0]);
+      if (!match) continue;
+      const value = Number(match[1]);
+      if (value > 0) return value;
+    }
+    return undefined;
+  };
+
   const firstImage = /<Image\b[^>]*>[\s\S]*?<\/Image>/.exec(omexml);
-  const objective = firstImage && /<Objective\b([^>]*)>/.exec(firstImage[0]);
-  if (!objective) return undefined;
-  const match = /NominalMagnification="([\d.]+)"/.exec(objective[1]);
-  return match ? Number(match[1]) : undefined;
+  if (!firstImage) return undefined;
+
+  const instrumentRef = /<InstrumentRef\b[^>]*\bID="([^"]+)"/.exec(firstImage[0]);
+  if (instrumentRef) {
+    const instrument = new RegExp(
+      `<Instrument\\b[^>]*\\bID="${instrumentRef[1]}"[\\s\\S]*?</Instrument>`,
+    ).exec(omexml);
+    if (instrument) {
+      const objectiveSettingsId = /<ObjectiveSettings\b[^>]*\bIDRef="([^"]+)"/.exec(firstImage[0]);
+      if (objectiveSettingsId) {
+        const objective = new RegExp(
+          `<Objective\\b[^>]*\\bID="${objectiveSettingsId[1]}"[^>]*>`,
+        ).exec(instrument[0]);
+        const fromSettings = objective ? readFirst(objective[0]) : undefined;
+        if (fromSettings !== undefined) return fromSettings;
+      }
+      const fromInstrument = readFirst(instrument[0]);
+      if (fromInstrument !== undefined) return fromInstrument;
+    }
+  }
+
+  return readFirst(omexml);
 }
 
 function parseOmeImageBlock(block: string, body: string): OmeImageBlock | null {
