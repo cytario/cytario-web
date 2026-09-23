@@ -23,7 +23,7 @@ export const CursorTick = ({ vertical }: { vertical?: boolean }) => {
   const absoluteY = screenPixelsToAbsolutePixels(y - screenOffsetTop);
 
   if (displayUnit === "pixels") {
-    return <Tick number={vertical ? absoluteY : absoluteX} offset={vertical ? y : x} />;
+    return <Tick number={Math.round(vertical ? absoluteY : absoluteX)} offset={vertical ? y : x} />;
   }
 
   const unit = metadata.Pixels.PhysicalSizeXUnit;

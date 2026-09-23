@@ -31,7 +31,7 @@ export const StampSizeInput = () => {
 
   const toDisplay = (widthPx: number): number =>
     displayUnit === "pixels"
-      ? widthPx
+      ? Math.round(widthPx)
       : Math.round(
           absoluteToMetricFactory(spacingX, metadataUnit)(widthPx) * nanometersPerMillimeter,
         );

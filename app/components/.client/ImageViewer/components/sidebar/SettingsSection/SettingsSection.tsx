@@ -1,5 +1,4 @@
-import { Switch } from "@cytario/design";
-import { Radio, RadioGroup } from "react-aria-components";
+import { Switch, Radio, RadioGroup } from "@cytario/design";
 
 import { Section } from "~/components/Section/Section";
 import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
@@ -21,6 +20,7 @@ export const SettingsSection = () => {
   return (
     <Section id="settings" title="Settings" icon="Settings">
       <div className="flex flex-col gap-1 pb-2">
+        {/* Scale bar */}
         <div className={rowClassName}>
           <span id="settings-scale-bar-label">Scale bar</span>
           <Switch
@@ -29,6 +29,7 @@ export const SettingsSection = () => {
             aria-labelledby="settings-scale-bar-label"
           />
         </div>
+        {/* Rulers */}
         <div className={rowClassName}>
           <span id="settings-rulers-label">Rulers</span>
           <Switch
@@ -37,6 +38,7 @@ export const SettingsSection = () => {
             aria-labelledby="settings-rulers-label"
           />
         </div>
+
         <div className={rowClassName}>
           <span id="settings-display-unit-label">Display unit</span>
           <RadioGroup
