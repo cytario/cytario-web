@@ -1,11 +1,9 @@
 import { type LoaderFunction } from "react-router";
 
-import { assertAdminScope } from "../assertAdminScope";
-import { authContext } from "~/.server/auth/authMiddleware";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 
-export const inviteUserLoader: LoaderFunction = async ({ request, context }) => {
-  const { user } = context.get(authContext);
-  const { scope } = assertAdminScope(request.url, user.adminScopes);
+export const inviteUserLoader: LoaderFunction = async ({ context }) => {
+  const { org, scope } = context.get(adminContext);
 
-  return { scope, organization: user.organization ?? null };
+  return { scope, organization: org.alias };
 };

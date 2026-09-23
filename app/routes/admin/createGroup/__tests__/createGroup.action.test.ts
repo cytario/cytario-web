@@ -1,6 +1,7 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
 import { createGroupAction } from "../createGroup.action";
+import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
@@ -38,11 +39,20 @@ function makeRequest(name: string, scope = "cytario/lab") {
   );
 }
 
-function makeContext(adminScopes: string[] = ["cytario"], organization = "cytario") {
+function makeContext(
+  adminScopes: string[] = ["cytario"],
+  organization = "cytario",
+  scope = "cytario/lab",
+) {
   const ctx = new Map();
   ctx.set(authContext, {
     user: { sub: "user-123", adminScopes, organization },
     authTokens: { accessToken: "access-token", idToken: "id-token", refreshToken: "refresh-token" },
+  });
+  ctx.set(adminContext, {
+    org: { alias: organization },
+    scope,
+    adminUrl: "https://admin.cytario.test",
   });
   return ctx;
 }
@@ -132,12 +142,6 @@ describe("createGroupAction", () => {
     });
   });
 
-  test("throws 403 when user lacks admin scope", async () => {
-    await expect(callAction(makeRequest("foo"), makeContext(["other/scope"]))).rejects.toThrow(
-      Response,
-    );
-  });
-
   test("forwards organization to createGroup when parent is the `*` sentinel", async () => {
     vi.mocked(createGroup).mockResolvedValue({
       id: "top-id",
@@ -146,23 +150,10 @@ describe("createGroupAction", () => {
       orgId: "org-uuid",
     });
 
-    const response = await callAction(makeRequest("Lab", "*"), makeContext(["*"], "cytario"));
+    const response = await callAction(makeRequest("Lab", "*"), makeContext(["*"], "cytario", "*"));
 
     expect(createGroup).toHaveBeenCalledWith("*", "Lab", "cytario");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
     expect((response as Response).headers.get("location")).toBe("/admin/users?scope=Lab");
-  });
-
-  test("throws 400 when scope query param is missing", async () => {
-    const request = new Request("http://localhost/admin/users/create-group", {
-      method: "POST",
-      body: (() => {
-        const f = new FormData();
-        f.append("name", "foo");
-        return f;
-      })(),
-    });
-
-    await expect(callAction(request, makeContext())).rejects.toThrow(Response);
   });
 });

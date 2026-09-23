@@ -123,4 +123,41 @@ describe("adminMiddleware", () => {
 
     expect(store.get(adminContext)).toMatchObject({ scope: "cytario/lab" });
   });
+
+  test("denies scope=* for a non-org-root admin (403)", async () => {
+    const { next, result } = callMiddleware("http://localhost/admin/users?scope=*", {
+      ...BASE_USER,
+      adminScopes: ["cytario"],
+    });
+
+    const error = (await result.catch((e: unknown) => e)) as Response;
+    expect(error).toBeInstanceOf(Response);
+    expect(error.status).toBe(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test("next() runs after the stash and sees the values intact downstream", async () => {
+    const { context } = makeContext(BASE_USER);
+    let downstream: unknown;
+    const next = vi.fn(async () => {
+      downstream = context.get(adminContext);
+      return undefined;
+    });
+
+    await adminMiddleware(
+      {
+        request: new Request("http://localhost/admin/users?scope=cytario%2Flab"),
+        context,
+        params: {},
+      } as unknown as Parameters<typeof adminMiddleware>[0],
+      next as Parameters<typeof adminMiddleware>[1],
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(downstream).toEqual({
+      org: mockOrg,
+      scope: "cytario/lab",
+      adminUrl: "/admin/users?scope=cytario%2Flab",
+    });
+  });
 });
