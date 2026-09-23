@@ -22,6 +22,8 @@ interface AnnotationThumbProps {
   onClear?: () => void;
   /** Rename this annotation. */
   onRename?: (name: string) => void;
+  /** Duplicate this annotation (and its selection, when it is part of one). */
+  onDuplicate?: () => void;
   onDelete: () => void;
 }
 
@@ -39,6 +41,7 @@ export const AnnotationThumb = ({
   onClassify,
   onClear,
   onRename,
+  onDuplicate,
   onDelete,
 }: AnnotationThumbProps) => {
   const kind = feature.geometry.type === "Point" ? "point" : "region";
@@ -108,6 +111,11 @@ export const AnnotationThumb = ({
             {editable && onRename && (
               <MenuItem id="rename" icon="Pencil" onAction={startEdit}>
                 Rename annotation
+              </MenuItem>
+            )}
+            {editable && onDuplicate && (
+              <MenuItem id="duplicate" icon="Copy" onAction={onDuplicate}>
+                Duplicate annotation
               </MenuItem>
             )}
             {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (

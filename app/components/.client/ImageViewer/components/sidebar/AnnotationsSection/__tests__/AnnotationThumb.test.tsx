@@ -120,6 +120,33 @@ describe("AnnotationThumb", () => {
     expect(screen.queryByRole("menuitem", { name: "Rename annotation" })).toBeNull();
   });
 
+  test("Duplicate menu item is present when onDuplicate is provided", () => {
+    const onDuplicate = vi.fn();
+    render(<AnnotationThumb {...defaultProps} onDuplicate={onDuplicate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+
+    expect(screen.getByRole("menuitem", { name: "Duplicate annotation" })).toBeInTheDocument();
+  });
+
+  test("Duplicate menu item is absent when the connection is read-only", () => {
+    render(<AnnotationThumb {...defaultProps} editable={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Duplicate annotation" })).toBeNull();
+  });
+
+  test("calls onDuplicate when Duplicate menu item is activated", () => {
+    const onDuplicate = vi.fn();
+    render(<AnnotationThumb {...defaultProps} onDuplicate={onDuplicate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Duplicate annotation" }));
+
+    expect(onDuplicate).toHaveBeenCalledTimes(1);
+  });
+
   test("calls onRename with the edited name when Enter is pressed", () => {
     const onRename = vi.fn();
     const feature = makeFeature({ properties: { name: "Old Name" } });

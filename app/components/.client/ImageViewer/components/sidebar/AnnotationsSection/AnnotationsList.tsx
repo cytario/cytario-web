@@ -53,6 +53,7 @@ export const AnnotationsList = ({
   const setActiveClass = useViewerStore((s) => s.setAnnotationActiveClass);
   const renameClass = useViewerStore((s) => s.renameAnnotationClass);
   const renameAnnotation = useViewerStore((s) => s.renameAnnotation);
+  const duplicateAnnotations = useViewerStore((s) => s.duplicateAnnotations);
   const classes = useViewerStore((s) => s.annotationClasses);
   const createClass = useViewerStore((s) => s.createAnnotationClass);
   const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
@@ -64,7 +65,7 @@ export const AnnotationsList = ({
   const [adding, setAdding] = useState(false);
 
   // Act on the current selection when the actioned feature is part of it, else on
-  // just that feature — shared by classify, delete, and zoom.
+  // just that feature — shared by classify, delete, duplicate, and zoom.
   const actionTargets = (feature: AnnotationFeature): string[] =>
     selectedIds.length > 1 && selectedIds.includes(feature.id) ? selectedIds : [feature.id];
 
@@ -163,6 +164,14 @@ export const AnnotationsList = ({
     );
   };
 
+  const duplicateFeatures = (feature: AnnotationFeature) => {
+    const ids = new Set(actionTargets(feature));
+    duplicateAnnotations(
+      setId,
+      features.filter((f) => ids.has(f.id)),
+    );
+  };
+
   // Active-class selection is a single-select radio group; read-only grants get no
   // group — the headers render plainly.
   const GroupContainer = (editable ? RadioGroup : Fragment) as React.ComponentType<{
@@ -253,6 +262,7 @@ export const AnnotationsList = ({
                       onRename={
                         editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
                       }
+                      onDuplicate={editable ? () => duplicateFeatures(feature) : undefined}
                       onDelete={() => deleteFeatures(feature)}
                     />
                   );
