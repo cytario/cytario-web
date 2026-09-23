@@ -1,3 +1,4 @@
+import type { Loader } from "./core/ome.tif.types";
 import {
   BRIGHTFIELD_GROUP_ID,
   BrightfieldGroup,
@@ -12,6 +13,22 @@ import {
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const EMPTY_OBJECT = Object.freeze({});
+
+/** Deepest integer zoom-out that still shows the whole base level. Shallow
+ *  pyramids (few levels, huge base) need more headroom than `-levels`, so
+ *  derive from the base dimensions vs tile size and fall back to `-levels`
+ *  when the shape/labels/tileSize are unavailable. */
+export const fitMinZoom = (loader: Loader | null | undefined): number => {
+  const fallback = loader?.length ? -loader.length : 0;
+  const base = loader?.[0];
+  if (!base) return fallback;
+  const yIndex = base.labels?.indexOf("y") ?? -1;
+  const xIndex = base.labels?.indexOf("x") ?? -1;
+  if (yIndex < 0 || xIndex < 0 || !base.tileSize) return fallback;
+  const maxDimension = Math.max(base.shape[yIndex] ?? 0, base.shape[xIndex] ?? 0);
+  if (!maxDimension) return fallback;
+  return -Math.ceil(Math.log2(maxDimension / base.tileSize));
+};
 
 // Referential-stability caches: zustand compares selector results with
 // Object.is, so returning a new object each call triggers re-renders.
@@ -99,7 +116,7 @@ export const select = {
 
   metadata: (state: ViewerStore) => state.metadata,
 
-  minZoom: (state: ViewerStore) => -(state.loader?.length ?? 0),
+  minZoom: (state: ViewerStore) => fitMinZoom(state.loader),
   maxZoom: () => 2,
 
   viewStatePreview: (state: ViewerStore) => state.viewStatePreview,

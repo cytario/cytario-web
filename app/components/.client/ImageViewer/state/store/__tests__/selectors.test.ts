@@ -1,4 +1,5 @@
-import { select } from "../selectors";
+import { Loader } from "../core/ome.tif.types";
+import { fitMinZoom, select } from "../selectors";
 import { ViewerStore } from "../types";
 
 describe("selectors", () => {
@@ -464,6 +465,60 @@ describe("selectors", () => {
       });
       // Panel 1 has showCellOutline = false
       expect(select.showCellOutline(state)).toBe(false);
+    });
+  });
+
+  describe("fitMinZoom", () => {
+    const mockLevel = (shape: number[], tileSize = 512) => ({
+      shape,
+      labels: ["t", "c", "y", "x"],
+      dtype: "uint16",
+      tileSize,
+    });
+
+    test("allows zooming out far enough to fit a shallow pyramid's large base", () => {
+      // Base 69888x34944 with 512px tiles needs 8 halvings; only 4 levels exist.
+      const loader = [
+        mockLevel([1, 3, 34944, 69888]),
+        mockLevel([1, 3, 8736, 17472]),
+        mockLevel([1, 3, 2184, 4368]),
+        mockLevel([1, 3, 546, 1092]),
+      ] as unknown as Loader;
+      expect(fitMinZoom(loader)).toBe(-8);
+    });
+
+    test("full pyramid keeps the -(levels) bound", () => {
+      // 7 levels halving 46080 down to ~tile size: ceil(log2(90)) = 7.
+      const loader = Array.from({ length: 7 }, (_, levelIndex) =>
+        mockLevel([1, 1, Math.ceil(34560 / 2 ** levelIndex), Math.ceil(46080 / 2 ** levelIndex)]),
+      ) as unknown as Loader;
+      expect(fitMinZoom(loader)).toBe(-7);
+      expect(fitMinZoom(loader)).toBe(-loader.length);
+    });
+
+    test("falls back to -(levels) when base shape is unavailable", () => {
+      expect(fitMinZoom([{ dtype: "uint16" }] as unknown as Loader)).toBe(-1);
+      expect(fitMinZoom([mockLevel([1, 1, 100, 100], 0)] as unknown as Loader)).toBe(-1);
+      expect(fitMinZoom([])).toBe(0);
+      expect(fitMinZoom(null)).toBe(0);
+    });
+  });
+
+  describe("minZoom", () => {
+    test("derives from the loader's base level instead of the level count", () => {
+      const loader = [
+        {
+          shape: [1, 3, 34944, 69888],
+          labels: ["t", "c", "y", "x"],
+          dtype: "uint16",
+          tileSize: 512,
+        },
+      ] as unknown as Loader;
+      expect(select.minZoom(createMockState({ loader }))).toBe(-8);
+    });
+
+    test("falls back to -(levels) without base shape info", () => {
+      expect(select.minZoom(createMockState())).toBe(0);
     });
   });
 });

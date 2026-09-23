@@ -1,3 +1,4 @@
+import { fitMinZoom } from "../selectors";
 import type { ViewerSlice, ViewState, CompositeTooltip } from "../types";
 
 export interface ViewSlice {
@@ -52,7 +53,7 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
     set(
       (viewerStore) => {
         viewerStore.viewStateActive = viewStateActive;
-        viewerStore.viewStateActive.minZoom = -(viewerStore.loader?.length ?? 0);
+        viewerStore.viewStateActive.minZoom = fitMinZoom(viewerStore.loader);
         viewerStore.viewStateActive.maxZoom = 2;
       },
       false,

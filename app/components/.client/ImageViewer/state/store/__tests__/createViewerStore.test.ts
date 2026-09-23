@@ -240,6 +240,23 @@ describe("createViewerStore", () => {
     expect(store.getState().viewStateActive).toEqual(newViewState);
   });
 
+  test("setViewStateActive() stamps a fit-based minZoom for shallow pyramids", () => {
+    const store = createViewerStore("test-viewer-4-shallow");
+    // Base 69888x34944 with 512px tiles needs 8 halvings; only 4 levels exist.
+    const shallowLoader = [
+      { shape: [1, 3, 34944, 69888], labels: ["t", "c", "y", "x"], dtype: "uint16", tileSize: 512 },
+      { shape: [1, 3, 8736, 17472], labels: ["t", "c", "y", "x"], dtype: "uint16", tileSize: 512 },
+      { shape: [1, 3, 2184, 4368], labels: ["t", "c", "y", "x"], dtype: "uint16", tileSize: 512 },
+      { shape: [1, 3, 546, 1092], labels: ["t", "c", "y", "x"], dtype: "uint16", tileSize: 512 },
+    ] as unknown as Loader;
+    store.getState().setLoader(shallowLoader);
+
+    store.getState().setViewStateActive({ zoom: 1.5, target: [0, 0] } as unknown as ViewState);
+
+    expect(store.getState().viewStateActive?.minZoom).toBe(-8);
+    expect(store.getState().viewStateActive?.maxZoom).toBe(2);
+  });
+
   test("setIsViewerLoading()", () => {
     const store = createViewerStore("test-viewer-5");
 
