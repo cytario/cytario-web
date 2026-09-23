@@ -496,6 +496,11 @@ describe("selectors", () => {
       expect(fitMinZoom(loader)).toBe(-loader.length);
     });
 
+    test("clamps to 0 when the base is smaller than one tile", () => {
+      expect(fitMinZoom([mockLevel([1, 1, 100, 100])] as unknown as Loader)).toBe(0);
+      expect(fitMinZoom([mockLevel([1, 1, 400, 400])] as unknown as Loader)).toBe(0);
+    });
+
     test("falls back to -(levels) when base shape is unavailable", () => {
       expect(fitMinZoom([{ dtype: "uint16" }] as unknown as Loader)).toBe(-1);
       expect(fitMinZoom([mockLevel([1, 1, 100, 100], 0)] as unknown as Loader)).toBe(-1);

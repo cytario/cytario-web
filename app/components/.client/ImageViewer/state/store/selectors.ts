@@ -27,7 +27,10 @@ export const fitMinZoom = (loader: Loader | null | undefined): number => {
   if (yIndex < 0 || xIndex < 0 || !base.tileSize) return fallback;
   const maxDimension = Math.max(base.shape[yIndex] ?? 0, base.shape[xIndex] ?? 0);
   if (!maxDimension) return fallback;
-  return -Math.ceil(Math.log2(maxDimension / base.tileSize));
+  const halvings = Math.ceil(Math.log2(maxDimension / base.tileSize));
+  // Bases smaller than one tile must not yield a positive bound; || 0
+  // normalizes the -0 produced by exact-tile bases.
+  return Math.min(0, -halvings) || 0;
 };
 
 // Referential-stability caches: zustand compares selector results with
