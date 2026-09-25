@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import { describe, expect, test, vi } from "vitest";
 
 import { HelpMenu } from "~/components/HelpMenu";
+import { useTourControllerStore } from "~/components/Tour/useTourController";
 
 vi.mock("@cytario/design", async () => {
   const actual = await vi.importActual<typeof import("@cytario/design")>("@cytario/design");
@@ -17,17 +19,23 @@ vi.mock("@cytario/design", async () => {
       id,
       href,
       target,
+      onAction,
       children,
     }: {
       id: string;
       href?: string;
       target?: string;
+      onAction?: () => void;
       children: React.ReactNode;
     }) => {
       if (href) {
         return createElement("a", { id, href, target, "data-testid": `menu-item-${id}` }, children);
       }
-      return createElement("div", { id, "data-testid": `menu-item-${id}` }, children);
+      return createElement(
+        "div",
+        { id, "data-testid": `menu-item-${id}`, onClick: onAction },
+        children,
+      );
     },
   };
 });
@@ -72,5 +80,16 @@ describe("HelpMenu", () => {
     const version = screen.getByTestId("menu-item-version");
     expect(version).toHaveAttribute("href", "/config");
     expect(version).toHaveTextContent("Version 1.2.3");
+  });
+
+  test("offers the tour entry and requests the getting-started tour on activation", async () => {
+    render(<HelpMenu version="1.2.3" />);
+
+    const tourItem = screen.getByTestId("menu-item-tour");
+    expect(tourItem).toHaveTextContent("Take the tour");
+
+    await userEvent.click(tourItem);
+    expect(useTourControllerStore.getState().requestedTourId).toBe("getting-started");
+    useTourControllerStore.getState().consumeRequest();
   });
 });
