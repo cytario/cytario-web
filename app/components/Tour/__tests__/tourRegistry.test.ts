@@ -34,6 +34,36 @@ describe("tourRegistry", () => {
         }),
       ).toBe(true);
     });
+
+    test("does not claim a single-file image route — the viewer tour owns it", () => {
+      expect(
+        gettingStarted.shouldAutoStart({
+          pathname: "/connections/abc/slide.ome.tiff",
+          leafName: "slide.ome.tiff",
+          connectionCount: 3,
+        }),
+      ).toBe(false);
+    });
+
+    test("still runs on a non-image resource route", () => {
+      expect(
+        gettingStarted.shouldAutoStart({
+          pathname: "/connections/abc/notes.txt",
+          leafName: "notes.txt",
+          connectionCount: 1,
+        }),
+      ).toBe(true);
+    });
+
+    test("exactly one tour claims a viewer image route", () => {
+      const context = {
+        pathname: "/connections/abc/slide.ome.tiff",
+        leafName: "slide.ome.tiff",
+        connectionCount: 1,
+      };
+      const claiming = tourRegistry.filter((tour) => tour.shouldAutoStart(context));
+      expect(claiming.map((tour) => tour.id)).toEqual([VIEWER_TOUR_ID]);
+    });
   });
 
   describe("viewer shouldAutoStart", () => {

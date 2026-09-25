@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { STATUS, useJoyride, type BeforeHook, type Step } from "react-joyride";
+import { EVENTS, useJoyride, type BeforeHook, type EventData, type Step } from "react-joyride";
 import { useLocation, useNavigate, useRouteLoaderData } from "react-router";
 
 import { GETTING_STARTED_TOUR_ID, type TourDefinition } from "./tourRegistry";
@@ -53,24 +53,28 @@ export function TourProvider({ children }: { children?: ReactNode }) {
     }
   }, [requestedTourId, consumeRequest]);
 
-  const hasAutoStartedRef = useRef(false);
+  // One auto-start per tour id per session: a completed getting-started run
+  // must not consume the viewer tour's only auto-start.
+  const autoStartedTourIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!sub || hasAutoStartedRef.current) return;
+    if (!sub) return;
     const candidate = tourRegistry.find(
       (tour) =>
+        !autoStartedTourIdsRef.current.has(tour.id) &&
         tour.shouldAutoStart({
           pathname: location.pathname,
           leafName: location.pathname.split("/").filter(Boolean).pop() ?? "",
           connectionCount,
-        }) && !isComplete(sub, tour.id),
+        }) &&
+        !isComplete(sub, tour.id),
     );
     if (!candidate) return;
     const timer = setTimeout(() => {
-      hasAutoStartedRef.current = true;
+      autoStartedTourIdsRef.current.add(candidate.id);
       setActiveTour((current) => current ?? { definition: candidate });
     }, AUTOSTART_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [sub, location.pathname, connectionCount, isComplete, activeTour]);
+  }, [sub, location.pathname, connectionCount, isComplete]);
 
   const navigateRef = useRef(navigate);
   useEffect(() => {
@@ -99,10 +103,21 @@ export function TourProvider({ children }: { children?: ReactNode }) {
     });
   }, [activeTour]);
 
+  // joyride's FINISHED/SKIPPED statuses are transient (reset() lands on READY
+  // right after TOUR_END), so completion is captured from the TOUR_END event
+  // — polling state would miss the transition.
+  const handleTourEvent = (data: EventData) => {
+    if (data.type !== EVENTS.TOUR_END) return;
+    if (!activeTour || !sub) return;
+    completeTour(sub, activeTour.definition.id);
+    setActiveTour(null);
+  };
+
   const joyride = useJoyride({
     run: Boolean(activeTour),
     steps: decoratedSteps,
     continuous: true,
+    onEvent: handleTourEvent,
     options: {
       zIndex: TOUR_Z_INDEX,
       targetWaitTimeout: TARGET_WAIT_MS,
@@ -110,23 +125,18 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       showProgress: true,
       spotlightPadding: 6,
       buttons: ["close", "primary"],
+      // The tooltip close button dismisses the whole tour, not just the step —
+      // default "close" would advance to the next step instead.
+      closeButtonAction: "skip",
+      // Auto-started onboarding: tooltips render directly instead of waiting
+      // for a beacon click the user does not know to make.
+      skipBeacon: true,
       overlayColor: "rgba(0, 0, 0, 0.55)",
     },
     styles: {
       tooltipContainer: { fontFamily: "var(--font-montserrat)" },
     },
   });
-
-  const completionRef = useRef(false);
-  useEffect(() => {
-    if (!activeTour || !sub) return;
-    const status = joyride.state.status;
-    if (status !== STATUS.FINISHED && status !== STATUS.SKIPPED) return;
-    if (completionRef.current) return;
-    completionRef.current = true;
-    completeTour(sub, activeTour.definition.id);
-    setActiveTour(null);
-  }, [joyride.state.status, activeTour, sub, completeTour]);
 
   return (
     <>
