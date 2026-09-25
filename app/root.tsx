@@ -23,8 +23,10 @@ import { UserProfile } from "./.server/auth/getUserInfo";
 import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
+import { ClientOnly } from "./components/ClientOnly";
 import { Container, Section } from "./components/Container";
 import { type NotificationInput } from "./components/Notification/Notification.store";
+import { TourProvider } from "./components/Tour/TourProvider";
 import { cytarioConfig } from "./config";
 import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
@@ -178,6 +180,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {children}
             </main>
           </FavoritesProvider>
+          <ClientOnly>
+            <TourProvider />
+          </ClientOnly>
         </RouterProvider>
 
         <ScrollRestoration />

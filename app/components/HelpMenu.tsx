@@ -1,5 +1,7 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
 
+import { useTourController } from "~/components/Tour/useTourController";
+
 interface HelpMenuProps {
   version: string;
   docsUrl?: string;
@@ -7,6 +9,8 @@ interface HelpMenuProps {
 }
 
 export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
+  const { startTour } = useTourController();
+
   return (
     <Menu
       content={
@@ -22,6 +26,9 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
             </MenuItem>
           )}
           <MenuSeparator />
+          <MenuItem id="tour" icon="MapPin" onAction={() => startTour("getting-started")}>
+            Take the tour
+          </MenuItem>
           <MenuItem id="version" href="/config">
             Version {version}
           </MenuItem>
