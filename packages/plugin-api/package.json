@@ -31,5 +31,8 @@
   "scripts": {
     "build": "tsup",
     "release": "semantic-release"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0"
   }
 }
