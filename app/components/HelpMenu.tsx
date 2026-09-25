@@ -1,5 +1,4 @@
 import { IconButton, Menu, MenuItem, MenuSeparator } from "@cytario/design";
-import { CircleHelp } from "lucide-react";
 
 interface HelpMenuProps {
   version: string;
@@ -29,7 +28,7 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
         </>
       }
     >
-      <IconButton icon={CircleHelp} label="Help" variant="ghost" size="sm" />
+      <IconButton icon="CircleHelp" label="Help" variant="ghost" size="sm" />
     </Menu>
   );
 }

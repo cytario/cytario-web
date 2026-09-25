@@ -57,6 +57,8 @@ export default [
       ...reactHooksPlugin.configs.recommended.rules,
       ...jsxA11yPlugin.configs.recommended.rules,
       ...eslintPluginImport.configs.recommended.rules,
+      // Flags imports that resolve only via transitive hoisting (phantom deps).
+      "import/no-extraneous-dependencies": "error",
       // Enforce organized imports: external, then internal, alphabetically
       "import/order": [
         "error",
