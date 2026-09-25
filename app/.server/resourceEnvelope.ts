@@ -71,6 +71,32 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
     if (pairs.length > 0) envelope.supportedVcpuMemoryPairs = pairs;
   }
 
+  // Memory ladder: ascending Kubernetes-quantity rungs (K8s shape) or the
+  // admin-portal `memorySteps` / `memoryLadderMiB` aliases (MiB integers).
+  const stepsRaw =
+    typeof obj.memorySteps === "string"
+      ? obj.memorySteps
+      : typeof obj.memoryLadder === "string"
+        ? obj.memoryLadder
+        : undefined;
+  if (stepsRaw !== undefined && stepsRaw.trim() !== "") {
+    const steps = stepsRaw
+      .split(",")
+      .map((step) => step.trim())
+      .filter((step) => step !== "");
+    if (steps.length > 0) envelope.memorySteps = steps;
+  } else if (Array.isArray(obj.memoryLadder)) {
+    const steps: string[] = [];
+    for (const rung of obj.memoryLadder) {
+      if (typeof rung === "string" && rung.trim() !== "") {
+        steps.push(rung.trim());
+      } else if (typeof rung === "number" && Number.isInteger(rung) && rung > 0) {
+        steps.push(`${rung}Mi`);
+      }
+    }
+    if (steps.length > 0) envelope.memorySteps = steps;
+  }
+
   if (Object.keys(envelope).length === 0) return undefined;
   return envelope;
 }

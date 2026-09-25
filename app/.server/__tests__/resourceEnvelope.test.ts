@@ -86,6 +86,35 @@ describe("mapResourceEnvelope", () => {
     });
   });
 
+  test("maps an ascending memory ladder from a comma-separated string", () => {
+    expect(
+      mapResourceEnvelope({
+        memory: "16Gi",
+        memorySteps: "16Gi, 32Gi,64Gi ,192Gi",
+      }),
+    ).toEqual({
+      memory: "16Gi",
+      memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
+    });
+  });
+
+  test("maps an admin-portal integer MiB ladder to Mi-quantities", () => {
+    expect(
+      mapResourceEnvelope({
+        memoryLadder: [16384, 32768, 65536],
+      }),
+    ).toEqual({
+      memorySteps: ["16384Mi", "32768Mi", "65536Mi"],
+    });
+  });
+
+  test("tolerates ladder absence and filters unusable rungs", () => {
+    expect(mapResourceEnvelope({ memory: "16Gi" })).toEqual({ memory: "16Gi" });
+    expect(mapResourceEnvelope({ memorySteps: "" })).toBeUndefined();
+    expect(mapResourceEnvelope({ memorySteps: " , ," })).toBeUndefined();
+    expect(mapResourceEnvelope({ memoryLadder: [0, -1] })).toBeUndefined();
+  });
+
   test("rejects non-integer GPU", () => {
     expect(mapResourceEnvelope({ memory: "4Gi", gpu: 1.5 })).toEqual({ memory: "4Gi" });
   });

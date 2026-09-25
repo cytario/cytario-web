@@ -22,5 +22,10 @@
 // version for the host gate, but a plugin that consumed `TokenGrant.token` must
 // move to the new capability — and this one is not backward compatible for such
 // a consumer within 6.x, despite the minor.
+//
+// 6.14.0: `PluginContext` gains the client-live `imageMetadata` registry and
+// `FormatHandler` the optional `readCharacteristics` metadata-only read;
+// `ProviderResourceEnvelope` gains the optional `memorySteps` ladder — additive
+// at a minor version, so existing plugins still satisfy the contract.
 
-export const HOST_API_VERSION = "6.13.0";
+export const HOST_API_VERSION = "6.14.0";

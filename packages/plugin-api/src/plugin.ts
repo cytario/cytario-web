@@ -2,6 +2,7 @@ import type { ContextMenuRegistry } from "./contextMenus";
 import type { FormatRegistry } from "./format";
 import type { GateRegistry } from "./gates";
 import type { HostCapabilities } from "./host";
+import type { ImageMetadataRegistry } from "./imageMetadata";
 import type { RouteRegistry } from "./routes";
 import type { ServerEndpointRegistry } from "./serverEndpoints";
 import type { SidebarNavRegistry } from "./sidebarNav";
@@ -41,6 +42,8 @@ export interface PluginContext {
   host: HostCapabilities;
   /** Client-side storage picker. Live client-side; no-op sink server-side. */
   storagePicker: StoragePickerRegistry;
+  /** Client-side image metadata. Live client-side; no-op sink server-side. */
+  imageMetadata: ImageMetadataRegistry;
   /**
    * Server-side single-slot user-management gate. Server-only: the registry
    * is live server-side and a no-op sink client-side. The gate request
