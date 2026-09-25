@@ -314,7 +314,7 @@ describe("providerCatalogSchema", () => {
     expect(() => providerCatalogSchema.parse(withEmptyArn)).toThrow();
   });
 
-  test("parses a memorySteps ladder on the compute-provider typeSpecific", () => {
+  test("parses a memorySteps ladder nested in the max-resources blob (admin-portal shape)", () => {
     const withLadder = {
       ...CATALOG,
       computeProviders: [
@@ -322,71 +322,41 @@ describe("providerCatalogSchema", () => {
           ...CATALOG.computeProviders[0],
           typeSpecific: {
             ...CATALOG.computeProviders[0].typeSpecific,
-            memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
+            maxResources: {
+              vcpu: 48,
+              memory: 196608,
+              gpuCount: 4,
+              memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
+            },
           },
         },
       ],
     };
     const catalog = providerCatalogSchema.parse(withLadder);
-    expect(catalog.computeProviders[0].typeSpecific.memorySteps).toEqual([
-      "16Gi",
-      "32Gi",
-      "64Gi",
-      "192Gi",
-    ]);
+    expect(catalog.computeProviders[0].typeSpecific.maxResources).toMatchObject({
+      memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
+    });
   });
 
-  test("parses a comma-separated memorySteps string and tolerates null/absence", () => {
-    const withString = {
+  test("a sibling typeSpecific.memorySteps key never reaches the typed catalog — the blob is the only ladder channel", () => {
+    const withSibling = {
       ...CATALOG,
       computeProviders: [
         {
           ...CATALOG.computeProviders[0],
           typeSpecific: {
             ...CATALOG.computeProviders[0].typeSpecific,
-            memorySteps: "16Gi,32Gi",
+            memorySteps: ["16Gi", "32Gi"],
           },
         },
       ],
     };
-    expect(
-      providerCatalogSchema.parse(withString).computeProviders[0].typeSpecific.memorySteps,
-    ).toBe("16Gi,32Gi");
-
-    const withNull = {
-      ...CATALOG,
-      computeProviders: [
-        {
-          ...CATALOG.computeProviders[0],
-          typeSpecific: {
-            ...CATALOG.computeProviders[0].typeSpecific,
-            memorySteps: null,
-          },
-        },
-      ],
-    };
-    expect(
-      providerCatalogSchema.parse(withNull).computeProviders[0].typeSpecific.memorySteps,
-    ).toBeNull();
-
-    const catalog = providerCatalogSchema.parse(CATALOG);
-    expect(catalog.computeProviders[0].typeSpecific.memorySteps).toBeUndefined();
-  });
-
-  test("rejects an empty rung inside a memorySteps array (min(1) in force)", () => {
-    const withEmpty = {
-      ...CATALOG,
-      computeProviders: [
-        {
-          ...CATALOG.computeProviders[0],
-          typeSpecific: {
-            ...CATALOG.computeProviders[0].typeSpecific,
-            memorySteps: ["16Gi", ""],
-          },
-        },
-      ],
-    };
-    expect(() => providerCatalogSchema.parse(withEmpty)).toThrow();
+    const catalog = providerCatalogSchema.parse(withSibling);
+    // Unknown keys are stripped: there is no sibling ladder field, so a
+    // payload cannot smuggle a second, divergent ladder source past the
+    // schema. The blob remains the only channel.
+    const typeSpecific = catalog.computeProviders[0].typeSpecific as Record<string, unknown>;
+    expect(typeSpecific.memorySteps).toBeUndefined();
   });
 });
 

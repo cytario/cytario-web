@@ -98,6 +98,49 @@ describe("mapResourceEnvelope", () => {
     });
   });
 
+  test("maps an array-of-quantities memorySteps ladder (admin-portal shape)", () => {
+    expect(
+      mapResourceEnvelope({
+        memory: 196608,
+        memorySteps: ["16Gi", "32Gi", "64Gi"],
+      }),
+    ).toEqual({
+      memory: "196608Mi",
+      memorySteps: ["16Gi", "32Gi", "64Gi"],
+    });
+  });
+
+  test("maps an array rung that is a positive MiB integer to an Mi-quantity", () => {
+    expect(
+      mapResourceEnvelope({
+        memorySteps: ["16Gi", 32768, "64Gi"],
+      }),
+    ).toEqual({
+      memorySteps: ["16Gi", "32768Mi", "64Gi"],
+    });
+  });
+
+  test("skips junk rungs inside a memorySteps array", () => {
+    expect(
+      mapResourceEnvelope({
+        memory: "16Gi",
+        memorySteps: ["16Gi", "", null, 1.5, -1, 0, "32Gi"],
+      }),
+    ).toEqual({
+      memory: "16Gi",
+      memorySteps: ["16Gi", "32Gi"],
+    });
+  });
+
+  test("an all-junk or empty memorySteps array leaves the ladder unset", () => {
+    expect(mapResourceEnvelope({ memory: "16Gi", memorySteps: [] })).toEqual({
+      memory: "16Gi",
+    });
+    expect(mapResourceEnvelope({ memory: "16Gi", memorySteps: ["", "  "] })).toEqual({
+      memory: "16Gi",
+    });
+  });
+
   test("maps an admin-portal integer MiB ladder to Mi-quantities", () => {
     expect(
       mapResourceEnvelope({

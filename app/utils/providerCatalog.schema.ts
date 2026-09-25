@@ -102,21 +102,11 @@ export const computeProviderSchema = z.object({
      * job. Nullable because the admin-portal predates this field; a null
      * ceiling means the host cannot determine the maximum and the plugin
      * skips the check for that resource. The blob may carry `memorySteps`
-     * (ascending Kubernetes-quantity memory rungs) — mapped onto
-     * `ProviderResourceEnvelope.memorySteps` by `mapResourceEnvelope`.
+     * (ascending Kubernetes-quantity memory rungs, as an array of quantity
+     * strings) — mapped onto `ProviderResourceEnvelope.memorySteps` by
+     * `mapResourceEnvelope`.
      */
     maxResources: z.record(z.string(), z.unknown()).nullable().optional(),
-    /**
-     * Ascending memory rungs the compute environment accepts, as
-     * Kubernetes-style quantities (e.g. `["16Gi", "32Gi"]`). Stored loose
-     * (string, comma-separated, or absent) because both the admin-portal and
-     * OSS YAML builds feed this schema; normalized and projected as
-     * `memorySteps` on the compute-role session.
-     */
-    memorySteps: z
-      .union([z.array(z.string().min(1)), z.string().min(1)])
-      .nullable()
-      .optional(),
   }),
   status: z.enum(COMPUTE_PROVIDER_STATUSES),
 });
