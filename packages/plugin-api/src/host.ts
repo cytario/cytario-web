@@ -277,12 +277,12 @@ export interface TokenGrant {
 
 /**
  * Provider-neutral job status vocabulary shared by the host, the compute
- * plugin, and the Jobs View. `PENDING` is the ledger row's state before the
+ * plugin, and the Jobs View. `Pending` is the ledger row's state before the
  * provider has accepted the job; every other value is runtime information
  * the provider reports. The provider→vocabulary mapping stays plugin-side.
  */
 export type JobStatus =
-  | "PENDING"
+  | "Pending"
   | "Queued"
   | "Running"
   | "Completed"
@@ -299,23 +299,12 @@ export const TERMINAL_STATUSES: readonly JobStatus[] = [
   "Stopped",
 ];
 
-/**
- * Ledger record in the host-owned running-jobs ledger. A row is recorded
- * before the provider is called (`PENDING`, no provider job id yet) and
- * updated with runtime information once the provider accepts; it is removed
- * only after its grant's revocation is confirmed. The host stores only the
- * token hash, and never returns `jobToken` from `lookup`, `list`, or
- * `listAll`.
- */
 export interface JobRecord {
   /** The ledger row's own identifier — the key for `update` and `remove`. */
   id: string;
   status: JobStatus;
-  /**
-   * The provider's job identifier. Absent until the provider accepts the
-   * job — `update` attaches it as runtime information on acceptance.
-   */
-  jobId?: string;
+  /** The provider's job identifier, attached by `update` once the provider accepts. */
+  providerJobId?: string;
   batchId: string;
   offlineSessionId: string;
   /**
@@ -393,7 +382,7 @@ export interface JobRuntimeUpdate {
 export interface JobLedger {
   /**
    * Records a pending job and returns the ledger row's own identifier — the
-   * key for `update` and `remove`. The row starts `PENDING` with no provider
+   * key for `update` and `remove`. The row starts `Pending` with no provider
    * job id; `update` attaches the runtime information once the provider
    * accepts.
    */
@@ -404,7 +393,7 @@ export interface JobLedger {
    * `record`; never terminates a provider job on failure.
    */
   update(id: string, patch: JobRuntimeUpdate): Promise<void>;
-  lookup(jobId: string): Promise<JobRecord | null>;
+  lookup(providerJobId: string): Promise<JobRecord | null>;
   /**
    * Lists all ledger rows for the active organization (tenant pre-filter).
    * Returned in insertion order (oldest first). A plugin uses this to render

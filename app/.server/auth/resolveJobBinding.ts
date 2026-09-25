@@ -2,7 +2,7 @@ import { hashJobToken } from "./jobCredentialStore";
 import { prisma } from "../db/prisma";
 
 export interface ResolvedJobBinding {
-  jobId: string;
+  providerJobId: string;
   batchId: string;
   offlineSessionId: string;
   organization: string;
@@ -41,13 +41,11 @@ export async function resolveJobBinding(
   const row = await prisma.jobLedgerEntry.findUnique({
     where: { jobTokenHash: hashJobToken(presentedToken) },
   });
-  // A PENDING row carries no provider job id yet; the binding is the row
-  // itself (the token hash matched it), so minting proceeds with an empty
-  // provider id — the window is inert because the container cannot exist
-  // before the provider accepts.
+  // A Pending row carries no provider job id yet; the container cannot exist
+  // before the provider accepts, so the empty provider id is inert.
   if (!row) return null;
   return {
-    jobId: row.jobId ?? "",
+    providerJobId: row.jobId ?? "",
     // Empty only on rows recorded before the credentials table existed; such a
     // row has no batch to mint for.
     batchId: row.batchId ?? "",

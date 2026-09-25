@@ -209,7 +209,7 @@ class JobLedgerImpl implements JobLedger {
 
     if (!job.jobToken) {
       throw new Error(
-        `Job ${job.jobId} has no broker session token — the credential broker cannot resolve it`,
+        `Job ${job.providerJobId} has no broker session token — the credential broker cannot resolve it`,
       );
     }
 
@@ -217,7 +217,7 @@ class JobLedgerImpl implements JobLedger {
       data: {
         batchId: job.batchId,
         jobId: null,
-        status: "PENDING",
+        status: "Pending",
         offlineSessionId: job.offlineSessionId,
         jobTokenHash: hashJobToken(job.jobToken),
         organization: user.organization,
@@ -235,13 +235,13 @@ class JobLedgerImpl implements JobLedger {
     return { id: entry.id };
   }
 
-  async lookup(jobId: string): Promise<JobRecord | null> {
+  async lookup(providerJobId: string): Promise<JobRecord | null> {
     const { user } = requireRequestData();
     if (!user.organization) {
       throw new Error("Active organization missing from session");
     }
     const entry = await prisma.jobLedgerEntry.findFirst({
-      where: { organization: user.organization, jobId },
+      where: { organization: user.organization, jobId: providerJobId },
     });
     return entry ? toJobRecord(entry) : null;
   }
@@ -327,9 +327,7 @@ function toJobRecord(entry: {
   return {
     id: entry.id,
     status: entry.status,
-    // Absent on PENDING rows: the provider job id is runtime information
-    // attached on acceptance.
-    ...(entry.jobId ? { jobId: entry.jobId } : {}),
+    ...(entry.jobId ? { providerJobId: entry.jobId } : {}),
     // Empty on rows predating the credentials table, which have no batch.
     batchId: entry.batchId ?? "",
     offlineSessionId: entry.offlineSessionId,

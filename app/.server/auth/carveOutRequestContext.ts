@@ -39,7 +39,7 @@ export function jobTokenHostRequestData(binding: ResolvedJobBinding): HostReques
     user,
     identity,
     authTokens,
-    sessionId: `job-token:${binding.jobId}`,
+    sessionId: `job-token:${binding.providerJobId}`,
   };
 }
 

@@ -805,7 +805,7 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     await expect(
       ledger.record({
         id: "",
-        status: "PENDING",
+        status: "Pending",
         batchId: "batch-1",
         offlineSessionId: "s1",
         jobToken: "tok",
@@ -861,7 +861,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().record({
         id: "",
-        status: "PENDING",
+        status: "Pending",
         batchId: "batch-1",
         offlineSessionId: "sess-1",
         jobToken: "job-session-token",
@@ -880,7 +880,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       data: {
         batchId: "batch-1",
         jobId: null,
-        status: "PENDING",
+        status: "Pending",
         offlineSessionId: "sess-1",
         // The token is stored as its hash — the raw value never reaches the DB.
         jobTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
@@ -942,7 +942,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().record({
         id: "",
-        status: "PENDING",
+        status: "Pending",
         batchId: "batch-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -996,7 +996,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       await expect(
         hostCapabilities.jobLedger().record({
           id: "",
-          status: "PENDING",
+          status: "Pending",
           batchId: "batch-1",
           offlineSessionId: "sess-1",
           organization: "testcorp",
@@ -1043,7 +1043,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().record({
         id: "",
-        status: "PENDING",
+        status: "Pending",
         batchId: "batch-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -1089,7 +1089,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       await expect(
         hostCapabilities.jobLedger().record({
           id: "",
-          status: "PENDING",
+          status: "Pending",
           batchId: "batch-1",
           offlineSessionId: "sess-1",
           organization: "WRONG_ORG",
@@ -1106,7 +1106,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  test("record returns the ledger row's own id and creates the row PENDING (SDS-CY-080903)", async () => {
+  test("record returns the ledger row's own id and creates the row Pending (SDS-CY-080903)", async () => {
     const create = vi
       .spyOn(prisma.jobLedgerEntry, "create")
       .mockResolvedValue({ id: "row-1" } as never);
@@ -1137,7 +1137,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     const returned = await withHostRequestContext(mockRequestData, async () =>
       hostCapabilities.jobLedger().record({
         id: "",
-        status: "PENDING",
+        status: "Pending",
         batchId: "batch-1",
         offlineSessionId: "sess-1",
         jobToken: "job-session-token",
@@ -1226,7 +1226,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       expect(result).toEqual({
         id: "row-1",
         status: "Queued",
-        jobId: "job-1",
+        providerJobId: "job-1",
         batchId: "batch-1",
         offlineSessionId: "sess-1",
         organization: "testcorp",
@@ -1373,7 +1373,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(result[0]).toEqual({
       id: "row-1",
       status: "Queued",
-      jobId: "job-1",
+      providerJobId: "job-1",
       batchId: "batch-1",
       offlineSessionId: "sess-1",
       organization: "testcorp",
@@ -1424,13 +1424,13 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(result.map((r) => r.organization)).toEqual(["testcorp", "othercorp"]);
   });
 
-  test("list omits jobId on a PENDING row that carries no provider job id yet", async () => {
+  test("list omits providerJobId on a Pending row that carries no provider job id yet", async () => {
     vi.spyOn(prisma.jobLedgerEntry, "findMany").mockResolvedValue([
       {
         id: "row-pending",
         batchId: "batch-1",
         jobId: null,
-        status: "PENDING",
+        status: "Pending",
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "u1",
@@ -1442,8 +1442,8 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       hostCapabilities.jobLedger().list(),
     );
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ id: "row-pending", status: "PENDING" });
-    expect(result[0].jobId).toBeUndefined();
+    expect(result[0]).toMatchObject({ id: "row-pending", status: "Pending" });
+    expect(result[0].providerJobId).toBeUndefined();
   });
 
   test("listAll still requires a request context (throws outside one)", async () => {
@@ -1567,7 +1567,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       withHostRequestContext(noOrgData, async () =>
         hostCapabilities.jobLedger().record({
           id: "",
-          status: "PENDING",
+          status: "Pending",
           batchId: "batch-1",
           offlineSessionId: "s1",
           organization: "x",

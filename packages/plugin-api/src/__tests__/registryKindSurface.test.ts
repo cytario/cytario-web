@@ -37,8 +37,3 @@ test("the value sets are the closed unions (kind: 4 values, mode: 2)", () => {
   expect(kinds).toHaveLength(4);
   expect(modes).toHaveLength(2);
 });
-
-// The registryKind and credentialMode fields landed in 6.9.0 and the picker
-// folder mode in 6.10.0; the floor has since moved on, so this file asserts
-// nothing about the version literal — that guard moved to the pull-secrets
-// surface test with the newest minor.

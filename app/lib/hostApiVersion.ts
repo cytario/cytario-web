@@ -22,12 +22,5 @@
 // version for the host gate, but a plugin that consumed `TokenGrant.token` must
 // move to the new capability — and this one is not backward compatible for such
 // a consumer within 6.x, despite the minor.
-//
-// 6.13.0: `JobLedger.record` returns the ledger row's `id` and gains the
-// patch-shaped `update`; `remove` re-keys to the row `id`; `JobRecord` gains
-// `id`/`status` with `jobId` now runtime-optional, and the `JobStatus`
-// vocabulary moves here from the compute plugin — additive at a minor version
-// for the host gate, but a plugin that consumed the old `remove(jobId)`
-// signature must move to the row-id key.
 
 export const HOST_API_VERSION = "6.13.0";

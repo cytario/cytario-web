@@ -80,15 +80,15 @@ connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectio
 // Host-owned running-jobs ledger. Carries identifiers only — the provider job
 // identifier, the grant's offline-session identifier, the organization, and the
 // submitting user — never token or credential material. A row is recorded in
-// PENDING before the provider is called, updated with the provider job id and
+// Pending before the provider is called, updated with the provider job id and
 // reported state on acceptance, and removed only after its grant's revocation
 // is confirmed.
 //
 // jobId is runtime information attached on acceptance, so it is nullable until
 // the provider accepts; Postgres treats NULLs as distinct in the UNIQUE index,
-// which keeps multiple PENDING rows per org legal without a partial index.
+// which keeps multiple Pending rows per org legal without a partial index.
 enum JobStatus {
-PENDING
+Pending
 Queued
 Running
 Completed
@@ -102,7 +102,7 @@ model JobLedgerEntry {
   id               String    @id @default(uuid())
   batchId          String?
   jobId            String?
-  status           JobStatus @default(PENDING)
+  status           JobStatus @default(Pending)
   offlineSessionId String
   organization     String
   owner            String

@@ -199,7 +199,7 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
       // container abandon a valid job. The caller gets a retryable status and a
       // fixed message; the detail goes to the host log, never to the container.
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`${label} mint failed for job ${binding.jobId}:`, message);
+      console.error(`${label} mint failed for job ${binding.providerJobId}:`, message);
       return jsonError(503, "The credential broker is temporarily unavailable.");
     }
   });
