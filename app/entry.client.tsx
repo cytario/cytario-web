@@ -3,16 +3,19 @@ import { hydrateRoot } from "react-dom/client";
 import { HydratedRouter } from "react-router/dom";
 
 import { contextMenuRegistry } from "./components/contextMenuRegistry";
+import { imageMetadataRegistry } from "./components/imageMetadataRegistry";
 import { sidebarNavRegistry } from "./components/sidebarNavRegistry";
 import { slotRegistry } from "./components/slotRegistry";
 import { storagePickerRegistry } from "./components/storagePickerRegistry";
 import { viewerRegistry } from "./components/viewerRegistry";
 import { clientRouteRegistry } from "./lib/clientRouteRegistry";
+import { imageMetadata } from "./lib/imageMetadata";
 import { storagePicker } from "./lib/storagePicker";
 import { bootstrapPlugins } from "./plugins.generated";
 import { startMemoryWatchdog } from "./utils/memoryWatchdog";
 
 storagePickerRegistry.set(storagePicker);
+imageMetadataRegistry.set(imageMetadata);
 
 // Await bootstrap before hydrating so registry-derived gates (e.g. the
 // `getFileCategory` viewer gate) see plugin-contributed formats on the first
@@ -29,6 +32,7 @@ await bootstrapPlugins(
     contextMenus: contextMenuRegistry,
     sidebarNav: sidebarNavRegistry,
     storagePicker: storagePickerRegistry,
+    imageMetadata: imageMetadataRegistry,
     viewers: viewerRegistry,
     routes: clientRouteRegistry,
     env: "client",

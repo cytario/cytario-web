@@ -10,6 +10,7 @@ import type {
   SidebarNavRegistry,
   SlotRegistry,
   StoragePickerRegistry,
+  ImageMetadataRegistry,
   UserManagementGateRegistry,
   ViewerRegistry,
 } from "@cytario/plugin-api";
@@ -33,6 +34,7 @@ export interface BootstrapRegistries {
   contextMenus?: Scoped<ContextMenuRegistry>;
   sidebarNav?: Scoped<SidebarNavRegistry>;
   storagePicker?: Scoped<StoragePickerRegistry>;
+  imageMetadata?: Scoped<ImageMetadataRegistry>;
   viewers?: Scoped<ViewerRegistry>;
   routes?: Scoped<RouteRegistry>;
   serverEndpoints?: Scoped<ServerEndpointRegistry>;
@@ -60,6 +62,10 @@ const noopSidebarNavRegistry: Scoped<SidebarNavRegistry> = {
 };
 
 const noopStoragePickerRegistry: Scoped<StoragePickerRegistry> = {
+  scopedFor: () => ({ get: () => null }),
+};
+
+const noopImageMetadataRegistry: Scoped<ImageMetadataRegistry> = {
   scopedFor: () => ({ get: () => null }),
 };
 
@@ -92,6 +98,7 @@ export async function bootstrapPluginsCore(
   const contextMenus = registries?.contextMenus ?? noopContextMenuRegistry;
   const sidebarNav = registries?.sidebarNav ?? noopSidebarNavRegistry;
   const storagePicker = registries?.storagePicker ?? noopStoragePickerRegistry;
+  const imageMetadata = registries?.imageMetadata ?? noopImageMetadataRegistry;
   const viewers = registries?.viewers ?? noopViewerRegistry;
   const routes = registries?.routes ?? noopRouteRegistry;
   const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
@@ -123,6 +130,7 @@ export async function bootstrapPluginsCore(
       contextMenus: contextMenus.scopedFor(plugin.name),
       sidebarNav: sidebarNav.scopedFor(plugin.name),
       storagePicker: storagePicker.scopedFor(plugin.name),
+      imageMetadata: imageMetadata.scopedFor(plugin.name),
       viewers: viewers.scopedFor(plugin.name),
       routes: routes.scopedFor(plugin.name),
       serverEndpoints: serverEndpoints.scopedFor(plugin.name),

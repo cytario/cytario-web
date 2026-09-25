@@ -4,6 +4,7 @@ import type {
   ContextMenuRegistry,
   GateRegistry,
   HostCapabilities,
+  ImageMetadataRegistry,
   Logger,
   PluginContext,
   RouteRegistry,
@@ -299,6 +300,29 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
       expect(viewers.scopedFor).toHaveBeenCalledWith("capture-plugin");
       expect(sink.ctx?.viewers).toBe(scoped);
       expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("injects the image-metadata registry scoped to the plugin name; env is client", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const scoped: ImageMetadataRegistry = { get: vi.fn(() => null) };
+      const imageMetadata = { scopedFor: vi.fn(() => scoped) };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        imageMetadata,
+        env: "client",
+      });
+
+      expect(imageMetadata.scopedFor).toHaveBeenCalledWith("capture-plugin");
+      expect(sink.ctx?.imageMetadata).toBe(scoped);
+      expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("the image-metadata no-op sink returns null when not injected", async () => {
+      const sink: { ctx?: PluginContext } = {};
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger());
+
+      expect(sink.ctx?.imageMetadata.get()).toBeNull();
     });
 
     test("no-op sinks are supplied when registries are not injected", async () => {
