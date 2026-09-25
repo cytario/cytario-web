@@ -2,7 +2,8 @@ import { act, render, waitFor } from "@testing-library/react";
 import { MemoryRouter, useNavigate, useRouteLoaderData, type NavigateFunction } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { TourProvider } from "../TourProvider";
+import { TourProvider, TOURS_DISABLED_STORAGE_KEY } from "../TourProvider";
+import { useTourControllerStore } from "../useTourController";
 import { useTourProgressStore } from "../useTourProgress";
 
 vi.mock("~/hooks/useCurrentUser", () => ({
@@ -83,6 +84,49 @@ describe("TourProvider", () => {
     renderAt("/", 1);
     vi.advanceTimersByTime(2000);
 
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    vi.useRealTimers();
+  });
+
+  test('skips auto-start when the runtime opt-out flag is "true"', async () => {
+    localStorage.setItem(TOURS_DISABLED_STORAGE_KEY, "true");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderAt("/", 1);
+    vi.advanceTimersByTime(2000);
+
+    expect(firstTooltipTitle()).toBeNull();
+    vi.useRealTimers();
+  });
+
+  test("still auto-starts when the opt-out flag is absent", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderAt("/", 1);
+    vi.advanceTimersByTime(2000);
+
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    vi.useRealTimers();
+  });
+
+  test("still auto-starts when the opt-out flag holds any other value", async () => {
+    localStorage.setItem(TOURS_DISABLED_STORAGE_KEY, "false");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderAt("/", 1);
+    vi.advanceTimersByTime(2000);
+
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    vi.useRealTimers();
+  });
+
+  test("manual replay from the Help menu still starts with the opt-out flag set", async () => {
+    localStorage.setItem(TOURS_DISABLED_STORAGE_KEY, "true");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderAt("/", 1);
+    vi.advanceTimersByTime(2000);
+    expect(firstTooltipTitle()).toBeNull();
+
+    act(() => {
+      useTourControllerStore.getState().requestTour("getting-started");
+    });
     await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
     vi.useRealTimers();
   });
