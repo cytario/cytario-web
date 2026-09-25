@@ -1,7 +1,36 @@
 import type { ImageMetadata, Image, LoadOptions } from "@cytario/plugin-api";
-import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
+import {
+  DuplicateRegistrationError,
+  formatRegistry,
+} from "~/components/ImageViewer/state/formatRegistry";
 import { liveCredentials, resolveResourceId } from "~/utils/connectionsStore/selectors";
 import { createSignedFetch } from "~/utils/signedFetch";
+
+// The built-in OME-TIFF/OME-Zarr handlers otherwise register only when a
+// viewer chunk mounts (viewerRegistry module scope), but this capability must
+// answer with no viewer ever mounted. The builtins module statically imports
+// geotiff/viv, which must stay out of the entry and SSR bundles — hence the
+// lazy import, which lands those deps in the shared viewer chunk instead.
+let builtinFormatsModule: Promise<{
+  registerBuiltinFormats: () => void;
+}> | null = null;
+
+async function ensureBuiltinFormats(): Promise<void> {
+  builtinFormatsModule ??= import("~/components/.client/ImageViewer/state/formats/builtins");
+  try {
+    const { registerBuiltinFormats } = await builtinFormatsModule;
+    registerBuiltinFormats();
+  } catch (error) {
+    // A failed chunk load must not poison later calls; let the next read retry.
+    builtinFormatsModule = null;
+    // A collision means another handler already owns the extension (a plugin
+    // registered it before any viewer mounted); the resolve below is the
+    // decision point. Only chunk-load failures rethrow.
+    if (!(error instanceof DuplicateRegistrationError)) {
+      throw error;
+    }
+  }
+}
 
 class ImageMetadataImpl implements ImageMetadata {
   async read(connectionId: string, path: string): Promise<Image | null> {
@@ -13,6 +42,7 @@ class ImageMetadataImpl implements ImageMetadata {
         resolved.region,
         connectionId,
       );
+      await ensureBuiltinFormats();
       const opts: LoadOptions = { signedFetch };
       const { handler } = formatRegistry.resolve(resolved.httpsUrl);
       if (handler.readCharacteristics) {
