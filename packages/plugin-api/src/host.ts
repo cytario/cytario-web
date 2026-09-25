@@ -183,6 +183,15 @@ export interface ProviderResourceEnvelope {
    * omit it.
    */
   supportedVcpuMemoryPairs?: readonly [string, string][];
+  /**
+   * Ascending memory rungs, as Kubernetes-style quantities (e.g.
+   * `["16Gi", "32Gi", "64Gi"]`). Generalizes the Fargate-only pair set to
+   * any compute environment: an effective memory request is tiered up to
+   * the next rung, and a request above the top rung is unsatisfiable.
+   * Absent means no ladder is enforced — the ceiling check falls back to
+   * `memory` alone.
+   */
+  memorySteps?: readonly string[];
 }
 
 /**

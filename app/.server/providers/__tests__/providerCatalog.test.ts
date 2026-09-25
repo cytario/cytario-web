@@ -313,6 +313,81 @@ describe("providerCatalogSchema", () => {
     };
     expect(() => providerCatalogSchema.parse(withEmptyArn)).toThrow();
   });
+
+  test("parses a memorySteps ladder on the compute-provider typeSpecific", () => {
+    const withLadder = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
+          },
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withLadder);
+    expect(catalog.computeProviders[0].typeSpecific.memorySteps).toEqual([
+      "16Gi",
+      "32Gi",
+      "64Gi",
+      "192Gi",
+    ]);
+  });
+
+  test("parses a comma-separated memorySteps string and tolerates null/absence", () => {
+    const withString = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            memorySteps: "16Gi,32Gi",
+          },
+        },
+      ],
+    };
+    expect(
+      providerCatalogSchema.parse(withString).computeProviders[0].typeSpecific.memorySteps,
+    ).toBe("16Gi,32Gi");
+
+    const withNull = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            memorySteps: null,
+          },
+        },
+      ],
+    };
+    expect(
+      providerCatalogSchema.parse(withNull).computeProviders[0].typeSpecific.memorySteps,
+    ).toBeNull();
+
+    const catalog = providerCatalogSchema.parse(CATALOG);
+    expect(catalog.computeProviders[0].typeSpecific.memorySteps).toBeUndefined();
+  });
+
+  test("rejects an empty rung inside a memorySteps array (min(1) in force)", () => {
+    const withEmpty = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            memorySteps: ["16Gi", ""],
+          },
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(withEmpty)).toThrow();
+  });
 });
 
 describe("getProviderCatalog (OSS build)", () => {
