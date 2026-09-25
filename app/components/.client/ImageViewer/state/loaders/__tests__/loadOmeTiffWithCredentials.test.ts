@@ -1,6 +1,7 @@
 import {
   stripUnsupportedSubImages,
   isStrippedBeyondRenderBudget,
+  parseNominalMagnification,
 } from "../loadOmeTiffWithCredentials";
 
 function omeImage(
@@ -12,6 +13,9 @@ function omeImage(
     tiffData?: string[];
     interleaved?: boolean;
     channelSpp?: number[];
+    /** Emits an ObjectiveSettings IDRef inside Pixels, pointing at this Objective ID. */
+    objectiveId?: string;
+    instrumentRef?: boolean;
   },
 ): string {
   const sizeZ = opts.sizeZ ?? 1;
@@ -22,17 +26,36 @@ function omeImage(
     .join("");
   const tiffData = (opts.tiffData ?? [`<TiffData IFD="0"/>`]).join("");
   const interleaved = opts.interleaved ? ` Interleaved="true"` : "";
+  const instrumentRef =
+    opts.instrumentRef === false ? "" : `<InstrumentRef ID="Instrument:${id}"/>`;
+  const objectiveSettings = opts.objectiveId
+    ? `<ObjectiveSettings IDRef="${opts.objectiveId}"/>`
+    : "";
   return (
     `<Image ID="Image:${id}" Name="${id}">` +
+    `${instrumentRef}${objectiveSettings}` +
     `<Pixels DimensionOrder="XYCZT" Type="uint8" SizeX="64" SizeY="64"` +
     ` SizeZ="${sizeZ}" SizeC="${opts.sizeC}" SizeT="${sizeT}"${interleaved}>` +
     `${channels}${tiffData}</Pixels></Image>`
   );
 }
 
-function wrap(...images: string[]): string {
+/** Sibling Instrument block — Objective lives here per the OME schema, not inside Image. */
+function omeInstrument(id: string, objectives: string[]): string {
+  return `<Instrument ID="Instrument:${id}">${objectives.join("")}</Instrument>`;
+}
+
+function omeObjective(id: string, nominalMagnification?: string): string {
+  return (
+    `<Objective ID="${id}" LensNA="0.4"` +
+    (nominalMagnification === undefined ? "" : ` NominalMagnification="${nominalMagnification}"`) +
+    "/>"
+  );
+}
+
+function wrap(...parts: string[]): string {
   const ns = `xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06"`;
-  return `<OME ${ns}>${images.join("")}</OME>`;
+  return `<OME ${ns}>${parts.join("")}</OME>`;
 }
 
 describe("stripUnsupportedSubImages", () => {
@@ -136,5 +159,55 @@ describe("isStrippedBeyondRenderBudget", () => {
   test("allows small stripped IFDs", () => {
     expect(isStrippedBeyondRenderBudget({ StripOffsets: new Array(64) })).toBe(false);
     expect(isStrippedBeyondRenderBudget({})).toBe(false);
+  });
+});
+
+describe("parseNominalMagnification", () => {
+  test("resolves the first Image's Objective via InstrumentRef and ObjectiveSettings", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objectiveId: "Objective:0:0" }),
+      omeInstrument("0", [omeObjective("Objective:0:0", "40")]),
+      omeImage("1", { sizeC: 1, objectiveId: "Objective:1:0" }),
+      omeInstrument("1", [omeObjective("Objective:1:0", "20")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(40);
+  });
+
+  test("falls back to the referenced Instrument's first Objective without ObjectiveSettings", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1 }),
+      omeInstrument("0", [omeObjective("Objective:0:0"), omeObjective("Objective:0:1", "63")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(63);
+  });
+
+  test("falls back to any document Objective when the Image has no InstrumentRef", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, instrumentRef: false }),
+      omeInstrument("0", [omeObjective("Objective:0:0", "20")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(20);
+  });
+
+  test("parses float magnification values", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objectiveId: "Objective:0:0" }),
+      omeInstrument("0", [omeObjective("Objective:0:0", "63.0")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(63);
+  });
+
+  test("rejects non-positive NominalMagnification values", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objectiveId: "Objective:0:0" }),
+      omeInstrument("0", [omeObjective("Objective:0:0", "0")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBeUndefined();
+  });
+
+  test("returns undefined when no Objective is declared", () => {
+    const omexml = wrap(omeImage("0", { sizeC: 1 }));
+    expect(parseNominalMagnification(omexml)).toBeUndefined();
+    expect(parseNominalMagnification("not xml at all")).toBeUndefined();
   });
 });

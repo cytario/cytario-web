@@ -9,6 +9,7 @@ import {
   LayerChannelsState,
   ViewerStore,
 } from "./types";
+import { DEFAULT_OBJECTIVE_POWER } from "@cytario/plugin-api";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const EMPTY_OBJECT = Object.freeze({});
@@ -98,6 +99,9 @@ export const select = {
   valueRange: (state: ViewerStore) => state.valueRange,
 
   metadata: (state: ViewerStore) => state.metadata,
+
+  objectivePower: (state: ViewerStore) =>
+    state.metadata?.NominalMagnification ?? DEFAULT_OBJECTIVE_POWER,
 
   minZoom: (state: ViewerStore) => -(state.loader?.length ?? 0),
   maxZoom: () => 2,

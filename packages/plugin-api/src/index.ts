@@ -23,7 +23,7 @@ export type {
   TileRequest,
   TileSelection,
 } from "./image";
-export { normalizePixelType } from "./image";
+export { normalizePixelType, DEFAULT_OBJECTIVE_POWER } from "./image";
 export type { Identity } from "./auth";
 export type { GateOutcome, GateRequest, SessionGate, GateRegistry } from "./gates";
 export type {

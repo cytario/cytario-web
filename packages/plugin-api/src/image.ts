@@ -73,11 +73,16 @@ export interface PixelsMetadata {
   Description?: string;
 }
 
+/** Magnification assumed when metadata declares no objective power. */
+export const DEFAULT_OBJECTIVE_POWER = 20;
+
 export interface Image {
   ID?: string;
   Name?: string;
   AcquisitionDate?: string;
   Description?: string;
+  /** OME-XML Objective NominalMagnification; absent when metadata declares none. */
+  NominalMagnification?: number;
   Pixels: PixelsMetadata;
 }
 
