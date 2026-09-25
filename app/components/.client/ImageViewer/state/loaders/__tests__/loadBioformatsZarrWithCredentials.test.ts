@@ -1,11 +1,21 @@
 import type { RootAttrs } from "@hms-dbmi/viv";
+import { vi } from "vitest";
 
 import type { Loader } from "../../store/core/ome.tif.types";
 import {
   parseOmeroColor,
   extractPhysicalSizes,
+  fetchNominalMagnification,
   rootAttrsToImage,
+  loadBioformatsZarrWithCredentials,
 } from "../loadBioformatsZarrWithCredentials";
+
+const companionXml =
+  `<OME xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06">` +
+  `<Image ID="Image:0"><InstrumentRef ID="Instrument:0"/><ObjectiveSettings ID="Objective:0:0"/>` +
+  `<Pixels SizeX="64" SizeY="64" SizeZ="1" SizeC="3" SizeT="1"><TiffData IFD="0"/></Pixels></Image>` +
+  `<Instrument ID="Instrument:0">` +
+  `<Objective ID="Objective:0:0" NominalMagnification="40"/></Instrument></OME>`;
 
 // Helper to create a mock loader with shape and labels
 function createMockLoader(shape: number[], labels: string[], dtype = "uint16"): Loader {
@@ -274,5 +284,89 @@ describe("rootAttrsToImage", () => {
     const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.Type).toBe("Uint16");
+  });
+});
+
+describe("fetchNominalMagnification", () => {
+  test("parses the companion OME-XML when present", async () => {
+    const signedFetch = vi.fn(async () => new Response(companionXml, { status: 200 }));
+
+    const result = await fetchNominalMagnification(signedFetch, "s3://bucket/image.ome.zarr", {});
+
+    expect(result).toBe(40);
+    expect(signedFetch).toHaveBeenCalledWith("s3://bucket/image.ome.zarr/OME/METADATA.ome.xml", {});
+  });
+
+  test("returns undefined when the companion is absent", async () => {
+    const signedFetch = vi.fn(async () => new Response("Not Found", { status: 404 }));
+
+    expect(await fetchNominalMagnification(signedFetch, "s3://bucket/image.ome.zarr", {})).toBe(
+      undefined,
+    );
+  });
+
+  test("returns undefined when the companion fetch throws", async () => {
+    const signedFetch = vi.fn(async () => {
+      throw new Error("network error");
+    });
+
+    expect(await fetchNominalMagnification(signedFetch, "s3://bucket/image.ome.zarr", {})).toBe(
+      undefined,
+    );
+  });
+
+  test("returns undefined when the companion declares no objective", async () => {
+    const signedFetch = vi.fn(
+      async () =>
+        new Response(
+          `<OME xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06">` +
+            `<Image ID="Image:0"><Pixels SizeX="64" SizeY="64" SizeZ="1" SizeC="3" SizeT="1">` +
+            `<TiffData IFD="0"/></Pixels></Image></OME>`,
+          { status: 200 },
+        ),
+    );
+
+    expect(await fetchNominalMagnification(signedFetch, "s3://bucket/image.ome.zarr", {})).toBe(
+      undefined,
+    );
+  });
+});
+
+vi.mock("@hms-dbmi/viv", () => ({
+  loadOmeZarrFromStore: vi.fn(),
+}));
+
+describe("loadBioformatsZarrWithCredentials companion wiring", () => {
+  test("stamps companion magnification onto the metadata", async () => {
+    const { loadOmeZarrFromStore } = await import("@hms-dbmi/viv");
+    vi.mocked(loadOmeZarrFromStore).mockResolvedValue({
+      data: createMockLoader([1, 1, 1, 512, 512], ["t", "c", "z", "y", "x"]),
+      metadata: createRootAttrs({ name: "Zarr Image" }),
+    } as never);
+
+    const signedFetch = vi.fn(async () => new Response(companionXml, { status: 200 }));
+
+    const result = await loadBioformatsZarrWithCredentials("s3://bucket/image.ome.zarr", {
+      signedFetch,
+    } as never);
+
+    expect(result.metadata.NominalMagnification).toBe(40);
+    expect(signedFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("leaves metadata without magnification when the companion is missing", async () => {
+    const { loadOmeZarrFromStore } = await import("@hms-dbmi/viv");
+    vi.mocked(loadOmeZarrFromStore).mockResolvedValue({
+      data: createMockLoader([1, 1, 1, 512, 512], ["t", "c", "z", "y", "x"]),
+      metadata: createRootAttrs({ name: "Zarr Image" }),
+    } as never);
+
+    const signedFetch = vi.fn(async () => new Response("Not Found", { status: 404 }));
+
+    const result = await loadBioformatsZarrWithCredentials("s3://bucket/image.ome.zarr", {
+      signedFetch,
+    } as never);
+
+    expect(result.metadata.NominalMagnification).toBeUndefined();
   });
 });

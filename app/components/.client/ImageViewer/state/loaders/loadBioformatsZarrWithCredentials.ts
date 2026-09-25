@@ -1,9 +1,10 @@
 import { loadOmeZarrFromStore, type RootAttrs } from "@hms-dbmi/viv";
 
+import { parseNominalMagnification } from "./loadOmeTiffWithCredentials";
 import type { Image, Loader } from "../store/core/ome.tif.types";
 import { CredentialedHTTPStore } from "../transport/CredentialedHTTPStore";
 import { normalizePixelType } from "@cytario/plugin-api";
-import type { LoadOptions } from "@cytario/plugin-api";
+import type { LoadOptions, SignedFetch } from "@cytario/plugin-api";
 
 /**
  * Load OME-Zarr via SigV4-signed S3 requests. `signal` is best-effort —
@@ -13,7 +14,7 @@ export async function loadBioformatsZarrWithCredentials(
   source: string,
   opts: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
-  const { signedFetch, headers } = opts;
+  const { signedFetch, headers, signal } = opts;
   const baseUrl = source.endsWith("/") ? source.slice(0, -1) : source;
 
   // Series 0 — bioformats2raw puts multiscales under 0/; root has only
@@ -22,11 +23,36 @@ export async function loadBioformatsZarrWithCredentials(
   const result = await loadOmeZarrFromStore(store);
 
   const loader = result.data as Loader;
+  const metadata = rootAttrsToImage(result.metadata, loader);
 
-  return {
-    data: loader,
-    metadata: rootAttrsToImage(result.metadata, loader),
-  };
+  const nominalMagnification = await fetchNominalMagnification(signedFetch, baseUrl, {
+    signal,
+    headers,
+  });
+  if (nominalMagnification !== undefined) {
+    metadata.NominalMagnification = nominalMagnification;
+  }
+
+  return { data: loader, metadata };
+}
+
+/**
+ * Objective power from the bioformats2raw OME-XML companion. NGFF root attrs
+ * carry no objective, so the first Image's Objective is read from
+ * OME/METADATA.ome.xml when present. Exported for testing.
+ */
+export async function fetchNominalMagnification(
+  signedFetch: SignedFetch,
+  baseUrl: string,
+  init: { signal?: AbortSignal; headers?: Record<string, string> } = {},
+): Promise<number | undefined> {
+  try {
+    const res = await signedFetch(`${baseUrl}/OME/METADATA.ome.xml`, init);
+    if (!res.ok) return undefined;
+    return parseNominalMagnification(await res.text());
+  } catch {
+    return undefined;
+  }
 }
 
 // Present in NGFF runtime metadata, not typed in viv's RootAttrs.
