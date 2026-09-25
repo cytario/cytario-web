@@ -15,6 +15,8 @@ const AUTOSTART_DELAY_MS = 1500;
 const TARGET_WAIT_MS = 30000;
 /** Above the header (z-20), floating panels (z-40..49) and viewer chrome (z-50). */
 const TOUR_Z_INDEX = 150;
+/** Runtime opt-out for automated harnesses that clear localStorage (e2e state resets). */
+export const TOURS_DISABLED_STORAGE_KEY = "cytario-tours-disabled";
 
 interface ActiveTour {
   definition: TourDefinition;
@@ -22,6 +24,15 @@ interface ActiveTour {
 
 interface ProtectedLayoutData {
   connectionConfigs?: unknown[];
+}
+
+/** A blocked localStorage must read as "not disabled", never crash the provider. */
+function isTourAutoStartSuppressed(): boolean {
+  try {
+    return window.localStorage.getItem(TOURS_DISABLED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
 }
 
 export function TourProvider({ children }: { children?: ReactNode }) {
@@ -57,7 +68,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
   // must not consume the viewer tour's only auto-start.
   const autoStartedTourIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!sub) return;
+    if (!sub || isTourAutoStartSuppressed()) return;
     const candidate = tourRegistry.find(
       (tour) =>
         !autoStartedTourIdsRef.current.has(tour.id) &&
