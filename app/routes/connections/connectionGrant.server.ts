@@ -14,6 +14,7 @@ import {
   type ApplyTarget,
   applyBucketPolicy,
 } from "~/.server/storage/bucketPolicyApply.server";
+import { type RustfsBucketPolicyGrant } from "~/.server/storage/rustfsBucketPolicy";
 import { cytarioConfig } from "~/config";
 import { ORG_ROOT_SCOPE, adminCovers } from "~/utils/authorization";
 import type { BucketCatalog } from "~/utils/bucketCatalog.schema";
@@ -33,17 +34,35 @@ export interface ActingContext {
   accessToken: string;
 }
 
-/** Build the managed bucket-policy grant a single grant row intends: the
- * grant's `accessLevel` is resolved to a concrete role ARN (and validated
- * level) by the caller and injected so the fail-closed policy generator
- * accepts it. */
+/**
+ * Build the managed bucket-policy grant a single grant row intends. The grant's
+ * `accessLevel` is resolved to a concrete role ARN (and validated level) by the
+ * caller (via the provider catalog) and injected onto the `BucketPolicyGrant` so
+ * the fail-closed policy generator accepts it. A RustFS-backed provider
+ * connection yields the RustFS grant shape — no role-ARN Principal; the
+ * single composite `jwt:groups` value (`<org-marker>/<group-path>`) carries
+ * the tenant and group binding. The returned grant is discriminated by
+ * `kind`, and a grant set must be homogeneous in it to compile.
+ */
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
   grant: { scope: string },
   roleArn: string,
   accessLevel: ConnectionProvider["accessLevel"],
-): BucketPolicyGrant {
+  providerType?: "aws" | "rustfs",
+): BucketPolicyGrant | RustfsBucketPolicyGrant {
+  if (providerType === "rustfs") {
+    return {
+      kind: "rustfs",
+      organization: config.organization,
+      bucketName: config.bucketName,
+      groupPath: grant.scope,
+      prefix: config.prefix,
+      accessLevel,
+    };
+  }
   return {
+    kind: "aws",
     organization: config.organization,
     bucketName: config.bucketName,
     groupPath: grant.scope,
@@ -57,21 +76,27 @@ export function grantForConnection(
 export type ConnectionConfigWithGrants = ConnectionConfig & { grants: ConnectionGrant[] };
 
 /**
- * Assemble the FULL desired managed grant set for a bucket in the active org
- * from its persisted connections' grants. Passing the full set to
- * `applyBucketPolicy` makes the write idempotent and makes un-share fall out
- * naturally — a removed connection is simply absent from the set. Grants
- * whose level has no role for the bucket (stale catalog / role deleted) are
- * skipped — they cannot contribute a Principal and would fail the
- * generator.
+ * Assemble the FULL desired managed grant set for a bucket in the active org from
+ * its persisted connections' grants. Grants derive from already-persisted rows —
+ * each row was authorized against its submitted scope when it was created or
+ * updated; no additional per-row authorization happens here. Passing the full set
+ * to `applyBucketPolicy` makes the write idempotent and makes un-share fall out
+ * naturally — a removed connection is simply absent from the set.
+ *
+ * Each grant's `accessLevel` is resolved against the catalog to a concrete role;
+ * grants whose level has no role for the bucket (stale catalog / role deleted)
+ * are skipped — they cannot contribute a Principal or a condition and would
+ * fail the generator. A RustFS-backed provider connection compiles through the
+ * RustFS generator instead of the AWS one.
  */
 export function assembleBucketGrants(
   configs: ConnectionConfigWithGrants[],
   catalog: ProviderCatalog,
   bucketCatalog?: BucketCatalog,
-): BucketPolicyGrant[] {
-  const grants: BucketPolicyGrant[] = [];
+): Array<BucketPolicyGrant | RustfsBucketPolicyGrant> {
+  const grants: Array<BucketPolicyGrant | RustfsBucketPolicyGrant> = [];
   for (const config of configs) {
+    const providerConnection = findProviderConnection(catalog, config.providerConnectionId);
     const bucketRow = bucketCatalog
       ? findBucketByName(bucketCatalog, config.providerConnectionId, config.bucketName)
       : undefined;
@@ -82,7 +107,21 @@ export function assembleBucketGrants(
         ...(bucketRow ? { bucketId: bucketRow.id } : {}),
       });
       if (!storageRole) continue;
-      grants.push(grantForConnection(config, grant, storageRole.roleArn, storageRole.accessLevel));
+      const grantKind = grantProviderTypeOf(providerConnection?.providerType);
+      if (!grantKind) {
+        throw new Error(
+          "Cannot assemble bucket grants: the connection's provider connection is absent from the catalog (fail closed).",
+        );
+      }
+      grants.push(
+        grantForConnection(
+          config,
+          grant,
+          storageRole.roleArn,
+          storageRole.accessLevel,
+          grantKind === "rustfs" ? "rustfs" : undefined,
+        ),
+      );
     }
   }
   return grants;
@@ -269,6 +308,33 @@ function connectionProviderFor(
   };
 }
 
+/** The provider type of an `ApplyTarget`, narrowed to the engines we have. */
+const applyProviderTypeOf = (providerType: ConnectionProvider["providerType"]): "aws" | "rustfs" =>
+  providerType === "rustfs" ? "rustfs" : "aws";
+
+/** The provider type of a connection's grant assembly, fail-closed on drift. */
+const grantProviderTypeOf = (providerType: string | undefined): "aws" | "rustfs" | undefined =>
+  providerType === "rustfs" ? "rustfs" : providerType === "aws" ? "aws" : undefined;
+
+/** Build the `ApplyTarget` for a resolved connection provider + bucket. */
+function applyTargetFor(
+  config: ConnectionConfigWithGrants,
+  connectionProvider: ConnectionProvider,
+  kmsKeyArn?: string | null,
+): ApplyTarget {
+  const base = {
+    organization: config.organization,
+    bucketName: config.bucketName,
+    region: connectionProvider.region,
+    endpoint: connectionProvider.endpoint,
+    roleArn: connectionProvider.roleArn,
+  };
+  if (applyProviderTypeOf(connectionProvider.providerType) === "rustfs") {
+    return { ...base, endpoint: connectionProvider.endpoint ?? "", providerType: "rustfs" };
+  }
+  return { ...base, kmsKeyArn, providerType: "aws" };
+}
+
 /**
  * Resolve the best `ApplyTarget` across ALL connections on a bucket: prefer
  * one with an Admin-level grant so the `PutBucketPolicy` write succeeds;
@@ -295,13 +361,7 @@ function resolveApplyTargetFromSet(
       return {
         ok: true,
         connectionProvider,
-        target: {
-          organization: config.organization,
-          bucketName: config.bucketName,
-          region: connectionProvider.region,
-          endpoint: connectionProvider.endpoint,
-          roleArn: connectionProvider.roleArn,
-        },
+        target: applyTargetFor(config, connectionProvider),
       };
     }
   }
@@ -343,13 +403,7 @@ function resolveApplyTargetFromCatalog(
   return {
     ok: true,
     connectionProvider,
-    target: {
-      organization: config.organization,
-      bucketName: config.bucketName,
-      region: connectionProvider.region,
-      endpoint: connectionProvider.endpoint,
-      roleArn: connectionProvider.roleArn,
-    },
+    target: applyTargetFor(config, connectionProvider),
   };
 }
 
