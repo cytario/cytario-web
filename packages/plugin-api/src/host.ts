@@ -276,13 +276,35 @@ export interface TokenGrant {
 }
 
 /**
- * Ledger record in the host-owned running-jobs ledger. A row is created at
- * submission and removed only after its grant's revocation is confirmed. The
- * host stores only the token hash, and never returns `jobToken` from
- * `lookup`, `list`, or `listAll`.
+ * Provider-neutral job status vocabulary shared by the host, the compute
+ * plugin, and the Jobs View. `Pending` is the ledger row's state before the
+ * provider has accepted the job; every other value is runtime information
+ * the provider reports. The provider→vocabulary mapping stays plugin-side.
  */
+export type JobStatus =
+  | "Pending"
+  | "Queued"
+  | "Running"
+  | "Completed"
+  | "Failed"
+  | "FailedInsufficientResources"
+  | "Stopping"
+  | "Stopped";
+
+/** Terminal statuses — once reached, the job never leaves them. */
+export const TERMINAL_STATUSES: readonly JobStatus[] = [
+  "Completed",
+  "Failed",
+  "FailedInsufficientResources",
+  "Stopped",
+];
+
 export interface JobRecord {
-  jobId: string;
+  /** The ledger row's own identifier — the key for `update` and `remove`. */
+  id: string;
+  status: JobStatus;
+  /** The provider's job identifier, attached by `update` once the provider accepts. */
+  providerJobId?: string;
   batchId: string;
   offlineSessionId: string;
   /**
@@ -342,13 +364,36 @@ export interface JobRecord {
 }
 
 /**
+ * Runtime information the provider reports once it accepts a job, applied to
+ * the ledger row as a patch keyed by the row's own `id`. Extensible: new
+ * runtime fields extend this shape instead of adding a `JobLedger` method.
+ */
+export interface JobRuntimeUpdate {
+  providerJobId?: string;
+  status?: JobStatus;
+}
+
+/**
  * Capability over the host-owned running-jobs ledger. Carries identifiers
  * only, never token material, with the host applying the same tenant
- * pre-filter as the connection store.
+ * pre-filter as the connection store. Row-targeting operations (`update`,
+ * `remove`) key on the ledger row's own `id`, not the provider job id.
  */
 export interface JobLedger {
-  record(job: JobRecord): Promise<void>;
-  lookup(jobId: string): Promise<JobRecord | null>;
+  /**
+   * Records a pending job and returns the ledger row's own identifier — the
+   * key for `update` and `remove`. The row starts `Pending` with no provider
+   * job id; `update` attaches the runtime information once the provider
+   * accepts.
+   */
+  record(job: JobRecord): Promise<{ id: string }>;
+  /**
+   * Attaches the runtime information the provider reports on acceptance —
+   * the provider job id and the reported state. Keyed by the row `id` from
+   * `record`; never terminates a provider job on failure.
+   */
+  update(id: string, patch: JobRuntimeUpdate): Promise<void>;
+  lookup(providerJobId: string): Promise<JobRecord | null>;
   /**
    * Lists all ledger rows for the active organization (tenant pre-filter).
    * Returned in insertion order (oldest first). A plugin uses this to render
@@ -363,7 +408,8 @@ export interface JobLedger {
    * so the tenant pre-filter holds.
    */
   listAll(): Promise<readonly JobRecord[]>;
-  remove(jobId: string): Promise<void>;
+  /** Removes the ledger row with the given row id, cascading the batch credential collection. */
+  remove(id: string): Promise<void>;
 }
 
 /**

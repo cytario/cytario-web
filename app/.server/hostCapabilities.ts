@@ -18,6 +18,8 @@ import type {
   HostCapabilities,
   JobLedger,
   JobRecord,
+  JobRuntimeUpdate,
+  JobStatus,
   ObjectStore,
   TokenGrant,
 } from "@cytario/plugin-api";
@@ -159,7 +161,7 @@ class HostCapabilitiesImpl implements HostCapabilities {
 // store: organization server-injected and never caller-supplied, org
 // pre-filter on read.
 class JobLedgerImpl implements JobLedger {
-  async record(job: JobRecord): Promise<void> {
+  async record(job: JobRecord): Promise<{ id: string }> {
     const { user, authTokens } = requireRequestData();
     if (!user.organization) {
       throw new Error("Active organization missing from session");
@@ -207,14 +209,15 @@ class JobLedgerImpl implements JobLedger {
 
     if (!job.jobToken) {
       throw new Error(
-        `Job ${job.jobId} has no broker session token — the credential broker cannot resolve it`,
+        `Job ${job.providerJobId} has no broker session token — the credential broker cannot resolve it`,
       );
     }
 
-    await prisma.jobLedgerEntry.create({
+    const entry = await prisma.jobLedgerEntry.create({
       data: {
         batchId: job.batchId,
-        jobId: job.jobId,
+        jobId: null,
+        status: "Pending",
         offlineSessionId: job.offlineSessionId,
         jobTokenHash: hashJobToken(job.jobToken),
         organization: user.organization,
@@ -227,31 +230,53 @@ class JobLedgerImpl implements JobLedger {
         s3Endpoint: provider.endpoint,
         providerId: job.providerId ?? null,
       },
+      select: { id: true },
     });
+    return { id: entry.id };
   }
 
-  async lookup(jobId: string): Promise<JobRecord | null> {
+  async lookup(providerJobId: string): Promise<JobRecord | null> {
     const { user } = requireRequestData();
     if (!user.organization) {
       throw new Error("Active organization missing from session");
     }
     const entry = await prisma.jobLedgerEntry.findFirst({
-      where: { organization: user.organization, jobId },
+      where: { organization: user.organization, jobId: providerJobId },
     });
     return entry ? toJobRecord(entry) : null;
   }
 
-  async remove(jobId: string): Promise<void> {
+  async update(id: string, patch: JobRuntimeUpdate): Promise<void> {
+    const { user } = requireRequestData();
+    if (!user.organization) {
+      throw new Error("Active organization missing from session");
+    }
+    // updateMany, not update: the org pre-filter is the tenant boundary, and a
+    // row the filter matches zero times must fail loud — a lost runtime update
+    // cannot go unnoticed.
+    const result = await prisma.jobLedgerEntry.updateMany({
+      where: { id, organization: user.organization },
+      data: {
+        ...(patch.providerJobId !== undefined ? { jobId: patch.providerJobId } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+      },
+    });
+    if (result.count === 0) {
+      throw new Error(`Job ledger row ${id} not found in organization ${user.organization}`);
+    }
+  }
+
+  async remove(id: string): Promise<void> {
     const { user } = requireRequestData();
     // The deployment-secret carve-out dispatches org-agnostic (no session
     // organization) — the same trust boundary as listAll — so the reconciler
-    // removes terminal rows by jobId alone; session callers keep the org filter.
+    // removes terminal rows by id alone; session callers keep the org filter.
     const rows = await prisma.jobLedgerEntry.findMany({
-      where: user.organization ? { organization: user.organization, jobId } : { jobId },
+      where: user.organization ? { organization: user.organization, id } : { id },
       select: { batchId: true },
     });
     await prisma.jobLedgerEntry.deleteMany({
-      where: user.organization ? { organization: user.organization, jobId } : { jobId },
+      where: user.organization ? { organization: user.organization, id } : { id },
     });
     // Removing a job's row is the cancel path (immediate) and the reconciler's
     // terminal sweep alike; the batch's encrypted credentials go with the last
@@ -284,8 +309,10 @@ class JobLedgerImpl implements JobLedger {
 // `jobTokenHash` is deliberately absent from the projection: a ledger read must
 // never carry anything mintable, and the token itself was never stored.
 function toJobRecord(entry: {
+  id: string;
   batchId: string | null;
-  jobId: string;
+  jobId: string | null;
+  status: JobStatus;
   offlineSessionId: string;
   organization: string;
   owner: string;
@@ -298,9 +325,11 @@ function toJobRecord(entry: {
   s3Endpoint: string | null;
 }): JobRecord {
   return {
+    id: entry.id,
+    status: entry.status,
+    ...(entry.jobId ? { providerJobId: entry.jobId } : {}),
     // Empty on rows predating the credentials table, which have no batch.
     batchId: entry.batchId ?? "",
-    jobId: entry.jobId,
     offlineSessionId: entry.offlineSessionId,
     organization: entry.organization,
     owner: entry.owner,

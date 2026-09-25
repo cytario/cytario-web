@@ -75,8 +75,10 @@ export type {
   TokenGrant,
   JobRecord,
   JobLedger,
+  JobRuntimeUpdate,
   HostCapabilities,
 } from "./host";
+export { TERMINAL_STATUSES, type JobStatus } from "./host";
 export type {
   StoragePicker,
   StoragePickerOptions,

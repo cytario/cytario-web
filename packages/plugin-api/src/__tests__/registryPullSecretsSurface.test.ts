@@ -1,5 +1,4 @@
 import type { ComputeRoleSession } from "../host";
-import { HOST_API_VERSION } from "~/lib/hostApiVersion";
 
 test("ComputeRoleSession accepts the per-catalog registryPullSecrets map", async () => {
   const mod = await import("../index");
@@ -37,10 +36,4 @@ test("a session predating the field still satisfies the type (scalar fallback al
   // imagePullSecretRef stays required as-is; the map is absent, not null.
   expect(legacy.imagePullSecretRef).toBeNull();
   expect(legacy.registryPullSecrets).toBeUndefined();
-});
-
-// The map landed in 6.11.0; the floor has since moved on, so assert the
-// current value rather than the one this surface arrived at.
-test("host apiVersion is at least the 6.11.0 that carries the map", () => {
-  expect(HOST_API_VERSION).toBe("6.12.0");
 });

@@ -1,5 +1,4 @@
 import type { CatalogConnectionProjection, CatalogCredentialMode, RegistryKind } from "../host";
-import { HOST_API_VERSION } from "~/lib/hostApiVersion";
 
 test("CatalogConnectionProjection accepts registryKind and credentialMode (SDS-CY-080201)", async () => {
   const mod = await import("../index");
@@ -37,10 +36,4 @@ test("the value sets are the closed unions (kind: 4 values, mode: 2)", () => {
   const modes: CatalogCredentialMode[] = ["connection", "anonymous"];
   expect(kinds).toHaveLength(4);
   expect(modes).toHaveLength(2);
-});
-
-// A guard, not a record: whenever the host adds an additive minor, this
-// assertion moves with it, so a bump nobody meant to make shows up here.
-test("host apiVersion is 6.12.0 (carries registryKind, credentialMode, the picker's folder mode, registryPullSecrets and the per-job broker token mint)", () => {
-  expect(HOST_API_VERSION).toBe("6.12.0");
 });

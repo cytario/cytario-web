@@ -23,4 +23,4 @@
 // move to the new capability — and this one is not backward compatible for such
 // a consumer within 6.x, despite the minor.
 
-export const HOST_API_VERSION = "6.12.0";
+export const HOST_API_VERSION = "6.13.0";

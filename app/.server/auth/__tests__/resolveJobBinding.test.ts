@@ -57,7 +57,7 @@ describe("resolveJobBinding (SRS-CY-416110, SDS-CY-080403)", () => {
     const binding = await resolveJobBinding("a-job-session-token");
 
     expect(binding).toMatchObject({
-      jobId: "job-1",
+      providerJobId: "job-1",
       batchId: "batch-1",
       offlineSessionId: "sess-1",
       organization: "testcorp",
