@@ -79,12 +79,30 @@ connection ConnectionConfig @relation("PinnedPathConnection", fields: [connectio
 
 // Host-owned running-jobs ledger. Carries identifiers only — the provider job
 // identifier, the grant's offline-session identifier, the organization, and the
-// submitting user — never token or credential material. A row is created at
-// submission and removed only after its grant's revocation is confirmed.
+// submitting user — never token or credential material. A row is recorded in
+// PENDING before the provider is called, updated with the provider job id and
+// reported state on acceptance, and removed only after its grant's revocation
+// is confirmed.
+//
+// jobId is runtime information attached on acceptance, so it is nullable until
+// the provider accepts; Postgres treats NULLs as distinct in the UNIQUE index,
+// which keeps multiple PENDING rows per org legal without a partial index.
+enum JobStatus {
+PENDING
+Queued
+Running
+Completed
+Failed
+FailedInsufficientResources
+Stopping
+Stopped
+}
+
 model JobLedgerEntry {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   batchId          String?
-  jobId            String
+  jobId            String?
+  status           JobStatus @default(PENDING)
   offlineSessionId String
   organization     String
   owner            String
@@ -94,9 +112,9 @@ model JobLedgerEntry {
   roleArn          String
   region           String
   s3Endpoint       String?
-  jobTokenHash     String?  @unique
+  jobTokenHash     String?   @unique
   providerId       String?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime  @default(now())
 
   /// The batch's held credentials. A job cannot outlive the batch's
   /// authorization, so the two go together rather than being correlated by a
@@ -107,6 +125,7 @@ model JobLedgerEntry {
   @@unique([organization, jobId])
   @@index([organization, owner])
   @@index([batchId])
+  @@index([status, createdAt])
 }
 
 /// The batch's held credentials — the refresh token and the cached access token

@@ -13,7 +13,8 @@ export interface ResolvedJobBinding {
    * the caller has no way to act on.
    */
   row: {
-    jobId: string;
+    id: string;
+    jobId: string | null;
     batchId: string | null;
     offlineSessionId: string;
     organization: string;
@@ -40,9 +41,13 @@ export async function resolveJobBinding(
   const row = await prisma.jobLedgerEntry.findUnique({
     where: { jobTokenHash: hashJobToken(presentedToken) },
   });
+  // A PENDING row carries no provider job id yet; the binding is the row
+  // itself (the token hash matched it), so minting proceeds with an empty
+  // provider id — the window is inert because the container cannot exist
+  // before the provider accepts.
   if (!row) return null;
   return {
-    jobId: row.jobId,
+    jobId: row.jobId ?? "",
     // Empty only on rows recorded before the credentials table existed; such a
     // row has no batch to mint for.
     batchId: row.batchId ?? "",

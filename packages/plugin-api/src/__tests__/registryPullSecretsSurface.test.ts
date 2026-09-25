@@ -39,8 +39,14 @@ test("a session predating the field still satisfies the type (scalar fallback al
   expect(legacy.registryPullSecrets).toBeUndefined();
 });
 
-// The map landed in 6.11.0; the floor has since moved on, so assert the
-// current value rather than the one this surface arrived at.
-test("host apiVersion is at least the 6.11.0 that carries the map", () => {
-  expect(HOST_API_VERSION).toBe("6.12.0");
+// The map landed in 6.11.0; the floor has since moved on. The version-literal
+// guard moved here from the registryKind surface test.
+//
+// A guard, not a record: whenever the host adds an additive minor, this
+// assertion moves with it, so a bump nobody meant to make shows up here.
+// 6.13.0 carries the pending-ledger JobLedger surface: `record` returns the
+// row id, the patch-shaped `update`, the `remove` re-key to the row id, and
+// the `JobStatus` vocabulary move.
+test("host apiVersion is 6.13.0 (carries the pending-ledger JobLedger surface)", () => {
+  expect(HOST_API_VERSION).toBe("6.13.0");
 });
