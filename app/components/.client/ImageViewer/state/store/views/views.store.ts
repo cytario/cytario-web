@@ -253,7 +253,12 @@ export const createViewsSlice: ViewerSlice<ViewsSlice> = (set, get) => ({
           if (existingIds.has(entry.id)) {
             const idx = viewerStore.layersStates.findIndex((ls) => ls.id === entry.id);
             if (idx >= 0) {
-              viewerStore.layersStates[idx] = sidecarEntryToLayersState(entry);
+              const restored = sidecarEntryToLayersState(entry);
+              // Overlays are machine-local — the sidecar never carries them, so
+              // reconciliation must keep the local bindings or a reload wipes
+              // them the moment the S3 read lands.
+              restored.overlays = viewerStore.layersStates[idx].overlays;
+              viewerStore.layersStates[idx] = restored;
             }
           } else {
             viewerStore.layersStates.push(sidecarEntryToLayersState(entry));
