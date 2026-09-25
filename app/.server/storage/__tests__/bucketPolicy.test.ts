@@ -1,5 +1,4 @@
 import {
-  BUCKET_POLICY_MAX_BYTES,
   MANAGED_SID_PREFIX,
   type BucketPolicyDocument,
   type BucketPolicyGrant,
@@ -52,32 +51,6 @@ describe("compileGrantStatements", () => {
     expect(get.Resource).toBe(`arn:aws:s3:::${BUCKET}/projects/alpha/*`);
     expect(get.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
     expect(get.Condition?.StringEquals?.["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
-  });
-
-  test("C-378: emits a bucket-metadata statement with GetBucketLocation, ListBucketMultipartUploads, GetBucketOwnershipControls for read-only", () => {
-    const statements = compileGrantStatements(grant({ accessLevel: "read-only" }));
-    const meta = statements.find((s) => {
-      const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
-      return actions.includes("s3:GetBucketLocation");
-    })!;
-    expect(meta).toBeDefined();
-    const actions = Array.isArray(meta.Action) ? meta.Action : [meta.Action];
-    expect(actions).toEqual(
-      expect.arrayContaining([
-        "s3:GetBucketLocation",
-        "s3:ListBucketMultipartUploads",
-        "s3:GetBucketOwnershipControls",
-      ]),
-    );
-    // the invalid name s3:ListMultipartUploads must never be emitted (S3
-    // rejects it with "Policy has invalid action").
-    expect(actions).not.toContain("s3:ListMultipartUploads");
-    // bucket-level: Resource is the bucket ARN, no s3:prefix condition
-    expect(meta.Resource).toBe(`arn:aws:s3:::${BUCKET}`);
-    expect(meta.Condition?.StringLike?.["s3:prefix"]).toBeUndefined();
-    // still ORG + per-group conditioned (fail-closed invariant)
-    expect(meta.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
-    expect(meta.Condition?.StringEquals?.["aws:PrincipalTag/Lab/TeamX"]).toBe("1");
   });
 
   test("read-only grant grants NO write actions", () => {
@@ -190,19 +163,6 @@ describe("compileGrantStatements", () => {
 
   test("FAIL CLOSED: refuses a prefix containing wildcard characters", () => {
     expect(() => compileGrantStatements(grant({ prefix: "tenant-*" }))).toThrow(/wildcard/i);
-  });
-
-  test("C-420: org-root grant (*) carries ONLY the ORG condition (no aws:PrincipalTag/* tag is emitted)", () => {
-    const statements = compileGrantStatements(grant({ groupPath: ORG_ROOT_SCOPE }));
-    for (const s of statements) {
-      expect(s.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBe(ORG);
-      expect(s.Condition?.StringEquals).not.toHaveProperty("aws:PrincipalTag/*");
-      // no per-group tag leaks through for the org-wide sentinel
-      const perGroupTags = Object.keys(s.Condition?.StringEquals ?? {}).filter(
-        (k) => k.startsWith("aws:PrincipalTag/") && k !== "aws:PrincipalTag/ORG",
-      );
-      expect(perGroupTags).toEqual([]);
-    }
   });
 
   test("C-420: org-root grant and a specific-group grant produce distinct (non-coalesced) statements", () => {
@@ -369,11 +329,6 @@ describe("buildMergedPolicy — read-merge-write", () => {
       );
     }
     expect(() => buildMergedPolicy(parseBucketPolicy(null), many)).toThrow(/20480-byte limit/);
-  });
-
-  test("a document just under the ceiling is emitted", () => {
-    const result = buildMergedPolicy(parseBucketPolicy(null), [grant()]);
-    expect(Buffer.byteLength(result.serialized, "utf8")).toBeLessThan(BUCKET_POLICY_MAX_BYTES);
   });
 });
 

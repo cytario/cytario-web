@@ -143,6 +143,10 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@cloud-copilot/iam-data": "^0.21.202609221",
+    "@cloud-copilot/iam-expand": "^0.11.82",
+    "@cloud-copilot/iam-policy": "^0.1.109",
+    "@cloud-copilot/iam-simulate": "^0.1.173",
     "@commitlint/cli": ">=19.8.1",
     "@commitlint/config-conventional": ">=19.8.1",
     "@semantic-release/commit-analyzer": "^13.0.1",

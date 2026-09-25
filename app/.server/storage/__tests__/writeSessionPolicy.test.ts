@@ -1,3 +1,4 @@
+import { InlinePolicySizeError } from "../../auth/sessionPolicy";
 import { buildWriteSessionPolicy } from "../writeSessionPolicy";
 
 interface Stmt {
@@ -63,5 +64,11 @@ describe("buildWriteSessionPolicy", () => {
     expect(() => buildWriteSessionPolicy({ organization: ORG, bucketName: "b*" })).toThrow(
       /wildcard/i,
     );
+  });
+
+  test("FAIL CLOSED: refuses a serialized policy over the STS Policy ceiling", () => {
+    expect(() =>
+      buildWriteSessionPolicy({ organization: "o".repeat(3000), bucketName: BUCKET }),
+    ).toThrow(InlinePolicySizeError);
   });
 });

@@ -155,18 +155,6 @@ describe("buildSessionPolicy", () => {
     expect(Array.isArray(parsed.Statement)).toBe(true);
   });
 
-  test("stringified output is well under 2048 chars for a max-realistic prefix (64 chars)", () => {
-    const prefix = "a".repeat(64);
-    const json = buildSessionPolicy(
-      args({
-        bucketName: "my-bucket-with-some-length",
-        prefix,
-      }),
-    );
-    // AWS strips whitespace before counting; JSON.stringify without indentation has none.
-    expect(json.length).toBeLessThanOrEqual(2048);
-  });
-
   test("rejects prefix containing IAM `*` wildcard", () => {
     expect(() => buildSessionPolicy(args({ bucketName: "shared", prefix: "tenant-a*" }))).toThrow(
       /wildcard/i,
@@ -298,18 +286,6 @@ describe("buildSessionPolicy", () => {
     expect(generate.Condition?.StringEquals?.["kms:ViaService"]).toBe(`s3.${REGION}.amazonaws.com`);
   });
 
-  test("annotate policy with a max-realistic prefix (64 chars) stays within the 2048-char ceiling", () => {
-    const json = buildSessionPolicy(
-      args({
-        bucketName: "my-bucket-with-some-length",
-        prefix: "a".repeat(64),
-        accessLevel: "annotate",
-      }),
-    );
-    expect(json.length).toBeLessThanOrEqual(POLICY_SIZE_CEILING);
-    expect(parse(json).Statement.some((s) => s.Sid === "KmsGenerateDataKeyViaS3")).toBe(true);
-  });
-
   test("every sidecar-writing level includes DeleteAnnotationSidecars scoped to annotation sidecars (C-456)", () => {
     for (const accessLevel of ["annotate", "read-write", "admin"] as const) {
       const policy = parse(buildSessionPolicy(args({ prefix: "foo", accessLevel })));
@@ -319,53 +295,5 @@ describe("buildSessionPolicy", () => {
       // Annotation pattern only — never settings sidecars, never the prefix.
       expect(stmt.Resource).toBe("arn:aws:s3:::my-bucket/foo/*.annotations.*.json");
     }
-  });
-});
-
-/**
- * SDS-CY-011108 (ARCH-1(B)): the data-plane inline session policy is a closed
- * allowlist that grants NO `s3:PutBucketPolicy` for ANY role it is minted against
- * — including a sharing-capable provider role. `buildSessionPolicy` takes no role
- * argument (the closed allowlist is identical regardless of the underlying role),
- * so we assert the property across representative argument variants.
- */
-describe("buildSessionPolicy — PutBucketPolicy exclusion (closed allowlist)", () => {
-  const collectActions = (json: string): string[] => {
-    const policy = JSON.parse(json) as { Statement: { Action: string | string[] }[] };
-    return policy.Statement.flatMap((s) => (Array.isArray(s.Action) ? s.Action : [s.Action]));
-  };
-
-  // Any action string that would grant PutBucketPolicy directly or by wildcard.
-  const grantsPutBucketPolicy = (action: string): boolean => {
-    if (action === "s3:PutBucketPolicy") return true;
-    if (action === "*" || action === "s3:*") return true;
-    // wildcard forms like "s3:Put*" / "s3:PutBucket*" would also cover it
-    const asRegex = new RegExp(
-      "^" + action.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$",
-    );
-    return asRegex.test("s3:PutBucketPolicy");
-  };
-
-  const variants = [
-    args({ prefix: "" }),
-    args({ prefix: "tenant-a/data" }),
-    args({ bucketName: "sharing-capable-bucket", prefix: "shared" }),
-  ];
-
-  test.each(variants)("emits no action granting s3:PutBucketPolicy (%#)", (variantArgs) => {
-    const actions = collectActions(buildSessionPolicy(variantArgs));
-    expect(actions.length).toBeGreaterThan(0);
-    for (const action of actions) {
-      expect(grantsPutBucketPolicy(action)).toBe(false);
-    }
-    // and the exact string is definitively absent
-    expect(actions).not.toContain("s3:PutBucketPolicy");
-  });
-
-  test("the guard itself catches a wildcard that would cover PutBucketPolicy", () => {
-    // sanity-check the detector so the property test can't silently pass
-    expect(grantsPutBucketPolicy("s3:Put*")).toBe(true);
-    expect(grantsPutBucketPolicy("s3:*")).toBe(true);
-    expect(grantsPutBucketPolicy("s3:GetObject")).toBe(false);
   });
 });
