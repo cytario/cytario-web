@@ -27,10 +27,14 @@ function attrNum(attrs: string, name: string): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * NominalMagnification of the first Image's Objective. Objective elements live
  * under <Instrument>, a sibling of <Image>, so the first Image is resolved via
- * its InstrumentRef / ObjectiveSettings IDRef; viv's OME-XML parse drops
+ * its InstrumentRef / ObjectiveSettings ID; viv's OME-XML parse drops
  * Instrument entirely. Non-positive values are treated as absent.
  */
 export function parseNominalMagnification(omexml: string): number | undefined {
@@ -50,13 +54,13 @@ export function parseNominalMagnification(omexml: string): number | undefined {
   const instrumentRef = /<InstrumentRef\b[^>]*\bID="([^"]+)"/.exec(firstImage[0]);
   if (instrumentRef) {
     const instrument = new RegExp(
-      `<Instrument\\b[^>]*\\bID="${instrumentRef[1]}"[\\s\\S]*?</Instrument>`,
+      `<Instrument\\b[^>]*\\bID="${escapeForRegExp(instrumentRef[1])}"[\\s\\S]*?</Instrument>`,
     ).exec(omexml);
     if (instrument) {
-      const objectiveSettingsId = /<ObjectiveSettings\b[^>]*\bIDRef="([^"]+)"/.exec(firstImage[0]);
+      const objectiveSettingsId = /<ObjectiveSettings\b[^>]*\bID="([^"]+)"/.exec(firstImage[0]);
       if (objectiveSettingsId) {
         const objective = new RegExp(
-          `<Objective\\b[^>]*\\bID="${objectiveSettingsId[1]}"[^>]*>`,
+          `<Objective\\b[^>]*\\bID="${escapeForRegExp(objectiveSettingsId[1])}"[^>]*>`,
         ).exec(instrument[0]);
         const fromSettings = objective ? readFirst(objective[0]) : undefined;
         if (fromSettings !== undefined) return fromSettings;
@@ -179,6 +183,23 @@ export function isStrippedBeyondRenderBudget(fileDirectory: {
   );
 }
 
+/**
+ * Whether Interleaved=true metadata is a planar lie: every channel is planar
+ * (SamplesPerPixel defaults to 1 when absent). Viv then appends a phantom _c=3
+ * dim and routes tiles to the 8-bit RGB BitmapLayer instead of XRLayer.
+ */
+export function isPhantomInterleavedDim(pixels: {
+  Interleaved?: unknown;
+  Channels?: Array<{ SamplesPerPixel?: number }> | undefined;
+}): boolean {
+  const channels = pixels.Channels ?? [];
+  return (
+    pixels.Interleaved === true &&
+    channels.length > 0 &&
+    channels.every((channel) => (channel.SamplesPerPixel ?? 1) === 1)
+  );
+}
+
 /** Load an OME-TIFF via SigV4-signed S3 requests; delegates to viv. */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
@@ -250,21 +271,10 @@ export async function loadOmeTiffWithCredentials(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (loadOmeTiff as any)("", { source, offsets });
 
-  // Some producers emit Interleaved=true on planar multi-IFD layouts with
-  // SamplesPerPixel=1 per channel. Viv then appends a phantom _c=3 dim and routes
-  // tiles to the 8-bit RGB BitmapLayer instead of XRLayer. Detect and clear before
-  // viv consumes it.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pixels = (result.metadata as any)?.Pixels;
-  const channels = (pixels?.Channels ?? []) as Array<{
-    SamplesPerPixel?: number;
-  }>;
-  const planarLie =
-    pixels?.Interleaved === true &&
-    channels.length > 0 &&
-    channels.every((c) => c.SamplesPerPixel === 1);
 
-  if (planarLie) {
+  if (isPhantomInterleavedDim(pixels)) {
     console.warn(
       "[loadOmeTiffWithCredentials] OME-XML claims Interleaved=true but " +
         "all channels have SamplesPerPixel=1 — stripping phantom _c=3 dim.",
