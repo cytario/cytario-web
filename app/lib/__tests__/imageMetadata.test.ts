@@ -8,6 +8,12 @@ vi.mock("~/utils/signedFetch", () => ({
   createSignedFetch: vi.fn(() => async () => new Response(null, { status: 200 })),
 }));
 
+// Unit-level: the built-ins chunk stays mocked so these tests control the
+// registry content exactly. The real registration path has its own test.
+vi.mock("~/components/.client/ImageViewer/state/formats/builtins", () => ({
+  registerBuiltinFormats: vi.fn(),
+}));
+
 const baseImage = (): Image => ({
   ID: "Image:0",
   Pixels: {
