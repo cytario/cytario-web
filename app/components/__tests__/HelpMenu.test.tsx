@@ -4,14 +4,6 @@ import { describe, expect, test, vi } from "vitest";
 
 import { HelpMenu } from "~/components/HelpMenu";
 
-vi.mock("lucide-react", async () => {
-  const actual = await vi.importActual<typeof import("lucide-react")>("lucide-react");
-  return {
-    ...actual,
-    CircleHelp: () => createElement("svg", { "data-testid": "icon-circle-help" }),
-  };
-});
-
 vi.mock("@cytario/design", async () => {
   const actual = await vi.importActual<typeof import("@cytario/design")>("@cytario/design");
   return {
@@ -19,6 +11,8 @@ vi.mock("@cytario/design", async () => {
     Menu: ({ content }: { content: React.ReactNode }) =>
       createElement("div", { "data-testid": "menu-content" }, content),
     MenuSeparator: () => createElement("hr", null),
+    IconButton: ({ icon, label }: { icon: string; label: string }) =>
+      createElement("button", { "data-testid": "help-trigger", "data-icon": icon }, label),
     MenuItem: ({
       id,
       href,
