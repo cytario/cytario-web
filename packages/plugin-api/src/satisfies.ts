@@ -1,6 +1,11 @@
-// Supports exact / caret / tilde. Rejects prereleases, "*", malformed input.
+// Supports exact / caret / tilde, and `||` alternation of those (the form
+// plugins already use in package.json). Rejects prereleases, "*", malformed
+// input.
+//
 // Replaces the `semver` package to keep the bundle small and cut a ReDoS
-// surface on plugin-supplied range strings.
+// surface on plugin-supplied range strings. A single alternation split is
+// linear: the per-alternative pattern is anchored and has no nested
+// quantifiers, so there is no catastrophic backtracking.
 const RE = /^\s*([\^~]?)(\d+)\.(\d+)\.(\d+)\s*$/;
 
 function parse(s: string): [Triple, "" | "^" | "~"] | null {
@@ -18,15 +23,22 @@ function cmp(a: Triple, b: Triple): number {
   return a[2] - b[2];
 }
 
-export function satisfies(range: string, version: string): boolean {
+function satisfiesSingle(range: string, version: Triple): boolean {
   const r = parse(range);
+  if (!r) return false;
+  const [rT, op] = r;
+  if (op === "^") return version[0] === rT[0] && cmp(version, rT) >= 0;
+  if (op === "~") return version[0] === rT[0] && version[1] === rT[1] && version[2] >= rT[2];
+  return cmp(version, rT) === 0;
+}
+
+export function satisfies(range: string, version: string): boolean {
   const v = parse(version);
-  if (!r || !v) return false;
+  if (!v) return false;
   // Reject if version string itself carries an operator.
   if (v[1] !== "") return false;
-  const [rT, op] = r;
   const [vT] = v;
-  if (op === "^") return vT[0] === rT[0] && cmp(vT, rT) >= 0;
-  if (op === "~") return vT[0] === rT[0] && vT[1] === rT[1] && vT[2] >= rT[2];
-  return cmp(vT, rT) === 0;
+  // An empty alternative (`^6.0.0 ||`) parses to an empty string, which
+  // fails to parse and so cannot admit a version by accident.
+  return range.split("||").some((alternative) => satisfiesSingle(alternative, vT));
 }

@@ -31,7 +31,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
 
     const bad: CytarioPlugin = {
       name: "bad-plugin",
-      apiVersion: "^8.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register() {
         throw new Error("intentional failure");
       },
@@ -57,7 +57,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
     });
     const good: CytarioPlugin = {
       name: "good-plugin",
-      apiVersion: "^8.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register: goodRegistered,
     };
 
@@ -99,7 +99,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
 
     const collisionFirst: CytarioPlugin = {
       name: "first",
-      apiVersion: "^8.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register(ctx) {
         captured.push("first");
         ctx.formats.register("shared", {
@@ -123,7 +123,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
     };
     const collisionSecond: CytarioPlugin = {
       name: "second",
-      apiVersion: "^8.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register(ctx) {
         captured.push("second");
         // Same extension as `first` → must throw DuplicateRegistrationError
@@ -164,7 +164,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
   describe("registry injection", () => {
     const captureContext = (sink: { ctx?: PluginContext }): CytarioPlugin => ({
       name: "capture-plugin",
-      apiVersion: "^8.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register(ctx) {
         sink.ctx = ctx;
       },
