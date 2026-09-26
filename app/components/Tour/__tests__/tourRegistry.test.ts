@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   GETTING_STARTED_TOUR_ID,
   VIEWER_TOUR_ID,
+  isImageViewerRoute,
   isResourcePath,
   leafNameOf,
 } from "../tourRegistry";
@@ -104,6 +105,37 @@ describe("tourRegistry", () => {
     });
   });
 
+  describe("replay availability", () => {
+    const appScreen = { pathname: "/", leafName: "", connectionCount: 0 };
+    const viewerScreen = {
+      pathname: "/connections/abc/slide.ome.tiff",
+      leafName: "slide.ome.tiff",
+      connectionCount: 1,
+    };
+
+    test("the getting-started tour is replayable on every screen", () => {
+      expect(gettingStarted.isAvailable(appScreen)).toBe(true);
+      expect(gettingStarted.isAvailable(viewerScreen)).toBe(true);
+      // Even with no connections, where it cannot auto-start.
+      expect(gettingStarted.shouldAutoStart(appScreen)).toBe(false);
+      expect(gettingStarted.isAvailable(appScreen)).toBe(true);
+    });
+
+    test("the viewer tour is replayable only while an image is open", () => {
+      expect(viewer.isAvailable(viewerScreen)).toBe(true);
+      expect(viewer.isAvailable(appScreen)).toBe(false);
+      expect(
+        viewer.isAvailable({ pathname: "/connections/abc", leafName: "abc", connectionCount: 1 }),
+      ).toBe(false);
+    });
+
+    test("every tour carries a distinct menu label", () => {
+      const labels = tourRegistry.map((tour) => tour.menuLabel);
+      expect(labels.every((label) => label.length > 0)).toBe(true);
+      expect(new Set(labels).size).toBe(labels.length);
+    });
+  });
+
   describe("helpers", () => {
     test("isResourcePath matches nested resource routes", () => {
       expect(isResourcePath("/connections/abc/folder/img.tiff")).toBe(true);
@@ -116,6 +148,13 @@ describe("tourRegistry", () => {
         "some dir/image.svs".split("/").pop(),
       );
       expect(leafNameOf("/connections")).toBe("connections");
+    });
+
+    test("isImageViewerRoute is true only for a single-file image", () => {
+      expect(isImageViewerRoute("/connections/abc/slide.ome.tiff", "slide.ome.tiff")).toBe(true);
+      expect(isImageViewerRoute("/connections/abc/notes.txt", "notes.txt")).toBe(false);
+      expect(isImageViewerRoute("/connections/abc", "abc")).toBe(false);
+      expect(isImageViewerRoute("/connections", "connections")).toBe(false);
     });
 
     test("every step targets a selector", () => {
