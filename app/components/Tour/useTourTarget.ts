@@ -49,6 +49,33 @@ export async function navigateToFirstMatch(
   await sleep(ROUTE_SETTLE_MS);
 }
 
+/**
+ * Scrolls the nearest scrollable ancestor so `selector` is centered within it.
+ * The viewer's control panel scrolls independently of the page, so a step
+ * targeting something below its fold (the display-settings section) would
+ * otherwise highlight an off-screen element.
+ */
+export async function revealInScrollContainer(selector: string): Promise<void> {
+  const element = document.querySelector(selector);
+  if (!element) return;
+
+  let container = element.parentElement;
+  while (container && container !== document.body) {
+    const { overflowY } = getComputedStyle(container);
+    const scrolls = overflowY === "auto" || overflowY === "scroll";
+    if (scrolls && container.scrollHeight > container.clientHeight) {
+      const elementRect = element.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const centeredOffset =
+        elementRect.top - containerRect.top - (container.clientHeight - elementRect.height) / 2;
+      container.scrollTop += centeredOffset;
+      await sleep(NEXT_FRAME_MS);
+      return;
+    }
+    container = container.parentElement;
+  }
+}
+
 /** Waits for one of the given selectors to appear in the document. */
 export async function waitForTarget(selectors: string[], timeoutMs = 15000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
