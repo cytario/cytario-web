@@ -1,18 +1,28 @@
 import { VIEWER_TOUR_ID, type TourDefinition } from "../tourRegistry";
 import { getFileCategory } from "~/utils/fileType";
 
+/**
+ * The control panel is a 320px column pinned to the right edge, so a tooltip
+ * anchored to its right (joyride's default `bottom` after flipping) has nowhere
+ * to go — it renders past the viewport and is clipped. Anchor every step to the
+ * panel's left instead, where the image canvas provides room.
+ */
+const PANEL_PLACEMENT = "left" as const;
+
 export const viewerTour: TourDefinition = {
   id: VIEWER_TOUR_ID,
   title: "Viewing controls",
   steps: [
     {
       target: "#image-controls-sidebar",
+      placement: PANEL_PLACEMENT,
       content:
         "This panel holds the viewing controls — channels, zoom, and display settings. " +
         "It can be docked here or floated over the image.",
     },
     {
       target: "#section-channels-title",
+      placement: PANEL_PLACEMENT,
       title: "Channels",
       content:
         "Each channel is one imaging modality or fluorophore. Toggle channels on and off, " +
@@ -20,24 +30,33 @@ export const viewerTour: TourDefinition = {
     },
     {
       target: "#min-contrast",
+      placement: PANEL_PLACEMENT,
       title: "Brightness and contrast",
       content:
         "The min and max values stretch each channel's range — lower them to brighten, " +
         "raise them to sharpen contrast.",
+      data: { revealTarget: true },
     },
     {
       target: '[role="radiogroup"][aria-label="Magnification presets"]',
+      placement: PANEL_PLACEMENT,
       title: "Magnification",
       content:
         "Jump to a preset magnification, or read the exact current value in the field beside it.",
+      data: { revealTarget: true },
     },
     {
       target: "#section-settings-title",
+      placement: PANEL_PLACEMENT,
       title: "Display settings",
       content: "Show or hide the scale bar and rulers, and choose metric or pixel units.",
+      data: { revealTarget: true },
     },
     {
       target: "#image-controls-toggle",
+      // Sits at the panel's bottom-right corner; anchoring left keeps the
+      // tooltip over the image rather than past the viewport edge.
+      placement: "top",
       content: "Collapse the controls panel to view the image full-width, and reopen it here.",
     },
   ],

@@ -6,7 +6,12 @@ import { GETTING_STARTED_TOUR_ID, type TourDefinition } from "./tourRegistry";
 import { tourRegistry } from "./tours/registry";
 import { useTourControllerStore } from "./useTourController";
 import { useTourProgressStore } from "./useTourProgress";
-import { normaliseAppShell, navigateToFirstMatch, waitForTarget } from "./useTourTarget";
+import {
+  normaliseAppShell,
+  navigateToFirstMatch,
+  revealInScrollContainer,
+  waitForTarget,
+} from "./useTourTarget";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 
 /** Auto-start waits for hydration + route settle (two-phase client loaders, S3 probes). */
@@ -113,6 +118,11 @@ export function TourProvider({ children }: { children?: ReactNode }) {
           await navigateToFirstMatch(step.data.enterConnectionVia, navigateRef.current);
         }
         await waitForTarget([target], targetWaitMs);
+        // Targets inside the viewer's independently-scrolling control panel
+        // must be brought into that panel's view before they are highlighted.
+        if (step.data?.revealTarget) {
+          await revealInScrollContainer(target);
+        }
         if (userBefore) await userBefore(data);
       };
 
