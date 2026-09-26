@@ -116,11 +116,9 @@ model JobLedgerEntry {
   providerId       String?
   createdAt        DateTime  @default(now())
 
-  /// The batch's held credentials. A job cannot outlive the batch's
-  /// authorization, so the two go together rather than being correlated by a
-  /// hand-matched session id. Nullable for rows recorded before this table
-  /// existed — they have no batch to relate to.
-  credential       JobGrantCredential? @relation(fields: [batchId], references: [batchId], onDelete: Cascade)
+  /// The batch this job was submitted as part of. Nullable for rows recorded
+  /// before batches were tracked — they have no batch to relate to.
+  batch            Batch?  @relation(fields: [batchId], references: [id])
 
   @@unique([organization, jobId])
   @@index([organization, owner])
@@ -128,12 +126,30 @@ model JobLedgerEntry {
   @@index([status, createdAt])
 }
 
+/// One submitted batch — the unit the analyst watches on the jobs list. Keyed
+/// by the identifier minted at submit time and tagged onto every job of the
+/// run, so the ledger rows join to it rather than carrying a bare string. The
+/// optional display name is annotation, not identity: it is never unique and
+/// never looked up by. The batch lives as long as any of its ledger rows; the
+/// credential collection sweep removes it together with the last one.
+model Batch {
+  id           String   @id
+  /// Optional display name given at submit time. Annotation, not identity.
+  name         String?
+  organization String
+  createdAt    DateTime @default(now())
+
+  /// The batch's held credentials — collected when the last job goes.
+  credential   JobGrantCredential?
+  entries      JobLedgerEntry[]
+}
+
 /// The batch's held credentials — the refresh token and the cached access token
 /// the broker mints from. Encrypted at rest at the application layer, and the one
 /// place a batch's OAuth material lives; the ledger above holds only the job
-/// token's hash. One record per batch, keyed by the batch identifier the ledger
-/// rows carry, so the broker, keep-alive, revocation and collection all address
-/// the same record through the same relation.
+/// token's hash. One record per batch, keyed by the batch identifier, so the
+/// broker, keep-alive, revocation and collection all address the same record
+/// through the same relation.
 model JobGrantCredential {
   id                    String   @id @default(uuid())
   /// The relation's parent key, and the key the ledger rows carry.
@@ -146,6 +162,6 @@ model JobGrantCredential {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  /// Every job of the batch; the credential is collected when the last one goes.
-  ledgerEntries         JobLedgerEntry[]
+  /// The batch the credentials belong to.
+  batch                 Batch @relation(fields: [batchId], references: [id])
 }
