@@ -8,8 +8,7 @@ import type { Image } from "./image";
  * chain (a handler without a cheap metadata read falls back to its `load()`;
  * any failure resolves `null`, never throws).
  *
- * Client-live; no-op sink server-side (returns `null` when called on the
- * server).
+ * Client-live; `null` in the server realm (reached through `ctx.client`).
  */
 export interface ImageMetadata {
   /**
@@ -19,13 +18,4 @@ export interface ImageMetadata {
   read(connectionId: string, path: string): Promise<Image | null>;
   /** The object's byte size, or `null` when it cannot be determined. */
   size(connectionId: string, path: string): Promise<number | null>;
-}
-
-/**
- * Registry exposing the image-metadata capability. Client-live; no-op sink
- * server-side.
- */
-export interface ImageMetadataRegistry {
-  /** The host-provided instance, or null on the server. */
-  get(): ImageMetadata | null;
 }

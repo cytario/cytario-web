@@ -29,7 +29,7 @@ test("the bootstrap import graph does not reach the image-metadata impl", () => 
   // must be reachable only from the client entry, not the shared bootstrap.
   const bootstrap = readFileSync(resolve(moduleDir, "../bootstrapPluginsCore.ts"), "utf8");
   expect(bootstrap).not.toMatch(/lib\/imageMetadata/);
-  expect(bootstrap).toMatch(/ImageMetadataRegistry/);
+  expect(bootstrap).toMatch(/ClientCapabilities/);
 
   const entryClient = readFileSync(resolve(moduleDir, "../../entry.client.tsx"), "utf8");
   expect(entryClient).toMatch(/lib\/imageMetadata/);
