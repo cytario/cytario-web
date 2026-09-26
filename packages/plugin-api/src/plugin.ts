@@ -1,13 +1,12 @@
+import type { ClientCapabilities } from "./clientCapabilities";
 import type { ContextMenuRegistry } from "./contextMenus";
 import type { FormatRegistry } from "./format";
 import type { GateRegistry } from "./gates";
 import type { HostCapabilities } from "./host";
-import type { ImageMetadataRegistry } from "./imageMetadata";
 import type { RouteRegistry } from "./routes";
 import type { ServerEndpointRegistry } from "./serverEndpoints";
 import type { SidebarNavRegistry } from "./sidebarNav";
 import type { SlotRegistry } from "./slots";
-import type { StoragePickerRegistry } from "./storagePicker";
 import type { UserManagementGateRegistry } from "./userManagementGate";
 import type { ViewerRegistry } from "./viewer";
 
@@ -40,10 +39,13 @@ export interface PluginContext {
    * per-request context (session, organization) is available.
    */
   host: HostCapabilities;
-  /** Client-side storage picker. Live client-side; no-op sink server-side. */
-  storagePicker: StoragePickerRegistry;
-  /** Client-side image metadata. Live client-side; no-op sink server-side. */
-  imageMetadata: ImageMetadataRegistry;
+  /**
+   * Client-side host capabilities. Live client-side; each member is `null` in
+   * the server realm. A plugin reads these from client code, treating `null`
+   * as "this realm cannot provide it" — the counterpart of `ctx.host`, which
+   * is live server-side and throws when reached from the browser.
+   */
+  client: ClientCapabilities;
   /**
    * Server-side single-slot user-management gate. Server-only: the registry
    * is live server-side and a no-op sink client-side. The gate request

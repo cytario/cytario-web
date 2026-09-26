@@ -27,5 +27,14 @@
 // resolves a storage object's format-agnostic image characteristics through the
 // format handler's own `load()` — additive at a minor version, so existing
 // plugins still satisfy the contract.
+//
+// 8.0.0: `PluginContext.storagePicker` and `.imageMetadata` are replaced by a
+// single `ctx.client` capability object (`ClientCapabilities`), the client-side
+// counterpart of `ctx.host`. Neither was ever a plugin contribution — the host
+// supplies them — so the registry wrapper (a `get()`, a `scopedFor()` that
+// ignored the plugin name, and a `{ get: () => null }` sink) carried no meaning;
+// `ctx.client.storagePicker` / `ctx.client.imageMetadata` are now plain members
+// that are null in the server realm. Breaking: a plugin reading either member
+// must move to `ctx.client`, so the floor is a major.
 
-export const HOST_API_VERSION = "6.14.0";
+export const HOST_API_VERSION = "8.0.0";
