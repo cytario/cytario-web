@@ -148,6 +148,11 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       // Auto-started onboarding: tooltips render directly instead of waiting
       // for a beacon click the user does not know to make.
       skipBeacon: true,
+      // The app shell is a fixed-height layout (body is h-screen
+      // overflow-hidden), so the document must never scroll. Joyride animates
+      // documentElement.scrollTop to bring its target into view, which shifts
+      // the header out of the viewport.
+      skipScroll: true,
       overlayColor: "rgba(0, 0, 0, 0.55)",
     },
     styles: {
