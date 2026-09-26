@@ -1,7 +1,5 @@
 import { loadBioformatsZarrWithCredentials } from "../loaders/loadBioformatsZarrWithCredentials";
 import { loadOmeTiffWithCredentials } from "../loaders/loadOmeTiffWithCredentials";
-import { readOmeTiffCharacteristics } from "../loaders/readOmeTiffCharacteristics";
-import { readOmeZarrCharacteristics } from "../loaders/readOmeZarrCharacteristics";
 import type { LoadOptions } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 
@@ -18,13 +16,11 @@ export function registerBuiltinFormats(): void {
 
   formatRegistry.add("cytario-web", ["ome.tif", "ome.tiff"], {
     load: (url: string, opts: LoadOptions) => loadOmeTiffWithCredentials(url, opts),
-    readCharacteristics: (url: string, opts: LoadOptions) => readOmeTiffCharacteristics(url, opts),
     fileTypeMeta: { label: "OME-TIFF", icon: "Microscope" },
   });
 
   formatRegistry.add("cytario-web", ["ome.zarr", "zarr"], {
     load: (url: string, opts: LoadOptions) => loadBioformatsZarrWithCredentials(url, opts),
-    readCharacteristics: (url: string, opts: LoadOptions) => readOmeZarrCharacteristics(url, opts),
     fileTypeMeta: { label: "OME-Zarr", icon: "Microscope" },
   });
 }

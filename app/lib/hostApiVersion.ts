@@ -27,8 +27,9 @@
 // batch a display name at submit time and read it back on ledger rows — the
 // name is annotation, not identity, and is additive at a minor version.
 //
-// 6.14.0: `PluginContext` gains the client-live `imageMetadata` registry and
-// `FormatHandler` the optional `readCharacteristics` metadata-only read;
-// additive at a minor version, so existing plugins still satisfy the contract.
+// 6.14.0: `PluginContext` gains the client-live `imageMetadata` registry, which
+// resolves a storage object's format-agnostic image characteristics through the
+// format handler's own `load()` — additive at a minor version, so existing
+// plugins still satisfy the contract.
 
 export const HOST_API_VERSION = "6.14.0";

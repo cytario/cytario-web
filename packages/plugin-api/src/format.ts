@@ -46,13 +46,6 @@ export type FormatExtension = string | string[] | RegExp;
 
 export interface FormatHandler {
   load(url: string, opts: LoadOptions): Promise<{ data: Loader; metadata: Image }>;
-  /**
-   * Optional metadata-only read: resolves the same `Image` as `load()`
-   * without decoding pixel data or building tile sources. Best-effort — a
-   * format that cannot answer cheaply omits it, and the host falls back to
-   * `load()`. Absence is structural, never an error.
-   */
-  readCharacteristics?: (url: string, opts: LoadOptions) => Promise<Image>;
   fileTypeMeta?: FileTypeMeta;
 }
 
