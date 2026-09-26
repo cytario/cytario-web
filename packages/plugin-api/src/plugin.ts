@@ -49,8 +49,7 @@ export interface PluginContext {
   /**
    * Server-side single-slot user-management gate. Server-only: the registry
    * is live server-side and a no-op sink client-side. The gate request
-   * carries `orgTier` and the deny outcome carries
-   * `resolveUrl`/`resolveLabel` — additive at hostApiVersion 6.2.0.
+   * carries `orgTier` and the deny outcome `resolveUrl`/`resolveLabel`.
    */
   userMgmtGate: UserManagementGateRegistry;
   /** Client-side viewer contributions. Live client-side; no-op sink server-side. */
