@@ -6,7 +6,7 @@ import { GETTING_STARTED_TOUR_ID, type TourDefinition } from "./tourRegistry";
 import { tourRegistry } from "./tours/registry";
 import { useTourControllerStore } from "./useTourController";
 import { useTourProgressStore } from "./useTourProgress";
-import { normaliseAppShell, waitForTarget } from "./useTourTarget";
+import { normaliseAppShell, navigateToFirstMatch, waitForTarget } from "./useTourTarget";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 
 /** Auto-start waits for hydration + route settle (two-phase client loaders, S3 probes). */
@@ -94,6 +94,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
 
   const decoratedSteps = useMemo<Step[]>(() => {
     if (!activeTour) return [];
+    const targetWaitMs = activeTour.definition.targetWaitMs ?? TARGET_WAIT_MS;
     return activeTour.definition.steps.map((step) => {
       const target = typeof step.target === "string" ? step.target : null;
       if (!target || target === "body") return { ...step, data: step.data };
@@ -106,7 +107,12 @@ export function TourProvider({ children }: { children?: ReactNode }) {
         if (activeTour.definition.id === GETTING_STARTED_TOUR_ID && data.index === 1) {
           await normaliseAppShell();
         }
-        await waitForTarget([target], TARGET_WAIT_MS);
+        // Breadcrumb and view-mode targets only exist inside a connection, so
+        // this step steps the user into one before they are highlighted.
+        if (step.data?.enterConnectionVia) {
+          await navigateToFirstMatch(step.data.enterConnectionVia, navigateRef.current);
+        }
+        await waitForTarget([target], targetWaitMs);
         if (userBefore) await userBefore(data);
       };
 
@@ -131,7 +137,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
     onEvent: handleTourEvent,
     options: {
       zIndex: TOUR_Z_INDEX,
-      targetWaitTimeout: TARGET_WAIT_MS,
+      targetWaitTimeout: activeTour?.definition.targetWaitMs ?? TARGET_WAIT_MS,
       beforeTimeout: TARGET_WAIT_MS,
       showProgress: true,
       spotlightPadding: 6,

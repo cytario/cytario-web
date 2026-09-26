@@ -45,4 +45,7 @@ export const viewerTour: TourDefinition = {
   // where the image viewer chrome exists.
   shouldAutoStart: ({ pathname, leafName }) =>
     /^\/connections\/[^/]+\/.+/.test(pathname) && getFileCategory(leafName) === "image",
+  // The viewer chrome only renders after the loader and the settings-sidecar
+  // round-trip resolve, which can take many seconds on a cold S3 path.
+  targetWaitMs: 30000,
 };

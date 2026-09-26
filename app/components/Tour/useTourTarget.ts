@@ -2,6 +2,7 @@ import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { useNavSidebarStore } from "~/components/Sidebar/sidebarStores";
 
 const NEXT_FRAME_MS = 220;
+const ROUTE_SETTLE_MS = 400;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -28,6 +29,24 @@ export async function normaliseAppShell(): Promise<void> {
 export function setGridViewMode(): void {
   const { viewMode, setViewMode } = useLayoutStore.getState();
   if (viewMode !== "grid") setViewMode("grid");
+}
+
+/**
+ * Navigates to the first link matching `selector`, waiting for it to appear
+ * first. Used by steps that must move the user into a connection before later
+ * targets exist — on the home screen the breadcrumb has no trail and the
+ * view-mode toggle is absent, so those steps would otherwise highlight nothing.
+ */
+export async function navigateToFirstMatch(
+  selector: string,
+  navigate: (to: string) => void,
+  timeoutMs = 5000,
+): Promise<void> {
+  await waitForTarget([selector], timeoutMs);
+  const href = document.querySelector<HTMLAnchorElement>(selector)?.getAttribute("href");
+  if (!href || window.location.pathname === href) return;
+  navigate(href);
+  await sleep(ROUTE_SETTLE_MS);
 }
 
 /** Waits for one of the given selectors to appear in the document. */
