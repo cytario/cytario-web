@@ -830,6 +830,10 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
 describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    // record() creates the batch row before the ledger row; these tests spy
+    // the ledger's own writes, so the batch upsert is stubbed rather than
+    // reaching the database.
+    vi.spyOn(prisma.batch, "upsert").mockResolvedValue({} as never);
   });
 
   test("record injects the session org, resolves the role, and ignores the caller-supplied organization", async () => {
@@ -863,6 +867,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         id: "",
         status: "Pending",
         batchId: "batch-1",
+        batchName: null,
         offlineSessionId: "sess-1",
         jobToken: "job-session-token",
         organization: "WRONG_ORG",
@@ -944,6 +949,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         id: "",
         status: "Pending",
         batchId: "batch-1",
+        batchName: null,
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
@@ -1045,6 +1051,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         id: "",
         status: "Pending",
         batchId: "batch-1",
+        batchName: null,
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
@@ -1139,6 +1146,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         id: "",
         status: "Pending",
         batchId: "batch-1",
+        batchName: null,
         offlineSessionId: "sess-1",
         jobToken: "job-session-token",
         organization: "testcorp",
@@ -1228,6 +1236,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
         status: "Queued",
         providerJobId: "job-1",
         batchId: "batch-1",
+        batchName: null,
         offlineSessionId: "sess-1",
         organization: "testcorp",
         owner: "user-123",
@@ -1248,7 +1257,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     const deleteMany = vi
       .spyOn(prisma.jobLedgerEntry, "deleteMany")
       .mockResolvedValue({ count: 1 } as never);
-    vi.spyOn(prisma.jobGrantCredential, "deleteMany").mockResolvedValue({ count: 1 } as never);
+    vi.spyOn(prisma.batch, "deleteMany").mockResolvedValue({ count: 1 } as never);
     vi.spyOn(prisma.jobLedgerEntry, "count").mockResolvedValue(0 as never);
 
     await withHostRequestContext(mockRequestData, async () => {
@@ -1271,18 +1280,18 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     ] as never);
     vi.spyOn(prisma.jobLedgerEntry, "deleteMany").mockResolvedValue({ count: 1 } as never);
     vi.spyOn(prisma.jobLedgerEntry, "count").mockResolvedValue(0 as never);
-    const deleteCredentials = vi
-      .spyOn(prisma.jobGrantCredential, "deleteMany")
+    const deleteBatch = vi
+      .spyOn(prisma.batch, "deleteMany")
       .mockResolvedValue({ count: 1 } as never);
 
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().remove("row-1");
     });
 
-    // Nothing left to mint with, so the encrypted refresh token goes too.
-    // One statement guarded by the relation.
-    expect(deleteCredentials).toHaveBeenCalledWith({
-      where: { batchId: "batch-1", ledgerEntries: { none: {} } },
+    // Nothing left to mint with, so the batch — and through the cascade its
+    // encrypted refresh token — goes too. One statement guarded by the relation.
+    expect(deleteBatch).toHaveBeenCalledWith({
+      where: { id: "batch-1", entries: { none: {} } },
     });
   });
 
@@ -1292,16 +1301,16 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     ] as never);
     vi.spyOn(prisma.jobLedgerEntry, "deleteMany").mockResolvedValue({ count: 1 } as never);
     // The sibling's row is still there, so the guarded delete matches nothing.
-    const deleteCredentials = vi
-      .spyOn(prisma.jobGrantCredential, "deleteMany")
+    const deleteBatch = vi
+      .spyOn(prisma.batch, "deleteMany")
       .mockResolvedValue({ count: 0 } as never);
 
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.jobLedger().remove("row-1");
     });
 
-    expect(deleteCredentials).toHaveBeenCalledWith({
-      where: { batchId: "batch-1", ledgerEntries: { none: {} } },
+    expect(deleteBatch).toHaveBeenCalledWith({
+      where: { id: "batch-1", entries: { none: {} } },
     });
   });
 
@@ -1313,7 +1322,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       .spyOn(prisma.jobLedgerEntry, "deleteMany")
       .mockResolvedValue({ count: 1 } as never);
     vi.spyOn(prisma.jobLedgerEntry, "count").mockResolvedValue(0 as never);
-    vi.spyOn(prisma.jobGrantCredential, "deleteMany").mockResolvedValue({ count: 1 } as never);
+    vi.spyOn(prisma.batch, "deleteMany").mockResolvedValue({ count: 1 } as never);
     const orgAgnosticRequestData: HostRequestData = {
       ...mockRequestData,
       user: { ...mockRequestData.user, organization: undefined },
@@ -1375,6 +1384,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       status: "Queued",
       providerJobId: "job-1",
       batchId: "batch-1",
+      batchName: null,
       offlineSessionId: "sess-1",
       organization: "testcorp",
       owner: "u1",

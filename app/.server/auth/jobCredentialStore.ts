@@ -116,12 +116,15 @@ export async function deleteBatchCredentials(batchId: string): Promise<void> {
 /**
  * Collects the batch once the last job of it is gone. The delete is one
  * statement guarded by the relation, so it cannot collect a credential a live
- * sibling still needs: the `ledgerEntries: { none: {} }` predicate is the same
- * join the foreign key enforces, read in the other direction.
+ * sibling still needs: the `entries: { none: {} }` predicate is the same join
+ * the foreign key enforces, read in the other direction. The batch row goes
+ * with its credential — a batch with no jobs and no authorization is not an
+ * entity anymore — and the cascade takes care of the ordering: deleting the
+ * batch removes the credential, so both go in one statement.
  */
 export async function collectCredentialsIfBatchEmpty(batchId: string): Promise<void> {
-  await prisma.jobGrantCredential.deleteMany({
-    where: { batchId, ledgerEntries: { none: {} } },
+  await prisma.batch.deleteMany({
+    where: { id: batchId, entries: { none: {} } },
   });
 }
 

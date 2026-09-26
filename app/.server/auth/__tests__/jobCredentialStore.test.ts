@@ -239,15 +239,16 @@ describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
 
   test("collection is one statement guarded by the relation", async () => {
     const deleteMany = vi
-      .spyOn(prisma.jobGrantCredential, "deleteMany")
+      .spyOn(prisma.batch, "deleteMany")
       .mockResolvedValue({ count: 1 } as never);
 
     await collectCredentialsIfBatchEmpty(BATCH_ID);
 
     // The predicate is the same join the foreign key enforces, read the other
     // way: no ledger row of this batch is left, so nothing can mint with it.
+    // Deleting the batch takes its credential with it through the cascade.
     expect(deleteMany).toHaveBeenCalledWith({
-      where: { batchId: BATCH_ID, ledgerEntries: { none: {} } },
+      where: { id: BATCH_ID, entries: { none: {} } },
     });
   });
 

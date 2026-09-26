@@ -22,5 +22,9 @@
 // version for the host gate, but a plugin that consumed `TokenGrant.token` must
 // move to the new capability — and this one is not backward compatible for such
 // a consumer within 6.x, despite the minor.
+//
+// 6.14.0: `JobRecord` gains the optional `batchName`, so a plugin can give the
+// batch a display name at submit time and read it back on ledger rows — the
+// name is annotation, not identity, and is additive at a minor version.
 
-export const HOST_API_VERSION = "6.13.0";
+export const HOST_API_VERSION = "6.14.0";

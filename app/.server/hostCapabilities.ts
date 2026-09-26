@@ -213,6 +213,19 @@ class JobLedgerImpl implements JobLedger {
       );
     }
 
+    // The batch entity is created by the batch's first job. Later jobs of the
+    // same batch attach to it; the name is written here once and never
+    // overwritten — the first job of a run carries the submission's name.
+    await prisma.batch.upsert({
+      where: { id: job.batchId },
+      update: {},
+      create: {
+        id: job.batchId,
+        ...(job.batchName ? { name: job.batchName } : {}),
+        organization: user.organization,
+      },
+    });
+
     const entry = await prisma.jobLedgerEntry.create({
       data: {
         batchId: job.batchId,
@@ -242,6 +255,7 @@ class JobLedgerImpl implements JobLedger {
     }
     const entry = await prisma.jobLedgerEntry.findFirst({
       where: { organization: user.organization, jobId: providerJobId },
+      include: { batch: { select: { name: true } } },
     });
     return entry ? toJobRecord(entry) : null;
   }
@@ -301,6 +315,7 @@ class JobLedgerImpl implements JobLedger {
     requireRequestData();
     const entries = await prisma.jobLedgerEntry.findMany({
       orderBy: { createdAt: "asc" },
+      include: { batch: { select: { name: true } } },
     });
     return entries.map(toJobRecord);
   }
@@ -323,6 +338,7 @@ function toJobRecord(entry: {
   roleArn: string;
   region: string;
   s3Endpoint: string | null;
+  batch?: { name: string | null } | null;
 }): JobRecord {
   return {
     id: entry.id,
@@ -330,6 +346,8 @@ function toJobRecord(entry: {
     ...(entry.jobId ? { providerJobId: entry.jobId } : {}),
     // Empty on rows predating the credentials table, which have no batch.
     batchId: entry.batchId ?? "",
+    // Null on batches submitted without a name, and on rows with no batch.
+    batchName: entry.batch?.name ?? null,
     offlineSessionId: entry.offlineSessionId,
     organization: entry.organization,
     owner: entry.owner,
@@ -347,6 +365,7 @@ async function listLedgerEntries(organization: string): Promise<readonly JobReco
   const entries = await prisma.jobLedgerEntry.findMany({
     where: { organization },
     orderBy: { createdAt: "asc" },
+    include: { batch: { select: { name: true } } },
   });
   return entries.map(toJobRecord);
 }
