@@ -34,7 +34,11 @@
 // supplies them — so the registry wrapper (a `get()`, a `scopedFor()` that
 // ignored the plugin name, and a `{ get: () => null }` sink) carried no meaning;
 // `ctx.client.storagePicker` / `ctx.client.imageMetadata` are now plain members
-// that are null in the server realm. Breaking: a plugin reading either member
-// must move to `ctx.client`, so the floor is a major.
+// that are null in the server realm. Breaking only for a plugin that read those
+// two members — in practice compute-plugin, the sole consumer — so every other
+// plugin keeps its existing floors and adds `|| ^8.0.0`.
+//
+// `satisfies()` now understands `||` alternation, so a plugin can declare the
+// span of majors it actually supports rather than being pinned to the newest.
 
 export const HOST_API_VERSION = "8.0.0";

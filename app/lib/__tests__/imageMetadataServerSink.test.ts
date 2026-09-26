@@ -13,7 +13,7 @@ const captureContext = async (
   let captured: PluginContext | undefined;
   const plugin: CytarioPlugin = {
     name: "capture-plugin",
-    apiVersion: "^8.0.0",
+    apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
     register(ctx) {
       captured = ctx;
     },
