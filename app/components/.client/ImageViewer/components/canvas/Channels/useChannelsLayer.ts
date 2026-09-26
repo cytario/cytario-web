@@ -12,6 +12,21 @@ import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 const EMPTY_OBJECT = Object.freeze({});
 
+// `getTile` runs once per tile per channel per load — and again for each
+// channel of a `best-available` refinement — so serializing `params.selection`
+// inline re-stringified the same array on every fetch. The selection array is
+// stable for a given layer state, so memoize its JSON form per instance; a new
+// layer state hands a new array and the key is rebuilt.
+const selectionKeyCache = new WeakMap<object, string>();
+export const selectionKey = (selection: unknown): string => {
+  if (typeof selection !== "object" || selection === null) return String(selection);
+  const cached = selectionKeyCache.get(selection);
+  if (cached !== undefined) return cached;
+  const key = JSON.stringify(selection);
+  selectionKeyCache.set(selection, key);
+  return key;
+};
+
 type MultiscaleImageLayerProps = ConstructorParameters<typeof MultiscaleImageLayer>[0];
 
 export const useChannelsLayer = (
@@ -61,7 +76,7 @@ export const useChannelsLayer = (
           // instead of refetching. Keyed by level + tile coords + full selection;
           // namespaced to rawLoader so an image switch drops the cache. signal is
           // intentionally excluded from the key.
-          const cacheKey = `${levelIndex}:${params.x}:${params.y}:${JSON.stringify(params.selection)}`;
+          const cacheKey = `${levelIndex}:${params.x}:${params.y}:${selectionKey(params.selection)}`;
           const result = await getCachedTile(rawLoader, cacheKey, () => originalGetTile(params));
 
           finishTile(tileId);
@@ -94,6 +109,11 @@ export const useChannelsLayer = (
       channelsVisible,
       dtype,
       opacity: channelsOpacity,
+      // viv defaults to `no-overlap` whenever opacity < 1, which shows blank
+      // holes at the target level instead of the parent-level fallback while
+      // new tiles load — visible as flicker across a zoom step. Pin
+      // `best-available` so a partial-resolution image is always shown.
+      refinementStrategy: "best-available",
       pickable: true,
       onTileError: (error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;

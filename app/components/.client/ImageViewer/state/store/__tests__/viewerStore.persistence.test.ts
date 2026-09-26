@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { viewerStoreMerge, viewerStoreMigrate, viewerStorePartialize } from "../core/persistence";
+import {
+  debouncedStorage,
+  viewerStoreMerge,
+  viewerStoreMigrate,
+  viewerStorePartialize,
+} from "../core/persistence";
 import type { ViewerStore } from "../types";
 
 function makeLayersState(author: string, overrides: Record<string, unknown> = {}) {
@@ -179,5 +184,40 @@ describe("viewerStoreMigrate", () => {
     expect(migrated).toHaveProperty("viewStateActive", null);
     expect(migrated).toHaveProperty("annotationClasses", []);
     expect(migrated).toHaveProperty("annotationActiveClass", null);
+  });
+});
+
+// Persist runs `partialize` + the storage's `setItem` on every store `set`.
+// Stringifying synchronously there made every viewport frame / tile load a
+// full JSON serialize of the (histogram-laden) viewer state; the debounced
+// PersistStorage now defers the stringify to the flush.
+describe("debouncedStorage stringify deferral", () => {
+  it("defers stringify past the debounce and only writes once", () => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    const stringifySpy = vi.spyOn(JSON, "stringify");
+    const base = stringifySpy.getMockImplementation();
+
+    const pending = { state: { currentUserId: "user-a" }, version: 6 } as never;
+    debouncedStorage.setItem("ViewerStore-defer-test", pending);
+
+    // Not serialized nor written yet.
+    expect(localStorage.getItem("ViewerStore-defer-test")).toBeNull();
+    expect(stringifySpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+
+    expect(stringifySpy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem("ViewerStore-defer-test")!)).toEqual(pending);
+    stringifySpy.mockImplementation(base ?? JSON.stringify);
+    vi.useRealTimers();
+  });
+
+  it("round-trips a stored value through getItem", () => {
+    localStorage.clear();
+    const value = { state: { currentUserId: "user-a", channels: {} }, version: 6 } as never;
+    debouncedStorage.setItem("ViewerStore-roundtrip-test", value);
+    window.dispatchEvent(new Event("pagehide"));
+    expect(debouncedStorage.getItem("ViewerStore-roundtrip-test")).toEqual(value);
   });
 });

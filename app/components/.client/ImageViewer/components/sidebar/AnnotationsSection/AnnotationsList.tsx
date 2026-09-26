@@ -12,7 +12,7 @@ import {
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/annotations/annotations.store";
-import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -52,8 +52,8 @@ export const AnnotationsList = ({
   const classes = useViewerStore((s) => s.annotationClasses);
   const createClass = useViewerStore((s) => s.createAnnotationClass);
   const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
-  const viewState = useViewerStore((s) => s.viewStateActive);
   const setViewState = useViewerStore((s) => s.setViewStateActive);
+  const viewerStore = useViewerStoreApi();
 
   // "Add class" reveals an inline name input; the class is created only on a
   // non-empty commit (no default-named placeholder is ever persisted).
@@ -117,6 +117,10 @@ export const AnnotationsList = ({
     // gesture, so it must not move the Shift-range anchor.
     const ids = new Set(actionTargets(feature));
     setSelectedIds([...ids]);
+    // Read the view state imperatively via the store API: subscribing to
+    // `viewStateActive` re-rendered the whole grouped annotation list on every
+    // zoom/pan frame, though it is only needed inside this click handler.
+    const viewState = viewerStore?.getState().viewStateActive;
     if (!viewState) return;
     const geometries = features.filter((f) => ids.has(f.id)).map((f) => f.geometry);
     const next = flyToFeaturesViewState(geometries, viewState);
