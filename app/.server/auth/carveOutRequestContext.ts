@@ -1,7 +1,7 @@
 import type { UserProfile } from "./getUserInfo";
+import type { ResolvedJobBinding } from "./resolveJobBinding";
 import type { AuthTokens } from "./sessionStorage";
 import type { HostRequestData } from "../hostRequestContext";
-import type { ResolvedJobBinding } from "./resolveJobBinding";
 import type { Identity } from "@cytario/plugin-api";
 
 // Organization and user derive exclusively from the ledger row a presented job
