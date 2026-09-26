@@ -17,6 +17,12 @@ export interface TourDefinition {
   title: string;
   steps: import("react-joyride").Step[];
   shouldAutoStart: (context: TourContext) => boolean;
+  /**
+   * How long a step waits for its target before joyride skips it. Defaults to
+   * the provider's value; the viewer tour needs far longer than the app tour
+   * because its chrome waits on an S3 sidecar round-trip.
+   */
+  targetWaitMs?: number;
 }
 
 /** Last path segment of a pathname, decoded — the resource's display name. */

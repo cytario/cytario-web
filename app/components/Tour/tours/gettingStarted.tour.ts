@@ -1,6 +1,16 @@
 import { GETTING_STARTED_TOUR_ID, isResourcePath, type TourDefinition } from "../tourRegistry";
 import { getFileCategory } from "~/utils/fileType";
 
+/**
+ * The connection root row in the sidebar tree. Present on every protected
+ * route (the sidebar selects the route's connection, or the first one), so it
+ * is the reliable "step into a connection" target.
+ */
+const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href^="/connections/"]';
+
+/** A folder or file inside the browsed connection — the content area. */
+const CONTENT_ENTRY_LINK = 'main a[href^="/connections/"]';
+
 export const gettingStartedTour: TourDefinition = {
   id: GETTING_STARTED_TOUR_ID,
   title: "Getting started with Cytario",
@@ -15,6 +25,8 @@ export const gettingStartedTour: TourDefinition = {
     },
     {
       target: "#navigation-sidebar",
+      // Full-height element — a bottom/top anchor would push the tooltip off-screen.
+      placement: "right",
       content:
         "The navigation panel is your starting point. Your connections, favorites, " +
         "and recently viewed images live here.",
@@ -31,6 +43,15 @@ export const gettingStartedTour: TourDefinition = {
       content: "Search a connection's files by name to quickly find what you need.",
     },
     {
+      // Targets the tree (which survives the navigation) while the before-hook
+      // steps into the connection via its row link — that row stops being a
+      // link once it is the current route, so it cannot be the target itself.
+      target: '#navigation-sidebar [role="tree"]',
+      title: "Open a connection",
+      content: "Click a connection to open it. Inside you'll find the folders and images it holds.",
+      data: { enterConnectionVia: SIDEBAR_CONNECTION_LINK },
+    },
+    {
       target: 'nav[aria-label="Breadcrumb"]',
       content: "Breadcrumbs show where you are. Click any crumb to jump back up the folder tree.",
     },
@@ -39,11 +60,11 @@ export const gettingStartedTour: TourDefinition = {
       content: "Switch between grid and list views to browse the way you prefer.",
     },
     {
-      target: 'a[href^="/connections/"]',
+      target: CONTENT_ENTRY_LINK,
       title: "Open an image",
       content:
-        "Click a file to open it. Images open in the full viewer — where a second " +
-        "short tour will show you the viewing controls.",
+        "Open anything here to browse deeper. Images open in the full viewer — " +
+        "where a second short tour will show you the viewing controls.",
     },
     {
       target: 'button[aria-label="Help"]',
@@ -54,4 +75,7 @@ export const gettingStartedTour: TourDefinition = {
   // owns those, and the registry would otherwise pick this one first.
   shouldAutoStart: ({ pathname, leafName, connectionCount }) =>
     connectionCount > 0 && !(isResourcePath(pathname) && getFileCategory(leafName) === "image"),
+  // App-shell targets either exist once the route has settled or never will
+  // (an empty connection has no file entries) — a long wait would only spin.
+  targetWaitMs: 5000,
 };
