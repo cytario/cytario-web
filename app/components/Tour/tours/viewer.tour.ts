@@ -1,5 +1,4 @@
-import { VIEWER_TOUR_ID, type TourDefinition } from "../tourRegistry";
-import { getFileCategory } from "~/utils/fileType";
+import { VIEWER_TOUR_ID, isImageViewerRoute, type TourDefinition } from "../tourRegistry";
 
 /**
  * The control panel is a 320px column pinned to the right edge, so a tooltip
@@ -12,6 +11,7 @@ const PANEL_PLACEMENT = "left" as const;
 export const viewerTour: TourDefinition = {
   id: VIEWER_TOUR_ID,
   title: "Viewing controls",
+  menuLabel: "Viewer controls tour",
   steps: [
     {
       target: "#image-controls-sidebar",
@@ -62,8 +62,10 @@ export const viewerTour: TourDefinition = {
   ],
   // Gated on the route's own single-file image category so the tour runs exactly
   // where the image viewer chrome exists.
-  shouldAutoStart: ({ pathname, leafName }) =>
-    /^\/connections\/[^/]+\/.+/.test(pathname) && getFileCategory(leafName) === "image",
+  shouldAutoStart: ({ pathname, leafName }) => isImageViewerRoute(pathname, leafName),
+  // Offered only while an image is actually open, since every step targets the
+  // viewer's control panel.
+  isAvailable: ({ pathname, leafName }) => isImageViewerRoute(pathname, leafName),
   // The viewer chrome only renders after the loader and the settings-sidecar
   // round-trip resolve, which can take many seconds on a cold S3 path.
   targetWaitMs: 30000,

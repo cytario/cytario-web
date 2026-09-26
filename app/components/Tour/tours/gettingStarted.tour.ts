@@ -1,5 +1,4 @@
-import { GETTING_STARTED_TOUR_ID, isResourcePath, type TourDefinition } from "../tourRegistry";
-import { getFileCategory } from "~/utils/fileType";
+import { GETTING_STARTED_TOUR_ID, isImageViewerRoute, type TourDefinition } from "../tourRegistry";
 
 /**
  * The connection root row in the sidebar tree. Present on every protected
@@ -14,6 +13,7 @@ const CONTENT_ENTRY_LINK = 'main a[href^="/connections/"]';
 export const gettingStartedTour: TourDefinition = {
   id: GETTING_STARTED_TOUR_ID,
   title: "Getting started with Cytario",
+  menuLabel: "Getting started tour",
   steps: [
     {
       target: "body",
@@ -74,7 +74,10 @@ export const gettingStartedTour: TourDefinition = {
   // App-shell tour: never claims a single-file image route — the viewer tour
   // owns those, and the registry would otherwise pick this one first.
   shouldAutoStart: ({ pathname, leafName, connectionCount }) =>
-    connectionCount > 0 && !(isResourcePath(pathname) && getFileCategory(leafName) === "image"),
+    connectionCount > 0 && !isImageViewerRoute(pathname, leafName),
+  // Replayable on every authenticated screen; it only needs the sidebar, which
+  // is always mounted.
+  isAvailable: () => true,
   // App-shell targets either exist once the route has settled or never will
   // (an empty connection has no file entries) — a long wait would only spin.
   targetWaitMs: 5000,
