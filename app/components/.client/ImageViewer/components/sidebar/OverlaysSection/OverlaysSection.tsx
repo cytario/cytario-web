@@ -17,10 +17,10 @@ export const OverlaysSection = () => {
   const setFillOpacity = useViewerStore(select.setOverlaysFillOpacity);
   const showCellOutline = useViewerStore(select.showCellOutline);
   const setShowCellOutline = useViewerStore(select.setShowCellOutline);
-  const currentZoom = useViewerStore(select.currentZoom);
-
-  // Hide outline toggle in point mode (points don't have outlines).
-  const isInPointMode = isPointMode(currentZoom);
+  // Subscribe to the derived boolean, not the raw zoom: the outline toggle only
+  // depends on whether the zoom is in point mode, so re-rendering this section
+  // on every zoom/pan frame was wasted work. Hide outline in point mode.
+  const isInPointMode = useViewerStore((state) => isPointMode(state.viewStateActive?.zoom ?? 0));
 
   const entries = Object.entries(overlaysStates);
 

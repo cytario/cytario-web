@@ -17,6 +17,9 @@ let currentSetId: string;
 
 vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
   useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
+  // The component reads the view state imperatively through the store API; the
+  // mock exposes the same per-test store instance the provider would.
+  useViewerStoreApi: () => currentStore,
 }));
 
 // -----------------------------------------------------------------------

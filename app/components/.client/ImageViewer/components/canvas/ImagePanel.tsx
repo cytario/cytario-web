@@ -123,12 +123,17 @@ const ImagePanelInner = ({
 
 export const ImagePanel = ({ imagePanelId }: { imagePanelId: number }) => {
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
-  const layersStates = useViewerStore(select.layersStates);
-  const imagePanels = useViewerStore((state) => state.imagePanels);
-  const layersStateIndex = imagePanels[imagePanelId];
-  const layerState = layersStates[layersStateIndex];
-  const isChannelsLoading = layerState?.isChannelsLoading ?? 0;
-  const isOverlaysLoading = layerState?.isOverlaysLoading ?? 0;
+  // Narrow selectors: the whole `layersStates` array changes on every tile
+  // load/finish (and on every channel edit), so subscribing to it re-rendered
+  // this panel far more than the two loading counters it actually reads.
+  const isChannelsLoading = useViewerStore((state) => {
+    const layersStateIndex = state.imagePanels[imagePanelId];
+    return state.layersStates[layersStateIndex]?.isChannelsLoading ?? 0;
+  });
+  const isOverlaysLoading = useViewerStore((state) => {
+    const layersStateIndex = state.imagePanels[imagePanelId];
+    return state.layersStates[layersStateIndex]?.isOverlaysLoading ?? 0;
+  });
   const setCursorPosition = useViewerStore(select.setCursorPosition);
   const rulersVisible = useViewerDisplayStore((state) => state.rulersVisible);
   const clearPixelValues = useViewerStore(select.clearPixelValues);
