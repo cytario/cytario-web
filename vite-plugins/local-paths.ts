@@ -90,13 +90,23 @@ export function buildLocalDevelopmentConfig(
   // stays SSR-externalized: Vite's dev SSR transform cannot execute CJS-only
   // packages (jpeg-js), Node's require can. An unreadable sibling package.json
   // (stale path, tests) degrades to [] — no bundling, old behavior.
+  //
+  // Peer (and optional) deps count too: @cytario/design declares its
+  // react-importing runtime deps (react-aria-components, @tanstack/react-table)
+  // as peers, so scanning only `dependencies` left them SSR-externalized and
+  // resolving react from the sibling's own node_modules — a second react
+  // instance that crashes SSR. react/react-dom themselves stay external: they
+  // are the singletons dedupe pins, not packages to bundle.
   const reactImportingSiblingDeps = (directory: string): string[] => {
     try {
       const pkgJsonPath = resolve(directory, "package.json");
       const req = createRequire(pkgJsonPath);
-      const dependencies = Object.keys(
-        JSON.parse(readFileSync(pkgJsonPath, "utf8")).dependencies ?? {},
-      );
+      const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
+      const dependencies = Object.keys({
+        ...pkg.dependencies,
+        ...pkg.peerDependencies,
+        ...pkg.optionalDependencies,
+      }).filter((dep) => dep !== "react" && dep !== "react-dom");
       return dependencies.filter((dep) => {
         try {
           let dir = dirname(req.resolve(dep));
