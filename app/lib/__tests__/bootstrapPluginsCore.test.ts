@@ -31,7 +31,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
 
     const bad: CytarioPlugin = {
       name: "bad-plugin",
-      apiVersion: "^6.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register() {
         throw new Error("intentional failure");
       },
@@ -57,7 +57,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
     });
     const good: CytarioPlugin = {
       name: "good-plugin",
-      apiVersion: "^6.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register: goodRegistered,
     };
 
@@ -99,7 +99,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
 
     const collisionFirst: CytarioPlugin = {
       name: "first",
-      apiVersion: "^6.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register(ctx) {
         captured.push("first");
         ctx.formats.register("shared", {
@@ -123,7 +123,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
     };
     const collisionSecond: CytarioPlugin = {
       name: "second",
-      apiVersion: "^6.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register(ctx) {
         captured.push("second");
         // Same extension as `first` → must throw DuplicateRegistrationError
@@ -164,7 +164,7 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
   describe("registry injection", () => {
     const captureContext = (sink: { ctx?: PluginContext }): CytarioPlugin => ({
       name: "capture-plugin",
-      apiVersion: "^6.0.0",
+      apiVersion: "^6.0.0 || ^7.0.0 || ^8.0.0",
       register(ctx) {
         sink.ctx = ctx;
       },
@@ -299,6 +299,28 @@ describe("bootstrapPluginsCore (SDS-CY-010403)", () => {
       expect(viewers.scopedFor).toHaveBeenCalledWith("capture-plugin");
       expect(sink.ctx?.viewers).toBe(scoped);
       expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("injects the client capability object; env is client", async () => {
+      const sink: { ctx?: PluginContext } = {};
+      const client = { storagePicker: null, imageMetadata: null };
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger(), {
+        client,
+        env: "client",
+      });
+
+      expect(sink.ctx?.client).toBe(client);
+      expect(sink.ctx?.env).toBe("client");
+    });
+
+    test("the client capabilities are null when not injected", async () => {
+      const sink: { ctx?: PluginContext } = {};
+
+      await bootstrapPluginsCore([captureContext(sink)], noopLogger());
+
+      expect(sink.ctx?.client.storagePicker).toBeNull();
+      expect(sink.ctx?.client.imageMetadata).toBeNull();
     });
 
     test("no-op sinks are supplied when registries are not injected", async () => {

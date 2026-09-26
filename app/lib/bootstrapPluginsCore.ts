@@ -1,4 +1,5 @@
 import type {
+  ClientCapabilities,
   CytarioPlugin,
   ContextMenuRegistry,
   GateRegistry,
@@ -9,7 +10,6 @@ import type {
   ServerEndpointRegistry,
   SidebarNavRegistry,
   SlotRegistry,
-  StoragePickerRegistry,
   UserManagementGateRegistry,
   ViewerRegistry,
 } from "@cytario/plugin-api";
@@ -32,7 +32,6 @@ export interface BootstrapRegistries {
   slots?: Scoped<SlotRegistry>;
   contextMenus?: Scoped<ContextMenuRegistry>;
   sidebarNav?: Scoped<SidebarNavRegistry>;
-  storagePicker?: Scoped<StoragePickerRegistry>;
   viewers?: Scoped<ViewerRegistry>;
   routes?: Scoped<RouteRegistry>;
   serverEndpoints?: Scoped<ServerEndpointRegistry>;
@@ -40,6 +39,8 @@ export interface BootstrapRegistries {
   userMgmtGate?: UserManagementGateRegistry;
   /** Server-only capability object — not scoped to a plugin name. */
   host?: HostCapabilities;
+  /** Client-only capability object — not scoped to a plugin name. */
+  client?: ClientCapabilities;
   env?: PluginContext["env"];
 }
 
@@ -57,10 +58,6 @@ const noopContextMenuRegistry: Scoped<ContextMenuRegistry> = {
 
 const noopSidebarNavRegistry: Scoped<SidebarNavRegistry> = {
   scopedFor: () => ({ register: () => {} }),
-};
-
-const noopStoragePickerRegistry: Scoped<StoragePickerRegistry> = {
-  scopedFor: () => ({ get: () => null }),
 };
 
 const noopViewerRegistry: Scoped<ViewerRegistry> = {
@@ -91,12 +88,17 @@ export async function bootstrapPluginsCore(
   const slots = registries?.slots ?? noopSlotRegistry;
   const contextMenus = registries?.contextMenus ?? noopContextMenuRegistry;
   const sidebarNav = registries?.sidebarNav ?? noopSidebarNavRegistry;
-  const storagePicker = registries?.storagePicker ?? noopStoragePickerRegistry;
   const viewers = registries?.viewers ?? noopViewerRegistry;
   const routes = registries?.routes ?? noopRouteRegistry;
   const serverEndpoints = registries?.serverEndpoints ?? noopServerEndpointRegistry;
   const userMgmtGate = registries?.userMgmtGate ?? noopUserManagementGateRegistry;
   const host = registries?.host ?? noopHostCapabilities;
+  // A realm that owns neither capability (the server) supplies neither key,
+  // so both members are null and a client-code read degrades to absence.
+  const client: ClientCapabilities = registries?.client ?? {
+    storagePicker: null,
+    imageMetadata: null,
+  };
   // The default only covers tests that call this helper without registries.
   const env: PluginContext["env"] = registries?.env ?? "client";
   for (const plugin of plugins) {
@@ -122,12 +124,12 @@ export async function bootstrapPluginsCore(
       slots: slots.scopedFor(plugin.name),
       contextMenus: contextMenus.scopedFor(plugin.name),
       sidebarNav: sidebarNav.scopedFor(plugin.name),
-      storagePicker: storagePicker.scopedFor(plugin.name),
       viewers: viewers.scopedFor(plugin.name),
       routes: routes.scopedFor(plugin.name),
       serverEndpoints: serverEndpoints.scopedFor(plugin.name),
       userMgmtGate,
       host,
+      client,
       env,
     };
 

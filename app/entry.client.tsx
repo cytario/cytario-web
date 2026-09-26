@@ -5,14 +5,12 @@ import { HydratedRouter } from "react-router/dom";
 import { contextMenuRegistry } from "./components/contextMenuRegistry";
 import { sidebarNavRegistry } from "./components/sidebarNavRegistry";
 import { slotRegistry } from "./components/slotRegistry";
-import { storagePickerRegistry } from "./components/storagePickerRegistry";
 import { viewerRegistry } from "./components/viewerRegistry";
 import { clientRouteRegistry } from "./lib/clientRouteRegistry";
+import { imageMetadata } from "./lib/imageMetadata";
 import { storagePicker } from "./lib/storagePicker";
 import { bootstrapPlugins } from "./plugins.generated";
 import { startMemoryWatchdog } from "./utils/memoryWatchdog";
-
-storagePickerRegistry.set(storagePicker);
 
 // Await bootstrap before hydrating so registry-derived gates (e.g. the
 // `getFileCategory` viewer gate) see plugin-contributed formats on the first
@@ -28,9 +26,9 @@ await bootstrapPlugins(
     slots: slotRegistry,
     contextMenus: contextMenuRegistry,
     sidebarNav: sidebarNavRegistry,
-    storagePicker: storagePickerRegistry,
     viewers: viewerRegistry,
     routes: clientRouteRegistry,
+    client: { storagePicker, imageMetadata },
     env: "client",
   },
 ).catch((err) => {

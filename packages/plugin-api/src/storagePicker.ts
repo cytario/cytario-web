@@ -60,8 +60,7 @@ export interface StoragePickerOptions {
  * with multi-select checkboxes, an optional glob filter, an optional
  * group-by selector, and an "Add" confirm button.
  *
- * Client-live; no-op sink server-side (throws "client-only" when called on
- * the server).
+ * Client-live; `null` in the server realm (reached through `ctx.client`).
  */
 export interface StoragePicker {
   /**
@@ -69,12 +68,4 @@ export interface StoragePicker {
    * groups, or `null` if the user cancelled.
    */
   open(options?: StoragePickerOptions): Promise<StoragePickerSelection | null>;
-}
-
-/**
- * Registry exposing the storage picker. Client-live; no-op sink server-side.
- */
-export interface StoragePickerRegistry {
-  /** The host-provided picker instance, or null on the server. */
-  get(): StoragePicker | null;
 }
