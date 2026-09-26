@@ -9,17 +9,46 @@ vi.mock("~/utils/signedFetch", () => ({
   createSignedFetch: vi.fn(() => async () => new Response(null, { status: 200 })),
 }));
 
-// The loader modules pull geotiff/viv; the reader mocks carry marker metadata
-// so this suite proves the REGISTRATION wiring, not reader correctness (the
-// readers have their own suites). The builtins module itself is NOT mocked —
-// that is the point. Mock paths must match builtins.ts's own `~/`-prefixed
-// imports exactly, or vitest treats them as distinct modules and the mock
-// never applies.
+// The loader modules pull geotiff/viv, so they are mocked with marker metadata.
+// What is NOT mocked is the builtins module itself: that is the point of this
+// suite — proving the capability registers the built-ins on its own, with no
+// viewer ever mounted. Mock paths must match builtins.ts's own `~/`-prefixed
+// imports exactly, or vitest treats them as distinct modules and the mock never
+// applies. The readers are the loaders' own metadata path, so the marker rides
+// on their metadata.
 vi.mock("~/components/.client/ImageViewer/state/loaders/loadOmeTiffWithCredentials", () => ({
-  loadOmeTiffWithCredentials: vi.fn(),
+  loadOmeTiffWithCredentials: vi.fn(async () => ({
+    data: [],
+    metadata: {
+      ID: "tiff-image",
+      Pixels: {
+        Type: "Uint16",
+        Channels: [],
+        SizeX: 512,
+        SizeY: 512,
+        PhysicalSizeXUnit: "µm",
+        PhysicalSizeYUnit: "µm",
+        PhysicalSizeZUnit: "µm",
+      },
+    },
+  })),
 }));
 vi.mock("~/components/.client/ImageViewer/state/loaders/loadBioformatsZarrWithCredentials", () => ({
-  loadBioformatsZarrWithCredentials: vi.fn(),
+  loadBioformatsZarrWithCredentials: vi.fn(async () => ({
+    data: [],
+    metadata: {
+      ID: "zarr-image",
+      Pixels: {
+        Type: "Uint16",
+        Channels: [],
+        SizeX: 256,
+        SizeY: 256,
+        PhysicalSizeXUnit: "µm",
+        PhysicalSizeYUnit: "µm",
+        PhysicalSizeZUnit: "µm",
+      },
+    },
+  })),
 }));
 
 const markerImage = (id: string): Image => ({
@@ -34,13 +63,6 @@ const markerImage = (id: string): Image => ({
     PhysicalSizeZUnit: "µm",
   },
 });
-
-vi.mock("~/components/.client/ImageViewer/state/loaders/readOmeTiffCharacteristics", () => ({
-  readOmeTiffCharacteristics: vi.fn(async () => markerImage("tiff-characteristics")),
-}));
-vi.mock("~/components/.client/ImageViewer/state/loaders/readOmeZarrCharacteristics", () => ({
-  readOmeZarrCharacteristics: vi.fn(async () => markerImage("zarr-characteristics")),
-}));
 
 const signedFetch = vi.fn(async () => new Response(null, { status: 200 }));
 vi.mocked(createSignedFetch).mockReturnValue(signedFetch as never);
@@ -99,7 +121,7 @@ describe("imageMetadata self-registers the built-in formats", () => {
     const image = await imageMetadata.read("conn-1", "slide.ome.tif");
 
     expect(formatRegistry.list()).toHaveLength(2);
-    expect(image?.ID).toBe("tiff-characteristics");
+    expect(image?.ID).toBe("tiff-image");
     expect(image?.Pixels.SizeX).toBe(512);
   });
 
@@ -109,7 +131,7 @@ describe("imageMetadata self-registers the built-in formats", () => {
     const image = await imageMetadata.read("conn-1", "slide.ome.zarr");
 
     expect(formatRegistry.list()).toHaveLength(2);
-    expect(image?.ID).toBe("zarr-characteristics");
+    expect(image?.ID).toBe("zarr-image");
   });
 
   test("read() is repeatable after a registry reset (re-registration per call)", async () => {
@@ -119,13 +141,12 @@ describe("imageMetadata self-registers the built-in formats", () => {
     const image = await imageMetadata.read("conn-1", "slide.ome.tif");
 
     expect(formatRegistry.list()).toHaveLength(2);
-    expect(image?.ID).toBe("tiff-characteristics");
+    expect(image?.ID).toBe("tiff-image");
   });
 
   test("a plugin handler that already owns the extension still wins", async () => {
     formatRegistry.add("some-plugin", ["ome.tif", "ome.tiff"], {
-      load: vi.fn(),
-      readCharacteristics: vi.fn(async () => markerImage("plugin-image")),
+      load: vi.fn(async () => ({ data: [], metadata: markerImage("plugin-image") })),
     });
 
     const image = await imageMetadata.read("conn-1", "slide.ome.tif");

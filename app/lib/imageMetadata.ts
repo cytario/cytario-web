@@ -45,13 +45,11 @@ class ImageMetadataImpl implements ImageMetadata {
       await ensureBuiltinFormats();
       const opts: LoadOptions = { signedFetch };
       const { handler } = formatRegistry.resolve(resolved.httpsUrl);
-      if (handler.readCharacteristics) {
-        try {
-          return await handler.readCharacteristics(resolved.httpsUrl, opts);
-        } catch {
-          // A failing cheap read is best-effort — fall through to load().
-        }
-      }
+      // `load()` is the one metadata path: it is the same read the viewer
+      // performs, so the characteristics it yields cannot drift from what the
+      // analyst sees. Formats build their tile sources lazily, and the loaders
+      // derive metadata from headers before any pixel work, so this does not
+      // decode image data.
       const loaded = await handler.load(resolved.httpsUrl, opts);
       return loaded.metadata;
     } catch {

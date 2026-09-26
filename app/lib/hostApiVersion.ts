@@ -23,8 +23,9 @@
 // move to the new capability — and this one is not backward compatible for such
 // a consumer within 6.x, despite the minor.
 //
-// 6.14.0: `PluginContext` gains the client-live `imageMetadata` registry and
-// `FormatHandler` the optional `readCharacteristics` metadata-only read;
-// additive at a minor version, so existing plugins still satisfy the contract.
+// 6.14.0: `PluginContext` gains the client-live `imageMetadata` registry, which
+// resolves a storage object's format-agnostic image characteristics through the
+// format handler's own `load()` — additive at a minor version, so existing
+// plugins still satisfy the contract.
 
 export const HOST_API_VERSION = "6.14.0";

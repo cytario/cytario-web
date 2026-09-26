@@ -78,24 +78,7 @@ afterEach(() => {
 });
 
 describe("imageMetadata.read", () => {
-  test("uses readCharacteristics when the handler provides one", async () => {
-    const image = baseImage();
-    const readCharacteristics = vi.fn(async () => image);
-    const load = vi.fn(async () => ({ data: [], metadata: baseImage() }));
-    registerHandler({ load, readCharacteristics });
-
-    const result = await imageMetadata.read("conn-1", "slide.ome.tif");
-
-    expect(result).toBe(image);
-    expect(readCharacteristics).toHaveBeenCalledTimes(1);
-    // The URL handed to the handler is the resolved httpsUrl.
-    const [url, opts] = readCharacteristics.mock.calls[0] as unknown as [string, LoadOptions];
-    expect(url).toBe("https://s3.eu-central-1.amazonaws.com/bucket-1/data/slide.ome.tif");
-    expect(opts.signedFetch).toBe(signedFetch);
-    expect(load).not.toHaveBeenCalled();
-  });
-
-  test("falls back to load() when readCharacteristics is absent", async () => {
+  test("resolves the object's metadata through the handler's load()", async () => {
     const image = baseImage();
     const load = vi.fn(async () => ({ data: [], metadata: image }));
     registerHandler({ load });
@@ -104,30 +87,18 @@ describe("imageMetadata.read", () => {
 
     expect(result).toBe(image);
     expect(load).toHaveBeenCalledTimes(1);
+    // The URL handed to the handler is the resolved httpsUrl, and the signed
+    // fetch rides through to it — the capability owns no credentials itself.
+    const [url, opts] = load.mock.calls[0] as unknown as [string, LoadOptions];
+    expect(url).toBe("https://s3.eu-central-1.amazonaws.com/bucket-1/data/slide.ome.tif");
+    expect(opts.signedFetch).toBe(signedFetch);
   });
 
-  test("falls back to load() when readCharacteristics throws", async () => {
-    const image = baseImage();
-    const readCharacteristics = vi.fn(async () => {
-      throw new Error("unsupported layout");
-    });
-    const load = vi.fn(async () => ({ data: [], metadata: image }));
-    registerHandler({ load, readCharacteristics });
-
-    const result = await imageMetadata.read("conn-1", "slide.ome.tif");
-
-    expect(result).toBe(image);
-    expect(load).toHaveBeenCalledTimes(1);
-  });
-
-  test("resolves null when both readCharacteristics and load fail", async () => {
-    const readCharacteristics = vi.fn(async () => {
-      throw new Error("boom");
-    });
+  test("resolves null when load() fails", async () => {
     const load = vi.fn(async () => {
       throw new Error("boom");
     });
-    registerHandler({ load, readCharacteristics });
+    registerHandler({ load });
 
     await expect(imageMetadata.read("conn-1", "slide.ome.tif")).resolves.toBeNull();
   });

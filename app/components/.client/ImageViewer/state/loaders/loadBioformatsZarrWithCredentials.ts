@@ -25,11 +25,7 @@ export async function loadBioformatsZarrWithCredentials(
 
   return {
     data: loader,
-    metadata: rootAttrsToImage(result.metadata, {
-      shape: loader[0]?.shape ?? [],
-      labels: loader[0]?.labels ?? [],
-      dtype: loader[0]?.dtype ?? "",
-    }),
+    metadata: rootAttrsToImage(result.metadata, loader),
   };
 }
 
@@ -45,22 +41,15 @@ interface DatasetWithTransforms {
   coordinateTransformations?: CoordinateTransformation[];
 }
 
-/** Array-level characteristics the mapper needs from the base resolution. */
-export interface BaseArrayShape {
-  shape: number[];
-  labels: string[];
-  dtype: string;
-}
-
 /** Map NGFF RootAttrs → OME-TIFF Image. Exported for testing. */
-export function rootAttrsToImage(rootAttrs: RootAttrs, array: BaseArrayShape): Image {
+export function rootAttrsToImage(rootAttrs: RootAttrs, loader: Loader): Image {
   const { omero, multiscales } = rootAttrs;
   const multiscale = multiscales[0];
   const axes = multiscale?.axes ?? [];
   const channels = omero?.channels ?? [];
 
-  const { shape, labels } = array;
-
+  const shape = loader[0]?.shape ?? [];
+  const labels = loader[0]?.labels ?? [];
   const dimIndex = (name: string) => labels.indexOf(name);
 
   const SizeX = shape[dimIndex("x")] ?? 0;
@@ -79,7 +68,7 @@ export function rootAttrsToImage(rootAttrs: RootAttrs, array: BaseArrayShape): I
   };
 
   // Zarrita yields lower-case dtype; PixelType union is canonical casing.
-  const pixelType = normalizePixelType(array.dtype || "uint16");
+  const pixelType = normalizePixelType(loader[0]?.dtype ?? "uint16");
 
   return {
     ID: "Image:0",

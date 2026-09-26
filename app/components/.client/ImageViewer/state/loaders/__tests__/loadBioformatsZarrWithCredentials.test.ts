@@ -160,11 +160,7 @@ describe("rootAttrsToImage", () => {
     const rootAttrs = createRootAttrs({ name: "Test Image" });
     const loader = createMockLoader([1, 3, 1, 1024, 1024], ["t", "c", "z", "y", "x"]);
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.ID).toBe("Image:0");
     expect(result.Name).toBe("Test Image");
@@ -186,11 +182,7 @@ describe("rootAttrsToImage", () => {
     });
     const loader = createMockLoader([1, 2, 1, 512, 512], ["t", "c", "z", "y", "x"]);
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.Channels).toHaveLength(2);
     expect(result.Pixels.Channels[0]).toEqual({
@@ -223,11 +215,7 @@ describe("rootAttrsToImage", () => {
     });
     const loader = createMockLoader([1, 1, 1, 1024, 1024], ["t", "c", "z", "y", "x"]);
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.PhysicalSizeX).toBe(0.65);
     expect(result.Pixels.PhysicalSizeY).toBe(0.65);
@@ -244,11 +232,7 @@ describe("rootAttrsToImage", () => {
     });
     const loader = createMockLoader([512, 512], ["y", "x"]);
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.PhysicalSizeXUnit).toBe("µm");
     expect(result.Pixels.PhysicalSizeYUnit).toBe("µm");
@@ -263,11 +247,7 @@ describe("rootAttrsToImage", () => {
     });
     const loader = createMockLoader([512, 512], ["y", "x"]);
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.SizeX).toBe(512);
     expect(result.Pixels.SizeY).toBe(512);
@@ -280,11 +260,7 @@ describe("rootAttrsToImage", () => {
     const rootAttrs = createRootAttrs();
     const loader = createMockLoader([1, 1, 1, 512, 512], ["t", "c", "z", "y", "x"], "float32");
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.Type).toBe("Float32");
   });
@@ -295,11 +271,7 @@ describe("rootAttrsToImage", () => {
       { shape: [1, 1, 1, 512, 512], labels: ["t", "c", "z", "y", "x"] },
     ] as unknown as Loader;
 
-    const result = rootAttrsToImage(rootAttrs, {
-      shape: loader[0].shape,
-      labels: loader[0].labels,
-      dtype: loader[0].dtype,
-    });
+    const result = rootAttrsToImage(rootAttrs, loader);
 
     expect(result.Pixels.Type).toBe("Uint16");
   });
