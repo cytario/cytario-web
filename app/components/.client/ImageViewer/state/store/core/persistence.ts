@@ -1,4 +1,4 @@
-import { createJSONStorage } from "zustand/middleware";
+import type { PersistStorage, StorageValue } from "zustand/middleware";
 
 import type { ViewerStore } from "../types";
 import { createMigrate } from "~/utils/persistMigration";
@@ -163,13 +163,13 @@ export const viewerStoreMerge = (persisted: unknown, current: ViewerStore): View
 };
 
 const PERSIST_DEBOUNCE_MS = 500;
-const pendingWrites = new Map<string, string>();
+const pendingWrites = new Map<string, StorageValue<PersistedViewerState>>();
 let flushRegistered = false;
 
 function flushPendingWrites() {
   for (const [name, value] of pendingWrites) {
     try {
-      localStorage.setItem(name, value);
+      localStorage.setItem(name, JSON.stringify(value));
     } catch {
       // Quota errors surface via the persist middleware's own handler.
     }
@@ -182,25 +182,37 @@ if (typeof window !== "undefined" && !flushRegistered) {
   window.addEventListener("pagehide", flushPendingWrites);
 }
 
-/** localStorage-backed StateStorage with a debounced write side. */
-function createDebouncedStorage(debounceMs: number) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return {
-    getItem: (name: string) => localStorage.getItem(name),
-    setItem: (name: string, value: string) => {
-      pendingWrites.set(name, value);
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        flushPendingWrites();
-      }, debounceMs);
-    },
-    removeItem: (name: string) => {
-      pendingWrites.delete(name);
-      localStorage.removeItem(name);
-    },
-  };
-}
+let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-export const debouncedStorage = createJSONStorage(() =>
-  createDebouncedStorage(PERSIST_DEBOUNCE_MS),
-);
+/**
+ * localStorage-backed PersistStorage with a debounced write side.
+ *
+ * `PersistStorage` receives the already-partialized state object, so the
+ * expensive part — `JSON.stringify` of the whole viewer state (per-channel
+ * 256-bin histograms, layer state) — is deferred to the flush instead of
+ * running synchronously on every `set`. A viewport frame, a tile load and a
+ * tile finish each triggered a full serialize before; now they only queue a
+ * reference and one stringify happens per debounce window.
+ */
+export const debouncedStorage: PersistStorage<PersistedViewerState> = {
+  getItem: (name: string) => {
+    const str = localStorage.getItem(name);
+    if (!str) return null;
+    try {
+      return JSON.parse(str) as StorageValue<PersistedViewerState>;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: StorageValue<PersistedViewerState>) => {
+    pendingWrites.set(name, value);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      flushPendingWrites();
+    }, PERSIST_DEBOUNCE_MS);
+  },
+  removeItem: (name: string) => {
+    pendingWrites.delete(name);
+    localStorage.removeItem(name);
+  },
+};
