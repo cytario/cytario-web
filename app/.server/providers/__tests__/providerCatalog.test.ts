@@ -314,31 +314,28 @@ describe("providerCatalogSchema", () => {
     expect(() => providerCatalogSchema.parse(withEmptyArn)).toThrow();
   });
 
-  test("parses a memorySteps ladder nested in the max-resources blob (admin-portal shape)", () => {
-    const withLadder = {
+  test("preserves the max-resources blob's declared fields", () => {
+    const withMax = {
       ...CATALOG,
       computeProviders: [
         {
           ...CATALOG.computeProviders[0],
           typeSpecific: {
             ...CATALOG.computeProviders[0].typeSpecific,
-            maxResources: {
-              vcpu: 48,
-              memory: 196608,
-              gpuCount: 4,
-              memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
-            },
+            maxResources: { vcpu: 48, memory: 196608, gpuCount: 4 },
           },
         },
       ],
     };
-    const catalog = providerCatalogSchema.parse(withLadder);
+    const catalog = providerCatalogSchema.parse(withMax);
     expect(catalog.computeProviders[0].typeSpecific.maxResources).toMatchObject({
-      memorySteps: ["16Gi", "32Gi", "64Gi", "192Gi"],
+      vcpu: 48,
+      memory: 196608,
+      gpuCount: 4,
     });
   });
 
-  test("a sibling typeSpecific.memorySteps key never reaches the typed catalog — the blob is the only ladder channel", () => {
+  test("strips unknown sibling keys from typeSpecific", () => {
     const withSibling = {
       ...CATALOG,
       computeProviders: [
@@ -346,17 +343,16 @@ describe("providerCatalogSchema", () => {
           ...CATALOG.computeProviders[0],
           typeSpecific: {
             ...CATALOG.computeProviders[0].typeSpecific,
-            memorySteps: ["16Gi", "32Gi"],
+            unexpectedSiblingKey: ["x"],
           },
         },
       ],
     };
     const catalog = providerCatalogSchema.parse(withSibling);
-    // Unknown keys are stripped: there is no sibling ladder field, so a
-    // payload cannot smuggle a second, divergent ladder source past the
-    // schema. The blob remains the only channel.
+    // Unknown keys are stripped, so the schema describes exactly the fields
+    // the mapper reads.
     const typeSpecific = catalog.computeProviders[0].typeSpecific as Record<string, unknown>;
-    expect(typeSpecific.memorySteps).toBeUndefined();
+    expect(typeSpecific.unexpectedSiblingKey).toBeUndefined();
   });
 });
 

@@ -25,7 +25,6 @@
 //
 // 6.14.0: `PluginContext` gains the client-live `imageMetadata` registry and
 // `FormatHandler` the optional `readCharacteristics` metadata-only read;
-// `ProviderResourceEnvelope` gains the optional `memorySteps` ladder — additive
-// at a minor version, so existing plugins still satisfy the contract.
+// additive at a minor version, so existing plugins still satisfy the contract.
 
 export const HOST_API_VERSION = "6.14.0";

@@ -71,33 +71,6 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
     if (pairs.length > 0) envelope.supportedVcpuMemoryPairs = pairs;
   }
 
-  // Memory ladder: ascending Kubernetes-quantity rungs. Accepts the same
-  // shapes under `memorySteps` (admin-portal: array of quantity strings) and
-  // the legacy `memoryLadder` alias: a comma-separated string, or an array
-  // whose rungs are quantity strings or positive MiB integers (`${n}Mi`).
-  // Unusable entries are skipped; at least one rung must survive.
-  const ladderRaw = obj.memorySteps ?? obj.memoryLadder;
-  const stepsFromLadder = (ladder: unknown): string[] => {
-    if (typeof ladder === "string") {
-      return ladder
-        .split(",")
-        .map((step) => step.trim())
-        .filter((step) => step !== "");
-    }
-    if (!Array.isArray(ladder)) return [];
-    const steps: string[] = [];
-    for (const rung of ladder) {
-      if (typeof rung === "string" && rung.trim() !== "") {
-        steps.push(rung.trim());
-      } else if (typeof rung === "number" && Number.isInteger(rung) && rung > 0) {
-        steps.push(`${rung}Mi`);
-      }
-    }
-    return steps;
-  };
-  const steps = stepsFromLadder(ladderRaw);
-  if (steps.length > 0) envelope.memorySteps = steps;
-
   if (Object.keys(envelope).length === 0) return undefined;
   return envelope;
 }

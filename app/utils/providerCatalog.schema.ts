@@ -101,10 +101,7 @@ export const computeProviderSchema = z.object({
      * rejects an unsatisfiable request instead of leaving a stuck `RUNNABLE`
      * job. Nullable because the admin-portal predates this field; a null
      * ceiling means the host cannot determine the maximum and the plugin
-     * skips the check for that resource. The blob may carry `memorySteps`
-     * (ascending Kubernetes-quantity memory rungs, as an array of quantity
-     * strings) — mapped onto `ProviderResourceEnvelope.memorySteps` by
-     * `mapResourceEnvelope`.
+     * skips the check for that resource.
      */
     maxResources: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
