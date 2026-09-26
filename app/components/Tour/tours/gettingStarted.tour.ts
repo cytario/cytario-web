@@ -12,15 +12,15 @@ const CONTENT_ENTRY_LINK = 'main a[href^="/connections/"]';
 
 export const gettingStartedTour: TourDefinition = {
   id: GETTING_STARTED_TOUR_ID,
-  title: "Getting started with Cytario",
+  title: "Getting started with cytario",
   menuLabel: "Getting started tour",
   steps: [
     {
       target: "body",
       placement: "center",
-      title: "Welcome to Cytario",
+      title: "Welcome to cytario",
       content:
-        "Cytario is your workspace for browsing and viewing scientific imaging data. " +
+        "cytario is your workspace for browsing and viewing scientific imaging data. " +
         "This quick tour shows you around — it takes about a minute.",
     },
     {
@@ -35,7 +35,7 @@ export const gettingStartedTour: TourDefinition = {
       target: 'button[data-expander][aria-controls="section-connections-content"]',
       title: "Connections",
       content:
-        "Connections link Cytario to your cloud storage buckets. Every image and " +
+        "Connections link cytario to your cloud storage buckets. Every image and " +
         "folder you browse comes from one of them.",
     },
     {

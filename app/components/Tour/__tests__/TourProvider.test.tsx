@@ -106,7 +106,7 @@ describe("TourProvider", () => {
     renderAt("/", 1);
     vi.advanceTimersByTime(2000);
 
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
     vi.useRealTimers();
   });
 
@@ -117,7 +117,7 @@ describe("TourProvider", () => {
       document.querySelector<HTMLButtonElement>('[data-action="primary"]')?.click();
 
     vi.advanceTimersByTime(2000);
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
 
     // Step index 4 is "Open a connection"; reaching it must move the user into
     // the connection, since the breadcrumb only gains a trail there.
@@ -153,7 +153,7 @@ describe("TourProvider", () => {
     renderAt("/", 1);
     vi.advanceTimersByTime(2000);
 
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
     vi.useRealTimers();
   });
 
@@ -163,7 +163,7 @@ describe("TourProvider", () => {
     renderAt("/", 1);
     vi.advanceTimersByTime(2000);
 
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
     vi.useRealTimers();
   });
 
@@ -177,7 +177,7 @@ describe("TourProvider", () => {
     act(() => {
       useTourControllerStore.getState().requestTour("getting-started");
     });
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
     vi.useRealTimers();
   });
 
@@ -205,7 +205,7 @@ describe("TourProvider", () => {
     const { navigate } = renderAt("/", 1);
 
     vi.advanceTimersByTime(2000);
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
 
     const closeButton = document.querySelector<HTMLButtonElement>('[data-action="close"]');
     closeButton?.click();
@@ -223,7 +223,7 @@ describe("TourProvider", () => {
     const { navigate } = renderAt("/", 1);
 
     vi.advanceTimersByTime(2000);
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
 
     const closeButton = document.querySelector<HTMLButtonElement>('[data-action="close"]');
     closeButton?.click();
@@ -246,7 +246,7 @@ describe("TourProvider", () => {
     renderAt("/", 1);
 
     vi.advanceTimersByTime(2000);
-    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to Cytario"));
+    await waitFor(() => expect(firstTooltipTitle()).toContain("Welcome to cytario"));
 
     const clickNext = () =>
       document.querySelector<HTMLButtonElement>('[data-action="primary"]')?.click();
