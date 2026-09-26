@@ -109,6 +109,11 @@ export const useChannelsLayer = (
       channelsVisible,
       dtype,
       opacity: channelsOpacity,
+      // viv defaults to `no-overlap` whenever opacity < 1, which shows blank
+      // holes at the target level instead of the parent-level fallback while
+      // new tiles load — visible as flicker across a zoom step. Pin
+      // `best-available` so a partial-resolution image is always shown.
+      refinementStrategy: "best-available",
       pickable: true,
       onTileError: (error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
