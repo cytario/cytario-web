@@ -84,8 +84,9 @@ export type {
   StoragePickerOptions,
   StoragePickerResult,
   StoragePickerSelection,
-  StoragePickerRegistry,
 } from "./storagePicker";
+export type { ImageMetadata } from "./imageMetadata";
+export type { ClientCapabilities } from "./clientCapabilities";
 export type { ViewerProps, ViewerContribution, ViewerRegistry } from "./viewer";
 
 export { assertApiCompatible, IncompatiblePluginError } from "./apiVersion";

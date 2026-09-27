@@ -1,32 +1,18 @@
-// Supports exact / caret / tilde. Rejects prereleases, "*", malformed input.
-// Replaces the `semver` package to keep the bundle small and cut a ReDoS
-// surface on plugin-supplied range strings.
-const RE = /^\s*([\^~]?)(\d+)\.(\d+)\.(\d+)\s*$/;
+import semver from "semver";
 
-function parse(s: string): [Triple, "" | "^" | "~"] | null {
-  const m = RE.exec(s);
-  if (!m) return null;
-  const op = m[1] as "" | "^" | "~";
-  return [[Number(m[2]), Number(m[3]), Number(m[4])], op];
-}
-
-type Triple = [number, number, number];
-
-function cmp(a: Triple, b: Triple): number {
-  if (a[0] !== b[0]) return a[0] - b[0];
-  if (a[1] !== b[1]) return a[1] - b[1];
-  return a[2] - b[2];
-}
-
+/**
+ * Whether a plugin's declared `apiVersion` range admits the host's contract
+ * version. Delegates to npm's `semver`, so a plugin's range means here exactly
+ * what it means in its `package.json`.
+ *
+ * A range that `semver` treats as "any version" is refused: an empty range, a
+ * dangling `||` (`^6.0.0 ||`), or `*` all parse to `*`, which would let a
+ * plugin that declared nothing usable load on a host it never targeted. This
+ * gate fails closed — an unreadable range skips the plugin.
+ */
 export function satisfies(range: string, version: string): boolean {
-  const r = parse(range);
-  const v = parse(version);
-  if (!r || !v) return false;
-  // Reject if version string itself carries an operator.
-  if (v[1] !== "") return false;
-  const [rT, op] = r;
-  const [vT] = v;
-  if (op === "^") return vT[0] === rT[0] && cmp(vT, rT) >= 0;
-  if (op === "~") return vT[0] === rT[0] && vT[1] === rT[1] && vT[2] >= rT[2];
-  return cmp(vT, rT) === 0;
+  // `semver.validRange` normalises, so inspecting it catches both the empty
+  // and the dangling-alternative shapes before they reach `satisfies`.
+  if (semver.validRange(range) === "*") return false;
+  return semver.satisfies(version, range);
 }

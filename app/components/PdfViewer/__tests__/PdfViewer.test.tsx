@@ -63,7 +63,11 @@ describe("PdfViewer", () => {
     await waitFor(() => {
       expect(screen.getByText("Page 1 of 3")).toBeVisible();
     });
-    expect(pageRender).toHaveBeenCalledTimes(1);
+    // The page render is a separate effect from the document load, so it can
+    // land a tick after the "Page 1 of 3" text appears.
+    await waitFor(() => {
+      expect(pageRender).toHaveBeenCalledTimes(1);
+    });
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });

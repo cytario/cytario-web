@@ -33,6 +33,10 @@
     "release": "semantic-release"
   },
   "devDependencies": {
+    "@types/semver": "^7.7.0",
     "tsup": "^8.0.0"
+  },
+  "dependencies": {
+    "semver": "^7.7.0"
   }
 }

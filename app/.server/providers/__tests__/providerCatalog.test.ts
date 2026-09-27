@@ -313,6 +313,47 @@ describe("providerCatalogSchema", () => {
     };
     expect(() => providerCatalogSchema.parse(withEmptyArn)).toThrow();
   });
+
+  test("preserves the max-resources blob's declared fields", () => {
+    const withMax = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            maxResources: { vcpu: 48, memory: 196608, gpuCount: 4 },
+          },
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withMax);
+    expect(catalog.computeProviders[0].typeSpecific.maxResources).toMatchObject({
+      vcpu: 48,
+      memory: 196608,
+      gpuCount: 4,
+    });
+  });
+
+  test("strips unknown sibling keys from typeSpecific", () => {
+    const withSibling = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            unexpectedSiblingKey: ["x"],
+          },
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withSibling);
+    // Unknown keys are stripped, so the schema describes exactly the fields
+    // the mapper reads.
+    const typeSpecific = catalog.computeProviders[0].typeSpecific as Record<string, unknown>;
+    expect(typeSpecific.unexpectedSiblingKey).toBeUndefined();
+  });
 });
 
 describe("getProviderCatalog (OSS build)", () => {
