@@ -306,6 +306,13 @@ export interface JobRecord {
   /** The provider's job identifier, attached by `update` once the provider accepts. */
   providerJobId?: string;
   batchId: string;
+  /**
+   * The batch's optional display name, given at submit time. Annotation, not
+   * identity: it is never unique and never looked up by — the batch id is the
+   * identity. Host-persisted on the batch entity; on `record` it is written
+   * when the batch row is created and ignored by later jobs of the same batch.
+   */
+  batchName?: string | null;
   offlineSessionId: string;
   /**
    * The compute provider the job was submitted to. Host-injected on `record`
