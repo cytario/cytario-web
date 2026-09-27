@@ -19,9 +19,7 @@ export const gettingStartedTour: TourDefinition = {
       target: "body",
       placement: "center",
       title: "Welcome to cytario",
-      content:
-        "cytario is your workspace for browsing and viewing scientific imaging data. " +
-        "This quick tour shows you around — it takes about a minute.",
+      content: "cytario is your workspace for browsing and viewing scientific imaging data. ",
     },
     {
       target: "#navigation-sidebar",
@@ -35,8 +33,8 @@ export const gettingStartedTour: TourDefinition = {
       target: 'button[data-expander][aria-controls="section-connections-content"]',
       title: "Connections",
       content:
-        "Connections link cytario to your cloud storage buckets. Every image and " +
-        "folder you browse comes from one of them.",
+        "Connections link your cloud storage to cytario. Every image and folder you browse" +
+        "comes from one of them.",
     },
     {
       target: "#sidebar-search-input",

@@ -18,24 +18,16 @@ export const viewerTour: TourDefinition = {
       placement: PANEL_PLACEMENT,
       content:
         "This panel holds the viewing controls — channels, zoom, and display settings. " +
-        "It can be docked here or floated over the image.",
+        "Its sections can be docked here or floated over the image by drag and drop.",
     },
     {
       target: "#section-channels-title",
       placement: PANEL_PLACEMENT,
       title: "Channels",
       content:
-        "Each channel is one imaging modality or fluorophore. Toggle channels on and off, " +
-        "pick their colors, and set brightness and contrast per channel.",
-    },
-    {
-      target: "#min-contrast",
-      placement: PANEL_PLACEMENT,
-      title: "Brightness and contrast",
-      content:
-        "The min and max values stretch each channel's range — lower them to brighten, " +
-        "raise them to sharpen contrast.",
-      data: { revealTarget: true },
+        "Toggle channels on and off and pick their colors. When hovering over the image " +
+        "the intensity readout is shown here. Adjust the histogram for each channel by first " +
+        "clicking on a channel to select it.",
     },
     {
       target: '[role="radiogroup"][aria-label="Magnification presets"]',
