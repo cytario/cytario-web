@@ -213,12 +213,12 @@ class JobLedgerImpl implements JobLedger {
       );
     }
 
-    // The batch entity is created by the batch's first job. Later jobs of the
-    // same batch attach to it; the name is written here once and never
-    // overwritten — the first job of a run carries the submission's name.
+    // The batch row already exists when the first job records — the grant's
+    // credential write creates it — so this only attaches the run's name.
+    // Every job of the run carries the same one, so the rewrite is idempotent.
     await prisma.batch.upsert({
       where: { id: job.batchId },
-      update: {},
+      update: job.batchName ? { name: job.batchName } : {},
       create: {
         id: job.batchId,
         ...(job.batchName ? { name: job.batchName } : {}),

@@ -83,6 +83,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
   try {
     await putBatchCredentials({
       batchId: pending.batchId,
+      organization: pending.organization,
       offlineSessionId: grant.offlineSessionId,
       refreshToken,
       accessToken,

@@ -51,6 +51,7 @@ export async function readRawCredentialRecord(batchId: string) {
 /** Creates the record for a fresh grant — called once per batch, at submission. */
 export async function putBatchCredentials(input: {
   batchId: string;
+  organization: string;
   offlineSessionId: string;
   refreshToken: string;
   accessToken: string;
@@ -58,6 +59,13 @@ export async function putBatchCredentials(input: {
 }): Promise<void> {
   const encryptedRefreshToken = await encryptSecret(input.refreshToken);
   const encryptedAccessToken = await encryptSecret(input.accessToken);
+  // The credential's foreign key requires the batch row to exist first; the
+  // jobs of the run only attach to it later.
+  await prisma.batch.upsert({
+    where: { id: input.batchId },
+    update: {},
+    create: { id: input.batchId, organization: input.organization },
+  });
   await prisma.jobGrantCredential.upsert({
     where: { batchId: input.batchId },
     create: {
