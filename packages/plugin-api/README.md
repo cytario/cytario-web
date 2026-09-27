@@ -42,6 +42,17 @@ export default {
 
 See `README.md` in the host repo for the plugin model — loading, compatibility gate, security boundary, lifecycle.
 
+## Client capabilities
+
+Some host capabilities are live only in the browser — browser-side SigV4 signing and host UI cannot run in the Node server realm — and are reached through `ctx.client`, the client-side counterpart of `ctx.host`. Each member is an object in the browser and `null` in the server realm, so read them null-guarded from client code.
+
+```ts
+const metadata = ctx.client.imageMetadata; // ImageMetadata | null
+const picker = ctx.client.storagePicker; // StoragePicker | null
+```
+
+`ctx.host` is the mirror image: server-only, and its client-side stub throws rather than returning null. A call to `ctx.host` from the browser is a programming error; a `null` capability means this realm simply cannot provide it.
+
 ## Logging
 
 `PluginContext.logger` is a structured logger. Each method takes a message string plus an optional `Record<string, unknown>` of fields — it is **not** a `console.log`-style varargs API. Arguments after the second are silently dropped.
