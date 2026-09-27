@@ -1,6 +1,7 @@
 import {
   stripUnsupportedSubImages,
   isStrippedBeyondRenderBudget,
+  isPhantomInterleavedDim,
   parseNominalMagnification,
 } from "../loadOmeTiffWithCredentials";
 
@@ -13,7 +14,7 @@ function omeImage(
     tiffData?: string[];
     interleaved?: boolean;
     channelSpp?: number[];
-    /** Emits an ObjectiveSettings IDRef inside Pixels, pointing at this Objective ID. */
+    /** Emits an ObjectiveSettings ID inside Image, pointing at this Objective ID. */
     objectiveId?: string;
     instrumentRef?: boolean;
   },
@@ -28,9 +29,7 @@ function omeImage(
   const interleaved = opts.interleaved ? ` Interleaved="true"` : "";
   const instrumentRef =
     opts.instrumentRef === false ? "" : `<InstrumentRef ID="Instrument:${id}"/>`;
-  const objectiveSettings = opts.objectiveId
-    ? `<ObjectiveSettings IDRef="${opts.objectiveId}"/>`
-    : "";
+  const objectiveSettings = opts.objectiveId ? `<ObjectiveSettings ID="${opts.objectiveId}"/>` : "";
   return (
     `<Image ID="Image:${id}" Name="${id}">` +
     `${instrumentRef}${objectiveSettings}` +
@@ -173,6 +172,30 @@ describe("parseNominalMagnification", () => {
     expect(parseNominalMagnification(omexml)).toBe(40);
   });
 
+  test("prefers the ObjectiveSettings-selected objective over the instrument's first", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objectiveId: "Objective:0:1" }),
+      omeInstrument("0", [omeObjective("Objective:0:0", "4"), omeObjective("Objective:0:1", "63")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(63);
+  });
+
+  test("resolves objective IDs containing regex metacharacters", () => {
+    const omexml = wrap(
+      omeImage("0", { sizeC: 1, objectiveId: "Objective:(63x)" }),
+      omeInstrument("0", [omeObjective("Objective:(63x)", "63")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(63);
+  });
+
+  test("resolves instrument IDs containing regex metacharacters", () => {
+    const omexml = wrap(
+      omeImage("0(", { sizeC: 1, objectiveId: "Objective:0(:0" }),
+      omeInstrument("0(", [omeObjective("Objective:0(:0", "40")]),
+    );
+    expect(parseNominalMagnification(omexml)).toBe(40);
+  });
+
   test("falls back to the referenced Instrument's first Objective without ObjectiveSettings", () => {
     const omexml = wrap(
       omeImage("0", { sizeC: 1 }),
@@ -209,5 +232,25 @@ describe("parseNominalMagnification", () => {
     const omexml = wrap(omeImage("0", { sizeC: 1 }));
     expect(parseNominalMagnification(omexml)).toBeUndefined();
     expect(parseNominalMagnification("not xml at all")).toBeUndefined();
+  });
+});
+
+describe("isPhantomInterleavedDim", () => {
+  test("treats absent SamplesPerPixel as planar (OME default 1)", () => {
+    expect(
+      isPhantomInterleavedDim({ Interleaved: true, Channels: [{}, { SamplesPerPixel: 1 }] }),
+    ).toBe(true);
+  });
+
+  test("keeps genuine interleaved RGB (SamplesPerPixel > 1)", () => {
+    expect(isPhantomInterleavedDim({ Interleaved: true, Channels: [{ SamplesPerPixel: 3 }] })).toBe(
+      false,
+    );
+  });
+
+  test("requires interleaved metadata and at least one channel", () => {
+    expect(isPhantomInterleavedDim({ Interleaved: false, Channels: [{}] })).toBe(false);
+    expect(isPhantomInterleavedDim({ Interleaved: true, Channels: [] })).toBe(false);
+    expect(isPhantomInterleavedDim({})).toBe(false);
   });
 });
