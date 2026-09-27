@@ -30,6 +30,7 @@ vi.mock("~/.server/db/crypto", () => ({
 }));
 
 const BATCH_ID = "batch-1";
+const ORGANIZATION = "testcorp";
 const SESSION_ID = "sess-1";
 const FUTURE = new Date(Date.now() + 300_000);
 const STALE = new Date(Date.now() - 1_000);
@@ -58,12 +59,14 @@ beforeEach(() => {
   vi.spyOn(prisma.jobGrantCredential, "upsert").mockResolvedValue(row() as never);
   vi.spyOn(prisma.jobGrantCredential, "updateMany").mockResolvedValue({ count: 1 } as never);
   vi.spyOn(prisma.jobGrantCredential, "deleteMany").mockResolvedValue({ count: 1 } as never);
+  vi.spyOn(prisma.batch, "upsert").mockResolvedValue({} as never);
 });
 
 describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
   test("stores the refresh token encrypted, never in the clear", async () => {
     await putBatchCredentials({
       batchId: BATCH_ID,
+      organization: ORGANIZATION,
       offlineSessionId: SESSION_ID,
       refreshToken: "batch-refresh-token",
       accessToken: "batch-access-token",
@@ -85,6 +88,7 @@ describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
   test("keys the record by the batch identifier the ledger rows carry", async () => {
     await putBatchCredentials({
       batchId: BATCH_ID,
+      organization: ORGANIZATION,
       offlineSessionId: SESSION_ID,
       refreshToken: "rt",
       accessToken: "at",
@@ -94,6 +98,28 @@ describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
     expect(vi.mocked(prisma.jobGrantCredential.upsert).mock.calls[0]?.[0].where).toEqual({
       batchId: BATCH_ID,
     });
+  });
+
+  test("creates the batch row before the credential its foreign key requires", async () => {
+    await putBatchCredentials({
+      batchId: BATCH_ID,
+      organization: ORGANIZATION,
+      offlineSessionId: SESSION_ID,
+      refreshToken: "rt",
+      accessToken: "at",
+      accessTokenExpiresAt: FUTURE,
+    });
+
+    expect(prisma.batch.upsert).toHaveBeenCalledWith({
+      where: { id: BATCH_ID },
+      update: {},
+      create: { id: BATCH_ID, organization: ORGANIZATION },
+    });
+    // The parent lands first — a credential written before its batch row
+    // violates the foreign key.
+    expect(vi.mocked(prisma.batch.upsert).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(prisma.jobGrantCredential.upsert).mock.invocationCallOrder[0],
+    );
   });
 
   test("the record is addressed by its own key — the batch — from every path", () => {

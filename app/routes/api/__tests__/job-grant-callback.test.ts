@@ -43,6 +43,7 @@ const PENDING = {
   requestBody: JSON.stringify({ applicationId: "demo-app", version: "1.0.0" }),
   returnPath: "/plugin/jobs",
   batchId: "batch-1",
+  organization: "testcorp",
   codeVerifier: "verifier-1",
 };
 
@@ -93,6 +94,9 @@ describe("GET /api/job-grant/callback — submit-phase failure forwarding (C-425
 
     const response = (await loader(buildArgs("code-1", "state-1"))) as Response;
 
+    expect(putBatchCredentialsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ batchId: "batch-1", organization: "testcorp" }),
+    );
     expect(response.status).toBe(302);
     const location = response.headers.get("Location") ?? "";
     expect(location).toMatch(/\/plugin\/jobs\?/);

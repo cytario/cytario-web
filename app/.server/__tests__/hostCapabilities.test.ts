@@ -901,6 +901,62 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     });
   });
 
+  test("record attaches the run's name to the pre-existing batch row", async () => {
+    const batchUpsert = vi.spyOn(prisma.batch, "upsert").mockResolvedValue({} as never);
+    vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-1",
+      grants: [{ accessLevel: "read-only" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      grants: [
+        {
+          scope: "*",
+          roleArn: "arn:aws:iam::123:role/storage",
+          accessLevel: "read-write",
+        },
+      ],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
+      roleArn: "arn:aws:iam::123:role/storage",
+      accessLevel: "read-write",
+    });
+    await withHostRequestContext(mockRequestData, async () => {
+      await hostCapabilities.jobLedger().record({
+        id: "",
+        status: "Pending",
+        batchId: "batch-1",
+        batchName: "analysis-of-run-42",
+        offlineSessionId: "sess-1",
+        jobToken: "job-session-token",
+        organization: "testcorp",
+        owner: "user-123",
+        inputS3Uris: [],
+        outputS3Uri: "",
+        connectionId: "c1",
+        roleArn: "",
+        region: "",
+        s3Endpoint: null,
+      });
+    });
+
+    // The grant's credential write created the row nameless, so the name
+    // arrives through the update branch, not the create.
+    expect(batchUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "batch-1" },
+        update: { name: "analysis-of-run-42" },
+      }),
+    );
+  });
+
   test("record persists the named providerId after validating it against the org's connected providers (SRS-CY-37302)", async () => {
     const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
     vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({

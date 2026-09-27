@@ -309,8 +309,9 @@ export interface JobRecord {
   /**
    * The batch's optional display name, given at submit time. Annotation, not
    * identity: it is never unique and never looked up by — the batch id is the
-   * identity. Host-persisted on the batch entity; on `record` it is written
-   * when the batch row is created and ignored by later jobs of the same batch.
+   * identity. Host-persisted on the batch entity; every job of a run carries
+   * the same name, so passing it on each job is expected and re-applying it is
+   * idempotent.
    */
   batchName?: string | null;
   offlineSessionId: string;
