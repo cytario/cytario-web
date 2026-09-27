@@ -30,6 +30,7 @@ vi.mock("~/.server/db/crypto", () => ({
 }));
 
 const BATCH_ID = "batch-1";
+const ORG_ID = "org-1";
 const SESSION_ID = "sess-1";
 const FUTURE = new Date(Date.now() + 300_000);
 const STALE = new Date(Date.now() - 1_000);
@@ -54,6 +55,7 @@ beforeEach(() => {
   // A lock that grants immediately; the concurrency test overrides it.
   redisMock.set.mockReset().mockResolvedValue("OK");
   redisMock.eval.mockReset().mockResolvedValue(1);
+  vi.spyOn(prisma.batch, "upsert").mockResolvedValue({ id: BATCH_ID } as never);
   vi.spyOn(prisma.jobGrantCredential, "findUnique").mockResolvedValue(row() as never);
   vi.spyOn(prisma.jobGrantCredential, "upsert").mockResolvedValue(row() as never);
   vi.spyOn(prisma.jobGrantCredential, "updateMany").mockResolvedValue({ count: 1 } as never);
@@ -64,6 +66,8 @@ describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
   test("stores the refresh token encrypted, never in the clear", async () => {
     await putBatchCredentials({
       batchId: BATCH_ID,
+      organization: ORG_ID,
+      batchName: null,
       offlineSessionId: SESSION_ID,
       refreshToken: "batch-refresh-token",
       accessToken: "batch-access-token",
@@ -82,9 +86,45 @@ describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
     expect(written?.update).not.toHaveProperty("owner");
   });
 
+  // JobGrantCredential.batchId is a foreign key to Batch.id, and this runs
+  // before the plugin's submit phase — which is what would otherwise create the
+  // batch. Without the row here, Postgres rejects the credential insert and
+  // every submission fails host-side, before the provider is ever called.
+  test("creates the batch row before the credential that references it", async () => {
+    const order: string[] = [];
+    vi.mocked(prisma.batch.upsert).mockImplementation((async () => {
+      order.push("batch");
+      return { id: BATCH_ID };
+    }) as never);
+    vi.mocked(prisma.jobGrantCredential.upsert).mockImplementation((async () => {
+      order.push("credential");
+      return row();
+    }) as never);
+
+    await putBatchCredentials({
+      batchId: BATCH_ID,
+      organization: ORG_ID,
+      batchName: "Batch Two",
+      offlineSessionId: SESSION_ID,
+      refreshToken: "rt",
+      accessToken: "at",
+      accessTokenExpiresAt: FUTURE,
+    });
+
+    expect(order).toEqual(["batch", "credential"]);
+    expect(vi.mocked(prisma.batch.upsert).mock.calls[0]?.[0]).toMatchObject({
+      where: { id: BATCH_ID },
+      create: { id: BATCH_ID, name: "Batch Two", organization: ORG_ID },
+    });
+    // The name is written once at creation, never on a later write.
+    expect(vi.mocked(prisma.batch.upsert).mock.calls[0]?.[0].update).toEqual({});
+  });
+
   test("keys the record by the batch identifier the ledger rows carry", async () => {
     await putBatchCredentials({
       batchId: BATCH_ID,
+      organization: ORG_ID,
+      batchName: null,
       offlineSessionId: SESSION_ID,
       refreshToken: "rt",
       accessToken: "at",
@@ -110,6 +150,7 @@ describe("job credential record (SRS-CY-416110, SDS-CY-080403)", () => {
   });
 
   test("a stale held access token refreshes once and persists the rotated pair", async () => {
+    vi.spyOn(prisma.batch, "upsert").mockResolvedValue({ id: BATCH_ID } as never);
     vi.spyOn(prisma.jobGrantCredential, "findUnique").mockResolvedValue(row() as never);
     // First read (outside the lock) is stale; the re-check inside is too.
     refreshJobTokenMock.mockResolvedValueOnce({

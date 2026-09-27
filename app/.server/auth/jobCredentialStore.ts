@@ -48,9 +48,19 @@ export async function readRawCredentialRecord(batchId: string) {
   return prisma.jobGrantCredential.findUnique({ where: { batchId } });
 }
 
-/** Creates the record for a fresh grant — called once per batch, at submission. */
+/**
+ * Creates the record for a fresh grant — called once per batch, at submission.
+ *
+ * The batch row is created here first: this record's `batchId` is a foreign key
+ * to `Batch.id`, and this runs before the plugin's submit phase, which is what
+ * would otherwise create the batch. The name is written here rather than left to
+ * the ledger, so the batch carries it from the start — the ledger's later upsert
+ * never overwrites one.
+ */
 export async function putBatchCredentials(input: {
   batchId: string;
+  organization: string;
+  batchName: string | null;
   offlineSessionId: string;
   refreshToken: string;
   accessToken: string;
@@ -58,6 +68,15 @@ export async function putBatchCredentials(input: {
 }): Promise<void> {
   const encryptedRefreshToken = await encryptSecret(input.refreshToken);
   const encryptedAccessToken = await encryptSecret(input.accessToken);
+  await prisma.batch.upsert({
+    where: { id: input.batchId },
+    update: {},
+    create: {
+      id: input.batchId,
+      ...(input.batchName ? { name: input.batchName } : {}),
+      organization: input.organization,
+    },
+  });
   await prisma.jobGrantCredential.upsert({
     where: { batchId: input.batchId },
     create: {

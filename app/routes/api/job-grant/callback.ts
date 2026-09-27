@@ -83,6 +83,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
   try {
     await putBatchCredentials({
       batchId: pending.batchId,
+      organization: pending.organization,
+      batchName: readBatchName(pending.requestBody),
       offlineSessionId: grant.offlineSessionId,
       refreshToken,
       accessToken,
@@ -150,3 +152,20 @@ export const loader = async (args: LoaderFunctionArgs) => {
     }
   });
 };
+
+/**
+ * The submission's optional batch display name, read from the run body the
+ * browser POSTed at initiate. Absent or unparseable yields null: the name is an
+ * annotation, never required, and a malformed body is the submit phase's problem
+ * to report, not this one's.
+ */
+function readBatchName(requestBody: string): string | null {
+  try {
+    const parsed = JSON.parse(requestBody) as { batchName?: unknown };
+    return typeof parsed.batchName === "string" && parsed.batchName.trim()
+      ? parsed.batchName.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
