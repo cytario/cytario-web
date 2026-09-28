@@ -113,8 +113,9 @@ export const AnnotationThumb = ({
           className="mt-1 text-right font-mono tabular-nums"
         />
       ) : (
-        <p className="mt-1 text-right font-mono tabular-nums text-xs text-muted-foreground">
-          {/* min-w-0 span inside — the flex-wrap item never grows past the thumb. */}
+        // w-0 + min-w-full: the name never contributes to the flex-wrap item's
+        // intrinsic width, so the thumb stays exactly as wide as the geometry.
+        <p className="mt-1 w-0 min-w-full text-right font-mono tabular-nums text-xs text-muted-foreground">
           <TruncatedText>{displayName}</TruncatedText>
         </p>
       )}
