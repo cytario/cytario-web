@@ -4,10 +4,8 @@ import { useLayoutEffect, useRef } from "react";
 import type {
   CompositeTooltip,
   LayerTooltipItem,
-  RGB,
   TooltipSection,
 } from "../../../state/store/types";
-import { IntensityBar } from "../../sidebar/SectionRow/IntensityBar";
 import { VIEWER_SECTIONS } from "../../sidebar/sections";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
@@ -21,7 +19,7 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
     : undefined;
 
   return (
-    <div className="relative flex items-start justify-between border-t border-border first:border-t-0">
+    <div className="flex items-start justify-between border-t border-border first:border-t-0">
       <div className="flex-1 min-w-0 p-2 gap-2">
         {item.id && (
           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -53,9 +51,6 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
           <GeometrySvg geometry={item.geometry} size={GEO_THUMB_SIZE} color={geoColor} />
         </div>
       )}
-
-      {/* Class-color accent along the bottom edge, mirroring the sidebar rows. */}
-      <IntensityBar count={1} countMax={1} color={item.geometryColor as RGB | undefined} />
     </div>
   );
 };
