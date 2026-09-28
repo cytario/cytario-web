@@ -3,6 +3,7 @@ import { useRef } from "react";
 
 import { UNCLASSIFIED_COLOR } from "../../../state/store/annotations/annotations.store";
 import { RGB } from "../../../state/store/types";
+import { AccordionToggle } from "../AccordionToggle";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import { SectionRow, type SectionRowHandle } from "../SectionRow/SectionRow";
 
@@ -20,6 +21,10 @@ interface AnnotationGroupRowProps {
   onRename?: (newName: string) => void;
   /** Own set only: delete this class (drops the registry entry, unclassifies members). */
   onDelete?: () => void;
+  /** When present, the row gets a leading accordion chevron and controls
+   *  whether the group's member thumbnails render. */
+  accordionOpen?: boolean;
+  onToggleAccordion?: () => void;
 }
 
 /** Classification group header on the shared SectionRow: color swatch, name, count,
@@ -35,12 +40,14 @@ export function AnnotationGroupRow({
   isSelected,
   onRename,
   onDelete,
+  accordionOpen,
+  onToggleAccordion,
 }: AnnotationGroupRowProps) {
   const swatch: RGB = color ?? UNCLASSIFIED_COLOR;
   const canRecolor = color !== null && onColorChange;
   const sectionRowRef = useRef<SectionRowHandle>(null);
 
-  return (
+  const row = (
     <SectionRow
       ref={sectionRowRef}
       isSelected={isSelected}
@@ -92,5 +99,18 @@ export function AnnotationGroupRow({
         />
       }
     />
+  );
+
+  // Leading chevron mirrors the per-set block accordion (AnnotationsSection).
+  if (accordionOpen === undefined) return row;
+  return (
+    <div className="flex items-center gap-1">
+      <AccordionToggle
+        name={`${name} class`}
+        isOpen={accordionOpen}
+        onToggle={() => onToggleAccordion?.()}
+      />
+      <div className="min-w-0 flex-1">{row}</div>
+    </div>
   );
 }

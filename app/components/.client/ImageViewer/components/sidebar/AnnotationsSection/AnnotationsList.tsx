@@ -59,6 +59,16 @@ export const AnnotationsList = ({
   // non-empty commit (no default-named placeholder is ever persisted).
   const [adding, setAdding] = useState(false);
 
+  // Collapsed class groups (session-local) — a non-empty search expands all.
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
+  const toggleGroup = (name: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+
   const annotationsGroups = useMemo(
     () => groupAnnotations(features, { editable, classes, searchQuery }),
     [features, editable, classes, searchQuery],
@@ -151,8 +161,12 @@ export const AnnotationsList = ({
                   : undefined
               }
               onDelete={editable && !isUnclassified ? () => deleteClass(setId, name) : undefined}
+              // A search expands every group, else matches hide behind collapsed rows.
+              accordionOpen={!collapsedGroups.has(name) || searchQuery.length > 0}
+              onToggleAccordion={() => toggleGroup(name)}
             />
           );
+          const isCollapsed = collapsedGroups.has(name) && searchQuery.length === 0;
           return (
             <div key={name} className="flex flex-col gap-2">
               {editable ? (
@@ -167,31 +181,33 @@ export const AnnotationsList = ({
                 header
               )}
 
-              <div className="flex flex-wrap gap-2">
-                {items.map(({ feature, index }) => {
-                  const id = feature.id;
-                  return (
-                    <AnnotationThumb
-                      key={id ?? index}
-                      feature={feature}
-                      selected={!!id && selectedIds.includes(id)}
-                      color={cssColor}
-                      editable={editable}
-                      // Don't offer moving into the group the region already sits in.
-                      classNames={namedClasses.filter((n) => n !== name)}
-                      onSelect={(e) => select(feature, e)}
-                      onZoom={() => zoomToFeature(feature)}
-                      onClassify={(className) => classify(feature, className)}
-                      // Already-unclassified regions have nothing to clear.
-                      onClear={isUnclassified ? undefined : () => clearClass(feature)}
-                      onRename={
-                        editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
-                      }
-                      onDelete={() => deleteFeatures(feature)}
-                    />
-                  );
-                })}
-              </div>
+              {!isCollapsed && (
+                <div className="flex flex-wrap gap-2">
+                  {items.map(({ feature, index }) => {
+                    const id = feature.id;
+                    return (
+                      <AnnotationThumb
+                        key={id ?? index}
+                        feature={feature}
+                        selected={!!id && selectedIds.includes(id)}
+                        color={cssColor}
+                        editable={editable}
+                        // Don't offer moving into the group the region already sits in.
+                        classNames={namedClasses.filter((n) => n !== name)}
+                        onSelect={(e) => select(feature, e)}
+                        onZoom={() => zoomToFeature(feature)}
+                        onClassify={(className) => classify(feature, className)}
+                        // Already-unclassified regions have nothing to clear.
+                        onClear={isUnclassified ? undefined : () => clearClass(feature)}
+                        onRename={
+                          editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
+                        }
+                        onDelete={() => deleteFeatures(feature)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

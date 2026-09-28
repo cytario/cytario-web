@@ -11,7 +11,6 @@ import { GeometrySvg } from "~/components/GeometrySvg";
 
 const TOOLTIP_OFFSET = 12;
 const VIEWPORT_MARGIN = 4;
-
 const GEO_THUMB_SIZE = 48;
 
 const Section = ({ item }: { item: LayerTooltipItem }) => {
