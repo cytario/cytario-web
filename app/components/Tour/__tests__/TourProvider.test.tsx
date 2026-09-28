@@ -13,7 +13,7 @@ import { useTourControllerStore } from "../useTourController";
 import { useTourProgressStore } from "../useTourProgress";
 
 vi.mock("~/hooks/useCurrentUser", () => ({
-  useCurrentUser: () => ({ sub: "user-a" }),
+  useCurrentUser: () => ({ sub: "user-a", adminScopes: [] }),
 }));
 
 vi.mock("react-router", async () => {
