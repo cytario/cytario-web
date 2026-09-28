@@ -60,11 +60,9 @@ function fakeDeckRef(picks: FakePick[]) {
 }
 
 function Harness({ deckRef }: { deckRef: React.RefObject<never> }) {
-  const { onCanvasContextMenu, onCanvasDoubleClick, menu } = useCanvasAnnotationContextMenu({
-    deckRef,
-  });
+  const { onCanvasContextMenu, menu } = useCanvasAnnotationContextMenu({ deckRef });
   return (
-    <div onContextMenuCapture={onCanvasContextMenu} onDoubleClickCapture={onCanvasDoubleClick}>
+    <div onContextMenuCapture={onCanvasContextMenu}>
       <div data-testid="canvas" />
       {menu}
     </div>
@@ -173,22 +171,5 @@ describe("useCanvasAnnotationContextMenu", () => {
 
     expect(rightClick()).toBe(false);
     expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  test("double-click on an annotation zooms to it (selects the feature)", () => {
-    const feature = makeFeature("f1", "Tumor");
-    const { setId, picks, store } = setup();
-    store.getState().updateSetFeatures(setId, [feature]);
-    picks.push({ layerId: `annotations-0-polygons-fill`, feature });
-    fireEvent.doubleClick(screen.getByTestId("canvas"), { clientX: 5, clientY: 5 });
-
-    expect(store.getState().annotationSelectedIds).toEqual(["f1"]);
-  });
-
-  test("double-click with no pick leaves the store untouched (deck zoom keeps working)", () => {
-    const { store } = setup();
-    fireEvent.doubleClick(screen.getByTestId("canvas"), { clientX: 5, clientY: 5 });
-
-    expect(store.getState().annotationSelectedIds).toEqual([]);
   });
 });
