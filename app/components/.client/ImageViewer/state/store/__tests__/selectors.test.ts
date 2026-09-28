@@ -147,6 +147,7 @@ describe("selectors", () => {
     setAnnotationStampSize: vi.fn(),
     setAnnotationSelectedIds: vi.fn(),
     setAnnotationSelectionAnchor: vi.fn(),
+    applyAnnotationSelection: vi.fn(),
     shareView: vi.fn(),
     unshareView: vi.fn(),
     forkView: vi.fn(),
@@ -154,12 +155,10 @@ describe("selectors", () => {
     sharedViewsLoaded: false,
     setSharedViewsLoaded: vi.fn(),
     compositeTooltip: null,
-    hoverMode: "compact",
-    pinnedTooltip: null,
+    popup: null,
     setCompositeTooltip: vi.fn(),
-    setHoverMode: vi.fn(),
-    pinTooltip: vi.fn(),
-    unpinTooltip: vi.fn(),
+    openPopup: vi.fn(),
+    closePopup: vi.fn(),
     ...overrides,
   });
 

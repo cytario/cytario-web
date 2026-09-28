@@ -314,7 +314,9 @@ export const useAnnotationsLayer = (
     const layers = [...highlightLayers, ...peerLayers, ownLayer];
 
     // Per-user hidden-class lookup so `getTooltipItems` can skip features that are
-    // visually transparent (hidden class → alpha 0) and not block layers beneath them.
+    // visually transparent (hidden class → alpha 0) and not block layers beneath
+    // them. Scoped to the feature's OWN set: another set's hidden class must not
+    // hide this set's feature.
     const hiddenByUser = new Map<string, Set<string>>();
     if (activeSetId) hiddenByUser.set(activeSetId, new Set(ownView?.hiddenClasses ?? []));
     for (const set of annotationSets) {
@@ -323,18 +325,19 @@ export const useAnnotationsLayer = (
       }
     }
 
-    const isHiddenFeature = (f: AnnotationFeature): boolean => {
-      const cls = classNameOf(f);
-      for (const hidden of hiddenByUser.values()) {
-        if (hidden.has(cls)) return true;
-      }
-      return false;
+    const isHiddenFeature = (f: AnnotationFeature, layerId: string): boolean => {
+      // Picks report sublayers (`annotations-0-polygons-fill`, …): a peer's id
+      // occurring in the layer id marks the feature's set, else it is the own set.
+      const peer = annotationSets.find((s) => layerId.includes(s.id));
+      const setId = peer ? peer.id : activeSetId;
+      const hidden = setId ? hiddenByUser.get(setId) : undefined;
+      return hidden?.has(classNameOf(f)) ?? false;
     };
 
     const getTooltipItems = (info: PickingInfo): LayerTooltipItem[] => {
       const f = info.object as AnnotationFeature | undefined;
       if (!f) return [];
-      if (isHiddenFeature(f)) return [];
+      if (isHiddenFeature(f, info.layer?.id ?? "")) return [];
       const [r, g, b] = classColor(f);
       const cls = classNameOf(f);
       return [

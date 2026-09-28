@@ -39,7 +39,7 @@ export const AnnotationsList = ({
   selectionOrderedIds,
 }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
-  const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const applyAnnotationSelection = useViewerStore((s) => s.applyAnnotationSelection);
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
@@ -75,12 +75,11 @@ export const AnnotationsList = ({
   // Held in the shared store so the anchor survives across set blocks and a
   // Shift-range can span them.
   const anchorId = useViewerStore((s) => s.annotationSelectionAnchorId);
-  const setSelectionAnchor = useViewerStore((s) => s.setAnnotationSelectionAnchor);
 
   const select = (feature: AnnotationFeature, e?: MouseEvent | React.MouseEvent) => {
     const id = feature.id;
     if (!id) {
-      setSelectedIds([]);
+      applyAnnotationSelection([], {});
       return;
     }
 
@@ -89,22 +88,19 @@ export const AnnotationsList = ({
       const to = selectionOrderedIds.indexOf(id);
       if (from !== -1 && to !== -1) {
         const [lo, hi] = from <= to ? [from, to] : [to, from];
-        setSelectedIds(selectionOrderedIds.slice(lo, hi + 1));
+        // Range select: the anchor stays where it was.
+        applyAnnotationSelection(selectionOrderedIds.slice(lo, hi + 1), {});
         return;
       }
     }
 
     // Cmd/Ctrl+click: toggle the clicked item in/out; the anchor moves to it.
     if (e && (e.metaKey || e.ctrlKey)) {
-      setSelectedIds(
-        selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
-      );
-      setSelectionAnchor(id);
+      applyAnnotationSelection([id], { toggle: true, anchor: id });
       return;
     }
 
-    setSelectedIds([id]);
-    setSelectionAnchor(id);
+    applyAnnotationSelection([id], { anchor: id });
   };
 
   // Active-class selection is a single-select radio group; read-only grants get no

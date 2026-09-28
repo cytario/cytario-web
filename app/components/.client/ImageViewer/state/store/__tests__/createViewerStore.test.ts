@@ -79,8 +79,7 @@ describe("createViewerStore", () => {
       cursorPosition: null,
       pixelValues: {},
       compositeTooltip: null,
-      hoverMode: "compact",
-      pinnedTooltip: null,
+      popup: null,
       annotationSets: [],
       activeSetId: null,
       annotationMode: "view",
@@ -147,14 +146,14 @@ describe("createViewerStore", () => {
       setAnnotationStampSize: expect.any(Function),
       setAnnotationSelectedIds: expect.any(Function),
       setAnnotationSelectionAnchor: expect.any(Function),
+      applyAnnotationSelection: expect.any(Function),
       shareView: expect.any(Function),
       unshareView: expect.any(Function),
       forkView: expect.any(Function),
       loadSharedViews: expect.any(Function),
       setCompositeTooltip: expect.any(Function),
-      setHoverMode: expect.any(Function),
-      pinTooltip: expect.any(Function),
-      unpinTooltip: expect.any(Function),
+      openPopup: expect.any(Function),
+      closePopup: expect.any(Function),
     });
   });
 

@@ -281,9 +281,7 @@ export const select = {
 
   compositeTooltip: (state: ViewerStore) => state.compositeTooltip,
   setCompositeTooltip: (state: ViewerStore) => state.setCompositeTooltip,
-  hoverMode: (state: ViewerStore) => state.hoverMode,
-  setHoverMode: (state: ViewerStore) => state.setHoverMode,
-  pinnedTooltip: (state: ViewerStore) => state.pinnedTooltip,
-  pinTooltip: (state: ViewerStore) => state.pinTooltip,
-  unpinTooltip: (state: ViewerStore) => state.unpinTooltip,
+  popup: (state: ViewerStore) => state.popup,
+  openPopup: (state: ViewerStore) => state.openPopup,
+  closePopup: (state: ViewerStore) => state.closePopup,
 };

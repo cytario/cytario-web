@@ -4,7 +4,9 @@ import { useCallback, useEffect } from "react";
 
 import { StampGhost } from "./Annotations/StampGhost";
 import { useCanvasAnnotationContextMenu } from "./Annotations/useCanvasAnnotationContextMenu";
+import { ImagePopupLayer } from "./Hover/ImagePopupLayer";
 import { LayersTooltip } from "./Hover/LayersTooltip";
+import { useCanvasClickInteraction } from "./Hover/useCanvasClickInteraction";
 import { useCompositeHover } from "./Hover/useCompositeHover";
 import { ImageContainer } from "./ImageContainer";
 import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
@@ -41,28 +43,17 @@ const ImagePanelInner = ({
   const isActivePanel = activeImagePanelId === imagePanelId;
 
   const compositeTooltip = useViewerStore(select.compositeTooltip);
-  const pinnedTooltip = useViewerStore(select.pinnedTooltip);
-  const pinTooltip = useViewerStore(select.pinTooltip);
-  const unpinTooltip = useViewerStore(select.unpinTooltip);
-
-  // Debug-only: press "p" to pin/unpin the tooltip for DOM inspection.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "p" && !e.ctrlKey && !e.metaKey) {
-        if (pinnedTooltip) unpinTooltip();
-        else pinTooltip();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pinnedTooltip, pinTooltip, unpinTooltip]);
+  // Hover tooltip is suppressed on this panel while its popup is open — two
+  // cursor-anchored surfaces at once is visual noise.
+  const popupOpenHere = useViewerStore((s) => s.popup?.panelId === imagePanelId);
 
   const view = useView({ width, height });
 
-  const { layers, effects, layerFilter, deckRef, onHover, getCursor } = useCompositeHover(
-    imagePanelId,
-    isActivePanel,
-  );
+  const { layers, effects, layerFilter, deckRef, onHover, getCursor, buildContent } =
+    useCompositeHover(imagePanelId, isActivePanel);
+
+  // Left-click selects every feature at the point and opens the popup.
+  const { onCanvasClick } = useCanvasClickInteraction({ imagePanelId, buildContent });
 
   // Right-click on an annotation polygon opens the shared annotation menu;
   // `<DeckGL>` doesn't forward DOM props, so the capture listener sits on a
@@ -117,6 +108,7 @@ const ImagePanelInner = ({
           viewState={{ detail: viewStateActive }}
           getCursor={getCursor}
           onHover={onHover}
+          onClick={onCanvasClick}
           onInteractionStateChange={handleInteractionStateChange}
           _pickable={true}
           controller={true}
@@ -125,10 +117,11 @@ const ImagePanelInner = ({
 
       {canvasContextMenu}
 
-      {(pinnedTooltip ??
-        (compositeTooltip && Object.keys(compositeTooltip.sections).length > 0
-          ? compositeTooltip
-          : null)) && <LayersTooltip tooltip={(pinnedTooltip ?? compositeTooltip)!} />}
+      <ImagePopupLayer imagePanelId={imagePanelId} />
+
+      {!popupOpenHere && compositeTooltip && Object.keys(compositeTooltip.sections).length > 0 && (
+        <LayersTooltip tooltip={compositeTooltip} />
+      )}
     </>
   );
 };
