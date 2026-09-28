@@ -1,9 +1,11 @@
 import { IconButton, Menu, MenuItem, MenuSection, MenuSeparator } from "@cytario/design";
+import { useEffect, useRef } from "react";
 import { useLocation, useRouteLoaderData } from "react-router";
 
 import { isResourcePath, leafNameOf, type TourDefinition } from "~/components/Tour/tourRegistry";
 import { tourRegistry } from "~/components/Tour/tours/registry";
-import { useTourController } from "~/components/Tour/useTourController";
+import { useTourController, useTourControllerStore } from "~/components/Tour/useTourController";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 
 interface HelpMenuProps {
   version: string;
@@ -22,6 +24,18 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
   const { pathname } = useLocation();
   const protectedData = useRouteLoaderData<ProtectedLayoutData>("routes/layouts/protected.layout");
   const connectionCount = protectedData?.connectionConfigs?.length ?? 0;
+  const user = useCurrentUser();
+  const adminScopes = user?.adminScopes ?? [];
+
+  const helpButtonRef = useRef<HTMLButtonElement>(null);
+
+  // The design Menu is uncontrolled, so the getting-started finale reveals it
+  // by clicking its trigger — the same path a user takes.
+  const revealSignal = useTourControllerStore((state) => state.helpMenuRevealSignal);
+  useEffect(() => {
+    if (revealSignal === 0) return;
+    helpButtonRef.current?.click();
+  }, [revealSignal]);
 
   // Derived from the registry, so a new tour appears here without a change to
   // this component. Entries are filtered by what the current screen supports.
@@ -30,6 +44,7 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
       pathname,
       leafName: isResourcePath(pathname) ? leafNameOf(pathname) : "",
       connectionCount,
+      adminScopes,
     }),
   );
 
@@ -68,7 +83,7 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
         </>
       }
     >
-      <IconButton icon="CircleHelp" label="Help" variant="ghost" size="sm" />
+      <IconButton ref={helpButtonRef} icon="CircleHelp" label="Help" variant="ghost" size="sm" />
     </Menu>
   );
 }
