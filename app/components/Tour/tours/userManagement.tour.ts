@@ -31,8 +31,9 @@ export const userManagementTour: TourDefinition = {
     {
       // The user-management screen's action row; its entries (invite, create
       // group) are the screen's core affordances. The provider navigates to
-      // the admin's first scope — the screen 400s without one.
-      target: 'a[href*="/admin/users/invite"]',
+      // the admin's first scope — the screen 400s without one. Scoped to the
+      // page header: the empty state renders a second invite CTA in main.
+      target: 'main header a[href*="/admin/users/invite"]',
       title: "User management",
       content:
         "This screen lists each group's members and its connections. Open the " +
@@ -40,7 +41,7 @@ export const userManagementTour: TourDefinition = {
       data: { navigateToFromContext: adminUsersUrl },
     },
     {
-      target: 'a[href*="/admin/users/invite"]',
+      target: 'main header a[href*="/admin/users/invite"]',
       title: "Invite a user",
       content:
         "Inviting a user emails them a Keycloak invite. Group membership and " +
