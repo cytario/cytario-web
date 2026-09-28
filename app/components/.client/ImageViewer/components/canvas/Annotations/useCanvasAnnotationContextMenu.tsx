@@ -8,8 +8,8 @@ import {
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
-import { AnnotationMenuItems } from "../../sidebar/AnnotationsSection/AnnotationMenuItems";
-import { useAnnotationFeatureActions } from "../../sidebar/AnnotationsSection/useAnnotationFeatureActions";
+import { AnnotationMenuItems } from "../../annotations/AnnotationMenuItems";
+import { useAnnotationFeatureActions } from "../../annotations/useAnnotationFeatureActions";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 /** Layer-id conventions of `useAnnotationsLayer`: `annotations-…` for sets,
@@ -95,7 +95,7 @@ export const useCanvasAnnotationContextMenu = ({
 
         const cls = classNameOf(feature);
         // "Move to <class>" offers the actioned set's classes other than the
-        // region's own (same menu semantics as the sidebar, SRS-CY-33257).
+        // region's own — same menu semantics as the sidebar.
         const classNames = canAnnotate
           ? [
               ...new Set(
@@ -141,6 +141,9 @@ export const useCanvasAnnotationContextMenu = ({
   const onCanvasContextMenu = useCallback(
     (event: React.MouseEvent) => {
       const hit = resolveTarget(event.clientX, event.clientY);
+      // The canvas is fully right-click-managed: no native menu anywhere on it,
+      // so a miss (empty canvas, hidden-class region) opens nothing.
+      event.preventDefault();
       if (!hit) return;
       setTarget(hit);
       // The hook's handler preventDefaults and anchors the menu at the cursor.

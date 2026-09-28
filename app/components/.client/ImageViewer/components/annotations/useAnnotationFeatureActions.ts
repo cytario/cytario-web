@@ -1,5 +1,5 @@
 import { flyToFeaturesViewState } from "./flyToFeature";
-import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
+import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 interface UseAnnotationFeatureActionsProps {

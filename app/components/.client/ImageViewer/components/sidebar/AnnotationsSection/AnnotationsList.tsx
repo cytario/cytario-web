@@ -5,7 +5,6 @@ import { Radio, RadioGroup } from "react-aria-components";
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { AnnotationThumb } from "./AnnotationThumb";
 import { groupAnnotations } from "./groupAnnotations";
-import { useAnnotationFeatureActions } from "./useAnnotationFeatureActions";
 import {
   isReservedClassName,
   selectSetHiddenClasses,
@@ -13,6 +12,7 @@ import {
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { useAnnotationFeatureActions } from "../../annotations/useAnnotationFeatureActions";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 

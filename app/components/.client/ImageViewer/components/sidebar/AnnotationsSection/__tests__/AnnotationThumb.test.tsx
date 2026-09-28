@@ -107,6 +107,19 @@ describe("AnnotationThumb", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  test("right-click inside the rename input keeps the native text menu", () => {
+    render(<AnnotationThumb {...defaultProps} onRename={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename annotation" }));
+
+    const input = screen.getByLabelText("Rename ID: feat-1");
+    // fireEvent.contextMenu returns false when the event's default was
+    // prevented — the input must let it through.
+    expect(fireEvent.contextMenu(input)).toBe(true);
+    expect(screen.queryByRole("menuitem", { name: "Zoom to annotation" })).toBeNull();
+  });
+
   test("displays the annotation name below the thumbnail", () => {
     const feature = makeFeature({ properties: { name: "My Region" } });
     render(<AnnotationThumb {...defaultProps} feature={feature} />);

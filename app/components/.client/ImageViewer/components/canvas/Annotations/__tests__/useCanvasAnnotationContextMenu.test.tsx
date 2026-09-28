@@ -136,21 +136,40 @@ describe("useCanvasAnnotationContextMenu", () => {
     const peer = makeFeature("f2");
     const { store, setId, picks, rightClick } = setup();
     store.getState().updateSetFeatures(setId, [own]);
-    store.getState().ensureOwnSet();
-    const peerSetId = store.getState().annotationSets.at(-1)!.id;
-    store.getState().updateSetFeatures(peerSetId, [peer]);
-    picks.push({ layerId: `annotations-0-peer-${peerSetId}-polygons-fill`, feature: peer });
+    store.getState().seedAnnotations([
+      {
+        id: "aaaa1111-bbbb-4ccc-8ddd-eeeeffff0000",
+        createdBy: "user-b",
+        features: [peer],
+        name: "peer.json",
+      },
+    ]);
+    picks.push({
+      layerId: `annotations-0-peer-aaaa1111-bbbb-4ccc-8ddd-eeeeffff0000-polygons-fill`,
+      feature: peer,
+    });
 
     rightClick();
 
     expect(screen.getByRole("menuitem", { name: "Zoom to annotation" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toBeInTheDocument();
   });
 
-  test("no picks leave the native menu in place (no menu items rendered)", () => {
+  test("a hidden-class region opens no menu (and suppresses the native one)", () => {
+    const feature = makeFeature("f1", "Tumor");
+    const { store, setId, picks, rightClick } = setup();
+    store.getState().updateSetFeatures(setId, [feature]);
+    store.getState().toggleAnnotationClassVisibility(setId, "Tumor");
+    picks.push({ layerId: `annotations-0-polygons-fill`, feature });
+
+    expect(rightClick()).toBe(false);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  test("a right-click miss suppresses the native menu and opens nothing", () => {
     const { rightClick } = setup();
 
-    rightClick();
-
+    expect(rightClick()).toBe(false);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 });

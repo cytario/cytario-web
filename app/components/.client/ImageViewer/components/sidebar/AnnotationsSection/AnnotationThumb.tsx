@@ -1,8 +1,8 @@
 import { IconButton, Input } from "@cytario/design";
 import { useState } from "react";
 
-import { useAnnotationContextMenu } from "./useAnnotationContextMenu";
 import { annotationNameOf } from "../../../state/store/annotations/annotations.store";
+import { useAnnotationContextMenu } from "../../annotations/useAnnotationContextMenu";
 import { GeometrySvg } from "~/components/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -77,7 +77,15 @@ export const AnnotationThumb = ({
   });
 
   return (
-    <div className="group/thumb relative overflow-hidden" {...menu.targetProps}>
+    <div
+      className="group/thumb relative overflow-hidden"
+      {...menu.targetProps}
+      // The rename input keeps the native text menu (cut/copy/paste).
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).closest("input,textarea")) return;
+        menu.targetProps.onContextMenu?.(e);
+      }}
+    >
       <button
         type="button"
         aria-label={label}
