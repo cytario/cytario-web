@@ -90,6 +90,23 @@ describe("AnnotationThumb", () => {
     expect(onZoom).toHaveBeenCalledTimes(1);
   });
 
+  test("right-click opens the same actions menu", () => {
+    render(<AnnotationThumb {...defaultProps} />);
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Unclassified point" }));
+
+    expect(screen.getByRole("menuitem", { name: "Zoom to annotation" })).toBeInTheDocument();
+  });
+
+  test("does not call onSelect when the thumbnail button is right-clicked", () => {
+    const onSelect = vi.fn();
+    render(<AnnotationThumb {...defaultProps} onSelect={onSelect} />);
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Unclassified point" }));
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   test("displays the annotation name below the thumbnail", () => {
     const feature = makeFeature({ properties: { name: "My Region" } });
     render(<AnnotationThumb {...defaultProps} feature={feature} />);

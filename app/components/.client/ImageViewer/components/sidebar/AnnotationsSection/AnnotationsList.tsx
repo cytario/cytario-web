@@ -4,15 +4,15 @@ import { Radio, RadioGroup } from "react-aria-components";
 
 import { AnnotationGroupRow } from "./AnnotationGroupRow";
 import { AnnotationThumb } from "./AnnotationThumb";
-import { flyToFeaturesViewState } from "./flyToFeature";
 import { groupAnnotations } from "./groupAnnotations";
+import { useAnnotationFeatureActions } from "./useAnnotationFeatureActions";
 import {
   isReservedClassName,
   selectSetHiddenClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/annotations/annotations.store";
-import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
+import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -40,11 +40,9 @@ export const AnnotationsList = ({
 }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
-  const updateSetFeatures = useViewerStore((s) => s.updateSetFeatures);
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
-  const setClassForIds = useViewerStore((s) => s.setAnnotationClassForIds);
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
   const setActiveClass = useViewerStore((s) => s.setAnnotationActiveClass);
   const renameClass = useViewerStore((s) => s.renameAnnotationClass);
@@ -52,17 +50,14 @@ export const AnnotationsList = ({
   const classes = useViewerStore((s) => s.annotationClasses);
   const createClass = useViewerStore((s) => s.createAnnotationClass);
   const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
-  const setViewState = useViewerStore((s) => s.setViewStateActive);
-  const viewerStore = useViewerStoreApi();
+  const { zoomToFeature, deleteFeatures, classify, clearClass } = useAnnotationFeatureActions({
+    setId,
+    features,
+  });
 
   // "Add class" reveals an inline name input; the class is created only on a
   // non-empty commit (no default-named placeholder is ever persisted).
   const [adding, setAdding] = useState(false);
-
-  // Act on the current selection when the actioned feature is part of it, else on
-  // just that feature — shared by classify, delete, and zoom.
-  const actionTargets = (feature: AnnotationFeature): string[] =>
-    selectedIds.length > 1 && selectedIds.includes(feature.id) ? selectedIds : [feature.id];
 
   const annotationsGroups = useMemo(
     () => groupAnnotations(features, { editable, classes, searchQuery }),
@@ -110,31 +105,6 @@ export const AnnotationsList = ({
 
     setSelectedIds([id]);
     setSelectionAnchor(id);
-  };
-
-  const zoomToFeature = (feature: AnnotationFeature) => {
-    // Select without routing through select() — zoom is navigation, not a selection
-    // gesture, so it must not move the Shift-range anchor.
-    const ids = new Set(actionTargets(feature));
-    setSelectedIds([...ids]);
-    // Read the view state imperatively via the store API: subscribing to
-    // `viewStateActive` re-rendered the whole grouped annotation list on every
-    // zoom/pan frame, though it is only needed inside this click handler.
-    const viewState = viewerStore?.getState().viewStateActive;
-    if (!viewState) return;
-    const geometries = features.filter((f) => ids.has(f.id)).map((f) => f.geometry);
-    const next = flyToFeaturesViewState(geometries, viewState);
-    if (next) setViewState(next);
-  };
-
-  const deleteFeatures = (feature: AnnotationFeature) => {
-    const ids = new Set(actionTargets(feature));
-    setSelectedIds([]);
-    setSelectionAnchor(null);
-    updateSetFeatures(
-      setId,
-      features.filter((f) => !ids.has(f.id)),
-    );
   };
 
   // Active-class selection is a single-select radio group; read-only grants get no
@@ -215,15 +185,9 @@ export const AnnotationsList = ({
                       classNames={namedClasses.filter((n) => n !== name)}
                       onSelect={(e) => select(feature, e)}
                       onZoom={() => zoomToFeature(feature)}
-                      onClassify={(className) =>
-                        setClassForIds(setId, actionTargets(feature), className)
-                      }
+                      onClassify={(className) => classify(feature, className)}
                       // Already-unclassified regions have nothing to clear.
-                      onClear={
-                        isUnclassified
-                          ? undefined
-                          : () => setClassForIds(setId, actionTargets(feature), null)
-                      }
+                      onClear={isUnclassified ? undefined : () => clearClass(feature)}
                       onRename={
                         editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
                       }

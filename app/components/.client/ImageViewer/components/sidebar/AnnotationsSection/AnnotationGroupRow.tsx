@@ -49,7 +49,7 @@ export function AnnotationGroupRow({
       onRename={onRename}
       actions={
         (onRename || onDelete) && (
-          <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/controlrow:opacity-100">
+          <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/controlrow:opacity-100 [@media(pointer:coarse)]:opacity-100">
             <Menu
               content={
                 <>

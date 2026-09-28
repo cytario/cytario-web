@@ -1,6 +1,7 @@
-import { IconButton, Input, Menu, MenuItem, MenuSeparator } from "@cytario/design";
+import { IconButton, Input } from "@cytario/design";
 import { useState } from "react";
 
+import { useAnnotationContextMenu } from "./useAnnotationContextMenu";
 import { annotationNameOf } from "../../../state/store/annotations/annotations.store";
 import { GeometrySvg } from "~/components/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -27,7 +28,8 @@ interface AnnotationThumbProps {
 
 /** A single annotation in the sidebar list: a selectable geometry thumbnail
  *  with its display name below. Click selects, double-click zooms to the
- *  feature; the hover/focus-revealed kebab opens the actions menu. */
+ *  feature; right-click (or the hover/focus-revealed kebab) opens the actions
+ *  menu. */
 export const AnnotationThumb = ({
   feature,
   selected,
@@ -62,8 +64,20 @@ export const AnnotationThumb = ({
     setDraft(displayName);
   };
 
+  const menu = useAnnotationContextMenu({
+    label: `Actions for ${label}`,
+    editable,
+    classNames,
+    showRename: !!onRename,
+    onZoom,
+    onStartRename: startEdit,
+    onClassify,
+    onClear,
+    onDelete,
+  });
+
   return (
-    <div className="group/thumb relative overflow-hidden">
+    <div className="group/thumb relative overflow-hidden" {...menu.targetProps}>
       <button
         type="button"
         aria-label={label}
@@ -99,57 +113,23 @@ export const AnnotationThumb = ({
         </p>
       )}
 
-      <Menu
-        content={
-          <>
-            <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
-              Zoom to annotation
-            </MenuItem>
-            {editable && onRename && (
-              <MenuItem id="rename" icon="Pencil" onAction={startEdit}>
-                Rename annotation
-              </MenuItem>
-            )}
-            {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
-              <>
-                <MenuSeparator />
-                {(classNames ?? []).map((name) => (
-                  <MenuItem
-                    key={name}
-                    id={`move:${name}`}
-                    icon="Tag"
-                    onAction={() => onClassify(name)}
-                  >
-                    Move to {name}
-                  </MenuItem>
-                ))}
-                {onClear && (
-                  <MenuItem id="unclassify" icon="X" onAction={onClear}>
-                    Clear classification
-                  </MenuItem>
-                )}
-              </>
-            )}
-            <MenuSeparator />
-            <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
-              Delete annotation
-            </MenuItem>
-          </>
-        }
-      >
-        <IconButton
-          icon="EllipsisVertical"
-          label={`Actions for ${label}`}
-          variant="ghost"
-          size="xs"
-          // Show on thumb hover or keyboard focus-within so the actions stay
-          // discoverable without cluttering every thumbnail.
-          className={`
-            absolute top-0 right-0
-            opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100
-          `}
-        />
-      </Menu>
+      {menu.menu}
+
+      <IconButton
+        icon="EllipsisVertical"
+        label={`Actions for ${label}`}
+        variant="ghost"
+        size="xs"
+        {...menu.triggerProps}
+        // Show on thumb hover or keyboard focus-within so the actions stay
+        // discoverable without cluttering every thumbnail. Touch has no hover
+        // and no right-click, so coarse pointers always render the kebab.
+        className={`
+          absolute top-0 right-0
+          opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100
+          [@media(pointer:coarse)]:opacity-100
+        `}
+      />
     </div>
   );
 };
