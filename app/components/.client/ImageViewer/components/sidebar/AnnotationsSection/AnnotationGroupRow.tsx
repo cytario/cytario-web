@@ -23,7 +23,8 @@ interface AnnotationGroupRowProps {
 }
 
 /** Classification group header on the shared SectionRow: color swatch, name, count,
- *  and visibility toggle, plus a hover-revealed rename/delete menu (own set only). */
+ *  and visibility toggle, plus a focus-revealed rename/delete menu (own set only;
+ *  always visible on touch). */
 export function AnnotationGroupRow({
   name,
   count,
@@ -49,7 +50,7 @@ export function AnnotationGroupRow({
       onRename={onRename}
       actions={
         (onRename || onDelete) && (
-          <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/controlrow:opacity-100 [@media(pointer:coarse)]:opacity-100">
+          <span className="flex opacity-0 transition-opacity focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100">
             <Menu
               content={
                 <>

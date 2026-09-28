@@ -28,7 +28,7 @@ interface AnnotationThumbProps {
 
 /** A single annotation in the sidebar list: a selectable geometry thumbnail
  *  with its display name below. Click selects, double-click zooms to the
- *  feature; right-click (or the hover/focus-revealed kebab) opens the actions
+ *  feature; right-click (or the focus-revealed kebab) opens the actions
  *  menu. */
 export const AnnotationThumb = ({
   feature,
@@ -129,12 +129,12 @@ export const AnnotationThumb = ({
         variant="ghost"
         size="xs"
         {...menu.triggerProps}
-        // Show on thumb hover or keyboard focus-within so the actions stay
-        // discoverable without cluttering every thumbnail. Touch has no hover
-        // and no right-click, so coarse pointers always render the kebab.
+        // Desktop opens the actions via right-click; the kebab stays for
+        // keyboard (revealed by focus) and is always visible on touch, which
+        // has neither hover nor a secondary click.
         className={`
           absolute top-0 right-0
-          opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100
+          opacity-0 transition-opacity focus-within:opacity-100
           [@media(pointer:coarse)]:opacity-100
         `}
       />
