@@ -113,6 +113,24 @@ describe("useCanvasAnnotationContextMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Delete annotation" })).toBeInTheDocument();
   });
 
+  test("omits 'Clear classification' for an unclassified annotation, shows it for a classified one", () => {
+    const unclassified = makeFeature("f1");
+    const classified = makeFeature("f2", "Tumor");
+    const { setId, picks, rightClick, store } = setup();
+    store.getState().updateSetFeatures(setId, [unclassified, classified]);
+
+    picks.push({ layerId: `annotations-0-polygons-fill`, feature: unclassified });
+    rightClick();
+    expect(
+      screen.queryByRole("menuitem", { name: "Clear classification" }),
+    ).not.toBeInTheDocument();
+
+    picks.length = 0;
+    picks.push({ layerId: `annotations-0-polygons-fill`, feature: classified });
+    rightClick();
+    expect(screen.getByRole("menuitem", { name: "Clear classification" })).toBeInTheDocument();
+  });
+
   test("resolves a peer set by the set id contained in the sublayer id", () => {
     const own = makeFeature("f1");
     const peer = makeFeature("f2");

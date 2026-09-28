@@ -126,7 +126,12 @@ export const useCanvasAnnotationContextMenu = ({
         classNames={target.classNames}
         onZoom={() => actions.zoomToFeature(target.feature)}
         onClassify={(name) => actions.classify(target.feature, name)}
-        onClear={() => actions.clearClass(target.feature)}
+        // Same guard as the sidebar: unclassified regions have nothing to clear.
+        onClear={
+          isReservedClassName(classNameOf(target.feature))
+            ? undefined
+            : () => actions.clearClass(target.feature)
+        }
         onDelete={() => actions.deleteFeatures(target.feature)}
       />
     ) : null,
