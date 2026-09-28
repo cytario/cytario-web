@@ -346,6 +346,39 @@ npm run dev                  # Start dev server at localhost:3000
 
 ---
 
+## Guided Tours (onboarding)
+
+The app ships in-product guided tours (react-joyride) in `app/components/Tour/`.
+Any change that moves, renames, or hides UI a tour points at will silently
+break that tour — always account for the tours when touching:
+
+- **`app/components/Tour/tours/*.tour.ts`** — tour definitions. Steps target
+  DOM selectors (ids/ARIA, never test-only attributes). A tour must only target
+  elements that exist on the routes the tour runs on.
+- **`TourContext`** — what a tour may gate on (route, connection count, admin
+  scopes). Extend it rather than reading stores ad hoc in `isAvailable` /
+  `shouldAutoStart`.
+- **Help menu** — derives its tour entries from the registry (`isAvailable`);
+  adding a tour needs no `HelpMenu.tsx` change.
+
+When adding or changing a feature:
+
+1. If the feature is one users must be shown (not just told about), add or
+   extend a tour step — the tour registry is the mechanism, not a new overlay.
+2. If you change a target's DOM (id, aria-label, mounting point, route), check
+   every tour's steps for that selector and update it in the same change.
+3. A tour step must keep two invariants (regression-tested): its tooltip stays
+   within the viewport, and the fixed-height shell never scrolls
+   (`skipScroll` is mandatory — the shell is `h-screen overflow-hidden`).
+4. If a step needs a route the tour doesn't start on, use the step's
+   `navigateTo` / `navigateToFromContext` data (see the user-management tour's
+   scoped admin URL for the pattern).
+
+The e2e coverage lives in `cytario-docs/e2e/specs/onboarding-tour.spec.ts`
+(browsing-mutators + browsing-mutators-admin projects) — keep it in sync when
+tour behavior changes; the formal requirements are SRS-CY-32218/32219,
+SRS-CY-31204/31205, SRS-CY-33127/33128, SRS-CY-35701–35703.
+
 ## Key Domain Concepts
 
 - **Bucket** — S3-compatible storage container (AWS S3 or MinIO)
