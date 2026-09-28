@@ -12,6 +12,7 @@ import type {
 } from "../../../state/store/types";
 import {
   pickFeaturesAt,
+  sortAnnotationItemsByClass,
   type PickedAnnotation,
   type RoutedPicks,
 } from "../Annotations/pickFeaturesAt";
@@ -126,12 +127,15 @@ export const useCompositeHover = (
         for (const pick of routed.overlayPicks) {
           for (const it of getOverlayTooltipItems(pick)) (sections.Overlays ??= []).push(it);
         }
-        for (const { pick } of routed.annotations) {
-          const items = getAnnotationTooltipItems(pick);
-          if (items.length > 0) {
-            hoveringAnnotation = true;
-            (sections.Annotations ??= []).push(...items);
-          }
+
+        // Group the point's regions by class name — z-order otherwise
+        // interleaves them (Unclassified → Ipsum → Unclassified …).
+        const annotationItems = sortAnnotationItemsByClass(
+          routed.annotations.flatMap(({ pick }) => getAnnotationTooltipItems(pick)),
+        );
+        if (annotationItems.length > 0) {
+          hoveringAnnotation = true;
+          (sections.Annotations ??= []).push(...annotationItems);
         }
       }
       return { sections, hoveringAnnotation };

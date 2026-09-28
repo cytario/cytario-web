@@ -45,6 +45,19 @@ export const setIdFromLayerId = (
   return peer ? peer.id : activeSetId;
 };
 
+/** Class name of a tooltip item (the single values key). */
+const classNameOfItem = (item: { values: Record<string, unknown> }): string =>
+  Object.keys(item.values)[0] ?? "";
+
+/** Tooltip items grouped by class name (case-insensitive; z-order preserved
+ *  within a class) — the point's regions otherwise interleave classes. */
+export const sortAnnotationItemsByClass = <T extends { values: Record<string, unknown> }>(
+  items: T[],
+): T[] =>
+  [...items].sort((a, b) =>
+    classNameOfItem(a).localeCompare(classNameOfItem(b), undefined, { sensitivity: "base" }),
+  );
+
 /** Single pick pipeline for every "what is under this canvas point?" consumer —
  *  hover tooltip, click popup/selection, and the context menu — so what is
  *  shown, what is selected, and what is actioned can never diverge. */
