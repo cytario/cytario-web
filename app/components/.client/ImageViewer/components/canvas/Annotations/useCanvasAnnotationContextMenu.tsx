@@ -12,10 +12,9 @@ import { AnnotationMenuItems } from "../../sidebar/AnnotationsSection/Annotation
 import { useAnnotationFeatureActions } from "../../sidebar/AnnotationsSection/useAnnotationFeatureActions";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-/** Layer-id conventions of `useAnnotationsLayer`: own set vs peer sets, selection
- *  halo layers excluded. */
+/** Layer-id conventions of `useAnnotationsLayer`: `annotations-…` for sets,
+ *  `-selection-` halo layers excluded. */
 const ANNOTATIONS_ID_PREFIX = "annotations-";
-const PEER_ID_SEGMENT = "-peer-";
 const SELECTION_ID_SEGMENT = "-selection-";
 
 interface CanvasMenuTarget {
@@ -26,7 +25,6 @@ interface CanvasMenuTarget {
 }
 
 interface UseCanvasAnnotationContextMenuProps {
-  imagePanelId: number;
   /** The deck ref from `useCompositeHover` — used for picking under the cursor. */
   deckRef: React.RefObject<DeckGLRef | null>;
 }
@@ -36,7 +34,6 @@ interface UseCanvasAnnotationContextMenuProps {
  *  the sidebar items use (every set is editable per the connection grant).
  *  Right-click on empty canvas leaves the native menu. */
 export const useCanvasAnnotationContextMenu = ({
-  imagePanelId,
   deckRef,
 }: UseCanvasAnnotationContextMenuProps) => {
   const storeApi = useViewerStoreApi();
@@ -82,9 +79,11 @@ export const useCanvasAnnotationContextMenu = ({
         const feature = pick.object as AnnotationFeature | undefined;
         if (!feature?.id) continue;
 
-        const setId = layerId.startsWith(`annotations-${imagePanelId}${PEER_ID_SEGMENT}`)
-          ? layerId.slice(layerId.indexOf(PEER_ID_SEGMENT) + PEER_ID_SEGMENT.length)
-          : state.activeSetId;
+        // Picks report sublayers (`annotations-0-polygons-fill`, …), so match a
+        // peer by its id occurring in the layer id; anything else on the panel's
+        // prefix is the own set.
+        const peer = state.annotationSets.find((s) => layerId.includes(s.id));
+        const setId = peer ? peer.id : state.activeSetId;
         if (!setId) continue;
         const set = state.annotationSets.find((s) => s.id === setId);
         if (!set) continue;
@@ -116,7 +115,7 @@ export const useCanvasAnnotationContextMenu = ({
       }
       return null;
     },
-    [deckRef, storeApi, imagePanelId, canAnnotate],
+    [deckRef, storeApi, canAnnotate],
   );
 
   const ctx = useContextMenu({
@@ -139,11 +138,8 @@ export const useCanvasAnnotationContextMenu = ({
       const hit = resolveTarget(event.clientX, event.clientY);
       if (!hit) return;
       setTarget(hit);
-      // preventDefault + anchor at the cursor — same entry as a DOM target.
-      ctx.targetProps.onContextMenu({
-        clientX: event.clientX,
-        clientY: event.clientY,
-      } as React.MouseEvent);
+      // The hook's handler preventDefaults and anchors the menu at the cursor.
+      ctx.targetProps.onContextMenu(event);
     },
     [resolveTarget, ctx],
   );

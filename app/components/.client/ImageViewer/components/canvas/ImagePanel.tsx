@@ -68,7 +68,6 @@ const ImagePanelInner = ({
   // `<DeckGL>` doesn't forward DOM props, so the capture listener sits on a
   // wrapper (events bubble through it from the canvas).
   const { onCanvasContextMenu, menu: canvasContextMenu } = useCanvasAnnotationContextMenu({
-    imagePanelId,
     deckRef,
   });
 
