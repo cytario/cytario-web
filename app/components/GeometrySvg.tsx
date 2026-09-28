@@ -123,7 +123,7 @@ export const GeometrySvg = ({
         <path
           d={pathData}
           fill={shape.closed ? stroke : "none"}
-          fillOpacity={shape.closed ? 1 : undefined}
+          fillOpacity={shape.closed ? 0.5 : undefined}
           stroke={stroke}
           strokeWidth={1}
           className={colorClass}
