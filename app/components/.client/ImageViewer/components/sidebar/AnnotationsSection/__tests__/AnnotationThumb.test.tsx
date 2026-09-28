@@ -1,8 +1,17 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 
 import { AnnotationThumb } from "../AnnotationThumb";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
+
+beforeAll(() => {
+  // TruncatedText's overflow detection hooks need it; jsdom ships none.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
 
 const makeFeature = (overrides?: Partial<AnnotationFeature>): AnnotationFeature => ({
   type: "Feature",
@@ -88,6 +97,36 @@ describe("AnnotationThumb", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Zoom to annotation" }));
 
     expect(onZoom).toHaveBeenCalledTimes(1);
+  });
+
+  test("right-click opens the same actions menu", () => {
+    render(<AnnotationThumb {...defaultProps} />);
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Unclassified point" }));
+
+    expect(screen.getByRole("menuitem", { name: "Zoom to annotation" })).toBeInTheDocument();
+  });
+
+  test("does not call onSelect when the thumbnail button is right-clicked", () => {
+    const onSelect = vi.fn();
+    render(<AnnotationThumb {...defaultProps} onSelect={onSelect} />);
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Unclassified point" }));
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  test("right-click inside the rename input keeps the native text menu", () => {
+    render(<AnnotationThumb {...defaultProps} onRename={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Unclassified point" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename annotation" }));
+
+    const input = screen.getByLabelText("Rename ID: feat-1");
+    // fireEvent.contextMenu returns false when the event's default was
+    // prevented — the input must let it through.
+    expect(fireEvent.contextMenu(input)).toBe(true);
+    expect(screen.queryByRole("menuitem", { name: "Zoom to annotation" })).toBeNull();
   });
 
   test("displays the annotation name below the thumbnail", () => {

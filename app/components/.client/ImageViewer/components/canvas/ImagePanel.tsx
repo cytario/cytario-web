@@ -3,6 +3,7 @@ import DeckGL from "@deck.gl/react";
 import { useCallback, useEffect } from "react";
 
 import { StampGhost } from "./Annotations/StampGhost";
+import { useCanvasAnnotationContextMenu } from "./Annotations/useCanvasAnnotationContextMenu";
 import { LayersTooltip } from "./Hover/LayersTooltip";
 import { useCompositeHover } from "./Hover/useCompositeHover";
 import { ImageContainer } from "./ImageContainer";
@@ -63,6 +64,13 @@ const ImagePanelInner = ({
     isActivePanel,
   );
 
+  // Right-click on an annotation polygon opens the shared annotation menu;
+  // `<DeckGL>` doesn't forward DOM props, so the capture listener sits on a
+  // wrapper (events bubble through it from the canvas).
+  const { onCanvasContextMenu, menu: canvasContextMenu } = useCanvasAnnotationContextMenu({
+    deckRef,
+  });
+
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
 
@@ -96,22 +104,26 @@ const ImagePanelInner = ({
 
   return (
     <>
-      <DeckGL
-        ref={deckRef}
-        width={width}
-        height={height}
-        views={[view]}
-        layers={layers}
-        effects={effects}
-        layerFilter={layerFilter}
-        onViewStateChange={onViewStateChange}
-        viewState={{ detail: viewStateActive }}
-        getCursor={getCursor}
-        onHover={onHover}
-        onInteractionStateChange={handleInteractionStateChange}
-        _pickable={true}
-        controller={true}
-      />
+      <div className="contents" onContextMenuCapture={onCanvasContextMenu}>
+        <DeckGL
+          ref={deckRef}
+          width={width}
+          height={height}
+          views={[view]}
+          layers={layers}
+          effects={effects}
+          layerFilter={layerFilter}
+          onViewStateChange={onViewStateChange}
+          viewState={{ detail: viewStateActive }}
+          getCursor={getCursor}
+          onHover={onHover}
+          onInteractionStateChange={handleInteractionStateChange}
+          _pickable={true}
+          controller={true}
+        />
+      </div>
+
+      {canvasContextMenu}
 
       {(pinnedTooltip ??
         (compositeTooltip && Object.keys(compositeTooltip.sections).length > 0

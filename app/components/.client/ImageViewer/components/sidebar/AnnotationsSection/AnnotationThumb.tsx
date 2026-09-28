@@ -1,7 +1,8 @@
-import { IconButton, Input, Menu, MenuItem, MenuSeparator } from "@cytario/design";
+import { IconButton, Input, TruncatedText } from "@cytario/design";
 import { useState } from "react";
 
 import { annotationNameOf } from "../../../state/store/annotations/annotations.store";
+import { useAnnotationContextMenu } from "../../annotations/useAnnotationContextMenu";
 import { GeometrySvg } from "~/components/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -27,7 +28,8 @@ interface AnnotationThumbProps {
 
 /** A single annotation in the sidebar list: a selectable geometry thumbnail
  *  with its display name below. Click selects, double-click zooms to the
- *  feature; the hover/focus-revealed kebab opens the actions menu. */
+ *  feature; right-click (or the focus-revealed kebab) opens the actions
+ *  menu. */
 export const AnnotationThumb = ({
   feature,
   selected,
@@ -62,8 +64,28 @@ export const AnnotationThumb = ({
     setDraft(displayName);
   };
 
+  const menu = useAnnotationContextMenu({
+    label: `Actions for ${label}`,
+    editable,
+    classNames,
+    showRename: !!onRename,
+    onZoom,
+    onStartRename: startEdit,
+    onClassify,
+    onClear,
+    onDelete,
+  });
+
   return (
-    <div className="group/thumb relative overflow-hidden">
+    <div
+      className="group/thumb relative overflow-hidden"
+      {...menu.targetProps}
+      // The rename input keeps the native text menu (cut/copy/paste).
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).closest("input,textarea")) return;
+        menu.targetProps.onContextMenu?.(e);
+      }}
+    >
       <button
         type="button"
         aria-label={label}
@@ -91,65 +113,30 @@ export const AnnotationThumb = ({
           className="mt-1 text-right font-mono tabular-nums"
         />
       ) : (
-        <p
-          className="mt-1 truncate text-right font-mono tabular-nums text-xs text-muted-foreground"
-          title={displayName}
-        >
-          {displayName}
+        // w-0 + min-w-full: the name never contributes to the flex-wrap item's
+        // intrinsic width, so the thumb stays exactly as wide as the geometry.
+        <p className="mt-1 w-0 min-w-full text-right font-mono tabular-nums text-xs text-muted-foreground">
+          <TruncatedText>{displayName}</TruncatedText>
         </p>
       )}
 
-      <Menu
-        content={
-          <>
-            <MenuItem id="zoom" icon="ZoomIn" onAction={onZoom}>
-              Zoom to annotation
-            </MenuItem>
-            {editable && onRename && (
-              <MenuItem id="rename" icon="Pencil" onAction={startEdit}>
-                Rename annotation
-              </MenuItem>
-            )}
-            {editable && onClassify && ((classNames?.length ?? 0) > 0 || onClear) && (
-              <>
-                <MenuSeparator />
-                {(classNames ?? []).map((name) => (
-                  <MenuItem
-                    key={name}
-                    id={`move:${name}`}
-                    icon="Tag"
-                    onAction={() => onClassify(name)}
-                  >
-                    Move to {name}
-                  </MenuItem>
-                ))}
-                {onClear && (
-                  <MenuItem id="unclassify" icon="X" onAction={onClear}>
-                    Clear classification
-                  </MenuItem>
-                )}
-              </>
-            )}
-            <MenuSeparator />
-            <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
-              Delete annotation
-            </MenuItem>
-          </>
-        }
-      >
-        <IconButton
-          icon="EllipsisVertical"
-          label={`Actions for ${label}`}
-          variant="ghost"
-          size="xs"
-          // Show on thumb hover or keyboard focus-within so the actions stay
-          // discoverable without cluttering every thumbnail.
-          className={`
-            absolute top-0 right-0
-            opacity-0 transition-opacity group-hover/thumb:opacity-100 focus-within:opacity-100
-          `}
-        />
-      </Menu>
+      {menu.menu}
+
+      <IconButton
+        icon="EllipsisVertical"
+        label={`Actions for ${label}`}
+        variant="ghost"
+        size="xs"
+        {...menu.triggerProps}
+        // Desktop opens the actions via right-click; the kebab stays for
+        // keyboard (revealed by focus) and is always visible on touch, which
+        // has neither hover nor a secondary click.
+        className={`
+          absolute top-0 right-0
+          opacity-0 transition-opacity focus-within:opacity-100
+          [@media(pointer:coarse)]:opacity-100
+        `}
+      />
     </div>
   );
 };
