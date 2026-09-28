@@ -1,30 +1,23 @@
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
-import { useStore } from "zustand";
 
-import { createViewerStore } from "../../../../state/store/createViewerStore";
-import type { ViewerStore } from "../../../../state/store/types";
+import {
+  createCanvasTestStore,
+  makeFeature,
+  openTestPopup,
+  viewerStoreContextMock,
+  type StoreRef,
+} from "../../__tests__/canvasTestStore";
 import {
   useCanvasClickInteraction,
   type UseCanvasClickInteractionProps,
 } from "../useCanvasClickInteraction";
 import type { CanvasContentResult } from "../useCompositeHover";
-import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-let currentStore: ReturnType<typeof createViewerStore>;
+const storeRef = vi.hoisted(() => ({ current: undefined }) as { current: StoreRef["current"] });
 
-vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
-  useViewerStoreApi: () => currentStore,
-}));
-
-const makeFeature = (id: string): AnnotationFeature => ({
-  type: "Feature",
-  id,
-  geometry: { type: "Point", coordinates: [0, 0] },
-  properties: {},
-});
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => viewerStoreContextMock(storeRef));
 
 const content = (annotations: AnnotationFeature[]): CanvasContentResult => ({
   tooltip: annotations.length
@@ -40,7 +33,7 @@ const content = (annotations: AnnotationFeature[]): CanvasContentResult => ({
       },
   annotations: annotations.map((feature) => ({
     feature,
-    setId: currentStore.getState().activeSetId ?? "",
+    setId: storeRef.current!.getState().activeSetId ?? "",
     pick: {} as never,
   })),
 });
@@ -59,29 +52,21 @@ function Harness({ buildContent }: Omit<UseCanvasClickInteractionProps, "imagePa
 }
 
 function setup() {
-  seedViewerConnection("test-conn");
-  const store = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`, "user-a");
-  store.getState().ensureOwnSet();
-  store.getState().setAnnotationMode("view");
-  currentStore = store;
-  contentOverride.current = null;
+  const { store } = createCanvasTestStore();
+  storeRef.current = store;
+
+  // Mutable indirection so tests control what buildContent returns.
+  const buildArgs = { current: () => [] as AnnotationFeature[] };
+  /** Full override for tests that need tooltip:null (nothing picked at all). */
+  const contentOverride = { current: null as CanvasContentResult | null };
   render(<Harness buildContent={() => contentOverride.current ?? content(buildArgs.current())} />);
   const canvas = screen.getByTestId("canvas");
-  const click = (opts: { modifier?: boolean } = {}) =>
-    fireEvent.click(canvas, {
-      metaKey: opts.modifier ?? false,
-    });
-  return { store, canvas, click };
+  return { store, canvas, buildArgs, contentOverride };
 }
-
-// Mutable indirection so tests control what buildContent returns.
-const buildArgs = { current: () => [] as AnnotationFeature[] };
-/** Full override for tests that need tooltip:null (nothing picked at all). */
-const contentOverride = { current: null as CanvasContentResult | null };
 
 describe("useCanvasClickInteraction", () => {
   test("plain click selects every feature at the point and opens the popup", () => {
-    const { store } = setup();
+    const { store, buildArgs } = setup();
     const f1 = makeFeature("f1");
     const f2 = makeFeature("f2");
     buildArgs.current = () => [f1, f2];
@@ -99,7 +84,7 @@ describe("useCanvasClickInteraction", () => {
   });
 
   test("modifier click toggles per feature (partial overlap inverts)", () => {
-    const { store } = setup();
+    const { store, buildArgs } = setup();
     store.getState().setAnnotationSelectedIds(["f1"]);
     const f1 = makeFeature("f1");
     const f2 = makeFeature("f2");
@@ -110,8 +95,44 @@ describe("useCanvasClickInteraction", () => {
     expect(store.getState().annotationSelectedIds).toEqual(["f2"]);
   });
 
+  test("plain click with no features clears the selection and opens a channels-only popup", () => {
+    const { store, buildArgs } = setup();
+    store.getState().setAnnotationSelectedIds(["f1"]);
+    buildArgs.current = () => [];
+
+    fireEvent.click(screen.getByTestId("canvas"));
+
+    expect(store.getState().annotationSelectedIds).toEqual([]);
+    expect(store.getState().popup?.sections.Channels).toHaveLength(1);
+    expect(store.getState().popup?.sections.Annotations).toBeUndefined();
+  });
+
+  test("a buildContent miss (nothing picked at all) clears the selection and closes", () => {
+    const { store, buildArgs, contentOverride } = setup();
+    store.getState().setAnnotationSelectedIds(["f1"]);
+    openTestPopup(store);
+    buildArgs.current = () => [];
+    contentOverride.current = { tooltip: null, annotations: [] };
+
+    fireEvent.click(screen.getByTestId("canvas"));
+
+    expect(store.getState().annotationSelectedIds).toEqual([]);
+    expect(store.getState().popup).toBeNull();
+  });
+
+  test("modifier click on feature-free pixels is a no-op", () => {
+    const { store, buildArgs } = setup();
+    store.getState().setAnnotationSelectedIds(["keep"]);
+    buildArgs.current = () => [];
+
+    fireEvent.click(screen.getByTestId("canvas"), { metaKey: true });
+
+    expect(store.getState().annotationSelectedIds).toEqual(["keep"]);
+    expect(store.getState().popup).toBeNull();
+  });
+
   test("inspect-mode click opens the popup but never changes the selection", () => {
-    const { store } = setup();
+    const { store, buildArgs } = setup();
     store.getState().setAnnotationMode("inspect");
     const f1 = makeFeature("f1");
     buildArgs.current = () => [f1];
@@ -124,12 +145,7 @@ describe("useCanvasClickInteraction", () => {
 
   test("switching into a draw mode closes the popup", () => {
     const { store } = setup();
-    store.getState().openPopup({
-      panelId: 0,
-      anchor: { x: 0, y: 0 },
-      sections: { Annotations: [{ type: "Annotations", values: {} }] },
-      annotationRefs: [],
-    });
+    openTestPopup(store);
     expect(store.getState().popup).not.toBeNull();
 
     act(() => store.getState().setAnnotationMode("draw-polygon"));
@@ -138,7 +154,7 @@ describe("useCanvasClickInteraction", () => {
   });
 
   test("draw modes ignore clicks entirely", () => {
-    const { store } = setup();
+    const { store, buildArgs } = setup();
     store.getState().setAnnotationMode("draw-polygon");
     buildArgs.current = () => [makeFeature("f1")];
 
@@ -150,14 +166,9 @@ describe("useCanvasClickInteraction", () => {
 
   test("Escape closes the popup", () => {
     const { store } = setup();
-    act(() =>
-      store.getState().openPopup({
-        panelId: 0,
-        anchor: { x: 0, y: 0 },
-        sections: { Annotations: [{ type: "Annotations", values: {} }] },
-        annotationRefs: [{ id: "f1", setId: store.getState().activeSetId! }],
-      }),
-    );
+    openTestPopup(store, {
+      annotationRefs: [{ id: "f1", setId: store.getState().activeSetId! }],
+    });
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -166,22 +177,13 @@ describe("useCanvasClickInteraction", () => {
 
   test("outside pointer-down closes the popup; canvas pointer-down does not", () => {
     const { store } = setup();
-    const open = () =>
-      act(() =>
-        store.getState().openPopup({
-          panelId: 0,
-          anchor: { x: 0, y: 0 },
-          sections: { Annotations: [{ type: "Annotations", values: {} }] },
-          annotationRefs: [],
-        }),
-      );
-    open();
+    openTestPopup(store);
 
     fireEvent.pointerDown(window, { bubbles: true });
 
     expect(store.getState().popup).toBeNull();
 
-    open();
+    openTestPopup(store);
     // Attached so the event propagates to the window capture listener — a
     // detached element would make this assertion vacuously pass.
     const canvasEl = document.createElement("canvas");
@@ -194,14 +196,7 @@ describe("useCanvasClickInteraction", () => {
 
   test("a pan (view-state change) dismisses the popup", () => {
     const { store } = setup();
-    act(() =>
-      store.getState().openPopup({
-        panelId: 0,
-        anchor: { x: 0, y: 0 },
-        sections: { Annotations: [{ type: "Annotations", values: {} }] },
-        annotationRefs: [],
-      }),
-    );
+    openTestPopup(store);
     expect(store.getState().popup).not.toBeNull();
 
     act(() =>
@@ -224,7 +219,7 @@ describe("useCanvasClickInteraction", () => {
   });
 
   test("a popup opened by another panel does not render or dismiss here", () => {
-    const { store, canvas } = setup();
+    const { store } = setup();
     act(() =>
       store.getState().openPopup({
         panelId: 1,
@@ -239,6 +234,5 @@ describe("useCanvasClickInteraction", () => {
     // Panel 0 has no popup — its dismissal listeners are inactive; panel 1's
     // own instance owns the popup.
     expect(store.getState().popup?.panelId).toBe(1);
-    void canvas;
   });
 });

@@ -34,8 +34,8 @@ import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
  * (hidden class → alpha 0) return `[]` so they no longer steal the cursor from
  * pixel reads beneath them.
  *
- * The hook also owns `getCursor`, which shows a pointer over non-transparent
- * annotations in view mode and a crosshair in draw mode.
+ * The hook also owns `getCursor`: pointer over non-transparent annotations in
+ * view/inspect modes, crosshair in draw modes.
  */
 export interface CanvasContentResult {
   /** Full tooltip content at the point (all sections) — null when nothing is picked. */

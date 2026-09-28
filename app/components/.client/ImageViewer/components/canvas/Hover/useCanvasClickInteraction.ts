@@ -24,7 +24,7 @@ export const useCanvasClickInteraction = ({
   const closePopup = useViewerStore(select.closePopup);
   const applyAnnotationSelection = useViewerStore((s) => s.applyAnnotationSelection);
   // Panel-scoped popup reference — also drives the dismissal listeners.
-  const popup = useViewerStore((s) => (s.popup?.panelId === imagePanelId ? s.popup : null));
+  const popup = useViewerStore(select.panelPopup(imagePanelId));
   const viewState = useViewerStore((s) => s.viewStateActive);
   const annotationMode = useViewerStore((s) => s.annotationMode);
 

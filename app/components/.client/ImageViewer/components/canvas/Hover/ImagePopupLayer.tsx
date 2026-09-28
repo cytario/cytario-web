@@ -10,12 +10,10 @@ import type { CompositeTooltip } from "../../../state/store/types";
  *  while every annotation it references still exists and is visible: a deleted
  *  or now-hidden feature makes the snapshot stale, so the popup closes. */
 export const ImagePopupLayer = ({ imagePanelId }: { imagePanelId: number }) => {
-  const popup = useViewerStore(select.popup);
+  const mine = useViewerStore(select.panelPopup(imagePanelId));
   const closePopup = useViewerStore(select.closePopup);
   const annotationSets = useViewerStore((s) => s.annotationSets);
   const annotationView = useViewerStore((s) => s.annotationView);
-
-  const mine = popup?.panelId === imagePanelId ? popup : null;
 
   useEffect(() => {
     if (!mine) return;

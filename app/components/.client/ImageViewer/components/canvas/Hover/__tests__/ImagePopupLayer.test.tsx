@@ -1,35 +1,21 @@
 import { act, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
-import { useStore } from "zustand";
 
-import { createViewerStore } from "../../../../state/store/createViewerStore";
-import type { ViewerStore } from "../../../../state/store/types";
+import {
+  createCanvasTestStore,
+  makeFeature,
+  viewerStoreContextMock,
+  type StoreRef,
+} from "../../__tests__/canvasTestStore";
 import { ImagePopupLayer } from "../ImagePopupLayer";
-import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
-import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-let currentStore: ReturnType<typeof createViewerStore>;
+const storeRef = vi.hoisted(() => ({ current: undefined }) as { current: StoreRef["current"] });
 
-vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
-  useViewerStoreApi: () => currentStore,
-}));
-
-const makeFeature = (id: string, className?: string): AnnotationFeature => ({
-  type: "Feature",
-  id,
-  geometry: { type: "Point", coordinates: [0, 0] },
-  properties: {
-    ...(className ? { classification: { name: className, color: [255, 0, 0] } } : {}),
-  },
-});
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => viewerStoreContextMock(storeRef));
 
 function setup() {
-  seedViewerConnection("test-conn");
-  const store = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`, "user-a");
-  const setId = store.getState().ensureOwnSet();
-  store.getState().setAnnotationMode("view");
-  currentStore = store;
+  const { store, setId } = createCanvasTestStore();
+  storeRef.current = store;
   render(<ImagePopupLayer imagePanelId={0} />);
   const openPopup = (annotationRefs: { id: string; setId: string }[]) =>
     act(() =>
@@ -45,16 +31,9 @@ function setup() {
 
 describe("ImagePopupLayer", () => {
   test("renders the popup for the owning panel only", () => {
-    const { store, setId } = setup();
+    const { store, setId, openPopup } = setup();
     store.getState().updateSetFeatures(setId, [makeFeature("f1")]);
-    act(() =>
-      store.getState().openPopup({
-        panelId: 0,
-        anchor: { x: 0, y: 0 },
-        sections: { Annotations: [{ type: "Annotations", values: {} }] },
-        annotationRefs: [{ id: "f1", setId }],
-      }),
-    );
+    openPopup([{ id: "f1", setId }]);
 
     expect(document.querySelector("[data-image-popup]")).not.toBeNull();
     expect(
@@ -65,11 +44,8 @@ describe("ImagePopupLayer", () => {
 
   test("does not render another panel's popup", () => {
     const { openPopup } = setup();
-    openPopup([]);
-
-    // Re-open for panel 1 — panel 0's layer must stay empty.
     act(() =>
-      currentStore.getState().openPopup({
+      storeRef.current!.getState().openPopup({
         panelId: 1,
         anchor: { x: 0, y: 0 },
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
@@ -122,7 +98,11 @@ describe("ImagePopupLayer", () => {
     const { store, openPopup } = setup();
     openPopup([]);
 
-    act(() => screen.getByRole("button", { name: "Close popup" }).click());
+    act(() =>
+      document
+        .querySelector('button[aria-label="Close popup"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+    );
 
     expect(store.getState().popup).toBeNull();
   });

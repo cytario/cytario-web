@@ -282,6 +282,12 @@ export const select = {
   compositeTooltip: (state: ViewerStore) => state.compositeTooltip,
   setCompositeTooltip: (state: ViewerStore) => state.setCompositeTooltip,
   popup: (state: ViewerStore) => state.popup,
+  /** Panel-scoped popup — stable object or null, so consumers re-render only
+   *  on their own popup transitions. */
+  panelPopup:
+    (imagePanelId: number) =>
+    (state: ViewerStore): ViewerStore["popup"] =>
+      state.popup?.panelId === imagePanelId ? state.popup : null,
   openPopup: (state: ViewerStore) => state.openPopup,
   closePopup: (state: ViewerStore) => state.closePopup,
 };
