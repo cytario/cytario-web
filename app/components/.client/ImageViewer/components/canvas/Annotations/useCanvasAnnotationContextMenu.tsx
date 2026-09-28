@@ -152,5 +152,20 @@ export const useCanvasAnnotationContextMenu = ({
     [resolveTarget, ctx],
   );
 
-  return { onCanvasContextMenu, menu: ctx.menu, isOpen: ctx.isOpen };
+  /** Attach via `onDoubleClickCapture` on the element wrapping `<DeckGL>`:
+   *  double-clicking an annotation zooms to it (mirrors the sidebar thumbnail).
+   *  Stopping the event in capture phase also keeps deck's own double-click
+   *  zoom from firing on annotation hits; empty canvas keeps the deck zoom. */
+  const onCanvasDoubleClick = useCallback(
+    (event: React.MouseEvent) => {
+      const hit = resolveTarget(event.clientX, event.clientY);
+      if (!hit) return;
+      event.stopPropagation();
+      event.preventDefault();
+      actions.zoomToFeature(hit.feature);
+    },
+    [resolveTarget, actions],
+  );
+
+  return { onCanvasContextMenu, onCanvasDoubleClick, menu: ctx.menu, isOpen: ctx.isOpen };
 };

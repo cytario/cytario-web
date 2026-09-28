@@ -1,4 +1,4 @@
-import { IconButton, Input } from "@cytario/design";
+import { IconButton, Input, TruncatedText } from "@cytario/design";
 import { useState } from "react";
 
 import { annotationNameOf } from "../../../state/store/annotations/annotations.store";
@@ -113,11 +113,9 @@ export const AnnotationThumb = ({
           className="mt-1 text-right font-mono tabular-nums"
         />
       ) : (
-        <p
-          className="mt-1 truncate text-right font-mono tabular-nums text-xs text-muted-foreground"
-          title={displayName}
-        >
-          {displayName}
+        <p className="mt-1 text-right font-mono tabular-nums text-xs text-muted-foreground">
+          {/* min-w-0 span inside — the flex-wrap item never grows past the thumb. */}
+          <TruncatedText>{displayName}</TruncatedText>
         </p>
       )}
 

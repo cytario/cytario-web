@@ -20,7 +20,6 @@ export const useAnnotationFeatureActions = ({
   const setSelectionAnchor = useViewerStore((s) => s.setAnnotationSelectionAnchor);
   const updateSetFeatures = useViewerStore((s) => s.updateSetFeatures);
   const setClassForIds = useViewerStore((s) => s.setAnnotationClassForIds);
-  const setViewState = useViewerStore((s) => s.setViewStateActive);
   const viewerStore = useViewerStoreApi();
 
   const actionTargets = (feature: AnnotationFeature): string[] =>
@@ -34,11 +33,14 @@ export const useAnnotationFeatureActions = ({
     // Read the view state imperatively via the store API: subscribing to
     // `viewStateActive` re-rendered the whole grouped annotation list on every
     // zoom/pan frame, though it is only needed inside this click handler.
-    const viewState = viewerStore?.getState().viewStateActive;
-    if (!viewState) return;
-    const geometries = features.filter((f) => ids.has(f.id)).map((f) => f.geometry);
-    const next = flyToFeaturesViewState(geometries, viewState);
-    if (next) setViewState(next);
+    const state = viewerStore?.getState();
+    if (!state?.viewStateActive) return;
+    // The actioned feature may live in any set (canvas double-click on a peer)
+    // — resolve its set from the store instead of the bound one.
+    const set = state.annotationSets.find((s) => s.features.some((f) => f.id === feature.id));
+    const geometries = (set?.features ?? []).filter((f) => ids.has(f.id)).map((f) => f.geometry);
+    const next = flyToFeaturesViewState(geometries, state.viewStateActive);
+    if (next) state.setViewStateActive(next);
   };
 
   const deleteFeatures = (feature: AnnotationFeature) => {

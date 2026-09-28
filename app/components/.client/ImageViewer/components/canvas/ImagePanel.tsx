@@ -67,9 +67,11 @@ const ImagePanelInner = ({
   // Right-click on an annotation polygon opens the shared annotation menu;
   // `<DeckGL>` doesn't forward DOM props, so the capture listener sits on a
   // wrapper (events bubble through it from the canvas).
-  const { onCanvasContextMenu, menu: canvasContextMenu } = useCanvasAnnotationContextMenu({
-    deckRef,
-  });
+  const {
+    onCanvasContextMenu,
+    onCanvasDoubleClick,
+    menu: canvasContextMenu,
+  } = useCanvasAnnotationContextMenu({ deckRef });
 
   useEffect(() => {
     if (!isActivePanel || !metadata || !width || !height) return;
@@ -104,7 +106,11 @@ const ImagePanelInner = ({
 
   return (
     <>
-      <div className="contents" onContextMenuCapture={onCanvasContextMenu}>
+      <div
+        className="contents"
+        onContextMenuCapture={onCanvasContextMenu}
+        onDoubleClickCapture={onCanvasDoubleClick}
+      >
         <DeckGL
           ref={deckRef}
           width={width}

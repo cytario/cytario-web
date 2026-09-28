@@ -1,8 +1,17 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 
 import { AnnotationThumb } from "../AnnotationThumb";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
+
+beforeAll(() => {
+  // TruncatedText's overflow detection hooks need it; jsdom ships none.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
 
 const makeFeature = (overrides?: Partial<AnnotationFeature>): AnnotationFeature => ({
   type: "Feature",
