@@ -10,6 +10,7 @@ import {
 } from "@cytario/design";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { VIEWER_SECTIONS } from "../sections";
 import { AnnotationsList } from "./AnnotationsList";
 import { groupAnnotations, orderedIdsOfGroups } from "./groupAnnotations";
 import {
@@ -254,9 +255,7 @@ export const AnnotationsSection = () => {
 
   return (
     <Section
-      id="annotations"
-      title="Annotations"
-      icon="Lasso"
+      {...VIEWER_SECTIONS.Annotations}
       badge={`${visible}/${total}`}
       header={
         <SearchInput

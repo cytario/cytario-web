@@ -1,4 +1,4 @@
-import { Icon, IconButton, TruncatedText } from "@cytario/design";
+import { Badge, Icon, IconButton, TruncatedText } from "@cytario/design";
 import { useLayoutEffect, useRef } from "react";
 
 import type {
@@ -6,6 +6,7 @@ import type {
   LayerTooltipItem,
   TooltipSection,
 } from "../../../state/store/types";
+import { VIEWER_SECTIONS } from "../../sidebar/sections";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
 const TOOLTIP_OFFSET = 12;
@@ -27,6 +28,7 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
             <TruncatedText>{item.id}</TruncatedText>
           </div>
         )}
+        {/* Values */}
         {Object.entries(item.values).map(([label, { value, color = [255, 255, 255] }]) => (
           <div key={label} className="flex items-center gap-2 justify-between">
             <div className="flex grow items-center gap-1.5 w-full">
@@ -38,7 +40,9 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
               <span>{label}</span>
             </div>
             {value && (
-              <span className="font-medium leading-tight tracking-wider tabular-nums">{value}</span>
+              <Badge color="slate" size="sm">
+                {value}
+              </Badge>
             )}
           </div>
         ))}
@@ -106,7 +110,7 @@ export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersToolti
     absolute z-50
     w-60
     rounded-sm shadow-lg
-    bg-card text-foreground
+    bg-background/80 backdrop-blur-sm text-foreground
     border border-border
     text-sm
     overflow-hidden
@@ -128,16 +132,21 @@ export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersToolti
           }
         : {})}
     >
+      {/* Popup Header */}
       {pinned && (
         <div className="flex items-center justify-between bg-background px-2 py-1 border-b border-border">
           <span className="text-xs text-muted-foreground">Image details</span>
           <IconButton icon="X" label="Close popup" size="xs" variant="ghost" onPress={onClose} />
         </div>
       )}
+
+      {/* Layer Items */}
       {entries.map(([type, items]) => (
         <div key={type}>
-          <div className="bg-background px-2 py-1 border-t border-border first:border-t-0">
-            {type}
+          {/* Section Header */}
+          <div className="flex items-center gap-1.5 bg-background px-2 py-1 border-t border-border first:border-t-0">
+            <Icon icon={VIEWER_SECTIONS[type].icon} size="sm" />
+            <span>{VIEWER_SECTIONS[type].title}</span>
           </div>
           {items.map((item, i) => (
             <Section key={item.id ?? i} item={item} />
