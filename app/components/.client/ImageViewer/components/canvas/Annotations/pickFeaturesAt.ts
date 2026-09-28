@@ -33,6 +33,18 @@ export interface PickState {
   annotationView: Record<string, { hiddenClasses: string[] } | undefined>;
 }
 
+/** A pick's annotation set: a peer set id occurring in the (sub)layer id marks
+ *  the set, anything else on the annotations prefix is the active (own) set.
+ *  Single owner — selection, tooltip, and menu must resolve identically. */
+export const setIdFromLayerId = (
+  layerId: string,
+  sets: { id: string }[],
+  activeSetId: string | null,
+): string | null => {
+  const peer = sets.find((s) => layerId.includes(s.id));
+  return peer ? peer.id : activeSetId;
+};
+
 /** Single pick pipeline for every "what is under this canvas point?" consumer —
  *  hover tooltip, click popup/selection, and the context menu — so what is
  *  shown, what is selected, and what is actioned can never diverge. */
@@ -64,21 +76,17 @@ export const pickFeaturesAt = (deck: Deck, x: number, y: number, state: PickStat
       !layerId.includes(ANNOTATIONS_SELECTION_SUFFIX)
     ) {
       const feature = pick.object as AnnotationFeature | undefined;
-      if (!feature?.id || seenFeatures.has(feature.id)) continue;
-
-      // Picks report sublayers (`annotations-0-polygons-fill`, …), so match a
-      // peer by its id occurring in the layer id; anything else on the
-      // annotations prefix is the own set.
-      const peer = state.annotationSets.find((s) => layerId.includes(s.id));
-      const setId = peer ? peer.id : state.activeSetId;
-      if (!setId) continue;
+      const setId = feature?.id
+        ? setIdFromLayerId(layerId, state.annotationSets, state.activeSetId)
+        : null;
+      if (!feature?.id || !setId || seenFeatures.has(`${setId}:${feature.id}`)) continue;
 
       // A hidden class renders at alpha 0 — it is not really visible, so it
       // must not appear in tooltips, selections, or menus.
       const hidden = state.annotationView[setId]?.hiddenClasses;
       if (hidden?.includes(classNameOf(feature))) continue;
 
-      seenFeatures.add(feature.id);
+      seenFeatures.add(`${setId}:${feature.id}`);
       routed.annotations.push({ feature, setId, pick });
     }
   }

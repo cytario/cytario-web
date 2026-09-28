@@ -8,7 +8,7 @@ import { select } from "../../../state/store/selectors";
 export interface UseCanvasClickInteractionProps {
   imagePanelId: number;
   /** Fresh pick + content at a click point (from `useCompositeHover`). */
-  buildContent: (x: number, y: number, coordinate: number[] | undefined) => CanvasContentResult;
+  buildContent: (x: number, y: number) => CanvasContentResult;
 }
 
 /** Click on the canvas (view/inspect mode) selects every feature at the point —
@@ -26,13 +26,14 @@ export const useCanvasClickInteraction = ({
   // Panel-scoped popup reference — also drives the dismissal listeners.
   const popup = useViewerStore((s) => (s.popup?.panelId === imagePanelId ? s.popup : null));
   const viewState = useViewerStore((s) => s.viewStateActive);
+  const annotationMode = useViewerStore((s) => s.annotationMode);
 
   const onCanvasClick = useCallback(
     (info: PickingInfo, event?: { srcEvent?: Partial<MouseEvent> }) => {
       const state = storeApi.getState();
       if (state.annotationMode !== "view" && state.annotationMode !== "inspect") return;
 
-      const { tooltip, annotations } = buildContent(info.x, info.y, info.coordinate);
+      const { tooltip, annotations } = buildContent(info.x, info.y);
 
       if (state.annotationMode === "view") {
         const src = event?.srcEvent;
@@ -40,23 +41,21 @@ export const useCanvasClickInteraction = ({
         const ids = annotations.map((a) => a.feature.id).filter((id): id is string => !!id);
 
         if (ids.length === 0) {
-          if (!modifier) {
-            // Click on empty canvas: standard deselect + dismiss.
-            applyAnnotationSelection([], { anchor: null });
-            closePopup();
-          }
-          return;
+          // A modifier click on feature-free pixels is a no-op.
+          if (modifier) return;
+          // Plain click: deselect; the popup below still opens with the
+          // channel/overlay content at the point.
+          applyAnnotationSelection([], { anchor: null });
+        } else {
+          // Top-most picked id seeds the sidebar's Shift-range anchor.
+          applyAnnotationSelection(ids, { toggle: modifier, anchor: ids[0] });
         }
-
-        // Top-most picked id seeds the sidebar's Shift-range anchor.
-        applyAnnotationSelection(ids, { toggle: modifier, anchor: ids[0] });
       }
 
       if (tooltip && Object.keys(tooltip.sections).length > 0) {
         openPopup({
           panelId: imagePanelId,
           anchor: { x: info.x, y: info.y },
-          coordinate: info.coordinate ?? [0, 0, 0],
           sections: tooltip.sections,
           annotationRefs: annotations.map(({ feature, setId }) => ({
             id: feature.id as string,
@@ -88,9 +87,19 @@ export const useCanvasClickInteraction = ({
     };
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", onPointerDown, true);
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     return () => {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("pointerdown", onPointerDown, true);
+      // Non-interactive closes (stale-guard, pan, outside click) drop focus
+      // from the popup to <body> — hand it back to where the user was.
+      const active = document.activeElement as HTMLElement | null;
+      if (
+        (active === document.body || active?.closest("[data-image-popup]")) &&
+        previouslyFocused
+      ) {
+        previouslyFocused.focus();
+      }
     };
   }, [popup, closePopup]);
 
@@ -109,6 +118,11 @@ export const useCanvasClickInteraction = ({
       closePopup();
     }
   }, [viewState, popup, closePopup]);
+
+  // Switching into a draw mode: the popup's point is no longer meaningful.
+  useEffect(() => {
+    if (popup && annotationMode !== "view" && annotationMode !== "inspect") closePopup();
+  }, [annotationMode, popup, closePopup]);
 
   return { onCanvasClick };
 };

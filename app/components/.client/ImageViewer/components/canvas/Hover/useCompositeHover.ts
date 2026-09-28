@@ -60,7 +60,7 @@ export interface CompositeHoverResult {
   getCursor: (state: InteractionState) => string;
   /** Fresh pick + content assembly at an arbitrary canvas point — the click
    *  popup / selection entry. */
-  buildContent: (x: number, y: number, coordinate: number[] | undefined) => CanvasContentResult;
+  buildContent: (x: number, y: number) => CanvasContentResult;
 }
 
 export const useCompositeHover = (
@@ -143,7 +143,7 @@ export const useCompositeHover = (
    *  coordinates) — the click popup builds its own pick instead of reusing
    *  hover state, which goes stale after pan/zoom and is empty in view mode. */
   const buildContent = useCallback(
-    (x: number, y: number, coordinate: number[] | undefined): CanvasContentResult => {
+    (x: number, y: number): CanvasContentResult => {
       const deck = deckRef.current?.deck;
       if (!deck) return { tooltip: null, annotations: [] };
       const routed = pickFeaturesAt(deck, x, y, storeApi.getState());
@@ -151,7 +151,6 @@ export const useCompositeHover = (
       const tooltip: CompositeTooltip = {
         panelId: imagePanelId,
         cursor: { x, y },
-        coordinate: coordinate ?? [0, 0, 0],
         sections,
       };
       return { tooltip, annotations: routed.annotations };
@@ -190,7 +189,6 @@ export const useCompositeHover = (
       const tooltip: CompositeTooltip = {
         panelId: imagePanelId,
         cursor: { x: info.x, y: info.y },
-        coordinate: info.coordinate ?? [0, 0, 0],
         sections,
       };
       setCompositeTooltip(tooltip);

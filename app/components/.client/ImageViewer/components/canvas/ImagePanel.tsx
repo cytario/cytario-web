@@ -119,9 +119,11 @@ const ImagePanelInner = ({
 
       <ImagePopupLayer imagePanelId={imagePanelId} />
 
-      {!popupOpenHere && compositeTooltip && Object.keys(compositeTooltip.sections).length > 0 && (
-        <LayersTooltip tooltip={compositeTooltip} />
-      )}
+      {!popupOpenHere &&
+        compositeTooltip?.panelId === imagePanelId &&
+        Object.keys(compositeTooltip.sections).length > 0 && (
+          <LayersTooltip tooltip={compositeTooltip} />
+        )}
     </>
   );
 };

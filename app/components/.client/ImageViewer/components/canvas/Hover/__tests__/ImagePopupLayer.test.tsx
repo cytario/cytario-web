@@ -36,7 +36,6 @@ function setup() {
       store.getState().openPopup({
         panelId: 0,
         anchor: { x: 0, y: 0 },
-        coordinate: [0, 0, 0],
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
         annotationRefs,
       }),
@@ -52,7 +51,6 @@ describe("ImagePopupLayer", () => {
       store.getState().openPopup({
         panelId: 0,
         anchor: { x: 0, y: 0 },
-        coordinate: [0, 0, 0],
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
         annotationRefs: [{ id: "f1", setId }],
       }),
@@ -74,7 +72,6 @@ describe("ImagePopupLayer", () => {
       currentStore.getState().openPopup({
         panelId: 1,
         anchor: { x: 0, y: 0 },
-        coordinate: [0, 0, 0],
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
         annotationRefs: [],
       }),
@@ -104,6 +101,19 @@ describe("ImagePopupLayer", () => {
     expect(store.getState().popup).not.toBeNull();
 
     act(() => store.getState().toggleAnnotationClassVisibility(setId, "Tumor"));
+
+    expect(store.getState().popup).toBeNull();
+  });
+
+  test("hiding the whole set closes the popup", () => {
+    const { store, setId, openPopup } = setup();
+    const f1 = makeFeature("f1", "Tumor");
+    store.getState().updateSetFeatures(setId, [f1]);
+    openPopup([{ id: "f1", setId }]);
+    expect(store.getState().popup).not.toBeNull();
+
+    // Set-level visibility funnels through hiddenClasses (every class hidden).
+    act(() => store.getState().setAnnotationSetHidden(setId, true));
 
     expect(store.getState().popup).toBeNull();
   });

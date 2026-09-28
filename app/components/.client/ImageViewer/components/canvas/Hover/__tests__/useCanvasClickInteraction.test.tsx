@@ -27,12 +27,17 @@ const makeFeature = (id: string): AnnotationFeature => ({
 });
 
 const content = (annotations: AnnotationFeature[]): CanvasContentResult => ({
-  tooltip: {
-    panelId: 0,
-    cursor: { x: 5, y: 5 },
-    coordinate: [1, 2, 0],
-    sections: { Annotations: [{ type: "Annotations", values: {} }] },
-  },
+  tooltip: annotations.length
+    ? {
+        panelId: 0,
+        cursor: { x: 5, y: 5 },
+        sections: { Annotations: [{ type: "Annotations", values: {} }] },
+      }
+    : {
+        panelId: 0,
+        cursor: { x: 5, y: 5 },
+        sections: { Channels: [{ type: "Channels", values: { DAPI: { value: "42" } } }] },
+      },
   annotations: annotations.map((feature) => ({
     feature,
     setId: currentStore.getState().activeSetId ?? "",
@@ -59,7 +64,8 @@ function setup() {
   store.getState().ensureOwnSet();
   store.getState().setAnnotationMode("view");
   currentStore = store;
-  render(<Harness buildContent={() => content(buildArgs.current())} />);
+  contentOverride.current = null;
+  render(<Harness buildContent={() => contentOverride.current ?? content(buildArgs.current())} />);
   const canvas = screen.getByTestId("canvas");
   const click = (opts: { modifier?: boolean } = {}) =>
     fireEvent.click(canvas, {
@@ -70,6 +76,8 @@ function setup() {
 
 // Mutable indirection so tests control what buildContent returns.
 const buildArgs = { current: () => [] as AnnotationFeature[] };
+/** Full override for tests that need tooltip:null (nothing picked at all). */
+const contentOverride = { current: null as CanvasContentResult | null };
 
 describe("useCanvasClickInteraction", () => {
   test("plain click selects every feature at the point and opens the popup", () => {
@@ -81,6 +89,8 @@ describe("useCanvasClickInteraction", () => {
     fireEvent.click(screen.getByTestId("canvas"));
 
     expect(store.getState().annotationSelectedIds).toEqual(["f1", "f2"]);
+    // Top-most picked id seeds the sidebar's Shift-range anchor.
+    expect(store.getState().annotationSelectionAnchorId).toBe("f1");
     expect(store.getState().popup?.panelId).toBe(0);
     expect(store.getState().popup?.annotationRefs).toEqual([
       { id: "f1", setId: store.getState().activeSetId },
@@ -100,21 +110,30 @@ describe("useCanvasClickInteraction", () => {
     expect(store.getState().annotationSelectedIds).toEqual(["f2"]);
   });
 
-  test("plain click on empty content clears selection and closes the popup", () => {
+  test("inspect-mode click opens the popup but never changes the selection", () => {
     const { store } = setup();
-    store.getState().setAnnotationSelectedIds(["f1"]);
-    store.getState().openPopup({
-      panelId: 0,
-      anchor: { x: 0, y: 0 },
-      coordinate: [0, 0, 0],
-      sections: {},
-      annotationRefs: [],
-    });
-    buildArgs.current = () => [];
+    store.getState().setAnnotationMode("inspect");
+    const f1 = makeFeature("f1");
+    buildArgs.current = () => [f1];
 
     fireEvent.click(screen.getByTestId("canvas"));
 
+    expect(store.getState().popup?.panelId).toBe(0);
     expect(store.getState().annotationSelectedIds).toEqual([]);
+  });
+
+  test("switching into a draw mode closes the popup", () => {
+    const { store } = setup();
+    store.getState().openPopup({
+      panelId: 0,
+      anchor: { x: 0, y: 0 },
+      sections: { Annotations: [{ type: "Annotations", values: {} }] },
+      annotationRefs: [],
+    });
+    expect(store.getState().popup).not.toBeNull();
+
+    act(() => store.getState().setAnnotationMode("draw-polygon"));
+
     expect(store.getState().popup).toBeNull();
   });
 
@@ -135,7 +154,6 @@ describe("useCanvasClickInteraction", () => {
       store.getState().openPopup({
         panelId: 0,
         anchor: { x: 0, y: 0 },
-        coordinate: [0, 0, 0],
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
         annotationRefs: [{ id: "f1", setId: store.getState().activeSetId! }],
       }),
@@ -153,7 +171,6 @@ describe("useCanvasClickInteraction", () => {
         store.getState().openPopup({
           panelId: 0,
           anchor: { x: 0, y: 0 },
-          coordinate: [0, 0, 0],
           sections: { Annotations: [{ type: "Annotations", values: {} }] },
           annotationRefs: [],
         }),
@@ -165,8 +182,12 @@ describe("useCanvasClickInteraction", () => {
     expect(store.getState().popup).toBeNull();
 
     open();
+    // Attached so the event propagates to the window capture listener — a
+    // detached element would make this assertion vacuously pass.
     const canvasEl = document.createElement("canvas");
+    document.body.appendChild(canvasEl);
     fireEvent.pointerDown(canvasEl);
+    canvasEl.remove();
 
     expect(store.getState().popup).not.toBeNull();
   });
@@ -177,7 +198,6 @@ describe("useCanvasClickInteraction", () => {
       store.getState().openPopup({
         panelId: 0,
         anchor: { x: 0, y: 0 },
-        coordinate: [0, 0, 0],
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
         annotationRefs: [],
       }),
@@ -209,7 +229,6 @@ describe("useCanvasClickInteraction", () => {
       store.getState().openPopup({
         panelId: 1,
         anchor: { x: 0, y: 0 },
-        coordinate: [0, 0, 0],
         sections: { Annotations: [{ type: "Annotations", values: {} }] },
         annotationRefs: [],
       }),

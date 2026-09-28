@@ -27,7 +27,6 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
             <TruncatedText>{item.id}</TruncatedText>
           </div>
         )}
-        {/* Values */}
         {Object.entries(item.values).map(([label, { value, color = [255, 255, 255] }]) => (
           <div key={label} className="flex items-center gap-2 justify-between">
             <div className="flex grow items-center gap-1.5 w-full">
@@ -131,7 +130,6 @@ export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersToolti
           }
         : {})}
     >
-      {/* Popup Header */}
       {pinned && (
         <div className="flex items-center justify-between bg-background px-2 py-1 border-b border-border">
           <span className="text-xs text-muted-foreground">Image details</span>
@@ -139,10 +137,8 @@ export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersToolti
         </div>
       )}
 
-      {/* Layer Items */}
       {entries.map(([type, items]) => (
         <div key={type}>
-          {/* Section Header */}
           <div className="flex items-center gap-1.5 bg-background px-2 py-1 border-t border-border first:border-t-0">
             <Icon icon={VIEWER_SECTIONS[type].icon} size="sm" />
             <span>{VIEWER_SECTIONS[type].title}</span>

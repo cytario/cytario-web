@@ -32,7 +32,6 @@ export const ImagePopupLayer = ({ imagePanelId }: { imagePanelId: number }) => {
   const tooltip: CompositeTooltip = {
     panelId: mine.panelId,
     cursor: mine.anchor,
-    coordinate: mine.coordinate,
     sections: mine.sections,
   };
   return <LayersTooltip tooltip={tooltip} pinned onClose={closePopup} />;

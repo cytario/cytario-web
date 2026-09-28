@@ -151,7 +151,6 @@ export interface CompositeTooltip {
    *  tooltip (a global store value would otherwise render in every panel). */
   panelId: number;
   cursor: { x: number; y: number };
-  coordinate: number[];
   sections: Partial<Record<TooltipSection, LayerTooltipItem[]>>;
 }
 
@@ -163,8 +162,6 @@ export interface CanvasPopup {
   panelId: number;
   /** Panel-relative screen anchor at open time. */
   anchor: { x: number; y: number };
-  /** World-space coordinate of the click — for live stale checks. */
-  coordinate: number[];
   sections: Partial<Record<TooltipSection, LayerTooltipItem[]>>;
   /** Features behind the popup's annotation items — resolved live so deleted
    *  or now-hidden entries drop out instead of showing stale rows. */
