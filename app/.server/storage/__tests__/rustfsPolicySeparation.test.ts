@@ -70,9 +70,7 @@ describe("rustfs policy-generator architectural separation", () => {
         const groups = statement.Condition?.StringEquals?.["jwt:groups"];
         const values = Array.isArray(groups) ? groups : [groups];
         expect(values.length).toBeGreaterThan(0);
-        expect(values.every((g) => typeof g === "string" && g.startsWith("cytario-org-"))).toBe(
-          true,
-        );
+        expect(values.every((g) => typeof g === "string" && g.startsWith("cy-"))).toBe(true);
       }
     }
   });

@@ -15,7 +15,7 @@
  *    be separate values of one condition.
  *  - The org keycloak mapper therefore emits each org-scoped group as the
  *    single composite claim value `<org-marker>/<org-relative-group-path>`
- *    (e.g. `cytario-org-acme/Lab/TeamX`), and this generator conditions each
+ *    (e.g. `cy-acme/Lab/TeamX`), and this generator conditions each
  *    group-scoped grant on exactly that one composite value. The organization
  *    binding is AND-by-construction: the composite names both the org and the
  *    group, and a foreign organization's session cannot produce another org's
@@ -31,7 +31,7 @@
  * Security invariants (mirroring the AWS generator, adapted to RustFS's
  * vocabulary):
  *  - Every Allow statement carries a `StringEquals` `jwt:groups` condition
- *    whose every value contains the org marker (`cytario-org-<alias>`) — the
+ *    whose every value contains the org marker (`cy-<alias>`) — the
  *    composite for group-scoped grants, the bare marker for org-root grants.
  *    The generator REFUSES to emit any Allow lacking the org binding
  *    (fail closed).
@@ -65,7 +65,7 @@ import {
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 /** Reserved prefix of the org marker the rustfs-groups mapper emits. */
-export const ORG_MARKER_PREFIX = "cytario-org-";
+export const ORG_MARKER_PREFIX = "cy-";
 
 export type { AccessLevel, BucketPolicyDocument, PolicyStatement };
 export { isManagedStatement };
@@ -85,8 +85,30 @@ export interface RustfsBucketPolicyGrant {
   accessLevel: AccessLevel;
 }
 
-/** The org marker value for an organization alias. */
-export const orgMarkerFor = (organization: string): string => `${ORG_MARKER_PREFIX}${organization}`;
+/**
+ * The org marker value for an organization alias. Fail-closed on an alias the
+ * mapper could never emit as a distinct marker: an absent alias, one
+ * containing `/` or whitespace (a `/` would let a composite alias another
+ * (org, group) pair), and one starting with `admin-` (reserved for the
+ * `cy-admin-<alias>` management marker — an org so named would collide with
+ * another org's admins marker).
+ */
+export const orgMarkerFor = (organization: string): string => {
+  if (!organization) {
+    throw new Error("Organization alias is required to build an org marker (fail closed).");
+  }
+  if (/[/\s]/.test(organization)) {
+    throw new Error(
+      "Organization alias may not contain '/' or whitespace — the composite value would be ambiguous (fail closed).",
+    );
+  }
+  if (organization.startsWith("admin-")) {
+    throw new Error(
+      "Organization alias may not start with 'admin-' — reserved for the admins marker namespace (fail closed).",
+    );
+  }
+  return `${ORG_MARKER_PREFIX}${organization}`;
+};
 
 /**
  * The composite binding value for a group-scoped grant: the org marker prefix
