@@ -197,9 +197,33 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       // the header out of the viewport.
       skipScroll: true,
       overlayColor: "rgba(0, 0, 0, 0.55)",
+      // The tooltip skin follows the design tokens rather than joyride's
+      // hardcoded #ffffff/#000000, so it tracks the active theme like the rest
+      // of the app. Joyride derives the primary button's label color from
+      // backgroundColor, so the styles override below re-points it to the
+      // primary's own foreground token.
+      backgroundColor: "var(--color-background)",
+      textColor: "var(--color-muted-foreground)",
+      primaryColor: "var(--color-primary)",
+      arrowColor: "var(--color-background)",
     },
     styles: {
+      tooltip: {
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--color-border)",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+      },
+      tooltipTitle: {
+        color: "var(--color-foreground)",
+        fontFamily: "var(--font-montserrat)",
+      },
       tooltipContainer: { fontFamily: "var(--font-montserrat)" },
+      buttonPrimary: {
+        color: "var(--color-primary-foreground)",
+        borderRadius: "var(--radius-sm)",
+        fontFamily: "var(--font-montserrat)",
+      },
+      buttonClose: { color: "var(--color-muted-foreground)" },
     },
   });
 
