@@ -10,6 +10,7 @@ import {
 import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { AnnotationMenuItems } from "../../annotations/AnnotationMenuItems";
+import { joinOffersForFeatures } from "../../annotations/joinFeatures";
 import { useAnnotationFeatureActions } from "../../annotations/useAnnotationFeatureActions";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -103,6 +104,19 @@ export const useCanvasAnnotationContextMenu = ({
           isReservedClassName(classNameOf(target.feature))
             ? undefined
             : () => actions.clearClass(target.feature)
+        }
+        joinOffers={
+          canAnnotate && menuSet
+            ? joinOffersForFeatures(
+                actions
+                  .actionTargets(target.feature)
+                  .map((id) => menuSet.features.find((f) => f.id === id))
+                  .filter((f): f is AnnotationFeature => !!f),
+              ).map((offer) => ({
+                ...offer,
+                onJoin: () => actions.joinIds(offer.ids),
+              }))
+            : undefined
         }
         onDelete={() => actions.deleteFeatures(target.feature)}
       />

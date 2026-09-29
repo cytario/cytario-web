@@ -1,16 +1,16 @@
-import { Badge, Icon, IconButton, TruncatedText } from "@cytario/design";
+import { Badge, Button, Icon, TruncatedText } from "@cytario/design";
 import { useLayoutEffect, useRef } from "react";
 
+import { anchoredPopupPosition } from "./PopupCard";
 import type {
   CompositeTooltip,
   LayerTooltipItem,
   TooltipSection,
 } from "../../../state/store/types";
+import { type JoinOfferAction } from "../../annotations/joinFeatures";
 import { VIEWER_SECTIONS } from "../../sidebar/sections";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
-const TOOLTIP_OFFSET = 12;
-const VIEWPORT_MARGIN = 4;
 const GEO_THUMB_SIZE = 48;
 
 const Section = ({ item }: { item: LayerTooltipItem }) => {
@@ -57,26 +57,68 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
 
 const SECTION_ORDER: TooltipSection[] = ["Channels", "Overlays", "Annotations"];
 
-interface LayersTooltipProps {
-  tooltip: CompositeTooltip;
-  /** Click-popup mode: adds a header with a close affordance and dialog
-   *  semantics; without it the component is the plain hover tooltip. */
-  pinned?: boolean;
-  onClose?: () => void;
+const itemClassOf = (item: LayerTooltipItem): string => Object.keys(item.values)[0] ?? "";
+
+/** Class-sorted annotation items with each class group's "Join <n> <class>
+ *  annotations" button rendered right after the group's run of items. */
+function AnnotationItemsWithJoins({
+  items,
+  joinOffers,
+}: {
+  items: LayerTooltipItem[];
+  joinOffers: JoinOfferAction[];
+}) {
+  const offersByClass = new Map(joinOffers.map((offer) => [offer.className, offer]));
+  const nodes: React.ReactNode[] = [];
+  let runClass: string | null = null;
+
+  const flushRun = (key: string) => {
+    if (runClass === null) return;
+    const offer = offersByClass.get(runClass);
+    if (offer) {
+      nodes.push(
+        <div key={key} className="px-2 pb-1.5">
+          <JoinOfferButton offer={offer} />
+        </div>,
+      );
+    }
+  };
+
+  items.forEach((item, i) => {
+    const cls = itemClassOf(item);
+    if (runClass !== null && cls !== runClass) {
+      flushRun(`join:${runClass}`);
+    }
+    runClass = cls;
+    nodes.push(<Section key={item.id ?? i} item={item} />);
+  });
+  flushRun("join:last");
+
+  return <>{nodes}</>;
 }
 
-export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersTooltipProps) => {
+const JoinOfferButton = ({ offer }: { offer: JoinOfferAction }) => (
+  <Button size="xs" variant="neutral" onPress={offer.onJoin}>
+    Join {offer.count} {offer.className} annotations
+  </Button>
+);
+
+export interface LayersTooltipProps {
+  tooltip: CompositeTooltip;
+  /** "Join <n> <class> annotations" offers for same-class region groups at the
+   *  clicked point — popup-only affordance (C-633). */
+  joinOffers?: JoinOfferAction[];
+}
+
+/** Hover tooltip — the snapshot renderer for the inspect-mode cursor readout.
+ *  The click popup composes its own chrome ({@link PopupCard}) around the same
+ *  section rendering. */
+export const LayersTooltip = ({ tooltip, joinOffers }: LayersTooltipProps) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const entries = SECTION_ORDER.filter((s) => tooltip.sections[s]?.length).map(
     (s) => [s, tooltip.sections[s]!] as [TooltipSection, LayerTooltipItem[]],
   );
-
-  // Non-modal dialog: take focus so Escape and screen readers work without a
-  // focus trap (the sidebar stays usable).
-  useLayoutEffect(() => {
-    if (pinned) ref.current?.focus();
-  }, [pinned]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -86,17 +128,10 @@ export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersToolti
     if (!parent) return;
 
     const { width, height } = el.getBoundingClientRect();
-    const vw = parent.clientWidth;
-    const vh = parent.clientHeight;
-    const ax = tooltip.cursor.x;
-    const ay = tooltip.cursor.y;
-
-    let x = ax + TOOLTIP_OFFSET;
-    let y = ay + TOOLTIP_OFFSET;
-    if (ax + width > vw) x = ax - width - TOOLTIP_OFFSET;
-    if (ay + height > vh) y = ay - height - TOOLTIP_OFFSET;
-    x = Math.max(VIEWPORT_MARGIN, Math.min(x, vw - width - VIEWPORT_MARGIN));
-    y = Math.max(VIEWPORT_MARGIN, Math.min(y, vh - height - VIEWPORT_MARGIN));
+    const { x, y } = anchoredPopupPosition(width, height, tooltip.cursor, {
+      width: parent.clientWidth,
+      height: parent.clientHeight,
+    });
 
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
@@ -120,32 +155,18 @@ export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersToolti
       ref={ref}
       className={cx}
       style={{ left: tooltip.cursor.x + 12, top: tooltip.cursor.y + 12 }}
-      {...(pinned
-        ? {
-            "data-image-popup": true,
-            role: "dialog",
-            "aria-modal": false,
-            "aria-label": "Image details at the clicked point",
-            tabIndex: -1,
-          }
-        : {})}
     >
-      {pinned && (
-        <div className="flex items-center justify-between bg-background px-2 py-1 border-b border-border">
-          <span className="text-xs text-muted-foreground">Image details</span>
-          <IconButton icon="X" label="Close popup" size="xs" variant="ghost" onPress={onClose} />
-        </div>
-      )}
-
       {entries.map(([type, items]) => (
         <div key={type}>
           <div className="flex items-center gap-1.5 bg-background px-2 py-1 border-t border-border first:border-t-0">
             <Icon icon={VIEWER_SECTIONS[type].icon} size="sm" />
             <span>{VIEWER_SECTIONS[type].title}</span>
           </div>
-          {items.map((item, i) => (
-            <Section key={item.id ?? i} item={item} />
-          ))}
+          {type === "Annotations" ? (
+            <AnnotationItemsWithJoins items={items} joinOffers={joinOffers ?? []} />
+          ) : (
+            items.map((item, i) => <Section key={item.id ?? i} item={item} />)
+          )}
         </div>
       ))}
     </div>

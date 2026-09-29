@@ -51,7 +51,6 @@ const COMMITTING_EDITS = new Set([
   "movePosition",
   "finishMovePosition",
   "addHole",
-  "unionGeometry",
 ]);
 
 // Achromatic (not a hue) rings so they never collide with classification colors and

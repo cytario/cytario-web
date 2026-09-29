@@ -2,6 +2,7 @@ import { IconButton, Input, TruncatedText } from "@cytario/design";
 import { useState } from "react";
 
 import { annotationNameOf } from "../../../state/store/annotations/annotations.store";
+import { type JoinOfferAction } from "../../annotations/joinFeatures";
 import { useAnnotationContextMenu } from "../../annotations/useAnnotationContextMenu";
 import { GeometrySvg } from "~/components/GeometrySvg";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -21,6 +22,8 @@ interface AnnotationThumbProps {
   onClassify?: (name: string) => void;
   /** Clear the selection's classification → Unclassified. */
   onClear?: () => void;
+  /** Join offers for the action targets (see AnnotationMenuItems). */
+  joinOffers?: JoinOfferAction[];
   /** Rename this annotation. */
   onRename?: (name: string) => void;
   onDelete: () => void;
@@ -40,6 +43,7 @@ export const AnnotationThumb = ({
   onZoom,
   onClassify,
   onClear,
+  joinOffers,
   onRename,
   onDelete,
 }: AnnotationThumbProps) => {
@@ -73,6 +77,7 @@ export const AnnotationThumb = ({
     onStartRename: startEdit,
     onClassify,
     onClear,
+    joinOffers,
     onDelete,
   });
 

@@ -12,6 +12,7 @@ import {
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { joinOffersForFeatures } from "../../annotations/joinFeatures";
 import { useAnnotationFeatureActions } from "../../annotations/useAnnotationFeatureActions";
 import { rgb } from "../SectionRow/ColorPicker/ColorPicker";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -50,10 +51,11 @@ export const AnnotationsList = ({
   const classes = useViewerStore((s) => s.annotationClasses);
   const createClass = useViewerStore((s) => s.createAnnotationClass);
   const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
-  const { zoomToFeature, deleteFeatures, classify, clearClass } = useAnnotationFeatureActions({
-    setId,
-    features,
-  });
+  const { actionTargets, zoomToFeature, deleteFeatures, classify, clearClass, joinIds } =
+    useAnnotationFeatureActions({
+      setId,
+      features,
+    });
 
   // "Add class" reveals an inline name input; the class is created only on a
   // non-empty commit (no default-named placeholder is ever persisted).
@@ -196,6 +198,18 @@ export const AnnotationsList = ({
                         classNames={namedClasses.filter((n) => n !== name)}
                         onSelect={(e) => select(feature, e)}
                         onZoom={() => zoomToFeature(feature)}
+                        joinOffers={
+                          editable
+                            ? joinOffersForFeatures(
+                                actionTargets(feature)
+                                  .map((id) => features.find((f) => f.id === id))
+                                  .filter((f): f is AnnotationFeature => !!f),
+                              ).map((offer) => ({
+                                ...offer,
+                                onJoin: () => joinIds(offer.ids),
+                              }))
+                            : undefined
+                        }
                         onClassify={(className) => classify(feature, className)}
                         // Already-unclassified regions have nothing to clear.
                         onClear={isUnclassified ? undefined : () => clearClass(feature)}

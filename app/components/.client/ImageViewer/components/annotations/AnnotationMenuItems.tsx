@@ -1,5 +1,7 @@
 import { MenuItem, MenuSeparator } from "@cytario/design";
 
+import { type JoinOfferAction } from "./joinFeatures";
+
 export interface AnnotationMenuItemsProps {
   /** Read-only surfaces (peer sets, no grant) hide rename/classify and disable delete. */
   editable: boolean;
@@ -12,6 +14,9 @@ export interface AnnotationMenuItemsProps {
   onClassify?: (name: string) => void;
   /** Clear the classification → Unclassified. */
   onClear?: () => void;
+  /** Join offers: one per same-class group (≥2 regions) in the action
+   *  targets — a cross-class selection yields one offer per class. */
+  joinOffers?: JoinOfferAction[];
   onDelete: () => void;
 }
 
@@ -25,6 +30,7 @@ export const AnnotationMenuItems = ({
   onStartRename,
   onClassify,
   onClear,
+  joinOffers,
   onDelete,
 }: AnnotationMenuItemsProps) => {
   return (
@@ -52,6 +58,17 @@ export const AnnotationMenuItems = ({
           )}
         </>
       )}
+      {editable &&
+        (joinOffers ?? []).map((offer) => (
+          <MenuItem
+            key={offer.className}
+            id={`join:${offer.className}`}
+            icon="Layers2"
+            onAction={offer.onJoin}
+          >
+            Join {offer.count} {offer.className} annotations
+          </MenuItem>
+        ))}
       <MenuSeparator />
       <MenuItem id="delete" icon="Trash2" isDanger isDisabled={!editable} onAction={onDelete}>
         Delete annotation
