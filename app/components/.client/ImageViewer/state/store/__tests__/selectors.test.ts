@@ -58,7 +58,7 @@ describe("selectors", () => {
     annotationSelectionAnchorId: null,
     annotationView: {},
     annotationActiveClass: null,
-    annotationClasses: [],
+    annotationClasses: {},
     layersStates: [
       {
         id: "test-id",

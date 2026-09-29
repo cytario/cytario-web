@@ -34,6 +34,12 @@ export interface SetAnnotationView {
  *  by convention; never mutated. */
 const NO_FEATURES: AnnotationFeature[] = [];
 const NO_HIDDEN: string[] = [];
+const NO_CLASSES: AnnotationClass[] = [];
+
+/** Legacy flat class registry — the persisted shape before C-635 scoped
+ *  classes per annotation set. The persist migration wraps it under this key;
+ *  the seed adopts it into the user's first annotation set. */
+export const LEGACY_CLASSES_KEY = "__legacy__";
 
 /** Active set's features — the set that receives drawings. */
 export const selectActiveSetFeatures = (state: ViewerStore): AnnotationFeature[] =>
@@ -52,6 +58,28 @@ export const selectSetHiddenClasses =
   (setId: string | undefined) =>
   (state: ViewerStore): string[] =>
     (setId ? state.annotationView[setId]?.hiddenClasses : undefined) ?? NO_HIDDEN;
+
+/** A specific set's class registry (stable empty array by default). */
+export const selectSetClasses =
+  (setId: string | null | undefined) =>
+  (state: ViewerStore): AnnotationClass[] =>
+    (setId ? state.annotationClasses[setId] : undefined) ?? NO_CLASSES;
+
+/** Adopt a legacy (pre-per-set) flat class registry into the user's first
+ *  annotation set, so zero-member class definitions survive the migration.
+ *  Callers run inside an immer `set` — mutating the draft directly. */
+const adoptLegacyClasses = (viewerStore: {
+  annotationClasses: Record<string, AnnotationClass[]>;
+  annotationSets: { id: string }[];
+}) => {
+  const legacy = viewerStore.annotationClasses[LEGACY_CLASSES_KEY];
+  if (!legacy) return;
+  const first = viewerStore.annotationSets[0];
+  if (!first) return;
+  const existing = viewerStore.annotationClasses[first.id] ?? [];
+  viewerStore.annotationClasses[first.id] = [...legacy, ...existing];
+  delete viewerStore.annotationClasses[LEGACY_CLASSES_KEY];
+};
 
 export interface AnnotationsSlice {
   /** All annotation sets — the single source of truth. Each set is one sidecar
@@ -80,10 +108,10 @@ export interface AnnotationsSlice {
    *  unclassified. Resolved to `classification` only when a region commits.
    *  Browser-persisted per image (a "settings" sidecar is the eventual home). */
   annotationActiveClass: string | null;
-  /** Own-set class registry — defined classes (name + color), including ones
-   *  with zero members. Browser-persisted per image. Peers derive classes from
-   *  their features and have no registry. */
-  annotationClasses: AnnotationClass[];
+  /** Per-set class registries — defined classes (name + color) per annotation
+   *  set, including ones with zero members. Browser-persisted per image; a set
+   *  with no entry derives its groups from its features. */
+  annotationClasses: Record<string, AnnotationClass[]>;
 
   /** Merge sets from the one-time S3 read into the working copy. Only sets
    *  whose `id` is not already present are installed — a set the user drew
@@ -105,10 +133,11 @@ export interface AnnotationsSlice {
   /** Replace one set's features (draw/move/delete). Immer gives that set a
    *  fresh array ref, which the sync middleware diffs → writes that sidecar. */
   updateSetFeatures: (setId: string, features: AnnotationFeature[]) => void;
-  /** Delete an annotation set outright — removes the set, its view state, and
-   *  any selection into it. The sync middleware sees the set vanish from the
-   *  baseline and DELETEs its sidecar file; the mutation enters the undo
-   *  history (undo restores the set, and the sync re-writes the sidecar). */
+  /** Delete an annotation set outright — removes the set, its view state, its
+   *  class registry, and any selection into it. The sync middleware sees the
+   *  set vanish from the baseline and DELETEs its sidecar file; the mutation
+   *  enters the undo history (undo restores the set, and the sync re-writes
+   *  the sidecar). */
   deleteAnnotationSet: (setId: string) => void;
   /** Rename an annotation set (display name, persisted in `cytario.name`).
    *  An empty/whitespace name clears it, falling back to the positional
@@ -132,10 +161,11 @@ export interface AnnotationsSlice {
   renameAnnotation: (setId: string, id: string, name: string) => void;
   /** Set the own-set active class (`null` = draw unclassified). */
   setAnnotationActiveClass: (name: string | null) => void;
-  /** Create an empty own-set class (auto-named/colored if unspecified) and make
-   *  it active; returns the created (uniquified) name so the caller can open it
-   *  for renaming. Reserved names are ignored (returns ""). */
-  createAnnotationClass: (name?: string) => string;
+  /** Create an empty class in the given annotation set (auto-named/colored if
+   *  unspecified) and make it active; returns the created (uniquified) name so
+   *  the caller can open it for renaming. Reserved names are ignored (returns
+   *  ""). Scoped to that set's registry — other sets are unaffected. */
+  createAnnotationClass: (setId: string, name?: string) => string;
   /** Delete an own-set class: drop it from the registry, clear it from any
    *  member features (→ unclassified), and clear the active class if it matched. */
   deleteAnnotationClass: (setId: string, name: string) => void;
@@ -176,7 +206,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   annotationSelectionAnchorId: null,
   annotationView: {},
   annotationActiveClass: null,
-  annotationClasses: [],
+  annotationClasses: {},
 
   seedAnnotations: (sets) => {
     // Pause temporal tracking around the seed so the one-time S3 read does
@@ -202,6 +232,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
             const first = viewerStore.annotationSets[0];
             if (first) viewerStore.activeSetId = first.id;
           }
+          adoptLegacyClasses(viewerStore);
         },
         false,
         "seedAnnotations",
@@ -244,6 +275,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
             name: generateSetName(viewerStore.annotationSets),
           });
           viewerStore.activeSetId = id;
+          adoptLegacyClasses(viewerStore);
         },
         false,
         "ensureOwnSet",
@@ -310,6 +342,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         if (index === -1) return;
         viewerStore.annotationSets.splice(index, 1);
         delete viewerStore.annotationView[setId];
+        delete viewerStore.annotationClasses[setId];
         if (viewerStore.activeSetId === setId) {
           viewerStore.activeSetId = viewerStore.annotationSets[0]?.id ?? null;
         }
@@ -348,7 +381,7 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   setAnnotationClassColor: (setId, name, color) =>
     set(
       (viewerStore) => {
-        const entry = viewerStore.annotationClasses.find((c) => c.name === name);
+        const entry = viewerStore.annotationClasses[setId]?.find((c) => c.name === name);
         if (entry) entry.color = color;
         const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
@@ -372,13 +405,13 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         // A reserved/empty name clears to unclassified (absence, not a named class).
         const target = name && !isReservedClassName(name) ? name : null;
         // One color for the whole batch: registry/existing color, else a fresh one.
+        const classes = (viewerStore.annotationClasses[setId] ??= []);
         const color = target
-          ? (classColor(viewerStore.annotationClasses, set.features, target) ??
-            pickClassColor(viewerStore.annotationClasses, set.features))
+          ? (classColor(classes, set.features, target) ?? pickClassColor(classes, set.features))
           : null;
         // Assigning to a not-yet-registered name registers it (classified names are classes).
-        if (target && color && !viewerStore.annotationClasses.some((c) => c.name === target)) {
-          viewerStore.annotationClasses.push({ name: target, color });
+        if (target && color && !classes.some((c) => c.name === target)) {
+          classes.push({ name: target, color });
         }
         for (const feature of set.features) {
           if (!idSet.has(feature.id)) continue;
@@ -399,8 +432,9 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
         if (isReservedClassName(newName) || isReservedClassName(oldName)) return;
         const set = viewerStore.annotationSets.find((s) => s.id === setId);
         const features = set?.features ?? [];
+        const classes = (viewerStore.annotationClasses[setId] ??= []);
         // Adopt the target class's color when renaming merges into an existing class.
-        const mergeColor = classColor(viewerStore.annotationClasses, features, newName);
+        const mergeColor = classColor(classes, features, newName);
         for (const feature of features) {
           const classification = feature.properties.classification;
           if (classification?.name === oldName) {
@@ -409,12 +443,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
           }
         }
         // Registry: merge into an existing target (drop old), else rename in place.
-        if (viewerStore.annotationClasses.some((c) => c.name === newName)) {
-          viewerStore.annotationClasses = viewerStore.annotationClasses.filter(
-            (c) => c.name !== oldName,
-          );
+        if (classes.some((c) => c.name === newName)) {
+          viewerStore.annotationClasses[setId] = classes.filter((c) => c.name !== oldName);
         } else {
-          const oldEntry = viewerStore.annotationClasses.find((c) => c.name === oldName);
+          const oldEntry = classes.find((c) => c.name === oldName);
           if (oldEntry) oldEntry.name = newName;
         }
         if (viewerStore.annotationActiveClass === oldName)
@@ -451,18 +483,19 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       "setAnnotationActiveClass",
     ),
 
-  createAnnotationClass: (name) => {
+  createAnnotationClass: (setId, name) => {
     let created = "";
     set(
       (viewerStore) => {
         const base = (name ?? "New class").trim() || "New class";
         if (isReservedClassName(base)) return;
-        const taken = new Set(viewerStore.annotationClasses.map((c) => c.name.toLowerCase()));
+        const classes = (viewerStore.annotationClasses[setId] ??= []);
+        const taken = new Set(classes.map((c) => c.name.toLowerCase()));
         let unique = base;
         for (let n = 2; taken.has(unique.toLowerCase()); n++) unique = `${base} ${n}`;
-        viewerStore.annotationClasses.push({
+        classes.push({
           name: unique,
-          color: pickClassColor(viewerStore.annotationClasses, []),
+          color: pickClassColor(classes, []),
         });
         viewerStore.annotationActiveClass = unique;
         created = unique;
@@ -476,9 +509,10 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
   deleteAnnotationClass: (setId, name) =>
     set(
       (viewerStore) => {
-        viewerStore.annotationClasses = viewerStore.annotationClasses.filter(
-          (c) => c.name !== name,
-        );
+        const classes = viewerStore.annotationClasses[setId];
+        if (classes) {
+          viewerStore.annotationClasses[setId] = classes.filter((c) => c.name !== name);
+        }
         const set = viewerStore.annotationSets.find((s) => s.id === setId);
         if (set) {
           for (const feature of set.features) {

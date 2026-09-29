@@ -6,7 +6,7 @@ import type { AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
 export type TemporalPartial = {
   annotationSets: AnnotationSet[];
-  annotationClasses: AnnotationClass[];
+  annotationClasses: Record<string, AnnotationClass[]>;
 };
 
 export const HISTORY_LIMIT = 50;

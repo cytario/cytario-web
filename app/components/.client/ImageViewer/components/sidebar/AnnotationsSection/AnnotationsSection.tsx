@@ -204,7 +204,7 @@ export const AnnotationsSection = () => {
   const showOutline = useViewerStore(select.showAnnotationOutline);
   const setShowOutline = useViewerStore(select.setShowAnnotationOutline);
   const [searchQuery, setSearchQuery] = useState("");
-  const classes = useViewerStore((s) => s.annotationClasses);
+  const classesBySet = useViewerStore((s) => s.annotationClasses);
   const seedAnnotations = useViewerStore((s) => s.seedAnnotations);
   const createAnnotationSet = useViewerStore((s) => s.createAnnotationSet);
   const canAnnotate = useCanAnnotate();
@@ -245,12 +245,12 @@ export const AnnotationsSection = () => {
         orderedIdsOfGroups(
           groupAnnotations(set.features, {
             editable: canAnnotate,
-            classes,
+            classes: classesBySet[set.id] ?? [],
             searchQuery,
           }),
         ),
       ),
-    [annotationSets, canAnnotate, classes, searchQuery],
+    [annotationSets, canAnnotate, classesBySet, searchQuery],
   );
 
   return (

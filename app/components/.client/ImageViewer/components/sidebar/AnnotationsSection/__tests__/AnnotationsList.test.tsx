@@ -82,7 +82,7 @@ function renderList(
   const selectionOrderedIds = orderedIdsOfGroups(
     groupAnnotations(features, {
       editable,
-      classes: currentStore.getState().annotationClasses,
+      classes: currentStore.getState().annotationClasses[currentSetId] ?? [],
       searchQuery: "",
     }),
   );
@@ -410,15 +410,18 @@ describe("AnnotationsList — cross-set Shift range", () => {
       .seedAnnotations([
         { id: peerSetId, createdBy: "peer-a", features: peerFeatures, name: "peer.json" },
       ]);
-    const axisFor = (features: AnnotationFeature[]) =>
+    const axisFor = (setId: string, features: AnnotationFeature[]) =>
       orderedIdsOfGroups(
         groupAnnotations(features, {
           editable: true,
-          classes: currentStore.getState().annotationClasses,
+          classes: currentStore.getState().annotationClasses[setId] ?? [],
           searchQuery: "",
         }),
       );
-    const selectionOrderedIds = [...axisFor(ownFeatures), ...axisFor(peerFeatures)];
+    const selectionOrderedIds = [
+      ...axisFor(currentSetId, ownFeatures),
+      ...axisFor(peerSetId, peerFeatures),
+    ];
     const { unmount } = render(
       <>
         <AnnotationsList
@@ -520,5 +523,52 @@ describe("AnnotationsList — class-group accordion", () => {
     // The collapse click is a no-op while searching — matches must stay visible.
     fireEvent.click(screen.getByRole("button", { name: "Collapse Tumor class" }));
     expect(thumbButtons()).toHaveLength(1);
+  });
+});
+
+// -----------------------------------------------------------------------
+// per-set class scoping (C-635 / SRS-CY-33258)
+// -----------------------------------------------------------------------
+
+describe("AnnotationsList — class creation is scoped to its set block", () => {
+  test("a class created in one file accordion does not appear in another", () => {
+    buildStore("user-a");
+    const setA = currentSetId;
+    const setB = crypto.randomUUID();
+    render(
+      <>
+        <AnnotationsList
+          setId={setA}
+          features={[]}
+          editable
+          searchQuery=""
+          selectionOrderedIds={[]}
+        />
+        <AnnotationsList
+          setId={setB}
+          features={[]}
+          editable
+          searchQuery=""
+          selectionOrderedIds={[]}
+        />
+      </>,
+    );
+
+    const addButtons = screen.getAllByRole("button", { name: "Add class" });
+    expect(addButtons).toHaveLength(2);
+    fireEvent.click(addButtons[0]!);
+
+    const input = screen.getByLabelText("New class name");
+    fireEvent.change(input, { target: { value: "Tumor" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const state = currentStore.getState();
+    expect(state.annotationClasses[setA]).toEqual([{ name: "Tumor", color: expect.anything() }]);
+    expect(state.annotationClasses[setB]).toBeUndefined();
+
+    // The new group header renders in the used block only — the other
+    // accordion gains neither a group nor any other change.
+    expect(screen.getAllByRole("button", { name: "Collapse Tumor class" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Add class" })).toHaveLength(2);
   });
 });

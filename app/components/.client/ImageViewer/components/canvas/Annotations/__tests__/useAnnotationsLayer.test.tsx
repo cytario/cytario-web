@@ -39,8 +39,9 @@ describe("useAnnotationsLayer onEdit", () => {
   it("stamps a freshly created class with zero members onto a new draw (C-328)", () => {
     seedViewerConnection("test-conn");
     store = createViewerStore("test-conn/images/c328-empty-class.ome.tif", "me");
-    const name = store.getState().createAnnotationClass("Tumor");
-    const { color } = store.getState().annotationClasses[0];
+    const activeSetId = store.getState().ensureOwnSet();
+    const name = store.getState().createAnnotationClass(activeSetId, "Tumor");
+    const { color } = store.getState().annotationClasses[activeSetId]![0];
 
     const { result } = renderHook(() => useAnnotationsLayer(0));
     editableOnEdit(result.current.layers)(addFeatureEdit);
