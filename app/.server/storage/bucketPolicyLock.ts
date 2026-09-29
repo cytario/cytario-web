@@ -4,20 +4,16 @@ import { redis } from "~/.server/db/redis";
 import { createLabel } from "~/.server/logging";
 
 /**
- * Per-(namespace, bucket) serialization lock for the bucket-policy
+ * Per-(namespace, bucket) serialization lock for cytario-web's own bucket-policy
  * read-merge-write. `PutBucketPolicy` replaces the whole document with no
- * conditional-write primitive, so concurrent writers would clobber each
- * other; every writer — the cytario-web Share apply here AND the admin
- * portal's Admin-Role bootstrap write — serializes on the SAME key so the
- * two never race.
+ * conditional-write primitive, so concurrent applies on one bucket would
+ * clobber each other; cytario-web is the only writer of managed bucket-policy
+ * statements, and this lock serializes its applies per bucket.
  *
- * The lock key MUST be exactly `bucketpolicy:<namespace>:<bucketName>` (pinned
- * cross-repo contract). The namespace is the AWS account id on an AWS target,
- * or the S3-compatible endpoint host on a RustFS target (one RustFS instance
- * serves one account, so the host IS the account namespace). The admin portal
- * must derive the same namespace for the same bucket or the two writers
- * serialize on different keys and the clobber race this lock prevents comes
- * back.
+ * The lock key is `bucketpolicy:<namespace>:<bucketName>`. The namespace is
+ * the AWS account id on an AWS target, or the S3-compatible endpoint host on
+ * a RustFS target (one RustFS instance serves one account, so the host IS the
+ * account namespace).
  *
  * Single-Redis lease, no renewal: mutual exclusion holds only while the lease
  * lives, so the TTL must exceed the worst-case critical section (STS mint +
