@@ -52,9 +52,7 @@ export const ImagePopupLayer = ({ imagePanelId }: { imagePanelId: number }) => {
   }, [mine, resolved, closePopup]);
 
   // "Join <n> <class> annotations" offers: one per same-class region group
-  // (≥2) per set among the point's editable features. The popup closes
-  // imperatively before the store write — the swallowed refs would trip the
-  // stale-guard a frame later anyway.
+  // (≥2) per set among the point's editable features.
   const joinOffers = useMemo((): JoinOfferAction[] => {
     if (!mine || !canAnnotate) return [];
     const bySet = new Map<string, ResolvedAnnotation[]>();

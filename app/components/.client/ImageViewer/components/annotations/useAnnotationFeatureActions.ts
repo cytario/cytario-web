@@ -64,17 +64,5 @@ export const useAnnotationFeatureActions = ({
     return joinFeaturesInSet(viewerStore, setId, ids);
   };
 
-  /** Join the action targets (≥2 same-class regions, editable grant) into one. */
-  const joinFeatures = (feature: AnnotationFeature): string | null =>
-    joinIds(actionTargets(feature));
-
-  return {
-    actionTargets,
-    zoomToFeature,
-    deleteFeatures,
-    classify,
-    clearClass,
-    joinIds,
-    joinFeatures,
-  };
+  return { actionTargets, zoomToFeature, deleteFeatures, classify, clearClass, joinIds };
 };
