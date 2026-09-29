@@ -487,3 +487,38 @@ describe("AnnotationsList — cross-set Shift range", () => {
     expect(currentStore.getState().annotationSelectedIds).toEqual(["p1"]);
   });
 });
+
+// -----------------------------------------------------------------------
+// class-group accordion — collapse/expand member thumbnails
+// -----------------------------------------------------------------------
+
+describe("AnnotationsList — class-group accordion", () => {
+  test("the chevron collapses and re-expands a group's thumbnails", () => {
+    const features = [makeFeature("f1", "Tumor"), makeFeature("f2", "Tumor")];
+    renderList(features);
+    expect(thumbButtons()).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Tumor class" }));
+    expect(thumbButtons()).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand Tumor class" }));
+    expect(thumbButtons()).toHaveLength(2);
+  });
+
+  test("a non-empty search overrides a collapsed group", () => {
+    const features = [makeFeature("f1", "Tumor"), makeFeature("f2", "Tumor")];
+    buildStore("user-a", features);
+    render(
+      <AnnotationsList
+        setId={currentSetId}
+        features={features}
+        editable
+        searchQuery="f1"
+        selectionOrderedIds={[]}
+      />,
+    );
+    // The collapse click is a no-op while searching — matches must stay visible.
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Tumor class" }));
+    expect(thumbButtons()).toHaveLength(1);
+  });
+});

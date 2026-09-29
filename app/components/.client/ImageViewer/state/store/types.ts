@@ -147,10 +147,25 @@ export interface LayerTooltipItem {
 }
 
 export interface CompositeTooltip {
+  /** Owning panel — gates rendering so only the hovered panel shows the
+   *  tooltip (a global store value would otherwise render in every panel). */
+  panelId: number;
   cursor: { x: number; y: number };
-  coordinate: number[];
   sections: Partial<Record<TooltipSection, LayerTooltipItem[]>>;
-  mode: "compact" | "verbose";
+}
+
+/** Click popup at a canvas point — a snapshot of the composite tooltip content
+ *  at the clicked coordinate, owned by the panel that captured the click.
+ *  Transient, never persisted. */
+export interface CanvasPopup {
+  /** Render gate — only the owning panel shows the popup. */
+  panelId: number;
+  /** Panel-relative screen anchor at open time. */
+  anchor: { x: number; y: number };
+  sections: Partial<Record<TooltipSection, LayerTooltipItem[]>>;
+  /** Features behind the popup's annotation items — resolved live so deleted
+   *  or now-hidden entries drop out instead of showing stale rows. */
+  annotationRefs: { id: string; setId: string }[];
 }
 
 export interface CytarioLayerResult<T extends Layer = Layer> {

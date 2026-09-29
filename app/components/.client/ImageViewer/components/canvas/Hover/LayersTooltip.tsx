@@ -1,4 +1,4 @@
-import { Icon, TruncatedText } from "@cytario/design";
+import { Badge, Icon, IconButton, TruncatedText } from "@cytario/design";
 import { useLayoutEffect, useRef } from "react";
 
 import type {
@@ -6,11 +6,11 @@ import type {
   LayerTooltipItem,
   TooltipSection,
 } from "../../../state/store/types";
+import { VIEWER_SECTIONS } from "../../sidebar/sections";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
 const TOOLTIP_OFFSET = 12;
 const VIEWPORT_MARGIN = 4;
-
 const GEO_THUMB_SIZE = 48;
 
 const Section = ({ item }: { item: LayerTooltipItem }) => {
@@ -38,7 +38,9 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
               <span>{label}</span>
             </div>
             {value && (
-              <span className="font-medium leading-tight tracking-wider tabular-nums">{value}</span>
+              <Badge color="slate" size="sm">
+                {value}
+              </Badge>
             )}
           </div>
         ))}
@@ -55,12 +57,26 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
 
 const SECTION_ORDER: TooltipSection[] = ["Channels", "Overlays", "Annotations"];
 
-export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => {
+interface LayersTooltipProps {
+  tooltip: CompositeTooltip;
+  /** Click-popup mode: adds a header with a close affordance and dialog
+   *  semantics; without it the component is the plain hover tooltip. */
+  pinned?: boolean;
+  onClose?: () => void;
+}
+
+export const LayersTooltip = ({ tooltip, pinned = false, onClose }: LayersTooltipProps) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const entries = SECTION_ORDER.filter((s) => tooltip.sections[s]?.length).map(
     (s) => [s, tooltip.sections[s]!] as [TooltipSection, LayerTooltipItem[]],
   );
+
+  // Non-modal dialog: take focus so Escape and screen readers work without a
+  // focus trap (the sidebar stays usable).
+  useLayoutEffect(() => {
+    if (pinned) ref.current?.focus();
+  }, [pinned]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -92,10 +108,11 @@ export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => {
     absolute z-50
     w-60
     rounded-sm shadow-lg
-    bg-card text-foreground
+    bg-background/80 backdrop-blur-sm text-foreground
     border border-border
     text-sm
     overflow-hidden
+    outline-none
   `;
 
   return (
@@ -103,11 +120,28 @@ export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => {
       ref={ref}
       className={cx}
       style={{ left: tooltip.cursor.x + 12, top: tooltip.cursor.y + 12 }}
+      {...(pinned
+        ? {
+            "data-image-popup": true,
+            role: "dialog",
+            "aria-modal": false,
+            "aria-label": "Image details at the clicked point",
+            tabIndex: -1,
+          }
+        : {})}
     >
+      {pinned && (
+        <div className="flex items-center justify-between bg-background px-2 py-1 border-b border-border">
+          <span className="text-xs text-muted-foreground">Image details</span>
+          <IconButton icon="X" label="Close popup" size="xs" variant="ghost" onPress={onClose} />
+        </div>
+      )}
+
       {entries.map(([type, items]) => (
         <div key={type}>
-          <div className="bg-background px-2 py-1 border-t border-border first:border-t-0">
-            {type}
+          <div className="flex items-center gap-1.5 bg-background px-2 py-1 border-t border-border first:border-t-0">
+            <Icon icon={VIEWER_SECTIONS[type].icon} size="sm" />
+            <span>{VIEWER_SECTIONS[type].title}</span>
           </div>
           {items.map((item, i) => (
             <Section key={item.id ?? i} item={item} />

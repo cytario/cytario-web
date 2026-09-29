@@ -3,13 +3,19 @@ import type { Effect, FilterContext, Layer } from "@deck.gl/core";
 import type { DeckGLRef } from "@deck.gl/react";
 import { useCallback, useMemo, useRef } from "react";
 
-import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
+import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import type {
   CompositeTooltip,
   LayerTooltipItem,
   TooltipSection,
 } from "../../../state/store/types";
+import {
+  pickFeaturesAt,
+  sortAnnotationItemsByClass,
+  type PickedAnnotation,
+  type RoutedPicks,
+} from "../Annotations/pickFeaturesAt";
 import { useAnnotationsLayer } from "../Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "../Channels/useChannelsLayer";
 import {
@@ -29,9 +35,17 @@ import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
  * (hidden class → alpha 0) return `[]` so they no longer steal the cursor from
  * pixel reads beneath them.
  *
- * The hook also owns `getCursor`, which shows a pointer over non-transparent
- * annotations in view mode and a crosshair in draw mode.
+ * The hook also owns `getCursor`: pointer over non-transparent annotations in
+ * view/inspect modes, crosshair in draw modes.
  */
+export interface CanvasContentResult {
+  /** Full tooltip content at the point (all sections) — null when nothing is picked. */
+  tooltip: CompositeTooltip | null;
+  /** Annotation features at the point with their set attribution — drives
+   *  click-select-all and the popup's live stale-guard. */
+  annotations: PickedAnnotation[];
+}
+
 export interface CompositeHoverResult {
   /** All layers from all providers, ready to spread into `<DeckGL layers={…}>`. */
   layers: Layer[];
@@ -45,18 +59,17 @@ export interface CompositeHoverResult {
   onHover: (info: PickingInfo, event: { srcEvent?: { shiftKey?: boolean } }) => void;
   /** deck.gl `getCursor` handler. */
   getCursor: (state: InteractionState) => string;
+  /** Fresh pick + content assembly at an arbitrary canvas point — the click
+   *  popup / selection entry. */
+  buildContent: (x: number, y: number) => CanvasContentResult;
 }
-
-/** Layer-id prefixes used to route picks to the right provider. */
-const CHANNELS_ID_HINT = "channels-";
-const ANNOTATIONS_ID_PREFIX = "annotations-";
-const ANNOTATIONS_SELECTION_SUFFIX = "-selection-";
 
 export const useCompositeHover = (
   imagePanelId: number,
   isActivePanel: boolean,
 ): CompositeHoverResult => {
   const deckRef = useRef<DeckGLRef | null>(null);
+  const storeApi = useViewerStoreApi();
 
   const { layers: channelLayers, getTooltipItems: getChannelTooltipItems } =
     useChannelsLayer(imagePanelId);
@@ -93,7 +106,6 @@ export const useCompositeHover = (
   );
 
   const setCompositeTooltip = useViewerStore(select.setCompositeTooltip);
-  const setHoverMode = useViewerStore(select.setHoverMode);
   const clearPixelValues = useViewerStore(select.clearPixelValues);
   const annotationMode = useViewerStore((s) => s.annotationMode);
 
@@ -101,8 +113,57 @@ export const useCompositeHover = (
   // `getCursor` without triggering re-renders.
   const hoveringAnnotationRef = useRef(false);
 
+  /** Assemble tooltip sections from routed picks. Channels always; overlays and
+   *  annotations when `includeAnnotations` (hover: inspect mode only; popup: always). */
+  const collectSections = useCallback(
+    (routed: RoutedPicks, includeAnnotations: boolean) => {
+      const sections: Partial<Record<TooltipSection, LayerTooltipItem[]>> = {};
+      let hoveringAnnotation = false;
+
+      for (const pick of routed.channelPicks) {
+        for (const it of getChannelTooltipItems(pick)) (sections.Channels ??= []).push(it);
+      }
+      if (includeAnnotations) {
+        for (const pick of routed.overlayPicks) {
+          for (const it of getOverlayTooltipItems(pick)) (sections.Overlays ??= []).push(it);
+        }
+
+        // Group the point's regions by class name — z-order otherwise
+        // interleaves them (Unclassified → Ipsum → Unclassified …).
+        const annotationItems = sortAnnotationItemsByClass(
+          routed.annotations.flatMap(({ pick }) => getAnnotationTooltipItems(pick)),
+        );
+        if (annotationItems.length > 0) {
+          hoveringAnnotation = true;
+          (sections.Annotations ??= []).push(...annotationItems);
+        }
+      }
+      return { sections, hoveringAnnotation };
+    },
+    [getChannelTooltipItems, getOverlayTooltipItems, getAnnotationTooltipItems],
+  );
+
+  /** Fresh tooltip content at an arbitrary canvas point (panel-relative deck
+   *  coordinates) — the click popup builds its own pick instead of reusing
+   *  hover state, which goes stale after pan/zoom and is empty in view mode. */
+  const buildContent = useCallback(
+    (x: number, y: number): CanvasContentResult => {
+      const deck = deckRef.current?.deck;
+      if (!deck) return { tooltip: null, annotations: [] };
+      const routed = pickFeaturesAt(deck, x, y, storeApi.getState());
+      const { sections } = collectSections(routed, true);
+      const tooltip: CompositeTooltip = {
+        panelId: imagePanelId,
+        cursor: { x, y },
+        sections,
+      };
+      return { tooltip, annotations: routed.annotations };
+    },
+    [deckRef, storeApi, imagePanelId, collectSections],
+  );
+
   const onHover = useCallback(
-    (info: PickingInfo, event?: { srcEvent?: { shiftKey?: boolean } }) => {
+    (info: PickingInfo) => {
       const isInspect = annotationMode === "inspect";
       // Tooltip only renders in inspect mode — not in view or draw modes.
       if (!isInspect) setCompositeTooltip(null);
@@ -110,83 +171,39 @@ export const useCompositeHover = (
       const deck = deckRef.current?.deck;
       if (!deck) return;
 
-      const picks = deck.pickMultipleObjects({
-        x: info.x,
-        y: info.y,
-        radius: 0,
-        depth: 20,
-      });
+      const routed = pickFeaturesAt(deck, info.x, info.y, storeApi.getState());
 
-      if (picks.length === 0) {
+      if (routed.picks.length === 0) {
         hoveringAnnotationRef.current = false;
         setCompositeTooltip(null);
         clearPixelValues();
         return;
       }
 
-      const sections: Partial<Record<TooltipSection, LayerTooltipItem[]>> = {};
-      let hoveringAnnotation = false;
-
-      for (const pick of picks) {
-        const layerId = pick.layer?.id ?? "";
-
-        // Channels — always process, in every mode, so the sidebar pixel
-        // readout stays live. The sublayers are `Tiled-Image-channels-<id>`
-        // and `Background-Image-channels-<id>`, both contain `channels-`.
-        if (layerId.includes(CHANNELS_ID_HINT)) {
-          for (const it of getChannelTooltipItems(pick)) (sections.Channels ??= []).push(it);
-          continue;
-        }
-
-        // Overlays and annotations only feed the tooltip (inspect mode only).
-        if (!isInspect) continue;
-
-        // Overlays
-        if (layerId.startsWith(OVERLAYS_ID_PREFIX)) {
-          for (const it of getOverlayTooltipItems(pick)) (sections.Overlays ??= []).push(it);
-          continue;
-        }
-
-        // Annotations — skip selection-halo layers (pickable: false, but
-        // guard anyway). Transparent picks (hidden class) return `[]` from
-        // `getTooltipItems`, so they don't contribute items or set the
-        // annotation-hover flag.
-        if (
-          layerId.startsWith(ANNOTATIONS_ID_PREFIX) &&
-          !layerId.includes(ANNOTATIONS_SELECTION_SUFFIX)
-        ) {
-          const items = getAnnotationTooltipItems(pick);
-          if (items.length > 0) {
-            hoveringAnnotation = true;
-            (sections.Annotations ??= []).push(...items);
-          }
-        }
-      }
+      // Channels — always process, in every mode, so the sidebar pixel
+      // readout stays live. Overlays and annotations only feed the tooltip
+      // (inspect mode only). Transparent picks (hidden class) are already
+      // filtered by `pickFeaturesAt`; `getTooltipItems` double-checks.
+      const { sections, hoveringAnnotation } = collectSections(routed, isInspect);
 
       hoveringAnnotationRef.current = hoveringAnnotation;
 
       if (!isInspect) return;
 
-      // Shift toggles verbose mode.
-      const shift = event?.srcEvent?.shiftKey ?? false;
-      setHoverMode(shift ? "verbose" : "compact");
-
       const tooltip: CompositeTooltip = {
+        panelId: imagePanelId,
         cursor: { x: info.x, y: info.y },
-        coordinate: info.coordinate ?? [0, 0, 0],
         sections,
-        mode: shift ? "verbose" : "compact",
       };
       setCompositeTooltip(tooltip);
     },
     [
       annotationMode,
-      getChannelTooltipItems,
-      getOverlayTooltipItems,
-      getAnnotationTooltipItems,
       setCompositeTooltip,
-      setHoverMode,
       clearPixelValues,
+      storeApi,
+      imagePanelId,
+      collectSections,
     ],
   );
 
@@ -209,5 +226,6 @@ export const useCompositeHover = (
     deckRef,
     onHover,
     getCursor,
+    buildContent,
   };
 };

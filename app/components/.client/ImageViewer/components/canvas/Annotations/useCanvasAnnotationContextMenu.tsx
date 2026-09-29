@@ -2,6 +2,7 @@ import { useContextMenu } from "@cytario/design";
 import type { DeckGLRef } from "@deck.gl/react";
 import { useCallback, useState } from "react";
 
+import { pickFeaturesAt } from "./pickFeaturesAt";
 import {
   classNameOf,
   isReservedClassName,
@@ -11,11 +12,6 @@ import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { AnnotationMenuItems } from "../../annotations/AnnotationMenuItems";
 import { useAnnotationFeatureActions } from "../../annotations/useAnnotationFeatureActions";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
-
-/** Layer-id conventions of `useAnnotationsLayer`: `annotations-…` for sets,
- *  `-selection-` halo layers excluded. */
-const ANNOTATIONS_ID_PREFIX = "annotations-";
-const SELECTION_ID_SEGMENT = "-selection-";
 
 interface CanvasMenuTarget {
   feature: AnnotationFeature;
@@ -64,56 +60,32 @@ export const useCanvasAnnotationContextMenu = ({
       if (state.annotationMode !== "view") return null;
 
       const rect = canvas.getBoundingClientRect();
-      const picks = deck.pickMultipleObjects({
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-        radius: 0,
-        depth: 20,
-      });
+      const { annotations } = pickFeaturesAt(deck, clientX - rect.left, clientY - rect.top, state);
+      const hit = annotations[0];
+      if (!hit) return null;
+      const { feature, setId } = hit;
+      const set = state.annotationSets.find((s) => s.id === setId);
+      if (!set) return null;
 
-      for (const pick of picks) {
-        const layerId = pick.layer?.id ?? "";
-        if (!layerId.startsWith(ANNOTATIONS_ID_PREFIX) || layerId.includes(SELECTION_ID_SEGMENT)) {
-          continue;
-        }
-        const feature = pick.object as AnnotationFeature | undefined;
-        if (!feature?.id) continue;
-
-        // Picks report sublayers (`annotations-0-polygons-fill`, …), so match a
-        // peer by its id occurring in the layer id; anything else on the panel's
-        // prefix is the own set.
-        const peer = state.annotationSets.find((s) => layerId.includes(s.id));
-        const setId = peer ? peer.id : state.activeSetId;
-        if (!setId) continue;
-        const set = state.annotationSets.find((s) => s.id === setId);
-        if (!set) continue;
-
-        // A hidden class renders at alpha 0 — it is not really visible, so it
-        // must not open a menu.
-        const hidden = new Set(state.annotationView[setId]?.hiddenClasses ?? []);
-        if (hidden.has(classNameOf(feature))) continue;
-
-        const cls = classNameOf(feature);
-        // "Move to <class>" offers the actioned set's classes other than the
-        // region's own — same menu semantics as the sidebar.
-        const classNames = canAnnotate
-          ? [
-              ...new Set(
-                set.features
-                  .map((f) => classNameOf(f))
-                  .filter((name) => !isReservedClassName(name) && name !== cls),
-              ),
-            ]
-          : [];
-        const kind = feature.geometry.type === "Point" ? "point" : "region";
-        return {
-          feature,
-          setId,
-          classNames,
-          label: `${feature.properties?.classification?.name ?? "Unclassified"} ${kind}`,
-        };
-      }
-      return null;
+      const cls = classNameOf(feature);
+      // "Move to <class>" offers the actioned set's classes other than the
+      // region's own — same menu semantics as the sidebar.
+      const classNames = canAnnotate
+        ? [
+            ...new Set(
+              set.features
+                .map((f) => classNameOf(f))
+                .filter((name) => !isReservedClassName(name) && name !== cls),
+            ),
+          ]
+        : [];
+      const kind = feature.geometry.type === "Point" ? "point" : "region";
+      return {
+        feature,
+        setId,
+        classNames,
+        label: `${feature.properties?.classification?.name ?? "Unclassified"} ${kind}`,
+      };
     },
     [deckRef, storeApi, canAnnotate],
   );

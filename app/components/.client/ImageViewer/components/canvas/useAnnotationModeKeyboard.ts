@@ -33,6 +33,9 @@ export function useAnnotationModeKeyboard() {
       if (isFormField(e.target)) return;
       // Canvas shortcuts yield to a floating panel holding focus (SRS-CY-33316).
       if (isInsideFloatingPanel(document.activeElement)) return;
+      // The click popup owns Escape while it holds focus: it dismisses the
+      // popup instead of switching the annotation mode.
+      if (document.activeElement?.closest("[data-image-popup]")) return;
 
       if (e.key === "Escape") {
         const current = store.getState().annotationMode;

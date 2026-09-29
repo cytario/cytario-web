@@ -155,6 +155,13 @@ export interface AnnotationsSlice {
   setAnnotationStampSize: (widthPx: number, heightPx: number) => void;
   setAnnotationSelectedIds: (ids: string[]) => void;
   setAnnotationSelectionAnchor: (id: string | null) => void;
+  /** Single owner of selection-gesture semantics (sidebar rows, canvas clicks):
+   *  `toggle` unions/differences `ids` with the current selection, else replaces
+   *  it. The anchor is kept unless explicitly passed (`null` clears it). */
+  applyAnnotationSelection: (
+    ids: string[],
+    opts?: { toggle?: boolean; anchor?: string | null },
+  ) => void;
 }
 
 /** Per-image annotation state. Features live on S3 (one sidecar per set); this
@@ -580,5 +587,26 @@ export const createAnnotationsSlice: ViewerSlice<AnnotationsSlice> = (set, get, 
       },
       false,
       "setAnnotationSelectionAnchor",
+    ),
+
+  applyAnnotationSelection: (ids, opts) =>
+    set(
+      (viewerStore) => {
+        let next = ids;
+        if (opts?.toggle) {
+          const current = new Set(viewerStore.annotationSelectedIds);
+          for (const id of ids) {
+            if (current.has(id)) current.delete(id);
+            else current.add(id);
+          }
+          next = [...current];
+        }
+        viewerStore.annotationSelectedIds = next;
+        if (opts && "anchor" in opts) {
+          viewerStore.annotationSelectionAnchorId = opts.anchor ?? null;
+        }
+      },
+      false,
+      "applyAnnotationSelection",
     ),
 });

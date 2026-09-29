@@ -281,9 +281,13 @@ export const select = {
 
   compositeTooltip: (state: ViewerStore) => state.compositeTooltip,
   setCompositeTooltip: (state: ViewerStore) => state.setCompositeTooltip,
-  hoverMode: (state: ViewerStore) => state.hoverMode,
-  setHoverMode: (state: ViewerStore) => state.setHoverMode,
-  pinnedTooltip: (state: ViewerStore) => state.pinnedTooltip,
-  pinTooltip: (state: ViewerStore) => state.pinTooltip,
-  unpinTooltip: (state: ViewerStore) => state.unpinTooltip,
+  popup: (state: ViewerStore) => state.popup,
+  /** Panel-scoped popup — stable object or null, so consumers re-render only
+   *  on their own popup transitions. */
+  panelPopup:
+    (imagePanelId: number) =>
+    (state: ViewerStore): ViewerStore["popup"] =>
+      state.popup?.panelId === imagePanelId ? state.popup : null,
+  openPopup: (state: ViewerStore) => state.openPopup,
+  closePopup: (state: ViewerStore) => state.closePopup,
 };

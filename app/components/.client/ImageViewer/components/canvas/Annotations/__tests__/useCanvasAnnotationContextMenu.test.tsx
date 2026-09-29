@@ -1,64 +1,24 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
-import { useStore } from "zustand";
 
-import { createViewerStore } from "../../../../state/store/createViewerStore";
-import type { ViewerStore } from "../../../../state/store/types";
+import {
+  createCanvasTestStore,
+  makeFeature,
+  viewerStoreContextMock,
+  type StoreRef,
+} from "../../__tests__/canvasTestStore";
 import { useCanvasAnnotationContextMenu } from "../useCanvasAnnotationContextMenu";
-import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-let currentStore: ReturnType<typeof createViewerStore>;
+const storeRef = vi.hoisted(() => ({ current: undefined }) as { current: StoreRef["current"] });
 
-vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: <T,>(selector: (state: ViewerStore) => T): T => useStore(currentStore, selector),
-  useViewerStoreApi: () => currentStore,
-}));
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => viewerStoreContextMock(storeRef));
 
 vi.mock("../../../../utils/useCanAnnotate", () => ({
   useCanAnnotate: () => true,
 }));
 
-const makeFeature = (id: string, className?: string): AnnotationFeature => ({
-  type: "Feature",
-  id,
-  geometry: {
-    type: "Polygon",
-    coordinates: [
-      [
-        [0, 0],
-        [10, 0],
-        [10, 10],
-        [0, 10],
-        [0, 0],
-      ],
-    ],
-  },
-  properties: {
-    ...(className ? { classification: { name: className, color: [255, 0, 0] } } : {}),
-  },
-});
-
-interface FakePick {
-  layerId: string;
-  feature: AnnotationFeature;
-}
-
-/** Deck stub whose picks can be swapped between right-clicks. */
-function fakeDeckRef(picks: FakePick[]) {
-  const ref = {
-    current: {
-      deck: {
-        getCanvas: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0 }) }),
-        pickMultipleObjects: vi.fn(() =>
-          picks.map((p) => ({ layer: { id: p.layerId }, object: p.feature })),
-        ),
-      },
-    },
-  };
-  return { ref, picks };
-}
-
+/** Harness rendering the menu body so tests can assert on its items. */
 function Harness({ deckRef }: { deckRef: React.RefObject<never> }) {
   const { onCanvasContextMenu, menu } = useCanvasAnnotationContextMenu({ deckRef });
   return (
@@ -70,14 +30,20 @@ function Harness({ deckRef }: { deckRef: React.RefObject<never> }) {
 }
 
 function setup() {
-  seedViewerConnection("test-conn");
-  const store = createViewerStore(`test-conn/images/slide-${Math.random()}.ome.tif`, "user-a");
-  const setId = store.getState().ensureOwnSet();
-  store.getState().setAnnotationMode("view");
-  currentStore = store;
+  const { store, setId } = createCanvasTestStore();
+  storeRef.current = store;
 
-  const picks: FakePick[] = [];
-  const { ref } = fakeDeckRef(picks);
+  const picks: { layerId: string; feature: AnnotationFeature }[] = [];
+  const ref = {
+    current: {
+      deck: {
+        getCanvas: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0 }) }),
+        pickMultipleObjects: vi.fn(() =>
+          picks.map((p) => ({ layer: { id: p.layerId }, object: p.feature })),
+        ),
+      },
+    },
+  };
   render(<Harness deckRef={ref as never} />);
   return {
     store,

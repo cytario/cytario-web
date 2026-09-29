@@ -10,6 +10,7 @@ import type { Feature, FeatureCollection } from "geojson";
 import { useMemo } from "react";
 
 import { ClickOrDragPointMode } from "./clickOrDragPointMode";
+import { setIdFromLayerId } from "./pickFeaturesAt";
 import { StampBoxMode } from "./stampBoxMode";
 import {
   annotationNameOf,
@@ -31,8 +32,6 @@ import {
   validAnnotationFeatures,
 } from "~/utils/db/annotationSchema";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
-
-type ModifierKeys = { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean };
 
 const MODE_CLASSES = {
   view: ViewMode,
@@ -161,21 +160,8 @@ export const useAnnotationsLayer = (
       return acc;
     }, []);
 
-    const selectOnClick = (info: PickingInfo, event?: { srcEvent?: ModifierKeys }) => {
-      if (mode !== "view") return;
-      const id = (info.object as AnnotationFeature | undefined)?.id;
-      if (!id) return;
-      const src = event?.srcEvent;
-      // Range-select needs an ordered list the canvas has no notion of, so Shift
-      // behaves like Cmd/Ctrl here.
-      if (src && (src.metaKey || src.ctrlKey || src.shiftKey)) {
-        setSelectedIds(
-          selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
-        );
-        return;
-      }
-      setSelectedIds([id]);
-    };
+    // Click-selection lives at the deck level (useCanvasClickInteraction) so it
+    // can cover every feature at the point and empty-canvas deselects.
 
     const paint = (hiddenClasses: string[] | undefined, fillAlpha: number, lineAlpha: number) => {
       const hidden = new Set(hiddenClasses ?? []);
@@ -187,7 +173,6 @@ export const useAnnotationsLayer = (
       return {
         coordinateSystem: "cartesian" as const,
         pickable: interactive,
-        onClick: selectOnClick,
         getFillColor: (f: Feature) => colorAt(f, fillAlpha),
         getLineColor: (f: Feature) => colorAt(f, lineAlpha),
         getLineWidth: 2,
@@ -314,7 +299,9 @@ export const useAnnotationsLayer = (
     const layers = [...highlightLayers, ...peerLayers, ownLayer];
 
     // Per-user hidden-class lookup so `getTooltipItems` can skip features that are
-    // visually transparent (hidden class → alpha 0) and not block layers beneath them.
+    // visually transparent (hidden class → alpha 0) and not block layers beneath
+    // them. Scoped to the feature's OWN set: another set's hidden class must not
+    // hide this set's feature.
     const hiddenByUser = new Map<string, Set<string>>();
     if (activeSetId) hiddenByUser.set(activeSetId, new Set(ownView?.hiddenClasses ?? []));
     for (const set of annotationSets) {
@@ -323,18 +310,16 @@ export const useAnnotationsLayer = (
       }
     }
 
-    const isHiddenFeature = (f: AnnotationFeature): boolean => {
-      const cls = classNameOf(f);
-      for (const hidden of hiddenByUser.values()) {
-        if (hidden.has(cls)) return true;
-      }
-      return false;
+    const isHiddenFeature = (f: AnnotationFeature, layerId: string): boolean => {
+      const setId = setIdFromLayerId(layerId, annotationSets, activeSetId);
+      const hidden = setId ? hiddenByUser.get(setId) : undefined;
+      return hidden?.has(classNameOf(f)) ?? false;
     };
 
     const getTooltipItems = (info: PickingInfo): LayerTooltipItem[] => {
       const f = info.object as AnnotationFeature | undefined;
       if (!f) return [];
-      if (isHiddenFeature(f)) return [];
+      if (isHiddenFeature(f, info.layer?.id ?? "")) return [];
       const [r, g, b] = classColor(f);
       const cls = classNameOf(f);
       return [

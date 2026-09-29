@@ -1,4 +1,4 @@
-import type { ViewerSlice, ViewState, CompositeTooltip } from "../types";
+import type { ViewerSlice, ViewState, CompositeTooltip, CanvasPopup } from "../types";
 
 export interface ViewSlice {
   viewStatePreview: ViewState | null;
@@ -10,10 +10,9 @@ export interface ViewSlice {
   /** Composite hover tooltip — transient, lives only while the cursor is
    *  over the deck. Never persisted (hot path). */
   compositeTooltip: CompositeTooltip | null;
-  /** Verbosity of the composite tooltip — toggled by the Shift modifier. */
-  hoverMode: "compact" | "verbose";
-  /** Pinned tooltip snapshot — survives cursor move/leave. Set by `pinTooltip`. */
-  pinnedTooltip: CompositeTooltip | null;
+  /** Click popup at a canvas point — snapshot content, dismissed on outside
+   *  click / Escape / pan-zoom. Never persisted. */
+  popup: CanvasPopup | null;
 
   setViewStatePreview: (viewState: ViewState) => void;
   setViewStateActive: (viewState: ViewState) => void;
@@ -22,10 +21,8 @@ export interface ViewSlice {
   clearPixelValues: () => void;
 
   setCompositeTooltip: (t: CompositeTooltip | null) => void;
-  setHoverMode: (mode: "compact" | "verbose") => void;
-  /** Copy the current `compositeTooltip` into `pinnedTooltip`. No-op if null. */
-  pinTooltip: () => void;
-  unpinTooltip: () => void;
+  openPopup: (popup: CanvasPopup) => void;
+  closePopup: () => void;
 }
 
 /** View state (zoom/pan), cursor position, and live hover pixel values. */
@@ -36,8 +33,7 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
   pixelValues: {},
 
   compositeTooltip: null,
-  hoverMode: "compact",
-  pinnedTooltip: null,
+  popup: null,
 
   setViewStatePreview: (viewStatePreview) =>
     set(
@@ -91,31 +87,21 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
       "setCompositeTooltip",
     ),
 
-  setHoverMode: (hoverMode) =>
+  openPopup: (popup) =>
     set(
       (viewerStore) => {
-        viewerStore.hoverMode = hoverMode;
+        viewerStore.popup = popup;
       },
       false,
-      "setHoverMode",
+      "openPopup",
     ),
 
-  pinTooltip: () =>
+  closePopup: () =>
     set(
       (viewerStore) => {
-        const current = viewerStore.compositeTooltip;
-        if (current) viewerStore.pinnedTooltip = current;
+        viewerStore.popup = null;
       },
       false,
-      "pinTooltip",
-    ),
-
-  unpinTooltip: () =>
-    set(
-      (viewerStore) => {
-        viewerStore.pinnedTooltip = null;
-      },
-      false,
-      "unpinTooltip",
+      "closePopup",
     ),
 });

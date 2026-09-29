@@ -39,7 +39,7 @@ export const AnnotationsList = ({
   selectionOrderedIds,
 }: AnnotationsListProps) => {
   const selectedIds = useViewerStore((s) => s.annotationSelectedIds);
-  const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
+  const applyAnnotationSelection = useViewerStore((s) => s.applyAnnotationSelection);
   const hiddenClasses = useViewerStore(selectSetHiddenClasses(setId));
   const toggleClassVisibility = useViewerStore((s) => s.toggleAnnotationClassVisibility);
   const setClassColor = useViewerStore((s) => s.setAnnotationClassColor);
@@ -59,6 +59,16 @@ export const AnnotationsList = ({
   // non-empty commit (no default-named placeholder is ever persisted).
   const [adding, setAdding] = useState(false);
 
+  // Collapsed class groups (session-local) — a non-empty search expands all.
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
+  const toggleGroup = (name: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+
   const annotationsGroups = useMemo(
     () => groupAnnotations(features, { editable, classes, searchQuery }),
     [features, editable, classes, searchQuery],
@@ -75,12 +85,11 @@ export const AnnotationsList = ({
   // Held in the shared store so the anchor survives across set blocks and a
   // Shift-range can span them.
   const anchorId = useViewerStore((s) => s.annotationSelectionAnchorId);
-  const setSelectionAnchor = useViewerStore((s) => s.setAnnotationSelectionAnchor);
 
   const select = (feature: AnnotationFeature, e?: MouseEvent | React.MouseEvent) => {
     const id = feature.id;
     if (!id) {
-      setSelectedIds([]);
+      applyAnnotationSelection([], {});
       return;
     }
 
@@ -89,22 +98,19 @@ export const AnnotationsList = ({
       const to = selectionOrderedIds.indexOf(id);
       if (from !== -1 && to !== -1) {
         const [lo, hi] = from <= to ? [from, to] : [to, from];
-        setSelectedIds(selectionOrderedIds.slice(lo, hi + 1));
+        // Range select: the anchor stays where it was.
+        applyAnnotationSelection(selectionOrderedIds.slice(lo, hi + 1), {});
         return;
       }
     }
 
     // Cmd/Ctrl+click: toggle the clicked item in/out; the anchor moves to it.
     if (e && (e.metaKey || e.ctrlKey)) {
-      setSelectedIds(
-        selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
-      );
-      setSelectionAnchor(id);
+      applyAnnotationSelection([id], { toggle: true, anchor: id });
       return;
     }
 
-    setSelectedIds([id]);
-    setSelectionAnchor(id);
+    applyAnnotationSelection([id], { anchor: id });
   };
 
   // Active-class selection is a single-select radio group; read-only grants get no
@@ -155,8 +161,12 @@ export const AnnotationsList = ({
                   : undefined
               }
               onDelete={editable && !isUnclassified ? () => deleteClass(setId, name) : undefined}
+              // A search expands every group, else matches hide behind collapsed rows.
+              accordionOpen={!collapsedGroups.has(name) || searchQuery.length > 0}
+              onToggleAccordion={() => toggleGroup(name)}
             />
           );
+          const isCollapsed = collapsedGroups.has(name) && searchQuery.length === 0;
           return (
             <div key={name} className="flex flex-col gap-2">
               {editable ? (
@@ -171,31 +181,33 @@ export const AnnotationsList = ({
                 header
               )}
 
-              <div className="flex flex-wrap gap-2">
-                {items.map(({ feature, index }) => {
-                  const id = feature.id;
-                  return (
-                    <AnnotationThumb
-                      key={id ?? index}
-                      feature={feature}
-                      selected={!!id && selectedIds.includes(id)}
-                      color={cssColor}
-                      editable={editable}
-                      // Don't offer moving into the group the region already sits in.
-                      classNames={namedClasses.filter((n) => n !== name)}
-                      onSelect={(e) => select(feature, e)}
-                      onZoom={() => zoomToFeature(feature)}
-                      onClassify={(className) => classify(feature, className)}
-                      // Already-unclassified regions have nothing to clear.
-                      onClear={isUnclassified ? undefined : () => clearClass(feature)}
-                      onRename={
-                        editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
-                      }
-                      onDelete={() => deleteFeatures(feature)}
-                    />
-                  );
-                })}
-              </div>
+              {!isCollapsed && (
+                <div className="flex flex-wrap gap-2">
+                  {items.map(({ feature, index }) => {
+                    const id = feature.id;
+                    return (
+                      <AnnotationThumb
+                        key={id ?? index}
+                        feature={feature}
+                        selected={!!id && selectedIds.includes(id)}
+                        color={cssColor}
+                        editable={editable}
+                        // Don't offer moving into the group the region already sits in.
+                        classNames={namedClasses.filter((n) => n !== name)}
+                        onSelect={(e) => select(feature, e)}
+                        onZoom={() => zoomToFeature(feature)}
+                        onClassify={(className) => classify(feature, className)}
+                        // Already-unclassified regions have nothing to clear.
+                        onClear={isUnclassified ? undefined : () => clearClass(feature)}
+                        onRename={
+                          editable ? (name) => renameAnnotation(setId, feature.id, name) : undefined
+                        }
+                        onDelete={() => deleteFeatures(feature)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
