@@ -6,7 +6,7 @@ import type { Geometry } from "geojson";
 import { useCallback, useMemo } from "react";
 
 import { createMarkerProps } from "./markerUniforms";
-import { OverlaysLayer } from "./OverlaysLayer";
+import { OVERLAYS_ID_PREFIX, OverlaysLayer } from "./OverlaysLayer";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import {
@@ -114,7 +114,9 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
       }
 
       const layerId = info.layer?.id ?? "";
-      const ctx = tooltipCtx.find((c) => layerId.startsWith(`MarkersLayer-${c.resourceId}`));
+      const ctx = tooltipCtx.find((c) =>
+        layerId.startsWith(`${OVERLAYS_ID_PREFIX}${c.resourceId}`),
+      );
       if (!ctx) return [];
 
       // Stable feature id from the Arrow `id` column (fallback: row index).

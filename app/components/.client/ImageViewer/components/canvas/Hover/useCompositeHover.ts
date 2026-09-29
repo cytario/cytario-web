@@ -19,12 +19,12 @@ import {
 import { useAnnotationsLayer } from "../Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "../Channels/useChannelsLayer";
 import {
-  OVERLAYS_ID_PREFIX,
   OVERLAY_COMPOSITE_LAYER_ID,
   OverlayCompositeEffect,
   OverlayCompositeLayer,
   type OverlayCompositeResult,
 } from "../Overlays/OverlayComposite";
+import { isOverlayLayerId } from "../Overlays/OverlaysLayer";
 import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
 
 /**
@@ -101,7 +101,7 @@ export const useCompositeHover = (
   // Overlay layers render offscreen only (the composite layer draws their result); they
   // must still draw in the picking pass so hovering over overlays keeps working.
   const layerFilter = useCallback(
-    ({ layer, isPicking }: FilterContext) => !layer.id.startsWith(OVERLAYS_ID_PREFIX) || isPicking,
+    ({ layer, isPicking }: FilterContext) => !isOverlayLayerId(layer.id) || isPicking,
     [],
   );
 

@@ -16,6 +16,12 @@ import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
 import { overlayConfigHash } from "~/utils/db/overlayConfig";
 import { shouldReportOverlayError } from "~/utils/db/overlayErrorOnce";
 
+/** Layer-id prefix for every overlay resource — compositing, main-pass filtering,
+ *  and pick routing all key off it. Mint ids only via this constant. */
+export const OVERLAYS_ID_PREFIX = "MarkersLayer-";
+
+export const isOverlayLayerId = (id: string) => id.startsWith(OVERLAYS_ID_PREFIX);
+
 interface OverlaysLayerProps {
   resourceId: string;
   overlayConfig: OverlayConfig | null;
@@ -82,7 +88,7 @@ export const OverlaysLayer = ({
   return new TileLayer({
     // Unique id per overlay resource — multiple overlays would otherwise collide and
     // deck.gl would reconcile them as the same layer, clobbering each other.
-    id: `MarkersLayer-${resourceId}`,
+    id: `${OVERLAYS_ID_PREFIX}${resourceId}`,
     refinementStrategy: "no-overlap",
     maxZoom,
     minZoom,
