@@ -47,7 +47,7 @@ async function resolveWritableConnection(
   requireWrite: boolean,
 ): Promise<{
   config: ConnectionConfigWithGrants;
-  roleArn: string;
+  roleArn: string | null;
   region: string;
   endpoint: string | null;
   accessLevel: AccessLevel;
@@ -82,8 +82,8 @@ async function resolveWritableConnection(
     connectionProvider.grants.find(
       (g) => g.accessLevel === "read-write" || g.accessLevel === "admin",
     ) ?? connectionProvider.grants[0];
-  const roleArn = writeGrant?.roleArn;
-  if (!roleArn) {
+  const roleArn = writeGrant?.roleArn ?? null;
+  if (connectionProvider.providerType !== "rustfs" && !roleArn) {
     throw new Error(`Connection "${connectionId}" has no resolvable grant with a role ARN`);
   }
 
@@ -130,7 +130,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
+        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -182,7 +182,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
+        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -235,7 +235,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
+        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -281,7 +281,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
+        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -356,7 +356,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
+        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,

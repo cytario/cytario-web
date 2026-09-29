@@ -45,6 +45,16 @@ interface SessionCredentialRequest {
   roleSessionName: string;
 }
 
+/** The AWS mint requires a concrete role ARN — null (a RustFS role) fails closed. */
+const requireAwsRoleArn = (roleArn: string | null, scope: string): string => {
+  if (!roleArn) {
+    throw new Error(
+      `The grant for scope '${scope}' resolves no AWS role ARN — the provider role is ARN-less (fail closed).`,
+    );
+  }
+  return roleArn;
+};
+
 const fetchTemporaryCredentials = async ({
   connectionConfig,
   grant,
@@ -83,7 +93,7 @@ const fetchTemporaryCredentials = async ({
 
   console.info(`${label} Policy: ${Policy}`);
   const command = new AssumeRoleWithWebIdentityCommand({
-    RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
+    RoleArn: providerConfig.sendsRoleArn ? requireAwsRoleArn(roleArn, grant.scope) : undefined,
     RoleSessionName: roleSessionName,
     WebIdentityToken: idToken,
     DurationSeconds: 60 * 60 * 1, // 1 hour

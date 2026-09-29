@@ -550,6 +550,39 @@ describe("getAllSessionCredentials", () => {
     expect(policy.Statement.some((s) => s.Sid === "GetObjectScopedToPrefix")).toBe(true);
   });
 
+  test("FAIL CLOSED: an AWS connection whose grant resolves a null roleArn never mints", async () => {
+    // The portal contract: an ARN-less (rustfs) provider role carries roleArn
+    // null. If it leaks onto an AWS-path connection, the mint must fail closed
+    // rather than send a null RoleArn to STS.
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({
+            id: "pc-mock",
+            endpoint: null,
+            region: "us-east-1",
+            providerType: "aws",
+          }),
+        ],
+        providerRoles: [
+          mock.providerRole({
+            providerConnectionId: "pc-mock",
+            roleArn: null as unknown as string,
+            accessLevel: "read-write",
+            bucketIds: ["bucket-mock-id"],
+          }),
+        ],
+      }),
+    );
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ bucketName: "tenants", prefix: "acme" }),
+    ]);
+
+    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
+    expect(Object.values(result.errors)[0]).toMatch(/role ARN/i);
+  });
+
   test("returns empty credentials when no bucket configs provided", async () => {
     const result = await getAllSessionCredentials(mockSessionData, []);
 

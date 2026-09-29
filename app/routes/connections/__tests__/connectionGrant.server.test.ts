@@ -105,6 +105,19 @@ describe("grantForConnection", () => {
     expect(actions).not.toContain("s3:PutBucketPolicy");
   });
 
+  test("FAIL CLOSED: an AWS grant assembly with a null roleArn throws", () => {
+    // The portal contract: an ARN-less (rustfs) role carries roleArn null. On
+    // the AWS grant path that must never compile into an ARN-less Principal.
+    expect(() =>
+      grantForConnection(
+        { organization: "acme", bucketName: "shared", prefix: "images" },
+        { scope: "lab/team-a" },
+        null,
+        "read-only",
+      ),
+    ).toThrow(/role ARN/i);
+  });
+
   test("C-378: threads the resolved role's accessLevel into the grant (read-write emits write actions)", () => {
     const grant = grantForConnection(
       { organization: "acme", bucketName: "shared", prefix: "images" },
