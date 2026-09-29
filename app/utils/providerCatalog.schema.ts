@@ -35,14 +35,27 @@ export function isAccessLevel(value: string): value is AccessLevel {
   return (ACCESS_LEVELS as readonly string[]).includes(value);
 }
 
-export const providerConnectionSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  providerType: z.enum(PROVIDER_TYPES),
-  endpoint: z.string().nullable(),
-  region: z.string().min(1),
-  status: z.enum(PROVIDER_CONNECTION_STATUSES),
-});
+export const providerConnectionSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    providerType: z.enum(PROVIDER_TYPES),
+    endpoint: z.string().nullable(),
+    region: z.string().min(1),
+    status: z.enum(PROVIDER_CONNECTION_STATUSES),
+  })
+  .superRefine((connection, ctx) => {
+    // A rustfs connection without an endpoint would silently mint against
+    // the AWS default — reject at the parse boundary, mirroring the apply
+    // path's fail-closed endpoint requirement.
+    if (connection.providerType === "rustfs" && !connection.endpoint) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endpoint"],
+        message: "A rustfs provider connection requires a non-null endpoint.",
+      });
+    }
+  });
 
 /**
  * A provisioned storage role. Identified by (provider connection, bucket,
