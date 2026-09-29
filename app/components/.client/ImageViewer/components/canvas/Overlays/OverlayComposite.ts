@@ -6,9 +6,8 @@ import type { Device, Framebuffer, Texture } from "@luma.gl/core";
 import { ClipSpace } from "@luma.gl/engine";
 
 import { compositeBlendParameters, compositeFragmentShader } from "./additiveBlending.glsl";
+import { isOverlayLayerId } from "./OverlaysLayer";
 
-/** Layer-id prefix for every overlay provider — the composite effect filters by it. */
-export const OVERLAYS_ID_PREFIX = "MarkersLayer-";
 export const OVERLAY_COMPOSITE_LAYER_ID = "overlays-composite";
 
 /** Mutable handoff between the effect (producer) and the composite layer (consumer). */
@@ -30,11 +29,18 @@ export class OverlayCompositeLayer extends Layer<{ result: OverlayCompositeResul
     parameters: { type: "object", value: compositeBlendParameters },
   };
 
+  // Merges deck's default shader modules (`layer`, and effect modules like `shadow`)
+  // into the model, exactly like every other deck layer — the layers pass pushes
+  // those modules' props onto every layer model, and an unregistered one warns.
+  getShaders() {
+    return super.getShaders({ fs: compositeFragmentShader });
+  }
+
   initializeState(context: { device: Device }) {
     this.setState({
       model: new ClipSpace(context.device, {
         id: `${this.id}-clipspace`,
-        fs: compositeFragmentShader,
+        ...this.getShaders(),
       }),
     });
   }
@@ -86,7 +92,7 @@ export class OverlayCompositeEffect implements Effect {
   }
 
   preRender(opts: LayersPassRenderOptions): void {
-    const overlayLayers = opts.layers.filter((layer) => layer.id.startsWith(OVERLAYS_ID_PREFIX));
+    const overlayLayers = opts.layers.filter((layer) => isOverlayLayerId(layer.id));
 
     if (overlayLayers.length === 0 || !this.pass) {
       this.result.texture = undefined;

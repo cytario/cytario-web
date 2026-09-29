@@ -1,7 +1,7 @@
 import type { Deck, PickingInfo } from "@deck.gl/core";
 
 import { classNameOf } from "../../../state/store/annotations/annotations.store";
-import { OVERLAYS_ID_PREFIX } from "../Overlays/OverlayComposite";
+import { isOverlayLayerId } from "../Overlays/OverlaysLayer";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 /** Layer-id conventions of the canvas layers (see `useCompositeHover`, `useAnnotationsLayer`). */
@@ -78,7 +78,7 @@ export const pickFeaturesAt = (deck: Deck, x: number, y: number, state: PickStat
     }
 
     // Overlays
-    if (layerId.startsWith(OVERLAYS_ID_PREFIX)) {
+    if (isOverlayLayerId(layerId)) {
       routed.overlayPicks.push(pick);
       continue;
     }
