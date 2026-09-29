@@ -6,7 +6,7 @@
  * RustFS applies the `Policy` parameter of AssumeRoleWithWebIdentity as a
  * filter over the mapped per-org policy set, exactly as AWS applies it over
  * the role's attached policy. The org binding here is the
- * `cytario-org-<alias>-admins` marker group the operator attaches the
+ * `cy-admin-<alias>` marker group the operator attaches the
  * org's management policy to — the mint itself fails when the caller's token
  * carries no management entitlement, so unlike the AWS variant there is no
  * `aws:PrincipalTag/ORG` condition to repeat inside the policy.

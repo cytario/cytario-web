@@ -2,6 +2,7 @@ import {
   type RustfsBucketPolicyGrant,
   buildMergedPolicy,
   compileGrantStatements,
+  compositeGroupValue,
   isManagedStatement,
   orgMarkerFor,
   parseBucketPolicy,
@@ -28,9 +29,7 @@ describe("rustfsBucketPolicy generator", () => {
         // condition keys evaluate ANY-match, which would OR an org marker
         // and a group path apart.
         expect(statement.Condition?.["ForAnyValue:StringEquals"]).toBeUndefined();
-        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe(
-          "cytario-org-acme/Lab/TeamX",
-        );
+        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cy-acme/Lab/TeamX");
         expect(statement.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBeUndefined();
       }
     });
@@ -44,10 +43,10 @@ describe("rustfsBucketPolicy generator", () => {
         const groups = statement.Condition?.StringEquals?.["jwt:groups"];
         const values = Array.isArray(groups) ? groups : [groups];
         for (const value of values) {
-          expect(value).toMatch(/^cytario-org-acme\//);
+          expect(value).toMatch(/^cy-acme\//);
           // No value is the bare group path or the bare marker of another org.
           expect(value).not.toBe("Lab/TeamX");
-          expect(value).not.toMatch(/^cytario-org-vericura/);
+          expect(value).not.toMatch(/^cy-vericura/);
         }
       }
     });
@@ -55,7 +54,7 @@ describe("rustfsBucketPolicy generator", () => {
     test("an org-root grant conditions on the bare org marker alone", () => {
       const statements = compileGrantStatements(grant({ groupPath: "*" }));
       for (const statement of statements) {
-        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cytario-org-acme");
+        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cy-acme");
       }
     });
 
@@ -192,7 +191,52 @@ describe("rustfsBucketPolicy generator", () => {
 
   describe("orgMarkerFor", () => {
     test("derives the marker from the reserved prefix", () => {
-      expect(orgMarkerFor("acme")).toBe("cytario-org-acme");
+      expect(orgMarkerFor("acme")).toBe("cy-acme");
+    });
+
+    test("fails closed on an empty alias", () => {
+      expect(() => orgMarkerFor("")).toThrow(/required/i);
+    });
+
+    test("fails closed on a null or undefined alias", () => {
+      expect(() => orgMarkerFor(null as unknown as string)).toThrow(/required/i);
+      expect(() => orgMarkerFor(undefined as unknown as string)).toThrow(/required/i);
+    });
+
+    test("fails closed on an alias containing a slash", () => {
+      // A '/' would let org `a/b` + group `c` produce the composite another
+      // (org, group) pair demands.
+      expect(() => orgMarkerFor("a/b")).toThrow(/ambiguous/i);
+    });
+
+    test("fails closed on an alias containing whitespace", () => {
+      expect(() => orgMarkerFor("acme corp")).toThrow(/whitespace/i);
+    });
+
+    test("fails closed on an alias reserved for the admins marker namespace", () => {
+      // org `admin-x`'s plain marker `cy-admin-x` equals org `x`'s
+      // management marker `cy-admin-x`.
+      expect(() => orgMarkerFor("admin-x")).toThrow(/admin-/);
+    });
+  });
+
+  describe("compositeGroupValue", () => {
+    test("propagates the org-alias guard", () => {
+      expect(() => compositeGroupValue("admin-x", "Lab/TeamX")).toThrow(/admin-/);
+      expect(() => compositeGroupValue("a/b", "Lab/TeamX")).toThrow(/ambiguous/i);
+    });
+  });
+
+  describe("org-alias guard in the grant path", () => {
+    test("a group-scoped grant with an unsafe alias fails closed at compile", () => {
+      expect(() => compileGrantStatements(grant({ organization: "a/b" }))).toThrow(/ambiguous/i);
+      expect(() => compileGrantStatements(grant({ organization: "admin-x" }))).toThrow(/admin-/);
+    });
+
+    test("an org-root grant with an unsafe alias fails closed at compile", () => {
+      expect(() =>
+        compileGrantStatements(grant({ organization: "acme corp", groupPath: "*" })),
+      ).toThrow(/whitespace/i);
     });
   });
 });
