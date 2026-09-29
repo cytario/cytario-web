@@ -16,6 +16,12 @@ export interface S3ProviderConfig {
    * both do; the legacy MinIO path did not.
    */
   honorsInlineSessionPolicy: boolean;
+  /**
+   * Whether an `AssumeRoleWithWebIdentity` mint should send a `RoleArn`.
+   * RustFS has no role ARNs — its handler never reads the field — and the
+   * mapped per-org policy set is the entitlement, so the mint sends none.
+   */
+  sendsRoleArn: boolean;
 }
 
 const DEFAULT_REGION = "eu-central-1";
@@ -50,6 +56,7 @@ export function getS3ProviderConfig(
     stsEndpoint: isAwsS3 ? `https://sts.${actualRegion}.amazonaws.com` : actualEndpoint,
     s3Endpoint: isAwsS3 ? `https://s3.${actualRegion}.amazonaws.com` : actualEndpoint,
     honorsInlineSessionPolicy: isAwsS3 || providerType === "rustfs",
+    sendsRoleArn: providerType !== "rustfs",
   };
 }
 

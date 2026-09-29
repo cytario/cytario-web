@@ -20,12 +20,22 @@ vi.mock("@aws-sdk/client-s3", () => ({
 }));
 
 vi.mock("~/utils/s3Provider", () => ({
-  getS3ProviderConfig: vi.fn(() => ({
-    stsEndpoint: "https://sts.eu-central-1.amazonaws.com",
-    s3Endpoint: "https://s3.eu-central-1.amazonaws.com",
-    usePathStyle: false,
-    isAwsS3: true,
-  })),
+  getS3ProviderConfig: vi.fn(
+    (endpoint?: string | null, _region?: string | null, providerType?: string | null) => {
+      const isAwsS3 =
+        providerType !== undefined
+          ? providerType === "aws"
+          : !endpoint || endpoint.includes("amazonaws.com");
+      return {
+        stsEndpoint: isAwsS3 ? "https://sts.eu-central-1.amazonaws.com" : endpoint,
+        s3Endpoint: isAwsS3 ? "https://s3.eu-central-1.amazonaws.com" : endpoint,
+        usePathStyle: !isAwsS3,
+        isAwsS3,
+        honorsInlineSessionPolicy: isAwsS3 || providerType === "rustfs",
+        sendsRoleArn: providerType !== "rustfs",
+      };
+    },
+  ),
 }));
 
 // Run the locked body immediately; the lock itself is unit-tested separately.
@@ -319,5 +329,58 @@ describe("applyBucketPolicy — all-or-nothing", () => {
       /valid JSON/i,
     );
     expect(PutBucketPolicyCommand).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyBucketPolicy — RustFS target", () => {
+  const rustfsGrant = {
+    kind: "rustfs",
+    organization: ORG,
+    bucketName: "customer-bucket",
+    groupPath: "Lab/TeamX",
+    prefix: "projects/alpha",
+    accessLevel: "read-write",
+  } as const;
+
+  const rustfsTarget: ApplyTarget = {
+    providerType: "rustfs",
+    organization: ORG,
+    bucketName: "customer-bucket",
+    region: "eu-central-1",
+    endpoint: "https://rustfs.example.com",
+  };
+
+  test("the write-session mint sends no RoleArn and applies the rustfs policy", async () => {
+    const result = await applyBucketPolicy(rustfsTarget, [rustfsGrant], "id-token", "Alice Admin");
+
+    expect(result.status).toBe("applied");
+
+    // The mint carries no RoleArn — RustFS has none and its handler never
+    // reads the field.
+    const assumeInput = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0][0];
+    expect(assumeInput.RoleArn).toBeUndefined();
+    expect(assumeInput.Policy).toContain("s3:PutBucketPolicy");
+    expect(assumeInput.Policy).not.toContain("aws:PrincipalTag");
+
+    // The merged policy binds on the single composite jwt:groups value.
+    const putInput = vi.mocked(PutBucketPolicyCommand).mock.calls[0][0];
+    const applied = JSON.parse(putInput.Policy as string);
+    const managed = applied.Statement.filter(isManagedStatement);
+    expect(managed.length).toBeGreaterThan(0);
+    for (const stmt of managed) {
+      expect(stmt.Condition.StringEquals["jwt:groups"]).toBe("cy-vericura/Lab/TeamX");
+    }
+  });
+
+  test("locks on the endpoint host namespace", async () => {
+    const { withBucketPolicyLock } = await import("../bucketPolicyLock");
+
+    await applyBucketPolicy(rustfsTarget, [rustfsGrant], "id-token", "Alice Admin");
+
+    expect(vi.mocked(withBucketPolicyLock)).toHaveBeenCalledWith(
+      "rustfs.example.com",
+      "customer-bucket",
+      expect.any(Function),
+    );
   });
 });

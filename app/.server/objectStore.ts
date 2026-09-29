@@ -51,6 +51,7 @@ async function resolveWritableConnection(
   region: string;
   endpoint: string | null;
   accessLevel: AccessLevel;
+  providerType: "aws" | "rustfs";
 }> {
   const { user, authTokens } = requireRequestData();
   const configs = await listConnections(user);
@@ -92,6 +93,7 @@ async function resolveWritableConnection(
     region: connectionProvider.region,
     endpoint: connectionProvider.endpoint,
     accessLevel: writeGrant.accessLevel,
+    providerType: connectionProvider.providerType,
   };
 }
 
@@ -108,16 +110,14 @@ function buildS3Key(prefix: string, key: string): string {
 // prefix.
 class ObjectStoreImpl implements ObjectStore {
   async put(connectionId: string, key: string, body: BodyInit): Promise<void> {
-    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
-      connectionId,
-      true,
-    );
+    const { config, roleArn, region, endpoint, accessLevel, providerType } =
+      await resolveWritableConnection(connectionId, true);
     const { user, authTokens } = requireRequestData();
 
     const { buildSessionPolicy } = await import("./auth/sessionPolicy");
     const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
 
-    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
     const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
     const Policy = providerConfig.isAwsS3
       ? buildSessionPolicy({
@@ -130,7 +130,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: roleArn,
+        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -162,16 +162,14 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async get(connectionId: string, key: string): Promise<Response> {
-    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
-      connectionId,
-      false,
-    );
+    const { config, roleArn, region, endpoint, accessLevel, providerType } =
+      await resolveWritableConnection(connectionId, false);
     const { user, authTokens } = requireRequestData();
 
     const { buildSessionPolicy } = await import("./auth/sessionPolicy");
     const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
 
-    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
     const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
     const Policy = providerConfig.isAwsS3
       ? buildSessionPolicy({
@@ -184,7 +182,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: roleArn,
+        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -217,16 +215,14 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async delete(connectionId: string, key: string): Promise<void> {
-    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
-      connectionId,
-      true,
-    );
+    const { config, roleArn, region, endpoint, accessLevel, providerType } =
+      await resolveWritableConnection(connectionId, true);
     const { user, authTokens } = requireRequestData();
 
     const { buildSessionPolicy } = await import("./auth/sessionPolicy");
     const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
 
-    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
     const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
     const Policy = providerConfig.isAwsS3
       ? buildSessionPolicy({
@@ -239,7 +235,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: roleArn,
+        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -265,16 +261,14 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async list(connectionId: string, prefix: string): Promise<readonly StorageEntry[]> {
-    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
-      connectionId,
-      false,
-    );
+    const { config, roleArn, region, endpoint, accessLevel, providerType } =
+      await resolveWritableConnection(connectionId, false);
     const { user, authTokens } = requireRequestData();
 
     const { buildSessionPolicy } = await import("./auth/sessionPolicy");
     const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
 
-    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
     const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
     const Policy = providerConfig.isAwsS3
       ? buildSessionPolicy({
@@ -287,7 +281,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: roleArn,
+        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,
@@ -342,16 +336,14 @@ class ObjectStoreImpl implements ObjectStore {
   }
 
   async size(connectionId: string, key: string): Promise<number | null> {
-    const { config, roleArn, region, endpoint, accessLevel } = await resolveWritableConnection(
-      connectionId,
-      false,
-    );
+    const { config, roleArn, region, endpoint, accessLevel, providerType } =
+      await resolveWritableConnection(connectionId, false);
     const { user, authTokens } = requireRequestData();
 
     const { buildSessionPolicy } = await import("./auth/sessionPolicy");
     const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
 
-    const providerConfig = getS3ProviderConfig(endpoint, region);
+    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
     const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
     const Policy = providerConfig.isAwsS3
       ? buildSessionPolicy({
@@ -364,7 +356,7 @@ class ObjectStoreImpl implements ObjectStore {
 
     const { Credentials } = await stsClient.send(
       new AssumeRoleWithWebIdentityCommand({
-        RoleArn: roleArn,
+        RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
         RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
         WebIdentityToken: authTokens.idToken,
         DurationSeconds: 900,

@@ -30,6 +30,7 @@ vi.mock("~/utils/s3Provider", () => ({
         stsEndpoint: isAwsS3 ? "https://sts.us-east-1.amazonaws.com" : endpoint,
         s3Endpoint: isAwsS3 ? "https://s3.us-east-1.amazonaws.com" : endpoint,
         honorsInlineSessionPolicy: isAwsS3 || providerType === "rustfs",
+        sendsRoleArn: providerType !== "rustfs",
       };
     },
   ),
@@ -537,6 +538,9 @@ describe("getAllSessionCredentials", () => {
 
     const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
     expect(call).toBeDefined();
+    // The RustFS mint carries no RoleArn — the mapped per-org policy set is
+    // the entitlement, and the ARWWI handler never reads the field.
+    expect(call?.RoleArn).toBeUndefined();
     const policyJson = call?.Policy;
     expect(policyJson).toBeDefined();
     const policy = JSON.parse(policyJson as string) as {

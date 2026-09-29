@@ -21,9 +21,9 @@ providerConnections:
   # A RustFS provider connection. The operator pre-provisions the RustFS side
   # out of band (see the user guide's RustFS storage-onboarding runbook): the
   # OIDC trust against the Keycloak realm, the per-org IAM policies, and the
-  # marker-named IAM groups they attach to. `roleArn` carries an opaque
-  # placeholder — RustFS has no role ARNs; the per-org mapped policies carry
-  # the entitlement and the inline session policy scopes the connection.
+  # marker-named IAM groups they attach to. RustFS mints carry no role ARN —
+  # the per-org mapped policies carry the entitlement and the inline session
+  # policy scopes the connection.
   - id: rustfs-selfhosted
     name: RustFS (self-hosted)
     providerType: rustfs
@@ -48,9 +48,10 @@ providerRoles:
       - lab
     accessLevel: admin # the only level that permits s3:PutBucketPolicy
 
-  # RustFS roles: one per access level under the RustFS connection; `roleArn` is
-  # an opaque placeholder (never resolved to cloud IAM), `allowedScopes` mirrors
-  # the buckets the operator attached the level's policy to.
+  # RustFS roles: one per access level under the RustFS connection; `roleArn`
+  # is null (no ARN on RustFS — the per-org mapped policies carry the
+  # entitlement; the AWS-only mint paths fail closed on it), `allowedScopes`
+  # mirrors the buckets the operator attached the level's policy to.
   - providerConnectionId: rustfs-selfhosted
     roleArn: rustfs:read-only
     allowedScopes: [] # empty = org-wide

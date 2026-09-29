@@ -375,7 +375,9 @@ describe("applyBucketGrantSet", () => {
     });
 
     expect(outcome.status).toBe("applied");
-    expect(vi.mocked(applyBucketPolicy).mock.calls[0][0].roleArn).toBe(
+    const appliedTarget = vi.mocked(applyBucketPolicy).mock.calls[0][0];
+    // Write session (ApplyTarget) is minted under the Admin-level role.
+    expect(appliedTarget.providerType === "aws" ? appliedTarget.roleArn : undefined).toBe(
       "arn:aws:iam::123456789012:role/admin",
     );
   });
@@ -414,7 +416,8 @@ describe("applyBucketGrantSet", () => {
     expect(outcome.status).toBe("applied");
 
     // Write session (ApplyTarget) is minted under the Admin-level role.
-    expect(vi.mocked(applyBucketPolicy).mock.calls[0][0].roleArn).toBe(
+    const appliedTarget = vi.mocked(applyBucketPolicy).mock.calls[0][0];
+    expect(appliedTarget.providerType === "aws" ? appliedTarget.roleArn : undefined).toBe(
       "arn:aws:iam::123456789012:role/admin",
     );
 
@@ -449,7 +452,9 @@ describe("resolveApplyTarget", () => {
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.target.roleArn).toBe("arn:aws:iam::123456789012:role/admin");
+      expect(result.target.providerType === "aws" ? result.target.roleArn : undefined).toBe(
+        "arn:aws:iam::123456789012:role/admin",
+      );
     }
   });
 
@@ -463,7 +468,9 @@ describe("resolveApplyTarget", () => {
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.target.roleArn).toBe("arn:aws:iam::123456789012:role/read-only");
+      expect(result.target.providerType === "aws" ? result.target.roleArn : undefined).toBe(
+        "arn:aws:iam::123456789012:role/read-only",
+      );
     }
   });
 
