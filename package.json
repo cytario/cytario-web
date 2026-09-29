@@ -106,6 +106,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.23",
+    "@turf/union": "^7.4.0",
     "@uiw/react-codemirror": "^4.25.10",
     "@vivjs/types": "^0.22.0",
     "apache-arrow": "^21.1.0",

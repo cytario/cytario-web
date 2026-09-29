@@ -10,6 +10,7 @@ import {
 import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { AnnotationMenuItems } from "../../annotations/AnnotationMenuItems";
+import { joinOffersForFeatures } from "../../annotations/joinFeatures";
 import { useAnnotationFeatureActions } from "../../annotations/useAnnotationFeatureActions";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -36,6 +37,7 @@ export const useCanvasAnnotationContextMenu = ({
   const canAnnotate = useCanAnnotate();
   const activeSetId = useViewerStore((s) => s.activeSetId);
   const sets = useViewerStore((s) => s.annotationSets);
+  const annotationView = useViewerStore((s) => s.annotationView);
 
   const [target, setTarget] = useState<CanvasMenuTarget | null>(null);
 
@@ -103,6 +105,24 @@ export const useCanvasAnnotationContextMenu = ({
           isReservedClassName(classNameOf(target.feature))
             ? undefined
             : () => actions.clearClass(target.feature)
+        }
+        joinOffers={
+          canAnnotate && menuSet
+            ? joinOffersForFeatures(
+                actions
+                  .actionTargets(target.feature)
+                  .map((id) => menuSet.features.find((f) => f.id === id))
+                  .filter((f): f is AnnotationFeature => !!f)
+                  // Hidden-class regions render at alpha 0 — invisible
+                  // regions are not join-able.
+                  .filter(
+                    (f) => !annotationView[menuSet.id]?.hiddenClasses?.includes(classNameOf(f)),
+                  ),
+              ).map((offer) => ({
+                ...offer,
+                onJoin: () => actions.joinIds(offer.ids),
+              }))
+            : undefined
         }
         onDelete={() => actions.deleteFeatures(target.feature)}
       />

@@ -1,4 +1,5 @@
 import { flyToFeaturesViewState } from "./flyToFeature";
+import { joinFeaturesInSet } from "./joinFeatures";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -57,5 +58,11 @@ export const useAnnotationFeatureActions = ({
   const clearClass = (feature: AnnotationFeature) =>
     setClassForIds(setId, actionTargets(feature), null);
 
-  return { actionTargets, zoomToFeature, deleteFeatures, classify, clearClass };
+  /** Join an explicit id list (per-class offers compute their own groups). */
+  const joinIds = (ids: string[]): string | null => {
+    if (!viewerStore) return null;
+    return joinFeaturesInSet(viewerStore, setId, ids);
+  };
+
+  return { actionTargets, zoomToFeature, deleteFeatures, classify, clearClass, joinIds };
 };
