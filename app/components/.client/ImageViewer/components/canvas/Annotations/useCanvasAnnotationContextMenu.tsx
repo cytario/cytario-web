@@ -37,6 +37,7 @@ export const useCanvasAnnotationContextMenu = ({
   const canAnnotate = useCanAnnotate();
   const activeSetId = useViewerStore((s) => s.activeSetId);
   const sets = useViewerStore((s) => s.annotationSets);
+  const annotationView = useViewerStore((s) => s.annotationView);
 
   const [target, setTarget] = useState<CanvasMenuTarget | null>(null);
 
@@ -111,7 +112,12 @@ export const useCanvasAnnotationContextMenu = ({
                 actions
                   .actionTargets(target.feature)
                   .map((id) => menuSet.features.find((f) => f.id === id))
-                  .filter((f): f is AnnotationFeature => !!f),
+                  .filter((f): f is AnnotationFeature => !!f)
+                  // Hidden-class regions render at alpha 0 — invisible
+                  // regions are not join-able.
+                  .filter(
+                    (f) => !annotationView[menuSet.id]?.hiddenClasses?.includes(classNameOf(f)),
+                  ),
               ).map((offer) => ({
                 ...offer,
                 onJoin: () => actions.joinIds(offer.ids),

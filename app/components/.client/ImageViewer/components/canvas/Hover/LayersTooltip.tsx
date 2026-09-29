@@ -9,6 +9,7 @@ import type {
 } from "../../../state/store/types";
 import { type JoinOfferAction } from "../../annotations/joinFeatures";
 import { VIEWER_SECTIONS } from "../../sidebar/sections";
+import { classNameOfItem } from "../Annotations/pickFeaturesAt";
 import { GeometrySvg } from "~/components/GeometrySvg";
 
 const GEO_THUMB_SIZE = 48;
@@ -57,10 +58,11 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
 
 const SECTION_ORDER: TooltipSection[] = ["Channels", "Overlays", "Annotations"];
 
-const itemClassOf = (item: LayerTooltipItem): string => Object.keys(item.values)[0] ?? "";
-
 /** Class-sorted annotation items with each class group's "Join <n> <class>
- *  annotations" button rendered right after the group's run of items. */
+ *  annotations" button rendered right after the group's run of items. Offers
+ *  are matched by class name — the snapshot items don't carry set identity, so
+ *  when two sets have the same class at one point the first offer (topmost
+ *  z-order) wins. */
 function AnnotationItemsWithJoins({
   items,
   joinOffers,
@@ -85,7 +87,7 @@ function AnnotationItemsWithJoins({
   };
 
   items.forEach((item, i) => {
-    const cls = itemClassOf(item);
+    const cls = classNameOfItem(item);
     if (runClass !== null && cls !== runClass) {
       flushRun(`join:${runClass}`);
     }
@@ -103,17 +105,43 @@ const JoinOfferButton = ({ offer }: { offer: JoinOfferAction }) => (
   </Button>
 );
 
-export interface LayersTooltipProps {
-  tooltip: CompositeTooltip;
-  /** "Join <n> <class> annotations" offers for same-class region groups at the
-   *  clicked point — popup-only affordance (C-633). */
+/** The shared body: section headers, item rows, and the per-class Join offers.
+ *  Pure rendering — the hover tooltip positions itself around it; the click
+ *  popup composes it inside its own chrome ({@link PopupCard}). */
+export function TooltipSections({
+  sections,
+  joinOffers = [],
+}: {
+  sections: CompositeTooltip["sections"];
   joinOffers?: JoinOfferAction[];
+}) {
+  const entries = SECTION_ORDER.filter((s) => sections[s]?.length).map(
+    (s) => [s, sections[s]!] as [TooltipSection, LayerTooltipItem[]],
+  );
+
+  return (
+    <>
+      {entries.map(([type, items]) => (
+        <div key={type}>
+          <div className="flex items-center gap-1.5 bg-background px-2 py-1 border-t border-border first:border-t-0">
+            <Icon icon={VIEWER_SECTIONS[type].icon} size="sm" />
+            <span>{VIEWER_SECTIONS[type].title}</span>
+          </div>
+          {type === "Annotations" ? (
+            <AnnotationItemsWithJoins items={items} joinOffers={joinOffers} />
+          ) : (
+            items.map((item, i) => <Section key={item.id ?? i} item={item} />)
+          )}
+        </div>
+      ))}
+    </>
+  );
 }
 
 /** Hover tooltip — the snapshot renderer for the inspect-mode cursor readout.
  *  The click popup composes its own chrome ({@link PopupCard}) around the same
  *  section rendering. */
-export const LayersTooltip = ({ tooltip, joinOffers }: LayersTooltipProps) => {
+export const LayersTooltip = ({ tooltip }: { tooltip: CompositeTooltip }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const entries = SECTION_ORDER.filter((s) => tooltip.sections[s]?.length).map(
@@ -156,19 +184,7 @@ export const LayersTooltip = ({ tooltip, joinOffers }: LayersTooltipProps) => {
       className={cx}
       style={{ left: tooltip.cursor.x + 12, top: tooltip.cursor.y + 12 }}
     >
-      {entries.map(([type, items]) => (
-        <div key={type}>
-          <div className="flex items-center gap-1.5 bg-background px-2 py-1 border-t border-border first:border-t-0">
-            <Icon icon={VIEWER_SECTIONS[type].icon} size="sm" />
-            <span>{VIEWER_SECTIONS[type].title}</span>
-          </div>
-          {type === "Annotations" ? (
-            <AnnotationItemsWithJoins items={items} joinOffers={joinOffers ?? []} />
-          ) : (
-            items.map((item, i) => <Section key={item.id ?? i} item={item} />)
-          )}
-        </div>
-      ))}
+      <TooltipSections sections={tooltip.sections} />
     </div>
   );
 };

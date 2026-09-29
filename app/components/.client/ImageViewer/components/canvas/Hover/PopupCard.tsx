@@ -73,7 +73,7 @@ export function PopupCard({ anchor, onClose, label, children }: PopupCardProps) 
     <div
       ref={ref}
       className={cx}
-      style={{ left: anchor.x + 12, top: anchor.y + 12 }}
+      style={{ left: anchor.x + POPUP_OFFSET, top: anchor.y + POPUP_OFFSET }}
       data-image-popup
       role="dialog"
       aria-modal={false}

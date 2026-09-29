@@ -46,7 +46,7 @@ export const setIdFromLayerId = (
 };
 
 /** Class name of a tooltip item (the single values key). */
-const classNameOfItem = (item: { values: Record<string, unknown> }): string =>
+export const classNameOfItem = (item: { values: Record<string, unknown> }): string =>
   Object.keys(item.values)[0] ?? "";
 
 /** Tooltip items grouped by class name (case-insensitive; z-order preserved

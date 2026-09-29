@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 
-import { LayersTooltip } from "./LayersTooltip";
+import { TooltipSections } from "./LayersTooltip";
 import { PopupCard } from "./PopupCard";
 import { classNameOf } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
@@ -78,10 +78,7 @@ export const ImagePopupLayer = ({ imagePanelId }: { imagePanelId: number }) => {
 
   return (
     <PopupCard anchor={mine.anchor} onClose={closePopup} label="Image details at the clicked point">
-      <LayersTooltip
-        tooltip={{ panelId: mine.panelId, cursor: mine.anchor, sections: mine.sections }}
-        joinOffers={joinOffers}
-      />
+      <TooltipSections sections={mine.sections} joinOffers={joinOffers} />
     </PopupCard>
   );
 };

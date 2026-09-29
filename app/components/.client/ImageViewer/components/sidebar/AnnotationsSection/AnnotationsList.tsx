@@ -10,6 +10,7 @@ import {
   selectSetHiddenClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
+  classNameOf,
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { joinOffersForFeatures } from "../../annotations/joinFeatures";
@@ -203,7 +204,10 @@ export const AnnotationsList = ({
                             ? joinOffersForFeatures(
                                 actionTargets(feature)
                                   .map((id) => features.find((f) => f.id === id))
-                                  .filter((f): f is AnnotationFeature => !!f),
+                                  // Hidden-class regions render at alpha 0 —
+                                  // invisible regions are not join-able.
+                                  .filter((f): f is AnnotationFeature => !!f)
+                                  .filter((f) => !hiddenClasses.includes(classNameOf(f))),
                               ).map((offer) => ({
                                 ...offer,
                                 onJoin: () => joinIds(offer.ids),

@@ -73,6 +73,32 @@ describe("unionJoinRegions", () => {
     expect(merged?.id).toBe("a");
   });
 
+  test("a self-intersecting (bowtie) ring does not throw — polclip is lenient", () => {
+    // Spike result: polclip-ts handles self-intersecting boundaries without
+    // throwing and emits *some* geometry; the try/catch in unionJoinRegions
+    // remains as the net for inputs it does reject.
+    const bowtie: AnnotationFeature = {
+      type: "Feature",
+      id: "b1",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [5, 5],
+            [5, 0],
+            [0, 5],
+            [0, 0],
+          ],
+        ],
+      },
+      properties: { classification: { name: "Tumor", color: [255, 0, 0] } },
+    };
+    const merged = unionJoinRegions([bowtie, makeRegion("b2", 2, 2, 8, 8)], bowtie);
+    expect(merged).not.toBeNull();
+    expect(merged?.geometry.type).toMatch(/Polygon/);
+  });
+
   test("keeps the survivor's classification", () => {
     const merged = unionJoinRegions(
       [makeRegion("a", 0, 0, 5, 5), makeRegion("b", 2, 2, 8, 8)],
@@ -121,11 +147,11 @@ describe("joinFeaturesInSet", () => {
     const set = store.getState().annotationSets.find((s) => s.id === setId)!;
     expect(survivorId).toBe("keep-me");
     expect(set.features[0].id).toBe("keep-me");
-    expect(set.features[0].properties?.name).toBe(set.features[0].properties?.name);
+    expect(set.features[0].properties?.classification?.name).toBe("Tumor");
   });
 
   test("unrelated features in the set are untouched", () => {
-    const bystander = makeRegion(" bystander".trim(), 100, 100, 110, 110);
+    const bystander = makeRegion("bystander", 100, 100, 110, 110);
     const { store, setId } = setup([
       makeRegion("f1", 0, 0, 5, 5),
       makeRegion("f2", 2, 2, 8, 8),
@@ -135,7 +161,7 @@ describe("joinFeaturesInSet", () => {
     joinFeaturesInSet(store, setId, ["f1", "f2"]);
 
     const set = store.getState().annotationSets.find((s) => s.id === setId)!;
-    expect(set.features.map((f) => f.id)).toEqual(["f1", " bystander".trim()]);
+    expect(set.features.map((f) => f.id)).toEqual(["f1", "bystander"]);
   });
 
   test("does not qualify cross-class or single-feature targets", () => {
