@@ -72,7 +72,8 @@ export const providerConnectionSchema = z
  */
 export const providerRoleSchema = z.object({
   providerConnectionId: z.string().min(1),
-  roleArn: z.string().min(1),
+  /** Null on a RustFS provider — no ARN exists; AWS paths fail closed on it. */
+  roleArn: z.string().min(1).nullable(),
   allowedScopes: z.array(z.string()),
   accessLevel: z.enum(ACCESS_LEVELS).default("read-only"),
   bucketIds: z.array(z.string()).default([]),

@@ -191,6 +191,14 @@ class JobLedgerImpl implements JobLedger {
     if (!grant) {
       throw new Error(`No grant the submitting user can see for connection ${job.connectionId}`);
     }
+    // The job ledger and the broker's ARWWI mint are AWS-shaped: a connection
+    // whose grant resolves no role ARN (a RustFS-backed one) cannot run as a
+    // compute job — reject at submission, fail closed.
+    if (!grant.roleArn) {
+      throw new Error(
+        `Connection ${job.connectionId} resolves no AWS role ARN for the compute job — ARN-less providers cannot back a job (fail closed).`,
+      );
+    }
 
     // The named compute provider must be one of the active organization's
     // connected providers (tenant boundary — a provider id from another org

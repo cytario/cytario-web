@@ -47,7 +47,7 @@ export interface ActingContext {
 export function grantForConnection(
   config: { organization: string; bucketName: string; prefix: string },
   grant: { scope: string },
-  roleArn: string,
+  roleArn: string | null,
   accessLevel: ConnectionProvider["accessLevel"],
   providerType?: "aws" | "rustfs",
 ): BucketPolicyGrant | RustfsBucketPolicyGrant {
@@ -60,6 +60,11 @@ export function grantForConnection(
       prefix: config.prefix,
       accessLevel,
     };
+  }
+  if (!roleArn) {
+    throw new Error(
+      `The provider role for scope '${grant.scope}' carries no AWS role ARN — cannot compile an AWS bucket-policy grant (fail closed).`,
+    );
   }
   return {
     kind: "aws",
@@ -332,6 +337,11 @@ function applyTargetFor(
       endpoint: connectionProvider.endpoint ?? "",
       providerType: "rustfs",
     };
+  }
+  if (!connectionProvider.roleArn) {
+    throw new Error(
+      "The AWS write session requires a role ARN — the resolved provider role is ARN-less (fail closed).",
+    );
   }
   return {
     organization: config.organization,
