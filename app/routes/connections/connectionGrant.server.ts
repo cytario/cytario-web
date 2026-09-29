@@ -322,17 +322,26 @@ function applyTargetFor(
   connectionProvider: ConnectionProvider,
   kmsKeyArn?: string | null,
 ): ApplyTarget {
-  const base = {
+  if (applyProviderTypeOf(connectionProvider.providerType) === "rustfs") {
+    // No roleArn on the RustFS target — the mint sends none and the mapped
+    // per-org policy set is the entitlement.
+    return {
+      organization: config.organization,
+      bucketName: config.bucketName,
+      region: connectionProvider.region,
+      endpoint: connectionProvider.endpoint ?? "",
+      providerType: "rustfs",
+    };
+  }
+  return {
     organization: config.organization,
     bucketName: config.bucketName,
     region: connectionProvider.region,
     endpoint: connectionProvider.endpoint,
     roleArn: connectionProvider.roleArn,
+    kmsKeyArn,
+    providerType: "aws",
   };
-  if (applyProviderTypeOf(connectionProvider.providerType) === "rustfs") {
-    return { ...base, endpoint: connectionProvider.endpoint ?? "", providerType: "rustfs" };
-  }
-  return { ...base, kmsKeyArn, providerType: "aws" };
 }
 
 /**

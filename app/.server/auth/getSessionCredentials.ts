@@ -83,7 +83,7 @@ const fetchTemporaryCredentials = async ({
 
   console.info(`${label} Policy: ${Policy}`);
   const command = new AssumeRoleWithWebIdentityCommand({
-    RoleArn: roleArn,
+    RoleArn: providerConfig.sendsRoleArn ? roleArn : undefined,
     RoleSessionName: roleSessionName,
     WebIdentityToken: idToken,
     DurationSeconds: 60 * 60 * 1, // 1 hour

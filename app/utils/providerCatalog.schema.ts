@@ -53,9 +53,9 @@ export const providerConnectionSchema = z.object({
  * registry).
  *
  * `roleArn` is the AWS IAM role backing the level. A RustFS provider's roles
- * have no ARN equivalent — the mapped per-org policies carry the entitlement —
- * so the catalog may carry an opaque placeholder ARN there. It is never
- * meaningful outside the AWS mint path.
+ * have no ARN equivalent — the mapped per-org policies carry the entitlement
+ * — so the catalog carries `null` there. It is meaningful only on the AWS
+ * mint/write-session paths, which fail closed when it is absent.
  */
 export const providerRoleSchema = z.object({
   providerConnectionId: z.string().min(1),

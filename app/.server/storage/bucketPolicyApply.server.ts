@@ -51,8 +51,6 @@ export interface RustfsApplyTarget {
   bucketName: string;
   region: string;
   endpoint: string;
-  /** Opaque placeholder — the RustFS STS parses and ignores it. */
-  roleArn: string;
   providerType: "rustfs";
 }
 
@@ -106,7 +104,7 @@ const mintWriteSession = async (
   idToken: string,
   roleSessionName: string,
 ): Promise<S3Client> => {
-  const { region, endpoint, roleArn, organization, bucketName, providerType } = target;
+  const { region, endpoint, organization, bucketName, providerType } = target;
   const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
 
   const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
@@ -121,7 +119,10 @@ const mintWriteSession = async (
 
   const { Credentials } = await stsClient.send(
     new AssumeRoleWithWebIdentityCommand({
-      RoleArn: roleArn,
+      // AWS requires the write-session role; RustFS has none — its handler
+      // never reads the field and the mapped per-org policy set is the
+      // entitlement.
+      RoleArn: providerType === "aws" ? target.roleArn : undefined,
       RoleSessionName: roleSessionName,
       WebIdentityToken: idToken,
       DurationSeconds: 60 * 15,
@@ -191,8 +192,6 @@ const assertGrantSetHomogeneity = (target: ApplyTarget, grants: AnyBucketPolicyG
  * On an AWS target the write is serialized under the per-(account, bucket) lock;
  * on a RustFS target under the per-(endpoint-host, bucket) lock — the same
  * mutual exclusion the AWS lock provides, keyed to the S3-compatible instance.
- * The admin portal's bootstrap write serializes on the same key: it must use the
- * endpoint host (not an AWS account id) for a RustFS bucket.
  *
  * On an AccessDenied (the write session lacks `s3:PutBucketPolicy`) it returns a
  * `warning` result — it never claims the grant was enforced.
