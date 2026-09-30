@@ -43,6 +43,13 @@ describe("getFileType", () => {
     expect(getFileType("REPORT.PDF")).toBe("PDF");
   });
 
+  test("identifies HTML and Quarto files", () => {
+    expect(getFileType("report.html")).toBe("HTML");
+    expect(getFileType("report.htm")).toBe("HTML");
+    expect(getFileType("REPORT.HTML")).toBe("HTML");
+    expect(getFileType("analysis.qmd")).toBe("Quarto Markdown");
+  });
+
   test("returns Unknown for empty string", () => {
     expect(getFileType("")).toBe("Unknown");
   });
@@ -74,6 +81,12 @@ describe("getFileCategory", () => {
 
   test("returns document for PDF", () => {
     expect(getFileCategory("report.pdf")).toBe("document");
+  });
+
+  test("returns interactive-html for HTML and text for Quarto Markdown", () => {
+    expect(getFileCategory("report.html")).toBe("interactive-html");
+    expect(getFileCategory("report.htm")).toBe("interactive-html");
+    expect(getFileCategory("analysis.qmd")).toBe("text");
   });
 
   test("returns none for unknown / removed types", () => {
