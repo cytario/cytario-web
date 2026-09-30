@@ -54,6 +54,10 @@ const appRoutes = [
     path: "/plugin/*",
     file: "routes/plugin/plugin.$.tsx",
   },
+  {
+    path: "/agent/describe",
+    file: "routes/agent/describe.route.tsx",
+  },
 ];
 
 /** Admin routes — scope-gated via adminMiddleware, wrapped in protected layout alongside appRoutes. */

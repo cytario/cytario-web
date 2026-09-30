@@ -1,4 +1,4 @@
-import type { ImageMetadata, Image, LoadOptions } from "@cytario/plugin-api";
+import type { Image, ImageMetadata, LoadOptions, Loader } from "@cytario/plugin-api";
 import {
   DuplicateRegistrationError,
   formatRegistry,
@@ -33,7 +33,10 @@ async function ensureBuiltinFormats(): Promise<void> {
 }
 
 class ImageMetadataImpl implements ImageMetadata {
-  async read(connectionId: string, path: string): Promise<Image | null> {
+  async loadImage(
+    connectionId: string,
+    path: string,
+  ): Promise<{ loader: Loader; metadata: Image } | null> {
     try {
       const resourceId = `${connectionId}/${path}`;
       const resolved = resolveResourceId(resourceId);
@@ -51,11 +54,16 @@ class ImageMetadataImpl implements ImageMetadata {
       // derive metadata from headers before any pixel work, so this does not
       // decode image data.
       const loaded = await handler.load(resolved.httpsUrl, opts);
-      return loaded.metadata;
+      return { loader: loaded.data, metadata: loaded.metadata };
     } catch {
       // Never throw out of this method; absence is structural, not an error.
       return null;
     }
+  }
+
+  async read(connectionId: string, path: string): Promise<Image | null> {
+    const loaded = await this.loadImage(connectionId, path);
+    return loaded?.metadata ?? null;
   }
 
   async size(connectionId: string, path: string): Promise<number | null> {
