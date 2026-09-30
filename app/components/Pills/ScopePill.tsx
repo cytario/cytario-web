@@ -3,7 +3,7 @@ import { Badge, PathPill, type BadgeColor, pillColorFromName } from "@cytario/de
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function scopeColor(segment: string, index: number): BadgeColor {
-  if (index === 0 && segment.toLowerCase() === "cytario") return "teal";
+  if (index === 0 && segment.toLowerCase() === "cytario") return "secondary";
   return pillColorFromName(segment);
 }
 
