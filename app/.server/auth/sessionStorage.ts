@@ -6,8 +6,8 @@ import { createSessionStorage, Session } from "react-router";
 import { UserProfile } from "./getUserInfo";
 import { redis } from "../db/redis";
 import { createLabel } from "~/.server/logging";
-import { NotificationInput } from "~/components/Notification/Notification.store";
 import { cytarioConfig } from "~/config";
+import { type NotificationInput } from "~/utils/notifications";
 
 export interface AuthTokens {
   accessToken: string;

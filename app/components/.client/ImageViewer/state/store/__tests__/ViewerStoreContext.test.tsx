@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { ToastProvider } from "@cytario/design";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 
@@ -53,6 +54,8 @@ vi.mock("../views/viewSync", () => ({
 }));
 
 const mockSignedFetch = vi.fn();
+
+const render = (ui: React.ReactElement) => rtlRender(<ToastProvider>{ui}</ToastProvider>);
 
 describe("ViewerStoreContext", () => {
   const mockState = {
@@ -149,9 +152,11 @@ describe("ViewerStoreContext", () => {
       });
 
       rerender(
-        <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
-          <div>Test Updated</div>
-        </ViewerStoreProvider>,
+        <ToastProvider>
+          <ViewerStoreProvider resourceId={url} signedFetch={mockSignedFetch} userId="user-1">
+            <div>Test Updated</div>
+          </ViewerStoreProvider>
+        </ToastProvider>,
       );
 
       expect(createViewerStore).toHaveBeenCalledTimes(1);

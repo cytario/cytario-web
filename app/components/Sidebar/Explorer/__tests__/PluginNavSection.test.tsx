@@ -1,3 +1,4 @@
+import { ToastProvider } from "@cytario/design";
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import type { Mock } from "vitest";
@@ -19,7 +20,11 @@ const entry = {
 
 function renderSection() {
   const Stub = createRoutesStub([{ path: "/", Component: () => <PluginNavSection /> }]);
-  return render(<Stub initialEntries={["/"]} />);
+  return render(
+    <ToastProvider>
+      <Stub initialEntries={["/"]} />
+    </ToastProvider>,
+  );
 }
 
 describe("PluginNavSection", () => {

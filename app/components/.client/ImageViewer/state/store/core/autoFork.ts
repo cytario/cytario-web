@@ -1,5 +1,6 @@
+import type { ToastData } from "@cytario/design";
+
 import type { ViewerSlice, ViewerStore } from "../types";
-import { toastBridge } from "~/toast-bridge";
 
 const FORK_ACTIONS = new Set([
   "setContrastLimits",
@@ -23,7 +24,11 @@ const FORK_ACTIONS = new Set([
   "setShowAnnotationOutline",
 ]);
 
-export function withAutoFork(config: ViewerSlice<ViewerStore>): typeof config {
+/** `showToast` is injected by the React layer (useToast) — stores live outside the tree. */
+export function withAutoFork(
+  config: ViewerSlice<ViewerStore>,
+  showToast?: (toast: Omit<ToastData, "id">) => void,
+): typeof config {
   return (set, get, api) => {
     const forkedSet = ((...args: Parameters<typeof set>) => {
       const actionName = args[2] as string | undefined;
@@ -33,7 +38,7 @@ export function withAutoFork(config: ViewerSlice<ViewerStore>): typeof config {
         const layerState = state.layersStates[activeImagePanelIndex];
         if (layerState?.shared && layerState.author !== state.currentUserId) {
           get().forkView(activeImagePanelIndex);
-          toastBridge.emit({ variant: "info", message: "Forked shared view to your views" });
+          showToast?.({ variant: "info", message: "Forked shared view to your views" });
         }
       }
       return set(...args);
