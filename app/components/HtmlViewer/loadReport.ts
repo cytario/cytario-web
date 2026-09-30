@@ -67,6 +67,38 @@ function toDataUri(bytes: Uint8Array, contentType: string | null): string {
   return `data:${mime || "application/octet-stream"};base64,${btoa(binary)}`;
 }
 
+interface DataUriAsset {
+  bytes: Uint8Array;
+  contentType: string | null;
+}
+
+/**
+ * Parses a `data:[<mime>][;base64],<payload>` URI. Returns null for anything
+ * else. Self-contained exports (Quarto `embed-resources`) carry stylesheets
+ * and scripts as data URIs — the host CSP has no `data:` in style-src/script-src,
+ * so those must be decoded and inlined as element bodies before render.
+ */
+function parseDataUri(ref: string): DataUriAsset | null {
+  if (!ref.startsWith("data:")) return null;
+  const commaIndex = ref.indexOf(",");
+  if (commaIndex === -1) return null;
+  const meta = ref.slice(5, commaIndex);
+  const payload = ref.slice(commaIndex + 1);
+  const isBase64 = /;base64$/i.test(meta);
+  const contentType = meta.split(";")[0] || null;
+  try {
+    if (isBase64) {
+      const binary = atob(payload);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return { bytes, contentType };
+    }
+    return { bytes: new TextEncoder().encode(decodeURIComponent(payload)), contentType };
+  } catch {
+    return null;
+  }
+}
+
 interface Asset {
   bytes: Uint8Array;
   contentType: string | null;
@@ -172,17 +204,22 @@ export async function loadReportDocument(
   };
 
   // Stylesheets: <link rel="stylesheet"> → inline <style> with url() assets inlined.
+  // Covers both object-store refs and data: URIs (self-contained exports — the
+  // CSP blocks data: stylesheets, so the body must become an inline <style>).
   for (const link of [...doc.querySelectorAll('link[rel~="stylesheet" i][href]')]) {
     const href = link.getAttribute("href")!;
-    const css = await textForRef(href);
+    const dataUri = parseDataUri(href);
+    const css = dataUri ? new TextDecoder("utf-8").decode(dataUri.bytes) : await textForRef(href);
     if (css === null) {
       if (resolveObjectKey(pathName, href) !== null) link.remove();
       continue;
     }
     // url() refs inside a stylesheet resolve relative to the stylesheet's own
-    // directory, not the entry document's.
-    const stylesheetKey = resolveObjectKey(pathName, href)!;
-    const inlinedCss = await inlineCssUrls(css, stylesheetKey, dataUriForRef);
+    // directory, not the entry document's. A data: stylesheet has no base key;
+    // its refs can only be absolute or data: and are left as written.
+    const stylesheetKey = resolveObjectKey(pathName, href);
+    const inlinedCss =
+      stylesheetKey !== null ? await inlineCssUrls(css, stylesheetKey, dataUriForRef) : css;
     const style = doc.createElement("style");
     style.textContent = inlinedCss;
     link.replaceWith(style);
@@ -204,11 +241,13 @@ export async function loadReportDocument(
   }
 
   // Scripts: fetch the referenced body and inline it. CSP script-src has no
-  // `data:` — a data-URI script would be silently blocked, so the body goes
-  // into an inline <script>, which the policy permits.
+  // `data:` — a data-URI script (self-contained exports carry them) would be
+  // silently blocked, so the body goes into an inline <script>, which the
+  // policy permits.
   for (const script of [...doc.querySelectorAll("script[src]")]) {
     const src = script.getAttribute("src")!;
-    const body = await textForRef(src);
+    const dataUri = parseDataUri(src);
+    const body = dataUri ? new TextDecoder("utf-8").decode(dataUri.bytes) : await textForRef(src);
     if (body === null) {
       if (resolveObjectKey(pathName, src) !== null) script.remove();
       continue;

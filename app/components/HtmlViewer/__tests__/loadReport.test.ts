@@ -119,6 +119,25 @@ describe("loadReportDocument", () => {
     expect(result).toContain('url("data:font/woff2;base64');
   });
 
+  test("decodes data-URI stylesheets and scripts from self-contained exports", async () => {
+    // Quarto embed-resources carries stylesheets/scripts as data: URIs. The
+    // inherited CSP has no data: in style-src/script-src — unless they are
+    // decoded and inlined, the report renders unstyled with dead scripts.
+    const css = "body { color: #333; }";
+    const js = "console.log('embedded');";
+    const html = `<html><head><link rel="stylesheet" href="data:text/css;base64,${btoa(css)}"></head><body><script src="data:application/javascript;base64,${btoa(js)}"></script></body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+    ]);
+
+    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    expect(result).toContain(`<style>body { color: #333; }</style>`);
+    expect(result).toContain("console.log('embedded');");
+    expect(result).not.toContain("data:text/css");
+    expect(result).not.toContain("<script src=");
+  });
+
   test("drops references to missing assets instead of failing", async () => {
     const html = `<html><body><img src="report_files/missing.png"><script src="report_files/missing.js"></script><link rel="stylesheet" href="report_files/missing.css"></body></html>`;
     const fetchImpl = makeSignedFetch([
