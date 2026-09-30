@@ -1,10 +1,10 @@
-import { MenuItem } from "@cytario/design";
+import { MenuItem, useToast } from "@cytario/design";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { toastBridge } from "~/toast-bridge";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 
 export function CopyS3UriMenuItem({ node }: { node: TreeNode }) {
+  const { toast } = useToast();
   return (
     <MenuItem id="copy-s3-uri" icon="Copy" onAction={copyS3Uri}>
       Copy S3 URI
@@ -15,9 +15,9 @@ export function CopyS3UriMenuItem({ node }: { node: TreeNode }) {
     try {
       const { s3Uri } = resolveResourceId(node.id);
       await navigator.clipboard.writeText(s3Uri);
-      toastBridge.emit({ variant: "success", message: "S3 URI copied to clipboard" });
+      toast({ variant: "success", message: "S3 URI copied to clipboard" });
     } catch {
-      toastBridge.emit({ variant: "error", message: "Could not copy the S3 URI" });
+      toast({ variant: "error", message: "Could not copy the S3 URI" });
     }
   }
 }

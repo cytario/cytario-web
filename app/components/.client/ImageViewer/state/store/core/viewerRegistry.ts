@@ -1,3 +1,4 @@
+import type { ToastData } from "@cytario/design";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
@@ -15,7 +16,12 @@ type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
 interface ViewerRegistryStore {
   viewers: Record<string, ViewerStoreApi>;
-  registerViewer: (resourceId: string, signedFetch: SignedFetch, userId: string) => ViewerStoreApi;
+  registerViewer: (
+    resourceId: string,
+    signedFetch: SignedFetch,
+    userId: string,
+    showToast?: (toast: Omit<ToastData, "id">) => void,
+  ) => ViewerStoreApi;
 }
 
 const mountedProviders = new Map<string, number>();
@@ -100,7 +106,7 @@ export const useViewerRegistryStore = create<ViewerRegistryStore>()(
   devtools(
     (set, get) => ({
       viewers: {},
-      registerViewer: (resourceId, signedFetch, userId) => {
+      registerViewer: (resourceId, signedFetch, userId, showToast) => {
         const existingStore = get().viewers[resourceId];
         if (existingStore) {
           if (userId && existingStore.getState().currentUserId !== userId) {
@@ -115,9 +121,9 @@ export const useViewerRegistryStore = create<ViewerRegistryStore>()(
           return existingStore;
         }
 
-        const viewerStore = createViewerStore(resourceId, userId);
+        const viewerStore = createViewerStore(resourceId, userId, showToast);
 
-        attachAnnotationSync(viewerStore);
+        attachAnnotationSync(viewerStore, showToast);
         attachViewSync(viewerStore);
 
         startViewerLoad(viewerStore, resourceId, signedFetch);

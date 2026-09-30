@@ -1,3 +1,4 @@
+import { useToast } from "@cytario/design";
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { type MetaFunction, type ShouldRevalidateFunction, useLoaderData } from "react-router";
 
@@ -18,10 +19,10 @@ import { DirectoryView } from "~/components/DirectoryView/DirectoryView";
 import { ViewModeToggle } from "~/components/DirectoryView/ViewModeToggle";
 import { LoaderView } from "~/components/Loader/LoaderView";
 import { viewerRegistry } from "~/components/viewerRegistry";
-import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { liveCredentials, resolveResourceId } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { getFileCategory } from "~/utils/fileType";
+import { toToastVariant } from "~/utils/notifications";
 import { createSignedFetch } from "~/utils/signedFetch";
 
 const ImageViewer = lazy(() =>
@@ -189,6 +190,7 @@ export default function ObjectsRoute() {
     pendingClientLoad,
     connectionError,
   } = useLoaderData<typeof clientLoader>();
+  const { toast } = useToast();
 
   const signingRegion = useConnectionsStore(
     (state) => state.connections[connectionId]?.provider?.region,
@@ -196,12 +198,12 @@ export default function ObjectsRoute() {
 
   useEffect(() => {
     if (notification) {
-      toastBridge.emit({
+      toast({
         variant: toToastVariant(notification.status ?? "info"),
         message: notification.message,
       });
     }
-  }, [notification]);
+  }, [notification, toast]);
 
   const resourceId = `${connectionId}/${urlPath}`;
 

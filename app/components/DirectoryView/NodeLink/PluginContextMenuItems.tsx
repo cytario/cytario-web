@@ -1,9 +1,8 @@
-import { MenuItem, MenuSeparator } from "@cytario/design";
+import { MenuItem, MenuSeparator, useToast } from "@cytario/design";
 
 import { usePluginContextMenuEntries } from "./usePluginContextMenuEntries";
 import type { ContextMenuEntry } from "@cytario/plugin-api";
 import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { toastBridge } from "~/toast-bridge";
 
 /**
  * Renders plugin-contributed `s3-node` context-menu entries inside the host
@@ -20,6 +19,7 @@ import { toastBridge } from "~/toast-bridge";
  */
 export function PluginContextMenuItems({ node }: { node: TreeNode }) {
   const visible = usePluginContextMenuEntries(node);
+  const { toast } = useToast();
 
   if (visible.length === 0) return null;
 
@@ -32,7 +32,7 @@ export function PluginContextMenuItems({ node }: { node: TreeNode }) {
       result = entry.onActivate(activationContext);
     } catch (err) {
       console.error(`[contextMenuRegistry] plugin entry "${entry.id}" onActivate threw`, err);
-      toastBridge.emit({
+      toast({
         variant: "error",
         message: `Plugin action "${entry.label}" failed`,
       });
@@ -41,7 +41,7 @@ export function PluginContextMenuItems({ node }: { node: TreeNode }) {
     if (result && typeof (result as Promise<unknown>).then === "function") {
       (result as Promise<unknown>).catch((err) => {
         console.error(`[contextMenuRegistry] plugin entry "${entry.id}" onActivate rejected`, err);
-        toastBridge.emit({
+        toast({
           variant: "error",
           message: `Plugin action "${entry.label}" failed`,
         });

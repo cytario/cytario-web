@@ -1,4 +1,4 @@
-import { H1, RouterProvider, ToastProvider } from "@cytario/design";
+import { H1, RouterProvider, ToastProvider, useToast } from "@cytario/design";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import {
   isRouteErrorResponse,
@@ -25,13 +25,12 @@ import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
 import { ClientOnly } from "./components/ClientOnly";
 import { Container, Section } from "./components/Container";
-import { type NotificationInput } from "./components/Notification/Notification.store";
 import { TourProvider } from "./components/Tour/TourProvider";
 import { cytarioConfig } from "./config";
 import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
-import { toastBridge, toToastVariant } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
+import { toToastVariant, type NotificationInput } from "./utils/notifications";
 
 import "./styles.css";
 import "rc-slider/assets/index.css";
@@ -120,13 +119,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    if (data?.notification) {
-      const variant = toToastVariant(data.notification.status ?? "info");
-      toastBridge.emit({ variant, message: data.notification.message });
-    }
-  }, [data?.notification]);
-
-  useEffect(() => {
     useFileStore.getState().hydrate();
   }, []);
 
@@ -172,18 +164,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
 
         {/* No `useHref`: RR's collapses `//` in absolute URLs. */}
-        <RouterProvider navigate={navigate}>
-          <FavoritesProvider favorites={protectedData?.favorites ?? []}>
-            {data?.user && <AppHeader />}
+        <ToastProvider placement="top-center">
+          <RouterProvider navigate={navigate}>
+            <FavoritesProvider favorites={protectedData?.favorites ?? []}>
+              {data?.user && <AppHeader />}
 
-            <main id="main-content" className="relative flex-1 min-h-0 outline-none">
-              {children}
-            </main>
-          </FavoritesProvider>
-          <ClientOnly>
-            <TourProvider />
-          </ClientOnly>
-        </RouterProvider>
+              <main id="main-content" className="relative flex-1 min-h-0 outline-none">
+                {children}
+              </main>
+            </FavoritesProvider>
+            <ClientOnly>
+              <TourProvider />
+            </ClientOnly>
+          </RouterProvider>
+          <SessionNotification notification={data?.notification} />
+        </ToastProvider>
 
         <ScrollRestoration />
         <Scripts />
@@ -192,12 +187,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Flash toast from the root loader's session notification (outside the router tree). */
+function SessionNotification({ notification }: { notification?: NotificationInput }) {
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (notification) {
+      toast({
+        variant: toToastVariant(notification.status ?? "info"),
+        message: notification.message,
+      });
+    }
+  }, [notification, toast]);
+
+  return null;
+}
+
 export default function App() {
-  return (
-    <ToastProvider bridge={toastBridge} placement="top-center">
-      <Outlet />
-    </ToastProvider>
-  );
+  return <Outlet />;
 }
 
 export function ErrorBoundary() {

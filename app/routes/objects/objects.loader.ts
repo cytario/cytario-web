@@ -4,9 +4,9 @@ import { type LoaderFunctionArgs } from "react-router";
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
 import { isLeafDirectoryPath } from "~/utils/leafDirectory";
+import { type NotificationInput } from "~/utils/notifications";
 import {
   ConnectionPrefixError,
   getName,

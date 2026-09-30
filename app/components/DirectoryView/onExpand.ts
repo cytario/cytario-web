@@ -1,11 +1,15 @@
+import type { ToastData } from "@cytario/design";
+
 import { type TreeNode } from "./buildDirectoryTree";
-import { toastBridge, toToastVariant } from "~/toast-bridge";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { formatTruncationMessage } from "~/utils/listingLimits";
 import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 
-export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
+export async function onExpand(
+  parent: TreeNode,
+  showToast?: (toast: Omit<ToastData, "id">) => void,
+): Promise<TreeNode[]> {
   if (parent.isLeaf || parent.type === "file") return [];
 
   const conn = select.connection(parent.connectionId)(useConnectionsStore.getState());
@@ -21,10 +25,7 @@ export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
   });
 
   if (isCapped) {
-    toastBridge.emit({
-      variant: toToastVariant("warning"),
-      message: formatTruncationMessage(parent.name),
-    });
+    showToast?.({ variant: "info", message: formatTruncationMessage(parent.name) });
   }
   return nodes;
 }

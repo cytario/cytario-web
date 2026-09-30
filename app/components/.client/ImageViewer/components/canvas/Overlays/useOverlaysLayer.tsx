@@ -1,3 +1,4 @@
+import { useToast } from "@cytario/design";
 import { PickingInfo } from "@deck.gl/core";
 import { parseSync } from "@loaders.gl/core";
 import { WKBLoader } from "@loaders.gl/wkt";
@@ -19,6 +20,7 @@ import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 /** Creates the overlay marker layers for one image panel. */
 export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
+  const { toast } = useToast();
   const layersStates = useViewerStore(select.layersStates);
   const metadata = useViewerStore(select.metadata);
   const minZoom = useViewerStore(select.minZoom);
@@ -59,6 +61,7 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
         strokeOpacity: showCellOutline ? 1 : 0,
         loadTile,
         finishTile,
+        showToast: toast,
       });
     });
   }, [
@@ -71,6 +74,7 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
     showCellOutline,
     loadTile,
     finishTile,
+    toast,
   ]);
 
   const tooltipCtx = useMemo(() => {

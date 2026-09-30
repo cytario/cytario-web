@@ -1,5 +1,6 @@
+import type { ToastData } from "@cytario/design";
+
 import type { createViewerStore } from "../createViewerStore";
-import { toastBridge } from "~/toast-bridge";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 import { readAllAnnotations } from "~/utils/db/getAnnotationsWasm";
@@ -17,7 +18,11 @@ const LOAD_RETRY_DELAY_MS = 1500;
  *  a set's `features` array is diffed against the persisted baseline and the
  *  changed set's sidecar is written, debounced. A set present in the baseline
  *  but absent from the working copy was deleted — its sidecar file is DELETEd. */
-export function attachAnnotationSync(store: ViewerStoreApi): void {
+/** `showToast` is injected by the React layer (useToast) — stores live outside the tree. */
+export function attachAnnotationSync(
+  store: ViewerStoreApi,
+  showToast?: (toast: Omit<ToastData, "id">) => void,
+): void {
   interface PersistedSet {
     features: AnnotationFeature[];
     name: string | undefined;
@@ -29,7 +34,7 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
   let deleteFailed = false;
 
   const loadFailedToast = () =>
-    toastBridge.emit({
+    showToast?.({
       variant: "error",
       message:
         "Annotations could not be loaded after several attempts — reload the page to try again.",
@@ -86,7 +91,7 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
           // change retries on the next edit; toasting every flush would spam.
           if (!saveFailed) {
             saveFailed = true;
-            toastBridge.emit({
+            showToast?.({
               variant: "error",
               message:
                 "Annotation save failed — your changes are not persisted (check your connection's write access).",
@@ -109,7 +114,7 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
           console.error(`[annotations] delete failed for ${setId}:`, error);
           if (!deleteFailed) {
             deleteFailed = true;
-            toastBridge.emit({
+            showToast?.({
               variant: "error",
               message:
                 "Annotation set could not be deleted — the sidecar file remains on S3 and the set will reappear on reload.",

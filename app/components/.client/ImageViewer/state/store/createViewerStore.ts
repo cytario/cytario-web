@@ -1,3 +1,4 @@
+import type { ToastData } from "@cytario/design";
 import { temporal } from "zundo";
 import { createStore } from "zustand";
 import { devtools, persist, subscribeWithSelector } from "zustand/middleware";
@@ -27,7 +28,11 @@ import { createViewsSlice } from "./views/views.store";
  * `TemporalState` (cool-off controller) is attached as a property on the returned
  * store so the `useUndoRedo` hook can reset the gesture debounce before undo/redo.
  */
-export const createViewerStore = (id: string, userId: string = "") => {
+export const createViewerStore = (
+  id: string,
+  userId: string = "",
+  showToast?: (toast: Omit<ToastData, "id">) => void,
+) => {
   const { options: temporalOptions, temporalState } = createTemporalOptions();
 
   const store = createStore<ViewerStore>()(
@@ -36,16 +41,19 @@ export const createViewerStore = (id: string, userId: string = "") => {
         immer(
           devtools(
             temporal(
-              withAutoFork((set, get, storeApi) => ({
-                id,
-                currentUserId: userId,
-                ...createCoreSlice(set, get, storeApi),
-                ...createViewSlice(set, get, storeApi),
-                ...createViewsSlice(set, get, storeApi),
-                ...createChannelsSlice(set, get, storeApi),
-                ...createOverlaysSlice(set, get, storeApi),
-                ...createAnnotationsSlice(set, get, storeApi),
-              })),
+              withAutoFork(
+                (set, get, storeApi) => ({
+                  id,
+                  currentUserId: userId,
+                  ...createCoreSlice(set, get, storeApi),
+                  ...createViewSlice(set, get, storeApi),
+                  ...createViewsSlice(set, get, storeApi),
+                  ...createChannelsSlice(set, get, storeApi),
+                  ...createOverlaysSlice(set, get, storeApi),
+                  ...createAnnotationsSlice(set, get, storeApi),
+                }),
+                showToast,
+              ),
               temporalOptions,
             ),
             {

@@ -1,3 +1,4 @@
+import { ToastProvider } from "@cytario/design";
 import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
@@ -69,7 +70,11 @@ function renderPicker(
       ),
     },
   ]);
-  render(<Stub initialEntries={["/"]} />);
+  render(
+    <ToastProvider>
+      <Stub initialEntries={["/"]} />
+    </ToastProvider>,
+  );
   return onConfirm;
 }
 

@@ -42,13 +42,9 @@ startTransition(() => {
 // No-op on browsers without Chromium heap stats.
 startMemoryWatchdog({
   onPressure: () => {
-    import("./toast-bridge").then(({ toastBridge }) => {
-      toastBridge.emit({
-        variant: "info",
-        message:
-          "Memory pressure detected — cached image data was released to keep the tab responsive. It will reload on demand.",
-      });
-      import("./utils/db/cacheTrim").then(({ trimCaches }) => trimCaches());
-    });
+    console.info(
+      "[memoryWatchdog] Memory pressure detected — cached image data was released. It will reload on demand.",
+    );
+    import("./utils/db/cacheTrim").then(({ trimCaches }) => trimCaches());
   },
 });
