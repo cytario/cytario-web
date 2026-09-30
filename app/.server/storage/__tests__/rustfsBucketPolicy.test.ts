@@ -234,11 +234,34 @@ describe("rustfsBucketPolicy generator", () => {
       expect(() => compositeGroupValue("a/b", "Lab/TeamX")).toThrow(/ambiguous/i);
     });
 
-    test("fails closed on a group path containing an underscore", () => {
-      // `Lab/Team_X` would flatten to `Lab_Team_X`, indistinguishable from a
-      // different (org, group) pair's composite — one group's members could
-      // satisfy another group's grant.
-      expect(() => compositeGroupValue("acme", "Lab/Team_X")).toThrow(/ambiguous/i);
+    test("escapes a literal underscore in the group path", () => {
+      expect(compositeGroupValue("acme", "Lab/Team_X")).toBe("cy-acme_Lab_Team:_X");
+      const statements = compileGrantStatements(grant({ groupPath: "Lab/Team_X" }));
+      for (const statement of statements) {
+        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cy-acme_Lab_Team:_X");
+      }
+    });
+
+    test("the encoded composite is single-valued for an underscore path", () => {
+      const statements = compileGrantStatements(grant({ groupPath: "Lab/Team_X" }));
+      for (const statement of statements) {
+        const groups = statement.Condition?.StringEquals?.["jwt:groups"];
+        expect(Array.isArray(groups)).toBe(false);
+      }
+    });
+
+    test("the escape codec is injective on the adversarial (org, path) pairs", () => {
+      // `a_/b` and `a/_b` must spell two distinct composites — the escaping
+      // exists precisely so the flattening cannot collide two groups.
+      expect(compositeGroupValue("acme", "a_/b")).toBe("cy-acme_a:__b");
+      expect(compositeGroupValue("acme", "a/_b")).toBe("cy-acme_a_:_b");
+      expect(compositeGroupValue("acme", "a_/b")).not.toBe(compositeGroupValue("acme", "a/_b"));
+      expect(compositeGroupValue("acme", "a:/b")).toBe("cy-acme_a::_b");
+      expect(compositeGroupValue("acme", "_")).toBe("cy-acme_:_");
+      expect(compositeGroupValue("acme", ":")).toBe("cy-acme_::");
+      // Bare underscore path vs underscore-with-slash path stay distinct.
+      expect(compositeGroupValue("acme", "Lab_TeamX")).toBe("cy-acme_Lab:_TeamX");
+      expect(compositeGroupValue("acme", "Lab/TeamX")).toBe("cy-acme_Lab_TeamX");
     });
   });
 
@@ -253,12 +276,6 @@ describe("rustfsBucketPolicy generator", () => {
       expect(() =>
         compileGrantStatements(grant({ organization: "acme corp", groupPath: "*" })),
       ).toThrow(/whitespace/i);
-    });
-
-    test("a grant whose group path contains an underscore fails closed at compile", () => {
-      expect(() => compileGrantStatements(grant({ groupPath: "Lab/Team_X" }))).toThrow(
-        /ambiguous/i,
-      );
     });
   });
 });
