@@ -48,6 +48,19 @@ describe("createGroupSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  test("fails with underscores", () => {
+    const result = createGroupSchema.safeParse({ name: "team_alpha" });
+    expect(result.success).toBe(false);
+  });
+
+  test("reports underscores as their own error", () => {
+    const result = createGroupSchema.safeParse({ name: "team_alpha" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.name).toContain("Underscores are not allowed");
+    }
+  });
+
   test("fails when exceeding 255 characters", () => {
     const result = createGroupSchema.safeParse({ name: "a".repeat(256) });
     expect(result.success).toBe(false);

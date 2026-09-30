@@ -368,7 +368,7 @@ describe("applyBucketPolicy — RustFS target", () => {
     const managed = applied.Statement.filter(isManagedStatement);
     expect(managed.length).toBeGreaterThan(0);
     for (const stmt of managed) {
-      expect(stmt.Condition.StringEquals["jwt:groups"]).toBe("cy-vericura/Lab/TeamX");
+      expect(stmt.Condition.StringEquals["jwt:groups"]).toBe("cy-vericura_Lab_TeamX");
     }
   });
 

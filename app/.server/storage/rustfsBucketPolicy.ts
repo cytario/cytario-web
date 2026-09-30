@@ -14,15 +14,19 @@
  *    independent values is OR'd, so an org marker and a group path must never
  *    be separate values of one condition.
  *  - The org keycloak mapper therefore emits each org-scoped group as the
- *    single composite claim value `<org-marker>/<org-relative-group-path>`
- *    (e.g. `cy-acme/Lab/TeamX`), and this generator conditions each
- *    group-scoped grant on exactly that one composite value. The organization
- *    binding is AND-by-construction: the composite names both the org and the
- *    group, and a foreign organization's session cannot produce another org's
- *    composite because the mapper derives it from the session's own active
- *    organization. An org-root grant (`groupPath === ORG_ROOT_SCOPE`)
- *    conditions on the bare org marker alone — every member of the org holds
- *    it, and it is reserved (a foreign org's session never carries it).
+ *    single composite claim value `cy-<org-alias>_<org-relative-group-path>`
+ *    with every `/` in the path flattened to `_` (e.g. `cy-acme_Lab_TeamX`),
+ *    and this generator conditions each group-scoped grant on exactly that
+ *    one composite value. The organization binding is AND-by-construction: the
+ *    composite names both the org and the group, and a foreign organization's
+ *    session cannot produce another org's composite because the mapper derives
+ *    it from the session's own active organization. `_` is therefore reserved
+ *    out of both the alias and the group path: it is the separator between the
+ *    marker and the path and between the path's segments, and permitting it
+ *    there would let one (org, group) pair's composite spell another's. An
+ *    org-root grant (`groupPath === ORG_ROOT_SCOPE`) conditions on the bare
+ *    org marker alone — every member of the org holds it, and it is reserved
+ *    (a foreign org's session never carries it).
  *  - The org admission itself is bound at the storage layer by the per-org IAM
  *    policy attached to the marker-named IAM group (customer-managed per the
  *    operator runbook); this generator only narrows resources and actions
@@ -32,7 +36,8 @@
  * vocabulary):
  *  - Every Allow statement carries a `StringEquals` `jwt:groups` condition
  *    whose every value contains the org marker (`cy-<alias>`) — the
- *    composite for group-scoped grants, the bare marker for org-root grants.
+ *    `cy-<alias>_<path>` composite for group-scoped grants, the bare marker
+ *    for org-root grants.
  *    The generator REFUSES to emit any Allow lacking the org binding
  *    (fail closed).
  *  - Managed statements carry a stable `Sid` prefixed `Cytario` so they remain
@@ -87,36 +92,41 @@ export interface RustfsBucketPolicyGrant {
 
 /**
  * The org marker value for an organization alias. Fail-closed on an alias the
- * mapper could never emit as a distinct marker: an absent alias, one
- * containing `/` or whitespace (a `/` would let a composite alias another
- * (org, group) pair), and one starting with `admin-` (reserved for the
- * `cy-admin-<alias>` management marker — an org so named would collide with
- * another org's admins marker).
+ * mapper could never emit as a distinct marker: an absent alias, or one
+ * containing `/`, whitespace, or `_`. `_` is the composite separator between
+ * the org marker and the flattened group path, so it may appear nowhere in the
+ * alias itself — otherwise `cy-a_b` could be org `a_b`'s marker or org `a`'s
+ * group `b` composite, a cross-org hole under any-match evaluation.
  */
 export const orgMarkerFor = (organization: string): string => {
   if (!organization) {
     throw new Error("Organization alias is required to build an org marker (fail closed).");
   }
-  if (/[/\s]/.test(organization)) {
+  if (/[/\s_]/.test(organization)) {
     throw new Error(
-      "Organization alias may not contain '/' or whitespace — the composite value would be ambiguous (fail closed).",
-    );
-  }
-  if (organization.startsWith("admin-")) {
-    throw new Error(
-      "Organization alias may not start with 'admin-' — reserved for the admins marker namespace (fail closed).",
+      "Organization alias may not contain '/', whitespace, or '_' — the composite value would be ambiguous (fail closed).",
     );
   }
   return `${ORG_MARKER_PREFIX}${organization}`;
 };
 
 /**
- * The composite binding value for a group-scoped grant: the org marker prefix
- * joined to the grantee group's org-relative path. Single-valued by
- * construction, so the `StringEquals` condition cannot be OR'd apart.
+ * The composite binding value for a group-scoped grant: the org marker joined
+ * by `_` to the grantee group's org-relative path with every `/` flattened to
+ * `_` (e.g. `Lab/TeamX` → `cy-acme_Lab_TeamX`). Single-valued by construction,
+ * so the `StringEquals` condition cannot be OR'd apart. Fails closed on a
+ * group path already containing `_` — the flattening would make the value
+ * ambiguous, and the condition could then name a group other than the
+ * grantee's.
  */
-export const compositeGroupValue = (organization: string, groupPath: string): string =>
-  `${orgMarkerFor(organization)}/${groupPath}`;
+export const compositeGroupValue = (organization: string, groupPath: string): string => {
+  if (groupPath.includes("_")) {
+    throw new Error(
+      "Group path may not contain '_' — the composite value would be ambiguous (fail closed).",
+    );
+  }
+  return `${orgMarkerFor(organization)}_${groupPath.replace(/\//g, "_")}`;
+};
 
 const managedSidStem = (grant: RustfsBucketPolicyGrant): string => {
   const prefix = stripSlashes(grant.prefix ?? "");
@@ -127,8 +137,8 @@ const managedSidStem = (grant: RustfsBucketPolicyGrant): string => {
 /**
  * Build the `Condition` block shared by every statement of a grant: a
  * `StringEquals` `jwt:groups` condition on exactly ONE value — the composite
- * `<org-marker>/<group-path>` for a group-scoped grant (org + group bound
- * together, immune to any-match evaluation), the bare org marker for an
+ * `cy-<alias>_<flattened-group-path>` for a group-scoped grant (org + group
+ * bound together, immune to any-match evaluation), the bare org marker for an
  * org-root grant. Fail-closed on a missing organization or group path.
  */
 const buildGrantCondition = (grant: RustfsBucketPolicyGrant) => {

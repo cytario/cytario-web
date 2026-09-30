@@ -5,8 +5,8 @@
  *
  * RustFS applies the `Policy` parameter of AssumeRoleWithWebIdentity as a
  * filter over the mapped per-org policy set, exactly as AWS applies it over
- * the role's attached policy. The org binding here is the
- * `cy-admin-<alias>` marker group the operator attaches the
+ * the role's attached policy. The org binding here is the `cy-<alias>_admins`
+ * composite group (the org's admins group) that the operator attaches the
  * org's management policy to — the mint itself fails when the caller's token
  * carries no management entitlement, so unlike the AWS variant there is no
  * `aws:PrincipalTag/ORG` condition to repeat inside the policy.
@@ -18,8 +18,9 @@
  * invariant this module enforces at construction time: the RustFS write
  * session's allowed action set must be a SUBSET of the AWS variant's. AWS
  * conditions every statement on `aws:PrincipalTag/ORG`; RustFS has no session
- * tags, so the org binding there is the marker-group the operator attaches
- * the management policy to — the mint itself fails without it. What RustFS
+ * tags, so the org binding there is the admins composite group the operator
+ * attaches the management policy to — the mint itself fails without it. What
+ * RustFS
  * must therefore never do is make up for the missing ORG condition by
  * widening the actions or resources: the RustFS policy grants at most the
  * AWS policy's bucket-policy read/write on the one bucket ARN, and nothing
@@ -59,7 +60,7 @@ export const buildRustfsWriteSessionPolicy = ({
   // subset of the AWS variant's — exactly the bucket-policy read/write actions
   // on the one bucket ARN, one statement, no other actions or resources. The
   // missing `aws:PrincipalTag/ORG` condition is compensated ONLY by the mint
-  // failing without the org's management marker group — never by granting
+  // failing without the org's admins composite group — never by granting
   // anything here that the AWS variant would not.
   const allowedActions = new Set(["s3:GetBucketPolicy", "s3:PutBucketPolicy"]);
   for (const statement of statements) {

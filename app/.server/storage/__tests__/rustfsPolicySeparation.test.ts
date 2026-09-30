@@ -63,14 +63,17 @@ describe("rustfs policy-generator architectural separation", () => {
         accessLevel: "admin",
       },
     ];
-    for (const grant of grants) {
+    for (const [grant, expectedValue] of [
+      [grants[0], "cy-acme_Lab_TeamX"],
+      [grants[1], "cy-acme"],
+    ] as const) {
       const statements = compileGrantStatements(grant);
       for (const statement of statements) {
         expect(statement.Effect).toBe("Allow");
         const groups = statement.Condition?.StringEquals?.["jwt:groups"];
         const values = Array.isArray(groups) ? groups : [groups];
         expect(values.length).toBeGreaterThan(0);
-        expect(values.every((g) => typeof g === "string" && g.startsWith("cy-"))).toBe(true);
+        expect(values).toEqual([expectedValue]);
       }
     }
   });
