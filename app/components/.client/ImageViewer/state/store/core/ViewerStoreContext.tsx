@@ -33,6 +33,8 @@ export const ViewerStoreProvider = ({
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
   const { toast } = useToast();
 
+  // toast (= addToast) is referentially stable; an unstable emitter here would
+  // recreate every viewer store on each render.
   const store = useMemo(
     () => registerViewer(resourceId, signedFetch, userId, toast),
     [resourceId, signedFetch, userId, registerViewer, toast],
