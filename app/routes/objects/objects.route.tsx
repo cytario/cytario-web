@@ -48,6 +48,12 @@ const PdfViewer = lazy(() =>
   })),
 );
 
+const HtmlViewer = lazy(() =>
+  import("~/components/HtmlViewer/HtmlViewer").then((module) => ({
+    default: module.HtmlViewer,
+  })),
+);
+
 interface PluginViewerRouterProps {
   resourceId: string;
   signedFetch: SignedFetch;
@@ -246,6 +252,22 @@ export default function ObjectsRoute() {
         <ClientOnly fallback={<LoaderView label="Loading data…" />}>
           <Suspense fallback={<LoaderView label="Loading data…" />}>
             <DataGrid resourceId={resourceId} />
+          </Suspense>
+        </ClientOnly>
+      );
+    }
+
+    if (category === "interactive-html") {
+      const signedFetch = createSignedFetch(
+        liveCredentials(connectionId),
+        signingRegion,
+        connectionId,
+      );
+
+      return (
+        <ClientOnly>
+          <Suspense fallback={<LoaderView label="Loading report…" />}>
+            <HtmlViewer key={resourceId} resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );

@@ -58,6 +58,14 @@ vi.mock("~/components/.client/ImageViewer/components/ImageViewer", () => ({
   ImageViewer: () => <canvas id="deckgl-overlay"></canvas>,
 }));
 
+vi.mock("~/components/HtmlViewer/HtmlViewer", () => ({
+  HtmlViewer: () => <div data-testid="html-viewer"></div>,
+}));
+
+vi.mock("~/components/TextEditor/TextEditor", () => ({
+  TextEditor: () => <div data-testid="text-editor"></div>,
+}));
+
 vi.mock("~/components/.client/ImageViewer/utils/getSelectionStats", () => ({
   getSelectionStats: vi.fn(
     () =>
@@ -319,6 +327,26 @@ describe("Bucket Route", () => {
 
     await waitFor(() => {
       expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
+    });
+  });
+
+  test("renders the HtmlViewer for an interactive-html file", async () => {
+    seedConnection("aws-test-bucket");
+    const StubHtml = stubSingleFile("test/path/to/report.html");
+    render(<StubHtml initialEntries={["/connections/aws-test-bucket/test/path/to/report.html"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("html-viewer")).toBeInTheDocument();
+    });
+  });
+
+  test("renders the TextEditor for a Quarto Markdown source file", async () => {
+    seedConnection("aws-test-bucket");
+    const StubQmd = stubSingleFile("test/path/to/analysis.qmd");
+    render(<StubQmd initialEntries={["/connections/aws-test-bucket/test/path/to/analysis.qmd"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("text-editor")).toBeInTheDocument();
     });
   });
 });
