@@ -93,6 +93,32 @@ describe("loadReportDocument", () => {
     expect(result).not.toContain("<link");
   });
 
+  test("resolves url() refs inside a linked stylesheet against the stylesheet's own directory", async () => {
+    // The stylesheet lives at site_libs/bootstrap/ and references a font in
+    // site_libs/bootstrap/fonts/. Relative to the entry document the ref
+    // would wrongly resolve to site_libs/bootstrap/fonts under the entry's
+    // directory only by coincidence — the ../-style depth change is the
+    // discriminating case.
+    const html = `<html><head><link rel="stylesheet" href="report_files/site_libs/bootstrap/bootstrap.min.css"></head><body></body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+      {
+        pattern: /bootstrap\.min\.css$/,
+        body: () => "@font-face { src: url('fonts/glyphicons.woff2'); }",
+        contentType: "text/css",
+      },
+      {
+        pattern: /site_libs\/bootstrap\/fonts\/glyphicons\.woff2$/,
+        body: () => "WOFF2",
+        contentType: "font/woff2",
+      },
+    ]);
+
+    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    expect(result).toContain('url("data:font/woff2;base64');
+  });
+
   test("drops references to missing assets instead of failing", async () => {
     const html = `<html><body><img src="report_files/missing.png"><script src="report_files/missing.js"></script><link rel="stylesheet" href="report_files/missing.css"></body></html>`;
     const fetchImpl = makeSignedFetch([

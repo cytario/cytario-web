@@ -2,7 +2,7 @@ import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 /** Entry document cap — the HTML itself must stay small; assets have their own caps. */
-export const MAX_HTML_BYTES = 10 * 1024 * 1024;
+export const MAX_HTML_BYTES = 50 * 1024 * 1024;
 /** Per-asset cap (images, scripts, stylesheets, fonts, media). */
 export const MAX_ASSET_BYTES = 32 * 1024 * 1024;
 /** Combined cap across the entry document and every fetched asset. */
@@ -148,9 +148,14 @@ export async function loadReportDocument(
     return promise;
   };
 
-  /** Resolves a document ref to an asset; null = not an object key or missing. */
-  const assetForRef = (ref: string): Promise<Asset | null> => {
-    const objectKey = resolveObjectKey(pathName, ref);
+  const dataUriForRef = async (baseKey: string, ref: string): Promise<string | null> => {
+    const asset = await assetForKeyRef(baseKey, ref);
+    return asset === null ? null : toDataUri(asset.bytes, asset.contentType);
+  };
+
+  /** Resolves a ref against a base object key; null = not an object key or missing. */
+  const assetForKeyRef = (baseKey: string, ref: string): Promise<Asset | null> => {
+    const objectKey = resolveObjectKey(baseKey, ref);
     if (objectKey === null) return Promise.resolve(null);
     return fetchAssetByKey(objectKey).catch((error: unknown) => {
       if (isReportSizeError(error)) throw error;
@@ -158,10 +163,8 @@ export async function loadReportDocument(
     });
   };
 
-  const dataUriForRef = async (ref: string): Promise<string | null> => {
-    const asset = await assetForRef(ref);
-    return asset === null ? null : toDataUri(asset.bytes, asset.contentType);
-  };
+  /** Resolves a document ref (relative to the entry) to an asset. */
+  const assetForRef = (ref: string): Promise<Asset | null> => assetForKeyRef(pathName, ref);
 
   const textForRef = async (ref: string): Promise<string | null> => {
     const asset = await assetForRef(ref);
@@ -176,7 +179,10 @@ export async function loadReportDocument(
       if (resolveObjectKey(pathName, href) !== null) link.remove();
       continue;
     }
-    const inlinedCss = await inlineCssUrls(css, pathName, dataUriForRef);
+    // url() refs inside a stylesheet resolve relative to the stylesheet's own
+    // directory, not the entry document's.
+    const stylesheetKey = resolveObjectKey(pathName, href)!;
+    const inlinedCss = await inlineCssUrls(css, stylesheetKey, dataUriForRef);
     const style = doc.createElement("style");
     style.textContent = inlinedCss;
     link.replaceWith(style);
@@ -218,7 +224,7 @@ export async function loadReportDocument(
   // Images, media, tracks, sources: rewrite src to data URIs.
   for (const element of [...doc.querySelectorAll("[src]")]) {
     const src = element.getAttribute("src")!;
-    const replacement = await dataUriForRef(src);
+    const replacement = await dataUriForRef(pathName, src);
     if (replacement !== null) element.setAttribute("src", replacement);
   }
   for (const element of [...doc.querySelectorAll("[srcset]")]) {
@@ -227,13 +233,13 @@ export async function loadReportDocument(
       const trimmed = candidate.trim();
       if (!trimmed) continue;
       const [url, ...descriptors] = trimmed.split(/\s+/);
-      const replacement = url ? await dataUriForRef(url) : null;
+      const replacement = url ? await dataUriForRef(pathName, url) : null;
       parts.push([replacement ?? url, ...descriptors].join(" "));
     }
     element.setAttribute("srcset", parts.join(", "));
   }
   for (const video of [...doc.querySelectorAll("video[poster]")]) {
-    const replacement = await dataUriForRef(video.getAttribute("poster")!);
+    const replacement = await dataUriForRef(pathName, video.getAttribute("poster")!);
     if (replacement !== null) video.setAttribute("poster", replacement);
   }
 
@@ -242,10 +248,15 @@ export async function loadReportDocument(
 
 const CSS_URL_PATTERN = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)'" ][^)]*))\s*\)/g;
 
+/**
+ * Inlines url() refs in CSS text. `baseKey` is the object key the CSS is
+ * resolved against — the stylesheet's own key for linked stylesheets, the
+ * entry document's key for inline <style> and style attributes.
+ */
 async function inlineCssUrls(
   cssText: string,
-  entryKey: string,
-  dataUriForRef: (ref: string) => Promise<string | null>,
+  baseKey: string,
+  dataUriForRef: (baseKey: string, ref: string) => Promise<string | null>,
 ): Promise<string> {
   const matches: RegExpExecArray[] = [];
   CSS_URL_PATTERN.lastIndex = 0;
@@ -256,8 +267,8 @@ async function inlineCssUrls(
   }
   const urls = matches
     .map((m) => m[1] ?? m[2] ?? m[3]?.trim() ?? "")
-    .filter((url) => resolveObjectKey(entryKey, url) !== null);
-  const replacements = await Promise.all(urls.map((url) => dataUriForRef(url)));
+    .filter((url) => resolveObjectKey(baseKey, url) !== null);
+  const replacements = await Promise.all(urls.map((url) => dataUriForRef(baseKey, url)));
   let result = cssText;
   let replacementIndex = 0;
   let cursor = 0;
@@ -265,7 +276,7 @@ async function inlineCssUrls(
   for (const m of matches) {
     const url = m[1] ?? m[2] ?? m[3]?.trim() ?? "";
     rewritten += result.slice(cursor, m.index);
-    if (resolveObjectKey(entryKey, url) !== null) {
+    if (resolveObjectKey(baseKey, url) !== null) {
       const replacement = replacements[replacementIndex]!;
       replacementIndex += 1;
       rewritten += replacement === null ? m[0] : `url("${replacement}")`;

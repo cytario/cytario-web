@@ -73,7 +73,7 @@ describe("HtmlViewer", () => {
     const bigFetch = (async () =>
       new Response("x".repeat(1024), {
         status: 200,
-        headers: { "content-length": String(11 * 1024 * 1024) },
+        headers: { "content-length": String(51 * 1024 * 1024) },
       })) as SignedFetch;
     renderViewer(bigFetch);
 
