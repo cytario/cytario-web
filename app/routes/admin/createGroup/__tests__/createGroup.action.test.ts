@@ -116,13 +116,10 @@ describe("createGroupAction", () => {
     });
   });
 
-  test("rejects a name containing an underscore without calling Keycloak", async () => {
-    const result = await callAction(makeRequest("team_alpha"), makeContext());
+  test("creates a group whose name contains an underscore", async () => {
+    await callAction(makeRequest("team_alpha"), makeContext());
 
-    expect(createGroup).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      errors: { name: expect.arrayContaining(["Underscores are not allowed"]) },
-    });
+    expect(createGroup).toHaveBeenCalledWith("cytario/lab", "team_alpha", "cytario");
   });
 
   test("returns 409 duplicate-name error message", async () => {

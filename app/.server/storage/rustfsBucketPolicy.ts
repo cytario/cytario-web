@@ -14,19 +14,20 @@
  *    independent values is OR'd, so an org marker and a group path must never
  *    be separate values of one condition.
  *  - The org keycloak mapper therefore emits each org-scoped group as the
- *    single composite claim value `cy-<org-alias>_<org-relative-group-path>`
- *    with every `/` in the path flattened to `_` (e.g. `cy-acme_Lab_TeamX`),
- *    and this generator conditions each group-scoped grant on exactly that
- *    one composite value. The organization binding is AND-by-construction: the
- *    composite names both the org and the group, and a foreign organization's
- *    session cannot produce another org's composite because the mapper derives
- *    it from the session's own active organization. `_` is therefore reserved
- *    out of both the alias and the group path: it is the separator between the
- *    marker and the path and between the path's segments, and permitting it
- *    there would let one (org, group) pair's composite spell another's. An
- *    org-root grant (`groupPath === ORG_ROOT_SCOPE`) conditions on the bare
- *    org marker alone — every member of the org holds it, and it is reserved
- *    (a foreign org's session never carries it).
+ *    single composite claim value `cy-<org-alias>_<encoded-path>` — the path's
+ *    `/` flattened to `_`, with literal `_` and `:` escaped via `:` (e.g.
+ *    `Lab/TeamX` → `cy-acme_Lab_TeamX`) — and this generator conditions each
+ *    group-scoped grant on exactly that one composite value. The organization
+ *    binding is AND-by-construction: the composite names both the org and the
+ *    group, and a foreign organization's session cannot produce another org's
+ *    composite because the mapper derives it from the session's own active
+ *    organization. `_` is therefore reserved out of the alias: it is the
+ *    separator between the marker and the path, and permitting it there would
+ *    let one (org, group) pair's composite spell another's. In the path the
+ *    escape codec keeps the flattening injective, so the value still names
+ *    exactly one group. An org-root grant (`groupPath === ORG_ROOT_SCOPE`)
+ *    conditions on the bare org marker alone — every member of the org holds
+ *    it, and it is reserved (a foreign org's session never carries it).
  *  - The org admission itself is bound at the storage layer by the per-org IAM
  *    policy attached to the marker-named IAM group (customer-managed per the
  *    operator runbook); this generator only narrows resources and actions
@@ -111,22 +112,25 @@ export const orgMarkerFor = (organization: string): string => {
 };
 
 /**
+ * Escape-encode the group path so `/`→`_` stays injective: `:`→`::` first,
+ * then `_`→`:_`, then `/`→`_` (greedy decode: `:` always consumes the next
+ * char, a bare `_` is the separator). Must stay byte-identical with the
+ * keycloak mapper (`protocol-mappers/rustfs-groups-mapper.js`) and the e2e
+ * provisioning (`e2e/rustfs-service.mjs`, docs repo).
+ */
+export const encodeGroupPath = (groupPath: string): string =>
+  groupPath.replace(/:/g, "::").replace(/_/g, ":_").replace(/\//g, "_");
+
+/**
  * The composite binding value for a group-scoped grant: the org marker joined
  * by `_` to the grantee group's org-relative path with every `/` flattened to
- * `_` (e.g. `Lab/TeamX` → `cy-acme_Lab_TeamX`). Single-valued by construction,
- * so the `StringEquals` condition cannot be OR'd apart. Fails closed on a
- * group path already containing `_` — the flattening would make the value
- * ambiguous, and the condition could then name a group other than the
- * grantee's.
+ * `_` and literal `_`/`:` escaped (`Lab/TeamX` → `cy-acme_Lab_TeamX`).
+ * Single-valued by construction, so the `StringEquals` condition cannot be
+ * OR'd apart. The escaping keeps the flattening injective, so the value names
+ * exactly one group; no path is refused.
  */
-export const compositeGroupValue = (organization: string, groupPath: string): string => {
-  if (groupPath.includes("_")) {
-    throw new Error(
-      "Group path may not contain '_' — the composite value would be ambiguous (fail closed).",
-    );
-  }
-  return `${orgMarkerFor(organization)}_${groupPath.replace(/\//g, "_")}`;
-};
+export const compositeGroupValue = (organization: string, groupPath: string): string =>
+  `${orgMarkerFor(organization)}_${encodeGroupPath(groupPath)}`;
 
 const managedSidStem = (grant: RustfsBucketPolicyGrant): string => {
   const prefix = stripSlashes(grant.prefix ?? "");
@@ -137,8 +141,8 @@ const managedSidStem = (grant: RustfsBucketPolicyGrant): string => {
 /**
  * Build the `Condition` block shared by every statement of a grant: a
  * `StringEquals` `jwt:groups` condition on exactly ONE value — the composite
- * `cy-<alias>_<flattened-group-path>` for a group-scoped grant (org + group
- * bound together, immune to any-match evaluation), the bare org marker for an
+ * `cy-<alias>_<encoded-path>` for a group-scoped grant (org + group bound
+ * together, immune to any-match evaluation), the bare org marker for an
  * org-root grant. Fail-closed on a missing organization or group path.
  */
 const buildGrantCondition = (grant: RustfsBucketPolicyGrant) => {
