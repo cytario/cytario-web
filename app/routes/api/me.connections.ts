@@ -16,6 +16,7 @@ import { getS3ProviderConfig } from "~/utils/s3Provider";
 export const middleware = [requestDurationMiddleware];
 
 interface MeConnection {
+  id: string;
   name: string;
   bucketName: string;
   prefix: string;
@@ -89,6 +90,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const providerConfig = getS3ProviderConfig(resolved.endpoint, region);
 
       return {
+        id: connection.id,
         name: connection.name,
         bucketName: connection.bucketName,
         prefix: connection.prefix ?? "",
