@@ -16,7 +16,7 @@ export type FileType =
   | string;
 
 /** Broad rendering category — determines which viewer component handles a file. */
-export type FileCategory = "image" | "text" | "tabular" | "document" | "none";
+export type FileCategory = "image" | "text" | "tabular" | "document" | "interactive-html" | "none";
 
 interface FileTypeEntry {
   pattern: RegExp;
@@ -90,6 +90,13 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     category: "document",
   },
   {
+    pattern: /\.(?:html?)$/i,
+    type: "HTML",
+    label: "HTML",
+    icon: "File",
+    category: "interactive-html",
+  },
+  {
     pattern: /\.json$/i,
     type: "JSON",
     label: "JSON",
@@ -100,6 +107,13 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     pattern: /\.(ya?ml)$/i,
     type: "YAML",
     label: "YAML",
+    icon: "File",
+    category: "text",
+  },
+  {
+    pattern: /\.qmd$/i,
+    type: "Quarto Markdown",
+    label: "Quarto Markdown",
     icon: "File",
     category: "text",
   },
