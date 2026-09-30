@@ -39,7 +39,7 @@ const Section = ({ item }: { item: LayerTooltipItem }) => {
               <span>{label}</span>
             </div>
             {value && (
-              <Badge color="slate" size="sm">
+              <Badge color="neutral" size="sm">
                 {value}
               </Badge>
             )}

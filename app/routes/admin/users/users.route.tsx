@@ -81,12 +81,12 @@ function buildGroupColumn(
       const pill = option.value ? (
         <ScopePill scope={option.value} visibleCount={pillVisibleCount} />
       ) : (
-        <Badge color="slate">All</Badge>
+        <Badge color="neutral">All</Badge>
       );
       return (
         <span className="flex w-full items-center justify-between gap-2">
           {pill}
-          <Badge color="slate" className="ml-auto shrink-0 tabular-nums">
+          <Badge color="neutral" className="ml-auto shrink-0 tabular-nums">
             {count}
           </Badge>
         </span>

@@ -14,7 +14,7 @@ interface ScopePillProps {
 
 export function ScopePill({ scope, visibleCount }: ScopePillProps) {
   if (!scope || UUID_RE.test(scope)) {
-    return <Badge color="slate">Personal</Badge>;
+    return <Badge color="neutral">Personal</Badge>;
   }
 
   return (
