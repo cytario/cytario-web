@@ -116,6 +116,15 @@ describe("createGroupAction", () => {
     });
   });
 
+  test("rejects a name containing an underscore without calling Keycloak", async () => {
+    const result = await callAction(makeRequest("team_alpha"), makeContext());
+
+    expect(createGroup).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      errors: { name: expect.arrayContaining(["Underscores are not allowed"]) },
+    });
+  });
+
   test("returns 409 duplicate-name error message", async () => {
     vi.mocked(createGroup).mockRejectedValue(new KeycloakAdminError(409, "409 Conflict"));
 

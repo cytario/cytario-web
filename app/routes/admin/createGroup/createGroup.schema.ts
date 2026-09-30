@@ -9,6 +9,7 @@ export const createGroupSchema = z.object({
     .min(1, "Required")
     .max(255, "Maximum 255 characters")
     .refine((s) => !s.includes("/"), "Slashes are not allowed")
+    .refine((s) => !s.includes("_"), "Underscores are not allowed")
     .refine((s) => s !== ORG_ROOT_SCOPE, "Reserved name"),
 });
 

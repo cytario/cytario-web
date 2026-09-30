@@ -29,7 +29,7 @@ describe("rustfsBucketPolicy generator", () => {
         // condition keys evaluate ANY-match, which would OR an org marker
         // and a group path apart.
         expect(statement.Condition?.["ForAnyValue:StringEquals"]).toBeUndefined();
-        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cy-acme/Lab/TeamX");
+        expect(statement.Condition?.StringEquals?.["jwt:groups"]).toBe("cy-acme_Lab_TeamX");
         expect(statement.Condition?.StringEquals?.["aws:PrincipalTag/ORG"]).toBeUndefined();
       }
     });
@@ -37,13 +37,13 @@ describe("rustfsBucketPolicy generator", () => {
     test("the composite contains the org marker by construction — no OR-able array of independent values", () => {
       // A session holding a matching group path in a DIFFERENT org must not
       // satisfy the condition: the value the policy demands is the composite
-      // `<org-marker>/<group-path>`, which a foreign org's mapper never emits.
+      // `cy-<org-alias>_<group-path>`, which a foreign org's mapper never emits.
       const statements = compileGrantStatements(grant());
       for (const statement of statements) {
         const groups = statement.Condition?.StringEquals?.["jwt:groups"];
         const values = Array.isArray(groups) ? groups : [groups];
         for (const value of values) {
-          expect(value).toMatch(/^cy-acme\//);
+          expect(value).toMatch(/^cy-acme_/);
           // No value is the bare group path or the bare marker of another org.
           expect(value).not.toBe("Lab/TeamX");
           expect(value).not.toMatch(/^cy-vericura/);
@@ -213,30 +213,52 @@ describe("rustfsBucketPolicy generator", () => {
       expect(() => orgMarkerFor("acme corp")).toThrow(/whitespace/i);
     });
 
-    test("fails closed on an alias reserved for the admins marker namespace", () => {
-      // org `admin-x`'s plain marker `cy-admin-x` equals org `x`'s
-      // management marker `cy-admin-x`.
-      expect(() => orgMarkerFor("admin-x")).toThrow(/admin-/);
+    test("fails closed on an alias containing an underscore", () => {
+      // '_' is the composite separator: `cy-a_b` could be org `a_b`'s marker
+      // or org `a`'s group `b` composite — a cross-org hole under any-match.
+      expect(() => orgMarkerFor("a_b")).toThrow(/ambiguous/i);
+    });
+
+    test("accepts an alias starting with 'admin-' (the admins marker namespace no longer exists)", () => {
+      expect(orgMarkerFor("admin-x")).toBe("cy-admin-x");
     });
   });
 
   describe("compositeGroupValue", () => {
+    test("flattens every slash in the group path to an underscore", () => {
+      expect(compositeGroupValue("acme", "Lab/TeamX")).toBe("cy-acme_Lab_TeamX");
+    });
+
     test("propagates the org-alias guard", () => {
-      expect(() => compositeGroupValue("admin-x", "Lab/TeamX")).toThrow(/admin-/);
+      expect(() => compositeGroupValue("a_b", "Lab/TeamX")).toThrow(/ambiguous/i);
       expect(() => compositeGroupValue("a/b", "Lab/TeamX")).toThrow(/ambiguous/i);
+    });
+
+    test("fails closed on a group path containing an underscore", () => {
+      // `Lab/Team_X` would flatten to `Lab_Team_X`, indistinguishable from a
+      // different (org, group) pair's composite — one group's members could
+      // satisfy another group's grant.
+      expect(() => compositeGroupValue("acme", "Lab/Team_X")).toThrow(/ambiguous/i);
     });
   });
 
   describe("org-alias guard in the grant path", () => {
     test("a group-scoped grant with an unsafe alias fails closed at compile", () => {
       expect(() => compileGrantStatements(grant({ organization: "a/b" }))).toThrow(/ambiguous/i);
-      expect(() => compileGrantStatements(grant({ organization: "admin-x" }))).toThrow(/admin-/);
+      expect(() => compileGrantStatements(grant({ organization: "a_b" }))).toThrow(/ambiguous/i);
+      expect(() => compileGrantStatements(grant({ organization: "admin-x" }))).not.toThrow();
     });
 
     test("an org-root grant with an unsafe alias fails closed at compile", () => {
       expect(() =>
         compileGrantStatements(grant({ organization: "acme corp", groupPath: "*" })),
       ).toThrow(/whitespace/i);
+    });
+
+    test("a grant whose group path contains an underscore fails closed at compile", () => {
+      expect(() => compileGrantStatements(grant({ groupPath: "Lab/Team_X" }))).toThrow(
+        /ambiguous/i,
+      );
     });
   });
 });
