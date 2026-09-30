@@ -141,6 +141,29 @@ describe("viewerStorePartialize", () => {
     expect(merged.imagePanels).toEqual([]);
     expect(merged.imagePanelIndex).toBe(-1);
   });
+
+  it("falls back to the default class registry when persisted shape is not a per-set record", () => {
+    // Persisted by an older checkout as a flat array; the record-consuming
+    // main code must not treat set ids as array indices.
+    const persisted = makeStoreState({
+      annotationClasses: [{ name: "tumor", color: [255, 0, 0] }],
+    } as unknown as Partial<ViewerStore>);
+
+    const merged = viewerStoreMerge(persisted, makeStoreState());
+
+    expect(merged.annotationClasses).toEqual({});
+  });
+
+  it("keeps persisted class registry when it is a valid per-set record", () => {
+    const classes = {
+      "set-1": [{ name: "tumor", color: [255, 0, 0] as [number, number, number] }],
+    };
+    const persisted = makeStoreState({ annotationClasses: classes });
+
+    const merged = viewerStoreMerge(persisted, makeStoreState());
+
+    expect(merged.annotationClasses).toEqual(classes);
+  });
 });
 
 describe("viewerStoreMigrate", () => {
