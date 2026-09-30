@@ -153,10 +153,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="flex flex-col h-screen text-muted-foreground overflow-hidden font-montserrat bg-white">
+      <body className="flex flex-col h-screen text-muted-foreground overflow-hidden font-montserrat bg-background">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-secondary"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-background focus:text-foreground"
         >
           Skip to content
         </a>

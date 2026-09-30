@@ -56,6 +56,7 @@ export const Crosshair = () => {
             x2={0}
             y2={size - 1}
             strokeWidth={1}
+            // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
             className="stroke-black "
           />
           <line
@@ -64,6 +65,7 @@ export const Crosshair = () => {
             x2={size - 1}
             y2={0}
             strokeWidth={1}
+            // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
             className="stroke-black "
           />
         </g>

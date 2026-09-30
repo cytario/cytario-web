@@ -106,6 +106,28 @@ export default [
             "Raw palette scales are design-system-internal — use semantic tokens (e.g. bg-destructive, bg-success, bg-warning-surface, border-warning-border).",
         },
         {
+          selector:
+            "Literal[value=/(?:text|bg|border|ring|outline|fill|stroke|from|via|to|shadow|decoration|divide|accent|caret|placeholder)-(?:white|black)\\b/]",
+          message:
+            "white/black bypass the semantic layer and do not adapt to theme — use the token pair matching the surface. Literal physical colors over scanned images (PDF paper, slide canvas, measurement strokes) take an inline eslint-disable with a rationale.",
+        },
+        {
+          selector:
+            "TemplateElement[value.cooked=/(?:text|bg|border|ring|outline|fill|stroke|from|via|to|shadow|decoration|divide|accent|caret|placeholder)-(?:white|black)\\b/]",
+          message:
+            "white/black bypass the semantic layer and do not adapt to theme — use the token pair matching the surface. Literal physical colors over scanned images (PDF paper, slide canvas, measurement strokes) take an inline eslint-disable with a rationale.",
+        },
+        {
+          selector: "Literal[value=/[a-z]-\\[#[0-9a-fA-F]{3,8}\\]/]",
+          message:
+            "Arbitrary hex colors bypass the token system — use a semantic token; if none fits, that is a gap to raise with the design-system team.",
+        },
+        {
+          selector: "TemplateElement[value.cooked=/[a-z]-\\[#[0-9a-fA-F]{3,8}\\]/]",
+          message:
+            "Arbitrary hex colors bypass the token system — use a semantic token; if none fits, that is a gap to raise with the design-system team.",
+        },
+        {
           selector: "Literal[value=/cytario-(?:purple|turquoise)/]",
           message: "The cytario-* brand palette is retired — use design tokens.",
         },

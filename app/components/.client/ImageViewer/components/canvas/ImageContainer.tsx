@@ -39,6 +39,7 @@ export function ImageContainer({
   `;
 
   let background = "bg-card";
+  // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
   if (isPreview) background = "bg-black";
   if (error) background = "bg-muted";
 
