@@ -88,7 +88,7 @@ describe("createViewerStore", () => {
       annotationSelectionAnchorId: null,
       annotationView: {},
       annotationActiveClass: null,
-      annotationClasses: [],
+      annotationClasses: {},
       layersStates: [],
       setError: expect.any(Function),
       setCursorPosition: expect.any(Function),
@@ -2010,7 +2010,7 @@ describe("createViewerStore", () => {
       channels: {},
       channelIds: [],
       viewStateActive: null,
-      annotationClasses: [],
+      annotationClasses: {},
       annotationActiveClass: null,
     };
 
@@ -2046,7 +2046,7 @@ describe("createViewerStore", () => {
         channels: {},
         channelIds: ["Red"],
         viewStateActive: null,
-        annotationClasses: [],
+        annotationClasses: {},
         annotationActiveClass: null,
       };
 

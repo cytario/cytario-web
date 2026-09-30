@@ -55,7 +55,7 @@ export const createViewerStore = (id: string, userId: string = "") => {
         ),
         {
           name: "ViewerStore-" + id,
-          version: 6,
+          version: 7,
           migrate: viewerStoreMigrate,
           merge: viewerStoreMerge,
           partialize: viewerStorePartialize,

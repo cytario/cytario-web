@@ -7,6 +7,7 @@ import { AnnotationThumb } from "./AnnotationThumb";
 import { groupAnnotations } from "./groupAnnotations";
 import {
   isReservedClassName,
+  selectSetClasses,
   selectSetHiddenClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
@@ -49,7 +50,7 @@ export const AnnotationsList = ({
   const setActiveClass = useViewerStore((s) => s.setAnnotationActiveClass);
   const renameClass = useViewerStore((s) => s.renameAnnotationClass);
   const renameAnnotation = useViewerStore((s) => s.renameAnnotation);
-  const classes = useViewerStore((s) => s.annotationClasses);
+  const classes = useViewerStore(selectSetClasses(setId));
   const createClass = useViewerStore((s) => s.createAnnotationClass);
   const deleteClass = useViewerStore((s) => s.deleteAnnotationClass);
   const { actionTargets, zoomToFeature, deleteFeatures, classify, clearClass, joinIds } =
@@ -236,7 +237,7 @@ export const AnnotationsList = ({
         (adding ? (
           <NewClassInput
             onCommit={(className) => {
-              createClass(className);
+              createClass(setId, className);
               setAdding(false);
             }}
             onCancel={() => setAdding(false)}

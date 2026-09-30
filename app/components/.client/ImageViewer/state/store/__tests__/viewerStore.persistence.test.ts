@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { LEGACY_CLASSES_KEY } from "../annotations/annotations.store";
 import {
   debouncedStorage,
   viewerStoreMerge,
@@ -35,7 +36,7 @@ function makeStoreState(overrides: Partial<ViewerStore> = {}): ViewerStore {
     channels: {},
     channelIds: [],
     viewStateActive: null,
-    annotationClasses: [],
+    annotationClasses: {},
     annotationActiveClass: null,
     ...overrides,
   } as unknown as ViewerStore;
@@ -182,8 +183,23 @@ describe("viewerStoreMigrate", () => {
     expect(migrated).toHaveProperty("channels", {});
     expect(migrated).toHaveProperty("channelIds", []);
     expect(migrated).toHaveProperty("viewStateActive", null);
-    expect(migrated).toHaveProperty("annotationClasses", []);
+    expect(migrated).toHaveProperty("annotationClasses", {});
     expect(migrated).toHaveProperty("annotationActiveClass", null);
+  });
+
+  // C-635: class registries became per annotation set. A legacy flat array is
+  // wrapped under the legacy key (seedAnnotations adopts it into the first set
+  // once real set ids are known); an already per-set record passes through.
+  it("v6 → v7 wraps a legacy flat annotationClasses array under the legacy key", () => {
+    const legacy = [{ name: "Tumor", color: [255, 0, 0] as [number, number, number] }];
+    const migrated = viewerStoreMigrate({ annotationClasses: legacy }, 6);
+    expect(migrated.annotationClasses).toEqual({ [LEGACY_CLASSES_KEY]: legacy });
+  });
+
+  it("v6 → v7 keeps an already per-set annotationClasses record", () => {
+    const perSet = { "set-1": [{ name: "Tumor", color: [255, 0, 0] as [number, number, number] }] };
+    const migrated = viewerStoreMigrate({ annotationClasses: perSet }, 6);
+    expect(migrated.annotationClasses).toEqual(perSet);
   });
 });
 

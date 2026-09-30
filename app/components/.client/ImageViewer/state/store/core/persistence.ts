@@ -1,5 +1,7 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 
+import type { AnnotationClass } from "../annotations/annotations.store";
+import { LEGACY_CLASSES_KEY } from "../annotations/annotations.store";
 import type { ViewerStore } from "../types";
 import { createMigrate } from "~/utils/persistMigration";
 
@@ -28,7 +30,7 @@ const VIEWER_FALLBACK_STATE: PersistedViewerState = {
   channels: {},
   channelIds: [],
   viewStateActive: null,
-  annotationClasses: [],
+  annotationClasses: {},
   annotationActiveClass: null,
 };
 
@@ -114,6 +116,19 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
         return { ...ls, overlays: migrated };
       });
       return { ...s, layersStates } as PersistedViewerState;
+    },
+    // Class registries are now per annotation set (C-635); wrap a legacy flat
+    // array under the legacy key — seedAnnotations adopts it into the user's
+    // first annotation set once real set ids are known.
+    6: (state) => {
+      const s = state as Record<string, unknown> & Partial<PersistedViewerState>;
+      const classes = s.annotationClasses as
+        AnnotationClass[] | Record<string, AnnotationClass[]> | undefined;
+      if (!Array.isArray(classes)) return s as PersistedViewerState;
+      return {
+        ...s,
+        annotationClasses: { [LEGACY_CLASSES_KEY]: classes },
+      } as PersistedViewerState;
     },
   },
   VIEWER_FALLBACK_STATE,

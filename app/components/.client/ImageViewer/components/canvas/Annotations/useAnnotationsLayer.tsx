@@ -18,6 +18,7 @@ import {
   classNameOf,
   isReservedClassName,
   selectActiveSetFeatures,
+  selectSetClasses,
   UNCLASSIFIED,
   UNCLASSIFIED_COLOR,
 } from "../../../state/store/annotations/annotations.store";
@@ -135,15 +136,15 @@ export const useAnnotationsLayer = (
   const setSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const showAnnotationClass = useViewerStore((s) => s.showAnnotationClass);
   const activeClass = useViewerStore((s) => s.annotationActiveClass);
-  const annotationClasses = useViewerStore((s) => s.annotationClasses);
+  const setClasses = useViewerStore(selectSetClasses(activeSetId));
 
   // The registry is the source of truth so a freshly created, still-empty class stamps too;
   // member features are only the fallback for unregistered legacy names.
   const activeClassification = useMemo<AnnotationClassification | null>(() => {
     if (!activeClass || isReservedClassName(activeClass)) return null;
-    const color = registeredClassColor(annotationClasses, features, activeClass);
+    const color = registeredClassColor(setClasses, features, activeClass);
     return color ? { name: activeClass, color } : null;
-  }, [activeClass, annotationClasses, features]);
+  }, [activeClass, setClasses, features]);
 
   return useMemo(() => {
     const data: FeatureCollection = { type: "FeatureCollection", features };
