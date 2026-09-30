@@ -149,7 +149,7 @@ function buildColumns(
       filterRender: (option) => {
         const label =
           option.value === "true" ? "Active" : option.value === "false" ? "Disabled" : option.label;
-        return <Badge color={option.value === "true" ? "green" : "slate"}>{label}</Badge>;
+        return <Badge color={option.value === "true" ? "success" : "neutral"}>{label}</Badge>;
       },
     },
     buildGroupColumn("groups", "Groups", groups, groupCounts, totalCount),
@@ -168,7 +168,7 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
     ),
     enabled: (row) => {
       const label = row.enabled === "true" ? "Active" : "Disabled";
-      return <Badge color={row.enabled === "true" ? "green" : "slate"}>{label}</Badge>;
+      return <Badge color={row.enabled === "true" ? "success" : "neutral"}>{label}</Badge>;
     },
     groups: (row) => (
       <div className="flex flex-wrap gap-1">
