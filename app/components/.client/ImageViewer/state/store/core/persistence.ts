@@ -174,7 +174,19 @@ export const viewerStoreMerge = (persisted: unknown, current: ViewerStore): View
   const imagePanels = panels.length > 0 ? panels : max > 0 ? [0] : [];
   const imagePanelIndex =
     max === 0 ? -1 : Math.min(Math.max(p.imagePanelIndex ?? -1, -1), imagePanels.length - 1);
-  return { ...current, ...p, imagePanels, imagePanelIndex } as ViewerStore;
+  // annotationClasses must be a per-set record (C-635); a flat array from an
+  // older or foreign checkout would poison classColor and the legacy join.
+  const annotationClasses =
+    p.annotationClasses && !Array.isArray(p.annotationClasses)
+      ? p.annotationClasses
+      : current.annotationClasses;
+  return {
+    ...current,
+    ...p,
+    imagePanels,
+    imagePanelIndex,
+    annotationClasses,
+  } as ViewerStore;
 };
 
 const PERSIST_DEBOUNCE_MS = 500;
