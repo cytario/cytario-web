@@ -22,6 +22,7 @@ import {
 import { UserProfile } from "./.server/auth/getUserInfo";
 import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
+import { MemoryWatchdog } from "./components/.client/MemoryWatchdog";
 import { AppHeader } from "./components/AppHeader";
 import { ClientOnly } from "./components/ClientOnly";
 import { Container, Section } from "./components/Container";
@@ -178,6 +179,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </ClientOnly>
           </RouterProvider>
           <SessionNotification notification={data?.notification} />
+          <MemoryWatchdog />
         </ToastProvider>
 
         <ScrollRestoration />
