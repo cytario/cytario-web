@@ -5,6 +5,8 @@ import { detectBrightfieldGroup } from "~/components/.client/ImageViewer/state/s
 import { getSelectionStats } from "~/components/.client/ImageViewer/utils/getSelectionStats";
 import { Container, Section } from "~/components/Container";
 import { imageMetadata } from "~/lib/imageMetadata";
+import { liveCredentials } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export const loader = ({ request }: LoaderFunctionArgs) => {
   const { searchParams } = new URL(request.url);
@@ -39,6 +41,27 @@ const VALID_PORT = (value: string | null): number | null => {
   return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null;
 };
 
+/** Direct page loads race the protected layout's store seeding (its effect
+ * runs after child effects), so the describe work must first wait for the
+ * connection to land in the client store. */
+const waitForConnection = (connectionId: string, timeoutMs: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const read = () =>
+      useConnectionsStore.getState().connections[connectionId] !== undefined ||
+      liveCredentials(connectionId)() !== null;
+    if (read()) return resolve(true);
+    const deadline = Date.now() + timeoutMs;
+    const timer = setInterval(() => {
+      if (read()) {
+        clearInterval(timer);
+        resolve(true);
+      } else if (Date.now() > deadline) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, 100);
+  });
+
 export default function DescribeRoute() {
   const [searchParams] = useSearchParams();
   const connectionId = searchParams.get("connectionId") ?? "";
@@ -55,6 +78,14 @@ export default function DescribeRoute() {
     if (!ready) return;
     let cancelled = false;
     (async () => {
+      setStatus("Waiting for connection credentials…");
+      const connectionReady = await waitForConnection(connectionId, 10_000);
+      if (cancelled) return;
+      if (!connectionReady) {
+        const message = `No connection ${connectionId} is visible to this session.`;
+        window.location.assign(`${loopback}/result?error=${encodeURIComponent(message)}`);
+        return;
+      }
       const loaded = await imageMetadata.loadImage(connectionId, path);
       if (cancelled) return;
       if (!loaded) {
