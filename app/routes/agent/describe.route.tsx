@@ -5,7 +5,6 @@ import { detectBrightfieldGroup } from "~/components/.client/ImageViewer/state/s
 import { getSelectionStats } from "~/components/.client/ImageViewer/utils/getSelectionStats";
 import { Container, Section } from "~/components/Container";
 import { imageMetadata } from "~/lib/imageMetadata";
-import { liveCredentials } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export const loader = ({ request }: LoaderFunctionArgs) => {
@@ -35,38 +34,49 @@ interface DescribePayload {
   };
 }
 
-const VALID_PORT = (value: string | null): number | null => {
-  if (value === null || value.trim() === "") return null;
+const parseLoopbackPort = (value: string | null): number | null => {
+  if (value === null || !/^\d+$/.test(value)) return null;
   const port = Number(value);
-  return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null;
+  return port >= 1 && port <= 65535 ? port : null;
 };
+
+const MAX_LOOPBACK_PAYLOAD_BYTES = 48 * 1024;
 
 /** Direct page loads race the protected layout's store seeding (its effect
  * runs after child effects), so the describe work must first wait for the
- * connection to land in the client store. */
-const waitForConnection = (connectionId: string, timeoutMs: number): Promise<boolean> =>
-  new Promise((resolve) => {
-    const read = () =>
-      useConnectionsStore.getState().connections[connectionId] !== undefined ||
-      liveCredentials(connectionId)() !== null;
-    if (read()) return resolve(true);
-    const deadline = Date.now() + timeoutMs;
-    const timer = setInterval(() => {
-      if (read()) {
-        clearInterval(timer);
-        resolve(true);
-      } else if (Date.now() > deadline) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 100);
+ * connection to land in the client store. `cancel` drops the deadline and
+ * subscription when the effect unmounts. */
+const STORE_SEED_TIMEOUT_MS = 10_000;
+
+const waitForConnection = (connectionId: string, timeoutMs: number) => {
+  let cleanup: () => void = () => {};
+  const promise = new Promise<boolean>((resolve) => {
+    const isConnected = (state = useConnectionsStore.getState()) =>
+      state.connections[connectionId] !== undefined;
+    if (isConnected()) return resolve(true);
+
+    const unsubscribe = useConnectionsStore.subscribe((state) => {
+      if (!isConnected(state)) return;
+      cleanup();
+      resolve(true);
+    });
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve(false);
+    }, timeoutMs);
+    cleanup = () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   });
+  return { promise, cancel: () => cleanup() };
+};
 
 export default function DescribeRoute() {
   const [searchParams] = useSearchParams();
   const connectionId = searchParams.get("connectionId") ?? "";
   const path = searchParams.get("path") ?? "";
-  const port = VALID_PORT(searchParams.get("port"));
+  const port = parseLoopbackPort(searchParams.get("port"));
 
   const [status, setStatus] = useState("Starting…");
   const [done, setDone] = useState(false);
@@ -77,9 +87,10 @@ export default function DescribeRoute() {
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
+    const wait = waitForConnection(connectionId, STORE_SEED_TIMEOUT_MS);
     (async () => {
       setStatus("Waiting for connection credentials…");
-      const connectionReady = await waitForConnection(connectionId, 10_000);
+      const connectionReady = await wait.promise;
       if (cancelled) return;
       if (!connectionReady) {
         const message = `No connection ${connectionId} is visible to this session.`;
@@ -148,13 +159,18 @@ export default function DescribeRoute() {
           channels: describedChannels,
         },
       };
-      window.location.assign(
-        `${loopback}/result?payload=${encodeURIComponent(JSON.stringify(payload))}`,
-      );
+      const encodedPayload = encodeURIComponent(JSON.stringify(payload));
+      if (encodedPayload.length > MAX_LOOPBACK_PAYLOAD_BYTES) {
+        const message = `payload too large for loopback transport: ${describedChannels.length} channels`;
+        window.location.assign(`${loopback}/result?error=${encodeURIComponent(message)}`);
+        return;
+      }
+      window.location.assign(`${loopback}/result?payload=${encodedPayload}`);
       setDone(true);
     })();
     return () => {
       cancelled = true;
+      wait.cancel();
     };
   }, [connectionId, path, port, ready, loopback]);
 

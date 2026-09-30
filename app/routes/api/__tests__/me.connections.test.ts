@@ -84,11 +84,16 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     // portal exchanges it to resolve the org (a tokenless call 401s).
     expect(getProviderCatalog).toHaveBeenCalledWith("org1", "the-access-token");
     const body = (await response.json()) as {
-      connections: Array<{ roleArn: string | null; accessLevel: string | null }>;
+      connections: Array<{
+        id: string;
+        roleArn: string | null;
+        accessLevel: string | null;
+      }>;
     };
 
     expect(response.status).toBe(200);
     expect(body.connections).toHaveLength(1);
+    expect(body.connections[0]?.id).toBe("conn-uuid-1");
     expect(body.connections[0]?.roleArn).toBe(ADMIN_ARN);
     expect(body.connections[0]?.accessLevel).toBe("admin");
   });

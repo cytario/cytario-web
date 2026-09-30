@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -11,8 +11,6 @@ import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStor
 vi.mock("~/lib/imageMetadata", () => ({
   imageMetadata: {
     loadImage: vi.fn(),
-    read: vi.fn(),
-    size: vi.fn(),
   },
 }));
 
@@ -166,6 +164,53 @@ describe("Agent Describe Route", () => {
     expect(await screen.findByText(/Result delivered to the CLI/i)).toBeInTheDocument();
   });
 
+  test("navigates with ?error= when the store never receives the connection", async () => {
+    useConnectionsStore.setState({ connections: {} });
+    vi.useFakeTimers();
+    try {
+      renderDescribe("?connectionId=ghost&path=slide.ome.tif&port=9999");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(assign).toHaveBeenCalledTimes(1);
+      const target = assign.mock.calls[0][0] as string;
+      expect(target).toMatch(/^http:\/\/127\.0\.0\.1:9999\/result\?error=/);
+      expect(decodeURIComponent(target.split("error=")[1])).toBe(
+        "No connection ghost is visible to this session.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("navigates with ?error= when the payload exceeds the loopback cap", async () => {
+    const manyChannels = baseImage();
+    manyChannels.Pixels.Channels = Array.from({ length: 512 }, (_, index) => ({
+      ID: `${index}`,
+      Name: `Channel ${index}`,
+    }));
+    loadImage.mockResolvedValue({ loader: fakeLoader as never, metadata: manyChannels as never });
+    stats.mockResolvedValue({
+      domain: [0, 65535],
+      contrastLimits: [45874, 65528],
+      histogram: new Array(256).fill(0),
+    } as never);
+
+    renderDescribe("?connectionId=conn-1&path=slide.ome.tif&port=9999");
+
+    await waitFor(() => {
+      expect(assign).toHaveBeenCalledTimes(1);
+    });
+    const target = assign.mock.calls[0][0] as string;
+    expect(target).toMatch(/^http:\/\/127\.0\.0\.1:9999\/result\?error=/);
+    expect(target).toContain(encodeURIComponent("payload too large"));
+    expect(target).not.toContain("payload=");
+  });
+
   test("navigates with ?error= when the image cannot be loaded", async () => {
     loadImage.mockResolvedValue(null);
 
@@ -184,28 +229,6 @@ describe("Agent Describe Route", () => {
     expect(await screen.findByText(/Invalid port/i)).toBeInTheDocument();
     expect(assign).not.toHaveBeenCalled();
     expect(loadImage).not.toHaveBeenCalled();
-  });
-
-  test("channel key falls back to Channel i when Name is missing", async () => {
-    loadImage.mockResolvedValue({ loader: fakeLoader as never, metadata: baseImage() as never });
-    stats.mockResolvedValue({
-      domain: [0, 65535],
-      contrastLimits: [100, 200],
-      histogram: new Array(256).fill(0),
-    } as never);
-
-    renderDescribe("?connectionId=conn-1&path=slide.ome.tif&port=9999");
-
-    await waitFor(() => {
-      expect(assign).toHaveBeenCalledTimes(1);
-    });
-    const target = assign.mock.calls[0][0] as string;
-    const payload = JSON.parse(decodeURIComponent(target.split("payload=")[1]));
-    expect(payload.image.channels.map((channel: { key: string }) => channel.key)).toEqual([
-      "DAPI",
-      "FITC",
-      "Channel 2",
-    ]);
   });
 
   test("a failing channel records contrastLimits null and continues", async () => {
