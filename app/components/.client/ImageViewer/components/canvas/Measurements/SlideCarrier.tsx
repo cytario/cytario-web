@@ -28,6 +28,7 @@ export function SlideCarrier() {
       <Size value={widthTotal} unit={displayUnit === "pixels" ? "px" : "mm"} />
       <Size vertical value={heightTotal} unit={displayUnit === "pixels" ? "px" : "mm"} />
       <div
+        // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
         className="absolute top-0 left-0 bg-black"
         style={{
           transform: `translate(${screenOffsetLeft}px, ${screenOffsetTop}px)`,
