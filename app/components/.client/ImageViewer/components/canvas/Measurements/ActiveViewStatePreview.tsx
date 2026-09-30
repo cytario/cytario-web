@@ -30,6 +30,22 @@ export function ActiveViewStatePreview() {
     measurementsPreview.zoom,
   ]);
 
+  // During viewer init one of the two view states can be missing or partial,
+  // making the scale/offset arithmetic NaN; skip the overlay rather than feed
+  // NaN into SVG attributes (browser logs an error per attribute per render).
+  if (
+    ![
+      x,
+      y,
+      width,
+      height,
+      measurementsPreview.viewPortWidth,
+      measurementsPreview.viewPortHeight,
+    ].every(Number.isFinite)
+  ) {
+    return null;
+  }
+
   return (
     <svg
       width={measurementsPreview.viewPortWidth}
