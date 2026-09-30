@@ -57,6 +57,7 @@ export function ActiveViewStatePreview() {
         y={y}
         width={width}
         height={height}
+        // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
         className="fill-none stroke-black stroke-[3]"
       />
       <rect
@@ -64,6 +65,7 @@ export function ActiveViewStatePreview() {
         y={y}
         width={width}
         height={height}
+        // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
         className="fill-none stroke-white stroke-[1]"
       />
     </svg>
