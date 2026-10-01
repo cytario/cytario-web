@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,6 +22,9 @@ jobs:
     uses: ./.github/workflows/smoke-install.yml
 
   e2e:
+    # Cross-repo dispatch needs PR context (head ref, PR number) and is
+    # redundant on main — CD covers it.
+    if: github.event_name == 'pull_request'
     name: E2E Tests (cytario-docs)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -71,6 +77,9 @@ jobs:
           gh run watch "$RUN_ID" --repo cytario/cytario-docs --compact -i 10 --exit-status
 
   build:
+    # Container versioning is PR-scoped (pr-<number>-<sha>); main pushes
+    # get their release container from cd.yml.
+    if: github.event_name == 'pull_request'
     name: Build
     uses: ./.github/workflows/container.yml
     permissions:

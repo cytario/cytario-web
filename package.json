@@ -1,7 +1,7 @@
 {
   "name": "@cytario/web",
   "version": "1.0.0",
-  "description": "Cytario Web — scientific imaging data browser and viewer for OME-TIFF, OME-Zarr, Parquet and GeoTIFF on S3-compatible storage.",
+  "description": "Cytario Web — open-source digital pathology viewer and data platform for whole-slide imaging (WSI): OME-TIFF, OME-Zarr, Parquet and GeoTIFF on S3-compatible storage.",
   "license": "AGPL-3.0",
   "sideEffects": false,
   "type": "module",
@@ -171,6 +171,7 @@
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "@vitest/coverage-v8": "^3.2.3",
+    "badge-maker": "^6.0.0",
     "eslint": ">=8.38.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": ">=3.6.1",
@@ -203,5 +204,19 @@
   },
   "engines": {
     "node": ">=24.10.0"
-  }
+  },
+  "keywords": [
+    "digital-pathology",
+    "whole-slide-imaging",
+    "wsi",
+    "microscopy",
+    "spatial-biology",
+    "ome-tiff",
+    "ome-zarr",
+    "bioimaging",
+    "viewer",
+    "react",
+    "react-router",
+    "cytario"
+  ]
 }
