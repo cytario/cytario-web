@@ -74,6 +74,11 @@ export interface BucketAddress {
   endpoint?: string | null;
 }
 
+/** Object key (without bucket) from an `s3://bucket/key` URI. */
+export function s3KeyFromUri(s3Uri: string): string {
+  return s3Uri.replace(/^s3:\/\/[^/]+\//, "");
+}
+
 /**
  * Build the HTTPS URL for an S3 bucket or object. Always path-style (dotted
  * bucket names break the vhost wildcard cert). `s3Key` is the full object

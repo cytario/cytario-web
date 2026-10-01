@@ -52,3 +52,9 @@ export function isSidecarFilename(name: string): boolean {
     parseOwnerFromKey(name, "settings") !== undefined
   );
 }
+
+/** Path is a settings sidecar — same grammar as `parseOwnerFromKey`, for URL
+ *  pathnames as well as filenames (the leading `/` is a valid separator). */
+export function isSettingsSidecarPath(path: string): boolean {
+  return parseOwnerFromKey(path, "settings") !== undefined;
+}

@@ -118,7 +118,7 @@ export const useViewerRegistryStore = create<ViewerRegistryStore>()(
         const viewerStore = createViewerStore(resourceId, userId);
 
         attachAnnotationSync(viewerStore);
-        attachViewSync(viewerStore);
+        attachViewSync(viewerStore, signedFetch);
 
         startViewerLoad(viewerStore, resourceId, signedFetch);
 

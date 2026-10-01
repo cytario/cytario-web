@@ -1,5 +1,5 @@
 import { resolveResourceId } from "../connectionsStore/selectors";
-import { constructS3Url } from "../resourceId";
+import { constructS3Url, s3KeyFromUri } from "../resourceId";
 import { getSidecarKey } from "../sidecarKey";
 import { createSignedFetch } from "../signedFetch";
 
@@ -13,8 +13,10 @@ export async function deleteAnnotations(resourceId: string, setId: string): Prom
   const { credentials, region, endpoint, s3Uri, connectionConfig } = resolveResourceId(resourceId);
 
   const sidecarUri = getSidecarKey(s3Uri, "annotations", setId);
-  const key = sidecarUri.replace(/^s3:\/\/[^/]+\//, "");
-  const url = constructS3Url({ bucketName: connectionConfig.bucketName, region, endpoint }, key);
+  const url = constructS3Url(
+    { bucketName: connectionConfig.bucketName, region, endpoint },
+    s3KeyFromUri(sidecarUri),
+  );
 
   const signedFetch = createSignedFetch(() => credentials, region);
   const response = await signedFetch(url, { method: "DELETE" });
