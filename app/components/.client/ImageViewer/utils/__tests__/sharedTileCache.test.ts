@@ -20,6 +20,45 @@ describe("sharedTileCache", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  test("keeps in-budget tiles cached after re-sizing with their real footprint", async () => {
+    const ns = {};
+    const tile = { data: new Uint8Array(1024), width: 1, height: 1 };
+
+    await getCachedTile(ns, "small", async () => tile);
+    const refetch = vi.fn(async () => tile);
+    const result = await getCachedTile(ns, "small", refetch);
+
+    expect(result).toBe(tile);
+    expect(refetch).not.toHaveBeenCalled();
+  });
+
+  test("drops resolved entries larger than maxEntrySize and refetches", async () => {
+    const ns = {};
+    const tile = { data: new Uint8Array(64 * 1024 * 1024 + 1), width: 1, height: 1 };
+    const fetcher = vi.fn(async () => tile);
+
+    await getCachedTile(ns, "big", fetcher);
+    await getCachedTile(ns, "big", fetcher);
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  test("sizes entries by the sum of multi-buffer channel data", async () => {
+    const ns = {};
+    const tile = {
+      data: [new Uint8Array(33 * 1024 * 1024), new Uint8Array(33 * 1024 * 1024)],
+      width: 1,
+      height: 1,
+    };
+
+    await getCachedTile(ns, "multi", async () => tile);
+    const refetch = vi.fn(async () => tile);
+    const result = await getCachedTile(ns, "multi", refetch);
+
+    expect(result).toBe(tile);
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
   test("evicts a failed fetch so the next caller refetches", async () => {
     const ns = {};
     let attempts = 0;
