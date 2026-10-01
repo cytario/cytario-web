@@ -1,3 +1,4 @@
+import { ToastProvider } from "@cytario/design";
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 
@@ -17,7 +18,11 @@ const testConnection = {
 
 function renderSidebar() {
   const RemixStub = createRoutesStub([{ path: "/", Component: () => <ConnectionsSection /> }]);
-  return render(<RemixStub initialEntries={["/"]} />);
+  return render(
+    <ToastProvider>
+      <RemixStub initialEntries={["/"]} />
+    </ToastProvider>,
+  );
 }
 
 describe("ConnectionsSection — show hidden files toggle", () => {

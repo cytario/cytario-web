@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { attachAnnotationSync } from "../annotations/annotationSync";
 import type { createViewerStore } from "../createViewerStore";
-import { toastBridge } from "~/toast-bridge";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 import { readAllAnnotations } from "~/utils/db/getAnnotationsWasm";
@@ -11,12 +10,12 @@ import { writeAnnotations } from "~/utils/db/writeAnnotationsWasm";
 vi.mock("~/utils/db/getAnnotationsWasm", () => ({ readAllAnnotations: vi.fn() }));
 vi.mock("~/utils/db/writeAnnotationsWasm", () => ({ writeAnnotations: vi.fn() }));
 vi.mock("~/utils/db/deleteAnnotations", () => ({ deleteAnnotations: vi.fn() }));
-vi.mock("~/toast-bridge", () => ({ toastBridge: { emit: vi.fn() } }));
 
 const readMock = vi.mocked(readAllAnnotations);
 const writeMock = vi.mocked(writeAnnotations);
 const deleteMock = vi.mocked(deleteAnnotations);
-const toastMock = vi.mocked(toastBridge.emit);
+const showToast = vi.fn();
+const toastMock = showToast;
 
 let featureSeq = 0;
 const feature = (): AnnotationFeature => ({
@@ -90,7 +89,7 @@ describe("attachAnnotationSync", () => {
     readMock.mockResolvedValue(seeded);
     const { store, state, fire } = makeFakeStore();
 
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync(); // settle the read → seed
 
     expect(state.annotationSets.find((s) => s.id === "set-1")?.features).toBe(seeded[0].features);
@@ -104,7 +103,7 @@ describe("attachAnnotationSync", () => {
     readMock.mockRejectedValueOnce(new Error("transient")).mockResolvedValueOnce(seeded);
     const { store, state } = makeFakeStore();
 
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.advanceTimersByTimeAsync(5000); // past the first retry delay
 
     expect(readMock).toHaveBeenCalledTimes(2);
@@ -116,7 +115,7 @@ describe("attachAnnotationSync", () => {
     readMock.mockRejectedValue(new Error("persistent"));
     const { store } = makeFakeStore();
 
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.advanceTimersByTimeAsync(10000); // past the last retry delay
 
     expect(readMock).toHaveBeenCalledTimes(3); // initial + 2 retries
@@ -132,7 +131,7 @@ describe("attachAnnotationSync", () => {
     );
     const { store, state, fire } = makeFakeStore();
 
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
 
     // User draws BEFORE the read resolves.
     const drawn = [feature()];
@@ -159,7 +158,7 @@ describe("attachAnnotationSync", () => {
 
   it("debounces an edit and writes only the changed set's sidecar", async () => {
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     const features = [feature()];
@@ -180,7 +179,7 @@ describe("attachAnnotationSync", () => {
 
   it("does not create a file for a new set's empty features (lazy create)", async () => {
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     state.annotationSets = [makeSet("set-1", "user-1", [])];
@@ -193,7 +192,7 @@ describe("attachAnnotationSync", () => {
   it("writes an empty set when that set's sidecar already existed (clear on delete-all)", async () => {
     readMock.mockResolvedValue([makeSet("set-1", "user-1", [feature()])]);
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     state.annotationSets = [makeSet("set-1", "user-1", [])]; // delete all
@@ -207,7 +206,7 @@ describe("attachAnnotationSync", () => {
   it("leaves the baseline stale when a write fails, retrying on the next change", async () => {
     writeMock.mockRejectedValueOnce(new Error("network"));
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     state.annotationSets = [makeSet("set-1", "user-1", [feature()])];
@@ -240,7 +239,7 @@ describe("attachAnnotationSync — set deletion", () => {
   it("deletes the sidecar of a set removed from the working copy", async () => {
     readMock.mockResolvedValue([makeSet("set-1", "user-1", [feature()])]);
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync(); // settle the read → seed → baseline
 
     // The set is deleted (the fake store's slice shape doesn't matter here —
@@ -259,7 +258,7 @@ describe("attachAnnotationSync — set deletion", () => {
   it("does not delete a set that was never persisted (created and deleted before any flush)", async () => {
     readMock.mockResolvedValue([]);
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     // Draw (create) and delete before the debounce ever fires.
@@ -277,7 +276,7 @@ describe("attachAnnotationSync — set deletion", () => {
     readMock.mockResolvedValue([makeSet("set-1", "user-1", [feature()])]);
     deleteMock.mockRejectedValueOnce(new Error("403"));
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     state.annotationSets = [];
@@ -293,7 +292,7 @@ describe("attachAnnotationSync — set deletion", () => {
   it("re-writes the sidecar when a delete is undone before the flush", async () => {
     readMock.mockResolvedValue([makeSet("set-1", "user-1", [feature()])]);
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     // Delete, then undo (set restored with a fresh features ref) before the
@@ -336,7 +335,7 @@ describe("attachAnnotationSync — set rename", () => {
     seeded[0].name = "Old name";
     readMock.mockResolvedValue(seeded);
     const { store, state, fire } = makeFakeStore();
-    attachAnnotationSync(store);
+    attachAnnotationSync(store, showToast);
     await vi.runAllTimersAsync();
 
     // Rename without touching the features array reference.
