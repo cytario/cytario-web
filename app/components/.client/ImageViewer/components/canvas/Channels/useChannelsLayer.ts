@@ -48,12 +48,15 @@ export const useChannelsLayer = (
   // fresh `selections` per edit would `reloadAll()` every visible tile. viv
   // applies contrast/colors/visibility as uniforms instead, so those columns
   // must stay fresh per edit while `selections` only changes when the set of
-  // initialized channels changes.
-  const initializedIdsKey = useMemo(
+  // initialized channels — or a channel's selection values — changes.
+  const selectionsKey = useMemo(
     () =>
       Object.entries(channelsState)
         .filter(([, config]) => config.isInitialized)
-        .map(([id]) => id)
+        .map(([id, config]) => {
+          const { c, x, y, z, t } = config.selection;
+          return `${id}:${c}:${x}:${y}:${z}:${t}`;
+        })
         .join("\0"),
     [channelsState],
   );
@@ -63,10 +66,13 @@ export const useChannelsLayer = (
     [channelsState],
   );
 
+  // The memo deliberately keys on the serialized selection state, not on the
+  // columns' array identity — depending on the array would defeat the memo
+  // (every store edit rebuilds it) and re-trigger deck.gl's reloadAll.
   const stableSelections = useMemo(
     () => columnsWithoutSelections.selections,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [initializedIdsKey],
+    [selectionsKey],
   );
 
   const extensions = useMemo(() => [new ColorPaletteExtension()], []);
@@ -164,11 +170,15 @@ export const useChannelsLayer = (
   // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState`, which
   // now includes hidden-but-initialized channels; filter to the visible ones so
   // tooltips and pixel readouts only cover channels the user can actually see.
+  // `selectionIndex` keeps each visible channel's position in the columns (and
+  // thus in `selections` and viv's per-selection hoverData) — the column index
+  // and the visible index diverge as soon as any hidden channel precedes a
+  // visible one.
   const visibleChannels = useMemo(() => {
-    const result: { id: string; color: number[] }[] = [];
+    const result: { id: string; color: number[]; selectionIndex: number }[] = [];
     for (let i = 0; i < ids.length; i++) {
       if (!channelsVisible[i]) continue;
-      result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255] });
+      result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255], selectionIndex: i });
     }
     return result;
   }, [ids, colors, channelsVisible]);
@@ -180,15 +190,16 @@ export const useChannelsLayer = (
 
       const { hoverData } = data;
 
-      // Channels without loaded tile data fall back to 0.
+      // hoverData is indexed by the columns' (selections') order, which includes
+      // hidden-but-initialized channels — read each visible channel's intensity
+      // through its own selectionIndex, not its position among the visible ones.
       const ids = visibleChannels.map((c) => c.id);
-      const values = visibleChannels.map((_, i) => hoverData[i] ?? 0);
+      const values = visibleChannels.map((c) => hoverData[c.selectionIndex] ?? 0);
       setPixelValues(ids, values);
 
       const valuesRecord: Record<string, { value: string; color?: number[] }> = {};
-      for (let i = 0; i < visibleChannels.length; i++) {
-        const { id, color } = visibleChannels[i];
-        const value = hoverData[i];
+      for (const { id, color, selectionIndex } of visibleChannels) {
+        const value = hoverData[selectionIndex];
         if (value === undefined) continue;
         valuesRecord[id] = { value: String(value), color };
       }

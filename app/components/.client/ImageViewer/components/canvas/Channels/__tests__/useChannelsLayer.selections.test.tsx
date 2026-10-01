@@ -48,8 +48,12 @@ const loaderLevel = {
   getRaster: async () => ({ data: new Uint8Array(16), width: 4, height: 4 }),
 };
 
-/** Seeds 4 channels with the first 3 initialized and 2 visible. */
-const seedChannels = () => {
+/**
+ * Seeds 4 channels with the first 3 initialized; `hiddenFirst` makes the
+ * first initialized channel hidden so a visible channel is preceded by a
+ * hidden one — the case where the column index and the visible index diverge.
+ */
+const seedChannels = (hiddenFirst = false) => {
   store.setState({
     loader: [loaderLevel],
     metadata: { Pixels: { Type: "Uint8" } } as never,
@@ -63,7 +67,7 @@ const seedChannels = () => {
           histogram: new Array(256).fill(0),
           isInitialized: index < 3,
           isLoading: false,
-          isVisible: index < 2,
+          isVisible: hiddenFirst ? index === 1 : index < 2,
           contrastLimits: [0, 255] as [number, number],
           color: [255, 0, 0] as [number, number, number],
         },
@@ -77,7 +81,7 @@ const seedChannels = () => {
         author: "",
         shared: false,
         channels: {
-          A: { isVisible: true, contrastLimits: [0, 255], color: [255, 0, 0] },
+          A: { isVisible: !hiddenFirst, contrastLimits: [0, 255], color: [255, 0, 0] },
           B: { isVisible: true, contrastLimits: [0, 255], color: [0, 255, 0] },
           C: { isVisible: false, contrastLimits: [0, 255], color: [0, 0, 255] },
         },
@@ -226,5 +230,26 @@ describe("useChannelsLayer selections stability", () => {
         },
       },
     ]);
+  });
+
+  test("pixel readouts keep channel-value alignment when a hidden channel precedes a visible one", () => {
+    seedChannels(true); // A hidden, B visible, C hidden — columns [A, B, C]
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    // hoverData maps over selections (all three initialized channels): B's
+    // intensity lives at index 1, not at its visible-position index 0.
+    const items = result.current.getTooltipItems({} as never);
+
+    expect(items).toEqual([
+      {
+        type: "Channels",
+        values: {
+          B: { value: "22", color: [0, 255, 0] },
+        },
+      },
+    ]);
+
+    // The store readout (sidebar) must carry the same aligned pair.
+    expect(store.getState().pixelValues).toEqual({ B: 22 });
   });
 });

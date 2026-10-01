@@ -102,7 +102,7 @@ describe("mapChannelConfigsToState", () => {
     expect(visibleIndexes).toHaveLength(columns.selections.length - 1);
   });
 
-  test("toggling visibility off does not change the selections identity", () => {
+  test("hiding a channel keeps the columns' membership and selection values unchanged", () => {
     const channelsState = makeChannelsState([
       { id: "Red", isVisible: true },
       { id: "Green", isVisible: true },
