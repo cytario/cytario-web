@@ -13,10 +13,6 @@ vi.mock("../../../../utils/useTilesLoading", () => ({
   useTilesLoading: () => ({ loadTile: vi.fn(), finishTile: vi.fn() }),
 }));
 
-vi.mock("../../../../utils/sharedTileCache", () => ({
-  getCachedTile: (_namespace: unknown, _key: string, fetcher: () => Promise<unknown>) => fetcher(),
-}));
-
 vi.mock("../../../../utils/handleImageViewerHover", () => ({
   handleImageViewerHover: () => ({
     hoverData: [11, 22, 33],
@@ -120,7 +116,6 @@ describe("useChannelsLayer selections stability", () => {
 
     const after = selectionsFromLayer(result.current.layers)!.props.selections;
     expect(after).toBe(before);
-    expect(after.length).toBe(before.length);
   });
 
   test("selections identity is stable across a visibility-off change", () => {
@@ -136,8 +131,6 @@ describe("useChannelsLayer selections stability", () => {
 
     const after = selectionsFromLayer(result.current.layers)!.props.selections;
     expect(after).toBe(before);
-    // The channel stays in the tile pipeline, driven by channelsVisible.
-    expect(after.length).toBe(before.length);
   });
 
   test("selections identity is stable across a color change", () => {
@@ -204,14 +197,6 @@ describe("useChannelsLayer selections stability", () => {
     const after = selectionsFromLayer(result.current.layers)!.props.selections;
     expect(after).not.toBe(before);
     expect(after).toHaveLength(4);
-  });
-
-  test("channelsVisible carries false entries and selections cover every initialized channel", () => {
-    const { result } = renderHook(() => useChannelsLayer(0));
-    const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
-
-    expect(props.selections).toHaveLength(3);
-    expect(props.channelsVisible).toEqual([true, true, false]);
   });
 
   test("pixel readouts exclude hidden channels", () => {

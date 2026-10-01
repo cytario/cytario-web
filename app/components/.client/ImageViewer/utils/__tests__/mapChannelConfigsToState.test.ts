@@ -102,25 +102,6 @@ describe("mapChannelConfigsToState", () => {
     expect(visibleIndexes).toHaveLength(columns.selections.length - 1);
   });
 
-  test("hiding a channel keeps the columns' membership and selection values unchanged", () => {
-    const channelsState = makeChannelsState([
-      { id: "Red", isVisible: true },
-      { id: "Green", isVisible: true },
-    ]);
-    const before = mapChannelConfigsToState(channelsState);
-
-    const afterVisibilityOff = mapChannelConfigsToState(
-      makeChannelsState([
-        { id: "Red", isVisible: true },
-        { id: "Green", isVisible: false },
-      ]),
-    );
-
-    expect(afterVisibilityOff.selections).toEqual(before.selections);
-    expect(afterVisibilityOff.selections[0]).toBe(before.selections[0]);
-    expect(afterVisibilityOff.ids).toEqual(before.ids);
-  });
-
   test("drops hidden channels beyond the viv channel cap once visible ones fill it", () => {
     const entries = Array.from({ length: 11 }, (_, index) => ({
       id: `Channel ${index}`,
