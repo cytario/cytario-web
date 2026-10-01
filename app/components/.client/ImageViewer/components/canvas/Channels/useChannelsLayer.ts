@@ -4,13 +4,17 @@ import { useCallback, useMemo } from "react";
 
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
-import { type CytarioLayerResult, type LayerTooltipItem } from "../../../state/store/types";
+import {
+  type CytarioLayerResult,
+  type ChannelsState,
+  type LayerTooltipItem,
+} from "../../../state/store/types";
 import { handleImageViewerHover } from "../../../utils/handleImageViewerHover";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
 import { getCachedTile } from "../../../utils/sharedTileCache";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
-const EMPTY_OBJECT = Object.freeze({});
+const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
 
 // `getTile` runs once per tile per channel per load — and again for each
 // channel of a `best-available` refinement — so serializing `params.selection`
@@ -39,14 +43,36 @@ export const useChannelsLayer = (
 
   const channelsState = useViewerStore(channelsStateForPanel(imagePanelId)) ?? EMPTY_OBJECT;
 
-  const channelsStateColumns = useMemo(
-    () => mapChannelConfigsToState(channelsState ?? {}),
+  // Two memo layers below. viv keys its tile cache off the `selections` array
+  // identity (deck.gl compares `updateTriggers.getTileData` shallowly), so a
+  // fresh `selections` per edit would `reloadAll()` every visible tile. viv
+  // applies contrast/colors/visibility as uniforms instead, so those columns
+  // must stay fresh per edit while `selections` only changes when the set of
+  // initialized channels changes.
+  const initializedIdsKey = useMemo(
+    () =>
+      Object.entries(channelsState)
+        .filter(([, config]) => config.isInitialized)
+        .map(([id]) => id)
+        .join("\0"),
     [channelsState],
+  );
+
+  const columnsWithoutSelections = useMemo(
+    () => mapChannelConfigsToState(channelsState),
+    [channelsState],
+  );
+
+  const stableSelections = useMemo(
+    () => columnsWithoutSelections.selections,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [initializedIdsKey],
   );
 
   const extensions = useMemo(() => [new ColorPaletteExtension()], []);
 
-  const { selections, contrastLimits, colors, channelsVisible, ids } = channelsStateColumns;
+  const { ids, contrastLimits, colors, channelsVisible } = columnsWithoutSelections;
+  const selections = stableSelections;
 
   const rawLoader = useViewerStore(select.loader);
   const setIsChannelsLoading = useViewerStore(select.setIsChannelsLoading);
@@ -135,16 +161,17 @@ export const useChannelsLayer = (
     imagePanelId,
   ]);
 
-  // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState` (already
-  // filtered to visible channels); zip them so `getTooltipItems` can build
-  // TooltipItems without re-reading the store on every hover event.
+  // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState`, which
+  // now includes hidden-but-initialized channels; filter to the visible ones so
+  // tooltips and pixel readouts only cover channels the user can actually see.
   const visibleChannels = useMemo(() => {
     const result: { id: string; color: number[] }[] = [];
     for (let i = 0; i < ids.length; i++) {
+      if (!channelsVisible[i]) continue;
       result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255] });
     }
     return result;
-  }, [ids, colors]);
+  }, [ids, colors, channelsVisible]);
 
   const getTooltipItems = useCallback(
     (info: PickingInfo): LayerTooltipItem[] => {
