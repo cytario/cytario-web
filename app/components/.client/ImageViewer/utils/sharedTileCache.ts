@@ -20,6 +20,31 @@ type Cache = LRUCache<string, Promise<unknown>>;
 
 const caches = new WeakMap<object, Cache>();
 
+/** Real byte footprint of a resolved entry, keyed by its (stored) promise. */
+const resolvedSizes = new WeakMap<Promise<unknown>, number>();
+
+/**
+ * Decoded channel tiles are `{ data: TypedArray, ... }` (plugin-api `RasterData`);
+ * interleaved or multi-buffer payloads carry an array of views. Unknown shapes
+ * (overlay Arrow tables, plugin-specific extensions) fall back to the pending
+ * estimate so they are never counted as zero.
+ */
+const byteLengthOf = (value: unknown): number => {
+  if (ArrayBuffer.isView(value)) return (value as ArrayBufferView).byteLength;
+  if (value && typeof value === "object") {
+    const { data } = value as { data?: unknown };
+    if (ArrayBuffer.isView(data)) return data.byteLength;
+    if (Array.isArray(data)) {
+      let sum = 0;
+      for (const item of data) {
+        if (ArrayBuffer.isView(item)) sum += item.byteLength;
+      }
+      if (sum > 0) return sum;
+    }
+  }
+  return PENDING_ENTRY_BYTES;
+};
+
 /** Stable namespace for overlay (DuckDB) tile queries — keyed by resourceId in the cache key. */
 export const OVERLAY_CACHE_NS: object = {};
 
@@ -29,11 +54,11 @@ function cacheFor(namespace: object): Cache {
     cache = new LRUCache<string, Promise<unknown>>({
       maxSize: MAX_TOTAL_CACHE_BYTES,
       maxEntrySize: MAX_ENTRY_BYTES,
-      // Resolved tiles carry decoded pixel data (large); pending promises only
-      // pin the compressed bytes until they settle. sizeCalculation runs on the
-      // stored value at set() time — the promise itself — so pending entries
-      // use the estimate and re-sizing happens on replacement.
-      sizeCalculation: () => PENDING_ENTRY_BYTES,
+      // Entries are stored as promises, so their size is unknowable at set()
+      // time — pending fetches use the compressed-bytes estimate. Once a
+      // promise resolves, `getCachedTile` records the real decoded size and
+      // re-sets the entry so the cache re-runs this calculation.
+      sizeCalculation: (value) => resolvedSizes.get(value) ?? PENDING_ENTRY_BYTES,
     });
     caches.set(namespace, cache);
   }
@@ -55,14 +80,24 @@ export function getCachedTile<T>(
   const existing = cache.get(key);
   if (existing) return existing as Promise<T>;
 
-  const promise = fetcher().catch((error) => {
-    cache.delete(key);
-    throw error;
-  });
+  const stored = fetcher().then(
+    (value) => {
+      resolvedSizes.set(stored, byteLengthOf(value));
+      // Re-set with the resolved size known; lru-cache re-runs
+      // sizeCalculation, and entries over maxEntrySize are dropped by the
+      // library itself.
+      cache.set(key, stored);
+      return value;
+    },
+    (error) => {
+      cache.delete(key);
+      throw error;
+    },
+  );
 
-  cache.set(key, promise);
+  cache.set(key, stored);
 
-  return promise;
+  return stored;
 }
 
 /** Drop all cached entries across every namespace (memory-pressure reaction). */
