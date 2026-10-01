@@ -3,18 +3,8 @@ import { DescriptionList, EmptyState } from "@cytario/design";
 import type { Channel, Image } from "../../../state/store/core/ome.tif.types";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
+import { getDtypeDepthLabel } from "../../../utils/getDtypeMax";
 import { Section } from "~/components/Section/Section";
-
-const BIT_DEPTH: Record<string, string> = {
-  Int8: "8-bit",
-  Uint8: "8-bit",
-  Int16: "16-bit",
-  Uint16: "16-bit",
-  Int32: "32-bit",
-  Uint32: "32-bit",
-  Float32: "32-bit float",
-  Float64: "64-bit float",
-};
 
 const formatWavelength = (w: { Value: number; Unit: string } | undefined) =>
   w ? `${w.Value} ${w.Unit || "nm"}` : undefined;
@@ -48,7 +38,7 @@ const infoRows = (metadata: Image): { label: string; value: string }[] => {
   if (metadata.NominalMagnification != null)
     rows.push({ label: "Magnification", value: `${metadata.NominalMagnification}×` });
 
-  rows.push({ label: "Bit depth", value: BIT_DEPTH[Pixels.Type] ?? Pixels.Type });
+  rows.push({ label: "Bit depth", value: getDtypeDepthLabel(Pixels.Type) });
   rows.push({
     label: "Channels",
     value: String(Pixels.Channels.length || Pixels.SizeC || "—"),
@@ -57,7 +47,7 @@ const infoRows = (metadata: Image): { label: string; value: string }[] => {
   return rows;
 };
 
-/** Sidebar info: structured image properties (C-431), above the raw metadata dump. */
+/** Sidebar info: structured acquisition and object properties of the loaded image (C-431). */
 export const InfoSection = () => {
   const metadata = useViewerStore(select.metadata);
   const rows = metadata ? infoRows(metadata) : [];

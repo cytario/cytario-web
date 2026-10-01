@@ -1,4 +1,4 @@
-import { getDtypeBitDepth, getDtypeMax } from "../getDtypeMax";
+import { getDtypeBitDepth, getDtypeDepthLabel, getDtypeMax } from "../getDtypeMax";
 
 describe("getDtypeMax", () => {
   test.each([
@@ -31,5 +31,20 @@ describe("getDtypeBitDepth", () => {
     ["Float64", 32],
   ] as const)("maps %s to %i", (dtype, expected) => {
     expect(getDtypeBitDepth(dtype)).toBe(expected);
+  });
+});
+
+describe("getDtypeDepthLabel", () => {
+  test.each([
+    ["Uint8", "8-bit"],
+    ["Int8", "8-bit"],
+    ["Uint16", "16-bit"],
+    ["Int16", "16-bit"],
+    ["Uint32", "32-bit"],
+    ["Int32", "32-bit"],
+    ["Float32", "32-bit float"],
+    ["Float64", "64-bit float"],
+  ] as const)("labels %s as %s", (dtype, expected) => {
+    expect(getDtypeDepthLabel(dtype)).toBe(expected);
   });
 });
