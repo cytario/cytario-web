@@ -1,13 +1,14 @@
 # Cytario Web
 
 [![CI](https://github.com/cytario/cytario-web/actions/workflows/ci.yml/badge.svg)](https://github.com/cytario/cytario-web/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@cytario/web)](https://www.npmjs.com/package/@cytario/web)
 ![Test Coverage Badge](badge.svg)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![GitHub release](https://img.shields.io/github/v/release/cytario/cytario-web)](https://github.com/cytario/cytario-web/releases)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24.10-green.svg)](https://nodejs.org/)
 [![GitHub Stars](https://img.shields.io/github/stars/cytario/cytario-web?style=social)](https://github.com/cytario/cytario-web)
 
-A web-based file browser and viewer for scientific imaging data. Cytario Web lets you explore, visualize, and manage large-scale datasets (OME-TIFF, GeoTIFF, Parquet) stored in S3-compatible object storage.
+A web-based viewer and data platform for **digital pathology and spatial biology**. Cytario Web lets you explore, visualize, and annotate whole-slide imaging data (WSI) and other large-scale scientific datasets (OME-TIFF, OME-Zarr, GeoTIFF, Parquet) stored in S3-compatible object storage — from raw slide browse to quantitative analysis results.
 
 For the hosted product, see [cytario.com](https://www.cytario.com).
 
@@ -15,16 +16,16 @@ For the hosted product, see [cytario.com](https://www.cytario.com).
 
 ## Architecture
 
-| Layer         | Technology                                                                 |
-| ------------- | -------------------------------------------------------------------------- |
-| Framework     | React Router v7 (SSR), React 19, Vite 6                                    |
-| Language      | TypeScript (strict mode)                                                   |
-| Visualization | deck.gl, Viv, DuckDB-WASM, Apache Arrow                                    |
-| Styling       | Tailwind CSS, [@cytario/design](https://github.com/cytario/cytario-design) |
-| Auth          | OAuth 2.0 via Keycloak, STS for S3 credentials                             |
-| Database      | PostgreSQL (Prisma ORM), Redis/Valkey (sessions)                           |
-| Cloud         | AWS SDK v3 (S3, STS)                                                       |
-| CI/CD         | GitHub Actions, semantic-release, GHCR                                     |
+| Layer         | Technology                                                                    |
+| ------------- | ----------------------------------------------------------------------------- |
+| Framework     | React Router v8 (SSR), React 19, Vite 7                                       |
+| Language      | TypeScript (strict mode)                                                      |
+| Visualization | deck.gl, Viv, DuckDB-WASM, Apache Arrow                                       |
+| Styling       | Tailwind CSS v4, [@cytario/design](https://github.com/cytario/cytario-design) |
+| Auth          | OAuth 2.0 via Keycloak, STS for S3 credentials                                |
+| Database      | PostgreSQL (Prisma ORM), Redis/Valkey (sessions)                              |
+| Cloud         | AWS SDK v3 (S3, STS)                                                          |
+| CI/CD         | GitHub Actions, semantic-release, GHCR                                        |
 
 ## Plugin model
 

@@ -18,13 +18,13 @@ You are a **principal full-stack developer** with deep expertise in TypeScript, 
 
 | Layer         | Technology                                                            |
 | ------------- | --------------------------------------------------------------------- |
-| Framework     | React Router v7 (SSR), React 19, Vite 6                               |
+| Framework     | React Router v8 (SSR), React 19, Vite 7                               |
 | Language      | TypeScript 5.8 (strict mode)                                          |
-| Styling       | Tailwind CSS 3.4 (class-based dark mode)                              |
+| Styling       | Tailwind CSS v4 (token-driven, data-theme dark mode)                  |
 | State         | Zustand 5 (with immer, persist, devtools middleware)                  |
 | Forms         | react-hook-form 7 + zod 4 validation                                  |
 | Tables        | @tanstack/react-table 8, @tanstack/react-virtual 3                    |
-| Visualization | deck.gl 9.1, @hms-dbmi/viv 0.18, Apache Arrow 21                      |
+| Visualization | deck.gl, @hms-dbmi/viv 0.22, Apache Arrow                             |
 | WebAssembly   | @duckdb/duckdb-wasm (in-browser SQL), lzw-tiff-decoder (Web Worker)   |
 | Auth          | OAuth 2.0 Authorization Code Flow via Keycloak                        |
 | Database      | PostgreSQL (Prisma 7 ORM), Redis/Valkey (sessions via ioredis)        |

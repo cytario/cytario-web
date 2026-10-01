@@ -51,6 +51,10 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for commit m
 - Use TypeScript for type safety
 - Run linting before submitting: `npm run lint`
 
+## Code of Conduct
+
+By participating in this project, you agree to uphold our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Reporting Issues
 
 When reporting issues, please include:

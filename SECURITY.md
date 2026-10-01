@@ -14,7 +14,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ### How to Report
 
-1. Email your findings to the project maintainers
+1. Email your findings to the project maintainers at [security@cytario.com](mailto:security@cytario.com)
 2. Include detailed steps to reproduce the vulnerability
 3. Provide any relevant proof-of-concept code
 4. Allow reasonable time for us to address the issue before public disclosure
