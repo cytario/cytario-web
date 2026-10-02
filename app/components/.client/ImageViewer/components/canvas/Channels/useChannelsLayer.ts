@@ -48,11 +48,13 @@ export const useChannelsLayer = (
   // fresh `selections` per edit would `reloadAll()` every visible tile. viv
   // applies contrast/colors/visibility as uniforms instead, so those columns
   // must stay fresh per edit while `selections` only changes when the set of
-  // initialized channels — or a channel's selection values — changes.
+  // renderable channels — or a channel's selection values — changes. The key
+  // uses the same isVisible||isInitialized predicate as
+  // mapChannelConfigsToState so the memo tracks exactly what feeds `selections`.
   const selectionsKey = useMemo(
     () =>
       Object.entries(channelsState)
-        .filter(([, config]) => config.isInitialized)
+        .filter(([, config]) => config.isVisible || config.isInitialized)
         .map(([id, config]) => {
           const { c, x, y, z, t } = config.selection;
           return `${id}:${c}:${x}:${y}:${z}:${t}`;

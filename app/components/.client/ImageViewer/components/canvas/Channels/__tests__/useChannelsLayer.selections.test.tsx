@@ -199,6 +199,24 @@ describe("useChannelsLayer selections stability", () => {
     expect(after).toHaveLength(4);
   });
 
+  test("a channel turned on before its stats resolve still receives a selection", () => {
+    // The preset-switch regression: B is checked on but its initChannelStats
+    // fetch has not resolved (isInitialized false). It must stay in selections —
+    // rendered with default contrast — instead of vanishing from the canvas
+    // while its checkbox is on.
+    act(() => {
+      store.setState((state) => {
+        state.channels.B.isInitialized = false;
+        state.channels.B.isLoading = true;
+      });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+    const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    expect(props.selections).toHaveLength(3);
+    expect(props.channelsVisible).toEqual([true, true, false]);
+  });
+
   test("pixel readouts exclude hidden channels", () => {
     const { result } = renderHook(() => useChannelsLayer(0));
     const getTooltipItems = result.current.getTooltipItems;
