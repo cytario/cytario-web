@@ -57,6 +57,13 @@ export const createCoreSlice: ViewerSlice<CoreSlice> = (set) => ({
         if (loader?.[0]) {
           viewerStore.valueRange = [0, getDtypeMax(loader[0].dtype as SupportedDtype)];
         }
+        // The view state's zoom-out bound derives from the pyramid level count;
+        // a view state set before the loader landed must adopt it once it does,
+        // or the first interaction clamps against a stale bound.
+        const viewStateActive = viewerStore.viewStateActive;
+        if (viewStateActive && loader.length > 0) {
+          viewStateActive.minZoom = -loader.length;
+        }
       },
       false,
       "setLoader",

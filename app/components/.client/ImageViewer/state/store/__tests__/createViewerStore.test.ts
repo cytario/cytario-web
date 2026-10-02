@@ -30,6 +30,13 @@ const createMockLayersState = () => ({
   name: undefined as string | undefined,
 });
 
+const createMockLoader = (levels: number) =>
+  Array.from({ length: levels }, (_, index) => ({
+    type: "tiff",
+    url: `http://example.com/data-${index}.tiff`,
+    ...(index === 0 ? { dtype: "Uint16" } : {}),
+  })) as unknown as Loader;
+
 const createMockChannels = () => ({
   Red: {
     isInitialized: true,
@@ -237,6 +244,58 @@ describe("createViewerStore", () => {
 
     store.getState().setViewStateActive(newViewState);
     expect(store.getState().viewStateActive).toEqual(newViewState);
+  });
+
+  test("setViewStateActive() keeps the caller's minZoom while the loader is empty", () => {
+    const store = createViewerStore("test-viewer-minzoom-empty");
+
+    const fitViewState = {
+      zoom: -6.5,
+      target: [50000, 40000],
+      minZoom: -10,
+    } as unknown as ViewState;
+
+    store.getState().setViewStateActive(fitViewState);
+
+    expect(store.getState().viewStateActive?.minZoom).toBe(-10);
+  });
+
+  test("setViewStateActive() stamps -loader.length when the loader is loaded", () => {
+    const store = createViewerStore("test-viewer-minzoom-loaded");
+    store.getState().setLoader(createMockLoader(6));
+
+    const fitViewState = {
+      zoom: -6.5,
+      target: [50000, 40000],
+      minZoom: -10,
+    } as unknown as ViewState;
+
+    store.getState().setViewStateActive(fitViewState);
+
+    expect(store.getState().viewStateActive?.minZoom).toBe(-6);
+  });
+
+  test("setLoader() re-stamps the bound of a view state set before the load", () => {
+    const store = createViewerStore("test-viewer-minzoom-restamp");
+
+    const fitViewState = {
+      zoom: -6.5,
+      target: [50000, 40000],
+      minZoom: -10,
+    } as unknown as ViewState;
+    store.getState().setViewStateActive(fitViewState);
+
+    store.getState().setLoader(createMockLoader(4));
+
+    expect(store.getState().viewStateActive?.minZoom).toBe(-4);
+  });
+
+  test("setLoader() leaves a null view state alone", () => {
+    const store = createViewerStore("test-viewer-minzoom-null");
+
+    store.getState().setLoader(createMockLoader(4));
+
+    expect(store.getState().viewStateActive).toBeNull();
   });
 
   test("setIsViewerLoading()", () => {

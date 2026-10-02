@@ -48,7 +48,14 @@ export const createViewSlice: ViewerSlice<ViewSlice> = (set) => ({
     set(
       (viewerStore) => {
         viewerStore.viewStateActive = viewStateActive;
-        viewerStore.viewStateActive.minZoom = -(viewerStore.loader?.length ?? 0);
+        // The loader's pyramid level count bounds zoom-out; stamping it while
+        // the loader is empty would clamp deck.gl's zoom to 0 and catapult the
+        // first wheel tick. Keep the caller's bound (e.g. the fit literal's -10)
+        // until setLoader re-stamps the real one.
+        const loaderLength = viewerStore.loader?.length ?? 0;
+        if (loaderLength > 0) {
+          viewerStore.viewStateActive.minZoom = -loaderLength;
+        }
         viewerStore.viewStateActive.maxZoom = 2;
       },
       false,
