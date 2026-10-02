@@ -19,7 +19,7 @@ export const StampGhost = () => {
       aria-hidden
       className={`
         pointer-events-none absolute
-        border border-dashed border-(--color-slate-300)
+        border border-dashed border-(--color-dusk-300)
         shadow-sm
       `}
       style={{

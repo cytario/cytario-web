@@ -57,7 +57,7 @@ export function ColorPicker({ colors, onColorChange, label }: ColorPickerProps) 
       <Popover>
         <ColorSwatch colors={colors} aria-label={label ? `Edit ${label}` : "Open color picker"} />
 
-        <PopoverContent placement="bottom start" data-theme="dark">
+        <PopoverContent placement="bottom start">
           <RacColorPicker
             value={parseColor(`rgb(${r}, ${g}, ${b})`).toFormat("hsb")}
             onChange={(color) => {
