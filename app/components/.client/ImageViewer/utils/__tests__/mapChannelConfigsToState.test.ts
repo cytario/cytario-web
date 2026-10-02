@@ -49,11 +49,28 @@ describe("mapChannelConfigsToState", () => {
     expect(columns.selections).toHaveLength(2);
   });
 
-  test("excludes channels that were never initialized", () => {
+  test("includes a visible channel while its stats are still initializing", () => {
+    const columns = mapChannelConfigsToState(
+      makeChannelsState([
+        { id: "Red", isInitialized: true, isVisible: true },
+        { id: "Green", isInitialized: false, isVisible: true },
+        { id: "Blue", isInitialized: false, isVisible: false },
+      ]),
+    );
+
+    // Green is checked on but its initChannelStats fetch has not resolved yet
+    // (or failed) — it must still receive a selection so it renders with
+    // default contrast instead of silently disappearing from the canvas.
+    expect(columns.ids).toEqual(["Red", "Green"]);
+    expect(columns.channelsVisible).toEqual([true, true]);
+    expect(columns.selections).toHaveLength(2);
+  });
+
+  test("excludes channels that are neither initialized nor visible", () => {
     const columns = mapChannelConfigsToState(
       makeChannelsState([
         { id: "Red", isVisible: true },
-        { id: "Green", isInitialized: false },
+        { id: "Green", isInitialized: false, isVisible: false },
       ]),
     );
 
@@ -124,6 +141,25 @@ describe("mapChannelConfigsToState", () => {
 
     expect(columns.ids).toHaveLength(8);
     expect(columns.channelsVisible.filter(Boolean)).toHaveLength(1);
+  });
+
+  test("drops a visible-uninitialized channel beyond the cap only when visible ones already fill it", () => {
+    // 10 visible initialized + 1 more toggled on before its stats resolve: viv
+    // composites at most MAX_CHANNELS, so the late one waits — but a visible
+    // channel is never dropped while a hidden one occupies a slot.
+    const entries = [
+      ...Array.from({ length: 10 }, (_, index) => ({
+        id: `Channel ${index}`,
+        isVisible: true,
+      })),
+      { id: "Late Visible", isInitialized: false, isVisible: true },
+      { id: "Hidden", isInitialized: true, isVisible: false },
+    ];
+    const columns = mapChannelConfigsToState(makeChannelsState(entries));
+
+    expect(columns.ids).toHaveLength(10);
+    expect(columns.channelsVisible.every(Boolean)).toBe(true);
+    expect(columns.ids).not.toContain("Hidden");
   });
 
   test("returns empty columns for an empty channels state", () => {
