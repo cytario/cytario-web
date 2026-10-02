@@ -63,7 +63,7 @@ const ImagePanelInner = ({
   });
 
   useEffect(() => {
-    if (!isActivePanel || !metadata || !width || !height) return;
+    if (!isActivePanel || !metadata || !loader?.length || !width || !height) return;
 
     if (!viewStateActive) {
       const initViewState = calculateViewStateToFit(metadata, { width, height }, { padding });
@@ -72,7 +72,16 @@ const ImagePanelInner = ({
       const updatedViewState = { ...viewStateActive, width, height };
       setViewStateActive(updatedViewState);
     }
-  }, [isActivePanel, metadata, padding, setViewStateActive, width, height, viewStateActive]);
+  }, [
+    isActivePanel,
+    metadata,
+    loader,
+    padding,
+    setViewStateActive,
+    width,
+    height,
+    viewStateActive,
+  ]);
 
   const onViewStateChange = useCallback(
     ({ viewState: { zoom, target } }: { viewState: OrthographicViewState }) => {
