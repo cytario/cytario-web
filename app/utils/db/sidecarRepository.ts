@@ -1,10 +1,12 @@
 import { createDatabase, releaseDatabase } from "./createDatabase";
 import { escapeSqlString } from "./escapeSqlString";
 import { resolveResourceId } from "../connectionsStore/selectors";
+import { constructS3Url, s3KeyFromUri } from "../resourceId";
 import { getSidecarKey, parseOwnerFromKey, type SidecarKind } from "../sidecarKey";
+import type { SignedFetch } from "../signedFetch";
 
 const sidecarFilesQuery = /*sql*/ `SELECT file FROM glob(?)`;
-const readAllTextQuery = /*sql*/ `SELECT filename, content FROM read_text(?)`;
+const readTextQuery = /*sql*/ `SELECT content FROM read_text(?)`;
 
 /**
  * Transport for sidecar files (annotations, settings, …) in the customer's S3
@@ -22,49 +24,95 @@ export class SidecarRepository {
   ) {}
 
   /**
-   * Every owner's sidecar of `kind` for the image in ONE round-trip: a wildcard
-   * `read_text` over `*.<kind>.*.json` returns one row per file, with the owner
-   * parsed from each filename. A zero-match `read_text` throws, so an empty
-   * `glob` short-circuits to `{}` first. Parsing each `content` into its
-   * document shape is the caller's concern.
+   * Every owner's sidecar of `kind`, read per-file so one unreadable file
+   * doesn't fail the rest. Settings go through the signed fetch — duckdb's
+   * S3 reads carry no cache policy, so the browser would serve a stale
+   * cached body after a mid-session overwrite. Annotations stay on duckdb
+   * (large GeoJSON must not move through the JS heap), so their GETs must
+   * carry no response-cache-control param.
    */
-  static async readAll<T>(resourceId: string, kind: SidecarKind): Promise<Record<string, T>> {
-    const { credentials, region, endpoint, s3Uri } = resolveResourceId(resourceId);
+  static async readAll<T>(
+    resourceId: string,
+    kind: SidecarKind,
+    signedFetch?: SignedFetch,
+  ): Promise<Record<string, T>> {
+    if (kind === "settings" && typeof signedFetch !== "function") {
+      throw new Error("settings sidecar reads require a signed fetch (cache-poisoned transport)");
+    }
+    const { credentials, region, endpoint, s3Uri, connectionConfig } =
+      resolveResourceId(resourceId);
     const connection = await createDatabase(resourceId, credentials, { region, endpoint });
     const glob = getSidecarKey(s3Uri, kind); // omit owner ⇒ `*` wildcard over all owners
 
     try {
       const globStatement = await connection.prepare(sidecarFilesQuery);
+      let files: string[];
       try {
-        if ((await globStatement.query(glob)).numRows === 0) return {};
+        files = ((await globStatement.query(glob)).toArray() as { file: string }[]).map(
+          (row) => row.file,
+        );
       } finally {
         await globStatement.close();
       }
+      if (files.length === 0) return {};
 
-      const statement = await connection.prepare(readAllTextQuery);
+      const httpsUrlFor = (filename: string) =>
+        constructS3Url(
+          { bucketName: connectionConfig.bucketName, region, endpoint },
+          s3KeyFromUri(filename),
+        );
+
+      const byOwner: Record<string, T> = {};
+      for (const filename of files) {
+        const owner = parseOwnerFromKey(filename, kind);
+        if (!owner) continue;
+        const content =
+          kind === "settings"
+            ? await SidecarRepository.readViaSignedFetch<T>(filename, signedFetch!, httpsUrlFor)
+            : await SidecarRepository.readViaDuckdb<T>(connection, filename);
+        if (content !== undefined) byOwner[owner] = content;
+      }
+      return byOwner;
+    } finally {
+      releaseDatabase(resourceId);
+    }
+  }
+
+  /** One settings file via the signed fetch (revalidating cache policy). */
+  private static async readViaSignedFetch<T>(
+    filename: string,
+    signedFetch: SignedFetch,
+    httpsUrlFor: (filename: string) => string,
+  ): Promise<T | undefined> {
+    try {
+      const response = await signedFetch(httpsUrlFor(filename));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return JSON.parse(await response.text()) as T;
+    } catch (error) {
+      console.error(`[sidecar] skipping unreadable ${filename}:`, error);
+      return undefined;
+    }
+  }
+
+  private static async readViaDuckdb<T>(
+    connection: Awaited<ReturnType<typeof createDatabase>>,
+    filename: string,
+  ): Promise<T | undefined> {
+    try {
+      const statement = await connection.prepare(readTextQuery);
       try {
-        const rows = (await statement.query(glob)).toArray() as {
-          filename: string;
-          content: string;
-        }[];
-        const byOwner: Record<string, T> = {};
-        for (const { filename, content } of rows) {
-          const owner = parseOwnerFromKey(filename, kind);
-          if (!owner || !content) continue;
-          // One corrupt/truncated sidecar must not abort the whole union read —
-          // skip it so every other owner's annotations still load.
-          try {
-            byOwner[owner] = JSON.parse(content) as T;
-          } catch (error) {
-            console.error(`[sidecar] skipping unparseable ${kind} file for ${owner}:`, error);
-          }
-        }
-        return byOwner;
+        const content = (
+          (await statement.query(filename)).toArray() as {
+            content: string;
+          }[]
+        )[0]?.content;
+        return content ? (JSON.parse(content) as T) : undefined;
       } finally {
         await statement.close();
       }
-    } finally {
-      releaseDatabase(resourceId);
+    } catch (error) {
+      console.error(`[sidecar] skipping unreadable ${filename}:`, error);
+      return undefined;
     }
   }
 

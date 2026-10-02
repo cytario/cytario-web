@@ -254,6 +254,21 @@ describe("createSignedFetch", () => {
     expect(url).toContain("response-cache-control=private%2C%20max-age%3D3600");
   });
 
+  test("appends no-cache response-cache-control for settings sidecar paths", async () => {
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/some/dir/settings.abc-123.json");
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toContain("response-cache-control=private%2C%20no-cache");
+  });
+
+  test("appends no-cache for settings sidecars whose owner id contains dots", async () => {
+    // Owner ids may be federated IdP subjects, which routinely contain dots.
+    const sf = createSignedFetch(() => mockCredentials, mockConfig);
+    await sf("https://bucket.s3.eu-central-1.amazonaws.com/dir/settings.a.b.c.json");
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toContain("response-cache-control=private%2C%20no-cache");
+  });
+
   test("classifies OME-Zarr chunk paths as image data", async () => {
     const sf = createSignedFetch(() => mockCredentials, mockConfig);
     await sf("https://bucket.s3.eu-central-1.amazonaws.com/image.zarr/0/0/0");

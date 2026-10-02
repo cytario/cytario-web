@@ -116,9 +116,12 @@ function makeSidecarEntry(id: string, name?: string): ViewSettingsEntry {
   };
 }
 
+const signedFetch = vi.fn();
+
 describe("attachViewSync", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    signedFetch.mockReset();
     readMock.mockReset();
     readMock.mockResolvedValue([]);
     writeMock.mockReset();
@@ -135,16 +138,26 @@ describe("attachViewSync", () => {
     readMock.mockResolvedValue(entries);
     const { store, state } = makeFakeStore();
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     expect(state.layersStates.some((ls) => ls.id === "view-1")).toBe(true);
   });
 
+  it("forwards the passed signedFetch to readViewSettings", async () => {
+    const { store } = makeFakeStore();
+    const fetcher = vi.fn();
+
+    attachViewSync(store, fetcher);
+    await vi.runAllTimersAsync();
+
+    expect(readMock).toHaveBeenCalledWith("conn/slide.ome.tif", fetcher);
+  });
+
   it("does not write when no views are shared", async () => {
     const { store, fire } = makeFakeStore();
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     fire();
@@ -161,7 +174,7 @@ describe("attachViewSync", () => {
 
     const { store, state, fire } = makeFakeStore();
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     state.shareView(0);
@@ -180,7 +193,7 @@ describe("attachViewSync", () => {
   it("writes shared views to S3 after debounce when a view is shared", async () => {
     const { store, state, fire } = makeFakeStore();
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     state.shareView(0);
@@ -203,7 +216,7 @@ describe("attachViewSync", () => {
     const { store, fire } = makeFakeStore();
     store.getState().layersStates = [entry];
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     fire();
@@ -217,7 +230,7 @@ describe("attachViewSync", () => {
     const { store, state, fire } = makeFakeStore();
     store.getState().layersStates = [entry];
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     writeMock.mockClear();
@@ -237,7 +250,7 @@ describe("attachViewSync", () => {
 
     const { store, state, fire } = makeFakeStore();
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     state.shareView(0);
@@ -256,7 +269,7 @@ describe("attachViewSync", () => {
     const { store, state, fire } = makeFakeStore();
     store.getState().layersStates = [entry];
 
-    attachViewSync(store);
+    attachViewSync(store, signedFetch);
     await vi.runAllTimersAsync();
 
     writeMock.mockClear();

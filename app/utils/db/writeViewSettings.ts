@@ -6,10 +6,18 @@ import {
   type ViewSettingsDocument,
 } from "./viewSettingsSchema";
 import { resolveResourceId } from "../connectionsStore/selectors";
+import type { SignedFetch } from "../signedFetch";
 import type { LayersStateEntry } from "~/components/.client/ImageViewer/state/store/types";
 
-export async function readViewSettings(resourceId: string): Promise<ViewSettingsEntry[]> {
-  const documents = await SidecarRepository.readAll<ViewSettingsDocument>(resourceId, "settings");
+export async function readViewSettings(
+  resourceId: string,
+  signedFetch: SignedFetch,
+): Promise<ViewSettingsEntry[]> {
+  const documents = await SidecarRepository.readAll<ViewSettingsDocument>(
+    resourceId,
+    "settings",
+    signedFetch,
+  );
   const allViews: ViewSettingsEntry[] = [];
   for (const [userId, doc] of Object.entries(documents)) {
     if (!doc?.views?.length) continue;

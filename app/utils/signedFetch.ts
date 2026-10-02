@@ -4,6 +4,7 @@ import { SignatureV4 } from "@smithy/signature-v4";
 
 import { ExpiredCredentialsError, requestCredentialsRefresh } from "~/utils/credentialsRefresh";
 import { sanitizeHeaders } from "~/utils/sanitizeHeaders";
+import { isSettingsSidecarPath } from "~/utils/sidecarKey";
 
 export type SignedFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -114,6 +115,11 @@ const IMAGE_DATA_CACHE_CONTROL = "private, max-age=604800";
 // regenerations surface without an explicit purge.
 const OTHER_DATA_CACHE_CONTROL = "private, max-age=3600";
 
+// Settings sidecars are overwritten mid-session and re-read on reload — the
+// browser must revalidate before serving them, otherwise a write serves
+// stale bytes until the hour ceiling lapses.
+const SETTINGS_CACHE_CONTROL = "private, no-cache";
+
 // Matches TIFF/OME-TIFF reads and OME-Zarr chunk filenames (digits-only).
 function isImageDataPath(pathname: string): boolean {
   return /\.tiff?$/i.test(pathname) || /\/\d+(?:\.\d+)*$/.test(pathname);
@@ -176,9 +182,11 @@ export function createSignedFetch(
     const method = (init?.method as string) ?? "GET";
     const isRead = method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD";
 
-    const cacheControl = isImageDataPath(parsed.pathname)
-      ? IMAGE_DATA_CACHE_CONTROL
-      : OTHER_DATA_CACHE_CONTROL;
+    const cacheControl = isSettingsSidecarPath(parsed.pathname)
+      ? SETTINGS_CACHE_CONTROL
+      : isImageDataPath(parsed.pathname)
+        ? IMAGE_DATA_CACHE_CONTROL
+        : OTHER_DATA_CACHE_CONTROL;
 
     // Signed headers merge LAST so a bypass of `sanitizeHeaders` cannot
     // override the signature.

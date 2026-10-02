@@ -3,6 +3,7 @@ import type { createViewerStore } from "../createViewerStore";
 import type { LayersStateEntry } from "../types";
 import { layersStateToSidecarEntry, type ViewSettingsEntry } from "~/utils/db/viewSettingsSchema";
 import { readViewSettings, writeViewSettings } from "~/utils/db/writeViewSettings";
+import type { SignedFetch } from "~/utils/signedFetch";
 
 type ViewerStoreApi = ReturnType<typeof createViewerStore>;
 
@@ -19,12 +20,12 @@ function ownSharedViewsOnly(
   return layersStates.filter((ls) => ls.shared && ls.author === currentUserId);
 }
 
-export function attachViewSync(store: ViewerStoreApi): void {
+export function attachViewSync(store: ViewerStoreApi, signedFetch: SignedFetch): void {
   let persisted: ViewSettingsEntry[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
   let flushing = false;
 
-  readViewSettings(store.getState().id)
+  readViewSettings(store.getState().id, signedFetch)
     .then((views) => {
       if (views.length > 0) {
         persisted = views;
