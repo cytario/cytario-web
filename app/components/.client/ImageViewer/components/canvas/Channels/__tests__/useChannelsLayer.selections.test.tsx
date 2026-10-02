@@ -217,6 +217,54 @@ describe("useChannelsLayer selections stability", () => {
     expect(props.channelsVisible).toEqual([true, true, false]);
   });
 
+  test("a caller-aborted tile resolves to null instead of rejecting", async () => {
+    // deck.gl aborts in-flight tiles on every viewport change and treats a
+    // getTile rejection as TERMINAL (content = null, _isLoaded = true, never
+    // re-requested) — the tile would stay parked at its parent (blurry)
+    // level after a rapid zoom. The wrapper must convert AbortError to a
+    // null return, matching viv's own SIGNAL_ABORTED protocol, so deck.gl
+    // marks the tile as cancelled and refinable.
+    const abortingLoader = {
+      ...loaderLevel,
+      getTile: () => Promise.reject(new DOMException("aborted", "AbortError")),
+    };
+    act(() => {
+      store.setState({ loader: [abortingLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    await expect(
+      wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } }),
+    ).resolves.toBeNull();
+  });
+
+  test("a non-abort tile error still rejects", async () => {
+    const failingLoader = {
+      ...loaderLevel,
+      getTile: () => Promise.reject(new Error("genuine tile failure")),
+    };
+    act(() => {
+      store.setState({ loader: [failingLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    await expect(wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } })).rejects.toThrow(
+      "genuine tile failure",
+    );
+  });
+
   test("pixel readouts exclude hidden channels", () => {
     const { result } = renderHook(() => useChannelsLayer(0));
     const getTooltipItems = result.current.getTooltipItems;
