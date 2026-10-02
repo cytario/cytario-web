@@ -4,6 +4,7 @@ import { useViewerSidebarStore } from "../useViewerSidebarStore";
 import { AnnotationsSection } from "./AnnotationsSection/AnnotationsSection";
 import { ChannelsSection } from "./ChannelsSection/ChannelsSection";
 import { ImageSidebarToggle } from "./ImageSidebarToggle";
+import { InfoSection } from "./InfoSection/InfoSection";
 import { OverlaysSection } from "./OverlaysSection/OverlaysSection";
 import { OverviewSection } from "./OverviewSection/OverviewSection";
 import { SettingsSection } from "./SettingsSection/SettingsSection";
@@ -19,6 +20,7 @@ const SECTIONS: { id: string; Component: ComponentType }[] = [
   { id: "channels", Component: ChannelsSection },
   { id: "overlays", Component: OverlaysSection },
   { id: "annotations", Component: AnnotationsSection },
+  { id: "info", Component: InfoSection },
   { id: "settings", Component: SettingsSection },
 ];
 

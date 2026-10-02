@@ -38,3 +38,22 @@ export const getDtypeBitDepth = (dtype: SupportedDtype): number => {
       return 32;
   }
 };
+
+/** Human-readable pixel-type depth for metadata display ("16-bit", "64-bit float"). */
+export const getDtypeDepthLabel = (dtype: SupportedDtype): string => {
+  switch (dtype) {
+    case "Uint8":
+    case "Int8":
+      return "8-bit";
+    case "Uint16":
+    case "Int16":
+      return "16-bit";
+    case "Uint32":
+    case "Int32":
+      return "32-bit";
+    case "Float32":
+      return "32-bit float";
+    case "Float64":
+      return "64-bit float";
+  }
+};
