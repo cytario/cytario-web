@@ -5,11 +5,14 @@ import {
   MenuItem,
   MenuSection,
   MenuSeparator,
+  SegmentedControl,
+  SegmentedControlItem,
 } from "@cytario/design";
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { useThemeStore, type Theme } from "~/utils/themeStore";
 
 interface UserMenuProps {
   user: UserProfile;
@@ -17,7 +20,15 @@ interface UserMenuProps {
   portalUrl?: string;
 }
 
+const themeOptions: { id: Theme; label: string }[] = [
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+];
+
 export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps) {
+  const theme = useThemeStore((state) => state.theme);
+  const setTheme = useThemeStore((state) => state.setTheme);
+
   return (
     <Menu
       content={
@@ -30,6 +41,29 @@ export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps)
               <div className="text-muted-foreground">{user.email}</div>
             </div>
           </MenuHeader>
+
+          <MenuSeparator />
+
+          <MenuSection header="Theme">
+            <div className="flex justify-center px-3 py-2">
+              <SegmentedControl
+                aria-label="Color theme"
+                selectionMode="single"
+                size="sm"
+                selectedKeys={new Set([theme])}
+                onSelectionChange={(keys) => {
+                  const key = [...keys][0];
+                  if (key === "light" || key === "dark") setTheme(key);
+                }}
+              >
+                {themeOptions.map(({ id, label }) => (
+                  <SegmentedControlItem key={id} id={id}>
+                    {label}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+            </div>
+          </MenuSection>
 
           <MenuSeparator />
 

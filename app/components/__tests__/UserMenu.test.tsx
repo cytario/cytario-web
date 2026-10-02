@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { UserMenu } from "~/components/UserMenu";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { useThemeStore } from "~/utils/themeStore";
 
 vi.mock("@cytario/design", async () => {
   const actual = await vi.importActual<typeof import("@cytario/design")>("@cytario/design");
@@ -17,6 +18,15 @@ vi.mock("@cytario/design", async () => {
     MenuHeader: ({ children }: { children: React.ReactNode }) =>
       createElement("div", null, children),
     MenuSeparator: () => createElement("hr", null),
+    SegmentedControl: ({
+      children,
+      "aria-label": ariaLabel,
+    }: {
+      children: React.ReactNode;
+      "aria-label"?: string;
+    }) => createElement("div", { role: "radiogroup", "aria-label": ariaLabel }, children),
+    SegmentedControlItem: ({ id, children }: { id: string; children: React.ReactNode }) =>
+      createElement("div", { "data-testid": `theme-option-${id}` }, children),
     MenuItem: ({
       id,
       href,
@@ -54,6 +64,26 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
 }
 
 const accountSettingsUrl = "https://auth.example.com/account";
+
+describe("UserMenu — theme switcher", () => {
+  test("renders Light and Dark options", () => {
+    render(<UserMenu user={makeUser()} accountSettingsUrl={accountSettingsUrl} />);
+
+    expect(screen.getByTestId("theme-option-light")).toHaveTextContent("Light");
+    expect(screen.getByTestId("theme-option-dark")).toHaveTextContent("Dark");
+  });
+
+  test("marks the persisted theme as selected", async () => {
+    localStorage.setItem(
+      "cytario-theme",
+      JSON.stringify({ state: { theme: "light" }, version: 0 }),
+    );
+    await useThemeStore.persist.rehydrate();
+    render(<UserMenu user={makeUser()} accountSettingsUrl={accountSettingsUrl} />);
+
+    expect(useThemeStore.getState().theme).toBe("light");
+  });
+});
 
 describe("UserMenu — Admin Portal entry", () => {
   test("renders Admin Portal link for an org-root admin when portalUrl is set", () => {

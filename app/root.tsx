@@ -32,6 +32,7 @@ import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
 import { toastBridge, toToastVariant } from "./toast-bridge";
 import { useFileStore } from "./utils/localFilesStore/useFileStore";
+import { DEFAULT_THEME, useThemeStore } from "./utils/themeStore";
 
 import "./styles.css";
 import "rc-slider/assets/index.css";
@@ -145,11 +146,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const isNavigating = navigation.state === "loading";
 
+  // The server snapshot is the default; the pre-paint boot script below
+  // already applied the persisted theme to the DOM, and this store rehydrates
+  // synchronously from localStorage on the client (see themeStore).
+  const theme = useSyncExternalStore(
+    useThemeStore.subscribe,
+    () => useThemeStore.getState().theme,
+    () => DEFAULT_THEME,
+  );
+
   return (
-    <html lang="en" data-theme="light" inert={!isHydrated}>
+    <html lang="en" data-theme={theme} inert={!isHydrated} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=JSON.parse(localStorage.getItem("cytario-theme")).state.theme;document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="${DEFAULT_THEME}"}`,
+          }}
+        />
         <Meta />
         <Links />
       </head>

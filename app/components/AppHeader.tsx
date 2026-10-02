@@ -22,10 +22,9 @@ export function AppHeader() {
   const headerSlot = useLayoutStore((s) => s.headerSlot);
   const data = useRouteLoaderData<RootLoaderResponse>("root");
 
-  // Real dark theme (not token overrides) so children resolve the canonical dark palette.
+  // Inherits the global theme from the document root (user-switchable).
   return (
     <header
-      data-theme="dark"
       className={`
         z-20 top-0 left-0 right-0
         flex justify-between items-center 

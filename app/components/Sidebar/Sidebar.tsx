@@ -179,7 +179,6 @@ export function Sidebar({
     <motion.aside
       id={sidebarDomId(name)}
       aria-label={name}
-      data-theme="dark"
       style={{ width: motionWidth }}
       className="relative shrink-0 border-border bg-background text-foreground"
     >
