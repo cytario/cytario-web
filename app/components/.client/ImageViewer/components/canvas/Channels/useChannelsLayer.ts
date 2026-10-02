@@ -119,6 +119,21 @@ export const useChannelsLayer = (
         } catch (error) {
           finishTile(tileId);
 
+          // deck.gl aborts in-flight tiles on every viewport change. Its Tile2DHeader
+          // treats a getTileData REJECTION as terminal (content = null, _isLoaded = true —
+          // never re-requested), so rethrowing the loader's AbortError permanently parks
+          // the tile at its parent (blurry) level after a rapid zoom. viv's own loaders
+          // convert their abort to a null return via the SIGNAL_ABORTED sentinel, which
+          // deck.gl marks as cancelled — non-terminal, refinable. Plugin loaders (qptiff
+          // et al.) throw DOMException AbortError, so do the same conversion here: a
+          // caller-aborted tile returns null instead of rejecting.
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return null;
+          }
+          if (error instanceof Error && error.name === "AbortError") {
+            return null;
+          }
+
           throw error;
         }
       };
