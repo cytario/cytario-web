@@ -291,14 +291,15 @@ Plane is connected to GitHub. Mentioning a Plane work item ID (e.g. `C-193`, `WE
 
 Convention:
 
+- **PR titles start with the ticket ID**, followed by the Conventional-Commit summary (`[C-193] feat(api): paginate ListObjectsV2 with delimiter`).
 - Bracket the ticket(s) this PR/commit actually closes.
-- Leave follow-up and reference tickets unbracketed so they stay open after merge.
+- Leave follow-up and reference tickets unbracketed (parenthesized `(C-193)` or bare `C-193` at the start) so they stay open after merge.
 - This is independent of GitHub's `closes:` / `fixes:` / `resolves:` keywords, which only affect native GitHub Issues, not Plane work items.
 
 Example PR description:
 
 ```
-[C-193] Paginate ListObjectsV2 with delimiter
+[C-193] feat(api): paginate ListObjectsV2 with delimiter
 
 Fixes the missing-prefix bug surfaced in C-193.
 Follow-up cleanup tracked in C-201.
@@ -323,6 +324,14 @@ Follow-up cleanup tracked in C-201.
 - PRs target `main`, require passing CI
 - **Linear history** — always rebase feature branches onto `main` (or onto their base branch). Never merge `main` into a feature branch. Use `git rebase` to keep history clean and linear.
 
+### Worktrees
+
+Create git worktrees as **sibling directories** of the main checkout, e.g. `~/src/cytario-web-c-466` next to `~/src/cytario-web` (repo name, hyphen, branch suffix). **Never** create `wt/` (or any worktree-collecting) folder _inside_ a repository — it pollutes builds, globs, tooling, and file watchers that walk the source tree:
+
+```bash
+git -C ~/src/cytario-web worktree add ../cytario-web-<suffix> -b <branch> origin/main
+```
+
 ---
 
 ## Local Development
@@ -343,6 +352,24 @@ npx prisma generate          # Generate Prisma client
 npx prisma migrate dev       # Apply migrations
 npm run dev                  # Start dev server at localhost:3000
 ```
+
+### Local e2e harness builds rewrite `app/plugins.generated.ts`
+
+`harness.mjs up` (the local e2e harness in cytario-docs) builds through
+cytario-ee's local plugin wiring, which regenerates `app/plugins.generated.ts`
+in this checkout to import the eight sibling plugins. That state is a **local
+build artifact** — the committed file must stay at the canonical empty-plugin
+set (enforced by `npm run codegen:check` and `scripts/__tests__/codegen-check.test.ts`).
+After any harness build, restore it before committing:
+
+```bash
+git checkout -- app/plugins.generated.ts
+```
+
+Symptoms of forgetting: pre-commit lint fails with 16
+`import/no-extraneous-dependencies` errors (the plugins are cytario-ee's
+dependencies, not this repo's), or the codegen-check test fails with
+"Generated file is stale".
 
 ---
 
