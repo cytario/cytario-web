@@ -138,6 +138,31 @@ describe("providerCatalogSchema", () => {
     expect(() => providerCatalogSchema.parse(bad)).toThrow();
   });
 
+  test("accepts a rustfs provider connection with an endpoint", () => {
+    const good = {
+      ...CATALOG,
+      providerConnections: [
+        {
+          ...CATALOG.providerConnections[0],
+          providerType: "rustfs",
+          endpoint: "https://s3.example.com",
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(good)).not.toThrow();
+  });
+
+  test("rejects a rustfs provider connection with a null endpoint (fail closed)", () => {
+    // A null endpoint would silently mint against the AWS default.
+    const bad = {
+      ...CATALOG,
+      providerConnections: [
+        { ...CATALOG.providerConnections[0], providerType: "rustfs", endpoint: null },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(bad)).toThrow(/non-null endpoint/);
+  });
+
   test("parses allowedGroups on an app catalog (SRS-CY-45107/39806)", () => {
     const catalog = providerCatalogSchema.parse(CATALOG);
     expect(catalog.appCatalogs[0].allowedGroups).toEqual(["lab/team-a", "lab/team-b"]);

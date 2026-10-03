@@ -116,6 +116,12 @@ describe("createGroupAction", () => {
     });
   });
 
+  test("creates a group whose name contains an underscore", async () => {
+    await callAction(makeRequest("team_alpha"), makeContext());
+
+    expect(createGroup).toHaveBeenCalledWith("cytario/lab", "team_alpha", "cytario");
+  });
+
   test("returns 409 duplicate-name error message", async () => {
     vi.mocked(createGroup).mockRejectedValue(new KeycloakAdminError(409, "409 Conflict"));
 

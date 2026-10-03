@@ -48,6 +48,12 @@ describe("createGroupSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  test("parses name with an underscore", () => {
+    const result = createGroupSchema.safeParse({ name: "team_alpha" });
+    expect(result.success).toBe(true);
+    expect(result.data!.name).toBe("team_alpha");
+  });
+
   test("fails when exceeding 255 characters", () => {
     const result = createGroupSchema.safeParse({ name: "a".repeat(256) });
     expect(result.success).toBe(false);

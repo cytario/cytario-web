@@ -3,12 +3,24 @@ import { randomUUID } from "crypto";
 import { redis } from "~/.server/db/redis";
 import { createLabel } from "~/.server/logging";
 
-// `PutBucketPolicy` replaces the whole document with no conditional-write
-// primitive, so all writers (here and in the admin portal) must serialize on
-// the SAME lock key `bucketpolicy:<accountId>:<bucketName>` — a pinned
-// cross-repo contract. Single-Redis lease, no renewal: the TTL must exceed
-// the worst-case critical section by a wide margin, or an expired lease
-// readmits the read-merge-write clobber this lock exists to prevent.
+/**
+ * Per-(namespace, bucket) serialization lock for cytario-web's own bucket-policy
+ * read-merge-write. `PutBucketPolicy` replaces the whole document with no
+ * conditional-write primitive, so concurrent applies on one bucket would
+ * clobber each other; cytario-web is the only writer of managed bucket-policy
+ * statements, and this lock serializes its applies per bucket.
+ *
+ * The lock key is `bucketpolicy:<namespace>:<bucketName>`. The namespace is
+ * the AWS account id on an AWS target, or the S3-compatible endpoint host on
+ * a RustFS target (one RustFS instance serves one account, so the host IS the
+ * account namespace).
+ *
+ * Single-Redis lease, no renewal: mutual exclusion holds only while the lease
+ * lives, so the TTL must exceed the worst-case critical section (STS mint +
+ * GetBucketPolicy + PutBucketPolicy over the network) by a wide margin — an
+ * expired lease would readmit the read-merge-write clobber this lock exists to
+ * prevent.
+ */
 
 const label = createLabel("bucketpolicy-lock", "magenta");
 
@@ -27,18 +39,26 @@ const RELEASE_LOCK_SCRIPT = `
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Lock key is a pinned cross-repo contract shared with the admin portal. */
-export const bucketPolicyLockKey = (accountId: string, bucketName: string): string =>
-  `bucketpolicy:${accountId}:${bucketName}`;
+/**
+ * The pinned lock key for a bucket in a given storage account namespace. The
+ * namespace is the AWS account id on AWS targets, or the S3-compatible
+ * endpoint host on a RustFS target (one instance serves one account).
+ */
+export const bucketPolicyLockKey = (namespace: string, bucketName: string): string =>
+  `bucketpolicy:${namespace}:${bucketName}`;
 
-// Throws if the lock cannot be acquired so the caller fails closed rather
-// than writing unserialized.
+/**
+ * Run `fn` while holding the per-(namespace, bucket) lock, releasing it
+ * afterwards. Retries acquisition up to a bounded number of times; throws if
+ * the lock cannot be acquired so the caller fails closed rather than writing
+ * unserialized.
+ */
 export async function withBucketPolicyLock<T>(
-  accountId: string,
+  namespace: string,
   bucketName: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const lockKey = bucketPolicyLockKey(accountId, bucketName);
+  const lockKey = bucketPolicyLockKey(namespace, bucketName);
   const lockValue = randomUUID();
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
