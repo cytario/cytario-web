@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { EVENTS, useJoyride, type BeforeHook, type EventData, type Step } from "react-joyride";
+import {
+  EVENTS,
+  STATUS,
+  useJoyride,
+  type BeforeHook,
+  type EventData,
+  type Step,
+} from "react-joyride";
 import { useLocation, useNavigate, useRouteLoaderData } from "react-router";
 
 import { GETTING_STARTED_TOUR_ID, type TourDefinition } from "./tourRegistry";
@@ -51,6 +58,11 @@ export function TourProvider({ children }: { children?: ReactNode }) {
   const protectedData = useRouteLoaderData<ProtectedLayoutData>("routes/layouts/protected.layout");
   const connectionCount = protectedData?.connectionConfigs?.length ?? 0;
 
+  // Admin-gated tours read the client-visible profile, the same source the
+  // user menu renders its Admin Groups section from. Memoized so the effect
+  // deps below stay referentially stable.
+  const adminScopes = useMemo(() => user?.adminScopes ?? [], [user]);
+
   const isComplete = useTourProgressStore((state) => state.isComplete);
   const completeTour = useTourProgressStore((state) => state.completeTour);
 
@@ -81,6 +93,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
           pathname: location.pathname,
           leafName: location.pathname.split("/").filter(Boolean).pop() ?? "",
           connectionCount,
+          adminScopes,
         }) &&
         !isComplete(sub, tour.id),
     );
@@ -90,9 +103,10 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       setActiveTour((current) => current ?? { definition: candidate });
     }, AUTOSTART_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [sub, location.pathname, connectionCount, isComplete]);
+  }, [sub, location.pathname, connectionCount, adminScopes, isComplete]);
 
   const navigateRef = useRef(navigate);
+  const signalHelpMenuRevealRef = useRef(useTourControllerStore.getState().signalHelpMenuReveal);
   useEffect(() => {
     navigateRef.current = navigate;
   }, [navigate]);
@@ -108,6 +122,18 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       const before: BeforeHook = async (data) => {
         if (step.data?.navigateTo) {
           navigateRef.current(step.data.navigateTo);
+        }
+        // Context-derived navigation (e.g. the admin screen's mandatory
+        // scope parameter, which the tour cannot know at definition time).
+        if (step.data?.navigateToFromContext) {
+          navigateRef.current(
+            step.data.navigateToFromContext({
+              pathname: location.pathname,
+              leafName: location.pathname.split("/").filter(Boolean).pop() ?? "",
+              connectionCount,
+              adminScopes,
+            }),
+          );
         }
         if (activeTour.definition.id === GETTING_STARTED_TOUR_ID && data.index === 1) {
           await normaliseAppShell();
@@ -128,7 +154,9 @@ export function TourProvider({ children }: { children?: ReactNode }) {
 
       return { ...step, before, data: step.data };
     });
-  }, [activeTour]);
+    // location/connectionCount/adminScopes feed the context the before hooks
+    // close over, so they belong to this memo's dependencies.
+  }, [activeTour, location.pathname, connectionCount, adminScopes]);
 
   // joyride's FINISHED/SKIPPED statuses are transient (reset() lands on READY
   // right after TOUR_END), so completion is captured from the TOUR_END event
@@ -137,6 +165,11 @@ export function TourProvider({ children }: { children?: ReactNode }) {
     if (data.type !== EVENTS.TOUR_END) return;
     if (!activeTour || !sub) return;
     completeTour(sub, activeTour.definition.id);
+    // Finishing (not skipping) the getting-started tour opens the Help menu
+    // so the user sees the Guided tours section for the first time.
+    if (activeTour.definition.id === GETTING_STARTED_TOUR_ID && data.status === STATUS.FINISHED) {
+      signalHelpMenuRevealRef.current();
+    }
     setActiveTour(null);
   };
 
@@ -164,9 +197,33 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       // the header out of the viewport.
       skipScroll: true,
       overlayColor: "rgba(0, 0, 0, 0.55)",
+      // The tooltip skin follows the design tokens rather than joyride's
+      // hardcoded #ffffff/#000000, so it tracks the active theme like the rest
+      // of the app. Joyride derives the primary button's label color from
+      // backgroundColor, so the styles override below re-points it to the
+      // primary's own foreground token.
+      backgroundColor: "var(--color-background)",
+      textColor: "var(--color-muted-foreground)",
+      primaryColor: "var(--color-primary)",
+      arrowColor: "var(--color-background)",
     },
     styles: {
+      tooltip: {
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--color-border)",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+      },
+      tooltipTitle: {
+        color: "var(--color-foreground)",
+        fontFamily: "var(--font-montserrat)",
+      },
       tooltipContainer: { fontFamily: "var(--font-montserrat)" },
+      buttonPrimary: {
+        color: "var(--color-primary-foreground)",
+        borderRadius: "var(--radius-sm)",
+        fontFamily: "var(--font-montserrat)",
+      },
+      buttonClose: { color: "var(--color-muted-foreground)" },
     },
   });
 
