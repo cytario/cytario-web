@@ -93,7 +93,7 @@ export function SectionHeaderRow({
       {leading}
       {icon && <Icon icon={icon} size="xs" />}
       {badge && (
-        <Badge color="teal" size="xs" className="font-bold">
+        <Badge color="secondary" size="xs" className="font-bold">
           {badge}
         </Badge>
       )}

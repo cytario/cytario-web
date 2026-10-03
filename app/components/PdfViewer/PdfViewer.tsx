@@ -163,6 +163,7 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
         <canvas
           ref={canvasRef}
           role="img"
+          // eslint-disable-next-line no-restricted-syntax -- PDF pages are literal white paper — not a theme surface.
           className="mx-auto bg-white shadow-md"
           aria-label={`PDF page ${pageNumber} of ${totalPages}`}
         />

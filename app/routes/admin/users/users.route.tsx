@@ -81,12 +81,12 @@ function buildGroupColumn(
       const pill = option.value ? (
         <ScopePill scope={option.value} visibleCount={pillVisibleCount} />
       ) : (
-        <Badge color="slate">All</Badge>
+        <Badge color="neutral">All</Badge>
       );
       return (
         <span className="flex w-full items-center justify-between gap-2">
           {pill}
-          <Badge color="slate" className="ml-auto shrink-0 tabular-nums">
+          <Badge color="neutral" className="ml-auto shrink-0 tabular-nums">
             {count}
           </Badge>
         </span>
@@ -149,7 +149,7 @@ function buildColumns(
       filterRender: (option) => {
         const label =
           option.value === "true" ? "Active" : option.value === "false" ? "Disabled" : option.label;
-        return <Badge color={option.value === "true" ? "green" : "slate"}>{label}</Badge>;
+        return <Badge color={option.value === "true" ? "success" : "neutral"}>{label}</Badge>;
       },
     },
     buildGroupColumn("groups", "Groups", groups, groupCounts, totalCount),
@@ -168,7 +168,7 @@ function buildCellRenderers(scope: string): CellRenderers<UserRow> {
     ),
     enabled: (row) => {
       const label = row.enabled === "true" ? "Active" : "Disabled";
-      return <Badge color={row.enabled === "true" ? "green" : "slate"}>{label}</Badge>;
+      return <Badge color={row.enabled === "true" ? "success" : "neutral"}>{label}</Badge>;
     },
     groups: (row) => (
       <div className="flex flex-wrap gap-1">
@@ -269,7 +269,7 @@ export default function AdminUsersRoute() {
                 <li key={conn.name}>
                   <Link
                     to={`/connections/${encodeURIComponent(conn.name)}`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:border-border hover:bg-white transition-colors"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:border-border hover:bg-background transition-colors"
                   >
                     <span className="h-2 w-2 rounded-full bg-success shrink-0" />
                     <span className="font-medium text-secondary hover:underline">{conn.name}</span>

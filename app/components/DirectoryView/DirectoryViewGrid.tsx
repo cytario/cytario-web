@@ -124,7 +124,7 @@ function FileCardGridItem({ node, connectionId }: { node: TreeNode; connectionId
         ) : undefined
       }
     >
-      {typeof size === "string" && <Badge color="slate">{size}</Badge>}
+      {typeof size === "string" && <Badge color="neutral">{size}</Badge>}
     </GridItem>
   );
 }

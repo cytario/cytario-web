@@ -15,6 +15,7 @@ export const TileLoaderIndicator = ({
         {channelsLoadingTiles.map((_, index) => (
           <div
             key={index}
+            // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
             className="w-2 h-2 rounded-sm m-1 bg-white border border-border animate-pulse"
           />
         ))}
@@ -23,6 +24,7 @@ export const TileLoaderIndicator = ({
         {overlaysLoadingTiles.map((_, index) => (
           <div
             key={index}
+            // eslint-disable-next-line no-restricted-syntax -- Literal physical color over the scanned image/canvas — not a theme surface.
             className="w-2 h-2 rounded-sm m-1 bg-white border border-border animate-pulse"
           />
         ))}
