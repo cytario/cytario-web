@@ -3,6 +3,7 @@ import {
   isStrippedBeyondRenderBudget,
   isPhantomInterleavedDim,
   parseNominalMagnification,
+  normalizeOmePixelsType,
 } from "../loadOmeTiffWithCredentials";
 
 function omeImage(
@@ -232,6 +233,36 @@ describe("parseNominalMagnification", () => {
     const omexml = wrap(omeImage("0", { sizeC: 1 }));
     expect(parseNominalMagnification(omexml)).toBeUndefined();
     expect(parseNominalMagnification("not xml at all")).toBeUndefined();
+  });
+});
+
+describe("normalizeOmePixelsType", () => {
+  const metadata = (type: string) => ({ Pixels: { Type: type } });
+
+  test.each([
+    ["uint8", "Uint8"],
+    ["uint16", "Uint16"],
+    ["uint32", "Uint32"],
+    ["int8", "Int8"],
+    ["int16", "Int16"],
+    ["int32", "Int32"],
+    ["float", "Float32"],
+    ["double", "Float64"],
+  ])("normalises OME-XML %s to %s", (raw, expected) => {
+    expect(normalizeOmePixelsType(metadata(raw)).Pixels.Type).toBe(expected);
+  });
+
+  test("leaves already-canonical types unchanged", () => {
+    expect(normalizeOmePixelsType(metadata("Uint16")).Pixels.Type).toBe("Uint16");
+  });
+
+  test("returns the metadata object itself", () => {
+    const m = metadata("uint16");
+    expect(normalizeOmePixelsType(m)).toBe(m);
+  });
+
+  test("throws on an unknown pixel type instead of yielding a silent empty label", () => {
+    expect(() => normalizeOmePixelsType(metadata("bit"))).toThrow(/Unknown pixel type/);
   });
 });
 
