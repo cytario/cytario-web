@@ -3,6 +3,7 @@ import { fromCustomClient } from "geotiff";
 
 import type { Image, Loader } from "../store/core/ome.tif.types";
 import { SigV4TiffClient } from "../transport/SigV4TiffClient";
+import { normalizePixelType } from "@cytario/plugin-api";
 import type { LoadOptions } from "@cytario/plugin-api";
 
 // `.ome.tif(f)` → `.offsets.json` (returns null for non-OME-TIFF URLs).
@@ -71,6 +72,20 @@ export function parseNominalMagnification(omexml: string): number | undefined {
   }
 
   return readFirst(omexml);
+}
+
+/**
+ * viv's OME-XML schema yields the raw lower-case enum ("uint16", "float");
+ * PixelType is canonical casing and "float"/"double" are not in it, so map
+ * the OME float aliases before normalising.
+ */
+export function normalizeOmePixelsType<T extends { Pixels: { Type: string } }>(metadata: T): T {
+  const rawType = metadata?.Pixels?.Type;
+  if (rawType) {
+    const omeFloatAlias: Record<string, string> = { float: "float32", double: "float64" };
+    metadata.Pixels.Type = normalizePixelType(omeFloatAlias[rawType] ?? rawType);
+  }
+  return metadata;
 }
 
 function parseOmeImageBlock(block: string, body: string): OmeImageBlock | null {
@@ -295,6 +310,9 @@ export async function loadOmeTiffWithCredentials(
   if (nominalMagnification !== undefined) {
     (result.metadata as Image).NominalMagnification = nominalMagnification;
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  normalizeOmePixelsType(result.metadata as any);
 
   return {
     data: result.data as unknown as Loader,
