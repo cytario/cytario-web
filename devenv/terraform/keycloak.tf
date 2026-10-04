@@ -43,6 +43,7 @@ resource "keycloak_openid_client_default_scopes" "cytario_web" {
     "roles",
     "web-origins",
     "basic",
+    keycloak_openid_client_scope.groups.name,
   ]
 }
 
@@ -62,15 +63,6 @@ resource "keycloak_openid_group_membership_protocol_mapper" "groups" {
   name      = "group-membership"
 
   claim_name = "groups"
-}
-
-resource "keycloak_openid_client_default_scopes" "groups" {
-  realm_id  = keycloak_realm.cytario.id
-  client_id = keycloak_openid_client.cytario_web.id
-
-  default_scopes = [
-    keycloak_openid_client_scope.groups.name,
-  ]
 }
 
 # The organization every dev user belongs to. Its alias is the tenant key
